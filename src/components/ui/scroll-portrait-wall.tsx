@@ -212,9 +212,9 @@ export function ScrollPortraitWall({
                       />
                     </div>
                     {showCaptions && (s.name || s.role) ? (
-                      <div className="absolute -bottom-2 left-0 flex w-full translate-y-full justify-between gap-2 text-[11px] uppercase leading-tight text-slate-900 sm:text-sm font-medium">
-                        <span className="truncate">{s.name}</span>
-                        <span className="shrink-0">{s.role ? `(${s.role})` : ""}</span>
+                      <div className="absolute -bottom-2 left-0 flex w-full translate-y-full flex-wrap justify-between gap-x-2 gap-y-1 text-[11px] uppercase leading-tight text-slate-900 sm:text-sm font-medium">
+                        <span>{s.name}</span>
+                        <span className="text-slate-700">{s.role ? `(${s.role})` : ""}</span>
                       </div>
                     ) : null}
                   </div>

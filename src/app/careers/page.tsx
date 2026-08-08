@@ -16,7 +16,7 @@ const TEAMS: Speaker[] = [
   { name: "Jamil", role: "Regional Marketing Head", src: "/our teams/jamil.jpeg", imageClassName: "object-top" },
   { name: "", role: "", src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" },
   { name: "Jafeer Ahamed", role: "Regional Operation Head", src: "/our teams/jafeer.jpg", imageClassName: "object-[center_20%]" },
-  { name: "Muhammad Kassim", role: "Malaysia Director", src: "/our teams/muhammad kassim.png" },
+  { name: "Muhammad Kassim", role: "Head of Malaysia Operations", src: "/our teams/muhammad kassim.jpg" },
   { name: "Nandi", role: "Head of Dubai Operations", src: "/our teams/nandhinee.jpeg", imageClassName: "object-top" },
 ];
 
