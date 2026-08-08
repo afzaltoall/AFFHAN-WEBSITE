@@ -1,0 +1,100 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pg_trgm]
+}
+
+model Product {
+  id        Int     @id @default(autoincrement())
+  cjPid     String  @unique
+  name      String
+  sku       String?
+  imageUrl  String?
+  allImages Json?
+
+  categoryId  String?
+  categoryRef Category? @relation(fields: [categoryId], references: [id])
+  category    String? // legacy string for fallback, keeping it around just in case
+
+  description String?   @db.Text
+  lastSynced  DateTime? @default(now())
+
+  inquiries Inquiry[]
+
+  @@index([categoryId])
+  @@index([name])
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_name_trgm_idx")
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_desc_trgm_idx")
+}
+
+model Category {
+  id           String  @id // CJ categoryId
+  name         String
+  parentId     String?
+  parentName   String?
+  thumbnailUrl String?
+
+  products     Product[]
+  syncProgress SyncProgress?
+}
+
+model SyncProgress {
+  id              Int      @id @default(autoincrement())
+  categoryId      String   @unique
+  category        Category @relation(fields: [categoryId], references: [id])
+  lastPageFetched Int      @default(0)
+  totalPages      Int?
+  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED, PARTIAL_LIMIT_REACHED
+  errorMessage    String?  @db.Text
+  updatedAt       DateTime @updatedAt
+}
+
+model Inquiry {
+  id           String   @id @default(uuid())
+  productId    Int?
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName  String
+  quantity     Int
+  customerName String
+  companyName  String?
+  email        String?
+  country      String
+  phone        String
+  message      String?  @db.Text
+  status       String   @default("new") // inquiry triage: new | handled | spam
+  createdAt    DateTime @default(now())
+}
+
+
+
+
+model ModerationLog {
+  id             Int      @id @default(autoincrement())
+  cjPid          String
+  name           String
+  categoryName   String?
+  flaggedKeyword String?
+  timestamp      DateTime @default(now())
+}
+
+// Admin account, moved out of .env so email/password/photo can be changed from
+// the UI. The .env ADMIN_EMAIL/ADMIN_PASSWORD is only used to bootstrap the very
+// first record (see /api/auth/login). Passwords are stored as a bcrypt hash.
+// tokenVersion is bumped to invalidate every existing session ("sign out all
+// devices") — issued session tokens carry the version they were signed with.
+model AdminUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  image        String?  @db.Text
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+

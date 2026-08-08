@@ -1,0 +1,717 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #27a8c4;
+  --color-brand-dark: #176579;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+}
+
+/* Lead-capture popup entrance animations. */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Crisper text rendering for the premium sans across the whole site. */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+@layer utilities {
+  .sand-letter-in {
+    animation: sand-letter-in 1850ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .sand-letter-out {
+    animation: sand-letter-out 1450ms cubic-bezier(0.72, 0, 0.24, 1) both;
+  }
+
+  .benefit-card-in {
+    animation: benefit-card-in 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .stats-panel-in {
+    animation: stats-panel-in 850ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .stat-number-pop {
+    animation: stat-number-pop 900ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .product-category-in {
+    animation: product-category-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .category-marquee-mask {
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      black 4%,
+      black 96%,
+      transparent 100%
+    );
+  }
+
+  .category-marquee-row {
+    scrollbar-width: none;
+  }
+
+  .category-marquee-row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-marquee-left {
+    display: flex;
+    width: max-content;
+    animation: category-marquee-left 70s linear infinite;
+  }
+
+  .category-marquee-right {
+    display: flex;
+    width: max-content;
+    animation: category-marquee-right 70s linear infinite;
+  }
+
+  .shadow-orbital {
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+  }
+
+  .countries-marquee-mask {
+    mask-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      black 8%,
+      black 92%,
+      transparent 100%
+    );
+  }
+
+  .countries-marquee-left {
+    animation: countries-marquee-left var(--countries-duration, 64s) linear infinite;
+  }
+
+  .countries-marquee-right {
+    animation: countries-marquee-right var(--countries-duration, 64s) linear infinite;
+  }
+
+}
+
+@keyframes category-marquee-left {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes category-marquee-right {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes countries-marquee-left {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes countries-marquee-right {
+  from {
+    transform: translateX(-50%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes orbital-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes orbital-ping {
+  75%,
+  100% {
+    opacity: 0;
+    transform: scale(2);
+  }
+}
+
+@keyframes sand-letter-in {
+  0% {
+    opacity: 0;
+    filter: blur(20px);
+    transform: translate3d(var(--sand-x, 0), var(--sand-y, 24px), 0) scale(0.88) rotate(1deg);
+    text-shadow:
+      0 0 12px rgba(245, 213, 147, 0.95),
+      0 0 34px rgba(245, 213, 147, 0.45);
+  }
+
+  34% {
+    opacity: 0.36;
+    filter: blur(13px);
+    transform: translate3d(calc(var(--sand-x, 0) * 0.45), calc(var(--sand-y, 24px) * -0.36), 0) scale(0.94) rotate(-0.5deg);
+  }
+
+  68% {
+    opacity: 0.88;
+    filter: blur(4px);
+    transform: translate3d(calc(var(--sand-x, 0) * -0.08), 2px, 0) scale(1.018) rotate(0deg);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+    text-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+}
+
+@keyframes sand-letter-out {
+  0% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+    text-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  }
+
+  30% {
+    opacity: 0.72;
+    filter: blur(5px);
+    transform: translate3d(calc(var(--sand-x, 0) * -0.1), -2px, 0) scale(1.015);
+  }
+
+  62% {
+    opacity: 0.28;
+    filter: blur(13px);
+    transform: translate3d(calc(var(--sand-x, 0) * 0.65), calc(var(--sand-y, 24px) * -0.52), 0) scale(1.04);
+  }
+
+  100% {
+    opacity: 0;
+    filter: blur(24px);
+    transform: translate3d(var(--sand-x, 0), calc(var(--sand-y, 24px) * -1), 0) scale(1.08);
+    text-shadow:
+      0 0 18px rgba(245, 213, 147, 0.7),
+      0 0 42px rgba(245, 213, 147, 0.3);
+  }
+}
+
+@keyframes benefit-card-in {
+  0% {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(34px) scale(0.96);
+  }
+
+  62% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(-4px) scale(1.01);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes stats-panel-in {
+  0% {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes stat-number-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.94);
+  }
+
+  55% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.03);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes product-category-in {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes affhan-text-reveal {
+  0% {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translate3d(0, 18px, 0) scale(0.985);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes affhan-word-reveal {
+  0% {
+    opacity: 0;
+    filter: blur(14px);
+    transform: translate3d(0, 24px, 0) scale(0.96);
+  }
+
+  45% {
+    opacity: 0.85;
+    filter: blur(5px);
+    transform: translate3d(0, 4px, 0) scale(0.995);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes affhan-solid-text-settle {
+  0% {
+    opacity: 0.18;
+    filter: blur(18px);
+    transform: translate3d(0, 18px, 0) scale(0.985);
+  }
+
+  26% {
+    opacity: 0.28;
+    filter: blur(12px);
+    transform: translate3d(0, 12px, 0) scale(0.99);
+  }
+
+  62% {
+    opacity: 0.9;
+    filter: blur(4px);
+    transform: translate3d(0, 2px, 0) scale(0.998);
+  }
+
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes affhan-text-sweep {
+  0% {
+    left: 0;
+    opacity: 0;
+  }
+
+  20% {
+    opacity: 1;
+  }
+
+  82% {
+    opacity: 1;
+  }
+
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+.affhan-logo-core {
+  animation: affhan-logo-breathe 3.2s ease-in-out infinite;
+}
+
+.affhan-logo-orbit {
+  animation: affhan-logo-spin 7s linear infinite;
+  border-top-color: rgba(39, 168, 196, 0.9);
+  border-right-color: rgba(255, 255, 255, 0.18);
+}
+
+.affhan-logo-pulse {
+  animation: affhan-logo-pulse 2.4s ease-out infinite;
+}
+
+@keyframes affhan-logo-breathe {
+  0%,
+  100% {
+    box-shadow:
+      0 22px 80px rgba(8, 47, 73, 0.34),
+      0 0 0 0 rgba(39, 168, 196, 0.22);
+    transform: scale(1);
+  }
+
+  50% {
+    box-shadow:
+      0 28px 100px rgba(8, 47, 73, 0.42),
+      0 0 42px rgba(39, 168, 196, 0.26);
+    transform: scale(1.035);
+  }
+}
+
+@keyframes affhan-logo-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes affhan-logo-pulse {
+  0% {
+    opacity: 0.75;
+    transform: scale(0.82);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+@keyframes timeline-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes timeline-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+@keyframes subtle-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(6px);
+  }
+}
+
+.animate-subtle-bounce {
+  animation: subtle-bounce 2s ease-in-out infinite;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Parallax scrolling (parallax-scrolling.tsx) — layered depth hero on the
+   careers page; GSAP drives the per-layer yPercent as you scroll through it. */
+.parallax {
+  position: relative;
+  background: #05060a;
+}
+.parallax__header {
+  position: relative;
+  height: 220vh;
+}
+.parallax__visuals {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+.parallax__black-line-overflow {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 3px;
+  background: #05060a;
+  z-index: 6;
+}
+.parallax__layers {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.parallax__layer-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 130%;
+  object-fit: cover;
+  will-change: transform;
+}
+.parallax__layer-title {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3;
+  will-change: transform;
+}
+.parallax__title {
+  margin: 0;
+  color: #fff;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  text-align: center;
+  font-size: clamp(2.5rem, 10vw, 9rem);
+  text-shadow: 0 10px 50px rgba(39, 168, 196, 0.4);
+}
+.parallax__fade {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 40%;
+  background: linear-gradient(to top, #05060a 0%, transparent 100%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Horizon hero (horizon-hero-section.tsx) — three.js space scene on the
+   careers page. Canvas is fixed full-screen behind the scrolling title
+   sections; content sits above it. */
+.hero-container {
+  position: relative;
+  width: 100%;
+  background: #000;
+  color: #fff;
+}
+.hero-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
+}
+.hero-content {
+  position: relative;
+  z-index: 2;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 1.5rem;
+}
+.hero-title {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  font-size: clamp(2.25rem, 8vw, 7rem);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  text-shadow: 0 8px 40px rgba(39, 168, 196, 0.35);
+}
+.title-char {
+  display: inline-block;
+  white-space: pre;
+}
+.hero-subtitle {
+  margin-top: 1.5rem;
+  font-size: clamp(1rem, 2vw, 1.35rem);
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 300;
+}
+.subtitle-line {
+  margin: 0.25rem 0;
+}
+.scroll-progress {
+  position: fixed;
+  bottom: 1.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  width: 200px;
+  text-align: center;
+  color: #fff;
+}
+.scroll-text {
+  font-size: 0.65rem;
+  letter-spacing: 0.35em;
+  opacity: 0.7;
+}
+.progress-track {
+  height: 2px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0.55rem 0;
+  position: relative;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: #27a8c4;
+  transition: width 0.2s ease;
+}
+.section-counter {
+  font-size: 0.65rem;
+  opacity: 0.7;
+  letter-spacing: 0.1em;
+}
+.scroll-sections {
+  position: relative;
+  z-index: 2;
+}
+.content-section {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 1.5rem;
+}
+
+/* Card-fan carousel (card-fan-carousel.tsx). GSAP drives the transforms;
+   these rules give the layout its height and each card its base size, which
+   the component's responsive multipliers assume. Cards are stacked at the
+   container centre (top/left 50% + negative margins) so GSAP's x/y translate
+   offsets fan them out symmetrically. */
+.fan-layout {
+  position: relative;
+  height: 14rem;
+  perspective: 1400px;
+}
+.fan-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6.5rem;
+  height: 9.75rem;
+  margin-left: -3.25rem;
+  margin-top: -4.875rem;
+  border-radius: 1rem;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 24px 48px -14px rgba(15, 23, 42, 0.4);
+  will-change: transform;
+  transform-origin: center center;
+  outline: none;
+  border: 3px solid #fff;
+}
+@media (min-width: 480px) {
+  .fan-layout { height: 15rem; }
+  .fan-card { width: 7.5rem; height: 11.25rem; margin-left: -3.75rem; margin-top: -5.625rem; }
+}
+@media (min-width: 640px) {
+  .fan-layout { height: 16rem; }
+  .fan-card { width: 8.5rem; height: 12.75rem; margin-left: -4.25rem; margin-top: -6.375rem; }
+}
+@media (min-width: 768px) {
+  .fan-layout { height: 17rem; }
+  .fan-card { width: 9.5rem; height: 14.25rem; margin-left: -4.75rem; margin-top: -7.125rem; }
+}
+@media (min-width: 1024px) {
+  .fan-layout { height: 18rem; }
+  .fan-card { width: 10.5rem; height: 15.75rem; margin-left: -5.25rem; margin-top: -7.875rem; }
+}
+
+/* Premium Skeuomorphic Liquid Glass Card */
+.liquid-glass-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(240, 253, 250, 0.3) 100%) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-top: 2px solid rgba(255, 255, 255, 0.9) !important;
+  border-left: 2px solid rgba(255, 255, 255, 0.9) !important;
+  border-bottom: 2px solid rgba(148, 163, 184, 0.35) !important;
+  border-right: 2px solid rgba(148, 163, 184, 0.35) !important;
+  border-radius: 28px !important;
+  box-shadow: 
+    inset 0 3px 10px rgba(255, 255, 255, 0.95), 
+    inset 0 -3px 10px rgba(0, 0, 0, 0.04),
+    inset 0 1px 18px rgba(255, 255, 255, 0.45),
+    0 12px 32px rgba(15, 23, 42, 0.06),
+    0 1px 3px rgba(0, 0, 0, 0.02) !important;
+  transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  will-change: transform, box-shadow, background-color, border-color;
+}
+
+.liquid-glass-card:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(240, 253, 250, 0.4) 100%) !important;
+  border-top-color: rgba(255, 255, 255, 0.99) !important;
+  border-left-color: rgba(255, 255, 255, 0.99) !important;
+  border-bottom-color: rgba(148, 163, 184, 0.55) !important;
+  border-right-color: rgba(148, 163, 184, 0.55) !important;
+  box-shadow: 
+    inset 0 5px 15px rgba(255, 255, 255, 0.98), 
+    inset 0 -5px 15px rgba(0, 0, 0, 0.05),
+    inset 0 1px 25px rgba(255, 255, 255, 0.6),
+    0 24px 50px rgba(39, 168, 196, 0.16),
+    0 4px 12px rgba(0, 0, 0, 0.03) !important;
+  transform: translateY(-8px) scale(1.015) !important;
+}
+
+.liquid-glass-card:active {
+  transform: translateY(-3px) scale(0.99) !important;
+  box-shadow: 
+    inset 0 2px 6px rgba(255, 255, 255, 0.9), 
+    inset 0 -2px 6px rgba(0, 0, 0, 0.05), 
+    0 12px 25px rgba(39, 168, 196, 0.08) !important;
+}
+
+
