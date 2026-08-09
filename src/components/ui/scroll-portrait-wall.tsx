@@ -4,6 +4,7 @@ import * as React from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
+import { motion } from "framer-motion";
 
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,8 @@ if (typeof window !== "undefined") {
 export interface Speaker {
   name: string;
   role: string;
+  hoverRole?: string;
+  hideHoverRole?: boolean;
   /** Image URL. Square / portrait crops look best. */
   src: string;
   /** Optional class for adjusting image styles like object-position */
@@ -196,8 +199,14 @@ export function ScrollPortraitWall({
                     className="spw-item relative h-full w-full"
                     style={{ transformOrigin: origin, transform: "scale(0)" }}
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <div className="h-full w-full overflow-hidden">
+                    {/* Image + hover-reveal designation overlay */}
+                    <motion.div
+                      initial="rest"
+                      animate="rest"
+                      whileHover="hover"
+                      className="relative h-full w-full overflow-hidden"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={s.src}
                         alt={s.name}
@@ -210,11 +219,46 @@ export function ScrollPortraitWall({
                           s.imageClassName
                         )}
                       />
-                    </div>
-                    {showCaptions && (s.name || s.role) ? (
-                      <div className="absolute -bottom-2 left-0 flex w-full translate-y-full flex-wrap justify-between gap-x-2 gap-y-1 text-[11px] uppercase leading-tight text-slate-900 sm:text-sm font-medium">
-                        <span>{s.name}</span>
-                        <span className="text-slate-700">{s.role ? `(${s.role})` : ""}</span>
+
+                      {!s.hideHoverRole && (s.hoverRole || s.role) ? (
+                        <motion.div
+                          variants={{ rest: { opacity: 0 }, hover: { opacity: 1 } }}
+                          transition={{ duration: 0.25 }}
+                          className="pointer-events-none absolute inset-0 flex items-end bg-gradient-to-t from-black/85 via-black/35 to-transparent p-3 sm:p-4"
+                        >
+                          <motion.span
+                            variants={{
+                              rest: { y: 24, opacity: 0, scale: 0.85 },
+                              hover: {
+                                y: 0,
+                                opacity: 1,
+                                scale: 1,
+                                transition: { type: "spring", stiffness: 260, damping: 20 },
+                              },
+                            }}
+                            className="bg-gradient-to-br from-brand to-cyan-200 bg-clip-text text-[11px] font-black uppercase leading-snug tracking-wide text-transparent sm:text-sm"
+                          >
+                            {s.hoverRole || s.role}
+                          </motion.span>
+                        </motion.div>
+                      ) : null}
+                    </motion.div>
+
+                    {/* Name and Role — always shown below, normal style */}
+                    {showCaptions && s.name ? (
+                      <div className={cn(
+                        "absolute -bottom-2 left-0 w-full translate-y-full truncate text-center uppercase leading-tight text-slate-900",
+                        (s.name.length + (s.role?.length || 0) > 40) ? "text-[10px] sm:text-[12px] tracking-tighter" 
+                        : (s.name.length + (s.role?.length || 0) > 30) ? "text-[10.5px] sm:text-[13px] tracking-tight" 
+                        : "text-[11px] sm:text-sm"
+                      )}>
+                        <span className="font-medium">{s.name}</span>
+                        {s.role ? (
+                          <>
+                            <span className="mx-1.5 text-slate-400">-</span>
+                            <span className="font-bold text-slate-950">{s.role}</span>
+                          </>
+                        ) : null}
                       </div>
                     ) : null}
                   </div>
