@@ -9,15 +9,15 @@ import { ParallaxComponent } from "@/components/ui/parallax-scrolling";
 import { ScrollPortraitWall, type Speaker } from "@/components/ui/scroll-portrait-wall";
 
 const TEAMS: Speaker[] = [
-  { name: "MOHAMED YACOOB", role: "COO", hoverRole: "Chief Operation Officer", src: "/our teams/MOHAMED YACOOB.jpg", imageClassName: "object-[center_20%]" },
-  { name: "JAMIL AHAMED", role: "CMO", hoverRole: "Chief Marketing Officer", src: "/our teams/jamil.jpeg", imageClassName: "object-top" },
+  { name: "MOHAMED YACOOB", role: "COO", hoverRole: "Chief Operation Officer", src: "/our teams/MOHAMED YACOOB.png", imageClassName: "object-[center_20%]" },
+  { name: "JAMIL AHAMED", role: "CMO", hoverRole: "Chief Marketing Officer", src: "/our teams/jamil.png", imageClassName: "object-top" },
   { name: "ILLIYAZ", role: "CFO", hoverRole: "Chief Financial Officer", src: "/our teams/iliyas.png", imageClassName: "object-[center_20%]" },
-  { name: "JAFEER AHAMED", role: "CTO", hoverRole: "Chief Technology Officer", src: "/our teams/jafeer.jpg", imageClassName: "object-[center_20%]" },
-  { name: "NANDHINEE", role: "Managing UAE OPERATION", hideHoverRole: true, src: "/our teams/nandhinee.jpeg", imageClassName: "object-top" },
+  { name: "JAFEER AHAMED", role: "CTO", hoverRole: "Chief Technology Officer", src: "/our teams/Jafeer.png", imageClassName: "object-[center_20%]" },
+  { name: "NANDHINEE", role: "Managing UAE OPERATION", hideHoverRole: true, src: "/our teams/nandhinee.png", imageClassName: "object-top" },
   { name: "", role: "", src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" },
-  { name: "ANIS DAWOOD", role: "Managing UK OPERATIONS", hideHoverRole: true, src: "/our teams/anis.jpg", imageClassName: "object-top" },
-  { name: "MUHAMMAD KASSIM", role: "MANAGING MALAYSIA OPERATIONS", hideHoverRole: true, src: "/our teams/muhammad kassim.jpg", imageClassName: "object-top" },
-  { name: "CHEN YUCHAO", role: "CUSTOMER EXPERIENCE MANAGER", hideHoverRole: true, src: "/our teams/Chen Yuchao.jpg" },
+  { name: "ANIS DAWOOD", role: "Managing UK OPERATIONS", hideHoverRole: true, src: "/our teams/anis.png", imageClassName: "object-top" },
+  { name: "MUHAMMAD KASSIM", role: "MANAGING MALAYSIA OPERATIONS", hideHoverRole: true, src: "/our teams/muhammad kassim.png", imageClassName: "object-top" },
+  { name: "CHEN YUCHAO", role: "CUSTOMER EXPERIENCE MANAGER", hideHoverRole: true, src: "/our teams/Chen Yuchao.png" },
 ];
 
 const ROLES = [
