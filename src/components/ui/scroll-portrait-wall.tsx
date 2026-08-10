@@ -252,11 +252,11 @@ export function ScrollPortraitWall({
                         : (s.name.length + (s.role?.length || 0) > 30) ? "text-[10.5px] sm:text-[13px] tracking-tight" 
                         : "text-[11px] sm:text-sm"
                       )}>
-                        <span className="font-medium">{s.name}</span>
+                        <span className="font-black text-slate-950">{s.name}</span>
                         {s.role ? (
                           <>
-                            <span className="mx-1.5 text-slate-400">-</span>
-                            <span className="font-bold text-slate-950">{s.role}</span>
+                            <span className="mx-1.5 text-slate-400 font-black">-</span>
+                            <span className="font-black text-slate-950">{s.role}</span>
                           </>
                         ) : null}
                       </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useRef, useState } from "react";
-import { Phone, ChevronLeft, ChevronRight } from "lucide-react";
+import React from "react";
+import { Phone } from "lucide-react";
 
 const CountryFlag = ({ country }: { country: string }) => {
   switch (country.toLowerCase()) {
@@ -139,44 +139,10 @@ const offices = [
 ];
 
 export const OfficeLocations = () => {
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!scrollRef.current) return;
-    setIsDragging(true);
-    setStartX(e.pageX - scrollRef.current.offsetLeft);
-    setScrollLeft(scrollRef.current.scrollLeft);
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !scrollRef.current) return;
-    e.preventDefault();
-    const x = e.pageX - scrollRef.current.offsetLeft;
-    const walk = (x - startX) * 1.5;
-    scrollRef.current.scrollLeft = scrollLeft - walk;
-  };
-
-  const handleMouseUpOrLeave = () => {
-    setIsDragging(false);
-  };
-
-  const slideLeft = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -360, behavior: "smooth" });
-    }
-  };
-
-  const slideRight = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 360, behavior: "smooth" });
-    }
-  };
 
   return (
-    <section id="locations" className="relative bg-gradient-to-b from-[#f8fafc] via-[#f1f5f9] to-[#e2e8f0] text-slate-900 pb-20 pt-8 scroll-mt-24 overflow-hidden">
+    <section id="locations" className="relative bg-gradient-to-b from-[#f8fafc] via-[#f1f5f9] to-[#e2e8f0] text-slate-900 pb-8 pt-2 scroll-mt-24 overflow-hidden">
       <style dangerouslySetInnerHTML={{
         __html: `
         @keyframes waterFlow {
@@ -203,14 +169,6 @@ export const OfficeLocations = () => {
           -webkit-backdrop-filter: blur(20px) !important;
           border-top: 2px solid rgba(255, 255, 255, 0.95) !important;
           border-left: 2px solid rgba(255, 255, 255, 0.95) !important;
-        }
-        @media (max-width: 1023px) {
-          .office-glass-card {
-            backdrop-filter: none !important;
-            -webkit-backdrop-filter: none !important;
-            background: linear-gradient(-45deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 249, 255, 0.95) 100%) !important;
-          }
-        }
           border-bottom: 2px solid rgba(148, 163, 184, 0.3) !important;
           border-right: 2px solid rgba(148, 163, 184, 0.3) !important;
           border-radius: 28px !important;
@@ -220,6 +178,13 @@ export const OfficeLocations = () => {
             0 12px 32px rgba(15, 23, 42, 0.05) !important;
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1) !important;
           will-change: transform, box-shadow, background-position;
+        }
+        @media (max-width: 1023px) {
+          .liquid-glass-card {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            background: linear-gradient(-45deg, rgba(255, 255, 255, 0.95) 0%, rgba(240, 249, 255, 0.95) 100%) !important;
+          }
         }
 
         .liquid-glass-card:hover {
@@ -268,51 +233,28 @@ export const OfficeLocations = () => {
 
       <div className="container relative z-10 mx-auto px-5 sm:px-8 lg:px-14">
 
-        <div className="text-center mb-8 relative">
-          <span className="text-xs font-semibold uppercase tracking-[0.26em] text-[#176579]">
+        <div className="text-center mb-4 relative">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-[#176579]">
             OUR LOCATIONS
           </span>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl text-slate-900">
+          <h2 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl text-slate-900">
             Global Network of Offices
           </h2>
-          <div className="h-[3.5px] w-14 bg-[#27a8c4] rounded-full mx-auto mt-3 mb-4" />
-          <p className="text-slate-600 text-sm max-w-xl mx-auto leading-relaxed">
+          <div className="h-[3px] w-14 bg-[#27a8c4] rounded-full mx-auto mt-2 mb-2" />
+          <p className="text-slate-600 text-[13px] max-w-xl mx-auto leading-snug">
             Operating across 7 key international manufacturing and trading hubs to coordinate your logistics and sourcing operations seamlessly.
           </p>
 
-          {/* Arrow navigation buttons in header for cleaner spacing on small folds */}
-          <div className="flex justify-center items-center gap-3 mt-4">
-            <button
-              onClick={slideLeft}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white border border-slate-200 shadow-sm hover:border-[#27a8c4] hover:bg-[#27a8c4]/5 text-slate-600 hover:text-[#176579] transition-all duration-300 cursor-pointer"
-              aria-label="Scroll left"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              onClick={slideRight}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white border border-slate-200 shadow-sm hover:border-[#27a8c4] hover:bg-[#27a8c4]/5 text-slate-600 hover:text-[#176579] transition-all duration-300 cursor-pointer"
-              aria-label="Scroll right"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
+
         </div>
 
-        {/* Draggable Horizontal Carousel Container */}
-        <div className="relative max-w-6xl mx-auto">
-          <div
-            ref={scrollRef}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUpOrLeave}
-            onMouseLeave={handleMouseUpOrLeave}
-            className="flex gap-6 overflow-x-auto scroll-smooth select-none px-4 py-6 cursor-grab active:cursor-grabbing scrollbar-hide"
-          >
+        {/* Grid Container */}
+        <div className="relative max-w-7xl mx-auto">
+          <div className="flex flex-wrap justify-center gap-x-6 gap-y-4 px-4 py-2">
             {offices.map((office, idx) => (
               <div
                 key={idx}
-                className="group relative flex flex-col justify-between p-6 w-[285px] sm:w-[320px] shrink-0 overflow-hidden min-h-[265px] liquid-glass-card"
+                className="group relative flex flex-col justify-between p-5 w-full md:w-[calc(50%-12px)] lg:w-[calc(33.333%-16px)] xl:w-[calc(25%-18px)] overflow-hidden min-h-[205px] liquid-glass-card"
               >
                 {/* Decorative Liquid Water Glow Blobs */}
                 <div className="absolute -right-6 -bottom-6 w-24 h-24 rounded-full bg-cyan-300/10 blur-xl pointer-events-none group-hover:bg-cyan-400/20 group-hover:scale-125 transition-all duration-700 z-0" />
@@ -337,21 +279,21 @@ export const OfficeLocations = () => {
                     </span>
 
                     {/* Name */}
-                    <h3 className="mt-4 text-sm sm:text-base font-bold text-slate-900 tracking-tight leading-snug">
+                    <h3 className="mt-2 text-[13.5px] sm:text-[14.5px] font-bold text-slate-900 tracking-tight leading-snug">
                       {office.name}
                     </h3>
 
                     {/* Address */}
-                    <p className="mt-2 text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                    <p className="mt-1 text-[11.5px] sm:text-[12px] text-slate-600 leading-snug font-normal">
                       {office.address}
                     </p>
                   </div>
 
                   {/* Phone */}
                   {office.phone && (
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-start gap-2.5 text-xs text-[#176579] font-semibold">
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#27a8c4]/15 text-[#176579] group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shrink-0 mt-0.5">
-                        <Phone className="h-3 w-3 text-[#27a8c4]" />
+                    <div className="mt-2 pt-2 border-t border-slate-100 flex items-start gap-2 text-[11.5px] sm:text-[12.5px] text-[#176579] font-semibold">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#27a8c4]/15 text-[#176579] group-hover:scale-110 group-hover:rotate-12 transition-all duration-300 shrink-0 mt-0.5">
+                        <Phone className="h-[11px] w-[11px] text-[#27a8c4]" />
                       </span>
                       <div className="flex flex-col gap-0.5 min-w-0">
                         {office.phone.split(" / ").map((num, i) => {
