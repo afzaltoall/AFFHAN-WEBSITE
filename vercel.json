@@ -4,21 +4,5 @@
       "path": "/api/cron/sync",
       "schedule": "0 0 * * *"
     }
-  ],
-  "services": {
-    "affhan-logistics": {
-      "root": ".",
-      "framework": "nextjs",
-      "buildCommand": "npm install && npm run build"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "affhan-logistics"
-      }
-    }
   ]
 }
