@@ -169,6 +169,55 @@ export function MarketplaceHeroSection() {
         {/* Animated intro headline — a morphing category word gives the opening
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
+          <div className="mb-3 flex justify-center">
+            <style dangerouslySetInnerHTML={{ __html: `
+              @keyframes b2bDrip {
+                0%   { transform: translateY(-7px) scale(0.5); opacity: 0; }
+                18%  { transform: translateY(1px) scale(1); opacity: 0.85; }
+                72%  { opacity: 0.85; }
+                100% { transform: translateY(32px) scale(0.8); opacity: 0; }
+              }
+              .b2b-drop { position:absolute; top:0; border-radius:50% 50% 50% 50% / 55% 55% 45% 45%;
+                background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.95), rgba(186,230,253,0.55) 55%, rgba(2,132,199,0.85));
+                box-shadow: 0 0 2px rgba(14,165,233,0.5); animation: b2bDrip 4s linear infinite; will-change: transform, opacity; }
+              .b2b-drop-1 { left:13%; width:6px; height:7px; animation-delay:0s; }
+              .b2b-drop-2 { left:34%; width:5px; height:6px; animation-delay:0.9s; }
+              .b2b-drop-3 { left:52%; width:4px; height:5px; animation-delay:2.4s; }
+              .b2b-drop-4 { left:70%; width:7px; height:8px; animation-delay:1.7s; }
+              .b2b-drop-5 { left:87%; width:5px; height:6px; animation-delay:3.1s; }
+              @media (prefers-reduced-motion: reduce) { .b2b-drop { animation: none; opacity: 0; } }
+            ` }} />
+            <span className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-brand/30 bg-gradient-to-b from-white to-[#27a8c4]/[0.08] px-4 py-1.5 shadow-[0_8px_24px_-10px_rgba(23,101,121,0.5)] backdrop-blur-sm transition-all duration-300 hover:shadow-[0_10px_28px_-8px_rgba(39,168,196,0.55)] hover:-translate-y-0.5">
+              {/* Water droplets over the whole badge — same liquid motion as the
+                  floating Instagram button, clipped to the pill by overflow-hidden
+                  so they read as water flowing inside the glass badge. */}
+              <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
+                <span className="b2b-drop b2b-drop-1" />
+                <span className="b2b-drop b2b-drop-2" />
+                <span className="b2b-drop b2b-drop-3" />
+                <span className="b2b-drop b2b-drop-4" />
+                <span className="b2b-drop b2b-drop-5" />
+              </span>
+              {/* Crisp network globe */}
+              <svg viewBox="0 0 24 24" fill="none" className="relative z-10 h-4 w-4 shrink-0" aria-hidden="true">
+                <g stroke="#176579" strokeWidth="1.4" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="7.5" />
+                  <path d="M4.5 12h15" />
+                  <path d="M12 4.5c3 2 3 13 0 15M12 4.5c-3 2-3 13 0 15" />
+                  <path d="M6.2 8.4c3.6 1.9 8 1.9 11.6 0M6.2 15.6c3.6-1.9 8-1.9 11.6 0" strokeWidth="1" opacity="0.5" />
+                </g>
+                <g fill="#27a8c4">
+                  <circle cx="12" cy="4.5" r="1.5" />
+                  <circle cx="19.5" cy="12" r="1.3" />
+                  <circle cx="6.2" cy="8.4" r="1.2" />
+                  <circle cx="16.5" cy="16.2" r="1.2" />
+                </g>
+              </svg>
+              <span className="relative z-10 text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-dark sm:text-[11px]">
+                Global <span className="text-brand">B2B</span> Sourcing Marketplace
+              </span>
+            </span>
+          </div>
           <h1 className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
             <span>Source</span>
             <TextMorph
