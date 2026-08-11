@@ -11,7 +11,7 @@ type Badge = {
 };
 
 const BADGES: Badge[] = [
-  { icon: Shield, value: "500+ Verified", label: "Suppliers" },
+  { icon: Shield, value: "50,000+ Verified", label: "Suppliers" },
   { icon: Package, value: "6 Lakhs+", label: "Products" },
   { icon: Globe, value: "100+ Countries", label: "Trusted Global" },
 ];
@@ -113,7 +113,7 @@ export function TrustBadges() {
                 />
                 <span>{b.value}</span>
               </div>
-              <span className="pl-[18px] text-[9px] sm:text-[10px] text-slate-500 whitespace-nowrap uppercase tracking-wider">
+              <span className="text-center text-[9px] sm:text-[10px] text-slate-500 whitespace-nowrap uppercase tracking-wider">
                 {b.label}
               </span>
             </div>

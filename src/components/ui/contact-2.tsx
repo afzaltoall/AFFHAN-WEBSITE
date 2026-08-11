@@ -210,7 +210,7 @@ export const Contact2 = ({
                 </h4>
                 <div className="flex items-center justify-center lg:justify-start gap-3">
                   <a
-                    href="https://www.facebook.com/share/18Y3S8H969/"
+                    href="https://www.facebook.com/affhaninternational/reels/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
@@ -219,7 +219,7 @@ export const Contact2 = ({
                     <FacebookIcon />
                   </a>
                   <a
-                    href="https://www.linkedin.com/feed/update/urn:li:activity:7488860230538194944"
+                    href="https://www.linkedin.com/company/affhanglobal/posts/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
@@ -228,7 +228,7 @@ export const Contact2 = ({
                     <LinkedinIcon />
                   </a>
                   <a
-                    href="https://www.instagram.com/affhanshipping?igsh=MXF0NjRqaDM0YXd0OA=="
+                    href="https://www.instagram.com/affhanglobal?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
@@ -237,7 +237,7 @@ export const Contact2 = ({
                     <InstagramIcon />
                   </a>
                   <a
-                    href="https://www.tiktok.com/@affhan_shipping"
+                    href="https://www.tiktok.com/@affhan_global"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
@@ -246,7 +246,7 @@ export const Contact2 = ({
                     <TiktokIcon />
                   </a>
                   <a
-                    href="https://youtube.com/@affhanshipping?si=b7k3rHAALNNDqhLK"
+                    href="https://www.youtube.com/@affhan_global/shorts"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"

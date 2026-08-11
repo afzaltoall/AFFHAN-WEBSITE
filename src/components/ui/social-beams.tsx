@@ -43,7 +43,7 @@ const PATHS = {
 const PREVIEWS = {
   facebook: "/Social%20media/facebook.png",
   instagram: "/Social%20media/instagram.png",
-  tiktok: "/Social%20media/TikTok.jpeg",
+  tiktok: "/Social%20media/TikTok.png",
   youtube: "/Social%20media/youtube.png",
   linkedin: "/Social%20media/linkedin.png",
   x: "/Social%20media/twitter.png",
@@ -177,13 +177,13 @@ export function SocialBeams() {
     >
       {/* Left social column */}
       <div className="flex flex-col justify-between h-full py-4">
-        <SocialNode ref={l1} href="https://www.facebook.com/share/18Y3S8H969/" label="Facebook" previewSrc={PREVIEWS.facebook}>
+        <SocialNode ref={l1} href="https://www.facebook.com/affhaninternational/reels/" label="Facebook" previewSrc={PREVIEWS.facebook}>
           <Glyph d={PATHS.facebook} className={iconClass} />
         </SocialNode>
-        <SocialNode ref={l2} href="https://www.instagram.com/affhanshipping?igsh=MXF0NjRqaDM0YXd0OA==" label="Instagram" previewSrc={PREVIEWS.instagram}>
+        <SocialNode ref={l2} href="https://www.instagram.com/affhanglobal?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" label="Instagram" previewSrc={PREVIEWS.instagram}>
           <Glyph d={PATHS.instagram} className={iconClass} />
         </SocialNode>
-        <SocialNode ref={l3} href="https://www.tiktok.com/@affhan_shipping" label="TikTok" previewSrc={PREVIEWS.tiktok}>
+        <SocialNode ref={l3} href="https://www.tiktok.com/@affhan_global" label="TikTok" previewSrc={PREVIEWS.tiktok}>
           <Glyph d={PATHS.tiktok} className={iconClass} />
         </SocialNode>
       </div>
@@ -198,10 +198,10 @@ export function SocialBeams() {
 
       {/* Right social column */}
       <div className="flex flex-col justify-between h-full py-4">
-        <SocialNode ref={r1} href="https://youtube.com/@affhanshipping?si=b7k3rHAALNNDqhLK" label="YouTube" previewSrc={PREVIEWS.youtube}>
+        <SocialNode ref={r1} href="https://www.youtube.com/@affhan_global/shorts" label="YouTube" previewSrc={PREVIEWS.youtube}>
           <Glyph d={PATHS.youtube} className={iconClass} />
         </SocialNode>
-        <SocialNode ref={r2} href="https://www.linkedin.com/feed/update/urn:li:activity:7488860230538194944" label="LinkedIn" previewSrc={PREVIEWS.linkedin}>
+        <SocialNode ref={r2} href="https://www.linkedin.com/company/affhanglobal/posts/" label="LinkedIn" previewSrc={PREVIEWS.linkedin}>
           <Glyph d={PATHS.linkedin} className={iconClass} />
         </SocialNode>
         <SocialNode ref={r3} href="https://x.com/affhan_shipping" label="X" previewSrc={PREVIEWS.x}>

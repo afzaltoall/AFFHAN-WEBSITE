@@ -51,7 +51,12 @@ export const Component = () => {
       refs.camera.position.z = 100;
       refs.camera.position.y = 20;
 
-      refs.renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, alpha: true });
+      try {
+        refs.renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true, alpha: true });
+      } catch (error) {
+        console.warn("WebGL not supported or disabled. Falling back gracefully:", error);
+        return;
+      }
       refs.renderer.setSize(window.innerWidth, window.innerHeight);
       // Cap the pixel ratio at 1.5 — 2x on a hi-DPI display doubled the shaded
       // pixels and was a big part of the scroll stutter.
