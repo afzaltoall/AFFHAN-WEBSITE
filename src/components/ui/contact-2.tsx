@@ -34,6 +34,54 @@ export const Contact2 = ({
 }: Contact2Props) => {
   const [showScrollCue, setShowScrollCue] = React.useState(true);
 
+  // Controlled form state for the contact submission.
+  const [form, setForm] = React.useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    productName: "",
+    message: "",
+  });
+  const [status, setStatus] = React.useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [feedback, setFeedback] = React.useState<string>("");
+
+  const setField = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+    if (status === "error" || status === "success") { setStatus("idle"); setFeedback(""); }
+  };
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (status === "submitting") return;
+    if (!form.firstName.trim()) { setStatus("error"); setFeedback("Please enter your first name."); return; }
+    if (!emailValid) { setStatus("error"); setFeedback("Please enter a valid email address."); return; }
+    if (!form.message.trim()) { setStatus("error"); setFeedback("Please enter a message."); return; }
+
+    setStatus("submitting");
+    setFeedback("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setStatus("error");
+        setFeedback(payload.error || "Something went wrong. Please try again.");
+        return;
+      }
+      setStatus("success");
+      setFeedback(payload.message || "Thanks for reaching out — we'll get back to you soon.");
+      setForm({ firstName: "", lastName: "", email: "", productName: "", message: "" });
+    } catch {
+      setStatus("error");
+      setFeedback("Network error. Please try again.");
+    }
+  };
+
   React.useEffect(() => {
     const handleScroll = () => {
       if (window.scrollY > 80) {
@@ -221,40 +269,64 @@ export const Contact2 = ({
           </div>
           
           {/* Form Side */}
-          <div className="mx-auto w-full max-w-screen-md flex flex-col gap-6 p-6 sm:p-10 lg:w-7/12 liquid-glass-card">
+          <form onSubmit={handleSubmit} className="mx-auto w-full max-w-screen-md flex flex-col gap-6 p-6 sm:p-10 lg:w-7/12 liquid-glass-card">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="grid w-full items-center gap-2">
                 <Label htmlFor="firstname" className="text-slate-700 font-semibold tracking-wide">First Name</Label>
-                <Input type="text" id="firstname" placeholder="First Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                <Input type="text" id="firstname" name="firstName" value={form.firstName} onChange={setField("firstName")} placeholder="First Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
               </div>
               <div className="grid w-full items-center gap-2">
                 <Label htmlFor="lastname" className="text-slate-700 font-semibold tracking-wide">Last Name</Label>
-                <Input type="text" id="lastname" placeholder="Last Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                <Input type="text" id="lastname" name="lastName" value={form.lastName} onChange={setField("lastName")} placeholder="Last Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
               </div>
             </div>
             <div className="grid w-full items-center gap-2">
               <Label htmlFor="email" className="text-slate-700 font-semibold tracking-wide">Email</Label>
-              <Input type="email" id="email" placeholder="Email" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+              <Input type="email" id="email" name="email" value={form.email} onChange={setField("email")} placeholder="Email" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
             </div>
             <div className="grid w-full items-center gap-2">
               <Label htmlFor="productName" className="text-slate-700 font-semibold tracking-wide">Products Name</Label>
-              <Input type="text" id="productName" placeholder="Products Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+              <Input type="text" id="productName" name="productName" value={form.productName} onChange={setField("productName")} placeholder="Products Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
             </div>
             <div className="grid w-full gap-2">
               <Label htmlFor="message" className="text-slate-700 font-semibold tracking-wide">Message</Label>
-              <Textarea placeholder="Type your message here..." id="message" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl min-h-[120px] transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+              <Textarea placeholder="Type your message here..." id="message" name="message" value={form.message} onChange={setField("message")} className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl min-h-[120px] transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
             </div>
+
+            {/* Inline status feedback */}
+            {feedback && (
+              <p
+                role="status"
+                aria-live="polite"
+                className={`text-sm font-medium rounded-xl px-4 py-3 ${
+                  status === "success"
+                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                    : "bg-red-50 text-red-600 border border-red-200"
+                }`}
+              >
+                {feedback}
+              </p>
+            )}
+
             <button
-              type="button"
-              className="w-full h-12 rounded-xl bg-gradient-to-r from-[#27a8c4] to-[#176579] text-white font-bold hover:from-[#176579] hover:to-[#081f2a] shadow-[0_8px_24px_rgba(39,168,196,0.25)] hover:shadow-[0_12px_32px_rgba(23,85,101,0.35)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-sm hover:scale-[1.01] active:scale-[0.99]"
+              type="submit"
+              disabled={status === "submitting"}
+              className="w-full h-12 rounded-xl bg-gradient-to-r from-[#27a8c4] to-[#176579] text-white font-bold hover:from-[#176579] hover:to-[#081f2a] shadow-[0_8px_24px_rgba(39,168,196,0.25)] hover:shadow-[0_12px_32px_rgba(23,85,101,0.35)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-sm hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
-              <span>Send Message</span>
-              <svg className="w-4.5 h-4.5 transform rotate-45 -translate-y-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
+              <span>{status === "submitting" ? "Sending…" : "Send Message"}</span>
+              {status === "submitting" ? (
+                <svg className="w-4.5 h-4.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+                  <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-4.5 h-4.5 transform rotate-45 -translate-y-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              )}
             </button>
-          </div>
+          </form>
           
         </div>
       </div>

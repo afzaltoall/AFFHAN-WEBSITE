@@ -73,6 +73,43 @@ model Inquiry {
 
 
 
+// "Contact Us" page submissions. Unlike Inquiry (tied to a product), these are
+// free-form messages from the public contact form: name, email, an optional
+// product they're asking about, and a message. Same triage/soft-delete pattern
+// as Inquiry so the admin console can manage them the same way.
+model ContactMessage {
+  id          String   @id @default(uuid())
+  firstName   String
+  lastName    String?
+  email       String
+  productName String? // "Products Name" field on the form (optional)
+  message     String   @db.Text
+  status      String   @default("new") // new | handled | spam | deleted
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Existing table created outside this schema (scraper output). Modelled here so
+// Prisma is aware of it and `db push` never proposes dropping it.
+model ScrapedProduct {
+  id        Int       @id @default(autoincrement())
+  source    String
+  sourceId  String
+  name      String?
+  sku       String?
+  price     String?
+  category  String?
+  sourceUrl String?
+  imageUrl  String?
+  allImages Json?     @default("[]")
+  rawData   Json?
+  createdAt DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([source, sourceId])
+}
+
 model ModerationLog {
   id             Int      @id @default(autoincrement())
   cjPid          String

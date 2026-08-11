@@ -7,6 +7,7 @@ import {
   LayoutGrid, Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, CheckSquare, Square, KeyRound,
+  MessageSquare, Calendar,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 
@@ -15,6 +16,12 @@ interface Inquiry {
   email: string | null; country: string; phone: string; productName: string; quantity: number;
   message: string | null; productId: number | null; productImage: string | null; status: string;
 }
+
+interface ContactMessage {
+  id: string; createdAt: string; firstName: string; lastName: string | null;
+  email: string; productName: string | null; message: string; status: string;
+}
+const contactName = (c: ContactMessage) => `${c.firstName}${c.lastName ? ` ${c.lastName}` : ""}`.trim();
 
 type Status = "new" | "handled" | "spam";
 const STATUS_META: Record<Status, { label: string; dot: string; text: string; chip: string }> = {
@@ -26,8 +33,9 @@ const asStatus = (s: string): Status => (s === "handled" || s === "spam" ? s : "
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
-    stats: { products: number; categories: number; inquiries: number };
+    stats: { products: number; categories: number; inquiries: number; contacts: number };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
+    contacts: ContactMessage[]; deletedContacts: ContactMessage[];
   };
 }
 
@@ -37,7 +45,7 @@ const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("en-US", { mon
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
 const sfFont = { fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif' } as const;
 
-type View = "overview" | "inquiries" | "trash";
+type View = "overview" | "inquiries" | "trash" | "contacts";
 
 type ConfirmState = {
   title: string;
@@ -69,6 +77,93 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
   useEffect(() => setSelected(new Set()), [view, statusFilter, q]);
+
+  // --- Contact Us (contact form submissions) ---------------------------------
+  // Self-contained state so it never crosses wires with the inquiry lists above.
+  const [contactItems, setContactItems] = useState<ContactMessage[]>(data.contacts);
+  const [contactDeleted, setContactDeleted] = useState<ContactMessage[]>(data.deletedContacts);
+  const [contactQ, setContactQ] = useState("");
+  const [contactStatusFilter, setContactStatusFilter] = useState<"all" | Status>("all");
+  const [contactTab, setContactTab] = useState<"active" | "trash">("active");
+  const [contactSelected, setContactSelected] = useState<Set<string>>(new Set());
+  const [contactBusy, setContactBusy] = useState(false);
+  const [activeContact, setActiveContact] = useState<ContactMessage | null>(null);
+  useEffect(() => setContactItems(data.contacts), [data.contacts]);
+  useEffect(() => setContactDeleted(data.deletedContacts), [data.deletedContacts]);
+  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactQ, view]);
+
+  // Bulk contact action — same optimistic-with-rollback shape as bulkAction.
+  const contactBulkAction = async (
+    ids: string[],
+    action: "delete" | "restore" | "purge" | "status",
+    newStatus?: Status,
+  ) => {
+    if (ids.length === 0) return;
+    const idset = new Set(ids);
+    const prevA = contactItems, prevD = contactDeleted;
+    if (action === "delete") {
+      const moving = contactItems.filter((x) => idset.has(x.id)).map((x) => ({ ...x, status: "deleted" }));
+      setContactItems(contactItems.filter((x) => !idset.has(x.id)));
+      setContactDeleted([...moving, ...contactDeleted]);
+    } else if (action === "restore") {
+      const moving = contactDeleted.filter((x) => idset.has(x.id)).map((x) => ({ ...x, status: "new" }));
+      setContactDeleted(contactDeleted.filter((x) => !idset.has(x.id)));
+      setContactItems([...moving, ...contactItems]);
+    } else if (action === "purge") {
+      setContactDeleted(contactDeleted.filter((x) => !idset.has(x.id)));
+    } else if (action === "status" && newStatus) {
+      setContactItems(contactItems.map((x) => (idset.has(x.id) ? { ...x, status: newStatus } : x)));
+    }
+    setContactSelected(new Set());
+    setActiveContact((cur) =>
+      cur && idset.has(cur.id)
+        ? action === "status" && newStatus
+          ? { ...cur, status: newStatus }
+          : action === "delete" || action === "purge"
+          ? null
+          : cur
+        : cur,
+    );
+    setContactBusy(true);
+    try {
+      const res = await fetch(`/api/admin/contact/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids, action, status: newStatus }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setContactItems(prevA); setContactDeleted(prevD);
+      window.alert("Action failed. Please try again.");
+    } finally {
+      setContactBusy(false);
+    }
+  };
+
+  const toggleContactSelect = (id: string) =>
+    setContactSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  const setContactStatus = (id: string, status: Status) => contactBulkAction([id], "status", status);
+  const deleteContact = (id: string) =>
+    setConfirm({
+      title: "Move to Recently Deleted?",
+      message: "This message will be moved to Recently Deleted. You can restore it any time.",
+      confirmLabel: "Delete",
+      danger: true,
+      onConfirm: () => contactBulkAction([id], "delete"),
+    });
+  const restoreContact = (id: string) => contactBulkAction([id], "restore");
+  const purgeContact = (id: string) =>
+    setConfirm({
+      title: "Permanently delete?",
+      message: "This cannot be undone. It will be erased forever.",
+      confirmLabel: "Delete forever",
+      danger: true,
+      onConfirm: () => contactBulkAction([id], "purge"),
+    });
 
   // Bulk inquiry action. delete/restore/status are status flips (nothing lost);
   // purge removes permanently. Optimistic UI with rollback if the request fails.
@@ -223,6 +318,49 @@ export function AdminConsole({ data }: Props) {
   const toggleSelectAll = () =>
     setSelected(allSelected ? new Set() : new Set(visibleIds));
 
+  // Derived contact lists — active list respects the status filter + search;
+  // trash list is the soft-deleted messages.
+  const contactMatch = (c: ContactMessage, term: string) =>
+    !term || `${contactName(c)} ${c.email} ${c.productName ?? ""} ${c.message}`.toLowerCase().includes(term.toLowerCase());
+  const contactActive = useMemo(
+    () => contactItems.filter((c) =>
+      (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) && contactMatch(c, contactQ)
+    ),
+    [contactItems, contactQ, contactStatusFilter]
+  );
+  const contactTrash = useMemo(
+    () => contactDeleted.filter((c) => contactMatch(c, contactQ)),
+    [contactDeleted, contactQ]
+  );
+  const contactStatusCounts = useMemo(() => {
+    const c = { all: contactItems.length, new: 0, handled: 0, spam: 0 };
+    contactItems.forEach((m) => { c[asStatus(m.status)]++; });
+    return c;
+  }, [contactItems]);
+  const contactList = contactTab === "trash" ? contactTrash : contactActive;
+  const contactVisibleIds = contactList.map((c) => c.id);
+  const contactAllSelected = contactVisibleIds.length > 0 && contactVisibleIds.every((id) => contactSelected.has(id));
+  const toggleContactSelectAll = () =>
+    setContactSelected(contactAllSelected ? new Set() : new Set(contactVisibleIds));
+  const newContactCount = contactStatusCounts.new;
+
+  // Export contacts to .xlsx (respects current tab, search, and any selection).
+  const exportContacts = async () => {
+    const XLSX = await import("xlsx");
+    const base = contactList;
+    const src = contactSelected.size > 0 ? base.filter((c) => contactSelected.has(c.id)) : base;
+    const headers = ["Date", "First Name", "Last Name", "Email", "Product", "Message", "Status"];
+    const rows: (string | number)[][] = src.map((c) => [
+      fmtDate(c.createdAt), c.firstName, c.lastName || "", c.email, c.productName || "", c.message, asStatus(c.status),
+    ]);
+    const file = contactTab === "trash" ? "contact-messages-deleted" : "contact-messages";
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws["!cols"] = headers.map((h) => ({ wch: h === "Message" ? 50 : h === "Email" ? 26 : Math.max(12, h.length + 2) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, file.slice(0, 31));
+    XLSX.writeFile(wb, `${file}-${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
   // Split a stored phone ("+91 7810012345" or bare digits) into a separate
   // dialing code and the local number by parsing a leading "+NN".
   const splitPhone = (raw: string): { code: string; number: string } => {
@@ -269,6 +407,7 @@ export function AdminConsole({ data }: Props) {
   const nav: { key: View; label: string; icon: any; count?: number }[] = [
     { key: "overview", label: "Overview", icon: LayoutGrid },
     { key: "inquiries", label: "Inquiries", icon: Inbox, count: statusCounts.new },
+    { key: "contacts", label: "Contact Us", icon: MessageSquare, count: newContactCount },
     { key: "trash", label: "Recently Deleted", icon: Trash2, count: deletedItems.length },
   ];
 
@@ -276,6 +415,7 @@ export function AdminConsole({ data }: Props) {
     { label: "Products", value: data.stats.products, icon: Package, tint: "text-sky-500", bg: dark ? "bg-sky-500/15" : "bg-sky-50" },
     { label: "Categories", value: data.stats.categories, icon: Layers, tint: "text-violet-500", bg: dark ? "bg-violet-500/15" : "bg-violet-50" },
     { label: "Inquiries", value: data.stats.inquiries, icon: Inbox, tint: "text-amber-500", bg: dark ? "bg-amber-500/15" : "bg-amber-50" },
+    { label: "Messages", value: data.stats.contacts, icon: MessageSquare, tint: "text-emerald-500", bg: dark ? "bg-emerald-500/15" : "bg-emerald-50" },
   ];
 
   return (
@@ -341,12 +481,12 @@ export function AdminConsole({ data }: Props) {
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {view === "inquiries" ? "Inquiries" : view === "trash" ? "Recently Deleted" : "Overview"}
+                {view === "inquiries" ? "Inquiries" : view === "contacts" ? "Contact Us" : view === "trash" ? "Recently Deleted" : "Overview"}
               </h1>
               <p className={`mt-0.5 text-[13px] ${t.soft}`}>Welcome back, {data.adminName.split(" ")[0]}.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="flex gap-1.5 lg:hidden">
+            <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
+              <div className="flex flex-wrap gap-1.5 lg:hidden">
                 {nav.map((n) => (
                   <button key={n.key} onClick={() => { setView(n.key); setQ(""); }} className={`rounded-full px-3 py-2 text-xs font-semibold ring-1 ${view === n.key ? "bg-[#1d1d1f] text-white ring-transparent" : t.pill}`}>{n.label}</button>
                 ))}
@@ -366,11 +506,11 @@ export function AdminConsole({ data }: Props) {
           </div>
 
           {/* Stat cards */}
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {statCards.map((s) => (
               <button
                 key={s.label}
-                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); }}
+                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); }}
                 className={`rounded-2xl p-5 text-left shadow-sm ring-1 transition-all hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
               >
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${s.bg}`}>
@@ -383,7 +523,7 @@ export function AdminConsole({ data }: Props) {
           </div>
 
           {view === "overview" ? (
-            <div className="grid gap-4">
+            <div className="grid gap-4 lg:grid-cols-2">
               <Panel t={t} title="Recent inquiries" onView={() => setView("inquiries")}>
                 {items.slice(0, 8).map((i) => (
                   <button key={i.id} onClick={() => setActiveInquiry(i)} className="flex w-full items-center gap-3 py-3 text-left">
@@ -397,7 +537,67 @@ export function AdminConsole({ data }: Props) {
                 ))}
                 {!items.length && <Empty t={t} label="No inquiries yet." />}
               </Panel>
+              <Panel t={t} title="Recent messages" onView={() => setView("contacts")}>
+                {contactItems.slice(0, 8).map((c) => (
+                  <button key={c.id} onClick={() => setActiveContact(c)} className="flex w-full items-center gap-3 py-3 text-left">
+                    <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}>
+                      <MessageSquare className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand ${asStatus(c.status) !== "new" ? "opacity-60" : ""}`}>{contactName(c)}</p>
+                      <p className={`line-clamp-1 text-xs ${t.soft}`}>{c.productName ? `${c.productName} · ` : ""}{c.message}</p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(c.status)].chip}`}>{STATUS_META[asStatus(c.status)].label}</span>
+                  </button>
+                ))}
+                {!contactItems.length && <Empty t={t} label="No messages yet." />}
+              </Panel>
             </div>
+          ) : view === "contacts" ? (
+            <ContactsSection
+              t={t}
+              tab={contactTab}
+              setTab={setContactTab}
+              q={contactQ}
+              setQ={setContactQ}
+              statusFilter={contactStatusFilter}
+              setStatusFilter={setContactStatusFilter}
+              statusCounts={contactStatusCounts}
+              list={contactList}
+              selected={contactSelected}
+              toggleSelect={toggleContactSelect}
+              allSelected={contactAllSelected}
+              toggleSelectAll={toggleContactSelectAll}
+              busy={contactBusy}
+              onOpen={setActiveContact}
+              onExport={exportContacts}
+              onSetStatus={setContactStatus}
+              onDelete={deleteContact}
+              onRestore={restoreContact}
+              onPurge={purgeContact}
+              onStatusSelected={(s) => contactBulkAction([...contactSelected], "status", s)}
+              onDeleteSelected={() => {
+                const ids = [...contactSelected];
+                setConfirm({
+                  title: `Delete ${ids.length} ${ids.length === 1 ? "message" : "messages"}?`,
+                  message: "They'll be moved to Recently Deleted, where you can restore them any time.",
+                  confirmLabel: `Delete ${ids.length}`,
+                  danger: true,
+                  onConfirm: () => contactBulkAction(ids, "delete"),
+                });
+              }}
+              onRestoreSelected={() => contactBulkAction([...contactSelected], "restore")}
+              onPurgeSelected={() => {
+                const ids = [...contactSelected];
+                setConfirm({
+                  title: `Permanently delete ${ids.length}?`,
+                  message: "This cannot be undone. These messages will be erased forever.",
+                  confirmLabel: "Delete forever",
+                  danger: true,
+                  onConfirm: () => contactBulkAction(ids, "purge"),
+                });
+              }}
+            />
           ) : (
             <div className={`overflow-hidden rounded-2xl shadow-sm ring-1 ${t.card}`}>
               <div className={`flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center ${t.border}`}>
@@ -558,6 +758,18 @@ export function AdminConsole({ data }: Props) {
           onZoom={(src) => setZoomImg(src)}
           onDelete={() => deleteInquiry(activeInquiry.id)}
           onSetStatus={(s) => setStatus(activeInquiry.id, s)}
+        />
+      )}
+
+      {activeContact && (
+        <ContactModal
+          t={t}
+          contact={activeContact}
+          deleted={contactTab === "trash"}
+          onClose={() => setActiveContact(null)}
+          onDelete={() => deleteContact(activeContact.id)}
+          onRestore={() => restoreContact(activeContact.id)}
+          onSetStatus={(s) => setContactStatus(activeContact.id, s)}
         />
       )}
 
@@ -856,6 +1068,225 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { 
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Contact Us management: list of contact-form submissions with the same
+// search / triage / soft-delete UX as inquiries, minus the product bits.
+function ContactsSection({
+  t, tab, setTab, q, setQ, statusFilter, setStatusFilter, statusCounts, list,
+  selected, toggleSelect, allSelected, toggleSelectAll, busy, onOpen, onExport,
+  onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
+  onRestoreSelected, onPurgeSelected,
+}: {
+  t: any; tab: "active" | "trash"; setTab: (v: "active" | "trash") => void;
+  q: string; setQ: (v: string) => void;
+  statusFilter: "all" | Status; setStatusFilter: (v: "all" | Status) => void;
+  statusCounts: { all: number; new: number; handled: number; spam: number };
+  list: ContactMessage[]; selected: Set<string>; toggleSelect: (id: string) => void;
+  allSelected: boolean; toggleSelectAll: () => void; busy: boolean;
+  onOpen: (c: ContactMessage) => void; onExport: () => void;
+  onSetStatus: (id: string, s: Status) => void; onDelete: (id: string) => void;
+  onRestore: (id: string) => void; onPurge: (id: string) => void;
+  onStatusSelected: (s: Status) => void; onDeleteSelected: () => void;
+  onRestoreSelected: () => void; onPurgeSelected: () => void;
+}) {
+  const showBulk = list.length > 0;
+  return (
+    <div className={`overflow-hidden rounded-2xl shadow-sm ring-1 ${t.card}`}>
+      <div className={`flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center ${t.border}`}>
+        <div className="relative flex-1 sm:max-w-xs">
+          <Search className={`absolute left-3 top-2.5 h-4 w-4 ${t.soft}`} />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder={`Search ${tab === "trash" ? "deleted messages" : "messages"}…`}
+            className={`h-10 w-full rounded-xl pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`}
+          />
+        </div>
+        {/* Active / Recently Deleted toggle */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {(["active", "trash"] as const).map((tabKey) => (
+            <button
+              key={tabKey}
+              onClick={() => setTab(tabKey)}
+              className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ring-1 ${tab === tabKey ? "bg-[#1d1d1f] text-white ring-transparent" : t.pill}`}
+            >
+              {tabKey === "active" ? "Inbox" : "Recently Deleted"}
+            </button>
+          ))}
+        </div>
+        {/* Status filter — active inbox only. */}
+        {tab === "active" && (
+          <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
+            {(["all", "new", "handled", "spam"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition-colors ring-1 ${statusFilter === s ? (s === "all" ? "bg-[#1d1d1f] text-white ring-transparent" : `${STATUS_META[s as Status].chip} ring-transparent`) : t.pill}`}
+              >
+                {s} {s === "all" ? statusCounts.all : statusCounts[s as Status]}
+              </button>
+            ))}
+          </div>
+        )}
+        <button onClick={onExport} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export all"} className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black ${tab === "active" ? "" : "sm:ml-auto"}`}>
+          <Download size={15} /> Export{selected.size > 0 ? ` (${selected.size})` : ""}
+        </button>
+      </div>
+
+      {/* Selection + bulk-action bar. */}
+      {showBulk && (
+        <div className={`flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${t.border}`}>
+          <button onClick={toggleSelectAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
+            {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+            {allSelected ? "Clear selection" : "Select all"}
+          </button>
+          {selected.size > 0 && (
+            <>
+              <span className={`text-[13px] font-semibold ${t.strong}`}>{selected.size} selected</span>
+              <div className="ml-auto flex flex-wrap items-center gap-2">
+                {tab === "active" ? (
+                  <>
+                    {(["new", "handled", "spam"] as Status[]).map((s) => (
+                      <button key={s} onClick={() => onStatusSelected(s)} disabled={busy}
+                        className={`inline-flex items-center rounded-full px-3 py-2 text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-60 ${STATUS_META[s].chip}`}>
+                        Mark {STATUS_META[s].label}
+                      </button>
+                    ))}
+                    <button onClick={onDeleteSelected} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60">
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Delete
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button onClick={onRestoreSelected} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 disabled:opacity-60">
+                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Restore selected
+                    </button>
+                    <button onClick={onPurgeSelected} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60">
+                      <Trash2 className="h-3.5 w-3.5" /> Delete forever
+                    </button>
+                  </>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {list.length ? (
+        <ul className={`divide-y ${t.divide}`}>
+          {list.map((c) => {
+            const st = asStatus(c.status);
+            const sel = selected.has(c.id);
+            return (
+              <li key={c.id} className={`flex flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-center ${t.hover} ${sel ? "bg-brand/[0.05]" : st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <button onClick={() => toggleSelect(c.id)} aria-label="Select message" className={`shrink-0 transition-colors ${sel ? "text-brand" : `${t.soft} hover:text-brand`}`}>
+                    {sel ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+                  </button>
+                  <button onClick={() => onOpen(c)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                    <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}>
+                      <MessageSquare className="h-[18px] w-[18px]" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className={`line-clamp-1 text-[13px] font-semibold leading-snug hover:text-brand ${tab === "trash" ? "opacity-70" : ""}`}>
+                        {contactName(c)}{c.productName ? <span className={`font-normal ${t.soft}`}> · {c.productName}</span> : null}
+                      </p>
+                      <p className={`mt-0.5 line-clamp-1 text-xs ${t.soft}`}>{c.message}</p>
+                      <div className={`mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${t.soft}`}>
+                        <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" /> {c.email}</span>
+                        <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmtDate(c.createdAt)}</span>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
+                  {tab === "active" ? (
+                    <>
+                      <StatusControl t={t} value={st} onChange={(s) => onSetStatus(c.id, s)} />
+                      <button onClick={() => onDelete(c.id)} aria-label="Delete message" title="Delete message" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => onRestore(c.id)} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white">
+                        <RotateCcw className="h-3.5 w-3.5" /> Restore
+                      </button>
+                      <button onClick={() => onPurge(c.id)} aria-label="Delete forever" title="Delete forever" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <Empty t={t} label={tab === "trash" ? "Nothing in Recently Deleted. Deleted messages land here and can be restored any time." : "No messages found."} pad />
+      )}
+    </div>
+  );
+}
+
+// Contact message detail modal — name, email, optional product, full message.
+function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetStatus, t }: { contact: ContactMessage; deleted: boolean; onClose: () => void; onDelete: () => void; onRestore: () => void; onSetStatus: (s: Status) => void; t: any }) {
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
+      <div className={`absolute inset-0 ${t.overlay}`} />
+      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 ${t.modal}`}>
+        <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
+          <p className="text-sm font-semibold">Contact message</p>
+          <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand`}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="overflow-y-auto p-5">
+          <div className="flex items-center gap-3">
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${t.thumb} ${t.soft}`}>
+              <MessageSquare className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold leading-snug">{contactName(contact)}</h3>
+              <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_META[asStatus(contact.status)].chip}`}>{STATUS_META[asStatus(contact.status)].label}</span>
+            </div>
+          </div>
+
+          <dl className={`mt-4 space-y-2.5 text-sm ${t.soft}`}>
+            <Row icon={Mail} label="Email" value={contact.email} />
+            {contact.productName && <Row icon={Package} label="Product" value={contact.productName} />}
+            <Row icon={Calendar} label="Received" value={fmtDateTime(contact.createdAt)} />
+          </dl>
+
+          <div className={`mt-4 rounded-xl p-3 text-sm ${t.thumb}`}>
+            <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Message</p>
+            <p className="whitespace-pre-wrap">{contact.message}</p>
+          </div>
+
+          {!deleted && (
+            <div className="mt-5">
+              <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this message</p>
+              <StatusControl t={t} value={asStatus(contact.status)} onChange={onSetStatus} big />
+            </div>
+          )}
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <a href={`mailto:${contact.email}`} className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"><Mail className="h-3.5 w-3.5" /> Reply by email</a>
+            {deleted ? (
+              <button onClick={onRestore} className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white">
+                <RotateCcw className="h-3.5 w-3.5" /> Restore
+              </button>
+            ) : (
+              <button onClick={onDelete} className="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500 hover:text-white">
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            )}
           </div>
         </div>
       </div>
