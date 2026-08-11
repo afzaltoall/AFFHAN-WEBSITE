@@ -53,3 +53,6 @@ public/basis/
 public/experience.html
 public/static/images/chapter_preview*.jpg
 public/static/images/map*.png
+
+.vercel
+.env*

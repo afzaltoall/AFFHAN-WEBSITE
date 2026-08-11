@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "../../lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { AdminConsole } from "@/components/admin/AdminConsole";
+import { AdminAutoLogout } from "@/components/admin/AdminAutoLogout";
 
 export const dynamic = "force-dynamic";
 
@@ -64,5 +65,10 @@ export default async function AdminPage() {
     deletedContacts: deletedContacts.map(mapContact),
   };
 
-  return <AdminConsole data={data} />;
+  return (
+    <>
+      <AdminAutoLogout />
+      <AdminConsole data={data} />
+    </>
+  );
 }
