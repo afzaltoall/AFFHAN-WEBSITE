@@ -8,13 +8,36 @@ import { ScrollChoreography } from "@/components/ui/scroll-choreography";
  * the vw/vh choreography is deliberately not run on small screens (it degrades
  * to nothing there), so mobile users drop straight into the catalogue.
  */
-export function CatalogueScrollHero() {
+export function CatalogueScrollHero({ scatterImages = [] }: { scatterImages?: string[] }) {
   const imgs = [
     "/full catalogue/discover.png",
     "/full catalogue/verify.png",
     "/full catalogue/customize.png",
     "/full catalogue/Deliver.png",
   ];
+
+  const deliveryIcons = [
+    "/Delivery/icon-1.png",
+    "/Delivery/icon-2.png",
+    "/Delivery/icon-3.png",
+    "/Delivery/icon-4.png",
+    "/Delivery/icon-5.png",
+  ];
+
+  const finalScatter = [...scatterImages];
+  while (finalScatter.length < 10) {
+    finalScatter.push("");
+  }
+  
+  // Replace left side (even indices) with the delivery icons
+  finalScatter[0] = deliveryIcons[0];
+  finalScatter[2] = deliveryIcons[1];
+  finalScatter[4] = deliveryIcons[2];
+  finalScatter[6] = ""; // Removed the tick image
+  finalScatter[8] = deliveryIcons[4];
+
+  // Remove specific right side images
+  finalScatter[5] = ""; // Removed the timer image
 
   return (
     <div className="hidden lg:block relative">
@@ -28,6 +51,7 @@ export function CatalogueScrollHero() {
       </div>
       <ScrollChoreography
         images={{ topLeft: imgs[0], topRight: imgs[1], bottomLeft: imgs[2], bottomRight: imgs[3] }}
+        scatter={finalScatter}
       />
     </div>
   );

@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, useScroll, useSpring, useTransform } from "framer-motion";
+import { motion, useScroll, useSpring, useTransform, type MotionValue } from "framer-motion";
 import { useRef } from "react";
 import { cn } from "@/lib/utils";
+import { getCdnUrl } from "@/lib/cdn";
 
 interface ScrollChoreographyProps {
   className?: string;
@@ -12,9 +13,58 @@ interface ScrollChoreographyProps {
     bottomLeft: string;
     bottomRight: string;
   };
+  // Optional product thumbnails that "spill" outward from the centre as the
+  // hero word zooms in (see ScatterItem). Decorative — safe to omit.
+  scatter?: string[];
 }
 
-export function ScrollChoreography({ className, images }: ScrollChoreographyProps) {
+// Fixed spread targets (vw/vh from centre) + a little rotation, so the burst
+// looks organic rather than symmetric. Indexed by scatter position.
+const SCATTER_POS = [
+  // Left side (4 active items: 0, 8, 2, 4) - evenly spaced
+  { x: -32, y: -30, r: -14 }, // 0: Top left
+  // Right side (5 potential items: 1, 3, 5, 7, 9) - evenly spaced
+  { x: 32, y: -32, r: 12 },   // 1: Top right
+  { x: -46, y: 10, r: -8 },   // 2: Mid-bottom left
+  { x: 44, y: -16, r: 10 },   // 3: Mid-top right
+  { x: -32, y: 30, r: -16 },  // 4: Bottom left
+  { x: 48, y: 0, r: 14 },     // 5: Center right
+  { x: -20, y: -60, r: -7 },  // 6: Empty / Hidden
+  { x: 44, y: 16, r: 9 },     // 7: Mid-bottom right
+  { x: -46, y: -10, r: -11 }, // 8: Mid-top left
+  { x: 32, y: 32, r: 11 },    // 9: Bottom right
+];
+
+// A single product thumbnail that bursts from the centre outward to its scatter
+// target as you scroll into the zoom phase, then fades before the hero goes
+// full-bleed. Each item owns its own transforms so the parent's hook order is
+// stable regardless of how many thumbnails are supplied.
+function ScatterItem({
+  progress,
+  pos,
+  img,
+}: {
+  progress: MotionValue<number>;
+  pos: { x: number; y: number; r: number };
+  img: string;
+}) {
+  const opacity = useTransform(progress, [0.5, 0.62, 0.82, 0.9], [0, 1, 1, 0]);
+  const x = useTransform(progress, [0.5, 0.8], ["0vw", `${pos.x}vw`]);
+  const y = useTransform(progress, [0.5, 0.8], ["0vh", `${pos.y}vh`]);
+  const scale = useTransform(progress, [0.5, 0.68, 0.85], [0.35, 1, 1.06]);
+  const rotate = useTransform(progress, [0.5, 0.8], [0, pos.r]);
+  return (
+    <motion.div
+      style={{ x, y, scale, rotate, opacity }}
+      className="absolute left-1/2 top-1/2 h-[8.5vw] w-[8.5vw] max-h-[150px] max-w-[150px] -translate-x-1/2 -translate-y-1/2 overflow-visible drop-shadow-2xl will-change-transform"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={getCdnUrl(img) as string} alt="" className="h-full w-full object-contain" />
+    </motion.div>
+  );
+}
+
+export function ScrollChoreography({ className, images, scatter }: ScrollChoreographyProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
@@ -54,6 +104,8 @@ export function ScrollChoreography({ className, images }: ScrollChoreographyProp
   const baseImageClasses =
     "absolute left-1/2 top-1/2 w-[36vw] h-[24vh] overflow-hidden -translate-x-1/2 -translate-y-1/2 bg-muted shadow-2xl will-change-transform rounded-2xl";
 
+  const scatterImages = (scatter ?? []).slice(0, SCATTER_POS.length);
+
   return (
     <div ref={containerRef} className={cn("relative h-[300vh] w-full", className)}>
       <div className="sticky top-0 h-screen w-full overflow-hidden">
@@ -81,6 +133,15 @@ export function ScrollChoreography({ className, images }: ScrollChoreographyProp
             <img src={images.topRight} alt="" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
           </motion.div>
         </div>
+
+        {/* Product spill — thumbnails burst outward as the hero word zooms. */}
+        {scatterImages.length > 0 && (
+          <div className="pointer-events-none absolute inset-0 z-[45]">
+            {scatterImages.map((img, i) => (
+              img ? <ScatterItem key={`${i}-${img}`} progress={smoothProgress} pos={SCATTER_POS[i]} img={img} /> : null
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

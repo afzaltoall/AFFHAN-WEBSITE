@@ -345,7 +345,11 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pt-28">
-      {defaultView && <CatalogueScrollHero />}
+      {defaultView && (
+        <CatalogueScrollHero
+          scatterImages={products.slice(0, 10).map((p) => p.imageUrl).filter(Boolean)}
+        />
+      )}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12">
         {/* Header — search-aware. There is intentionally no search box here:
             search lives only in the homepage hero and the navbar. On /products
