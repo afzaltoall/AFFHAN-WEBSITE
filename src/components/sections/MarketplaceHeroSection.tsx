@@ -220,28 +220,28 @@ export function MarketplaceHeroSection() {
                   opacity: 1; 
                 }
                 78% {
-                  transform: translateY(210px) scale(1);
+                  transform: translateY(310px) scale(1);
                   opacity: 1;
                 }
                 79%, 100% { 
-                  transform: translateY(210px) scale(1);
+                  transform: translateY(310px) scale(1);
                   opacity: 0; 
                 }
               }
               @keyframes waterRipple {
                 0%, 79% {
                   opacity: 0;
-                  transform: translate(-50%, 210px) scale(0.1);
+                  transform: translate(-50%, 310px) scale(0.1);
                   border-width: 2px;
                 }
                 80% {
                   opacity: 1;
-                  transform: translate(-50%, 210px) scale(0.1);
+                  transform: translate(-50%, 310px) scale(0.1);
                   border-width: 2px;
                 }
                 88% {
                   opacity: 0;
-                  transform: translate(-50%, 210px) scale(1.5);
+                  transform: translate(-50%, 310px) scale(1.5);
                   border-width: 0.5px;
                 }
                 100% {
@@ -251,21 +251,21 @@ export function MarketplaceHeroSection() {
               @keyframes reboundDrop {
                 0%, 79% {
                   opacity: 0;
-                  transform: translate(-50%, 210px) scale(0);
+                  transform: translate(-50%, 310px) scale(0);
                 }
                 80% {
                   opacity: 1;
-                  transform: translate(-50%, 210px) scale(1);
+                  transform: translate(-50%, 310px) scale(1);
                 }
                 85% {
-                  transform: translate(-50%, 185px) scale(0.8);
+                  transform: translate(-50%, 285px) scale(0.8);
                 }
                 90% {
                   opacity: 1;
                 }
                 95% {
                   opacity: 0;
-                  transform: translate(-50%, 215px) scale(0.5);
+                  transform: translate(-50%, 315px) scale(0.5);
                 }
                 100% {
                   opacity: 0;
@@ -375,7 +375,7 @@ export function MarketplaceHeroSection() {
                 alt="Global B2B" 
                 width={20} 
                 height={20} 
-                className="relative z-10 h-5 w-5 shrink-0 object-contain group-hover:animate-spin" 
+                className="relative z-10 h-5 w-5 shrink-0 object-contain" 
                 aria-hidden="true" 
               />
               <span className="relative z-10 text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-dark sm:text-[11px]">
