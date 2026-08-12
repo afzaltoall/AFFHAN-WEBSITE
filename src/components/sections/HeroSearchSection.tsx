@@ -102,7 +102,6 @@ export function HeroSearchSection() {
     <div
       className={`w-full flex flex-col items-center justify-center pt-4 lg:pt-5 pb-8 lg:pb-10 relative z-[60] transition-opacity duration-300 ${isMegaMenuOpen ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
-      ref={containerRef}
     >
       {/* Search stays centered; the Top Ranking / Full Catalog quick links sit
           on the RIGHT via balanced flex-1 spacers, so the search doesn't shift
@@ -110,11 +109,10 @@ export function HeroSearchSection() {
       <div className="w-full flex flex-col items-center gap-4 lg:flex-row lg:items-center lg:justify-center">
         {/* Trust badges: auto-sliding ticker on mobile, spotlight row on desktop */}
         <TrustBadges />
-        <div className={`relative w-full max-w-2xl transition-all duration-300 ${isFocused ? "scale-[1.01]" : ""}`}>
+        <div className={`relative w-full max-w-2xl transition-all duration-300 ${isFocused ? "scale-[1.01]" : ""}`} ref={containerRef}>
           <form
             onSubmit={(e) => { e.preventDefault(); runSearch(); }}
-            className={`flex items-center w-full h-11 md:h-12 bg-white rounded-full border transition-colors ${isFocused ? "border-brand shadow-[0_4px_16px_rgba(39,168,196,0.12)]" : "border-slate-200 shadow-sm hover:border-brand/40 hover:shadow-md"
-              }`}
+            className={`flex items-center w-full h-11 md:h-12 liquid-glass-card hover:!transform-none !rounded-full transition-colors ${isFocused ? "shadow-[0_4px_16px_rgba(39,168,196,0.12)]" : "shadow-sm"}`}
           >
             <div className="pl-5 pr-2 text-slate-400"><Search size={18} className={isFocused ? "text-brand" : ""} /></div>
             <input
@@ -220,14 +218,14 @@ export function HeroSearchSection() {
         <div className="flex items-center justify-center gap-2.5 lg:flex-1 lg:justify-start">
           <Link
             href="/rankings"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-amber-600 bg-white border border-slate-200 hover:border-amber-300 rounded-full px-4 py-2.5 shadow-sm hover:shadow transition-all whitespace-nowrap"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-amber-600 liquid-glass-card hover:!transform-none !rounded-full px-4 py-2.5 shadow-sm hover:shadow transition-all whitespace-nowrap"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/top-1.jpg" alt="Top Ranking" width={20} height={20} style={{ width: 20, height: 20 }} className="object-contain scale-[1.8] [clip-path:inset(20%)]" /> Top Ranking
           </Link>
           <Link
             href="/products"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-brand-dark bg-white border border-slate-200 hover:border-brand/40 rounded-full px-4 py-2.5 shadow-sm hover:shadow transition-all whitespace-nowrap"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-brand-dark liquid-glass-card hover:!transform-none !rounded-full px-4 py-2.5 shadow-sm hover:shadow transition-all whitespace-nowrap"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/cata.jpg" alt="Full Catalog" width={20} height={20} style={{ width: 20, height: 20 }} className="object-contain scale-[1.8] [clip-path:inset(20%)]" /> Full Catalog
