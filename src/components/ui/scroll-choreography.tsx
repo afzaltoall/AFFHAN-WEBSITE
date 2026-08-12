@@ -21,17 +21,17 @@ interface ScrollChoreographyProps {
 // Fixed spread targets (vw/vh from centre) + a little rotation, so the burst
 // looks organic rather than symmetric. Indexed by scatter position.
 const SCATTER_POS = [
-  // Left side (4 active items: 0, 8, 2, 4) - evenly spaced
-  { x: -32, y: -30, r: -14 }, // 0: Top left
+  // Left side (4 active items: 0, 8, 2, 4) - mirroring 1, 3, 7, 9
+  { x: -32, y: -32, r: -12 }, // 0: Top left
   // Right side (5 potential items: 1, 3, 5, 7, 9) - evenly spaced
   { x: 32, y: -32, r: 12 },   // 1: Top right
-  { x: -46, y: 10, r: -8 },   // 2: Mid-bottom left
+  { x: -44, y: 16, r: -9 },   // 2: Mid-bottom left
   { x: 44, y: -16, r: 10 },   // 3: Mid-top right
-  { x: -32, y: 30, r: -16 },  // 4: Bottom left
+  { x: -32, y: 32, r: -11 },  // 4: Bottom left
   { x: 48, y: 0, r: 14 },     // 5: Center right
   { x: -20, y: -60, r: -7 },  // 6: Empty / Hidden
   { x: 44, y: 16, r: 9 },     // 7: Mid-bottom right
-  { x: -46, y: -10, r: -11 }, // 8: Mid-top left
+  { x: -44, y: -16, r: -10 }, // 8: Mid-top left
   { x: 32, y: 32, r: 11 },    // 9: Bottom right
 ];
 
@@ -48,11 +48,11 @@ function ScatterItem({
   pos: { x: number; y: number; r: number };
   img: string;
 }) {
-  const opacity = useTransform(progress, [0.5, 0.62, 0.82, 0.9], [0, 1, 1, 0]);
-  const x = useTransform(progress, [0.5, 0.8], ["0vw", `${pos.x}vw`]);
-  const y = useTransform(progress, [0.5, 0.8], ["0vh", `${pos.y}vh`]);
-  const scale = useTransform(progress, [0.5, 0.68, 0.85], [0.35, 1, 1.06]);
-  const rotate = useTransform(progress, [0.5, 0.8], [0, pos.r]);
+  const opacity = useTransform(progress, [0.65, 0.75, 0.85, 0.95], [0, 1, 1, 0]);
+  const x = useTransform(progress, [0.65, 0.9], ["0vw", `${pos.x}vw`]);
+  const y = useTransform(progress, [0.65, 0.9], ["0vh", `${pos.y}vh`]);
+  const scale = useTransform(progress, [0.65, 0.8, 0.95], [0.35, 1, 1.06]);
+  const rotate = useTransform(progress, [0.65, 0.9], [0, pos.r]);
   return (
     <motion.div
       style={{ x, y, scale, rotate, opacity }}
