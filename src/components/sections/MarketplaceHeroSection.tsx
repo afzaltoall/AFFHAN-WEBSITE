@@ -171,32 +171,52 @@ export function MarketplaceHeroSection() {
         <div className="text-center pt-1 pb-3 sm:pb-4">
           <div className="mb-3 flex justify-center">
             <style dangerouslySetInnerHTML={{ __html: `
-              @keyframes b2bDrip {
-                0%   { transform: translateY(-7px) scale(0.5); opacity: 0; }
-                18%  { transform: translateY(1px) scale(1); opacity: 0.85; }
-                72%  { opacity: 0.85; }
-                100% { transform: translateY(32px) scale(0.8); opacity: 0; }
-              }
-              .b2b-drop { position:absolute; top:0; border-radius:50% 50% 50% 50% / 55% 55% 45% 45%;
-                background: radial-gradient(circle at 35% 28%, rgba(255,255,255,0.95), rgba(186,230,253,0.55) 55%, rgba(2,132,199,0.85));
-                box-shadow: 0 0 2px rgba(14,165,233,0.5); animation: b2bDrip 4s linear infinite; will-change: transform, opacity; }
-              .b2b-drop-1 { left:13%; width:6px; height:7px; animation-delay:0s; }
-              .b2b-drop-2 { left:34%; width:5px; height:6px; animation-delay:0.9s; }
-              .b2b-drop-3 { left:52%; width:4px; height:5px; animation-delay:2.4s; }
-              .b2b-drop-4 { left:70%; width:7px; height:8px; animation-delay:1.7s; }
-              .b2b-drop-5 { left:87%; width:5px; height:6px; animation-delay:3.1s; }
-              @media (prefers-reduced-motion: reduce) { .b2b-drop { animation: none; opacity: 0; } }
+              @keyframes b2bFlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+              @keyframes b2bShine { 0% { transform: translateX(-160%) skewX(-18deg); } 100% { transform: translateX(260%) skewX(-18deg); } }
+              @keyframes b2bRipple { 0% { transform: scale(0); opacity: 0.45; } 100% { transform: scale(2.8); opacity: 0; } }
+              .b2b-badge { background: linear-gradient(115deg, #ffffff 0%, #eaf9fc 22%, #cdeef7 42%, #ffffff 66%, #eaf9fc 100%); background-size: 220% 100%; animation: b2bFlow 8s linear infinite; }
+              .b2b-sheen { position:absolute; inset:0; background: linear-gradient(to bottom, rgba(255,255,255,0.7), rgba(255,255,255,0) 50%); }
+              .b2b-shine { position:absolute; top:0; bottom:0; left:0; width:45%; transform: translateX(-160%) skewX(-18deg);
+                background: linear-gradient(100deg, transparent, rgba(255,255,255,0.9), transparent); }
+              .b2b-ripple { position:absolute; left:50%; top:50%; width:44px; height:44px; margin:-22px 0 0 -22px; border-radius:50%; transform:scale(0); opacity:0;
+                background: radial-gradient(circle, rgba(39,168,196,0.4), rgba(39,168,196,0) 70%); }
+              .group:hover .b2b-shine { animation: b2bShine 0.9s ease-out; }
+              .group:hover .b2b-ripple { animation: b2bRipple 0.85s ease-out; }
+              @keyframes b2bBead { 0% { transform: translateY(-30%) scale(0.6); opacity: 0; } 15% { transform: translateY(0) scale(1); opacity: 1; } 70% { opacity: 1; } 100% { transform: translateY(240%) scale(0.85); opacity: 0; } }
+              .b2b-bead { position:absolute; top:-2px; border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
+                background: radial-gradient(ellipse 62% 55% at 38% 30%, rgba(255,255,255,0.97) 0%, rgba(224,242,254,0.35) 32%, rgba(186,230,253,0.5) 64%, rgba(14,165,233,0.85) 100%);
+                border: 0.5px solid rgba(14,165,233,0.5);
+                box-shadow: 0 2px 4px rgba(3,105,161,0.3), inset 0 -1.5px 2.5px rgba(2,132,199,0.4), inset 1px 1px 2px rgba(255,255,255,0.9);
+                animation: b2bBead 3.4s linear infinite; will-change: transform, opacity; }
+              .b2b-bead::after { content:""; position:absolute; top:15%; left:22%; width:28%; height:24%; border-radius:50%; background:rgba(255,255,255,0.95); }
+              .b2b-bead-1 { left:12%; width:9px; height:11px; animation-delay:0s; }
+              .b2b-bead-2 { left:30%; width:7px; height:9px; animation-delay:1.3s; animation-duration:3.9s; }
+              .b2b-bead-3 { left:47%; width:6px; height:8px; animation-delay:2.5s; animation-duration:3.1s; }
+              .b2b-bead-4 { left:63%; width:9px; height:11px; animation-delay:0.7s; animation-duration:4.2s; }
+              .b2b-bead-5 { left:78%; width:7px; height:9px; animation-delay:1.9s; }
+              .b2b-bead-6 { left:90%; width:6px; height:8px; animation-delay:3.0s; animation-duration:3.6s; }
+              .b2b-beads { opacity: 0; transition: opacity 0.4s ease; }
+              .group:hover .b2b-beads { opacity: 1; }
+              .group:hover .b2b-bead { animation-duration: 2s; }
+              @media (prefers-reduced-motion: reduce) { .b2b-badge, .b2b-bead { animation: none; } .b2b-beads { opacity: 0; } }
             ` }} />
-            <span className="group relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-brand/30 bg-gradient-to-b from-white to-[#27a8c4]/[0.08] px-4 py-1.5 shadow-[0_8px_24px_-10px_rgba(23,101,121,0.5)] backdrop-blur-sm transition-all duration-300 hover:shadow-[0_10px_28px_-8px_rgba(39,168,196,0.55)] hover:-translate-y-0.5">
-              {/* Water droplets over the whole badge — same liquid motion as the
-                  floating Instagram button, clipped to the pill by overflow-hidden
-                  so they read as water flowing inside the glass badge. */}
-              <span aria-hidden="true" className="pointer-events-none absolute inset-0 z-0">
-                <span className="b2b-drop b2b-drop-1" />
-                <span className="b2b-drop b2b-drop-2" />
-                <span className="b2b-drop b2b-drop-3" />
-                <span className="b2b-drop b2b-drop-4" />
-                <span className="b2b-drop b2b-drop-5" />
+            <span className="group b2b-badge relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-brand/30 px-4 py-1.5 shadow-[0_8px_24px_-10px_rgba(23,101,121,0.5)] backdrop-blur-sm transition-all duration-300 hover:shadow-[0_12px_30px_-8px_rgba(39,168,196,0.6)] hover:-translate-y-0.5">
+              {/* Liquid-glass layers: a soft top sheen, a light shine that sweeps
+                  across on hover, and a ripple that blooms from the centre on
+                  hover. All clipped to the pill by overflow-hidden. */}
+              <span aria-hidden="true" className="b2b-sheen pointer-events-none" />
+              <span aria-hidden="true" className="b2b-shine pointer-events-none" />
+              <span aria-hidden="true" className="b2b-ripple pointer-events-none" />
+              {/* Glassy water droplets trickling down — same bead look as the
+                  floating Instagram button (radial glass gradient, specular
+                  highlight, teal rim, cast shadow). Faster on hover. */}
+              <span aria-hidden="true" className="b2b-beads pointer-events-none absolute inset-0">
+                <span className="b2b-bead b2b-bead-1" />
+                <span className="b2b-bead b2b-bead-2" />
+                <span className="b2b-bead b2b-bead-3" />
+                <span className="b2b-bead b2b-bead-4" />
+                <span className="b2b-bead b2b-bead-5" />
+                <span className="b2b-bead b2b-bead-6" />
               </span>
               {/* Crisp network globe */}
               <svg viewBox="0 0 24 24" fill="none" className="relative z-10 h-4 w-4 shrink-0" aria-hidden="true">
