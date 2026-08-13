@@ -46,6 +46,10 @@ export function ParallaxComponent() {
     }
 
     const lenis = new Lenis();
+    // Expose the instance so in-page anchor buttons (e.g. "Begin Journey",
+    // "Explore roles") can scroll via Lenis — native scrollIntoView is
+    // otherwise swallowed by Lenis's virtual scroll. See src/lib/scroll.ts.
+    (window as unknown as { lenis?: Lenis }).lenis = lenis;
     lenis.on("scroll", ScrollTrigger.update);
     const tick = (time: number) => lenis.raf(time * 1000);
     gsap.ticker.add(tick);
@@ -71,6 +75,7 @@ export function ParallaxComponent() {
       if (triggerElement) gsap.killTweensOf(triggerElement);
       tl?.kill();
       gsap.ticker.remove(tick);
+      delete (window as unknown as { lenis?: Lenis }).lenis;
       lenis.destroy();
     };
   }, []);

@@ -183,7 +183,7 @@ export function ScrollPortraitWall({
       </div>
 
       {/* The scattered portrait grid */}
-      <div className="relative z-0 mb-[100vh] mt-[50vh]">
+      <div className="relative z-0 mb-[25vh] mt-[50vh]">
         {layout.map((row, ri) => (
           <div key={ri} className="flex w-full">
             {row.map((idx, ci) => {
