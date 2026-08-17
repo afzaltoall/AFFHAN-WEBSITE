@@ -4,16 +4,16 @@ import { CheckCircle2, Globe, ShieldCheck, Ship, Box, Search, PackageSearch } fr
 import { FooterSection } from "@/components/sections/FooterSection";
 
 export const metadata: Metadata = {
-  title: "Sourcing Company in Chennai | AFFHAN — China Import & Sourcing Agent",
+  title: "Sourcing Agent & Sourcing Company in Chennai | AFFHAN — China Import",
   description:
-    "AFFHAN is a trusted sourcing company in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
+    "AFFHAN is a trusted sourcing company and sourcing agent in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
   alternates: {
     canonical: "https://affhan.com/sourcing-company-chennai",
   },
   openGraph: {
-    title: "Sourcing Company in Chennai | AFFHAN — China Import & Sourcing Agent",
+    title: "Sourcing Agent & Sourcing Company in Chennai | AFFHAN — China Import",
     description:
-      "AFFHAN is a trusted sourcing company in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
+      "AFFHAN is a trusted sourcing company and sourcing agent in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
     url: "https://affhan.com/sourcing-company-chennai",
     type: "website",
     siteName: "AFFHAN Group",
@@ -27,9 +27,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sourcing Company in Chennai | AFFHAN — China Import & Sourcing Agent",
+    title: "Sourcing Agent & Sourcing Company in Chennai | AFFHAN — China Import",
     description:
-      "AFFHAN is a trusted sourcing company in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
+      "AFFHAN is a trusted sourcing company and sourcing agent in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
   },
 };
 
@@ -58,6 +58,11 @@ const faqs = [
     question: "How do you ensure the quality of imported products?",
     answer:
       "Our ground team in China conducts strict pre-shipment quality inspections and factory audits, ensuring you only receive goods that meet your exact specifications.",
+  },
+  {
+    question: "Are you a sourcing agent in Chennai?",
+    answer:
+      "Yes, AFFHAN acts as your dedicated product sourcing agent in Chennai with our own procurement team on the ground in China. We bridge the gap between Indian buyers and Chinese factories.",
   },
 ];
 
@@ -122,11 +127,11 @@ export default function SourcingCompanyChennaiPage() {
       <section className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-6">
-            Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
+            Sourcing Agent & Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
           </h1>
           <p className="text-lg text-slate-600 mb-8 leading-relaxed">
-            Looking for a reliable <strong className="text-slate-800">china sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
-            AFFHAN Group connects Indian businesses to a global supply chain. Source from over 10 Lakhs+ products and 100+ countries with our end-to-end procurement, supplier verification, and freight forwarding solutions.
+            Looking for a reliable <strong className="text-slate-800">China sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
+            AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over 10 Lakhs+ products and 100+ countries with our end-to-end procurement, supplier verification, and freight forwarding solutions.
           </p>
           <div className="flex flex-col sm:flex-row justify-center gap-4">
             <Link
@@ -153,7 +158,7 @@ export default function SourcingCompanyChennaiPage() {
               Our Sourcing Services in Chennai
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto">
-              We provide comprehensive product sourcing in Chennai to streamline your import operations.
+              We provide comprehensive product sourcing in Chennai to streamline your import operations. Whether you need a full-service import company or a specialized sourcing agent in Chennai, we have you covered.
             </p>
           </div>
 
