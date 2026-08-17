@@ -12,7 +12,7 @@ type Badge = {
 
 const BADGES: Badge[] = [
   { icon: Shield, value: "50,000+ Verified", label: "Categories" },
-  { icon: Package, value: "6 Lakhs+", label: "Products" },
+  { icon: Package, value: "10 Lakhs+", label: "Products" },
   { icon: Globe, value: "100+ Countries", label: "Trusted Global" },
 ];
 

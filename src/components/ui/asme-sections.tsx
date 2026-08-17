@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { motion, useInView } from "framer-motion";
-import { ArrowRight } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
 import { Instrument_Serif } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +21,38 @@ export function AsmeSections() {
 // SECTION 1: HERO
 // ==========================================
 function Section1Hero() {
+  const [email, setEmail] = useState("");
+  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
+  const [msg, setMsg] = useState("");
+
+  const subscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (state === "loading" || state === "done") return;
+    const value = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+      setState("error");
+      setMsg("Please enter a valid email address.");
+      return;
+    }
+    setState("loading");
+    setMsg("");
+    try {
+      const res = await fetch("/api/careers/subscribe/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: value }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      setState("done");
+      setMsg(data.message || "You're on the list — we'll be in touch.");
+      setEmail("");
+    } catch (err) {
+      setState("error");
+      setMsg(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    }
+  };
+
   return (
     <section className="relative flex flex-col h-screen min-h-[640px] overflow-hidden bg-white">
       {/* Background Video */}
@@ -48,21 +80,58 @@ function Section1Hero() {
           Get Affhan&apos;s newest openings and team stories delivered to your inbox. No spam &mdash; just opportunities to build a career without borders.
         </p>
 
-        <form className="liquid-glass rounded-full max-w-xl w-full pl-6 pr-2 py-2 flex items-center gap-3 border border-white/10 mx-auto" onSubmit={(e) => e.preventDefault()}>
-          <input
-            type="email"
-            placeholder="Enter your email for job alerts"
-            className="flex-1 bg-transparent text-white placeholder:text-white/40 focus:outline-none text-sm sm:text-base min-w-0"
-            required
-          />
-          <button type="submit" aria-label="Subscribe to job alerts" className="bg-white rounded-full p-3 text-black hover:scale-105 transition-transform shrink-0">
-            <ArrowRight className="w-5 h-5" />
-          </button>
-        </form>
+        <div className="w-full max-w-xl mx-auto">
+          {state === "done" ? (
+            // Confirmation replaces the input entirely — a calm glass pill with a
+            // check badge, so subscribing feels finished rather than "just a green line".
+            <div className="liquid-glass rounded-full w-full pl-3 pr-6 py-3 flex items-center gap-3 border border-emerald-300/30 mx-auto animate-in fade-in">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-black">
+                <Check className="w-5 h-5" strokeWidth={3} />
+              </span>
+              <div className="text-left min-w-0">
+                <p className="text-white font-medium text-sm sm:text-base leading-tight">You&apos;re on the list.</p>
+                <p className="text-white/60 text-xs sm:text-sm leading-tight">We&apos;ll email you the moment a role opens up.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setState("idle"); setMsg(""); }}
+                className="ml-auto shrink-0 text-white/60 hover:text-white text-xs font-medium underline underline-offset-4 transition-colors"
+              >
+                Add another
+              </button>
+            </div>
+          ) : (
+            // Submit is driven by the "Life at Affhan" button below — the pill
+            // is input-only (Enter still submits via the form's onSubmit).
+            <form onSubmit={subscribe} className="liquid-glass rounded-full w-full px-6 py-3.5 flex items-center border border-white/10">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); if (state === "error") setState("idle"); }}
+                placeholder="Enter your email for job alerts"
+                disabled={state === "loading"}
+                className="flex-1 bg-transparent text-white placeholder:text-white/40 focus:outline-none text-sm sm:text-base min-w-0 disabled:opacity-60"
+                required
+              />
+            </form>
+          )}
+          {state === "error" && msg && (
+            <p className="mt-3 text-sm text-red-300">{msg}</p>
+          )}
+        </div>
 
-        <a href="/about" className="mt-6 sm:mt-8 liquid-glass rounded-full px-8 py-3 text-white text-sm font-medium border border-white/10 hover:bg-white/10 transition-colors">
-          Life at Affhan
-        </a>
+        {/* "Life at Affhan" is the send action for the job-alerts form: clicking
+            it subscribes the email typed above (no separate arrow button). */}
+        {state !== "done" && (
+          <button
+            type="button"
+            onClick={subscribe}
+            disabled={state === "loading"}
+            className="mt-6 sm:mt-8 liquid-glass rounded-full px-8 py-3 text-white text-sm font-medium border border-white/10 hover:bg-white/10 transition-colors flex items-center gap-2 disabled:opacity-70"
+          >
+            {state === "loading" ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : "Life at Affhan"}
+          </button>
+        )}
       </div>
 
       {/* Social Icons Footer — Affhan's official channels */}

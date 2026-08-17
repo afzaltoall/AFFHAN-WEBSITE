@@ -63,7 +63,7 @@ function RankingCard({ group, onSelect, onViewAll, seed }: { group: RankGroup; o
       beams={2}
       thickness={2}
       radius={20}
-      glow
+      glow={false}
       seed={seed}
       colors={["#27a8c4", "#f59e0b"]}
       className="!bg-white !border-slate-200/70 !p-4 sm:!p-5 shadow-sm hover:shadow-lg transition-shadow"

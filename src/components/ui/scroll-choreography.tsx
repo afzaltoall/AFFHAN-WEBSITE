@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useSpring, useTransform, type MotionValue } from "framer-motion";
+import { motion, useScroll, useTransform, type MotionValue } from "framer-motion";
 import { useRef } from "react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
@@ -72,12 +72,14 @@ export function ScrollChoreography({ className, images, scatter }: ScrollChoreog
     offset: ["start start", "end end"],
   });
 
-  const smoothProgress = useSpring(scrollYProgress, {
-    stiffness: 400,
-    damping: 50,
-    mass: 1.2,
-    restDelta: 0.001,
-  });
+  // Track scroll progress DIRECTLY, without a spring. A spring smooths the
+  // choreography, but it also means a large *programmatic* scroll jump (e.g. the
+  // instant scroll-to-top when you pick a category, from the tiles OR the navbar
+  // mega-menu) gets animated — the spring eases progress from ~0.9 back to 0 over
+  // ~1s, replaying the whole "Deliver" choreography on screen ("full screen
+  // scroll" glitch). Direct tracking snaps to the new frame instantly, so a jump
+  // is invisible while genuine scrolling still drives the animation smoothly.
+  const smoothProgress = scrollYProgress;
 
   const xLeft = "-20vw";
   const xRight = "20vw";

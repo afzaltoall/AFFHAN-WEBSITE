@@ -5,6 +5,8 @@ import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { FlagSelect } from "@/components/ui/FlagSelect";
+import { COUNTRIES } from "@/lib/countries";
 interface Contact2Props {
   title?: string;
   description?: string;
@@ -33,13 +35,21 @@ export const Contact2 = ({
   email = "email@example.com",
 }: Contact2Props) => {
   const [showScrollCue, setShowScrollCue] = React.useState(true);
+  // A country/dial dropdown being open overlaps the fixed "scroll down" cue at
+  // the bottom, so we hide the cue while either menu is showing.
+  const [countryOpen, setCountryOpen] = React.useState(false);
+  const [dialOpen, setDialOpen] = React.useState(false);
+  const anyDropdownOpen = countryOpen || dialOpen;
 
   // Controlled form state for the contact submission.
   const [form, setForm] = React.useState({
-    firstName: "",
-    lastName: "",
+    fullName: "",
     email: "",
-    productName: "",
+    companyName: "",
+    country: "",
+    phoneIso: "in",
+    phoneCode: "+91",
+    phone: "",
     message: "",
   });
   const [status, setStatus] = React.useState<"idle" | "submitting" | "success" | "error">("idle");
@@ -55,17 +65,23 @@ export const Contact2 = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (status === "submitting") return;
-    if (!form.firstName.trim()) { setStatus("error"); setFeedback("Please enter your first name."); return; }
+    if (!form.fullName.trim()) { setStatus("error"); setFeedback("Please enter your full name."); return; }
     if (!emailValid) { setStatus("error"); setFeedback("Please enter a valid email address."); return; }
+    if (!form.country.trim()) { setStatus("error"); setFeedback("Please select a country."); return; }
+    if (!form.phone.trim()) { setStatus("error"); setFeedback("Please enter your phone number."); return; }
     if (!form.message.trim()) { setStatus("error"); setFeedback("Please enter a message."); return; }
 
     setStatus("submitting");
     setFeedback("");
     try {
+      const payloadForm = {
+        ...form,
+        phone: `${form.phoneCode} ${form.phone}`
+      };
       const res = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payloadForm),
       });
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -75,7 +91,7 @@ export const Contact2 = ({
       }
       setStatus("success");
       setFeedback(payload.message || "Thanks for reaching out — we'll get back to you soon.");
-      setForm({ firstName: "", lastName: "", email: "", productName: "", message: "" });
+      setForm({ fullName: "", email: "", companyName: "", country: "", phoneIso: "in", phoneCode: "+91", phone: "", message: "" });
     } catch {
       setStatus("error");
       setFeedback("Network error. Please try again.");
@@ -272,25 +288,53 @@ export const Contact2 = ({
           <form onSubmit={handleSubmit} className="mx-auto w-full max-w-screen-md flex flex-col gap-6 p-6 sm:p-10 lg:w-7/12 liquid-glass-card">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="grid w-full items-center gap-2">
-                <Label htmlFor="firstname" className="text-slate-700 font-semibold tracking-wide">First Name</Label>
-                <Input type="text" id="firstname" name="firstName" value={form.firstName} onChange={setField("firstName")} placeholder="First Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                <Label htmlFor="fullName" className="text-slate-700 font-semibold tracking-wide">Full Name <span className="text-red-500">*</span></Label>
+                <Input type="text" id="fullName" name="fullName" value={form.fullName} onChange={setField("fullName")} placeholder="John Doe" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="grid w-full items-center gap-2">
+                <Label htmlFor="email" className="text-slate-700 font-semibold tracking-wide">Email Address <span className="text-red-500">*</span></Label>
+                <Input type="email" id="email" name="email" value={form.email} onChange={setField("email")} placeholder="john@example.com" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
               </div>
               <div className="grid w-full items-center gap-2">
-                <Label htmlFor="lastname" className="text-slate-700 font-semibold tracking-wide">Last Name</Label>
-                <Input type="text" id="lastname" name="lastName" value={form.lastName} onChange={setField("lastName")} placeholder="Last Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                <Label htmlFor="companyName" className="text-slate-700 font-semibold tracking-wide">Company Name</Label>
+                <Input type="text" id="companyName" name="companyName" value={form.companyName} onChange={setField("companyName")} placeholder="Optional" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
               </div>
             </div>
-            <div className="grid w-full items-center gap-2">
-              <Label htmlFor="email" className="text-slate-700 font-semibold tracking-wide">Email</Label>
-              <Input type="email" id="email" name="email" value={form.email} onChange={setField("email")} placeholder="Email" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
-            </div>
-            <div className="grid w-full items-center gap-2">
-              <Label htmlFor="productName" className="text-slate-700 font-semibold tracking-wide">Products Name</Label>
-              <Input type="text" id="productName" name="productName" value={form.productName} onChange={setField("productName")} placeholder="Products Name" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="grid w-full items-center gap-2">
+                <Label htmlFor="country" className="text-slate-700 font-semibold tracking-wide">Country <span className="text-red-500">*</span></Label>
+                <FlagSelect
+                  mode="country"
+                  placeholder="Select country"
+                  selected={COUNTRIES.find((c) => c.name === form.country) || null}
+                  onSelect={(c) => { setForm((f) => ({ ...f, country: c.name })); if (status === "error") { setStatus("idle"); setFeedback(""); } }}
+                  onOpenChange={setCountryOpen}
+                  buttonClassName="!h-11"
+                />
+              </div>
+              <div className="grid w-full items-center gap-2">
+                <Label htmlFor="phone" className="text-slate-700 font-semibold tracking-wide">Phone Number <span className="text-red-500">*</span></Label>
+                <div className="flex items-stretch gap-2">
+                  <div className="w-24 shrink-0">
+                    <FlagSelect
+                      mode="dial"
+                      align="right"
+                      placeholder="Code"
+                      selected={COUNTRIES.find((c) => c.iso === form.phoneIso) || null}
+                      onSelect={(c) => setForm((f) => ({ ...f, phoneIso: c.iso, phoneCode: c.dial }))}
+                      onOpenChange={setDialOpen}
+                      buttonClassName="!h-11 bg-slate-100"
+                    />
+                  </div>
+                  <Input type="tel" inputMode="numeric" id="phone" name="phone" value={form.phone} onChange={setField("phone")} placeholder="9876543210" className="min-w-0 flex-1 bg-slate-50/70 border border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                </div>
+              </div>
             </div>
             <div className="grid w-full gap-2">
-              <Label htmlFor="message" className="text-slate-700 font-semibold tracking-wide">Message</Label>
-              <Textarea placeholder="Type your message here..." id="message" name="message" value={form.message} onChange={setField("message")} className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl min-h-[120px] transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+              <Label htmlFor="message" className="text-slate-700 font-semibold tracking-wide">Message / Requirements</Label>
+              <Textarea placeholder="Any specific requirements, target price, or shipping preference?" id="message" name="message" value={form.message} onChange={setField("message")} className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl min-h-[120px] transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
             </div>
 
             {/* Inline status feedback */}
@@ -332,7 +376,7 @@ export const Contact2 = ({
       </div>
 
       {/* Scroll Down Indicator */}
-      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center transition-all duration-500 ${showScrollCue ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
+      <div className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center transition-all duration-500 ${showScrollCue && !anyDropdownOpen ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
         <a
           href="#locations"
           onClick={(e) => {

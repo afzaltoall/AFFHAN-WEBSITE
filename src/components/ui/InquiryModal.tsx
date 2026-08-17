@@ -3,24 +3,12 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { getCdnUrl } from "@/lib/cdn";
-import isoCountries from 'i18n-iso-countries';
-import enLocale from 'i18n-iso-countries/langs/en.json';
-import { getCountryCallingCode } from 'react-phone-number-input';
+import { FlagSelect } from '@/components/ui/FlagSelect';
+import { COUNTRIES } from '@/lib/countries';
 import { isValidMobile } from '@/lib/phone';
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize, X, ChevronLeft, ChevronRight, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-isoCountries.registerLocale(enLocale);
-const ALL_COUNTRIES_MAP = isoCountries.getNames('en', {select: 'official'});
-const ALL_COUNTRIES = Object.entries(ALL_COUNTRIES_MAP).map(([code, name]) => ({ code: code.toLowerCase(), name })).sort((a, b) => a.name.localeCompare(b.name));
-
-const COUNTRIES_WITH_CODES = ALL_COUNTRIES.map(c => {
-  let callingCode = "";
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  try { callingCode = getCountryCallingCode(c.code.toUpperCase() as any); } catch(e) {}
-  return { ...c, callingCode };
-}).filter(c => c.callingCode !== "");
 
 // MOQ (Minimum Order Quantity) tiers shown in the inquiry form. The dropdown
 // displays a range, but we store the tier's lower bound as the quantity (an Int
@@ -81,9 +69,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
   
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
   const [isMoqDropdownOpen, setIsMoqDropdownOpen] = useState(false);
-  const [isPhoneDropdownOpen, setIsPhoneDropdownOpen] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -110,9 +96,9 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
     e.preventDefault();
     setIsSubmitting(true);
     
-    // Combine phone code and number
-    const selectedPhoneCountry = COUNTRIES_WITH_CODES.find(c => c.code === inquiryForm.phoneCountryCode);
-    const fullPhoneNumber = `+${selectedPhoneCountry?.callingCode} ${inquiryForm.phoneNumber}`;
+    // Combine phone code and number (dial already includes the leading "+").
+    const selectedPhoneCountry = COUNTRIES.find(c => c.iso === inquiryForm.phoneCountryCode);
+    const fullPhoneNumber = `${selectedPhoneCountry?.dial ?? ""} ${inquiryForm.phoneNumber}`.trim();
 
     try {
       const response = await fetch('/api/inquiry', {
@@ -145,7 +131,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
 
   if (!product) return null;
 
-  const currentPhoneCountry = COUNTRIES_WITH_CODES.find(c => c.code === inquiryForm.phoneCountryCode) || COUNTRIES_WITH_CODES[0];
+  const currentPhoneCountry = COUNTRIES.find(c => c.iso === inquiryForm.phoneCountryCode) || COUNTRIES[0];
 
   return (
     <>
@@ -180,7 +166,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
               </button>
             </div>
 
-            <div className="flex flex-col md:flex-row h-full max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: "thin" }}>
+            <div className="flex flex-col md:flex-row h-full max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarGutter: "stable" }}>
               
               <div className="w-full md:w-[45%] bg-gradient-to-b from-slate-50 to-white p-6 sm:p-10 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-slate-100">
                 <div 
@@ -352,122 +338,43 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
-                        <div className="relative">
+                        <div>
                           <label className="block text-xs font-bold text-slate-700 mb-2">Country <span className="text-red-500">*</span></label>
-                          
-                          <div 
-                            className="block w-full h-11 rounded-xl border border-slate-300 bg-slate-50 px-4 text-sm font-medium text-slate-900 cursor-pointer flex items-center justify-between hover:bg-white focus-within:bg-white focus-within:border-[#336888] focus-within:ring-2 focus-within:ring-[#336888]/20 transition-all duration-200"
-                            onClick={() => setIsCountryDropdownOpen(!isCountryDropdownOpen)}
-                          >
-                            {inquiryForm.country ? (
-                              <div className="flex items-center gap-2.5 truncate">
-                                <img 
-                                  src={`https://flagcdn.com/w20/${ALL_COUNTRIES.find((c: { name: string; code: string }) => c.name === inquiryForm.country)?.code}.png`} 
-                                  alt="flag" 
-                                  className="w-5 h-auto rounded-[2px] object-cover shadow-sm shrink-0" 
-                                />
-                                <span className="truncate">{inquiryForm.country}</span>
-                              </div>
-                            ) : (
-                              <span className="text-slate-400 font-normal">Select country</span>
-                            )}
-                            <ChevronDown className={`h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${isCountryDropdownOpen ? 'rotate-180' : ''}`} />
-                          </div>
-
-                          <AnimatePresence>
-                            {isCountryDropdownOpen && (
-                              <motion.div 
-                                initial={{ opacity: 0, y: -5 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: -5 }}
-                                transition={{ duration: 0.15, ease: "easeOut" }}
-                                className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto" style={{ scrollbarWidth: "thin" }}
-                              >
-                                {ALL_COUNTRIES.map((c) => (
-                                  <div
-                                    key={c.name}
-                                    className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer text-sm font-medium text-slate-700 transition-colors"
-                                    onClick={() => {
-                                      setInquiryForm({ ...inquiryForm, country: c.name });
-                                      setIsCountryDropdownOpen(false);
-                                    }}
-                                  >
-                                    <div className="w-5 shrink-0 flex items-center justify-center rounded-sm overflow-hidden shadow-sm">
-                                      <img src={`https://flagcdn.com/w20/${c.code}.png`} alt={c.name} className="w-full h-auto object-cover" />
-                                    </div>
-                                    <span className="flex-1 truncate">{c.name}</span>
-                                    {inquiryForm.country === c.name && <CheckCircle2 className="w-5 h-5 text-[#336888] shrink-0" />}
-                                  </div>
-                                ))}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                          {isCountryDropdownOpen && (
-                            <div className="fixed inset-0 z-40" onClick={() => setIsCountryDropdownOpen(false)} />
-                          )}
+                          <FlagSelect
+                            mode="country"
+                            placeholder="Select country"
+                            selected={COUNTRIES.find((c) => c.name === inquiryForm.country) || null}
+                            onSelect={(c) => setInquiryForm({ ...inquiryForm, country: c.name })}
+                            buttonClassName="!h-11 border-slate-300 focus-visible:border-[#336888] focus-visible:ring-[#336888]/20"
+                          />
                         </div>
 
-                        <div className="relative">
+                        <div>
                           <label className="block text-xs font-bold text-slate-700 mb-2">Phone Number <span className="text-red-500">*</span></label>
-                          <div className="flex w-full h-11 rounded-xl border border-slate-300 bg-slate-50 focus-within:bg-white focus-within:border-[#336888] focus-within:ring-2 focus-within:ring-[#336888]/20 transition-all duration-200">
-                            
-                            {/* Phone Code Dropdown Trigger */}
-                            <div
-                              className="relative flex items-center justify-center px-2.5 cursor-pointer border-r border-slate-300 hover:bg-slate-200/50 transition-colors shrink-0"
-                              onClick={() => setIsPhoneDropdownOpen(!isPhoneDropdownOpen)}
-                            >
-                              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">{currentPhoneCountry.code}</span>
-                              <span className="ml-1 text-sm font-semibold text-slate-700">+{currentPhoneCountry.callingCode}</span>
-                              <ChevronDown className="ml-1 h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <div className="flex items-stretch gap-2">
+                            <div className="w-24 shrink-0">
+                              <FlagSelect
+                                mode="dial"
+                                align="right"
+                                placeholder="Code"
+                                selected={currentPhoneCountry}
+                                onSelect={(c) => setInquiryForm({ ...inquiryForm, phoneCountryCode: c.iso })}
+                                buttonClassName="!h-11 border-slate-300 focus-visible:border-[#336888] focus-visible:ring-[#336888]/20"
+                              />
                             </div>
-
-                            {/* Phone Code Dropdown Menu */}
-                            <AnimatePresence>
-                              {isPhoneDropdownOpen && (
-                                <motion.div 
-                                  initial={{ opacity: 0, y: -5 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -5 }}
-                                  transition={{ duration: 0.15, ease: "easeOut" }}
-                                  className="absolute top-full left-0 mt-2 w-[min(320px,calc(100vw-3rem))] z-50 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto" style={{ scrollbarWidth: "thin" }}
-                                >
-                                  {COUNTRIES_WITH_CODES.map((c) => (
-                                    <div
-                                      key={c.code}
-                                      className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer text-sm font-medium text-slate-700 transition-colors"
-                                      onClick={() => {
-                                        setInquiryForm({ ...inquiryForm, phoneCountryCode: c.code });
-                                        setIsPhoneDropdownOpen(false);
-                                      }}
-                                    >
-                                      <div className="w-7 shrink-0 flex items-center justify-center rounded-sm bg-slate-100 py-0.5">
-                                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{c.code}</span>
-                                      </div>
-                                      <span className="flex-1 truncate">{c.name}</span>
-                                      <span className="text-xs text-slate-400 font-mono">+{c.callingCode}</span>
-                                      {inquiryForm.phoneCountryCode === c.code && <CheckCircle2 className="w-5 h-5 text-[#336888] shrink-0" />}
-                                    </div>
-                                  ))}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                            {isPhoneDropdownOpen && (
-                              <div className="fixed inset-0 z-40" onClick={() => setIsPhoneDropdownOpen(false)} />
-                            )}
-
-                            {/* Phone Input */}
                             <input
                               type="tel"
                               required
+                              inputMode="numeric"
                               placeholder="9876543210"
-                              className="flex-1 w-full bg-transparent px-3 text-sm font-medium text-slate-900 outline-none placeholder:text-slate-400 placeholder:font-normal min-w-0"
+                              className="min-w-0 flex-1 h-11 rounded-xl border border-slate-300 bg-slate-50 px-4 text-base font-medium text-slate-900 focus:bg-white focus:border-[#336888] focus:ring-2 focus:ring-[#336888]/20 focus:outline-none transition-all duration-200 placeholder:text-slate-400 placeholder:font-normal placeholder:text-sm"
                               value={inquiryForm.phoneNumber}
                               onChange={(e) => setInquiryForm({ ...inquiryForm, phoneNumber: e.target.value.replace(/\D/g, '') })}
                             />
                           </div>
                           {phoneEntered && !phoneOk && (
                             <p className="mt-1.5 text-xs font-semibold text-red-500">
-                              Enter a valid {currentPhoneCountry.code} phone number.
+                              Enter a valid {currentPhoneCountry.name} phone number.
                             </p>
                           )}
                         </div>

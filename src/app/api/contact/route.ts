@@ -14,28 +14,33 @@ export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
 
-    const firstName = clip(body.firstName, 100);
-    const lastName = clip(body.lastName, 100);
+    const fullName = clip(body.fullName, 100);
     const email = clip(body.email, 200);
-    const productName = clip(body.productName, 300);
-    const message = clip(body.message, 5000);
+    const companyName = clip(body.companyName, 200);
+    const country = clip(body.country, 100);
+    const phone = clip(body.phone, 50);
+    const message = clip(body.message, 5000) || "No message provided.";
 
-    if (!firstName) {
-      return NextResponse.json({ error: "First name is required." }, { status: 400 });
+    if (!fullName) {
+      return NextResponse.json({ error: "Full name is required." }, { status: 400 });
     }
     if (!EMAIL_RE.test(email)) {
       return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
     }
-    if (!message) {
-      return NextResponse.json({ error: "Message is required." }, { status: 400 });
+    if (!country) {
+      return NextResponse.json({ error: "Country is required." }, { status: 400 });
+    }
+    if (!phone) {
+      return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
     }
 
     await prisma.contactMessage.create({
       data: {
-        firstName,
-        lastName: lastName || null,
+        fullName,
         email,
-        productName: productName || null,
+        companyName: companyName || null,
+        country,
+        phone,
         message,
       },
     });

@@ -14,6 +14,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { buildCategoryTree } from "@/lib/categoryTree";
 import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
 import { getCdnUrl } from "@/lib/cdn";
+import { prepCatalogueNav } from "@/lib/scroll";
 
 export function Navbar() {
   const pathname = usePathname();
@@ -126,6 +127,7 @@ export function Navbar() {
   const handleSuggestionClick = (product: any) => {
     setIsInputFocused(false);
     setNavSearchValue(product.name);
+    prepCatalogueNav();
     router.push(`/products?q=${encodeURIComponent(product.name)}`);
   };
 
@@ -133,6 +135,7 @@ export function Navbar() {
     e.preventDefault();
     setIsInputFocused(false);
     if (navSearchValue.trim().length > 0) {
+      prepCatalogueNav();
       router.push(`/products?q=${encodeURIComponent(navSearchValue.trim())}`);
     }
   };
@@ -190,9 +193,9 @@ export function Navbar() {
   // filter bar) can sit flush under it and follow it up/down as it hides —
   // otherwise a dead 80px gap opened above them when the bar slid away.
   useEffect(() => {
-    document.documentElement.style.setProperty("--nav-shift", hidden ? "0px" : "5rem");
+    document.documentElement.style.setProperty("--nav-shift", hidden ? "0px" : "4rem");
     return () => {
-      document.documentElement.style.setProperty("--nav-shift", "5rem");
+      document.documentElement.style.setProperty("--nav-shift", "4rem");
     };
   }, [hidden]);
 
@@ -207,7 +210,7 @@ export function Navbar() {
         className="fixed top-0 w-full z-[100] bg-white shadow-sm border-b border-slate-100"
       >
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20 gap-4 lg:gap-8">
+          <div className="flex justify-between items-center h-16 gap-4 lg:gap-8">
             
             {/* Logo */}
             <Link href="/" className="flex items-center flex-shrink-0 z-10 mr-4">
@@ -267,6 +270,10 @@ export function Navbar() {
                           tree={categoryTree}
                           onNavigate={(categoryId) => {
                             setIsCategoryMenuOpen(false);
+                            // Hide the /products opening hero + jump to top NOW,
+                            // synchronously, so navigating from the mega-menu lands
+                            // on the category view with no hero flash.
+                            prepCatalogueNav();
                             router.push(`/products?categoryId=${categoryId}`);
                           }}
                         />
@@ -315,7 +322,7 @@ export function Navbar() {
                               <button
                                 key={`desktop-suggest-cat-${c.id}-${idx}`}
                                 type="button"
-                                onClick={() => { setIsInputFocused(false); router.push(`/products?categoryId=${c.id}`); }}
+                                onClick={() => { setIsInputFocused(false); prepCatalogueNav(); router.push(`/products?categoryId=${c.id}`); }}
                                 className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors cursor-pointer"
                               >
                                 <span className="relative w-9 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center">

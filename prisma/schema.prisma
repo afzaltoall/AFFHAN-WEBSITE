@@ -79,13 +79,27 @@ model Inquiry {
 // as Inquiry so the admin console can manage them the same way.
 model ContactMessage {
   id          String   @id @default(uuid())
-  firstName   String
-  lastName    String?
+  fullName    String   @default("")
   email       String
-  productName String? // "Products Name" field on the form (optional)
+  companyName String?
+  country     String   @default("")
+  phone       String   @default("")
   message     String   @db.Text
   status      String   @default("new") // new | handled | spam | deleted
   createdAt   DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// "Job alerts" subscriptions from the Careers page. Just an email + triage
+// status, same soft-delete pattern as ContactMessage so the admin console can
+// manage them the same way (list / search / export / delete / restore).
+model JobAlert {
+  id        String   @id @default(uuid())
+  email     String
+  status    String   @default("new") // new | handled | spam | deleted
+  createdAt DateTime @default(now())
 
   @@index([status])
   @@index([createdAt])

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import { motion } from "framer-motion";
 import { Search, X, ChevronRight, ChevronLeft, ChevronDown, ArrowUpDown, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -12,6 +13,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { CatalogueScrollHero } from "@/components/sections/CatalogueScrollHero";
 import { CatalogueDock } from "@/components/sections/CatalogueDock";
 import { buildCategoryTree, flattenLeaves } from "@/lib/categoryTree";
+import { prepCatalogueNav } from "@/lib/scroll";
 
 const PAGE_SIZE = 96; // divisible by 2/3/4/6 so every column layout fills whole rows
 
@@ -83,19 +85,46 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
 // (router.push patches pushState, which we hook) so same-page category
 // navigations still update.
 function useUrlParams() {
-  const [search, setSearch] = useState<string>(typeof window !== "undefined" ? window.location.search : "");
+  // Start EMPTY so the first client render matches the server (which has no
+  // window and renders search=""). Reading window.location.search on the initial
+  // render instead would make a deep-linked /products?categoryId=X hydrate as the
+  // category view while the server sent the default view — a hydration mismatch.
+  // The effect below reads the real URL immediately after mount.
+  const [search, setSearch] = useState<string>("");
   useEffect(() => {
     const update = () => {
-      setTimeout(() => {
-        setSearch(window.location.search);
-      }, 0);
+      // The React state update (which drives the hero unmount) is async and can
+      // paint one hero frame first — the "Discover/Deliver/Verify/Customize"
+      // flash. So when we're navigating INTO a category/search view, hide the
+      // opening scroll-hero and jump to the top SYNCHRONOUSLY via the DOM, right
+      // here in the navigation handler — before the browser paints. React then
+      // unmounts the (already hidden) hero and swaps in the category view with no
+      // flash and no scroll lurch. Direct DOM writes are not React updates, so
+      // this is safe to run inside Next's pushState/insertion-effect phase.
+      if (/[?&](categoryId|q)=/.test(window.location.search)) {
+        const hero = document.getElementById("catalogue-hero");
+        if (hero) hero.style.display = "none";
+        const el = document.documentElement;
+        const prev = el.style.scrollBehavior;
+        el.style.scrollBehavior = "auto";
+        window.scrollTo(0, 0);
+        el.style.scrollBehavior = prev;
+      }
+      // Reflect the URL into state on a microtask (before paint, but out of the
+      // insertion-effect phase so it doesn't throw "must not schedule updates").
+      queueMicrotask(() => setSearch(window.location.search));
     };
     window.addEventListener("popstate", update);
     const origPush = history.pushState;
     const origReplace = history.replaceState;
     history.pushState = function (...args: any[]) { origPush.apply(this, args as any); update(); };
     history.replaceState = function (...args: any[]) { origReplace.apply(this, args as any); update(); };
-    update();
+    // Initial read: set state SYNCHRONOUSLY (not via the microtask update()) so it
+    // batches with the sibling setMounted(true) effect. That single re-render then
+    // has both the real URL and mounted=true at once — so a deep-linked category
+    // resolves to the category view directly, with no intermediate frame where
+    // (mounted && search==="") would briefly render the hero.
+    setSearch(window.location.search);
     return () => {
       window.removeEventListener("popstate", update);
       history.pushState = origPush;
@@ -107,6 +136,12 @@ function useUrlParams() {
 
 export default function ProductsPage() {
   const router = useRouter();
+  // The opening scroll-hero is gated behind this. It stays false through the
+  // server render AND the first client render, so a fresh mount at
+  // /products?categoryId=X (navigating in from another page, or a reload) never
+  // paints the hero before the category view — which is exactly the "1 second
+  // hero flash". It also keeps SSR and hydration identical (no hero either side).
+  const [mounted, setMounted] = useState(false);
   const [products, setProducts] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [facets, setFacets] = useState<any[]>([]);
@@ -115,8 +150,6 @@ export default function ProductsPage() {
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
-
-  const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null);
 
   // Full catalogue opens A–Z by default (requested: "start from A to Z").
   const [sortBy, setSortBy] = useState("alpha");
@@ -142,14 +175,21 @@ export default function ProductsPage() {
   const searchParams = useUrlParams();
   const spString = searchParams.toString();
 
-  // Sync query / category from URL whenever it changes
+  // Flip on after the first client render — see the `mounted` declaration above.
+  useEffect(() => { setMounted(true); }, []);
+
+  // Category is DERIVED straight from the URL (not a state synced via effect).
+  // This is what kills the opening-hero "full screen scroll" glitch for EVERY
+  // entry point — in-page tiles, the navbar mega-menu, search facets, the
+  // breadcrumb, or a pasted link all change the URL, and the view (hero unmount)
+  // updates in the very same render, before any scroll can replay the hero.
+  const activeCategoryId = searchParams.get("categoryId") || null;
+
+  // Keep the search box text / debounced query in sync with the URL.
   useEffect(() => {
     const q = searchParams.get("q") || "";
-    const cat = searchParams.get("categoryId") || null;
-
     setQuery(q);
     setDebouncedQuery(q);
-    setActiveCategoryId(cat);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spString]);
 
@@ -268,8 +308,15 @@ export default function ProductsPage() {
   }, [activeCategoryId, categories]);
 
   // Drill into (or, with null, clear) a category via the URL so it stays
-  // shareable/back-button friendly.
+  // shareable/back-button friendly. activeCategoryId is derived from the URL
+  // (above), so pushing the new URL updates the view synchronously — no separate
+  // state to flip, and no hero-replay window on any navigation path.
   const goToCategory = (categoryId: string | null) => {
+    // Hide the hero + jump to top NOW, synchronously in the click — before the
+    // async router.push runs — so the very next paint is the category view, not
+    // a flash of the opening hero. (Only when entering a category; clearing to
+    // null re-shows the default catalogue.)
+    if (categoryId) prepCatalogueNav();
     const params = new URLSearchParams(searchParams.toString());
     if (categoryId) params.set("categoryId", categoryId);
     else params.delete("categoryId");
@@ -319,6 +366,31 @@ export default function ProductsPage() {
     fetchProducts(debouncedQuery, activeCategoryIdsParam, sortBy, 1);
   }, [debouncedQuery, activeCategoryIdsParam, sortBy]);
 
+  // Clean landing on every category / search change. The default catalogue view
+  // carries a very tall opening scroll-hero (~3.5k px) that unmounts the instant
+  // a category or query becomes active; if we stay mid-scroll when it vanishes
+  // the page collapses and the viewport lurches — the reported "glitch". So each
+  // time the view swaps we deterministically land at the top of the fresh view.
+  //
+  // It MUST be an instant jump, not a smooth scroll. The app sets a GLOBAL
+  // `scroll-behavior: smooth` (see <html data-scroll-behavior="smooth">), and a
+  // scrollTo with behavior "auto"/"smooth" would animate — the user then watches
+  // the page visibly scroll up to the top ("page start poi scroll pani show"),
+  // which reads as the glitch. We temporarily force `scroll-behavior: auto` on
+  // <html> so the jump is truly instantaneous, then restore it. rAF runs after
+  // React commits the new DOM (hero gone) and before paint, so there's no flash.
+  const skipFirstScroll = useRef(true);
+  useEffect(() => {
+    if (skipFirstScroll.current) { skipFirstScroll.current = false; return; }
+    requestAnimationFrame(() => {
+      const el = document.documentElement;
+      const prev = el.style.scrollBehavior;
+      el.style.scrollBehavior = "auto"; // beat the global smooth-scroll
+      window.scrollTo(0, 0);
+      el.style.scrollBehavior = prev;
+    });
+  }, [activeCategoryId, debouncedQuery]);
+
   const goToPage = (p: number) => {
     setPage(p);
     fetchProducts(debouncedQuery, activeCategoryIdsParam, sortBy, p);
@@ -345,10 +417,12 @@ export default function ProductsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pt-28">
-      {defaultView && (
-        <CatalogueScrollHero
-          scatterImages={products.slice(0, 10).map((p) => p.imageUrl).filter(Boolean)}
-        />
+      {mounted && defaultView && (
+        <div id="catalogue-hero">
+          <CatalogueScrollHero
+            scatterImages={products.slice(0, 10).map((p) => p.imageUrl).filter(Boolean)}
+          />
+        </div>
       )}
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12">
         {/* Header — search-aware. There is intentionally no search box here:
@@ -557,7 +631,7 @@ export default function ProductsPage() {
         <div ref={gridSectionRef} className="scroll-mt-28" />
 
         {loading ? (
-          <div className={gridClass}>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }} className={gridClass}>
             {[...Array(PAGE_SIZE / 2)].map((_, i) => (
               <div key={i} className="liquid-glass-card h-[300px] animate-pulse w-full">
                 <div className="h-44 bg-slate-100 rounded-t-xl"></div>
@@ -568,7 +642,7 @@ export default function ProductsPage() {
                 </div>
               </div>
             ))}
-          </div>
+          </motion.div>
         ) : (
           <>
             {/* Grid header: scroll anchor + "Page N" indicator so it's obvious
@@ -587,13 +661,19 @@ export default function ProductsPage() {
               </div>
             )}
 
-            <div className={gridClass}>
+            <motion.div
+              key={`${activeCategoryId ?? "root"}-${debouncedQuery}-${page}`}
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className={gridClass}
+            >
               {products.map((product, idx) => (
                 <div key={product.id} className="w-full">
                   <ProductCard product={product} onClick={() => setInquiryProduct(product)} priority={idx < 12} />
                 </div>
               ))}
-            </div>
+            </motion.div>
 
             {error && (
               <div className="mt-8 p-4 bg-red-50 text-red-600 rounded-xl text-center border border-red-100">
