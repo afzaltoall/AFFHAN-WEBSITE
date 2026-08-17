@@ -170,7 +170,7 @@ export function MarketplaceHeroSection() {
         {/* Animated intro headline — a morphing category word gives the opening
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
-          <div className="mb-3 flex justify-center">
+          <div className="relative mb-3 flex justify-center">
             <style dangerouslySetInnerHTML={{
               __html: `
               @keyframes b2bFlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
@@ -394,7 +394,11 @@ export function MarketplaceHeroSection() {
               ))}
             </div>
           </div>
-          <h1 className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
+          {/* SEO Static H1 (Visually hidden) */}
+          <h1 className="sr-only">
+            AFFHAN — China Sourcing & Import Export Company in Chennai
+          </h1>
+          <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
             <span>Source</span>
             <TextMorph
               words={["Electronics", "Apparel", "Machinery", "Home & Living", "Beauty", "Auto Parts"]}
@@ -402,7 +406,7 @@ export function MarketplaceHeroSection() {
               className="text-brand"
             />
             <span>from one trusted partner</span>
-          </h1>
+          </div>
         </div>
 
         {/* Large Hero Search Section */}

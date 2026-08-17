@@ -45,7 +45,7 @@ export function FooterSection() {
       <Footer
         logoSrc="/images/logo.png"
         companyName="AFFHAN GROUP"
-        description="Affhan group is an import and export sourcing company valued by its clients and partners in the industry for its high end professional expertise and services. It is headquartered in Guangzhou with offices in China, London, India, Singapore, Malaysia, France and Dubai."
+        description="AFFHAN Group is an import and export sourcing company headquartered in Chennai, India, with offices in China, London, Singapore, Malaysia, France and Dubai."
         usefulLinksTitle="QUICK LINKS"
         usefulLinks={usefulLinks}
         socialTitle="SERVICES"

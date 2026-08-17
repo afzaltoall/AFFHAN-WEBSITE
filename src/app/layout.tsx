@@ -24,8 +24,47 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Affhan Sourcing | Global Trade B2B Platform",
-  description: "A modern logistics and global sourcing website by Affhan Group.",
+  metadataBase: new URL("https://affhan.com"),
+  title: "AFFHAN — China Sourcing Company in Chennai | Import Export & Freight",
+  description: "AFFHAN Group — trusted China sourcing, import-export & freight forwarding company in Chennai. 10 lakh+ products, 100+ countries. Source directly from verified suppliers.",
+  keywords: "china sourcing chennai, sourcing company chennai, import export chennai, freight forwarding, b2b sourcing india",
+  openGraph: {
+    title: "AFFHAN — China Sourcing Company in Chennai | Import Export & Freight",
+    description: "AFFHAN Group — trusted China sourcing, import-export & freight forwarding company in Chennai. 10 lakh+ products, 100+ countries. Source directly from verified suppliers.",
+    url: "https://affhan.com",
+    siteName: "AFFHAN Group",
+    type: "website",
+    images: [
+      {
+        url: "/images/logo.png", // Fallback og:image
+        width: 800,
+        height: 600,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AFFHAN — China Sourcing Company in Chennai | Import Export & Freight",
+    description: "AFFHAN Group — trusted China sourcing, import-export & freight forwarding company in Chennai. 10 lakh+ products, 100+ countries. Source directly from verified suppliers.",
+  },
+};
+
+const localBusinessSchema = {
+  "@context": "https://schema.org",
+  "@type": "LocalBusiness",
+  name: "AFFHAN International Pvt Ltd",
+  image: "https://affhan.com/images/logo.png",
+  url: "https://affhan.com",
+  telephone: "+91-44-4743-2777",
+  email: "info@affhan.com",
+  address: {
+    "@type": "PostalAddress",
+    streetAddress: "No.69/46, Appavoo Tower, West Madha Church Road, Royapuram",
+    addressLocality: "Chennai",
+    addressRegion: "Tamil Nadu",
+    postalCode: "600013",
+    addressCountry: "IN",
+  },
 };
 
 export default function RootLayout({
@@ -36,7 +75,12 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`} data-scroll-behavior="smooth">
       <body className="font-[family-name:var(--font-geist-sans)] w-full relative">
-        <Suspense fallback={<div className="h-20" />}>
+        {/* LocalBusiness JSON-LD Schema */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
+        />
+        <Suspense fallback={<div className="h-16" />}>
           <Navbar />
         </Suspense>
         {children}
