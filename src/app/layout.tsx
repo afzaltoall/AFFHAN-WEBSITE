@@ -25,12 +25,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://affhan.com"),
-  title: "AFFHAN — China Sourcing Company in Chennai | Import Export & Freight",
-  description: "AFFHAN Group — trusted China sourcing, import-export & freight forwarding company in Chennai. 10 lakh+ products, 100+ countries. Source directly from verified suppliers.",
-  keywords: "china sourcing chennai, sourcing company chennai, import export chennai, freight forwarding, b2b sourcing india",
+  alternates: { canonical: "https://affhan.com" },
+  title: "AFFHAN - Global B2B Sourcing & China Import Export Company",
+  description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, supplier verification & freight forwarding.",
+  keywords: "global b2b sourcing, china sourcing agent, product sourcing, import export company, wholesale sourcing platform",
   openGraph: {
-    title: "AFFHAN — China Sourcing Company in Chennai | Import Export & Freight",
-    description: "AFFHAN Group — trusted China sourcing, import-export & freight forwarding company in Chennai. 10 lakh+ products, 100+ countries. Source directly from verified suppliers.",
+    title: "AFFHAN - Global B2B Sourcing & China Import Export Company",
+    description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, supplier verification & freight forwarding.",
     url: "https://affhan.com",
     siteName: "AFFHAN Group",
     type: "website",
@@ -44,8 +45,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AFFHAN — China Sourcing Company in Chennai | Import Export & Freight",
-    description: "AFFHAN Group — trusted China sourcing, import-export & freight forwarding company in Chennai. 10 lakh+ products, 100+ countries. Source directly from verified suppliers.",
+    title: "AFFHAN - Global B2B Sourcing & China Import Export Company",
+    description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, supplier verification & freight forwarding.",
   },
 };
 
