@@ -1,21 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  async redirects() {
-    return [
-      {
-        source: '/:path*',
-        has: [
-          {
-            type: 'host',
-            value: 'www.affhan.com',
-          },
-        ],
-        destination: 'https://affhan.com/:path*',
-        permanent: true,
-      },
-    ];
-  },
   trailingSlash: true,
   images: {
     // Product/category images are HOTLINKED from CJ's CDN and we never store
