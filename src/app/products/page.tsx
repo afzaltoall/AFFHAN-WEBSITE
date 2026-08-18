@@ -470,14 +470,19 @@ export default function ProductsPage() {
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
                   &ldquo;{debouncedQuery}&rdquo;
                 </h1>
-                <p className="text-slate-500 mt-2">
+                <p className="text-slate-500 mt-2 tabular-nums min-h-[3rem] sm:min-h-[1.5rem]">
                   {totalCapped ? `${totalProductCount.toLocaleString()}+` : totalProductCount.toLocaleString()} matching products
                 </p>
               </>
             ) : (
               <>
                 <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Product Catalog</h1>
-                <p className="text-slate-500 mt-2">
+                {/* tabular-nums: the count swings between 2 and 7 digits as you
+                    move between categories, and proportional digits re-flow the
+                    whole sentence on each change. Fixed-width digits keep the
+                    following words still. min-h reserves the wrapped height so a
+                    shorter count collapsing the line never drags the page up. */}
+                <p className="text-slate-500 mt-2 tabular-nums min-h-[3rem] sm:min-h-[1.5rem]">
                   {totalProductCount.toLocaleString()} products from across our global sourcing network
                 </p>
               </>
@@ -709,11 +714,16 @@ export default function ProductsPage() {
               </div>
             )}
 
+            {/* Fade only — no y-offset. `key` changes on every category, search
+                and page change, so the grid remounts and replays this on each
+                one; a 14px slide meant the whole results area visibly jumped
+                upward every single time you opened a category, which on a phone
+                (where the grid fills the screen) read as the page shaking. */}
             <motion.div
               key={`${activeCategoryId ?? "root"}-${debouncedQuery}-${page}`}
-              initial={{ opacity: 0, y: 14 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className={gridClass}
             >
               {products.map((product, idx) => (
