@@ -134,27 +134,38 @@ export const Contact2 = ({
           will-change: transform, box-shadow, background-color, border-color;
         }
 
-        .liquid-glass-card:hover {
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(240, 253, 250, 0.4) 100%) !important;
-          border-top-color: rgba(255, 255, 255, 0.99) !important;
-          border-left-color: rgba(255, 255, 255, 0.99) !important;
-          border-bottom-color: rgba(148, 163, 184, 0.55) !important;
-          border-right-color: rgba(148, 163, 184, 0.55) !important;
-          box-shadow: 
-            inset 0 5px 15px rgba(255, 255, 255, 0.98), 
-            inset 0 -5px 15px rgba(0, 0, 0, 0.05),
-            inset 0 1px 25px rgba(255, 255, 255, 0.6),
-            0 24px 50px rgba(39, 168, 196, 0.16),
-            0 4px 12px rgba(0, 0, 0, 0.03) !important;
-          transform: translateY(-8px) scale(1.015) !important;
+        /* Gated to real hover-capable pointers — plain :hover sticks on
+           touch devices and forces a double-tap to actually click through. */
+        @media (hover: hover) and (pointer: fine) {
+          .liquid-glass-card:hover {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(240, 253, 250, 0.4) 100%) !important;
+            border-top-color: rgba(255, 255, 255, 0.99) !important;
+            border-left-color: rgba(255, 255, 255, 0.99) !important;
+            border-bottom-color: rgba(148, 163, 184, 0.55) !important;
+            border-right-color: rgba(148, 163, 184, 0.55) !important;
+            box-shadow:
+              inset 0 5px 15px rgba(255, 255, 255, 0.98),
+              inset 0 -5px 15px rgba(0, 0, 0, 0.05),
+              inset 0 1px 25px rgba(255, 255, 255, 0.6),
+              0 24px 50px rgba(39, 168, 196, 0.16),
+              0 4px 12px rgba(0, 0, 0, 0.03) !important;
+            transform: translateY(-8px) scale(1.015) !important;
+          }
         }
 
         .liquid-glass-card:active {
           transform: translateY(-3px) scale(0.99) !important;
-          box-shadow: 
-            inset 0 2px 6px rgba(255, 255, 255, 0.9), 
-            inset 0 -2px 6px rgba(0, 0, 0, 0.05), 
+          box-shadow:
+            inset 0 2px 6px rgba(255, 255, 255, 0.9),
+            inset 0 -2px 6px rgba(0, 0, 0, 0.05),
             0 12px 25px rgba(39, 168, 196, 0.08) !important;
+        }
+
+        /* Touch devices: no lift on tap — it reads as a stuck hover. */
+        @media (hover: none), (pointer: coarse) {
+          .liquid-glass-card:active {
+            transform: none !important;
+          }
         }
       `}} />
       {/* Background radial glow */}

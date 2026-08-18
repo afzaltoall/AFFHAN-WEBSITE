@@ -187,26 +187,37 @@ export const OfficeLocations = () => {
           }
         }
 
-        .liquid-glass-card:hover {
-          background: linear-gradient(-45deg, rgba(255, 255, 255, 0.8) 0%, rgba(224, 242, 254, 0.55) 35%, rgba(204, 251, 241, 0.5) 70%, rgba(255, 255, 255, 0.85) 100%) !important;
-          border-top-color: rgba(255, 255, 255, 0.99) !important;
-          border-left-color: rgba(255, 255, 255, 0.99) !important;
-          border-bottom-color: rgba(148, 163, 184, 0.45) !important;
-          border-right-color: rgba(148, 163, 184, 0.45) !important;
-          box-shadow: 
-            inset 0 5px 15px rgba(255, 255, 255, 0.98), 
-            inset 0 -5px 15px rgba(0, 0, 0, 0.04),
-            0 24px 50px rgba(39, 168, 196, 0.18),
-            0 4px 12px rgba(0, 0, 0, 0.02) !important;
-          transform: translateY(-8px) scale(1.015) !important;
+        /* Gated to real hover-capable pointers — plain :hover sticks on
+           touch devices and forces a double-tap to actually click through. */
+        @media (hover: hover) and (pointer: fine) {
+          .liquid-glass-card:hover {
+            background: linear-gradient(-45deg, rgba(255, 255, 255, 0.8) 0%, rgba(224, 242, 254, 0.55) 35%, rgba(204, 251, 241, 0.5) 70%, rgba(255, 255, 255, 0.85) 100%) !important;
+            border-top-color: rgba(255, 255, 255, 0.99) !important;
+            border-left-color: rgba(255, 255, 255, 0.99) !important;
+            border-bottom-color: rgba(148, 163, 184, 0.45) !important;
+            border-right-color: rgba(148, 163, 184, 0.45) !important;
+            box-shadow:
+              inset 0 5px 15px rgba(255, 255, 255, 0.98),
+              inset 0 -5px 15px rgba(0, 0, 0, 0.04),
+              0 24px 50px rgba(39, 168, 196, 0.18),
+              0 4px 12px rgba(0, 0, 0, 0.02) !important;
+            transform: translateY(-8px) scale(1.015) !important;
+          }
         }
 
         .liquid-glass-card:active {
           transform: translateY(-3px) scale(0.99) !important;
-          box-shadow: 
-            inset 0 2px 6px rgba(255, 255, 255, 0.95), 
-            inset 0 -2px 6px rgba(0, 0, 0, 0.04), 
+          box-shadow:
+            inset 0 2px 6px rgba(255, 255, 255, 0.95),
+            inset 0 -2px 6px rgba(0, 0, 0, 0.04),
             0 12px 25px rgba(39, 168, 196, 0.08) !important;
+        }
+
+        /* Touch devices: no lift on tap — it reads as a stuck hover. */
+        @media (hover: none), (pointer: coarse) {
+          .liquid-glass-card:active {
+            transform: none !important;
+          }
         }
 
         .wave-container {
@@ -214,9 +225,11 @@ export const OfficeLocations = () => {
           transition: height 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.4s ease;
           opacity: 0.35;
         }
-        .liquid-glass-card:hover .wave-container {
-          height: 110px;
-          opacity: 0.65;
+        @media (hover: hover) and (pointer: fine) {
+          .liquid-glass-card:hover .wave-container {
+            height: 110px;
+            opacity: 0.65;
+          }
         }
 
         .animate-wave1 {

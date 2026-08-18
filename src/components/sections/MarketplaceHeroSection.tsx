@@ -182,8 +182,10 @@ export function MarketplaceHeroSection() {
                 background: linear-gradient(100deg, transparent, rgba(255,255,255,0.9), transparent); }
               .b2b-ripple { position:absolute; left:50%; top:50%; width:44px; height:44px; margin:-22px 0 0 -22px; border-radius:50%; transform:scale(0); opacity:0;
                 background: radial-gradient(circle, rgba(39,168,196,0.4), rgba(39,168,196,0) 70%); }
-              .group:hover .b2b-shine { animation: b2bShine 0.9s ease-out; }
-              .group:hover .b2b-ripple { animation: b2bRipple 0.85s ease-out; }
+              @media (hover: hover) and (pointer: fine) {
+                .group:hover .b2b-shine { animation: b2bShine 0.9s ease-out; }
+                .group:hover .b2b-ripple { animation: b2bRipple 0.85s ease-out; }
+              }
               @keyframes b2bBead { 0% { transform: translateY(-30%) scale(0.6); opacity: 0; } 15% { transform: translateY(0) scale(1); opacity: 1; } 70% { opacity: 1; } 100% { transform: translateY(240%) scale(0.85); opacity: 0; } }
               .b2b-bead { position:absolute; top:-2px; border-radius:50% 50% 50% 50% / 60% 60% 40% 40%;
                 background: radial-gradient(ellipse 62% 55% at 38% 30%, rgba(255,255,255,0.97) 0%, rgba(224,242,254,0.35) 32%, rgba(186,230,253,0.5) 64%, rgba(14,165,233,0.85) 100%);
@@ -204,8 +206,10 @@ export function MarketplaceHeroSection() {
                 opacity: 0;
                 transition: opacity 0.4s ease;
               }
-              .peer:hover ~ .water-droplets-area {
-                opacity: 1;
+              @media (hover: hover) and (pointer: fine) {
+                .peer:hover ~ .water-droplets-area {
+                  opacity: 1;
+                }
               }
               .b2b-bead-wrapper {
                 position: absolute;
@@ -301,10 +305,12 @@ export function MarketplaceHeroSection() {
                 animation-delay: var(--d, 0s);
                 animation-play-state: paused;
               }
-              .peer:hover ~ .water-droplets-area .b2b-bead-lg,
-              .peer:hover ~ .water-droplets-area .b2b-bead-ripple,
-              .peer:hover ~ .water-droplets-area .b2b-bead-rebound { 
-                animation-play-state: running; 
+              @media (hover: hover) and (pointer: fine) {
+                .peer:hover ~ .water-droplets-area .b2b-bead-lg,
+                .peer:hover ~ .water-droplets-area .b2b-bead-ripple,
+                .peer:hover ~ .water-droplets-area .b2b-bead-rebound {
+                  animation-play-state: running;
+                }
               }
               .bead-l1 { left: 10%; width: 10px; height: 13px; --dur: 3.5s; --d: 0.2s; }
               .bead-l2 { left: 25%; width: 8px; height: 10px; --dur: 4.1s; --d: 1.5s; }
@@ -334,10 +340,12 @@ export function MarketplaceHeroSection() {
                 animation-delay: var(--d, 0s);
                 animation-play-state: paused;
               }
-              .peer:hover ~ .water-droplets-area .b2b-bead-lg,
-              .peer:hover ~ .water-droplets-area .b2b-bead-lg::after,
-              .peer:hover ~ .water-droplets-area .b2b-bead-lg::before { 
-                animation-play-state: running; 
+              @media (hover: hover) and (pointer: fine) {
+                .peer:hover ~ .water-droplets-area .b2b-bead-lg,
+                .peer:hover ~ .water-droplets-area .b2b-bead-lg::after,
+                .peer:hover ~ .water-droplets-area .b2b-bead-lg::before {
+                  animation-play-state: running;
+                }
               }
               .b2b-bead::after { content:""; position:absolute; top:15%; left:22%; width:28%; height:24%; border-radius:50%; background:rgba(255,255,255,0.95); }
               .b2b-bead-1 { left:12%; width:9px; height:11px; animation-delay:0s; }
@@ -347,8 +355,10 @@ export function MarketplaceHeroSection() {
               .b2b-bead-5 { left:78%; width:7px; height:9px; animation-delay:1.9s; }
               .b2b-bead-6 { left:90%; width:6px; height:8px; animation-delay:3.0s; animation-duration:3.6s; }
               .b2b-beads { opacity: 0; transition: opacity 0.4s ease; }
-              .group:hover .b2b-beads { opacity: 1; }
-              .group:hover .b2b-bead { animation-duration: 2s; }
+              @media (hover: hover) and (pointer: fine) {
+                .group:hover .b2b-beads { opacity: 1; }
+                .group:hover .b2b-bead { animation-duration: 2s; }
+              }
               @media (prefers-reduced-motion: reduce) { .b2b-badge, .b2b-bead { animation: none; } .b2b-beads { opacity: 0; } }
             ` }} />
             <span className="group b2b-badge peer relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-brand/30 px-4 py-1.5 shadow-[0_8px_24px_-10px_rgba(23,101,121,0.5)] backdrop-blur-sm transition-all duration-300 hover:shadow-[0_12px_30px_-8px_rgba(39,168,196,0.6)] hover:-translate-y-0.5">

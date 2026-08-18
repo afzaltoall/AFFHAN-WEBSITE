@@ -53,8 +53,12 @@ export function CareersVideoHero() {
           overflow: hidden;
           transition: transform 0.3s ease;
         }
-        .liquid-glass:hover {
-          transform: scale(1.03);
+        /* Gated to real hover-capable pointers — a plain :hover on a button
+           sticks on touch devices, forcing a double-tap to actually click it. */
+        @media (hover: hover) and (pointer: fine) {
+          .liquid-glass:hover {
+            transform: scale(1.03);
+          }
         }
         .liquid-glass::before {
           content: '';
