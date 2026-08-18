@@ -763,8 +763,10 @@ html {
   overflow: hidden;
   pointer-events: none;
   /* Tinted base so the section reads as teal-washed even between the blobs,
-     settling into the page's slate-50 at the bottom edge. */
-  background: linear-gradient(180deg, #e8f7fb 0%, #f3fbfc 55%, #f8fafc 100%);
+     settling into the page's slate-50 at the bottom edge. Diagonal so the
+     wash still has direction on a full-height hero, where a straight vertical
+     ramp would band visibly across all that space. */
+  background: linear-gradient(158deg, #dcf2f8 0%, #e9f8fb 38%, #f2fbfc 70%, #f8fafc 100%);
 }
 
 .hero-blob {
@@ -778,21 +780,23 @@ html {
    `closest-side` the gradient is at full strength at the centre and fades to
    nothing at the edge, so pushing the centre well off-screen (as this first
    did) throws away the strong part and only the faint tail shows. */
+/* Sized off vmax, not vw. The hero is now full-viewport-height, so on a short
+   wide window vw alone left the vertical middle bare. */
 .hero-blob-1 {
-  top: -20%;
-  left: -6%;
-  width: clamp(380px, 68vw, 820px);
-  height: clamp(380px, 68vw, 820px);
-  background: radial-gradient(circle closest-side, rgba(39, 168, 196, 0.40), rgba(39, 168, 196, 0) 100%);
+  top: -18%;
+  left: -8%;
+  width: clamp(440px, 62vmax, 1040px);
+  height: clamp(440px, 62vmax, 1040px);
+  background: radial-gradient(circle closest-side, rgba(39, 168, 196, 0.42), rgba(39, 168, 196, 0) 100%);
   animation: heroDrift1 11s ease-in-out infinite;
 }
 
 .hero-blob-2 {
-  bottom: -24%;
-  right: -4%;
-  width: clamp(340px, 60vw, 740px);
-  height: clamp(340px, 60vw, 740px);
-  background: radial-gradient(circle closest-side, rgba(96, 200, 232, 0.42), rgba(96, 200, 232, 0) 100%);
+  bottom: -22%;
+  right: -6%;
+  width: clamp(400px, 56vmax, 940px);
+  height: clamp(400px, 56vmax, 940px);
+  background: radial-gradient(circle closest-side, rgba(96, 200, 232, 0.44), rgba(96, 200, 232, 0) 100%);
   animation: heroDrift2 13s ease-in-out infinite;
 }
 

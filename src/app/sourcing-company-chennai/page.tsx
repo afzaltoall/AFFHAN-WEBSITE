@@ -120,8 +120,12 @@ const schema = {
 };
 
 export default function SourcingCompanyChennaiPage() {
+  // No pt-24 on <main>. The navbar is `fixed`, so top padding here pushed the
+  // hero down and left a bare slate-50 strip between the navbar and the
+  // gradient. That clearance lives inside the hero instead, so the gradient
+  // runs all the way up under the (opaque) navbar with no seam.
   return (
-    <main className="w-full bg-slate-50 min-h-screen pt-24 pb-0">
+    <main className="w-full bg-slate-50 min-h-screen pb-0">
       {/* JSON-LD Schemas */}
       <script
         type="application/ld+json"
@@ -142,7 +146,13 @@ export default function SourcingCompanyChennaiPage() {
           <span className="hero-blob hero-blob-1" />
           <span className="hero-blob hero-blob-2" />
         </div>
-        <div className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
+        {/* Fills the viewport and centres the copy in it. min-h-svh (small
+            viewport height) rather than 100vh: on mobile 100vh is the height
+            with browser chrome hidden, so it overflows by the toolbar height
+            until you scroll. pt-24 is the fixed navbar's clearance, now carried
+            here instead of on <main>. */}
+        <div className="relative z-10 flex min-h-svh items-center pt-24 pb-12 lg:pb-20">
+          <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-6">
             Sourcing Agent & Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
@@ -166,6 +176,7 @@ export default function SourcingCompanyChennaiPage() {
             </Link>
           </div>
         </div>
+          </div>
         </div>
       </section>
 
