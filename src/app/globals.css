@@ -762,8 +762,9 @@ html {
   inset: 0;
   overflow: hidden;
   pointer-events: none;
-  /* Settles into the page's slate-50 so the section edges are seamless. */
-  background: linear-gradient(180deg, #f6fcfd 0%, #f8fafc 100%);
+  /* Tinted base so the section reads as teal-washed even between the blobs,
+     settling into the page's slate-50 at the bottom edge. */
+  background: linear-gradient(180deg, #e8f7fb 0%, #f3fbfc 55%, #f8fafc 100%);
 }
 
 .hero-blob {
@@ -773,32 +774,38 @@ html {
   will-change: transform;
 }
 
+/* Blob centres sit only just outside the box, not far off it. With
+   `closest-side` the gradient is at full strength at the centre and fades to
+   nothing at the edge, so pushing the centre well off-screen (as this first
+   did) throws away the strong part and only the faint tail shows. */
 .hero-blob-1 {
-  top: -30%;
-  left: -8%;
-  width: clamp(300px, 52vw, 620px);
-  height: clamp(300px, 52vw, 620px);
-  background: radial-gradient(circle closest-side, rgba(39, 168, 196, 0.18), rgba(39, 168, 196, 0) 100%);
-  animation: heroDrift1 19s ease-in-out infinite;
+  top: -20%;
+  left: -6%;
+  width: clamp(380px, 68vw, 820px);
+  height: clamp(380px, 68vw, 820px);
+  background: radial-gradient(circle closest-side, rgba(39, 168, 196, 0.40), rgba(39, 168, 196, 0) 100%);
+  animation: heroDrift1 11s ease-in-out infinite;
 }
 
 .hero-blob-2 {
-  bottom: -34%;
-  right: -6%;
-  width: clamp(280px, 46vw, 560px);
-  height: clamp(280px, 46vw, 560px);
-  background: radial-gradient(circle closest-side, rgba(125, 211, 252, 0.20), rgba(125, 211, 252, 0) 100%);
-  animation: heroDrift2 23s ease-in-out infinite;
+  bottom: -24%;
+  right: -4%;
+  width: clamp(340px, 60vw, 740px);
+  height: clamp(340px, 60vw, 740px);
+  background: radial-gradient(circle closest-side, rgba(96, 200, 232, 0.42), rgba(96, 200, 232, 0) 100%);
+  animation: heroDrift2 13s ease-in-out infinite;
 }
 
+/* Two different periods (11s / 13s) so the pair never settles into a visible
+   in-step rhythm — they drift past each other instead of pulsing together. */
 @keyframes heroDrift1 {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(6%, 7%, 0) scale(1.08); }
+  50%      { transform: translate3d(10%, 11%, 0) scale(1.14); }
 }
 
 @keyframes heroDrift2 {
   0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
-  50%      { transform: translate3d(-7%, -6%, 0) scale(1.06); }
+  50%      { transform: translate3d(-11%, -9%, 0) scale(1.12); }
 }
 
 /* Freeze to the static gradient, and drop the compositor hint with it —
