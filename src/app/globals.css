@@ -821,3 +821,37 @@ html {
     will-change: auto;
   }
 }
+
+/* ── /sourcing-company-chennai entrance animations ──────────────────────
+   The hero animates in CSS, NOT Framer Motion, on purpose. The H1 is this
+   page's LCP element; a JS-driven entrance renders it at opacity:0 in the
+   SSR HTML and only reveals it after the bundle downloads and hydrates,
+   which pushes LCP out to hydration time. A CSS animation runs at first
+   paint, so the only LCP cost is the animation-delay — tens of ms, and the
+   H1 deliberately gets the shortest one.
+
+   Transform + opacity only, so nothing reflows and there is no CLS. */
+.hero-rise {
+  animation: heroRise 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.hero-rise-1 { animation-delay: 0s; }
+.hero-rise-2 { animation-delay: 0.11s; }
+.hero-rise-3 { animation-delay: 0.22s; }
+
+@keyframes heroRise {
+  from { opacity: 0; transform: translate3d(0, 18px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* Reduced motion, handled in CSS rather than via a JS hook so it applies at
+   SSR time with no first-frame flash. `!important` is what lets it win over
+   the inline styles Framer Motion writes onto the scroll-reveal elements. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-rise {
+    animation: none;
+  }
+  [data-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

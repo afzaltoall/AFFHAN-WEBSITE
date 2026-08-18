@@ -154,14 +154,14 @@ export default function SourcingCompanyChennaiPage() {
         <div className="relative z-10 flex min-h-svh items-center pt-24 pb-12 lg:pb-20">
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-4xl mx-auto">
-          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-6">
+          <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-6">
             Sourcing Agent & Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
           </h1>
-          <p className="text-lg text-slate-600 mb-8 leading-relaxed">
+          <p className="hero-rise hero-rise-2 text-lg text-slate-600 mb-8 leading-relaxed">
             Looking for a reliable <strong className="text-slate-800">China sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
             AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over 10 Lakhs+ products and 100+ countries with our end-to-end procurement, supplier verification, and freight forwarding solutions.
           </p>
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <div className="hero-rise hero-rise-3 flex flex-col sm:flex-row justify-center gap-4">
             <Link
               href="/contact"
               className="bg-brand hover:bg-brand-dark text-white px-8 py-4 rounded-full font-bold text-lg transition-colors shadow-lg hover:shadow-xl"
