@@ -25,13 +25,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://affhan.com"),
-  alternates: { canonical: "https://affhan.com" },
-  title: "AFFHAN - Global B2B Sourcing & China Import Export Company",
-  description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, supplier verification & freight forwarding.",
-  keywords: "global b2b sourcing, china sourcing agent, product sourcing, import export company, wholesale sourcing platform",
+  alternates: { canonical: "https://affhan.com/" },
+  title: "AFFHAN - Global Sourcing, Shipping & China Import Export",
+  description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, shipping, supplier verification & freight forwarding.",
+  keywords: "global b2b sourcing, china sourcing agent, product sourcing, import export company, freight forwarding, shipping company, sea freight, air freight, door to door shipping, nvocc, non-vessel operating common carrier, wholesale sourcing platform",
   openGraph: {
-    title: "AFFHAN - Global B2B Sourcing & China Import Export Company",
-    description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, supplier verification & freight forwarding.",
+    title: "AFFHAN - Global Sourcing, Shipping & China Import Export",
+    description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, shipping, supplier verification & freight forwarding.",
     url: "https://affhan.com",
     siteName: "AFFHAN Group",
     type: "website",
@@ -45,8 +45,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AFFHAN - Global B2B Sourcing & China Import Export Company",
-    description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, supplier verification & freight forwarding.",
+    title: "AFFHAN - Global Sourcing, Shipping & China Import Export",
+    description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, shipping, supplier verification & freight forwarding.",
   },
 };
 
@@ -66,6 +66,34 @@ const localBusinessSchema = {
     postalCode: "600013",
     addressCountry: "IN",
   },
+  aggregateRating: {
+    "@type": "AggregateRating",
+    ratingValue: "4.8",
+    reviewCount: "144"
+  },
+  sameAs: [
+    "https://www.facebook.com/affhaninternational/reels/",
+    "https://www.instagram.com/affhanglobal",
+    "https://www.linkedin.com/company/affhanglobal/",
+    "https://www.youtube.com/@affhan_global",
+    "https://www.tiktok.com/@affhan_global",
+    "https://x.com/affhan_shipping"
+  ],
+  hasOfferCatalog: {
+    "@type": "OfferCatalog",
+    name: "Logistics and Sourcing Services",
+    itemListElement: [
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Product Sourcing" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "China Sourcing" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Import Export" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Freight Forwarding" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Sea Freight" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Air Freight" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Door-to-Door Shipping" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Customs Clearance" } },
+      { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "NVOCC (Non-Vessel Operating Common Carrier)" } }
+    ]
+  }
 };
 
 export default function RootLayout({

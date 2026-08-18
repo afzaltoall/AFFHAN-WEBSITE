@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description:
     "AFFHAN is a trusted sourcing company and sourcing agent in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
   alternates: {
-    canonical: "https://affhan.com/sourcing-company-chennai",
+    canonical: "https://affhan.com/sourcing-company-chennai/",
   },
   openGraph: {
     title: "Sourcing Agent & Sourcing Company in Chennai | AFFHAN — China Import",
@@ -87,6 +87,11 @@ const schema = {
         addressRegion: "Tamil Nadu",
         postalCode: "600013",
         addressCountry: "IN",
+      },
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: "4.8",
+        reviewCount: "144"
       },
     },
     {
