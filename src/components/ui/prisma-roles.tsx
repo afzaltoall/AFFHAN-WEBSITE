@@ -8,7 +8,13 @@ import { Almarai } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { WordsPullUpMultiStyle } from "./words-pull-up";
 
-const almarai = Almarai({ weight: ["300", "400", "700", "800"], subsets: ["arabic", "latin"] });
+// latin only — the page renders no Arabic text, and the arabic subset is a
+// large glyph set that would be downloaded and never drawn.
+//
+// 400/700 only. Almarai has no 500 or 600 face, so the font-normal and
+// font-semibold used in this section resolve to 400 and 700 anyway; declaring
+// 300 and 800 as well just preloaded two files nothing ever renders.
+const almarai = Almarai({ weight: ["400", "700"], subsets: ["latin"] });
 
 // Affhan open positions across our global sourcing network.
 const ROLES: {
