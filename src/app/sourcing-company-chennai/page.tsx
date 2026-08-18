@@ -128,8 +128,21 @@ export default function SourcingCompanyChennaiPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
 
-      {/* Hero Section */}
-      <section className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
+      {/* Hero Section.
+          `isolate` scopes the z-index stack to this section, so the backdrop's
+          z-0 and the copy's z-10 can't interact with anything else on the page.
+          The section is now full-bleed so the gradient reaches the viewport
+          edges; the original max-w-[1200px] + padding moved inward onto the
+          content wrapper, unchanged. */}
+      <section className="relative isolate overflow-hidden">
+        {/* Decorative only — aria-hidden so it is never announced, and
+            pointer-events:none (in CSS) so it cannot sit in front of the CTAs.
+            Absolutely positioned, so it contributes no height and no CLS. */}
+        <div className="hero-aurora z-0" aria-hidden="true">
+          <span className="hero-blob hero-blob-1" />
+          <span className="hero-blob hero-blob-2" />
+        </div>
+        <div className="relative z-10 max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20">
         <div className="text-center max-w-4xl mx-auto">
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-6">
             Sourcing Agent & Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
@@ -152,6 +165,7 @@ export default function SourcingCompanyChennaiPage() {
               Browse Catalog
             </Link>
           </div>
+        </div>
         </div>
       </section>
 

@@ -741,3 +741,72 @@ html {
     pointer-events: none;
   }
 }
+
+/* ── /sourcing-company-chennai hero: animated gradient backdrop ──────────
+   Two soft radial-gradient blobs drifting behind the hero copy.
+
+   Animated with `transform` ONLY, deliberately. The usual way to write this
+   effect is a big gradient with an animated `background-position`, but that
+   repaints the whole hero box every frame — the exact thing that stutters on
+   low-end phones. Transforms are composited on the GPU instead, so the paint
+   happens once and each frame is just a matrix change.
+
+   For the same reason there is no `filter: blur()`. A radial-gradient that
+   fades to transparent is already soft, and blurring a ~600px layer is
+   expensive to rasterise on mobile GPUs for no visual gain here.
+
+   The layer is absolutely positioned and pointer-events:none, so it adds no
+   height (no CLS) and never intercepts clicks on the CTAs above it. */
+.hero-aurora {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  /* Settles into the page's slate-50 so the section edges are seamless. */
+  background: linear-gradient(180deg, #f6fcfd 0%, #f8fafc 100%);
+}
+
+.hero-blob {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  will-change: transform;
+}
+
+.hero-blob-1 {
+  top: -30%;
+  left: -8%;
+  width: clamp(300px, 52vw, 620px);
+  height: clamp(300px, 52vw, 620px);
+  background: radial-gradient(circle closest-side, rgba(39, 168, 196, 0.18), rgba(39, 168, 196, 0) 100%);
+  animation: heroDrift1 19s ease-in-out infinite;
+}
+
+.hero-blob-2 {
+  bottom: -34%;
+  right: -6%;
+  width: clamp(280px, 46vw, 560px);
+  height: clamp(280px, 46vw, 560px);
+  background: radial-gradient(circle closest-side, rgba(125, 211, 252, 0.20), rgba(125, 211, 252, 0) 100%);
+  animation: heroDrift2 23s ease-in-out infinite;
+}
+
+@keyframes heroDrift1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(6%, 7%, 0) scale(1.08); }
+}
+
+@keyframes heroDrift2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(-7%, -6%, 0) scale(1.06); }
+}
+
+/* Freeze to the static gradient, and drop the compositor hint with it —
+   keeping will-change on a layer that no longer animates just holds GPU
+   memory for nothing. */
+@media (prefers-reduced-motion: reduce) {
+  .hero-blob {
+    animation: none !important;
+    will-change: auto;
+  }
+}
