@@ -201,6 +201,8 @@ export default function ProductsPage() {
   // scroll to the top of the results even while the grid is loading (the grid —
   // and gridTopRef — are unmounted behind the loading skeleton).
   const gridSectionRef = useRef<HTMLDivElement>(null);
+  // Horizontal scroller for the breadcrumb trail.
+  const crumbScrollRef = useRef<HTMLDivElement>(null);
   const scrollFacets = (dir: number) => facetScrollRef.current?.scrollBy({ left: dir * 320, behavior: "smooth" });
 
   const searchParams = useUrlParams();
@@ -327,6 +329,17 @@ export default function ProductsPage() {
     }
     return path;
   }, [activeCategoryId, categories]);
+
+  // Keep the breadcrumb strip pinned to its RIGHT end. The trail is one
+  // sideways-scrolling line, so it would otherwise sit at scroll-left 0 and show
+  // "All Categories › <root>…" while the category you actually just opened — the
+  // deepest crumb, the one answering "where am I" — stays off-screen to the
+  // right. Drilling three levels deep on a phone made the header look like it
+  // had not changed at all.
+  useEffect(() => {
+    const el = crumbScrollRef.current;
+    if (el) el.scrollLeft = el.scrollWidth;
+  }, [categoryPath]);
 
   // Drill into (or, with null, clear) a category via the URL so it stays
   // shareable/back-button friendly. activeCategoryId is derived from the URL
@@ -559,7 +572,7 @@ export default function ProductsPage() {
                       the deepest (current) category adjacent to the Clear
                       control. min-w-0 lets the strip actually shrink inside the
                       flex row instead of pushing Clear off the edge. */}
-                  <div className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto scrollbar-hide text-[13px] sm:text-sm">
+                  <div ref={crumbScrollRef} className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto scrollbar-hide text-[13px] sm:text-sm">
                     <button
                       onClick={() => goToCategory(null)}
                       className="shrink-0 whitespace-nowrap font-bold text-slate-500 hover:text-brand-dark transition-colors"
