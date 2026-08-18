@@ -64,6 +64,7 @@ function Section1Hero() {
           muted
           playsInline
           preload="auto"
+          poster="/career-video/career-3-poster.jpg"
           className="w-full h-full object-cover object-bottom"
         />
         {/* Subtle dark gradient to help text readability */}
@@ -250,6 +251,8 @@ function Section4Philosophy() {
               loop
               muted
               playsInline
+              preload="auto"
+              poster="/career-video/career-4-poster.jpg"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-black/5 mix-blend-multiply pointer-events-none" />

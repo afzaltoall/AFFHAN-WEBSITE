@@ -24,6 +24,8 @@ export function CareersVideoHero() {
           loop
           muted
           playsInline
+          preload="auto"
+          poster="/career-video/career-1-poster.jpg"
           className="h-full w-full object-cover"
           src="/career-video/career-1.mp4"
         />

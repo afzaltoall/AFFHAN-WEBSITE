@@ -44,6 +44,8 @@ export function PrismaHero() {
           loop
           muted
           playsInline
+          preload="auto"
+          poster="/career-video/Career-2-poster.jpg"
           className="absolute inset-0 w-full h-full object-cover z-0"
           src="/career-video/Career-2.mp4"
         />
