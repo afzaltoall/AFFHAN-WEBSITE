@@ -66,11 +66,6 @@ const localBusinessSchema = {
     postalCode: "600013",
     addressCountry: "IN",
   },
-  aggregateRating: {
-    "@type": "AggregateRating",
-    ratingValue: "4.8",
-    reviewCount: "144"
-  },
   sameAs: [
     "https://www.facebook.com/affhaninternational/reels/",
     "https://www.instagram.com/affhanglobal",
