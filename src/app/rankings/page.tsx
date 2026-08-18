@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, ChevronLeft, Loader2, LayoutGrid } from "lucide-react";
+import { ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { Pagination } from "@/components/ui/Pagination";
 import { BorderBeamPanel } from "@/components/ui/border-beam-panel";
+import { QuickLinkPill } from "@/components/ui/QuickLinkPill";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import { getCdnUrl } from "@/lib/cdn";
 import type { ProductCardData } from "@/components/ui/ProductCard";
@@ -292,12 +292,7 @@ export default function RankingsPage() {
                 </button>
               ))}
             </div>
-            <Link
-              href="/products"
-              className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand"
-            >
-              <LayoutGrid className="w-4 h-4" /> <span className="hidden sm:inline">Full Catalogue</span>
-            </Link>
+            <QuickLinkPill href="/products" icon="/cata.jpg" label="Full Catalog" labelHiddenOnMobile className="shrink-0" />
           </div>
         </div>
 

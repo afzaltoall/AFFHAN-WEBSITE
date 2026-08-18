@@ -2,11 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Clock, Trash2, TrendingUp, X, Loader2, Layers } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { TrustBadges } from "@/components/ui/TrustBadges";
+import { QuickLinkPill } from "@/components/ui/QuickLinkPill";
 
 interface CatMatch { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
 interface ProdMatch { id: number; name: string; imageUrl: string | null; category: string | null }
@@ -216,20 +216,8 @@ export function HeroSearchSection() {
 
         {/* Right-side quick entry points — Top Ranking / Full Catalog */}
         <div className="flex items-center justify-center gap-2.5 lg:flex-1 lg:justify-start">
-          <Link
-            href="/rankings"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-amber-600 liquid-glass-card hover:!transform-none !rounded-full px-4 py-2.5 shadow-sm hover:shadow transition-all whitespace-nowrap"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/top-1.jpg" alt="Top Ranking" width={20} height={20} style={{ width: 20, height: 20 }} className="object-contain scale-[1.8] [clip-path:inset(20%)]" /> Top Ranking
-          </Link>
-          <Link
-            href="/products"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 hover:text-brand-dark liquid-glass-card hover:!transform-none !rounded-full px-4 py-2.5 shadow-sm hover:shadow transition-all whitespace-nowrap"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/cata.jpg" alt="Full Catalog" width={20} height={20} style={{ width: 20, height: 20 }} className="object-contain scale-[1.8] [clip-path:inset(20%)]" /> Full Catalog
-          </Link>
+          <QuickLinkPill href="/rankings" icon="/top-1.jpg" label="Top Ranking" hoverTextClass="hover:text-amber-600" />
+          <QuickLinkPill href="/products" icon="/cata.jpg" label="Full Catalog" />
         </div>
       </div>
     </div>

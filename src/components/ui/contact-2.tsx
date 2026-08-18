@@ -300,23 +300,24 @@ export const Contact2 = ({
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="grid w-full items-center gap-2">
                 <Label htmlFor="fullName" className="text-slate-700 font-semibold tracking-wide">Full Name <span className="text-red-500">*</span></Label>
-                <Input type="text" id="fullName" name="fullName" value={form.fullName} onChange={setField("fullName")} placeholder="John Doe" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                <Input type="text" id="fullName" name="fullName" autoComplete="name" value={form.fullName} onChange={setField("fullName")} placeholder="John Doe" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="grid w-full items-center gap-2">
                 <Label htmlFor="email" className="text-slate-700 font-semibold tracking-wide">Email Address <span className="text-red-500">*</span></Label>
-                <Input type="email" id="email" name="email" value={form.email} onChange={setField("email")} placeholder="john@example.com" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                <Input type="email" id="email" name="email" autoComplete="email" value={form.email} onChange={setField("email")} placeholder="john@example.com" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
               </div>
               <div className="grid w-full items-center gap-2">
                 <Label htmlFor="companyName" className="text-slate-700 font-semibold tracking-wide">Company Name</Label>
-                <Input type="text" id="companyName" name="companyName" value={form.companyName} onChange={setField("companyName")} placeholder="Optional" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                <Input type="text" id="companyName" name="companyName" autoComplete="organization" value={form.companyName} onChange={setField("companyName")} placeholder="Optional" className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
               </div>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="grid w-full items-center gap-2">
                 <Label htmlFor="country" className="text-slate-700 font-semibold tracking-wide">Country <span className="text-red-500">*</span></Label>
                 <FlagSelect
+                  id="country"
                   mode="country"
                   placeholder="Select country"
                   selected={COUNTRIES.find((c) => c.name === form.country) || null}
@@ -339,7 +340,7 @@ export const Contact2 = ({
                       buttonClassName="!h-11 bg-slate-100"
                     />
                   </div>
-                  <Input type="tel" inputMode="numeric" id="phone" name="phone" value={form.phone} onChange={setField("phone")} placeholder="9876543210" className="min-w-0 flex-1 bg-slate-50/70 border border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                  <Input type="tel" inputMode="numeric" id="phone" name="phone" autoComplete="tel-national" value={form.phone} onChange={setField("phone")} placeholder="9876543210" className="min-w-0 flex-1 bg-slate-50/70 border border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
                 </div>
               </div>
             </div>

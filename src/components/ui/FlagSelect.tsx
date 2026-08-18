@@ -17,6 +17,10 @@ interface FlagSelectProps {
   placeholder?: string;
   countries?: Country[];
   buttonClassName?: string;
+  // Lands on the trigger <button>, which is a labelable element — without it a
+  // sibling <label htmlFor="..."> resolves to nothing, which breaks both browser
+  // autofill and screen-reader association (and DevTools flags it).
+  id?: string;
   // Which edge the dropdown is anchored to. Use "right" when the trigger sits on
   // the right side of a narrow container (e.g. the phone dial in a modal) so the
   // menu extends inward instead of spilling past the container's right edge.
@@ -49,6 +53,7 @@ export function FlagSelect({
   buttonClassName = "",
   align = "left",
   onOpenChange,
+  id,
 }: FlagSelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -80,6 +85,7 @@ export function FlagSelect({
     <div ref={ref} className="relative">
       <button
         type="button"
+        id={id}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
