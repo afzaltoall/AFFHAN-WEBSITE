@@ -3,8 +3,6 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform, useSpring, type MotionValue } from "framer-motion";
 import Image from "next/image";
-import Globe from "@/components/ui/globe";
-import { Globe2, Users, Warehouse, FileCheck } from "lucide-react";
 
 import { SocialBeams } from "@/components/ui/social-beams";
 

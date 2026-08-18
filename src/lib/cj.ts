@@ -10,14 +10,44 @@ interface CjAuthResponse {
   };
 }
 
+// Fields we actually read off a CJ product list item. CJ's API returns many
+// more fields than this; this is intentionally not exhaustive.
+export interface CjRawProduct {
+  pid?: string;
+  productId?: string;
+  id?: string | number;
+  productNameEn?: string;
+  productName?: string;
+  productSku?: string;
+  productImage?: string;
+  productImageSet?: string[];
+  categoryName?: string;
+  description?: string;
+  [key: string]: unknown;
+}
+
 interface CjProductResponse {
   code: number;
   result: boolean;
   message: string;
   data: {
-    list: any[];
+    list: CjRawProduct[];
     total: number;
   };
+}
+
+// CJ's category tree: each node is either an internal node with a nested
+// list of children (categoryFirstList / categorySecondList) or a leaf with
+// a categoryId — see fetchCategories() and the traverse() in the sync cron.
+export interface CjCategoryNode {
+  categoryId?: string;
+  categoryName?: string;
+  categoryFirstId?: string;
+  categoryFirstName?: string;
+  categorySecondId?: string;
+  categorySecondName?: string;
+  categoryFirstList?: CjCategoryNode[];
+  categorySecondList?: CjCategoryNode[];
 }
 
 // In-memory cache for the token
@@ -109,9 +139,10 @@ export async function fetchCjProducts(categoryId: string, pageNum = 1, pageSize 
     }
 
     return json.data;
-  } catch (err: any) {
-    if (err.message !== "MaxOffsetLimit" && retries > 0) {
-      console.log(`Fetch failed for category ${categoryId} page ${pageNum} (${err.message}). Retrying... (${retries} left)`);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message !== "MaxOffsetLimit" && retries > 0) {
+      console.log(`Fetch failed for category ${categoryId} page ${pageNum} (${message}). Retrying... (${retries} left)`);
       await delay(2500);
       return fetchCjProducts(categoryId, pageNum, pageSize, retries - 1);
     }
@@ -119,7 +150,7 @@ export async function fetchCjProducts(categoryId: string, pageNum = 1, pageSize 
   }
 }
 
-export async function fetchCategories() {
+export async function fetchCategories(): Promise<CjCategoryNode[]> {
   const token = await getCjToken();
   console.log(`[CJ API] Fetching full category tree...`);
   
@@ -131,10 +162,10 @@ export async function fetchCategories() {
     },
   });
 
-  const json = await response.json();
+  const json: { result: boolean; message: string; data: CjCategoryNode[] } = await response.json();
   if (!json.result) {
     throw new Error(`CJ API Category Fetch Error: ${json.message}`);
   }
-  
+
   return json.data;
 }

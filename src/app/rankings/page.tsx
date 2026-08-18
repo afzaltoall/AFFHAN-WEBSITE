@@ -10,8 +10,9 @@ import { InquiryModal } from "@/components/ui/InquiryModal";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { Pagination } from "@/components/ui/Pagination";
 import { BorderBeamPanel } from "@/components/ui/border-beam-panel";
-import { buildCategoryTree } from "@/lib/categoryTree";
+import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import { getCdnUrl } from "@/lib/cdn";
+import type { ProductCardData } from "@/components/ui/ProductCard";
 
 type RankProduct = { id: number; name: string; imageUrl: string | null; rank: number };
 type RankGroup = { id: string; name: string; parentName: string | null; products: RankProduct[] };
@@ -103,7 +104,7 @@ function CardSkeleton() {
 
 export default function RankingsPage() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [scope, setScope] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("hot");
 
@@ -113,12 +114,12 @@ export default function RankingsPage() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [allProducts, setAllProducts] = useState<ProductCardData[]>([]);
   const [allPage, setAllPage] = useState(1);
   const [allTotalPages, setAllTotalPages] = useState(1);
   const [allLoading, setAllLoading] = useState(false);
 
-  const [inquiryProduct, setInquiryProduct] = useState<any | null>(null);
+  const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
   const reqSeq = useRef(0);
   const scopeScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLock = useRef(false);

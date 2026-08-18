@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const res = NextResponse.json({ user });
     res.cookies.set(SESSION_COOKIE, token, cookieOptions);
     return res;
-  } catch (err: any) {
+  } catch (err) {
     console.error("login error", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }

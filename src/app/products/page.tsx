@@ -12,8 +12,39 @@ import { CategoryTile } from "@/components/ui/CategoryTile";
 import { Pagination } from "@/components/ui/Pagination";
 import { CatalogueScrollHero } from "@/components/sections/CatalogueScrollHero";
 import { CatalogueDock } from "@/components/sections/CatalogueDock";
-import { buildCategoryTree, flattenLeaves } from "@/lib/categoryTree";
+import { buildCategoryTree, flattenLeaves, type CategoryRecord, type CategoryTreeNode } from "@/lib/categoryTree";
 import { prepCatalogueNav } from "@/lib/scroll";
+import type { ProductCardData } from "@/components/ui/ProductCard";
+
+interface FacetChip {
+  id: string;
+  name: string;
+  parentName: string | null;
+  thumbnailUrl: string | null;
+  count: number;
+}
+
+// Chip shape derived from the in-memory category tree (rootChips, "More in
+// X" siblings, popular subcategories) — distinct from FacetChip, which comes
+// straight off the /api/products search-facets response.
+interface CategoryChip {
+  id: string;
+  name: string;
+  count: number;
+  thumbnailUrl: string | null;
+}
+
+// Locate a node anywhere in the tree by id. Pure structural lookup (no
+// component state), so it lives at module scope rather than being redefined
+// (and needing to be a hook dependency) on every render.
+function findTreeNode(nodes: CategoryTreeNode[], targetId: string): CategoryTreeNode | null {
+  for (const node of nodes) {
+    if (node.id === targetId) return node;
+    const found = findTreeNode(node.children || [], targetId);
+    if (found) return found;
+  }
+  return null;
+}
 
 const PAGE_SIZE = 96; // divisible by 2/3/4/6 so every column layout fills whole rows
 
@@ -117,8 +148,8 @@ function useUrlParams() {
     window.addEventListener("popstate", update);
     const origPush = history.pushState;
     const origReplace = history.replaceState;
-    history.pushState = function (...args: any[]) { origPush.apply(this, args as any); update(); };
-    history.replaceState = function (...args: any[]) { origReplace.apply(this, args as any); update(); };
+    history.pushState = function (...args: Parameters<typeof origPush>) { origPush.apply(this, args); update(); };
+    history.replaceState = function (...args: Parameters<typeof origReplace>) { origReplace.apply(this, args); update(); };
     // Initial read: set state SYNCHRONOUSLY (not via the microtask update()) so it
     // batches with the sibling setMounted(true) effect. That single re-render then
     // has both the real URL and mounted=true at once — so a deep-linked category
@@ -142,9 +173,9 @@ export default function ProductsPage() {
   // paints the hero before the category view — which is exactly the "1 second
   // hero flash". It also keeps SSR and hydration identical (no hero either side).
   const [mounted, setMounted] = useState(false);
-  const [products, setProducts] = useState<any[]>([]);
-  const [categories, setCategories] = useState<any[]>([]);
-  const [facets, setFacets] = useState<any[]>([]);
+  const [products, setProducts] = useState<ProductCardData[]>([]);
+  const [categories, setCategories] = useState<CategoryRecord[]>([]);
+  const [facets, setFacets] = useState<FacetChip[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [totalCapped, setTotalCapped] = useState<boolean>(false);
 
@@ -158,7 +189,7 @@ export default function ProductsPage() {
   const [totalPages, setTotalPages] = useState<number>(1);
   const [totalProductCount, setTotalProductCount] = useState<number>(0);
   const [error, setError] = useState<string | null>(null);
-  const [inquiryProduct, setInquiryProduct] = useState<any | null>(null);
+  const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
   // Guards against out-of-order responses (initial unfiltered fetch racing
   // the deep-linked ?q=/?categoryId= fetch that immediately follows).
@@ -221,7 +252,7 @@ export default function ProductsPage() {
     return () => clearTimeout(handler);
   }, [query]);
 
-  const getCategoryIdsParam = (categoryId: string | null, allCats: any[]): string | null => {
+  const getCategoryIdsParam = (categoryId: string | null, allCats: CategoryRecord[]): string | null => {
     if (!categoryId) return null;
     if (!allCats.length) return categoryId;
     const descendants = (targetId: string): string[] => {
@@ -241,17 +272,7 @@ export default function ProductsPage() {
 
   const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
 
-  // Locate a node anywhere in the tree by id.
-  const findTreeNode = (nodes: any[], targetId: string): any => {
-    for (const node of nodes) {
-      if (node.id === targetId) return node;
-      const found = findTreeNode(node.children || [], targetId);
-      if (found) return found;
-    }
-    return null;
-  };
-
-  const toChip = (c: any) => ({
+  const toChip = (c: CategoryTreeNode): CategoryChip => ({
     id: c.id,
     name: c.name,
     count: c.recursiveProductCount as number,
@@ -277,7 +298,7 @@ export default function ProductsPage() {
   //  • active LEAF (no children)    → its siblings (parent's children), with the
   //    active leaf highlighted — so users never lose sibling browsing.
   const levelOptions = useMemo(() => {
-    const byCount = (a: any, b: any) => (b.recursiveProductCount - a.recursiveProductCount) || a.name.localeCompare(b.name);
+    const byCount = (a: CategoryTreeNode, b: CategoryTreeNode) => (b.recursiveProductCount - a.recursiveProductCount) || a.name.localeCompare(b.name);
     if (!activeCategoryId || !categoryTree.length) {
       return { label: "Browse by Category", items: rootChips, activeId: null as string | null };
     }
@@ -354,8 +375,8 @@ export default function ProductsPage() {
       setTotalPages(json.pagination.totalPages);
       setTotalProductCount(json.pagination.total);
       setTotalCapped(Boolean(json.pagination.totalCapped));
-    } catch (err: any) {
-      if (seq === requestSeq.current) setError(err.message);
+    } catch (err) {
+      if (seq === requestSeq.current) setError(err instanceof Error ? err.message : String(err));
     } finally {
       if (seq === requestSeq.current) setLoading(false);
     }
@@ -420,7 +441,7 @@ export default function ProductsPage() {
       {mounted && defaultView && (
         <div id="catalogue-hero">
           <CatalogueScrollHero
-            scatterImages={products.slice(0, 10).map((p) => p.imageUrl).filter(Boolean)}
+            scatterImages={products.slice(0, 10).map((p) => p.imageUrl).filter((url): url is string => Boolean(url))}
           />
         </div>
       )}

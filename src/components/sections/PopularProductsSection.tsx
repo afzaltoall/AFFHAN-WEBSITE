@@ -7,10 +7,11 @@ import { InquiryModal } from "@/components/ui/InquiryModal";
 import { TextMorph } from "@/components/ui/text-morph";
 import SocialCards, { type CardItem } from "@/components/ui/card-fan-carousel";
 import { getCdnUrl } from "@/lib/cdn";
+import type { ProductCardData } from "@/components/ui/ProductCard";
 
 export function PopularProductsSection() {
-  const [products, setProducts] = useState<any[]>([]);
-  const [inquiryProduct, setInquiryProduct] = useState<any | null>(null);
+  const [products, setProducts] = useState<ProductCardData[]>([]);
+  const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
   useEffect(() => {
     fetch("/api/products?limit=140")

@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const res = NextResponse.json({ user: newUser });
     res.cookies.set(SESSION_COOKIE, signSession(newUser), cookieOptions);
     return res;
-  } catch (err: any) {
+  } catch (err) {
     console.error("email change error", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }

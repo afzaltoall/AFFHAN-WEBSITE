@@ -156,7 +156,9 @@ function BorderBeamPanelBase({
   const speedRef = React.useRef(new Spring(idleSpeed, stiffness, damping));
   const angleRef = React.useRef(startAngle);
   const liveRef = React.useRef({ idleSpeed, hoverSpeed });
-  liveRef.current = { idleSpeed, hoverSpeed };
+  React.useEffect(() => {
+    liveRef.current = { idleSpeed, hoverSpeed };
+  }, [idleSpeed, hoverSpeed]);
 
   React.useEffect(() => {
     speedRef.current.k = stiffness;

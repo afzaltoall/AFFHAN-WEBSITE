@@ -53,8 +53,8 @@ export function ProductCategoriesSection() {
       .then((res) => res.json())
       .then((data) => {
         const cats: Cat[] = (data.data || [])
-          .filter((c: any) => c.thumbnailUrl && c.productCount > 0)
-          .sort((a: any, b: any) => b.productCount - a.productCount);
+          .filter((c: Cat) => c.thumbnailUrl && c.productCount > 0)
+          .sort((a: Cat, b: Cat) => b.productCount - a.productCount);
         setCategories(cats);
       })
       .catch((err) => console.error(err));

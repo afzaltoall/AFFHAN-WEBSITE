@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     await prisma.adminUser.update({ where: { id: admin.id }, data: { passwordHash } });
 
     return NextResponse.json({ ok: true });
-  } catch (err: any) {
+  } catch (err) {
     console.error("password change error", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
   }

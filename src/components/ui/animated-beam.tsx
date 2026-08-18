@@ -31,7 +31,7 @@ export const AnimatedBeam: React.FC<AnimatedBeamProps> = ({
   toRef,
   curvature = 0,
   reverse = false,
-  duration = Math.random() * 3 + 4,
+  duration,
   delay = 0,
   pathColor = "gray",
   pathWidth = 2,
@@ -46,6 +46,10 @@ export const AnimatedBeam: React.FC<AnimatedBeamProps> = ({
   const id = useId();
   const [pathD, setPathD] = useState("");
   const [svgDimensions, setSvgDimensions] = useState({ width: 0, height: 0 });
+  // Randomized only when no explicit duration is passed; a lazy initializer
+  // keeps it stable across re-renders instead of re-rolling on every render.
+  const [autoDuration] = useState(() => Math.random() * 3 + 4);
+  const effectiveDuration = duration ?? autoDuration;
 
   const gradientCoordinates = reverse
     ? { x1: ["90%", "-10%"], x2: ["100%", "0%"], y1: ["0%", "0%"], y2: ["0%", "0%"] }
@@ -117,7 +121,7 @@ export const AnimatedBeam: React.FC<AnimatedBeamProps> = ({
           }}
           transition={{
             delay,
-            duration,
+            duration: effectiveDuration,
             ease: [0.16, 1, 0.3, 1],
             repeat: Infinity,
             repeatDelay: 0,

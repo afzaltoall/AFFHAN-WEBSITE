@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { CheckCircle2, Globe, ShieldCheck, Ship, Box, Search, PackageSearch } from "lucide-react";
+import { CheckCircle2, ShieldCheck, Ship, Search } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
 
 export const metadata: Metadata = {

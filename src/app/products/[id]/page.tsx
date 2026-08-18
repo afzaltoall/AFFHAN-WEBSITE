@@ -34,6 +34,7 @@ export async function generateMetadata({
   return {
     title: `${product.name} | Affhan Sourcing`,
     description: desc,
+    alternates: { canonical: `https://affhan.com/products/${product.id}/` },
     openGraph: {
       title: product.name,
       description: desc,

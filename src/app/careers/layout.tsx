@@ -4,6 +4,7 @@ export const metadata: Metadata = {
   title: "Careers | Affhan Group",
   description:
     "Join Affhan International — global sourcing, quality control, freight and logistics teams across Chennai, Guangzhou, London, Singapore, Malaysia and Dubai.",
+  alternates: { canonical: "https://affhan.com/careers/" },
 };
 
 export default function CareersLayout({ children }: { children: React.ReactNode }) {

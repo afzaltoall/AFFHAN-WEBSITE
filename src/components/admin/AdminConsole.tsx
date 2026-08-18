@@ -8,6 +8,7 @@ import {
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, CheckSquare, Square, KeyRound,
   MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown,
+  type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
@@ -35,6 +36,15 @@ const STATUS_META: Record<Status, { label: string; dot: string; text: string; ch
   spam: { label: "Spam", dot: "bg-red-500", text: "text-red-600", chip: "bg-red-500/10 text-red-600" },
 };
 const asStatus = (s: string): Status => (s === "handled" || s === "spam" ? s : "new");
+
+// Light/dark class-name bundle threaded through every panel/dialog below —
+// built once from the `dark` toggle (see the `t` definition further down).
+interface Theme {
+  page: string; sidebar: string; card: string; soft: string; strong: string;
+  border: string; divide: string; hover: string; navIdle: string; navActive: string;
+  input: string; chip: string; pill: string; thumb: string; qty: string;
+  overlay: string; modal: string;
+}
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
@@ -514,7 +524,7 @@ export function AdminConsole({ data }: Props) {
     XLSX.writeFile(wb, `${file}-${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
-  const nav: { key: View; label: string; icon: any; count?: number }[] = [
+  const nav: { key: View; label: string; icon: LucideIcon; count?: number }[] = [
     { key: "all", label: "All", icon: LayoutList },
     { key: "overview", label: "Overview", icon: LayoutGrid },
     { key: "inquiries", label: "Inquiries", icon: Inbox, count: statusCounts.new },
@@ -1016,7 +1026,7 @@ export function AdminConsole({ data }: Props) {
 // Change-email modal. Requires the current password to confirm identity; on
 // success the server re-issues the session, so we reload to pick up the new
 // email everywhere.
-function EmailDialog({ currentEmail, onClose, t }: { currentEmail: string; onClose: () => void; t: any }) {
+function EmailDialog({ currentEmail, onClose, t }: { currentEmail: string; onClose: () => void; t: Theme }) {
   const [email, setEmail] = useState(currentEmail);
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -1103,7 +1113,7 @@ function EmailDialog({ currentEmail, onClose, t }: { currentEmail: string; onClo
 // Change-password modal. Self-contained: manages its own form + request to
 // /api/admin/password, which verifies the current password (bcrypt) and stores
 // the new hash in the DB.
-function PasswordDialog({ onClose, t }: { onClose: () => void; t: any }) {
+function PasswordDialog({ onClose, t }: { onClose: () => void; t: Theme }) {
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
@@ -1189,7 +1199,7 @@ function PasswordDialog({ onClose, t }: { onClose: () => void; t: any }) {
 }
 
 // Clean, on-brand confirmation modal. Used for every destructive admin action.
-function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNullable<ConfirmState>; onConfirm: () => void; onCancel: () => void; busy: boolean; t: any }) {
+function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNullable<ConfirmState>; onConfirm: () => void; onCancel: () => void; busy: boolean; t: Theme }) {
   return (
     <div className="fixed inset-0 z-[140] flex items-center justify-center p-4" onClick={onCancel}>
       <div className={`absolute inset-0 ${t.overlay}`} />
@@ -1221,7 +1231,7 @@ function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNull
 
 // Opens the ordered product's image + full details inside the admin, so staff
 // never have to leave the console to see what a customer requested.
-function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; t: any }) {
+function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; t: Theme }) {
   const img = inquiry.productImage ? (getCdnUrl(inquiry.productImage) as string) : null;
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
@@ -1293,7 +1303,7 @@ function ContactsSection({
   onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
   onRestoreSelected, onPurgeSelected,
 }: {
-  t: any; tab: "active" | "trash"; setTab: (v: "active" | "trash") => void;
+  t: Theme; tab: "active" | "trash"; setTab: (v: "active" | "trash") => void;
   q: string; setQ: (v: string) => void;
   statusFilter: "all" | Status; setStatusFilter: (v: "all" | Status) => void;
   statusCounts: { all: number; new: number; handled: number; spam: number };
@@ -1448,7 +1458,7 @@ function ContactsSection({
 }
 
 // Contact message detail modal — name, email, optional product, full message.
-function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetStatus, t }: { contact: ContactMessage; deleted: boolean; onClose: () => void; onDelete: () => void; onRestore: () => void; onSetStatus: (s: Status) => void; t: any }) {
+function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetStatus, t }: { contact: ContactMessage; deleted: boolean; onClose: () => void; onDelete: () => void; onRestore: () => void; onSetStatus: (s: Status) => void; t: Theme }) {
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
@@ -1510,7 +1520,7 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
 
 // Segmented New / Handled / Spam control. `stopPropagation` so clicking a
 // status inside a clickable row doesn't also open the detail modal.
-function StatusControl({ value, onChange, t, big }: { value: Status; onChange: (s: Status) => void; t: any; big?: boolean }) {
+function StatusControl({ value, onChange, t, big }: { value: Status; onChange: (s: Status) => void; t: Theme; big?: boolean }) {
   const pad = big ? "px-4 py-2 text-sm" : "px-2.5 py-1 text-[11px]";
   return (
     <div className={`inline-flex rounded-full p-0.5 ${t.thumb}`} onClick={(e) => e.stopPropagation()}>
@@ -1527,7 +1537,7 @@ function StatusControl({ value, onChange, t, big }: { value: Status; onChange: (
   );
 }
 
-function Row({ icon: Icon, label, value }: { icon: any; label: string; value: string }) {
+function Row({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="flex items-center gap-2">
       <Icon className="h-3.5 w-3.5 shrink-0" />
@@ -1545,7 +1555,7 @@ function Avatar({ name, image, size }: { name: string; image: string | null; siz
   return <span className="flex items-center justify-center rounded-full bg-brand font-semibold uppercase text-white" style={{ width: size, height: size, fontSize: size * 0.42 }}>{name[0]}</span>;
 }
 
-function Thumb({ src, alt, big, t }: { src: string | null; alt: string; big?: boolean; t: any }) {
+function Thumb({ src, alt, big, t }: { src: string | null; alt: string; big?: boolean; t: Theme }) {
   const s = big ? "h-14 w-14" : "h-10 w-10";
   if (!src) return <div className={`${s} flex shrink-0 items-center justify-center rounded-xl text-[10px] ${t.thumb} ${t.soft}`}>No img</div>;
   return (
@@ -1555,7 +1565,7 @@ function Thumb({ src, alt, big, t }: { src: string | null; alt: string; big?: bo
   );
 }
 
-function Panel({ title, onView, children, t }: { title: string; onView: () => void; children: React.ReactNode; t: any }) {
+function Panel({ title, onView, children, t }: { title: string; onView: () => void; children: React.ReactNode; t: Theme }) {
   return (
     <div className={`rounded-2xl shadow-sm ring-1 ${t.card}`}>
       <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
@@ -1567,14 +1577,14 @@ function Panel({ title, onView, children, t }: { title: string; onView: () => vo
   );
 }
 
-function Empty({ label, pad, t }: { label: string; pad?: boolean; t: any }) {
+function Empty({ label, pad, t }: { label: string; pad?: boolean; t: Theme }) {
   return <div className={`text-center text-sm ${t.soft} ${pad ? "px-6 py-16" : "py-10"}`}>{label}</div>;
 }
 
 // One de-duplicated customer, with an expandable list of every product they
 // inquired about. This is the on-screen version of the "Group by customer"
 // view; the Excel version comes from /api/admin/export/all?only=customers.
-function CustomerGroupRow({ g, t }: { g: CustomerGroup; t: any }) {
+function CustomerGroupRow({ g, t }: { g: CustomerGroup; t: Theme }) {
   const [open, setOpen] = useState(false);
   return (
     <li className={`transition-colors ${t.hover}`}>
@@ -1625,7 +1635,7 @@ function CustomerGroupRow({ g, t }: { g: CustomerGroup; t: any }) {
 function AllSection({
   t, stats, groups, onGoInquiries, onGoContacts, onGoCareers,
 }: {
-  t: any;
+  t: Theme;
   stats: { inquiries: number; contacts: number; jobAlerts: number; customers: number };
   groups: CustomerGroup[];
   onGoInquiries: () => void; onGoContacts: () => void; onGoCareers: () => void;
@@ -1647,10 +1657,10 @@ function AllSection({
   const visibleKeys = filtered.map((g) => g.key);
   const allSelected = visibleKeys.length > 0 && visibleKeys.every((k) => selected.has(k));
   const toggle = (key: string) =>
-    setSelected((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+    setSelected((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(visibleKeys));
   const toggleExpand = (key: string) =>
-    setExpanded((prev) => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+    setExpanded((prev) => { const n = new Set(prev); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   // Export the ticked customers (or everything visible if none ticked) to .xlsx,
   // reusing the exact shared builder so it matches the master workbook.
@@ -1828,7 +1838,7 @@ function CareersSection({
   onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
   onRestoreSelected, onPurgeSelected,
 }: {
-  t: any; tab: "active" | "trash"; setTab: (v: "active" | "trash") => void;
+  t: Theme; tab: "active" | "trash"; setTab: (v: "active" | "trash") => void;
   q: string; setQ: (v: string) => void;
   statusFilter: "all" | Status; setStatusFilter: (v: "all" | Status) => void;
   statusCounts: { all: number; new: number; handled: number; spam: number };

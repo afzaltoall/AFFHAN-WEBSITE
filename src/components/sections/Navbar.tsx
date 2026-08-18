@@ -11,10 +11,13 @@ const TopRankingIcon = ({ size, className }: { size?: number, className?: string
   <img src="/top-1.jpg" alt="Top Ranking" width={size || 20} height={size || 20} style={{ width: size || 20, height: size || 20 }} className={`object-contain scale-[1.8] [clip-path:inset(20%)] ${className || ""}`} />
 );
 import { AnimatePresence, motion } from "framer-motion";
-import { buildCategoryTree } from "@/lib/categoryTree";
+import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
 import { getCdnUrl } from "@/lib/cdn";
 import { prepCatalogueNav } from "@/lib/scroll";
+
+interface SuggestCategory { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
+interface SuggestProduct { id: number; name: string; imageUrl: string | null; category?: string | null; categoryRef?: { name: string | null } | null }
 
 export function Navbar() {
   const pathname = usePathname();
@@ -31,7 +34,7 @@ export function Navbar() {
   // Search
   const [navSearchValue, setNavSearchValue] = useState("");
   const [isInputFocused, setIsInputFocused] = useState(false);
-  const [results, setResults] = useState<{ categories: any[]; products: any[] }>({ categories: [], products: [] });
+  const [results, setResults] = useState<{ categories: SuggestCategory[]; products: SuggestProduct[] }>({ categories: [], products: [] });
   const [isSearching, setIsSearching] = useState(false);
   const searchRef = useRef<HTMLFormElement | null>(null);
   
@@ -43,7 +46,7 @@ export function Navbar() {
     const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Categories Data
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
 
@@ -55,7 +58,7 @@ export function Navbar() {
         if (!res.ok) throw new Error("Failed to fetch categories");
         const json = await res.json();
         setCategories(json.data || []);
-      } catch (err: any) {
+      } catch (err) {
         console.error(err);
       } finally {
         setLoadingCategories(false);
@@ -124,7 +127,7 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSuggestionClick = (product: any) => {
+  const handleSuggestionClick = (product: SuggestProduct) => {
     setIsInputFocused(false);
     setNavSearchValue(product.name);
     prepCatalogueNav();

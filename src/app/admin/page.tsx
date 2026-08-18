@@ -1,10 +1,19 @@
 import { redirect } from "next/navigation";
+import type { Metadata } from "next";
 import { prisma } from "../../lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { AdminConsole } from "@/components/admin/AdminConsole";
 import { AdminAutoLogout } from "@/components/admin/AdminAutoLogout";
 
 export const dynamic = "force-dynamic";
+
+// Extra safeguard alongside the robots.ts disallow rule — belt-and-braces,
+// since a disallow rule alone doesn't stop a URL that's already linked
+// elsewhere from being indexed (Google can still index a disallowed URL with
+// no snippet, just from its address). This tag prevents indexing outright.
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 export default async function AdminPage() {
   const admin = await getCurrentUser();

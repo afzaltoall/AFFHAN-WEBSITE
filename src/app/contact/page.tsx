@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Contact Us | Affhan Group",
   description:
     "Get in touch with Affhan Group. Contact our global network of sourcing, warehousing, and custom compliance specialists in Guangzhou, London, India, Singapore, Malaysia, and Dubai.",
+  alternates: { canonical: "https://affhan.com/contact/" },
 };
 
 export default function ContactPage() {

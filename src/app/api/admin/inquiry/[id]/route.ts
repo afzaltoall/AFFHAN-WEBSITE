@@ -23,7 +23,7 @@ export async function PATCH(
   try {
     const updated = await prisma.inquiry.update({ where: { id }, data: { status } });
     return NextResponse.json({ id: updated.id, status: updated.status });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 }
@@ -38,7 +38,7 @@ export async function DELETE(
   try {
     await prisma.inquiry.delete({ where: { id } });
     return NextResponse.json({ ok: true, id });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 }

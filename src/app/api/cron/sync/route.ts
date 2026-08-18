@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
-import { fetchCategories, fetchCjProducts, delay } from "../../../../lib/cj";
+import { fetchCategories, fetchCjProducts, delay, type CjCategoryNode, type CjRawProduct } from "../../../../lib/cj";
 import { isCategoryBlocked } from "../../../../lib/moderation";
 
 export const dynamic = "force-dynamic";
@@ -34,12 +34,12 @@ export async function GET(request: Request) {
       console.log("Category table empty, fetching full tree from CJ...");
       const categoriesTree = await fetchCategories();
       
-      const leafCategories: any[] = [];
-      const traverse = (node: any, parentId = null, parentName = null) => {
+      const leafCategories: { id: string; name?: string; parentId: string | null; parentName: string | null }[] = [];
+      const traverse = (node: CjCategoryNode, parentId: string | null = null, parentName: string | null = null) => {
         if (node.categoryFirstList) {
-          node.categoryFirstList.forEach((child: any) => traverse(child, node.categoryFirstId, node.categoryFirstName));
+          node.categoryFirstList.forEach((child) => traverse(child, node.categoryFirstId ?? null, node.categoryFirstName ?? null));
         } else if (node.categorySecondList) {
-          node.categorySecondList.forEach((child: any) => traverse(child, node.categorySecondId, node.categorySecondName));
+          node.categorySecondList.forEach((child) => traverse(child, node.categorySecondId ?? null, node.categorySecondName ?? null));
         } else if (node.categoryId) {
           leafCategories.push({
             id: node.categoryId,
@@ -50,7 +50,7 @@ export async function GET(request: Request) {
         }
       };
 
-      categoriesTree.forEach((root: any) => traverse(root));
+      categoriesTree.forEach((root) => traverse(root));
       
       console.log(`Found ${leafCategories.length} leaf categories. Bulk inserting...`);
       
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
       await prisma.category.createMany({
         data: leafCategories.map(cat => ({
           id: cat.id,
-          name: cat.name,
+          name: cat.name ?? "Unnamed Category",
           parentId: cat.parentId,
           parentName: cat.parentName
         })),
@@ -126,17 +126,17 @@ export async function GET(request: Request) {
           break;
         }
         
-        const upsertPromises = cjProducts.map(async (cp: any) => {
+        const upsertPromises = cjProducts.map(async (cp: CjRawProduct) => {
           const cjPid = cp.pid || cp.productId || String(cp.id);
           if (!cjPid) return null;
 
-          const parseName = (nameStr: any) => {
+          const parseName = (nameStr: unknown) => {
             if (!nameStr) return null;
             if (typeof nameStr === 'string' && nameStr.startsWith('[') && nameStr.endsWith(']')) {
               try {
                 const parsed = JSON.parse(nameStr);
                 if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
-              } catch (e) {}
+              } catch {}
             }
             return String(nameStr);
           };
@@ -256,25 +256,27 @@ export async function GET(request: Request) {
         console.log(`Saved page ${pageNum} for ${progress.category.name}.`);
         await delay(500);
         
-      } catch (err: any) {
-        if (err.message === "MaxOffsetLimit" || err.message.includes("max offset")) {
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+
+        if (message === "MaxOffsetLimit" || message.includes("max offset")) {
           console.log(`CJ API limit reached on category ${progress.category.name} page ${pageNum} (max offset 6000). Marking category as partially completed.`);
           lastPage = totalPages; // Force completion
           break; // break the retry loop and drop down to the completion logic
         }
 
-        if (err.message === "PointsLimitReached") {
+        if (message === "PointsLimitReached") {
           console.log(`CJ Daily API Points Limit Reached! Pausing sync for today.`);
           // Status stays IN_PROGRESS so it resumes here later
-          return NextResponse.json({ success: false, pointsLimitReached: true, error: err.message }, { status: 429 });
+          return NextResponse.json({ success: false, pointsLimitReached: true, error: message }, { status: 429 });
         }
 
-        console.error(`Error on page ${pageNum}:`, err.message);
+        console.error(`Error on page ${pageNum}:`, message);
         await prisma.syncProgress.update({
           where: { id: progress.id },
-          data: { status: "FAILED", errorMessage: err.message || "Unknown error" } as any
+          data: { status: "FAILED", errorMessage: message || "Unknown error" }
         });
-        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+        return NextResponse.json({ success: false, error: message }, { status: 500 });
       }
     }
 
@@ -325,7 +327,7 @@ export async function GET(request: Request) {
       totalPages
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("Cron sync failed completely:", error);
     return new NextResponse("Internal Server Error", { status: 500 });
   }

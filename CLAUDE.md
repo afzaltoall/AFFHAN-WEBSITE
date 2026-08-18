@@ -77,7 +77,3 @@ Also: after any migration, **verify it actually applied** by querying the new ta
 ## Current work in progress
 
 Rebuilding the UI to match Alibaba's layout. Full spec is in `affhan-full-ui-spec.md` — read that for the detailed requirements (homepage, mega-menu, navbar, category page with filters, footer).
-
-Open bugs at time of writing:
-1. Navbar logo renders as a broken image — path mismatch, `/affhan-logo.png` vs the actual file in `/public`
-2. Category mega-menu left panel renders empty — caused by the 3-level tree issue described above

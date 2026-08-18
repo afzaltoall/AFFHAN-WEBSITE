@@ -3,13 +3,13 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { Star, ChevronRight, Globe } from "lucide-react";
+import { Star, ChevronRight } from "lucide-react";
 import { InquiryModal } from "@/components/ui/InquiryModal";
-import { ProductCard } from "@/components/ui/ProductCard";
+import { ProductCard, type ProductCardData } from "@/components/ui/ProductCard";
 import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph";
-import { buildCategoryTree } from "@/lib/categoryTree";
+import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 
 // The diverse-sample query can return overlapping products across paged
 // load-more calls; dedupe by id so a duplicate React key never reaches the
@@ -25,8 +25,8 @@ function dedupeById<T extends { id: number | string }>(items: T[]): T[] {
 
 export function MarketplaceHeroSection() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
-  const [products, setProducts] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryRecord[]>([]);
+  const [products, setProducts] = useState<ProductCardData[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
@@ -55,7 +55,7 @@ export function MarketplaceHeroSection() {
   }, [isMegaOpen]);
 
   // Modal state
-  const [selectedProduct, setSelectedProduct] = useState<any | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductCardData | null>(null);
 
   // Fetch Categories
   useEffect(() => {
@@ -396,7 +396,7 @@ export function MarketplaceHeroSection() {
           </div>
           {/* SEO Static H1 (Visually hidden) */}
           <h1 className="sr-only">
-            AFFHAN - Global B2B Sourcing & China Import Export Company
+            AFFHAN - Global Sourcing, Shipping & China Import Export
           </h1>
           <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
             <span>Source</span>

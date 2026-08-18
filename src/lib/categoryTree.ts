@@ -10,7 +10,7 @@ export interface CategoryRecord {
   parentId: string | null;
   thumbnailUrl?: string | null;
   productCount: number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface CategoryTreeNode extends CategoryRecord {

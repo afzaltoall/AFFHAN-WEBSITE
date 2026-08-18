@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { groupCustomers, buildCustomerSheet } from "@/lib/customerGroups";
+import type { WorkSheet } from "xlsx";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export async function GET(req: Request) {
     const wb = XLSX.utils.book_new();
 
     // Force given 0-based columns of a sheet to text format, row by row.
-    const forceTextCols = (ws: any, rowCount: number, cols: number[]) => {
+    const forceTextCols = (ws: WorkSheet, rowCount: number, cols: number[]) => {
       for (let r = 1; r <= rowCount; r++) {
         for (const c of cols) {
           const addr = XLSX.utils.encode_cell({ r, c });

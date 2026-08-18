@@ -36,10 +36,10 @@ export function HeroSearchSection() {
       .then(r => (r.ok ? r.json() : { data: [] }))
       .then(d => {
         const cats = (d.data || [])
-          .filter((c: any) => c.thumbnailUrl && c.productCount > 0)
-          .sort((a: any, b: any) => b.productCount - a.productCount)
+          .filter((c: CatMatch & { productCount: number }) => c.thumbnailUrl && c.productCount > 0)
+          .sort((a: { productCount: number }, b: { productCount: number }) => b.productCount - a.productCount)
           .slice(0, 8)
-          .map((c: any) => ({ id: c.id, name: c.name, thumbnailUrl: c.thumbnailUrl }));
+          .map((c: CatMatch) => ({ id: c.id, name: c.name, thumbnailUrl: c.thumbnailUrl }));
         setPopularCats(cats);
       })
       .catch(() => { });
