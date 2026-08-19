@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import { getCdnUrl } from "@/lib/cdn";
 
 interface Testimonial {
   quote: string;
@@ -168,13 +170,14 @@ export const CircularTestimonials = ({
       <div className="testimonial-grid">
         <div className="image-container" ref={imageContainerRef}>
           {testimonials.map((testimonial, index) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
               key={testimonial.src + index}
-              src={testimonial.src}
+              src={getCdnUrl(testimonial.src) as string}
               alt={testimonial.name}
+              fill
+              sizes="(max-width: 768px) 300px, 400px"
+              priority={index === 0}
               className="testimonial-image"
-              data-index={index}
               style={getImageStyle(index)}
             />
           ))}
