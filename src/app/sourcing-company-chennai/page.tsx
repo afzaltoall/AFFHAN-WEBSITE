@@ -3,6 +3,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
+import { CountUpStat } from "@/components/ui/CountUpStat";
+import { prisma } from "@/lib/prisma";
+
+// Hourly ISR rather than a dynamic render. The catalog counts move slowly, and
+// this is a search landing page — it should stay statically served and fast,
+// with the figures refreshed in the background instead of a DB round trip on
+// every request.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Sourcing Agent & Sourcing Company in Chennai | AFFHAN — China Import",
@@ -38,7 +46,7 @@ const faqs = [
   {
     question: "What makes AFFHAN the best sourcing company in Chennai?",
     answer:
-      "With over 3+ years of proven expertise, a 4.8 rating, and direct presence in China and Chennai, AFFHAN eliminates the middleman. We provide seamless B2B sourcing from a catalog of over 10 Lakhs+ products across 50,000+ categories.",
+      "With over 3+ years of proven expertise, a 4.8 rating, and direct presence in China and Chennai, AFFHAN eliminates the middleman. We provide seamless B2B sourcing from a catalog of over 10 Lakhs+ products across 500+ product categories.",
   },
   {
     question: "How to source products from China to Chennai safely?",
@@ -120,7 +128,15 @@ const schema = {
   ],
 };
 
-export default function SourcingCompanyChennaiPage() {
+export default async function SourcingCompanyChennaiPage() {
+  // Only categories that actually hold products are counted — the tree carries
+  // some empty CJ nodes, and advertising those would overstate what a visitor
+  // can genuinely browse.
+  const [productCount, categoryCount] = await Promise.all([
+    prisma.product.count(),
+    prisma.category.count({ where: { products: { some: {} } } }),
+  ]);
+
   // No pt-24 on <main>. The navbar is `fixed`, so top padding here pushed the
   // hero down and left a bare slate-50 strip between the navbar and the
   // gradient. That clearance lives inside the hero instead, so the gradient
@@ -233,7 +249,7 @@ export default function SourcingCompanyChennaiPage() {
               <div className="p-7 sm:p-8">
                 <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">China Product Sourcing</h3>
                 <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
-                  We act as your dedicated China sourcing agent in Chennai. Find any product from our 50,000+ categories with competitive factory-direct pricing.
+                  We act as your dedicated China sourcing agent in Chennai. Find any product from our 500+ product categories with competitive factory-direct pricing.
                 </p>
               </div>
             </div>
@@ -309,21 +325,32 @@ export default function SourcingCompanyChennaiPage() {
                 Learn more about our company →
               </Link>
             </div>
+            {/* Products and Categories come from the live catalog counts, so
+                these can never drift from what /products actually shows.
+                Countries and Rating stay literals — neither lives in the DB. */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-4xl sm:text-[2.6rem] font-bold tracking-[-0.032em] leading-none text-brand mb-2">10L+</div>
+                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums">
+                  <CountUpStat value={productCount} />
+                </div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Products</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-4xl sm:text-[2.6rem] font-bold tracking-[-0.032em] leading-none text-brand mb-2">50K+</div>
+                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums">
+                  {/* No "+" here: this is the exact live count, and a plus
+                      would claim there are more than the number shown. */}
+                  <CountUpStat value={categoryCount} />
+                </div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Categories</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-4xl sm:text-[2.6rem] font-bold tracking-[-0.032em] leading-none text-brand mb-2">100+</div>
+                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums">
+                  <CountUpStat value={100} suffix="+" />
+                </div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Countries</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-4xl sm:text-[2.6rem] font-bold tracking-[-0.032em] leading-none text-brand mb-2">4.8</div>
+                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums">4.8</div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Rating</div>
               </div>
             </div>
