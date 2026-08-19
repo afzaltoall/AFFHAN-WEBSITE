@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import Link from "next/link";
-import { CheckCircle2, ShieldCheck, Ship, Search } from "lucide-react";
+import Image from "next/image";
+import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
 
 export const metadata: Metadata = {
@@ -205,35 +206,72 @@ export default function SourcingCompanyChennaiPage() {
             </p>
           </div>
 
+          {/* The artwork carries its own baked-in wordmarks, so the lucide icon
+              that used to head each card was a third competing visual and has
+              gone. Every word that matters still lives in the h3 and the
+              paragraph as real text — nothing readable was moved into a bitmap,
+              which is what would have made it invisible to a crawler.
+
+              alt describes the picture instead of repeating the h3 sitting
+              right beneath it; duplicating it would have a screen reader
+              announce each service name twice.
+
+              Fixed aspect-[3/2] box with `fill` reserves the space before the
+              file arrives, so no CLS, and they sit below the fold and stay
+              lazy — no LCP cost. */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-slate-50 p-8 rounded-2xl border border-slate-100 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-brand/10 rounded-xl flex items-center justify-center mb-6">
-                <Search className="w-6 h-6 text-brand" />
+            <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative aspect-[3/2] w-full bg-slate-100">
+                <Image
+                  src="/Landing-chennai-services/china-product-sourcing.webp"
+                  alt="Shipping container marked with the Chinese flag being craned onto a dock beside stacked cartons"
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover"
+                />
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">China Product Sourcing</h3>
-              <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
-                We act as your dedicated China sourcing agent in Chennai. Find any product from our 50,000+ categories with competitive factory-direct pricing.
-              </p>
+              <div className="p-7 sm:p-8">
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">China Product Sourcing</h3>
+                <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
+                  We act as your dedicated China sourcing agent in Chennai. Find any product from our 50,000+ categories with competitive factory-direct pricing.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-slate-50 p-8 rounded-2xl border border-slate-100 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-brand/10 rounded-xl flex items-center justify-center mb-6">
-                <ShieldCheck className="w-6 h-6 text-brand" />
+            <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative aspect-[3/2] w-full bg-slate-100">
+                <Image
+                  src="/Landing-chennai-services/supplier-verification.webp"
+                  alt="Inspector in a hi-vis vest checking a clipboard against palletised cartons at a loading bay"
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover"
+                />
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">Supplier Verification</h3>
-              <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
-                Risk-free importing. Our local team conducts background checks and physical audits to ensure you work with verified manufacturers.
-              </p>
+              <div className="p-7 sm:p-8">
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">Supplier Verification</h3>
+                <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
+                  Risk-free importing. Our local team conducts background checks and physical audits to ensure you work with verified manufacturers.
+                </p>
+              </div>
             </div>
 
-            <div className="bg-slate-50 p-8 rounded-2xl border border-slate-100 hover:shadow-lg transition-shadow">
-              <div className="w-12 h-12 bg-brand/10 rounded-xl flex items-center justify-center mb-6">
-                <Ship className="w-6 h-6 text-brand" />
+            <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative aspect-[3/2] w-full bg-slate-100">
+                <Image
+                  src="/Landing-chennai-services/freight-forwarding.webp"
+                  alt="Container ship at berth with a cargo aircraft overhead and a haulage truck on the quay"
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover"
+                />
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">Freight Forwarding</h3>
-              <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
-                Sea and air freight logistics managed seamlessly. We handle customs clearance, NVOCC, and port handling directly to Chennai.
-              </p>
+              <div className="p-7 sm:p-8">
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">Freight Forwarding</h3>
+                <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
+                  Sea and air freight logistics managed seamlessly. We handle customs clearance, NVOCC, and port handling directly to Chennai.
+                </p>
+              </div>
             </div>
           </div>
         </div>
