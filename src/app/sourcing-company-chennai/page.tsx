@@ -284,7 +284,8 @@ export default async function SourcingCompanyChennaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
-                  src={getCdnUrl("/Landing-chennai-services/china-product-sourcing.webp") as string}
+                  src="/Landing-chennai-services/china-product-sourcing.webp"
+                  unoptimized={false}
                   alt="Shipping container marked with the Chinese flag being craned onto a dock beside stacked cartons"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -302,7 +303,8 @@ export default async function SourcingCompanyChennaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
-                  src={getCdnUrl("/Landing-chennai-services/supplier-verification.webp") as string}
+                  src="/Landing-chennai-services/supplier-verification.webp"
+                  unoptimized={false}
                   alt="Inspector in a hi-vis vest checking a clipboard against palletised cartons at a loading bay"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -320,7 +322,8 @@ export default async function SourcingCompanyChennaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
-                  src={getCdnUrl("/Landing-chennai-services/freight-forwarding.webp") as string}
+                  src="/Landing-chennai-services/freight-forwarding.webp"
+                  unoptimized={false}
                   alt="Container ship at berth with a cargo aircraft overhead and a haulage truck on the quay"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

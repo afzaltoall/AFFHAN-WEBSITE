@@ -6,7 +6,7 @@ import { InstagramIcon, LinkedinIcon, YouTubeIcon, FacebookIcon, TiktokIcon, Twi
 
 function ChevronIcon() {
   return (
-    <span aria-hidden="true" className="text-[#3cd5f7] font-bold text-base">
+    <span aria-hidden="true" className="text-[#61deff] font-bold text-base">
       ›
     </span>
   );
@@ -65,11 +65,11 @@ export function FooterSection() {
                   </p>
                   <p className="mt-4">TAMIL NADU, INDIA</p>
                   <p className="mt-4">
-                    <span className="font-semibold text-[#3cd5f7]">Office:</span>{" "}
+                    <span className="font-semibold text-[#61deff]">Office:</span>{" "}
                     044 - 4743 2777
                   </p>
                   <p className="mt-4">
-                    <span className="font-semibold text-[#3cd5f7]">Email:</span>{" "}
+                    <span className="font-semibold text-[#61deff]">Email:</span>{" "}
                     info@affhan.com
                   </p>
                 </>
