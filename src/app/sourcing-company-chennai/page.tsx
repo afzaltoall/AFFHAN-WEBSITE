@@ -212,8 +212,12 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
-      {/* Services Section */}
-      <section className="bg-white py-16 lg:py-24 border-y border-slate-200">
+      {/* Services Section.
+          A faint teal wash instead of flat white: the glass cards below tint
+          and blur what sits behind them, and over pure white there is nothing
+          for them to act on — they would read as plain panels. This also
+          carries the hero's colour down into the section. */}
+      <section className="bg-gradient-to-b from-[#f2fafc] via-[#f7fcfd] to-white py-16 lg:py-24 border-y border-slate-200">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
@@ -238,7 +242,7 @@ export default async function SourcingCompanyChennaiPage() {
               file arrives, so no CLS, and they sit below the fold and stay
               lazy — no LCP cost. */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
+            <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/china-product-sourcing.webp"
@@ -256,7 +260,7 @@ export default async function SourcingCompanyChennaiPage() {
               </div>
             </div>
 
-            <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
+            <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/supplier-verification.webp"
@@ -274,7 +278,7 @@ export default async function SourcingCompanyChennaiPage() {
               </div>
             </div>
 
-            <div className="bg-slate-50 rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg transition-shadow">
+            <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/freight-forwarding.webp"
