@@ -45,6 +45,10 @@ export default function RadialOrbitalTimeline({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
+  // Mirrors rotationAngle so the click tween can read the live value without
+  // capturing a stale one from its closure.
+  const angleRef = useRef(0);
+  const spinRef = useRef<number | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -96,7 +100,10 @@ export default function RadialOrbitalTimeline({
       if (sinceCommit >= 0.05) {
         const advance = DEGREES_PER_SECOND * sinceCommit;
         sinceCommit = 0;
-        setRotationAngle((prev) => (prev + advance) % 360);
+        // Through angleRef so a later click tween starts from where the wheel
+        // actually is, not from a stale angle.
+        angleRef.current = (angleRef.current + advance) % 360;
+        setRotationAngle(angleRef.current);
       }
       raf = requestAnimationFrame(frame);
     };
@@ -116,6 +123,38 @@ export default function RadialOrbitalTimeline({
     [timelineData]
   );
 
+  const setAngle = useCallback((deg: number) => {
+    angleRef.current = deg;
+    setRotationAngle(deg);
+  }, []);
+
+  // Tweens the wheel round to a target angle instead of snapping to it.
+  //
+  // Done by animating the angle itself, not with a CSS transition on the nodes:
+  // a transition would also be applied to every auto-rotation tick, leaving the
+  // nodes permanently chasing a value that keeps moving. Takes the short way
+  // round, so a jump from 350deg to 10deg travels 20deg forward rather than
+  // 340deg backward.
+  const spinTo = useCallback((target: number) => {
+    if (spinRef.current) cancelAnimationFrame(spinRef.current);
+    const from = angleRef.current;
+    const delta = ((target - from + 540) % 360) - 180;
+
+    if (reducedMotion) { setAngle(target); return; }
+
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const t = Math.min((now - t0) / 700, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setAngle((from + delta * eased + 360) % 360);
+      if (t < 1) spinRef.current = requestAnimationFrame(step);
+      else spinRef.current = null;
+    };
+    spinRef.current = requestAnimationFrame(step);
+  }, [reducedMotion, setAngle]);
+
+  useEffect(() => () => { if (spinRef.current) cancelAnimationFrame(spinRef.current); }, []);
+
   const toggleItem = (id: number) => {
     if (activeNodeId === id) {
       setActiveNodeId(null);
@@ -130,7 +169,7 @@ export default function RadialOrbitalTimeline({
 
     // Bring the clicked node to the top of the circle.
     const index = timelineData.findIndex((i) => i.id === id);
-    if (index !== -1) setRotationAngle(270 - (index / timelineData.length) * 360);
+    if (index !== -1) spinTo((270 - (index / timelineData.length) * 360 + 360) % 360);
   };
 
   const calculateNodePosition = (index: number, total: number) => {
@@ -213,7 +252,7 @@ export default function RadialOrbitalTimeline({
       // own; h-full only worked while an ancestor had a fixed height (the
       // original pinned the section to h-screen). Under a min-height parent it
       // resolves to zero and the whole wheel disappears.
-      className="flex h-auto w-full flex-col items-center justify-center lg:overflow-hidden bg-transparent"
+      className="flex h-auto w-full flex-col items-center justify-center lg:h-full lg:overflow-hidden bg-transparent"
       ref={containerRef}
       onClick={handleContainerClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -231,7 +270,7 @@ export default function RadialOrbitalTimeline({
       `}</style>
 
       {/* Desktop circular orbit */}
-      <div className="relative hidden lg:flex h-[660px] xl:h-[700px] w-full max-w-[1440px] px-8 items-center justify-center">
+      <div className="relative hidden lg:flex h-full w-full max-w-[1440px] px-8 items-center justify-center">
         {/* Left panel — stage readout */}
         <div className="hidden xl:flex absolute left-8 top-1/2 -translate-y-1/2 w-[285px] flex-col gap-5 rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-md text-white select-none shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
           <div className="flex flex-col gap-1">

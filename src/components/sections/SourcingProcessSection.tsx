@@ -212,26 +212,29 @@ export function SourcingProcessSection({
   intro,
 }: SourcingProcessSectionProps) {
   return (
-    // No scroll-snap and no forced h-screen: the landing page this sits on
-    // scrolls normally, and pinning a section to the viewport there would fight
-    // the rest of the page. min-h keeps the orbit roomy without trapping scroll.
     <section
       id="sourcing-process"
-      className="flex w-full flex-col overflow-hidden bg-gradient-to-br from-[#1b4452] via-[#245b6d] to-[#123642] px-5 py-16 sm:px-8 lg:px-12 lg:py-20"
+      // Sized to the viewport minus the fixed navbar so the wheel and both side
+      // panels land on one screen. min-h is the floor: on a short window the
+      // section stops shrinking and the page scrolls rather than cropping the
+      // orbit. Height only, no scroll-snap — the page still scrolls normally.
+      className="flex w-full flex-col overflow-hidden bg-gradient-to-br from-[#1b4452] via-[#245b6d] to-[#123642] px-5 py-12 sm:px-8 lg:h-[calc(100svh-5.75rem)] lg:min-h-[760px] lg:px-12 lg:py-8"
     >
       <div className="relative z-30 mx-auto w-full max-w-xl shrink-0 text-center lg:max-w-6xl">
         <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#3cd5f7]">{eyebrow}</span>
-        <h2 className="mt-2 text-[1.75rem] font-semibold leading-[1.12] tracking-[-0.018em] text-balance text-white sm:text-4xl">
+        <h2 className="mt-1.5 text-[1.75rem] font-semibold leading-[1.12] tracking-[-0.018em] text-balance text-white sm:text-[2rem] lg:text-4xl">
           {heading}
         </h2>
         {intro && (
-          <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty text-slate-200">
+          <p className="mx-auto mt-3 max-w-2xl text-[15px] leading-[1.55] tracking-[-0.003em] text-pretty text-slate-200">
             {intro}
           </p>
         )}
       </div>
 
-      <div className="mt-2">
+      {/* min-h-0 lets this flex child shrink below its content so the orbit can
+          take the remaining height rather than pushing the section taller. */}
+      <div className="min-h-0 lg:flex-1">
         <RadialOrbitalTimeline timelineData={sourcingTimelineData} checklists={stepChecklists} />
       </div>
     </section>
