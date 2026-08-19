@@ -400,6 +400,8 @@ export function Navbar() {
               <button
                 className="flex h-10 w-10 items-center justify-center text-slate-700 hover:text-brand-dark cursor-pointer"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-expanded={mobileMenuOpen}
+                aria-label="Toggle menu"
               >
                 {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
