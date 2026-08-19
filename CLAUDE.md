@@ -45,8 +45,12 @@ The frontend **never** calls CJ directly. Product images are **hotlinked** from 
 - Product names: use `productNameEn` (English), not `productName` (Chinese, and sometimes a JSON-array-shaped string that needs parsing).
 - `sellPrice` can be a range string like `"13.60 -- 19.04"` — parse and take the lower bound.
 
-### Current sync state
-~200,000–270,000 products synced across ~270 categories. Of 634 total categories, ~364 still have zero products (sync incomplete, plus CJ has empty categories in its tree). Those 364 have no `thumbnailUrl` and are currently hidden from the UI. **When the sync finishes, re-run `populate_category_thumbnails.mjs` so they appear.**
+### Current sync state — FINISHED (verified 2026-08-19)
+**1,068,225 products** across **509 categories**. Of 634 total categories, 125 hold nothing — those are genuinely empty nodes in CJ's tree, not unfinished work. Every `SyncProgress` row reads `COMPLETED`: nothing is PENDING, IN_PROGRESS, FAILED or PARTIAL_LIMIT_REACHED.
+
+**634 is the entire CJ taxonomy** — the tree is 3 levels deep and that is all of it. The category count cannot grow beyond this from CJ, so treat any figure larger than ~509 in marketing copy as wrong. (A "50,000+ categories" claim was live on the Chennai landing page, the FAQ schema and the site-wide TrustBadges before this was checked.)
+
+Do **not** run `populate_category_thumbnails.mjs` on a hunch — all 509 product-bearing categories already have a `thumbnailUrl`, and none are hidden. The cron sync backfills thumbnails itself as each category completes (see step 5 in `/api/cron/sync/route.ts`), which is what made the standalone script redundant.
 
 ## What works — don't touch unless asked
 

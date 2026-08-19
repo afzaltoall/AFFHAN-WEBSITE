@@ -10,8 +10,12 @@ type Badge = {
   label: string;
 };
 
+// "500+ Verified", not the "50,000+" this carried before. The catalog holds
+// 634 categories, 509 of which actually contain products — the CJ tree is three
+// levels deep and that is the whole of it, so the figure was out by roughly two
+// orders of magnitude and could never grow into the claim.
 const BADGES: Badge[] = [
-  { icon: Shield, value: "50,000+ Verified", label: "Categories" },
+  { icon: Shield, value: "500+ Verified", label: "Categories" },
   { icon: Package, value: "10 Lakhs+", label: "Products" },
   { icon: Globe, value: "100+ Countries", label: "Trusted Global" },
 ];
