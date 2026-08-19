@@ -97,11 +97,13 @@ const schema = {
         postalCode: "600013",
         addressCountry: "IN",
       },
-      aggregateRating: {
-        "@type": "AggregateRating",
-        ratingValue: "4.8",
-        reviewCount: "144"
-      },
+      // No aggregateRating. The 4.8/144 figures are the company's Google
+      // Business Profile rating — a third party's review data, which Google's
+      // review-snippet guidance does not allow a site to republish as its own
+      // structured data. The same block was removed from the root layout for
+      // this reason; this page carried its own copy. The visible "4.8" on the
+      // page stays: stating the rating as a fact is fine, asserting it as
+      // first-party structured data is not.
     },
     {
       "@type": "Service",
@@ -304,18 +306,25 @@ export default async function SourcingCompanyChennaiPage() {
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
                 Partnering with the right import export company in Chennai can make or break your supply chain. We bring years of B2B trade expertise, ensuring low costs and high quality.
               </p>
+              {/* These used to restate the stat tiles sitting beside them —
+                  products, countries and rating were each printed twice in one
+                  section, and the "10 Lakhs+" line was vaguer than the exact
+                  figure in the tile next to it. They now carry capabilities the
+                  tiles cannot show, which is both more useful and more unique
+                  text for the page to rank on. Every claim here already appears
+                  in the FAQ or the service cards below — nothing new asserted. */}
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 text-brand" /> 10 Lakhs+ Products
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Our own procurement team on the ground in China
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 text-brand" /> Exporting to 100+ Countries
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Pre-shipment factory audits and quality inspections
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 text-brand" /> 4.8 / 5 Average Client Rating
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> LCL and FCL freight with customs clearance into Chennai
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 text-brand" /> 3+ Years of Verified Excellence
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> 3+ Years of Verified Excellence
                 </li>
               </ul>
               <Link
