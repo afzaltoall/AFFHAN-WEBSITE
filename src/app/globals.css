@@ -855,3 +855,47 @@ html {
     transform: none !important;
   }
 }
+
+/* ── Chennai hero CTA: sheen sweep ──────────────────────────────────────
+   A soft teal band that travels across the button on hover. Teal, not the
+   usual white, because the button already sits on a white translucent fill
+   — a white sheen would be invisible against it.
+
+   Gated to hover-capable pointers. On a touch screen :hover latches after a
+   tap and the band would freeze mid-sweep across the label until you tapped
+   elsewhere.
+
+   Transform only, so the sweep composites on the GPU rather than repainting
+   the button each frame. pointer-events:none keeps the overlay from
+   swallowing the click. */
+.cta-sheen {
+  position: relative;
+  overflow: hidden;
+}
+
+.cta-sheen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 28%,
+    rgba(39, 168, 196, 0.26) 50%,
+    transparent 72%
+  );
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .cta-sheen:hover::after {
+    transform: translateX(130%);
+    transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cta-sheen::after {
+    display: none;
+  }
+}
