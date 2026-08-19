@@ -299,7 +299,11 @@ export default function RadialOrbitalTimeline({
 
         {/* Orbit */}
         <div
-          className="absolute flex h-full w-full items-center justify-center pointer-events-none"
+          // inset-0 rather than bare `absolute`. With auto insets the box falls
+          // back to its static position, which inside a flex parent depends on
+          // the align/justify resolution — fragile, and it collapsed here.
+          // Pinning to the containing block makes the geometry explicit.
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
           ref={orbitRef}
           style={{ perspective: "1000px", transform: `scale(${scale})` }}
         >
