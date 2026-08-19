@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
+import { SourcingProcessSection } from "@/components/sections/SourcingProcessSection";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 
@@ -384,48 +385,18 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
-      {/* Process Section */}
-      <section className="py-16 lg:py-24 bg-white">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
-              How Our Sourcing Process Works
-            </h2>
-            <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">A transparent, step-by-step approach to global trade.</p>
-          </div>
-          
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="relative text-center">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-bold tracking-[-0.02em] text-slate-800">
-                1
-              </div>
-              <h3 className="text-base font-semibold tracking-[-0.012em] leading-snug text-balance text-slate-900 mb-2">Requirement Analysis</h3>
-              <p className="text-sm text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">Share your product specifications and target pricing.</p>
-            </div>
-            <div className="relative text-center">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-bold tracking-[-0.02em] text-slate-800">
-                2
-              </div>
-              <h3 className="text-base font-semibold tracking-[-0.012em] leading-snug text-balance text-slate-900 mb-2">Supplier Sourcing</h3>
-              <p className="text-sm text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">We find and verify the best manufacturers in China.</p>
-            </div>
-            <div className="relative text-center">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-bold tracking-[-0.02em] text-slate-800">
-                3
-              </div>
-              <h3 className="text-base font-semibold tracking-[-0.012em] leading-snug text-balance text-slate-900 mb-2">Quality Inspection</h3>
-              <p className="text-sm text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">Pre-shipment checks to ensure top quality.</p>
-            </div>
-            <div className="relative text-center">
-              <div className="w-16 h-16 bg-brand rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-bold tracking-[-0.02em] text-white">
-                4
-              </div>
-              <h3 className="text-base font-semibold tracking-[-0.012em] leading-snug text-balance text-slate-900 mb-2">Shipping & Delivery</h3>
-              <p className="text-sm text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">Logistics and customs clearance handled up to Chennai.</p>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* Process Section — nine-stage orbital walkthrough, replacing a row of
+          four one-line steps. Each stage now carries a description and four
+          deliverables, and all of it is real text in the DOM: the mobile
+          stepper renders every stage unconditionally, which is the rendering
+          mobile-first crawling actually indexes.
+
+          The h2 keeps its original wording rather than the component's default
+          — it is the keyword-bearing heading this page already had. */}
+      <SourcingProcessSection
+        heading="How Our Sourcing Process Works"
+        intro="A transparent, step-by-step approach to global trade — from your first enquiry through to customs clearance and delivery in Chennai."
+      />
 
       {/* Industries */}
       <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200">
