@@ -121,22 +121,22 @@ export default function AboutUsContent() {
     {
       title: "Manufacturing, Sourcing & Supply",
       desc: "Backed by strong production capabilities and global partnerships, we manufacture, source, stock and supply high-quality products across 40+ categories seamlessly serving over 190+ markets in 6 countries worldwide.",
-      img: "/services/img_1.png"
+      img: "/services/img_1.webp"
     },
     {
       title: "Global Shipping Network",
       desc: "Our global shipping network delivers efficient and reliable cargo movement across international markets. Supported by trusted logistics partners, we handle tracking with precision.",
-      img: "/services/img_2.png"
+      img: "/services/img_2.webp"
     },
     {
       title: "Door-to-Door Freight Solutions",
       desc: "We offer comprehensive door-to-door freight services for both LCL and FCL shipments. From pickup to final delivery, we manage customs, documentation and logistics with care and efficiency.",
-      img: "/services/img_3.png"
+      img: "/services/img_3.webp"
     },
     {
       title: "Air Freight Services",
       desc: "Built for time-critical and high-value shipments, we offer priority handling, real-time tracking and seamless coordination, backed by strong airline partnerships and a dedicated team.",
-      img: "/services/img_4.png"
+      img: "/services/img_4.webp"
     },
     {
       title: "Non-Vessel Operating Common Carrier",
@@ -146,7 +146,7 @@ export default function AboutUsContent() {
     {
       title: "Global Stocking Solutions",
       desc: "With strategically located warehouses across multiple countries, we offer secure storage, professional packaging and timely delivery, ensuring your products reach customers seamlessly.",
-      img: "/services/img_6.png"
+      img: "/services/img_6.webp"
     }
   ];
 
