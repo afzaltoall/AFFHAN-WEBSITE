@@ -25,6 +25,8 @@ interface RadialOrbitalTimelineProps {
 
 const ORBIT_RADIUS = 210;
 const DEGREES_PER_SECOND = 6;
+const SHUFFLE_MS = 620;
+const STAGGER_MS = 45;
 
 export default function RadialOrbitalTimeline({
   timelineData,
@@ -42,13 +44,18 @@ export default function RadialOrbitalTimeline({
   // page, including while the visitor is metres further down reading the FAQ.
   const [inView, setInView] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
+  // True only for the length of a click-driven reshuffle — see spinTo.
+  const [shuffling, setShuffling] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
-  // Mirrors rotationAngle so the click tween can read the live value without
-  // capturing a stale one from its closure.
+  const stageRef = useRef<HTMLDivElement>(null);
+  // Height actually available to the wheel, measured rather than assumed.
+  const [stageHeight, setStageHeight] = useState(0);
+  // Mirrors rotationAngle so a click can read the live value without capturing
+  // a stale one from its closure.
   const angleRef = useRef(0);
-  const spinRef = useRef<number | null>(null);
+  const shuffleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -76,6 +83,15 @@ export default function RadialOrbitalTimeline({
     );
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setStageHeight(entry.contentRect.height));
+    ro.observe(el);
+    setStageHeight(el.getBoundingClientRect().height);
+    return () => ro.disconnect();
   }, []);
 
   // requestAnimationFrame rather than setInterval: the browser pauses rAF on a
@@ -128,32 +144,27 @@ export default function RadialOrbitalTimeline({
     setRotationAngle(deg);
   }, []);
 
-  // Tweens the wheel round to a target angle instead of snapping to it.
+  // Moves the nodes to their new places WITHOUT rolling the wheel round.
   //
-  // Done by animating the angle itself, not with a CSS transition on the nodes:
-  // a transition would also be applied to every auto-rotation tick, leaving the
-  // nodes permanently chasing a value that keeps moving. Takes the short way
-  // round, so a jump from 350deg to 10deg travels 20deg forward rather than
-  // 340deg backward.
+  // Tweening the shared angle would carry every node along the same arc — the
+  // whole ring visibly turning. Instead the angle is set in one go and the
+  // nodes are given a CSS transition on `transform`, which interpolates the
+  // translate linearly: each node cuts straight across to its new seat rather
+  // than orbiting to it. A per-node delay staggers the arrivals so it reads as
+  // a reshuffle rather than nine things moving in lockstep.
+  //
+  // The transition is only live while `shuffling` is set. Left on permanently
+  // it would also apply to every auto-rotation tick, leaving the nodes
+  // perpetually chasing an angle that keeps moving.
   const spinTo = useCallback((target: number) => {
-    if (spinRef.current) cancelAnimationFrame(spinRef.current);
-    const from = angleRef.current;
-    const delta = ((target - from + 540) % 360) - 180;
-
+    if (shuffleTimer.current) clearTimeout(shuffleTimer.current);
     if (reducedMotion) { setAngle(target); return; }
+    setShuffling(true);
+    setAngle(target);
+    shuffleTimer.current = setTimeout(() => setShuffling(false), SHUFFLE_MS + timelineData.length * STAGGER_MS);
+  }, [reducedMotion, setAngle, timelineData.length]);
 
-    const t0 = performance.now();
-    const step = (now: number) => {
-      const t = Math.min((now - t0) / 700, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setAngle((from + delta * eased + 360) % 360);
-      if (t < 1) spinRef.current = requestAnimationFrame(step);
-      else spinRef.current = null;
-    };
-    spinRef.current = requestAnimationFrame(step);
-  }, [reducedMotion, setAngle]);
-
-  useEffect(() => () => { if (spinRef.current) cancelAnimationFrame(spinRef.current); }, []);
+  useEffect(() => () => { if (shuffleTimer.current) clearTimeout(shuffleTimer.current); }, []);
 
   const toggleItem = (id: number) => {
     if (activeNodeId === id) {
@@ -242,7 +253,15 @@ export default function RadialOrbitalTimeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayPercentage, mounted, reducedMotion]);
 
-  const scale = windowWidth < 400 ? 0.58 : windowWidth < 640 ? 0.68 : windowWidth < 1024 ? 0.88 : 1;
+  // The wheel's natural footprint: the orbit diameter plus a node radius and
+  // the step label that hangs below each one.
+  const NATURAL_SIZE = (ORBIT_RADIUS + 20 + 52) * 2;
+  const widthScale = windowWidth < 400 ? 0.58 : windowWidth < 640 ? 0.68 : windowWidth < 1024 ? 0.88 : 1;
+  // Scaled to whichever axis is tighter. Width alone was not enough — on a
+  // laptop the section is short rather than narrow, and the bottom nodes were
+  // being cut off below the fold.
+  const heightScale = stageHeight > 0 ? stageHeight / NATURAL_SIZE : 1;
+  const scale = Math.min(widthScale, heightScale, 1);
   const shownPercent = mounted ? animatedPercent : displayPercentage;
 
   return (
@@ -270,7 +289,7 @@ export default function RadialOrbitalTimeline({
       `}</style>
 
       {/* Desktop circular orbit */}
-      <div className="relative hidden lg:flex h-full w-full max-w-[1440px] px-8 items-center justify-center">
+      <div ref={stageRef} className="relative hidden lg:flex h-full w-full max-w-[1440px] px-8 items-center justify-center">
         {/* Left panel — stage readout */}
         <div className="hidden xl:flex absolute left-8 top-1/2 -translate-y-1/2 w-[285px] flex-col gap-5 rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-md text-white select-none shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
           <div className="flex flex-col gap-1">
@@ -391,7 +410,13 @@ export default function RadialOrbitalTimeline({
                   <stop offset="100%" stopColor="#27a8c4" stopOpacity="0.8" />
                 </linearGradient>
               </defs>
-              <g style={{ transformOrigin: "235px 235px", transform: `rotate(${rotationAngle}deg)` }}>
+              <g
+                style={{
+                  transformOrigin: "235px 235px",
+                  transform: `rotate(${rotationAngle}deg)`,
+                  transition: shuffling ? `transform ${SHUFFLE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` : undefined,
+                }}
+              >
                 <circle cx="235" cy="235" r="210" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
                 <circle
                   cx="235" cy="235" r="210" fill="none" stroke="url(#orbit-glow)" strokeWidth="2.5" strokeDasharray="24 160"
@@ -412,6 +437,13 @@ export default function RadialOrbitalTimeline({
                   style={{
                     transform: `translate(${position.x}px, ${position.y}px)`,
                     zIndex: isExpanded ? 200 : position.zIndex,
+                    // Only during a click reshuffle. A linear interpolation of
+                    // translate takes each node straight across to its new
+                    // seat; the delay fans the arrivals out so it reads as a
+                    // reshuffle rather than the ring turning as one piece.
+                    transition: shuffling
+                      ? `transform ${SHUFFLE_MS}ms cubic-bezier(0.22, 1, 0.36, 1) ${index * STAGGER_MS}ms`
+                      : undefined,
                   }}
                   onClick={(e) => { e.stopPropagation(); toggleItem(item.id); }}
                 >
