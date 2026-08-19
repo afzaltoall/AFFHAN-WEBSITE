@@ -154,25 +154,42 @@ export default function SourcingCompanyChennaiPage() {
         <div className="relative z-10 flex min-h-svh items-center pt-24 pb-12 lg:pb-20">
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-4xl mx-auto">
-          <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-6">
+          <h1 className="hero-rise hero-rise-1 text-[2rem] sm:text-5xl lg:text-6xl font-bold tracking-[-0.032em] leading-[1.05] text-balance text-slate-900 mb-6">
             Sourcing Agent & Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
           </h1>
-          <p className="hero-rise hero-rise-2 text-lg text-slate-600 mb-8 leading-relaxed">
+          <p className="hero-rise hero-rise-2 text-base sm:text-lg text-slate-600 mb-9 leading-[1.65] tracking-[-0.005em] text-pretty">
             Looking for a reliable <strong className="text-slate-800">China sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
             AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over 10 Lakhs+ products and 100+ countries with our end-to-end procurement, supplier verification, and freight forwarding solutions.
           </p>
-          <div className="hero-rise hero-rise-3 flex flex-col sm:flex-row justify-center gap-4">
+          {/* Three tiers on purpose: solid primary, outlined secondary, and a
+              plain text link so the third option reads as "also available"
+              rather than competing with the two real CTAs.
+
+              The scale/lift is under `motion-safe:`, so a reduced-motion
+              visitor simply never gets those utilities — no override needed.
+              Colour and shadow transitions stay, since they involve no
+              movement. Transform + shadow only, so nothing reflows on hover. */}
+          <div className="hero-rise hero-rise-3 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
             <Link
               href="/contact"
-              className="bg-brand hover:bg-brand-dark text-white px-8 py-4 rounded-full font-bold text-lg transition-colors shadow-lg hover:shadow-xl"
+              className="inline-flex w-full items-center justify-center rounded-xl bg-brand px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-white shadow-[0_1px_2px_rgba(15,23,42,0.08),0_8px_24px_-10px_rgba(39,168,196,0.6)] transition-all duration-200 ease-out hover:bg-brand-dark hover:shadow-[0_2px_5px_rgba(15,23,42,0.10),0_16px_34px_-12px_rgba(39,168,196,0.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98] sm:w-auto"
             >
               Request a Quote
             </Link>
             <Link
               href="/products"
-              className="bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-200 hover:border-slate-300 px-8 py-4 rounded-full font-bold text-lg transition-colors"
+              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-200 ease-out hover:border-slate-400/90 hover:bg-white hover:shadow-[0_2px_12px_rgba(15,23,42,0.09)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98] sm:w-auto"
             >
               Browse Catalog
+            </Link>
+            <Link
+              href="/"
+              className="group inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[15px] font-medium tracking-[-0.01em] text-slate-500 transition-colors duration-200 ease-out hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+            >
+              Visit AFFHAN Website
+              <span aria-hidden="true" className="transition-transform duration-200 ease-out motion-safe:group-hover:translate-x-0.5">
+                →
+              </span>
             </Link>
           </div>
         </div>
@@ -184,10 +201,10 @@ export default function SourcingCompanyChennaiPage() {
       <section className="bg-white py-16 lg:py-24 border-y border-slate-200">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance text-slate-900 mb-5">
               Our Sourcing Services in Chennai
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto">
+            <p className="text-slate-600 max-w-2xl mx-auto leading-[1.6] tracking-[-0.003em] text-pretty">
               We provide comprehensive product sourcing in Chennai to streamline your import operations. Whether you need a full-service import company or a specialized sourcing agent in Chennai, we have you covered.
             </p>
           </div>
@@ -197,8 +214,8 @@ export default function SourcingCompanyChennaiPage() {
               <div className="w-12 h-12 bg-brand/10 rounded-xl flex items-center justify-center mb-6">
                 <Search className="w-6 h-6 text-brand" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">China Product Sourcing</h3>
-              <p className="text-slate-600 leading-relaxed">
+              <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">China Product Sourcing</h3>
+              <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
                 We act as your dedicated China sourcing agent in Chennai. Find any product from our 50,000+ categories with competitive factory-direct pricing.
               </p>
             </div>
@@ -207,8 +224,8 @@ export default function SourcingCompanyChennaiPage() {
               <div className="w-12 h-12 bg-brand/10 rounded-xl flex items-center justify-center mb-6">
                 <ShieldCheck className="w-6 h-6 text-brand" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Supplier Verification</h3>
-              <p className="text-slate-600 leading-relaxed">
+              <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">Supplier Verification</h3>
+              <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
                 Risk-free importing. Our local team conducts background checks and physical audits to ensure you work with verified manufacturers.
               </p>
             </div>
@@ -217,8 +234,8 @@ export default function SourcingCompanyChennaiPage() {
               <div className="w-12 h-12 bg-brand/10 rounded-xl flex items-center justify-center mb-6">
                 <Ship className="w-6 h-6 text-brand" />
               </div>
-              <h3 className="text-xl font-bold text-slate-900 mb-3">Freight Forwarding</h3>
-              <p className="text-slate-600 leading-relaxed">
+              <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">Freight Forwarding</h3>
+              <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
                 Sea and air freight logistics managed seamlessly. We handle customs clearance, NVOCC, and port handling directly to Chennai.
               </p>
             </div>
@@ -231,10 +248,10 @@ export default function SourcingCompanyChennaiPage() {
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-2xl sm:text-3xl font-bold mb-6">
+              <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance mb-6">
                 Why Choose AFFHAN as Your Chennai Sourcing Partner?
               </h2>
-              <p className="text-slate-300 mb-8 leading-relaxed">
+              <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
                 Partnering with the right import export company in Chennai can make or break your supply chain. We bring years of B2B trade expertise, ensuring low costs and high quality.
               </p>
               <ul className="space-y-4 mb-8">
@@ -260,19 +277,19 @@ export default function SourcingCompanyChennaiPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-4xl font-black text-brand mb-2">10L+</div>
+                <div className="text-4xl sm:text-[2.6rem] font-bold tracking-[-0.032em] leading-none text-brand mb-2">10L+</div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Products</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-4xl font-black text-brand mb-2">50K+</div>
+                <div className="text-4xl sm:text-[2.6rem] font-bold tracking-[-0.032em] leading-none text-brand mb-2">50K+</div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Categories</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-4xl font-black text-brand mb-2">100+</div>
+                <div className="text-4xl sm:text-[2.6rem] font-bold tracking-[-0.032em] leading-none text-brand mb-2">100+</div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Countries</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-4xl font-black text-brand mb-2">4.8</div>
+                <div className="text-4xl sm:text-[2.6rem] font-bold tracking-[-0.032em] leading-none text-brand mb-2">4.8</div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Rating</div>
               </div>
             </div>
@@ -284,40 +301,40 @@ export default function SourcingCompanyChennaiPage() {
       <section className="py-16 lg:py-24 bg-white">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance text-slate-900 mb-5">
               How Our Sourcing Process Works
             </h2>
-            <p className="text-slate-600">A transparent, step-by-step approach to global trade.</p>
+            <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">A transparent, step-by-step approach to global trade.</p>
           </div>
           
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div className="relative text-center">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-black text-slate-800">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-bold tracking-[-0.02em] text-slate-800">
                 1
               </div>
-              <h3 className="font-bold text-slate-900 mb-2">Requirement Analysis</h3>
-              <p className="text-sm text-slate-600">Share your product specifications and target pricing.</p>
+              <h3 className="text-base font-semibold tracking-[-0.012em] leading-snug text-balance text-slate-900 mb-2">Requirement Analysis</h3>
+              <p className="text-sm text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">Share your product specifications and target pricing.</p>
             </div>
             <div className="relative text-center">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-black text-slate-800">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-bold tracking-[-0.02em] text-slate-800">
                 2
               </div>
-              <h3 className="font-bold text-slate-900 mb-2">Supplier Sourcing</h3>
-              <p className="text-sm text-slate-600">We find and verify the best manufacturers in China.</p>
+              <h3 className="text-base font-semibold tracking-[-0.012em] leading-snug text-balance text-slate-900 mb-2">Supplier Sourcing</h3>
+              <p className="text-sm text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">We find and verify the best manufacturers in China.</p>
             </div>
             <div className="relative text-center">
-              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-black text-slate-800">
+              <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-bold tracking-[-0.02em] text-slate-800">
                 3
               </div>
-              <h3 className="font-bold text-slate-900 mb-2">Quality Inspection</h3>
-              <p className="text-sm text-slate-600">Pre-shipment checks to ensure top quality.</p>
+              <h3 className="text-base font-semibold tracking-[-0.012em] leading-snug text-balance text-slate-900 mb-2">Quality Inspection</h3>
+              <p className="text-sm text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">Pre-shipment checks to ensure top quality.</p>
             </div>
             <div className="relative text-center">
-              <div className="w-16 h-16 bg-brand rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-black text-white">
+              <div className="w-16 h-16 bg-brand rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm z-10 relative text-xl font-bold tracking-[-0.02em] text-white">
                 4
               </div>
-              <h3 className="font-bold text-slate-900 mb-2">Shipping & Delivery</h3>
-              <p className="text-sm text-slate-600">Logistics and customs clearance handled up to Chennai.</p>
+              <h3 className="text-base font-semibold tracking-[-0.012em] leading-snug text-balance text-slate-900 mb-2">Shipping & Delivery</h3>
+              <p className="text-sm text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">Logistics and customs clearance handled up to Chennai.</p>
             </div>
           </div>
         </div>
@@ -327,7 +344,7 @@ export default function SourcingCompanyChennaiPage() {
       <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance text-slate-900 mb-5">
               Industries We Serve
             </h2>
           </div>
@@ -338,7 +355,7 @@ export default function SourcingCompanyChennaiPage() {
                 // Straight to /products/ — /categories only 308s here anyway,
                 // so linking to it made every one of these pills a wasted hop.
                 href="/products/"
-                className="bg-white border border-slate-200 hover:border-brand px-6 py-3 rounded-full text-sm font-semibold text-slate-700 hover:text-brand transition-colors"
+                className="bg-white border border-slate-200 hover:border-brand px-6 py-3 rounded-full text-sm font-medium tracking-[-0.008em] text-slate-700 hover:text-brand transition-colors"
               >
                 {ind}
               </Link>
@@ -351,15 +368,15 @@ export default function SourcingCompanyChennaiPage() {
       <section className="py-16 lg:py-24 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 mb-4">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance text-slate-900 mb-5">
               Frequently Asked Questions
             </h2>
           </div>
           <div className="space-y-6">
             {faqs.map((faq, i) => (
               <div key={i} className="border-b border-slate-100 pb-6">
-                <h3 className="text-lg font-bold text-slate-900 mb-2">{faq.question}</h3>
-                <p className="text-slate-600 leading-relaxed">{faq.answer}</p>
+                <h3 className="text-lg font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2.5">{faq.question}</h3>
+                <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">{faq.answer}</p>
               </div>
             ))}
           </div>
@@ -369,13 +386,13 @@ export default function SourcingCompanyChennaiPage() {
       {/* Final CTA */}
       <section className="py-16 bg-brand text-white text-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold mb-6">Ready to Import from China to Chennai?</h2>
-          <p className="text-brand-50 mb-8 max-w-2xl mx-auto">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance mb-6">Ready to Import from China to Chennai?</h2>
+          <p className="text-brand-50 mb-8 max-w-2xl mx-auto leading-[1.6] tracking-[-0.003em] text-pretty">
             Contact AFFHAN Group today to discuss your product sourcing needs. We offer free consultation and competitive quotes for all businesses in Chennai.
           </p>
           <Link
             href="/contact"
-            className="inline-block bg-white text-brand px-10 py-4 rounded-full font-bold text-lg hover:bg-slate-50 transition-colors shadow-lg"
+            className="inline-block bg-white text-brand px-10 py-4 rounded-full font-semibold tracking-[-0.01em] text-[17px] hover:bg-slate-50 transition-colors shadow-lg"
           >
             Contact Us Now
           </Link>
