@@ -51,6 +51,10 @@ export const metadata: Metadata = {
 const localBusinessSchema = {
   "@context": "https://schema.org",
   "@type": "LocalBusiness",
+  // Same @id the Chennai landing page uses for its own LocalBusiness node.
+  // Without it Google saw two unrelated businesses on that page — this one and
+  // the page's — instead of one entity described in two places.
+  "@id": "https://affhan.com/#localbusiness",
   name: "AFFHAN International Pvt Ltd",
   image: "https://affhan.com/images/logo.png",
   url: "https://affhan.com",

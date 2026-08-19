@@ -12,23 +12,29 @@ function ChevronIcon() {
   );
 }
 
+// Every href carries its trailing slash. next.config sets trailingSlash: true,
+// so a slash-less link 308s on the way to the same page — and this list is in
+// the footer, meaning it was costing a redirect on every page of the site.
+//
+// "Explore Products" pointed at /explore-products, which is not a route: it
+// 404'd from the footer of every page.
 const usefulLinks = [
   { label: "Home", href: "/" },
-  { label: "Explore Products", href: "/explore-products" },
-  { label: "About Us", href: "/about" },
-  { label: "Careers", href: "/careers" },
-  { label: "Contact Us", href: "/contact" },
-  { label: "Privacy Policy", href: "/privacy-policy" },
-  { label: "Terms & Conditions", href: "/terms-conditions" },
+  { label: "Explore Products", href: "/products/" },
+  { label: "About Us", href: "/about/" },
+  { label: "Careers", href: "/careers/" },
+  { label: "Contact Us", href: "/contact/" },
+  { label: "Privacy Policy", href: "/privacy-policy/" },
+  { label: "Terms & Conditions", href: "/terms-conditions/" },
 ];
 
 const socialLinks = [
-  { label: "Manufacturing, Sourcing & Supply", href: "/about#service-manufacturing", icon: <ChevronIcon /> },
-  { label: "Global Shipping Network", href: "/about#service-global-shipping", icon: <ChevronIcon /> },
-  { label: "Door-to-Door Freight Solutions", href: "/about#service-door-to-door", icon: <ChevronIcon /> },
-  { label: "Air Freight Services", href: "/about#service-air-freight", icon: <ChevronIcon /> },
-  { label: "Non-Vessel Operating Common Carrier", href: "/about#service-nvocc", icon: <ChevronIcon /> },
-  { label: "Global Stocking Solutions", href: "/about#service-global-stocking", icon: <ChevronIcon /> },
+  { label: "Manufacturing, Sourcing & Supply", href: "/about/#service-manufacturing", icon: <ChevronIcon /> },
+  { label: "Global Shipping Network", href: "/about/#service-global-shipping", icon: <ChevronIcon /> },
+  { label: "Door-to-Door Freight Solutions", href: "/about/#service-door-to-door", icon: <ChevronIcon /> },
+  { label: "Air Freight Services", href: "/about/#service-air-freight", icon: <ChevronIcon /> },
+  { label: "Non-Vessel Operating Common Carrier", href: "/about/#service-nvocc", icon: <ChevronIcon /> },
+  { label: "Global Stocking Solutions", href: "/about/#service-global-stocking", icon: <ChevronIcon /> },
 ];
 
 export function FooterSection() {

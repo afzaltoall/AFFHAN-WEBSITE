@@ -6,6 +6,7 @@ import { FooterSection } from "@/components/sections/FooterSection";
 import { SourcingProcessSection } from "@/components/sections/SourcingProcessSection";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
+import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 
 // Hourly ISR rather than a dynamic render. The catalog counts move slowly, and
 // this is a search landing page — it should stay statically served and fast,
@@ -144,10 +145,24 @@ export default async function SourcingCompanyChennaiPage() {
   // Only categories that actually hold products are counted — the tree carries
   // some empty CJ nodes, and advertising those would overstate what a visitor
   // can genuinely browse.
-  const [productCount, categoryCount] = await Promise.all([
+  const [productCount, categoryCount, categoriesRaw] = await Promise.all([
     prisma.product.count(),
     prisma.category.count({ where: { products: { some: {} } } }),
+    prisma.category.findMany({
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      }
+    }),
   ]);
+
+  const allCategories = categoriesRaw.map(c => ({
+    ...c,
+    productCount: c._count.products
+  }));
+
+  const tree = buildCategoryTree(allCategories);
 
   // No pt-24 on <main>. The navbar is `fixed`, so top padding here pushed the
   // hero down and left a bare slate-50 strip between the navbar and the
@@ -227,13 +242,13 @@ export default async function SourcingCompanyChennaiPage() {
           and blur what sits behind them, and over pure white there is nothing
           for them to act on — they would read as plain panels. This also
           carries the hero's colour down into the section. */}
-      <section className="bg-gradient-to-b from-[#f2fafc] via-[#f7fcfd] to-white py-16 lg:py-24 border-y border-slate-200">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
+      <section className="bg-gradient-to-b from-[#f2fafc] via-[#f7fcfd] to-white py-10 lg:py-8 border-y border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="text-center mb-8">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
               Our Sourcing Services in Chennai
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto leading-[1.6] tracking-[-0.003em] text-pretty">
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.6] tracking-[-0.003em] text-pretty">
               We provide comprehensive product sourcing in Chennai to streamline your import operations. Whether you need a full-service import company or a specialized sourcing agent in Chennai, we have you covered.
             </p>
           </div>
@@ -251,7 +266,7 @@ export default async function SourcingCompanyChennaiPage() {
               Fixed aspect-[3/2] box with `fill` reserves the space before the
               file arrives, so no CLS, and they sit below the fold and stay
               lazy — no LCP cost. */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
@@ -262,9 +277,9 @@ export default async function SourcingCompanyChennaiPage() {
                   className="object-cover"
                 />
               </div>
-              <div className="p-7 sm:p-8">
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">China Product Sourcing</h3>
-                <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
+              <div className="p-5 sm:p-6">
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">China Product Sourcing</h3>
+                <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
                   We act as your dedicated China sourcing agent in Chennai. Find any product from our 500+ product categories with competitive factory-direct pricing.
                 </p>
               </div>
@@ -280,9 +295,9 @@ export default async function SourcingCompanyChennaiPage() {
                   className="object-cover"
                 />
               </div>
-              <div className="p-7 sm:p-8">
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">Supplier Verification</h3>
-                <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
+              <div className="p-5 sm:p-6">
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Supplier Verification</h3>
+                <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
                   Risk-free importing. Our local team conducts background checks and physical audits to ensure you work with verified manufacturers.
                 </p>
               </div>
@@ -298,9 +313,9 @@ export default async function SourcingCompanyChennaiPage() {
                   className="object-cover"
                 />
               </div>
-              <div className="p-7 sm:p-8">
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-3">Freight Forwarding</h3>
-                <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">
+              <div className="p-5 sm:p-6">
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Freight Forwarding</h3>
+                <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
                   Sea and air freight logistics managed seamlessly. We handle customs clearance, NVOCC, and port handling directly to Chennai.
                 </p>
               </div>
@@ -309,9 +324,49 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
+      {/* Process Section — nine-stage orbital walkthrough, replacing a row of
+          four one-line steps. Each stage now carries a description and four
+          deliverables, and all of it is real text in the DOM: the mobile
+          stepper renders every stage unconditionally, which is the rendering
+          mobile-first crawling actually indexes. */}
+      <SourcingProcessSection />
+
+      {/* Industries */}
+      <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="text-center mb-12">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
+              Industries We Serve
+            </h2>
+          </div>
+          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+              {tree.slice(0, 16).map((cat) => {
+                const Icon = getCategoryIcon(cat.name);
+                return (
+                  <Link
+                    key={cat.id}
+                    href={`/products?categoryId=${cat.id}`}
+                    className="group flex items-start gap-3.5 px-4 py-3.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
+                  >
+                    <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#27a8c4] mt-0.5" />
+                    <span className="text-[14px] sm:text-[15px] font-medium text-slate-700 group-hover:text-slate-900 leading-snug">
+                      {cat.name}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Why Choose Us */}
-      <section className="py-16 lg:py-24 bg-slate-900 text-white">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-16 lg:py-24 bg-slate-900 text-white min-h-[calc(100svh-4rem)] flex flex-col justify-center overflow-hidden relative">
+        {/* Abstract background element */}
+        <div className="absolute top-0 right-0 -mr-48 -mt-48 w-96 h-96 bg-[#27a8c4]/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance mb-6">
@@ -381,43 +436,6 @@ export default async function SourcingCompanyChennaiPage() {
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Rating</div>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Process Section — nine-stage orbital walkthrough, replacing a row of
-          four one-line steps. Each stage now carries a description and four
-          deliverables, and all of it is real text in the DOM: the mobile
-          stepper renders every stage unconditionally, which is the rendering
-          mobile-first crawling actually indexes.
-
-          The h2 keeps its original wording rather than the component's default
-          — it is the keyword-bearing heading this page already had. */}
-      <SourcingProcessSection
-        heading="How Our Sourcing Process Works"
-        intro="A transparent, step-by-step approach to global trade — from your first enquiry through to customs clearance and delivery in Chennai."
-      />
-
-      {/* Industries */}
-      <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
-              Industries We Serve
-            </h2>
-          </div>
-          <div className="flex flex-wrap justify-center gap-4">
-            {["Electronics", "Automotive Parts", "Apparel & Textiles", "Machinery", "Beauty & Personal Care", "Home & Garden", "Medical Supplies", "Construction Materials"].map((ind) => (
-              <Link
-                key={ind}
-                // Straight to /products/ — /categories only 308s here anyway,
-                // so linking to it made every one of these pills a wasted hop.
-                href="/products/"
-                className="bg-white border border-slate-200 hover:border-brand px-6 py-3 rounded-full text-sm font-medium tracking-[-0.008em] text-slate-700 hover:text-brand transition-colors"
-              >
-                {ind}
-              </Link>
-            ))}
           </div>
         </div>
       </section>
