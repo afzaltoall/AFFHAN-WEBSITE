@@ -12,7 +12,8 @@ const TopRankingIcon = ({ size, className }: { size?: number, className?: string
 );
 import { AnimatePresence, motion } from "framer-motion";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
-import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
+import dynamic from 'next/dynamic';
+const CategoryMegaPanel = dynamic(() => import("@/components/ui/CategoryMegaPanel").then(mod => mod.CategoryMegaPanel), { ssr: true });
 import { getCdnUrl } from "@/lib/cdn";
 import { prepCatalogueNav } from "@/lib/scroll";
 
