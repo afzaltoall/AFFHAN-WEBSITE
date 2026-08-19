@@ -217,7 +217,7 @@ export function SourcingProcessSection({
     // the rest of the page. min-h keeps the orbit roomy without trapping scroll.
     <section
       id="sourcing-process"
-      className="flex w-full flex-col overflow-hidden bg-gradient-to-br from-[#1b4452] via-[#245b6d] to-[#123642] px-5 py-16 sm:px-8 lg:min-h-[820px] lg:px-12 lg:py-20"
+      className="flex w-full flex-col overflow-hidden bg-gradient-to-br from-[#1b4452] via-[#245b6d] to-[#123642] px-5 py-16 sm:px-8 lg:px-12 lg:py-20"
     >
       <div className="relative z-30 mx-auto w-full max-w-xl shrink-0 text-center lg:max-w-6xl">
         <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#3cd5f7]">{eyebrow}</span>
@@ -231,7 +231,7 @@ export function SourcingProcessSection({
         )}
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div className="mt-2">
         <RadialOrbitalTimeline timelineData={sourcingTimelineData} checklists={stepChecklists} />
       </div>
     </section>

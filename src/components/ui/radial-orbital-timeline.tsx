@@ -208,7 +208,12 @@ export default function RadialOrbitalTimeline({
 
   return (
     <div
-      className="flex h-auto lg:h-full w-full flex-col items-center justify-center lg:overflow-hidden bg-transparent"
+      // Definite height on the desktop orbit rather than h-full. The orbit is
+      // absolutely positioned inside it, so it contributes no height of its
+      // own; h-full only worked while an ancestor had a fixed height (the
+      // original pinned the section to h-screen). Under a min-height parent it
+      // resolves to zero and the whole wheel disappears.
+      className="flex h-auto w-full flex-col items-center justify-center lg:overflow-hidden bg-transparent"
       ref={containerRef}
       onClick={handleContainerClick}
       onMouseEnter={() => setIsHovered(true)}
@@ -226,7 +231,7 @@ export default function RadialOrbitalTimeline({
       `}</style>
 
       {/* Desktop circular orbit */}
-      <div className="relative hidden lg:flex h-full w-full max-w-[1440px] px-8 items-center justify-center">
+      <div className="relative hidden lg:flex h-[660px] xl:h-[700px] w-full max-w-[1440px] px-8 items-center justify-center">
         {/* Left panel — stage readout */}
         <div className="hidden xl:flex absolute left-8 top-1/2 -translate-y-1/2 w-[285px] flex-col gap-5 rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-md text-white select-none shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
           <div className="flex flex-col gap-1">
