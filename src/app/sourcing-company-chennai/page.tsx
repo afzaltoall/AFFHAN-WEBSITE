@@ -335,7 +335,9 @@ export default function SourcingCompanyChennaiPage() {
             {["Electronics", "Automotive Parts", "Apparel & Textiles", "Machinery", "Beauty & Personal Care", "Home & Garden", "Medical Supplies", "Construction Materials"].map((ind) => (
               <Link
                 key={ind}
-                href="/categories"
+                // Straight to /products/ — /categories only 308s here anyway,
+                // so linking to it made every one of these pills a wasted hop.
+                href="/products/"
                 className="bg-white border border-slate-200 hover:border-brand px-6 py-3 rounded-full text-sm font-semibold text-slate-700 hover:text-brand transition-colors"
               >
                 {ind}

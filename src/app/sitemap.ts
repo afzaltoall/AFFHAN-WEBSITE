@@ -55,12 +55,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.7,
     },
-    {
-      url: `${baseUrl}/categories/`,
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
+    // No /categories/ entry: it 308s to /products/, and a sitemap should list
+    // only final, indexable URLs. Advertising a redirect asks Google to spend
+    // crawl budget rediscovering a page already listed above.
     {
       url: `${baseUrl}/rankings/`,
       lastModified: new Date(),
