@@ -48,7 +48,7 @@ interface Theme {
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
-    stats: { products: number; categories: number; inquiries: number; contacts: number; jobAlerts: number };
+    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; jobAlerts: number };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
     jobAlerts: JobAlert[]; deletedJobAlerts: JobAlert[];
@@ -533,9 +533,18 @@ export function AdminConsole({ data }: Props) {
     { key: "trash", label: "Recently Deleted", icon: Trash2, count: deletedItems.length },
   ];
 
-  const statCards = [
+  // `hint` spells out a figure that would otherwise look wrong next to the
+  // public site. Categories shows the browsable count, with the empty CJ tree
+  // nodes noted rather than silently folded into the headline number.
+  const emptyCategories = data.stats.categoriesTotal - data.stats.categories;
+  const statCards: { label: string; value: number; hint?: string; icon: LucideIcon; tint: string; bg: string }[] = [
     { label: "Products", value: data.stats.products, icon: Package, tint: "text-sky-500", bg: dark ? "bg-sky-500/15" : "bg-sky-50" },
-    { label: "Categories", value: data.stats.categories, icon: Layers, tint: "text-violet-500", bg: dark ? "bg-violet-500/15" : "bg-violet-50" },
+    {
+      label: "Categories",
+      value: data.stats.categories,
+      hint: emptyCategories > 0 ? `${fmtNum(data.stats.categoriesTotal)} in tree · ${fmtNum(emptyCategories)} empty` : undefined,
+      icon: Layers, tint: "text-violet-500", bg: dark ? "bg-violet-500/15" : "bg-violet-50",
+    },
     { label: "Inquiries", value: data.stats.inquiries, icon: Inbox, tint: "text-amber-500", bg: dark ? "bg-amber-500/15" : "bg-amber-50" },
     { label: "Messages", value: data.stats.contacts, icon: MessageSquare, tint: "text-emerald-500", bg: dark ? "bg-emerald-500/15" : "bg-emerald-50" },
     { label: "Careers", value: data.stats.jobAlerts, icon: Briefcase, tint: "text-rose-500", bg: dark ? "bg-rose-500/15" : "bg-rose-50" },
@@ -641,6 +650,7 @@ export function AdminConsole({ data }: Props) {
                 </div>
                 <p className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{fmtNum(s.value)}</p>
                 <p className={`text-xs font-medium ${t.soft}`}>{s.label}</p>
+                {s.hint && <p className={`mt-0.5 text-[11px] ${t.soft}`}>{s.hint}</p>}
               </button>
             ))}
           </div>

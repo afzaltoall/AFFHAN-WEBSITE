@@ -20,8 +20,13 @@ export default async function AdminPage() {
   if (!admin) redirect("/admin/login");
   if (admin.role !== "admin") redirect("/");
 
-  const [productCount, categoryCount, inquiryCount, inquiries, deletedInquiries, contactCount, contacts, deletedContacts, jobAlertCount, jobAlerts, deletedJobAlerts] = await Promise.all([
+  const [productCount, categoryCount, categoryTotal, inquiryCount, inquiries, deletedInquiries, contactCount, contacts, deletedContacts, jobAlertCount, jobAlerts, deletedJobAlerts] = await Promise.all([
     prisma.product.count(),
+    // Categories a customer can actually browse, matching what the public site
+    // advertises. The raw row count is 634, but 125 of those are empty nodes in
+    // CJ's tree that never appear in any category UI — the dashboard reading
+    // 634 while the site said 509 looked like one of them was wrong.
+    prisma.category.count({ where: { products: { some: {} } } }),
     prisma.category.count(),
     prisma.inquiry.count({ where: { status: { not: "deleted" } } }),
     // High take so the "All" customer checklist and grouping never silently drop
@@ -78,6 +83,7 @@ export default async function AdminPage() {
     stats: {
       products: productCount,
       categories: categoryCount,
+      categoriesTotal: categoryTotal,
       inquiries: inquiryCount,
       contacts: contactCount,
       jobAlerts: jobAlertCount,
