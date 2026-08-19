@@ -161,30 +161,14 @@ export default function SourcingCompanyChennaiPage() {
             Looking for a reliable <strong className="text-slate-800">China sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
             AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over 10 Lakhs+ products and 100+ countries with our end-to-end procurement, supplier verification, and freight forwarding solutions.
           </p>
-          {/* Three tiers on purpose: solid primary, outlined secondary, and a
-              plain text link so the third option reads as "also available"
-              rather than competing with the two real CTAs.
-
-              The scale/lift is under `motion-safe:`, so a reduced-motion
-              visitor simply never gets those utilities — no override needed.
-              Colour and shadow transitions stay, since they involve no
-              movement. Transform + shadow only, so nothing reflows on hover. */}
-          <div className="hero-rise hero-rise-3 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap sm:gap-4">
-            <Link
-              href="/contact"
-              className="inline-flex w-full items-center justify-center rounded-xl bg-brand px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-white shadow-[0_1px_2px_rgba(15,23,42,0.08),0_8px_24px_-10px_rgba(39,168,196,0.6)] transition-all duration-200 ease-out hover:bg-brand-dark hover:shadow-[0_2px_5px_rgba(15,23,42,0.10),0_16px_34px_-12px_rgba(39,168,196,0.7)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98] sm:w-auto"
-            >
-              Request a Quote
-            </Link>
-            <Link
-              href="/products"
-              className="inline-flex w-full items-center justify-center rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-200 ease-out hover:border-slate-400/90 hover:bg-white hover:shadow-[0_2px_12px_rgba(15,23,42,0.09)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98] sm:w-auto"
-            >
-              Browse Catalog
-            </Link>
+          {/* Single CTA, centred. The scale/lift sits behind `motion-safe:`, so
+              a reduced-motion visitor never receives those utilities at all —
+              no override rule needed. Colour and shadow transitions stay, since
+              they involve no movement, and transform+shadow never reflow. */}
+          <div className="hero-rise hero-rise-3 flex justify-center">
             <Link
               href="/"
-              className="group inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-[15px] font-medium tracking-[-0.01em] text-slate-500 transition-colors duration-200 ease-out hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+              className="group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-200 ease-out hover:border-slate-400/90 hover:bg-white hover:shadow-[0_2px_12px_rgba(15,23,42,0.09)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
             >
               Visit AFFHAN Website
               <span aria-hidden="true" className="transition-transform duration-200 ease-out motion-safe:group-hover:translate-x-0.5">
