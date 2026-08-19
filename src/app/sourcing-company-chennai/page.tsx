@@ -153,11 +153,18 @@ export default function SourcingCompanyChennaiPage() {
             here instead of on <main>. */}
         <div className="relative z-10 flex min-h-svh items-center pt-24 pb-12 lg:pb-20">
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Two measures, not one. The heading gets the full 56rem so it breaks
+            across few lines, while the body is pulled in to ~42rem — around
+            65-70 characters, the range that actually reads comfortably. Both
+            sharing max-w-4xl gave the paragraph ~95-character lines, which is
+            what made the block feel like an undifferentiated slab. */}
         <div className="text-center max-w-4xl mx-auto">
-          <h1 className="hero-rise hero-rise-1 text-[2rem] sm:text-5xl lg:text-6xl font-bold tracking-[-0.032em] leading-[1.05] text-balance text-slate-900 mb-6">
+          {/* -0.022em, not -0.032em: at 48px the tighter value closed the
+              letters up enough to read as cramped rather than premium. */}
+          <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
             Sourcing Agent & Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
           </h1>
-          <p className="hero-rise hero-rise-2 text-base sm:text-lg text-slate-600 mb-9 leading-[1.65] tracking-[-0.005em] text-pretty">
+          <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
             Looking for a reliable <strong className="text-slate-800">China sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
             AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over 10 Lakhs+ products and 100+ countries with our end-to-end procurement, supplier verification, and freight forwarding solutions.
           </p>
@@ -185,7 +192,7 @@ export default function SourcingCompanyChennaiPage() {
       <section className="bg-white py-16 lg:py-24 border-y border-slate-200">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance text-slate-900 mb-5">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
               Our Sourcing Services in Chennai
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto leading-[1.6] tracking-[-0.003em] text-pretty">
@@ -232,7 +239,7 @@ export default function SourcingCompanyChennaiPage() {
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance mb-6">
+              <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance mb-6">
                 Why Choose AFFHAN as Your Chennai Sourcing Partner?
               </h2>
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
@@ -285,7 +292,7 @@ export default function SourcingCompanyChennaiPage() {
       <section className="py-16 lg:py-24 bg-white">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance text-slate-900 mb-5">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
               How Our Sourcing Process Works
             </h2>
             <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">A transparent, step-by-step approach to global trade.</p>
@@ -328,7 +335,7 @@ export default function SourcingCompanyChennaiPage() {
       <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance text-slate-900 mb-5">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
               Industries We Serve
             </h2>
           </div>
@@ -352,7 +359,7 @@ export default function SourcingCompanyChennaiPage() {
       <section className="py-16 lg:py-24 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance text-slate-900 mb-5">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
               Frequently Asked Questions
             </h2>
           </div>
@@ -370,7 +377,7 @@ export default function SourcingCompanyChennaiPage() {
       {/* Final CTA */}
       <section className="py-16 bg-brand text-white text-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.024em] leading-[1.12] text-balance mb-6">Ready to Import from China to Chennai?</h2>
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance mb-6">Ready to Import from China to Chennai?</h2>
           <p className="text-brand-50 mb-8 max-w-2xl mx-auto leading-[1.6] tracking-[-0.003em] text-pretty">
             Contact AFFHAN Group today to discuss your product sourcing needs. We offer free consultation and competitive quotes for all businesses in Chennai.
           </p>
