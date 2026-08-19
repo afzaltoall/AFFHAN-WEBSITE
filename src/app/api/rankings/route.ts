@@ -19,16 +19,20 @@ import { isCategoryBlocked } from "@/lib/moderation";
 // showcase. No fabricated numbers, no prices (consistent with the whole site).
 // ---------------------------------------------------------------------------
 
+import { getCdnUrl } from "@/lib/cdn";
+
 export const dynamic = "force-dynamic";
 
 type CategoryLite = { id: string; name: string; parentId: string | null; parentName: string | null; thumbnailUrl: string | null };
 
 const getCachedAllCategories = unstable_cache(
-  async (): Promise<CategoryLite[]> =>
-    await prisma.category.findMany({
+  async (): Promise<CategoryLite[]> => {
+    const cats = await prisma.category.findMany({
       select: { id: true, name: true, parentId: true, parentName: true, thumbnailUrl: true },
-    }),
-  ["all-categories-lite-v2"],
+    });
+    return cats.map(c => ({ ...c, thumbnailUrl: getCdnUrl(c.thumbnailUrl) }));
+  },
+  ["all-categories-lite-v3"],
   { revalidate: 3600 }
 );
 

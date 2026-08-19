@@ -21,6 +21,8 @@ type MappedProduct = {
   categoryRef: { name: string | null } | null;
 };
 
+import { getCdnUrl } from "@/lib/cdn";
+
 const getCachedProductCount = unstable_cache(
   async (): Promise<number> => await prisma.product.count(),
   ["total-product-count"],
@@ -34,11 +36,13 @@ type CategoryLite = { id: string; name: string; parentId: string | null; parentN
 // which categories a search matches, mapping ids→names for display/facets — in
 // memory. This keeps the search SQL join-free so the FTS index stays usable.
 const getCachedAllCategories = unstable_cache(
-  async (): Promise<CategoryLite[]> =>
-    await prisma.category.findMany({
+  async (): Promise<CategoryLite[]> => {
+    const cats = await prisma.category.findMany({
       select: { id: true, name: true, parentId: true, parentName: true, thumbnailUrl: true },
-    }),
-  ["all-categories-lite-v2"],
+    });
+    return cats.map(c => ({ ...c, thumbnailUrl: getCdnUrl(c.thumbnailUrl) }));
+  },
+  ["all-categories-lite-v3"],
   { revalidate: 3600 }
 );
 
