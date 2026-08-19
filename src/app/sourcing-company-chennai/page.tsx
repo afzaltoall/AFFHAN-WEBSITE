@@ -14,18 +14,29 @@ import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 // every request.
 export const revalidate = 3600;
 
+// 53 chars, down from 70. Google truncates a title around 60 and the old one
+// lost its tail — "— China Import" was being cut anyway, and it was the least
+// valuable part. Both phrases this page targets, "sourcing agent in Chennai"
+// and "sourcing company in Chennai", now survive the truncation intact.
+const PAGE_TITLE = "Sourcing Agent & Sourcing Company in Chennai | AFFHAN";
+
+// 149 chars, down from 182. Google shows roughly 155, so the old "Get a quote
+// today" call to action was being clipped off the end where it did no work.
+const PAGE_DESCRIPTION =
+  "Trusted sourcing agent and sourcing company in Chennai for China imports, product sourcing and freight forwarding. 10 lakh+ products, 100+ countries.";
+
 export const metadata: Metadata = {
-  title: "Sourcing Agent & Sourcing Company in Chennai | AFFHAN — China Import",
-  description:
-    "AFFHAN is a trusted sourcing company and sourcing agent in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
+  title: PAGE_TITLE,
+  description: PAGE_DESCRIPTION,
   alternates: {
     canonical: "https://affhan.com/sourcing-company-chennai/",
   },
   openGraph: {
-    title: "Sourcing Agent & Sourcing Company in Chennai | AFFHAN — China Import",
-    description:
-      "AFFHAN is a trusted sourcing company and sourcing agent in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
-    url: "https://affhan.com/sourcing-company-chennai",
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
+    // Trailing slash to match the canonical. Without it og:url named a URL that
+    // 308s, so a share pointed one hop away from the page's own canonical.
+    url: "https://affhan.com/sourcing-company-chennai/",
     type: "website",
     siteName: "AFFHAN Group",
     images: [
@@ -38,9 +49,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sourcing Agent & Sourcing Company in Chennai | AFFHAN — China Import",
-    description:
-      "AFFHAN is a trusted sourcing company and sourcing agent in Chennai for China imports, product sourcing & freight forwarding. 10 lakh+ products, 100+ countries. Get a quote today.",
+    title: PAGE_TITLE,
+    description: PAGE_DESCRIPTION,
   },
 };
 
