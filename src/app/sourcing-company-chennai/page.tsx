@@ -42,11 +42,20 @@ export const metadata: Metadata = {
   },
 };
 
+// AFFHAN has traded since 2000. Derived rather than written down so the figure
+// cannot go stale — the page revalidates hourly, so it rolls over on its own
+// each new year. It previously read "3+ years", understating the company by
+// more than two decades, in both the bullet list and this FAQ answer (which is
+// serialised into the FAQPage schema, so the understatement was going out as
+// structured data too).
+const FOUNDED_YEAR = 2000;
+const yearsTrading = new Date().getFullYear() - FOUNDED_YEAR;
+
 const faqs = [
   {
     question: "What makes AFFHAN the best sourcing company in Chennai?",
     answer:
-      "With over 3+ years of proven expertise, a 4.8 rating, and direct presence in China and Chennai, AFFHAN eliminates the middleman. We provide seamless B2B sourcing from a catalog of over 10 Lakhs+ products across 500+ product categories.",
+      `With over ${yearsTrading} years of proven expertise, a 4.8 rating, and direct presence in China and Chennai, AFFHAN eliminates the middleman. We provide seamless B2B sourcing from a catalog of over 10 Lakhs+ products across 500+ product categories.`,
   },
   {
     question: "How to source products from China to Chennai safely?",
@@ -328,7 +337,7 @@ export default async function SourcingCompanyChennaiPage() {
                   <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> LCL and FCL freight with customs clearance into Chennai
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> 3+ Years of Verified Excellence
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> {yearsTrading} Years of Verified Excellence — trading since {FOUNDED_YEAR}
                 </li>
               </ul>
               <Link
@@ -343,13 +352,17 @@ export default async function SourcingCompanyChennaiPage() {
                 Countries and Rating stay literals — neither lives in the DB. */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums">
-                  <CountUpStat value={productCount} />
+                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums whitespace-nowrap">
+                  {/* Shown in lakhs rather than the exact figure, but still
+                      derived from the live count — floor(count / 100000), so it
+                      rises on its own as the catalog grows and can never claim
+                      more than is actually there. */}
+                  <CountUpStat value={Math.floor(productCount / 100000)} suffix=" Lakhs+" />
                 </div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Products</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums">
+                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums whitespace-nowrap">
                   {/* No "+" here: this is the exact live count, and a plus
                       would claim there are more than the number shown. */}
                   <CountUpStat value={categoryCount} />
@@ -357,13 +370,13 @@ export default async function SourcingCompanyChennaiPage() {
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Categories</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums">
+                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums whitespace-nowrap">
                   <CountUpStat value={100} suffix="+" />
                 </div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Countries</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
-                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums">4.8</div>
+                <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums whitespace-nowrap">4.8</div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Rating</div>
               </div>
             </div>
