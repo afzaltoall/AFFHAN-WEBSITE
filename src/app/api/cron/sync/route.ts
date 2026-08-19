@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
 import { fetchCategories, fetchCjProducts, delay, type CjCategoryNode, type CjRawProduct } from "../../../../lib/cj";
 import { isCategoryBlocked } from "../../../../lib/moderation";
+import { uploadImageToS3 } from "../../../../lib/s3-upload";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300; // Allow Vercel up to 5 minutes to run this cron job
@@ -110,6 +111,14 @@ export async function GET(request: Request) {
     let totalPages = progress.totalPages || 999;
     let totalSynced = 0;
     
+    // Setup category lineage for S3 nested folder structure
+    const leafCategory = progress.category.name;
+    const subCategory = progress.category.parentName || 'uncategorized';
+    const parentCatRecord = subCategory !== 'uncategorized' 
+      ? await prisma.category.findFirst({ where: { name: subCategory } }) 
+      : null;
+    const rootCategory = parentCatRecord?.parentName || 'uncategorized';
+
     // Fetch up to 5 pages per cron run
     for (let i = 0; i < 5; i++) {
       const pageNum = lastPage + 1;
@@ -126,116 +135,138 @@ export async function GET(request: Request) {
           break;
         }
         
-        const upsertPromises = cjProducts.map(async (cp: CjRawProduct) => {
-          const cjPid = cp.pid || cp.productId || String(cp.id);
-          if (!cjPid) return null;
+        // Native chunking for concurrency (batch size 5)
+        const chunkArray = <T>(arr: T[], size: number): T[][] =>
+          Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
+            arr.slice(i * size, i * size + size)
+          );
 
-          const parseName = (nameStr: unknown) => {
-            if (!nameStr) return null;
-            if (typeof nameStr === 'string' && nameStr.startsWith('[') && nameStr.endsWith(']')) {
-              try {
-                const parsed = JSON.parse(nameStr);
-                if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
-              } catch {}
+        const batches = chunkArray(cjProducts, 5);
+        let results: PromiseSettledResult<any>[] = [];
+
+        for (const batch of batches) {
+          const batchPromises = batch.map(async (cp: CjRawProduct) => {
+            const cjPid = cp.pid || cp.productId || String(cp.id);
+            if (!cjPid) return null;
+
+            const parseName = (nameStr: unknown) => {
+              if (!nameStr) return null;
+              if (typeof nameStr === 'string' && nameStr.startsWith('[') && nameStr.endsWith(']')) {
+                try {
+                  const parsed = JSON.parse(nameStr);
+                  if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
+                } catch {}
+              }
+              return String(nameStr);
+            };
+
+            // Block specifically contaminated or unwanted categories
+            const blockedCategories = [
+              '95C53342-6277-4FEC-B450-6D3F9EEDD6A1', // Flower Girl Dresses
+              '2409230541301627300', // Women's Camis
+              '7D611AF5-5135-4BBB-86F6-E80179F8E5B8', // Rompers
+              'ECDBD4C4-7467-4831-9F55-740E3C7968BE', // Suits & Sets
+              '7B69E34F-43A3-4143-A22D-30786EE97998'  // Jumpsuits
+            ];
+
+            if (blockedCategories.includes(progress.categoryId)) {
+              console.warn(`[Moderation] Skipped blocked category: ${progress.category.name}`);
+              return null; // Skip entirely
             }
-            return String(nameStr);
-          };
 
-          // Block specifically contaminated or unwanted categories
-          const blockedCategories = [
-            '95C53342-6277-4FEC-B450-6D3F9EEDD6A1', // Flower Girl Dresses
-            '2409230541301627300', // Women's Camis
-            '7D611AF5-5135-4BBB-86F6-E80179F8E5B8', // Rompers
-            'ECDBD4C4-7467-4831-9F55-740E3C7968BE', // Suits & Sets
-            '7B69E34F-43A3-4143-A22D-30786EE97998'  // Jumpsuits
-          ];
+            const rawName = cp.productNameEn || cp.productName || "Unknown Product";
+            const parsedName = parseName(rawName) || "Unknown Product";
 
-          if (blockedCategories.includes(progress.categoryId)) {
-            console.warn(`[Moderation] Skipped blocked category: ${progress.category.name}`);
-            return null; // Skip entirely
-          }
-
-          const rawName = cp.productNameEn || cp.productName || "Unknown Product";
-          const parsedName = parseName(rawName) || "Unknown Product";
-
-          // Content Moderation Filter
-          const explicitWords = ['vibrator', 'dildo', 'masturbator', 'fleshlight', 'anal', 'penis', 'vagina', 'sex doll', 'bdsm', 'bondage', 'nipple clamp', 'cock ring', 'adult toy', 'sex toy', 'butt plug', 'anal plug'];
-          const lingerieWords = ['bra', 'lingerie', 'camisole', 'corset', 'latex bodysuit', 'shapewear', 'waist trainer', 'girdle', 'bikini', 'g-string', 'gstring'];
-          const fetishWords = ['patent leather bodysuit', 'harness'];
-          
-          const standardRegex = new RegExp(`\\b(${[...explicitWords, ...lingerieWords, ...fetishWords].join('|')})\\b`, 'i');
-          const beltRegex = new RegExp(`\\b(${[...explicitWords, 'bra', 'lingerie', 'camisole', 'latex bodysuit', 'shapewear', 'waist trainer', 'sauna suit', 'body shaper', 'patent leather bodysuit', 'harness'].join('|')})\\b`, 'i');
-          
-          let nameToCheck = parsedName.toLowerCase();
-          const catName = cp.categoryName || progress.category.name;
-          
-          let isBlocked = false;
-          let matchedKeyword = '';
-
-          // Category-level moderation: whole categories whose imagery is too
-          // adult for a B2B catalog are skipped + logged regardless of name.
-          if (isCategoryBlocked(catName)) {
-            isBlocked = true;
-            matchedKeyword = 'blocked-category';
-          }
-
-          if (!isBlocked && catName !== 'Pet Toy Set') {
-            const hasExclusion = ['wiring harness', 'dog harness', 'pet harness', 'safety harness', 'latex toy', 'cleaning glove', 'disposable latex glove', 'goalkeeper glove', 'latex glove'].some(ex => nameToCheck.includes(ex));
+            // Content Moderation Filter
+            const explicitWords = ['vibrator', 'dildo', 'masturbator', 'fleshlight', 'anal', 'penis', 'vagina', 'sex doll', 'bdsm', 'bondage', 'nipple clamp', 'cock ring', 'adult toy', 'sex toy', 'butt plug', 'anal plug'];
+            const lingerieWords = ['bra', 'lingerie', 'camisole', 'corset', 'latex bodysuit', 'shapewear', 'waist trainer', 'girdle', 'bikini', 'g-string', 'gstring'];
+            const fetishWords = ['patent leather bodysuit', 'harness'];
             
-            if (!hasExclusion) {
-              nameToCheck = nameToCheck.replace(/corset-style/gi, '');
+            const standardRegex = new RegExp(`\\b(${[...explicitWords, ...lingerieWords, ...fetishWords].join('|')})\\b`, 'i');
+            const beltRegex = new RegExp(`\\b(${[...explicitWords, 'bra', 'lingerie', 'camisole', 'latex bodysuit', 'shapewear', 'waist trainer', 'sauna suit', 'body shaper', 'patent leather bodysuit', 'harness'].join('|')})\\b`, 'i');
+            
+            let nameToCheck = parsedName.toLowerCase();
+            const catName = cp.categoryName || progress.category.name;
+            
+            let isBlocked = false;
+            let matchedKeyword = '';
+
+            // Category-level moderation: whole categories whose imagery is too
+            // adult for a B2B catalog are skipped + logged regardless of name.
+            if (isCategoryBlocked(catName)) {
+              isBlocked = true;
+              matchedKeyword = 'blocked-category';
+            }
+
+            if (!isBlocked && catName !== 'Pet Toy Set') {
+              const hasExclusion = ['wiring harness', 'dog harness', 'pet harness', 'safety harness', 'latex toy', 'cleaning glove', 'disposable latex glove', 'goalkeeper glove', 'latex glove'].some(ex => nameToCheck.includes(ex));
               
-              const regexToUse = catName === 'Belts & Cummerbunds' ? beltRegex : standardRegex;
-              const match = nameToCheck.match(regexToUse);
-              
-              if (match || standardRegex.test(catName)) {
-                isBlocked = true;
-                matchedKeyword = match ? match[0] : 'Category Name Match';
+              if (!hasExclusion) {
+                nameToCheck = nameToCheck.replace(/corset-style/gi, '');
+                
+                const regexToUse = catName === 'Belts & Cummerbunds' ? beltRegex : standardRegex;
+                const match = nameToCheck.match(regexToUse);
+                
+                if (match || standardRegex.test(catName)) {
+                  isBlocked = true;
+                  matchedKeyword = match ? match[0] : 'Category Name Match';
+                }
               }
             }
-          }
 
-          if (isBlocked) {
-            console.warn(`[Moderation] Skipped explicit product: ${parsedName} (Triggered by: ${matchedKeyword})`);
-            return prisma.moderationLog.create({
-              data: {
+            if (isBlocked) {
+              console.warn(`[Moderation] Skipped explicit product: ${parsedName} (Triggered by: ${matchedKeyword})`);
+              return prisma.moderationLog.create({
+                data: {
+                  cjPid: String(cjPid),
+                  name: parsedName,
+                  categoryName: catName,
+                  flaggedKeyword: matchedKeyword
+                }
+              }).then(() => null).catch((e) => {
+                console.error("Moderation log error:", e);
+                return null;
+              });
+            }
+
+            // Download from CJ and upload to S3 if not already an S3 URL
+            let finalImageUrl = cp.productImage || cp.productImageSet?.[0] || null;
+            if (finalImageUrl && !finalImageUrl.includes('affan-product-images.s3')) {
+              try {
+                finalImageUrl = await uploadImageToS3(finalImageUrl, cp.productSku || String(cjPid), rootCategory, subCategory, leafCategory);
+              } catch (err) {
+                console.warn(`[Cron] S3 upload failed for product ${cjPid}, falling back to raw CJ URL.`, err);
+              }
+            }
+
+            return prisma.product.upsert({
+              where: { cjPid: String(cjPid) },
+              update: {
+                name: parsedName,
+                sku: cp.productSku || null,
+                imageUrl: finalImageUrl,
+                allImages: cp.productImageSet || [],
+                categoryId: progress.categoryId,
+                category: cp.categoryName || progress.category.name,
+                description: cp.description || null,
+                lastSynced: new Date(),
+              },
+              create: {
                 cjPid: String(cjPid),
                 name: parsedName,
-                categoryName: catName,
-                flaggedKeyword: matchedKeyword
+                sku: cp.productSku || null,
+                imageUrl: finalImageUrl,
+                allImages: cp.productImageSet || [],
+                categoryId: progress.categoryId,
+                category: cp.categoryName || progress.category.name,
+                description: cp.description || null,
               }
-            }).then(() => null).catch((e) => {
-              console.error("Moderation log error:", e);
-              return null;
             });
-          }
-
-          return prisma.product.upsert({
-            where: { cjPid: String(cjPid) },
-            update: {
-              name: parsedName,
-              sku: cp.productSku || null,
-              imageUrl: cp.productImage || cp.productImageSet?.[0] || null,
-              allImages: cp.productImageSet || [],
-              categoryId: progress.categoryId,
-              category: cp.categoryName || progress.category.name,
-              description: cp.description || null,
-              lastSynced: new Date(),
-            },
-            create: {
-              cjPid: String(cjPid),
-              name: parsedName,
-              sku: cp.productSku || null,
-              imageUrl: cp.productImage || cp.productImageSet?.[0] || null,
-              allImages: cp.productImageSet || [],
-              categoryId: progress.categoryId,
-              category: cp.categoryName || progress.category.name,
-              description: cp.description || null,
-            }
           });
-        });
-        
-        const results = await Promise.allSettled(upsertPromises);
+          
+          const batchResults = await Promise.allSettled(batchPromises);
+          results.push(...batchResults);
+        }
         
         for (const res of results) {
           if (res.status === 'fulfilled' && res.value !== null) {
