@@ -164,9 +164,14 @@ export default function SourcingCompanyChennaiPage() {
           <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
             Sourcing Agent & Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
           </h1>
+          {/* whitespace-nowrap spans keep number+unit pairs and the hyphenated
+              compound from splitting across lines ("...over 10" / "Lakhs+
+              products..." was the visible break). Done with markup rather than
+              &nbsp; so the text characters are byte-identical — nothing for a
+              crawler to see differently. */}
           <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
             Looking for a reliable <strong className="text-slate-800">China sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
-            AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over 10 Lakhs+ products and 100+ countries with our end-to-end procurement, supplier verification, and freight forwarding solutions.
+            AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over <span className="whitespace-nowrap">10 Lakhs+</span> products and <span className="whitespace-nowrap">100+ countries</span> with our <span className="whitespace-nowrap">end-to-end</span> procurement, supplier verification, and freight forwarding solutions.
           </p>
           {/* Single CTA, centred. The scale/lift sits behind `motion-safe:`, so
               a reduced-motion visitor never receives those utilities at all —
