@@ -467,22 +467,7 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="py-16 bg-brand text-white text-center">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance mb-6">Ready to Import from China to Chennai?</h2>
-          <p className="text-brand-50 mb-8 max-w-2xl mx-auto leading-[1.6] tracking-[-0.003em] text-pretty">
-            Contact AFFHAN Group today to discuss your product sourcing needs. We offer free consultation and competitive quotes for all businesses in Chennai.
-          </p>
-          <Link
-            href="/contact"
-            className="inline-block bg-white text-brand px-10 py-4 rounded-full font-semibold tracking-[-0.01em] text-[17px] hover:bg-slate-50 transition-colors shadow-lg"
-          >
-            Contact Us Now
-          </Link>
-        </div>
-      </section>
-      
+
       <FooterSection />
     </main>
   );
