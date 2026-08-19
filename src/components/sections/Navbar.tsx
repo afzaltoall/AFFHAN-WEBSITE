@@ -210,6 +210,7 @@ export function Navbar() {
   return (
     <header className="relative">
       <motion.nav
+        initial={false}
         animate={{ y: hidden ? "-100%" : "0%" }}
         transition={{ type: "spring", stiffness: 320, damping: 32 }}
         className="fixed top-0 w-full z-[100] bg-white shadow-sm border-b border-slate-100"
@@ -220,7 +221,7 @@ export function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center flex-shrink-0 z-10 mr-4">
               <div className="relative w-12 h-12 lg:w-14 lg:h-14">
-                <Image src="/logo.png" alt="Affhan Group Logo" fill priority className="object-contain" />
+                <Image src="/logo.png" alt="Affhan Group Logo" fill priority fetchPriority="high" className="object-contain" />
               </div>
             </Link>
 
