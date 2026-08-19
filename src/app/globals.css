@@ -899,3 +899,37 @@ html {
     display: none;
   }
 }
+
+/* ── FAQ accordion ──────────────────────────────────────────────────────
+   Collapses on grid-template-rows, 0fr to 1fr. `auto` is not an animatable
+   height, so a plain height transition has nothing to interpolate towards
+   without measuring the panel first; 0fr -> 1fr needs no measurement.
+
+   The padding lives on the paragraph INSIDE the clipped wrapper, never on the
+   wrapper itself. That is what went wrong on the first attempt: padding on the
+   collapsing element survives a zero height and showed as a sliver of the
+   answer bleeding out under the question.
+
+   The answer is in the HTML at every state, which is what a crawler needs —
+   Google reads FAQ copy inside an expander, it just cannot read copy that was
+   never rendered. */
+.faq-answer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-answer[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.faq-answer > .faq-answer-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-answer {
+    transition: none;
+  }
+}

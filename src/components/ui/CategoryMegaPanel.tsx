@@ -2,36 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight, Shirt, Tv, Dumbbell, Gem, Baby, Sofa, Car, Smartphone, Laptop, Heart, Pill, Dog, Wheat, Box, Factory, Wrench, Camera, Lightbulb } from "lucide-react";
-import { flattenLeaves, type CategoryTreeNode } from "@/lib/categoryTree";
+import { flattenLeaves, getCategoryIcon, type CategoryTreeNode } from "@/lib/categoryTree";
 import { CategoryTile } from "@/components/ui/CategoryTile";
-
-// Alibaba-style "All Categories" panel: a left icon rail that scrolls a
-// single continuous right panel to the matching section, rather than
-// swapping content in/out. Each section is one top-level category with a
-// grid of its (real, thumbnailed) leaf categories. Tiles render through the
-// shared CategoryTile (hideOnError: omit a tile whose thumbnail is dead).
-
-function getCategoryIcon(name: string) {
-  const n = name.toLowerCase();
-  if (n.includes("cloth") || n.includes("apparel") || n.includes("fashion") || n.includes("shoe")) return Shirt;
-  if (n.includes("electronic") || n.includes("audio") || n.includes("appliance")) return Tv;
-  if (n.includes("sport") || n.includes("outdoor")) return Dumbbell;
-  if (n.includes("jewel") || n.includes("watch")) return Gem;
-  if (n.includes("toy") || n.includes("kid") || n.includes("baby")) return Baby;
-  if (n.includes("furniture") || n.includes("garden") || n.includes("home")) return Sofa;
-  if (n.includes("auto") || n.includes("car") || n.includes("motor") || n.includes("vehicle")) return Car;
-  if (n.includes("phone") || n.includes("mobile")) return Smartphone;
-  if (n.includes("computer") || n.includes("laptop") || n.includes("office")) return Laptop;
-  if (n.includes("beauty") || n.includes("hair") || n.includes("makeup")) return Heart;
-  if (n.includes("health") || n.includes("medical")) return Pill;
-  if (n.includes("pet") || n.includes("dog") || n.includes("cat") || n.includes("animal")) return Dog;
-  if (n.includes("food") || n.includes("agricult")) return Wheat;
-  if (n.includes("industrial") || n.includes("machin")) return Factory;
-  if (n.includes("tool") || n.includes("hardware")) return Wrench;
-  if (n.includes("security") || n.includes("camera")) return Camera;
-  if (n.includes("light")) return Lightbulb;
-  return Box;
-}
 
 interface CategoryMegaPanelProps {
   tree: CategoryTreeNode[];

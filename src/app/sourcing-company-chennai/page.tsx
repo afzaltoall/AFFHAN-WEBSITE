@@ -4,6 +4,7 @@ import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { SourcingProcessSection } from "@/components/sections/SourcingProcessSection";
+import { FaqAccordion } from "@/components/sections/FaqAccordion";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
@@ -458,14 +459,11 @@ export default async function SourcingCompanyChennaiPage() {
               Frequently Asked Questions
             </h2>
           </div>
-          <div className="space-y-6">
-            {faqs.map((faq, i) => (
-              <div key={i} className="border-b border-slate-100 pb-6">
-                <h3 className="text-lg font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2.5">{faq.question}</h3>
-                <p className="text-slate-600 leading-[1.6] tracking-[-0.003em] text-pretty">{faq.answer}</p>
-              </div>
-            ))}
-          </div>
+          {/* Answers stay in the HTML whether a panel is open or not — the
+              accordion force-mounts them and collapses with CSS. Radix's
+              AccordionHeader renders an h3, so each question keeps its place in
+              the heading outline exactly as the plain markup had it. */}
+          <FaqAccordion faqs={faqs} />
         </div>
       </section>
 

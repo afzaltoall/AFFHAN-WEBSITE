@@ -165,7 +165,9 @@ export function Navbar() {
 
   // The rankings page has a sticky filter bar; the auto-hide + sticky-follow
   // combination caused visible jitter there, so the bar stays fixed on /rankings.
-  const disableAutoHide = pathname.replace(/\/$/, "") === "/rankings";
+  // We also keep it fixed on the chennai landing page.
+  const normalizedPath = pathname.replace(/\/$/, "");
+  const disableAutoHide = normalizedPath === "/rankings" || normalizedPath === "/sourcing-company-chennai";
 
   useEffect(() => {
     if (disableAutoHide) {

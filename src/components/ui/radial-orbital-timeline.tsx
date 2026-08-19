@@ -23,8 +23,17 @@ interface RadialOrbitalTimelineProps {
   checklists: Record<number, { title: string; items: string[] }>;
 }
 
+// The reference proportions. Do not tune this to make the wheel fit a short
+// window — heightScale below does that by scaling the whole thing down, which
+// keeps the ring, the nodes and the centre disc in proportion. Changing the
+// radius alone throws that balance out.
 const ORBIT_RADIUS = 210;
 const DEGREES_PER_SECOND = 6;
+const RING_BOX = ORBIT_RADIUS * 2 + 50;
+const RING_CENTER = RING_BOX / 2;
+// Footprint the wheel wants: the ring, plus a node radius, plus the step label
+// hanging below each node. The height scaling measures against this.
+const NATURAL_SIZE = (ORBIT_RADIUS + 20 + 52) * 2;
 const SHUFFLE_MS = 620;
 const STAGGER_MS = 45;
 
@@ -33,7 +42,6 @@ export default function RadialOrbitalTimeline({
   checklists,
 }: RadialOrbitalTimelineProps) {
   const [rotationAngle, setRotationAngle] = useState(0);
-  const [isHovered, setIsHovered] = useState(false);
   const [pulseEffect, setPulseEffect] = useState<Record<number, boolean>>({});
   const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
   const [windowWidth, setWindowWidth] = useState(1024);
@@ -103,7 +111,11 @@ export default function RadialOrbitalTimeline({
   // React work for no visible gain. Combined with the in-view gate this is the
   // real fix: the original spun a 50ms interval for the entire life of the
   // page, including while the visitor was far below reading the FAQ.
-  const autoRotate = !activeNodeId && !isHovered && inView && !reducedMotion;
+  // No hover pause. The listeners sat on the whole timeline container, which
+  // spans the full section, so resting the cursor anywhere near the wheel — or
+  // just crossing the section on the way down the page — froze the rotation.
+  // Selecting a stage still stops it, which is the case that actually matters.
+  const autoRotate = !activeNodeId && inView && !reducedMotion;
   useEffect(() => {
     if (!autoRotate) return;
     let raf = 0;
@@ -255,7 +267,7 @@ export default function RadialOrbitalTimeline({
 
   // The wheel's natural footprint: the orbit diameter plus a node radius and
   // the step label that hangs below each one.
-  const NATURAL_SIZE = (ORBIT_RADIUS + 20 + 52) * 2;
+  
   const widthScale = windowWidth < 400 ? 0.58 : windowWidth < 640 ? 0.68 : windowWidth < 1024 ? 0.88 : 1;
   // Scaled to whichever axis is tighter. Width alone was not enough — on a
   // laptop the section is short rather than narrow, and the bottom nodes were
@@ -274,8 +286,6 @@ export default function RadialOrbitalTimeline({
       className="flex h-auto w-full flex-col items-center justify-center lg:h-full lg:overflow-hidden bg-transparent"
       ref={containerRef}
       onClick={handleContainerClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       <style>{`
         @keyframes orbitFlow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -369,7 +379,9 @@ export default function RadialOrbitalTimeline({
             <div
               onClick={(e) => e.stopPropagation()}
               className={`absolute z-10 flex flex-col items-center justify-center rounded-full bg-white shadow-[0_22px_80px_rgba(8,47,73,0.34)] transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                activeItem ? "h-60 w-60 sm:h-68 sm:w-68 p-6 border-2 border-[#27a8c4]/45" : "h-36 w-36 border border-white/70"
+                // 224px expanded, not 240: at ORBIT_RADIUS 200 the disc edge
+                // then sits 88px inside the node ring rather than crowding it.
+                activeItem ? "h-56 w-56 p-5 border-2 border-[#27a8c4]/45" : "h-32 w-32 border border-white/70"
               }`}
             >
               <div className={`absolute rounded-full border border-white/35 transition-all duration-500 ${activeItem ? "h-[290px] w-[290px] opacity-40" : "h-48 w-48 affhan-logo-orbit"}`} />
@@ -397,12 +409,19 @@ export default function RadialOrbitalTimeline({
                   <div className={`mt-2 px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider border inline-block ${getStatusStyles(activeItem.status)}`}>
                     {activeItem.status === "completed" ? "COMPLETE" : activeItem.status === "in-progress" ? "IN PROGRESS" : "PENDING"}
                   </div>
-                  <p className="mt-3 px-3 text-[11px] sm:text-xs leading-relaxed text-slate-600 line-clamp-4 overflow-y-auto max-h-[88px]">{activeItem.content}</p>
+                  <p className="mt-3 px-3 text-[11px] sm:text-xs leading-relaxed text-slate-600">{activeItem.content}</p>
                 </div>
               )}
             </div>
 
-            <svg className="absolute h-[470px] w-[470px] pointer-events-none" viewBox="0 0 470 470" aria-hidden="true">
+            {/* Geometry derived from ORBIT_RADIUS so the drawn ring can never
+                drift away from where the nodes are actually placed. */}
+            <svg
+              className="absolute pointer-events-none"
+              style={{ width: RING_BOX, height: RING_BOX }}
+              viewBox={`0 0 ${RING_BOX} ${RING_BOX}`}
+              aria-hidden="true"
+            >
               <defs>
                 <linearGradient id="orbit-glow" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#27a8c4" stopOpacity="0.8" />
@@ -412,14 +431,14 @@ export default function RadialOrbitalTimeline({
               </defs>
               <g
                 style={{
-                  transformOrigin: "235px 235px",
+                  transformOrigin: `${RING_CENTER}px ${RING_CENTER}px`,
                   transform: `rotate(${rotationAngle}deg)`,
                   transition: shuffling ? `transform ${SHUFFLE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` : undefined,
                 }}
               >
-                <circle cx="235" cy="235" r="210" fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
+                <circle cx={RING_CENTER} cy={RING_CENTER} r={ORBIT_RADIUS} fill="none" stroke="rgba(255,255,255,0.18)" strokeWidth="1.5" />
                 <circle
-                  cx="235" cy="235" r="210" fill="none" stroke="url(#orbit-glow)" strokeWidth="2.5" strokeDasharray="24 160"
+                  cx={RING_CENTER} cy={RING_CENTER} r={ORBIT_RADIUS} fill="none" stroke="url(#orbit-glow)" strokeWidth="2.5" strokeDasharray="24 160"
                   className="orbit-flow-path"
                   style={{ transformOrigin: "center", animation: "orbitFlow 24s linear infinite" }}
                 />
