@@ -221,7 +221,7 @@ export function SourcingProcessSection({
       className="flex w-full flex-col overflow-hidden bg-gradient-to-br from-[#1b4452] via-[#245b6d] to-[#123642] px-5 py-12 sm:px-8 lg:h-screen lg:min-h-[640px] lg:px-12 lg:py-8"
     >
       <div className="relative z-30 mx-auto w-full max-w-xl shrink-0 text-center lg:max-w-6xl">
-        <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#3cd5f7]">{eyebrow}</span>
+        <span className="text-xs font-bold uppercase tracking-[0.24em] text-[#61deff]">{eyebrow}</span>
         <h2 className="mt-1.5 text-[1.75rem] font-semibold leading-[1.12] tracking-[-0.018em] text-balance text-white sm:text-[2rem] lg:text-4xl">
           {heading}
         </h2>

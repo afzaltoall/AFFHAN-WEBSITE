@@ -308,7 +308,7 @@ export function Navbar() {
                     onFocus={() => setIsInputFocused(true)}
                     className="w-full h-full pl-11 pr-24 text-sm bg-transparent focus:outline-none placeholder:text-slate-400 relative z-10"
                   />
-                  <button type="submit" className="absolute right-1.5 top-1.5 bottom-1.5 px-6 flex items-center justify-center bg-brand text-white rounded-lg hover:bg-brand-dark transition-colors font-medium text-sm cursor-pointer z-20 active:scale-95">
+                  <button type="submit" className="absolute right-1.5 top-1.5 bottom-1.5 px-6 flex items-center justify-center bg-[#1d7e93] text-white rounded-lg hover:bg-brand-dark transition-colors font-medium text-sm cursor-pointer z-20 active:scale-95">
                     Search
                   </button>
 
@@ -474,7 +474,7 @@ export function Navbar() {
               <div className="shrink-0 border-t border-slate-100 p-4">
                 <button
                   onClick={() => { setMobileMenuOpen(false); router.push("/contact"); }}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-brand py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark"
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1d7e93] py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark"
                 >
                   <Mail size={16} /> Request a Quote
                 </button>

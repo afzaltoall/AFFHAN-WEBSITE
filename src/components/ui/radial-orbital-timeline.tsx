@@ -303,7 +303,7 @@ export default function RadialOrbitalTimeline({
         {/* Left panel — stage readout */}
         <div className="hidden xl:flex absolute left-8 top-1/2 -translate-y-1/2 w-[285px] flex-col gap-5 rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-md text-white select-none shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#3cd5f7]">Affhan Sourcing</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#61deff]">Affhan Sourcing</span>
             <h3 className="text-base font-extrabold tracking-tight text-white">Workflow Summary</h3>
           </div>
 
@@ -325,7 +325,7 @@ export default function RadialOrbitalTimeline({
               <span className="relative z-10 text-[11px] font-bold font-mono text-[#e9f8fb]">{shownPercent}%</span>
             </div>
             <div className="flex flex-col min-w-0">
-              <span className={`text-[10px] uppercase tracking-wider font-extrabold ${activeItem ? "text-[#3cd5f7]" : "text-white/75"}`}>
+              <span className={`text-[10px] uppercase tracking-wider font-extrabold ${activeItem ? "text-[#61deff]" : "text-white/75"}`}>
                 {activeItem ? "Selected Stage" : "Nine Stages"}
               </span>
               <span className="text-xs font-bold text-white truncate max-w-[170px]">
@@ -354,10 +354,10 @@ export default function RadialOrbitalTimeline({
                       : "bg-white/[0.03] border-white/5"
                   }`}
                 >
-                  <span className={`h-2 w-2 rounded-full ${activePhase === phase ? "bg-[#3cd5f7]" : "bg-white/40"}`} />
+                  <span className={`h-2 w-2 rounded-full ${activePhase === phase ? "bg-[#61deff]" : "bg-white/40"}`} />
                   <div className="flex flex-col">
                     <span className={`text-[11px] font-bold leading-none ${activePhase === phase ? "text-white" : "text-slate-100"}`}>{title}</span>
-                    <span className={`text-[10px] mt-1 font-medium ${activePhase === phase ? "text-[#3cd5f7]" : "text-slate-300"}`}>{sub}</span>
+                    <span className={`text-[10px] mt-1 font-medium ${activePhase === phase ? "text-[#61deff]" : "text-slate-300"}`}>{sub}</span>
                   </div>
                 </div>
               ))}
@@ -506,18 +506,18 @@ export default function RadialOrbitalTimeline({
           {activeItem ? (
             <div className="flex flex-col gap-5" style={{ animation: "timelineFadeIn 0.45s ease-out both" }}>
               <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#3cd5f7]">{activeItem.date}</span>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#61deff]">{activeItem.date}</span>
                 <h3 className="text-base font-extrabold tracking-tight truncate text-white">{activeItem.title}</h3>
               </div>
               <div className="h-px bg-white/10 w-full" />
               <div className="flex flex-col gap-3">
-                <span className="text-[10px] text-[#3cd5f7] uppercase tracking-wider font-extrabold">
+                <span className="text-[10px] text-[#61deff] uppercase tracking-wider font-extrabold">
                   {checklists[activeItem.id]?.title ?? "Key Deliverables"}
                 </span>
                 <ul className="space-y-3.5">
                   {(checklists[activeItem.id]?.items ?? []).map((bullet) => (
                     <li key={bullet} className="flex items-start gap-2.5 text-xs text-white leading-normal">
-                      <span className="mt-1 flex h-1.5 w-1.5 shrink-0 rounded-full bg-[#3cd5f7]" />
+                      <span className="mt-1 flex h-1.5 w-1.5 shrink-0 rounded-full bg-[#61deff]" />
                       <span>{bullet}</span>
                     </li>
                   ))}
@@ -526,7 +526,7 @@ export default function RadialOrbitalTimeline({
             </div>
           ) : (
             <div className="flex flex-col gap-5 text-center items-center py-6">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-[#3cd5f7]">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/10 text-[#61deff]">
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                 </svg>
@@ -571,7 +571,7 @@ export default function RadialOrbitalTimeline({
                 className="relative flex flex-col items-center w-full"
               >
                 <div
-                  className={`absolute left-1/2 -translate-x-1/2 top-[20px] w-[2px] bg-gradient-to-b from-[#27a8c4] via-[#3cd5f7] to-[#27a8c4] opacity-50 z-0 ${
+                  className={`absolute left-1/2 -translate-x-1/2 top-[20px] w-[2px] bg-gradient-to-b from-[#27a8c4] via-[#61deff] to-[#27a8c4] opacity-50 z-0 ${
                     index < timelineData.length - 1 ? "bottom-[-56px]" : "bottom-[40px]"
                   }`}
                 />
@@ -580,7 +580,7 @@ export default function RadialOrbitalTimeline({
                     isCompleted
                       ? "border-[#27a8c4] text-[#176579]"
                       : isInProgress
-                        ? "border-[#27a8c4] text-[#27a8c4] ring-4 ring-[#27a8c4]/20"
+                        ? "border-[#27a8c4] text-[#1d7e93] ring-4 ring-[#27a8c4]/20"
                         : "border-[#27a8c4]/40 text-[#176579]/65"
                   }`}
                 >

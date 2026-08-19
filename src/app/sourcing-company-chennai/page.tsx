@@ -3,11 +3,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
-import { SourcingProcessSection } from "@/components/sections/SourcingProcessSection";
-import { FaqAccordion } from "@/components/sections/FaqAccordion";
+import { getCdnUrl } from "@/lib/cdn";
+import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
+
+const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
+const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
 
 // Hourly ISR rather than a dynamic render. The catalog counts move slowly, and
 // this is a search landing page — it should stay statically served and fast,
@@ -217,7 +220,7 @@ export default async function SourcingCompanyChennaiPage() {
           {/* -0.022em, not -0.032em: at 48px the tighter value closed the
               letters up enough to read as cramped rather than premium. */}
           <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-            Sourcing Agent & Sourcing Company in Chennai — <span className="text-brand">AFFHAN Group</span>
+            Sourcing Agent & Sourcing Company in Chennai — <span className="text-[#1d7e93]">AFFHAN Group</span>
           </h1>
           {/* whitespace-nowrap spans keep number+unit pairs and the hyphenated
               compound from splitting across lines ("...over 10" / "Lakhs+
@@ -235,7 +238,7 @@ export default async function SourcingCompanyChennaiPage() {
           <div className="hero-rise hero-rise-3 flex justify-center">
             <Link
               href="/"
-              className="cta-sheen group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-300 ease-out hover:border-brand/45 hover:bg-white hover:text-brand-dark hover:shadow-[0_2px_10px_rgba(15,23,42,0.07),0_10px_30px_-10px_rgba(39,168,196,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
+              className="cta-sheen group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-300 ease-out hover:border-brand/45 hover:bg-white hover:text-[#176579] hover:shadow-[0_2px_10px_rgba(15,23,42,0.07),0_10px_30px_-10px_rgba(39,168,196,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
             >
               Visit AFFHAN Website
               <span aria-hidden="true" className="transition-transform duration-300 ease-out motion-safe:group-hover:translate-x-1">
@@ -281,7 +284,7 @@ export default async function SourcingCompanyChennaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
-                  src="/Landing-chennai-services/china-product-sourcing.webp"
+                  src={getCdnUrl("/Landing-chennai-services/china-product-sourcing.webp") as string}
                   alt="Shipping container marked with the Chinese flag being craned onto a dock beside stacked cartons"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -299,7 +302,7 @@ export default async function SourcingCompanyChennaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
-                  src="/Landing-chennai-services/supplier-verification.webp"
+                  src={getCdnUrl("/Landing-chennai-services/supplier-verification.webp") as string}
                   alt="Inspector in a hi-vis vest checking a clipboard against palletised cartons at a loading bay"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -317,7 +320,7 @@ export default async function SourcingCompanyChennaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
                 <Image
-                  src="/Landing-chennai-services/freight-forwarding.webp"
+                  src={getCdnUrl("/Landing-chennai-services/freight-forwarding.webp") as string}
                   alt="Container ship at berth with a cargo aircraft overhead and a haulage truck on the quay"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -360,7 +363,7 @@ export default async function SourcingCompanyChennaiPage() {
                     href={`/products?categoryId=${cat.id}`}
                     className="group flex items-start gap-3.5 px-4 py-3.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
                   >
-                    <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#27a8c4] mt-0.5" />
+                    <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#1d7e93] mt-0.5" />
                     <span className="text-[14px] sm:text-[15px] font-medium text-slate-700 group-hover:text-slate-900 leading-snug">
                       {cat.name}
                     </span>
