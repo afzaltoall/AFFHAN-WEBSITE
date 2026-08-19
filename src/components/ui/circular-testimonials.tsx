@@ -174,7 +174,8 @@ export const CircularTestimonials = ({
               key={testimonial.src + index}
               src={getCdnUrl(testimonial.src) as string}
               alt={testimonial.name}
-              fill
+              width={600}
+              height={400}
               sizes="(max-width: 768px) 300px, 400px"
               priority={index === 0}
               className="testimonial-image"
