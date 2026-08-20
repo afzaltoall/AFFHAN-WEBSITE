@@ -98,6 +98,16 @@ const faqs = [
     answer:
       "Yes, AFFHAN acts as your dedicated product sourcing agent in Chennai with our own procurement team on the ground in China. We bridge the gap between Indian buyers and Chinese factories.",
   },
+  {
+    question: "What documents does a Chennai business need before its first import?",
+    answer:
+      "You need an Importer Exporter Code from the DGFT, GST registration on the importing entity, and an AD Code from your bank registered at Chennai Port. The AD Code registration is the one first-time importers usually discover too late — without it the consignment cannot be cleared in your name.",
+  },
+  {
+    question: "Why does HS code classification matter for import duty in India?",
+    answer:
+      "The HS code sets the Basic Customs Duty rate and any licensing or BIS conditions attached to the goods. An incorrect code triggers re-assessment at the port, and demurrage accrues while it is resolved. We classify products at the quotation stage so the landed cost you approve is the landed cost you pay.",
+  },
 ];
 
 const schema = {
@@ -228,8 +238,7 @@ export default async function SourcingCompanyChennaiPage() {
               &nbsp; so the text characters are byte-identical — nothing for a
               crawler to see differently. */}
           <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
-            Looking for a reliable <strong className="text-slate-800">China sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
-            AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over <span className="whitespace-nowrap">10 Lakhs+</span> products and <span className="whitespace-nowrap">100+ countries</span> with our <span className="whitespace-nowrap">end-to-end</span> procurement, supplier verification, and freight forwarding solutions.
+            AFFHAN Group has sourced out of Royapuram since {FOUNDED_YEAR}, minutes from Harbour Gate No.&nbsp;3 and the yards our clients&apos; cargo clears through. Work with a <strong className="text-slate-800">China sourcing agent in Chennai</strong> whose buyers have already stood in the factory — and an <strong className="text-slate-800">import export company in Chennai</strong> that treats vetting, inspection, freight and clearance as one job rather than four vendors. As your <strong className="text-slate-800">product sourcing agent</strong> we quote a landed cost into Tamil Nadu, drawn from <span className="whitespace-nowrap">10 Lakhs+</span> products moving to <span className="whitespace-nowrap">100+ countries</span>.
           </p>
           {/* Single CTA, centred. The scale/lift sits behind `motion-safe:`, so
               a reduced-motion visitor never receives those utilities at all —
@@ -263,7 +272,7 @@ export default async function SourcingCompanyChennaiPage() {
               Our Sourcing Services in Chennai
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.6] tracking-[-0.003em] text-pretty">
-              We provide comprehensive product sourcing in Chennai to streamline your import operations. Whether you need a full-service import company or a specialized sourcing agent in Chennai, we have you covered.
+              Three services, almost always bought together. Most Chennai importers reach us after a shipment went wrong somewhere in the gap between the factory floor and the Bill of Entry, so we run product sourcing in Chennai end to end instead of handing you between a buying agent, an inspector and a forwarder.
             </p>
           </div>
 
@@ -295,7 +304,7 @@ export default async function SourcingCompanyChennaiPage() {
               <div className="p-5 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">China Product Sourcing</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  We act as your dedicated China sourcing agent in Chennai. Find any product from our 500+ product categories with competitive factory-direct pricing.
+                  Tell us the specification, the quantity and the price you need to hit. Our Guangzhou team shortlists factories already making the part and returns quotes you can read side by side, across 500+ categories.
                 </p>
               </div>
             </div>
@@ -314,7 +323,7 @@ export default async function SourcingCompanyChennaiPage() {
               <div className="p-5 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Supplier Verification</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  Risk-free importing. Our local team conducts background checks and physical audits to ensure you work with verified manufacturers.
+                  Before a deposit moves, we check the business licence, the export history and the plant itself. Our people walk the line in person — the one step that separates a real manufacturer from a trading desk with a convincing website.
                 </p>
               </div>
             </div>
@@ -333,7 +342,7 @@ export default async function SourcingCompanyChennaiPage() {
               <div className="p-5 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Freight Forwarding</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  Sea and air freight logistics managed seamlessly. We handle customs clearance, NVOCC, and port handling directly to Chennai.
+                  Sea or air, LCL or full container, booked and tracked into Chennai Port. We coordinate the Bill of Entry, the duty payment and the final run to your godown, so one team owns the consignment from the factory gate to yours.
                 </p>
               </div>
             </div>
@@ -346,16 +355,135 @@ export default async function SourcingCompanyChennaiPage() {
           deliverables, and all of it is real text in the DOM: the mobile
           stepper renders every stage unconditionally, which is the rendering
           mobile-first crawling actually indexes. */}
+      {/* Route, paperwork and timeline for the Chennai end specifically. The
+          nine-stage workflow below is shared with the Dubai page by design —
+          the order runs the same way wherever it lands — so the localised
+          detail that makes this page worth indexing lives here instead.
+          Reuses the frosted panel from the Industries section rather than
+          introducing another card treatment. */}
+      <section className="py-16 lg:py-24 bg-gradient-to-b from-white to-[#f5fbfd] border-t border-slate-200">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="text-center mb-10 lg:mb-12">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-4">
+              Importing from China into Chennai
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty">
+              Chennai is the natural entry point for importers across South India, and most of what goes wrong on a first shipment goes wrong on paper rather than at sea. This is what the route actually looks like.
+            </p>
+          </div>
+          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 lg:p-10 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="grid gap-8 lg:gap-10 lg:grid-cols-3">
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                  Ports, routes and transit times
+                </h3>
+                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                  Most of what we move for Chennai buyers loads at Yantian, Ningbo, Shanghai or Nansha and discharges at Chennai Port, with Kattupalli and Ennore absorbing the overflow when berths are tight. Port to port, a sea shipment typically runs 14 to 21 days depending on the service and whether it transships; air freight into Chennai International usually lands in 3 to 6 days. Those are planning ranges rather than guarantees — a blank sailing or a congested transshipment hub moves them. Buyers who cannot fill a container ship LCL, consolidated at our Guangzhou hub alongside other orders heading the same way.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                  Customs, duty and the paperwork
+                </h3>
+                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                  An Importer Exporter Code from the DGFT has to exist before the first consignment arrives, or the goods simply sit. Clearance runs on a Bill of Entry filed through ICEGATE, against which Basic Customs Duty, the Social Welfare Surcharge and IGST fall due. IGST is the part first-time importers misread: it is recoverable as input credit through your GST return, so it shapes cash flow rather than final cost. Several categories — electronics, toys and medical devices among them — need BIS or CDSCO registration before they can clear at all, which is a question to settle while quoting, not at the port.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                  Where consignments actually get held
+                </h3>
+                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                  In our experience the commonest cause of a delayed clearance is HS classification. The code sets the duty rate and any licensing conditions attached to the goods, and a plausible-looking wrong code produces a query, a re-assessment, and demurrage accruing while it is argued. We classify at the quoting stage so the landed cost you approve is the one you pay, then work with your CHA through assessment, duty payment and delivery to your godown anywhere in Tamil Nadu.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <SourcingProcessSection />
+
+      {/* The local counterpart to the shared workflow: what a Chennai importer
+          has to have ready at this end. Reuses the narrow max-w-3xl measure and
+          the CheckCircle2 list already used elsewhere on the page. */}
+      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+            How sourcing works for a Chennai business
+          </h2>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            The nine stages above run the same way wherever the goods are going. What changes for a Chennai importer is the preparation at this end.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+            Most enquiries start with very little — a photograph, a competitor&apos;s sample, or a part that has quietly become hard to buy locally. That is enough for us to begin. What genuinely delays a first order is the registration and banking side, so it is worth having in place:
+          </p>
+          <ul className="space-y-3.5 mb-6">
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              An Importer Exporter Code from the DGFT, and GST registration on the importing entity
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              An AD Code from your bank, registered at Chennai Port — without it the consignment cannot be cleared in your name
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              A realistic first quantity — factories hold minimum order quantities, and pushing far under one moves the unit price more than negotiation ever will
+            </li>
+          </ul>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            On price, compare landed cost rather than the figure on the factory&apos;s quotation. An FOB price excludes freight, insurance, duty and delivery; a CIF price covers the sea leg but stops at the port, with clearance and haulage still ahead of you. We quote door-delivered into Tamil Nadu so there is a single number to weigh against your local supplier — which is usually the comparison a business is actually trying to make.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+            For a repeat line the second order is materially cheaper than the first. The factory is known, the specification is fixed, the classification is settled, and the inspection checklist already exists.
+          </p>
+        </div>
+      </section>
 
       {/* Industries */}
       <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="text-center mb-12">
             <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
-              Industries We Serve
+              Industries We Source For in Chennai and Tamil Nadu
             </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty mt-4">
+              Tamil Nadu&apos;s manufacturing belts import in recognisable patterns, and after {yearsTrading} years we know most of them. These are the sectors the Royapuram office handles most often.
+            </p>
           </div>
+          {/* Same liquid-glass-card treatment as the services grid, minus the
+              image block — the class is purely a surface, so it works text-only
+              and introduces no new visual pattern. */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 mb-10 lg:mb-12">
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Auto components</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                The Ambattur, Oragadam and Sriperumbudur belt buys fasteners, castings, rubber and plastic mouldings, jigs and press tooling. Drawings matter more than photographs here, and first articles are inspected against them before a production run is released.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Leather and footwear</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Ambur, Ranipet and Vaniyambadi source buckles and hardware, linings, soles and finishing chemicals, along with spares for cutting and stitching machinery that are no longer stocked in India.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Textiles and garments</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Tiruppur, Erode and Karur import trims, labels, elastics, zips and retail packaging, plus knitting and dyeing machine parts where the OEM lead time is measured in months rather than weeks.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Engineering and electricals</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Coimbatore and Hosur buy motors, pump components, switchgear, LED assemblies and control-panel parts, usually against a certification requirement that has to be verified at the factory rather than promised in an email.
+              </p>
+            </div>
+          </div>
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-6 max-w-2xl mx-auto">
+            Beyond those, the catalogue below covers every category we can quote against — browse it to find something close to what you need, and we will source to your specification.
+          </p>
           <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
               {tree.slice(0, 16).map((cat) => {
@@ -390,7 +518,7 @@ export default async function SourcingCompanyChennaiPage() {
                 Why Choose AFFHAN as Your Chennai Sourcing Partner?
               </h2>
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
-                Partnering with the right import export company in Chennai can make or break your supply chain. We bring years of B2B trade expertise, ensuring low costs and high quality.
+                We are not a broker forwarding your enquiry to a Chinese trading company and adding a margin. AFFHAN buys, inspects and ships on its own account, with staff in Guangzhou and an office at Royapuram you can walk into.
               </p>
               {/* These used to restate the stat tiles sitting beside them —
                   products, countries and rating were each printed twice in one
@@ -401,16 +529,16 @@ export default async function SourcingCompanyChennaiPage() {
                   in the FAQ or the service cards below — nothing new asserted. */}
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Our own procurement team on the ground in China
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Buyers of our own in Guangzhou — no agency chain between you and the plant
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Pre-shipment factory audits and quality inspections
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Factories checked before the deposit, goods checked before they sail
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> LCL and FCL freight with customs clearance into Chennai
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> LCL and FCL into Chennai Port, with the Bill of Entry handled alongside
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> {yearsTrading} Years of Verified Excellence — trading since {FOUNDED_YEAR}
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> {yearsTrading} years on the same corridor — trading since {FOUNDED_YEAR}
                 </li>
               </ul>
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mt-6">

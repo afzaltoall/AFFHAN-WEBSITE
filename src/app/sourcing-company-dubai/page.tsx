@@ -86,6 +86,16 @@ const faqs = [
     answer:
       "We source from a vast catalog of over 10 Lakhs+ products across 500+ categories, ranging from industrial machinery and electronics to building materials and consumer goods.",
   },
+  {
+    question: "Should my goods land in a UAE free zone or on the mainland?",
+    answer:
+      "It depends on where they go next. Goods held in a free zone such as JAFZA or DMCC stay under customs suspension, with duty payable only if they enter the mainland, which suits stock intended for re-export. Cargo being sold inside the UAE is usually cleared to the mainland directly. Decide before booking, because moving goods between the two afterwards adds cost.",
+  },
+  {
+    question: "Can you consolidate orders from several Chinese suppliers into one shipment?",
+    answer:
+      "Yes. Cargo from different factories is brought together at our Guangzhou warehouse, checked, and shipped as a single consignment to Jebel Ali. For distributors this is usually a larger saving than negotiating unit prices, because it removes duplicate freight and handling charges on part-container loads.",
+  },
 ];
 
 const schema = {
@@ -179,8 +189,7 @@ export default async function SourcingCompanyDubaiPage() {
           </h1>
           
           <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
-            Looking for a reliable <strong className="text-slate-800">China sourcing agent in Dubai</strong> or a trusted <strong className="text-slate-800">import export company in the UAE</strong>? 
-            AFFHAN Group connects UAE businesses to the world&apos;s largest supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we manage everything from factory audits to shipping straight to <span className="whitespace-nowrap">Jebel Ali Port</span> or your <span className="whitespace-nowrap">DMCC Free Zone</span> warehouse.
+            Most cargo moving from China into the Gulf comes through Jebel Ali, and the buyers who do well there are the ones who fixed quality before the container sailed. That is the work of a <strong className="text-slate-800">China sourcing agent in Dubai</strong>: factory checks in Guangzhou first, then an <strong className="text-slate-800">import export company in the UAE</strong> to book, consolidate and clear the shipment. AFFHAN has run this corridor since {FOUNDED_YEAR} as a <strong className="text-slate-800">product sourcing agent</strong> for traders supplying the UAE and the wider GCC.
           </p>
           
           <div className="hero-rise hero-rise-3 flex justify-center">
@@ -206,7 +215,7 @@ export default async function SourcingCompanyDubaiPage() {
               Our Sourcing Services in Dubai
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.6] tracking-[-0.003em] text-pretty">
-              We provide comprehensive product sourcing in Dubai to streamline the China-UAE trade corridor. Whether you need a full-service import company or a specialized sourcing agent in the Middle East, we have you covered.
+              Sourcing, verification and freight, run by one team at both ends of the corridor. For a trading company here the risk is rarely the shipping line — it is what went into the container. Product sourcing in Dubai works when somebody has looked at the goods in China before they move.
             </p>
           </div>
 
@@ -223,9 +232,9 @@ export default async function SourcingCompanyDubaiPage() {
                 />
               </div>
               <div className="p-5 sm:p-6">
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">China Product Sourcing</h3>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Factory-Direct Sourcing</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  We act as your dedicated China sourcing agent in Dubai. Find any product from our 500+ product categories with competitive factory-direct pricing for the GCC market.
+                  Send a sample, a drawing or a photograph. We identify the manufacturers already producing it, negotiate in Mandarin at the factory gate, and price the order landed into the UAE — across 500+ categories.
                 </p>
               </div>
             </div>
@@ -242,9 +251,9 @@ export default async function SourcingCompanyDubaiPage() {
                 />
               </div>
               <div className="p-5 sm:p-6">
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Supplier Verification</h3>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Supplier Vetting &amp; Factory Audits</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  Risk-free importing for UAE buyers. Our local team in China conducts background checks and physical audits to ensure you work with verified manufacturers.
+                  A verified listing is not a verified factory. We confirm the company is licensed to export, then visit and photograph the premises, so you know what you are paying for well before the balance falls due.
                 </p>
               </div>
             </div>
@@ -261,9 +270,55 @@ export default async function SourcingCompanyDubaiPage() {
                 />
               </div>
               <div className="p-5 sm:p-6">
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Freight Forwarding</h3>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Freight to Jebel Ali</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  Sea and air freight logistics managed seamlessly. We handle customs clearance, NVOCC, and port handling directly to Jebel Ali and UAE Free Zones.
+                  Consolidation at our Guangzhou hub, a booking on the right service, and documentation prepared for Dubai Customs. Cargo can be released to a mainland warehouse or held in a free zone, depending on where it is going next.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Corridor detail for the UAE end. The nine-stage workflow below is
+          deliberately shared with the Chennai page — the order runs the same
+          way wherever it lands — so everything specific to Dubai lives here.
+          Transit figures match the FAQ further down this page so the two
+          cannot contradict each other. */}
+      <section className="py-16 lg:py-24 bg-gradient-to-b from-white to-[#f5fbfd] border-t border-slate-200">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="text-center mb-10 lg:mb-12">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-4">
+              What it takes to land a China shipment in the UAE
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty">
+              The China&ndash;UAE corridor is one of the busiest in the world and it is well served, so the variable is rarely the shipping. It is whether the right goods were loaded, and whether the declaration matches them.
+            </p>
+          </div>
+          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 lg:p-10 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="grid gap-8 lg:gap-10 lg:grid-cols-3">
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                  Ports, airports and transit times
+                </h3>
+                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                  Jebel Ali takes most of the container volume arriving from China, with Port Rashid handling smaller and specialised cargo and Khalifa Port serving buyers closer to Abu Dhabi. Air freight moves through Dubai International and Al Maktoum. As planning ranges rather than promises, sea freight from China to Jebel Ali runs roughly 15 to 25 days depending on the origin port and the service, and air freight 3 to 7 days. Consolidating at our Guangzhou hub lets a buyer combine several factories&apos; output into one booking instead of paying part-container rates three times over.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                  Declarations, duty and VAT
+                </h3>
+                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                  Import declarations are filed with Dubai Customs, and goods are assessed against the GCC common external tariff that applies across the customs union. VAT is charged at import and, for a VAT-registered business, accounted for through the return rather than absorbed as a cost — a timing question more than an added expense, as in most VAT systems. The practical requirement is a valid trade licence with a customs importer code registered against it: the declaration has to be made by an entity entitled to import.
+                </p>
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                  Free zones and why Dubai re-exports
+                </h3>
+                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                  This is what makes Dubai a hub rather than a destination. Goods landed into a free zone such as JAFZA or DMCC sit under customs suspension: no import duty is due while they remain inside, and it becomes payable only if they cross into the mainland. Cargo that leaves again for another market can do so without ever having attracted UAE import duty. That mechanism is why one container from China can be broken down here and moved on to several GCC markets — and why it is worth deciding where a shipment will land before it is booked rather than after it arrives.
                 </p>
               </div>
             </div>
@@ -273,13 +328,88 @@ export default async function SourcingCompanyDubaiPage() {
 
       <SourcingProcessSection />
 
+      {/* The UAE-side counterpart to the shared workflow. Same narrow measure
+          and CheckCircle2 list the Chennai page uses for its equivalent
+          section, so no new pattern is introduced on either. */}
+      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+            What a UAE importer needs in place
+          </h2>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            Everything above is the order itself. Around it sits a handful of decisions particular to this market, and getting those wrong costs money in a way the order rarely does.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+            The first question is usually where your company sits. A mainland licence and a free zone licence both permit import, but they change where the goods should land and when duty falls due. A trader supplying UAE retailers and a distributor consolidating for onward shipment to Saudi Arabia or East Africa will not reach the same answer, and it is cheaper to settle before a booking than to move cargo between the two afterwards. What we ask for at the start:
+          </p>
+          <ul className="space-y-3.5 mb-6">
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              A valid trade licence, with a customs importer code registered against it
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              A decision on whether the cargo lands in a free zone or clears to the mainland
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Agreed Incoterms — FOB China and CIF Jebel Ali stop at very different points, and the gap is yours to cover
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              For onward GCC movement, documentation prepared at import rather than retrofitted later
+            </li>
+          </ul>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            A factory&apos;s FOB quotation and a delivered price into your warehouse are not comparable numbers, and the distance between them is where most margin surprises live. We quote the whole movement so there is one figure to work from.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+            For distributors serving more than one market, the saving usually comes from consolidation rather than negotiation — several suppliers&apos; cargo brought together in Guangzhou, shipped once, and split here.
+          </p>
+        </div>
+      </section>
+
       <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="text-center mb-12">
             <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
-              Industries We Serve
+              Sectors We Source For in Dubai and the GCC
             </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty mt-4">
+              Demand in the UAE tends to be either project-led or resale-led, and the two buy very differently. These are the sectors that reach us most often.
+            </p>
           </div>
+          {/* liquid-glass-card used text-only here — it is a surface class, so
+              it needs no image child and adds no new visual pattern. */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 mb-10 lg:mb-12">
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Building materials and MEP</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Contractors and fit-out firms order sanitaryware, tiles, cable, lighting, ducting and HVAC components against a programme date, where a slipped delivery costs more than the goods themselves. Production and shipping get scheduled to the site programme, not the other way round.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Retail, wholesale and trading</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                The Deira and Naif trading houses and Dragon Mart resellers buy consumer goods, houseware and seasonal ranges on short cycles, where landing a container before the season is worth considerably more than shaving the unit price.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Hospitality and F&amp;B</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Hotel and restaurant projects source kitchen equipment, furniture, uniforms and disposables against a specification that has to be matched exactly rather than approximated, usually with a sample signed off before production starts.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Industrial and oil-field supply</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Suppliers into the energy sector order safety equipment, valves, fittings and workshop consumables where certification is the binding constraint and has to be verified at the factory, not accepted on a datasheet.
+              </p>
+            </div>
+          </div>
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-6 max-w-2xl mx-auto">
+            Most enquiries reach us as a photograph rather than a category. Browse the listing if it helps, or simply send the product across and let us go and find who makes it.
+          </p>
           <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
               {tree.slice(0, 16).map((cat) => {
@@ -309,23 +439,23 @@ export default async function SourcingCompanyDubaiPage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance mb-6">
-                Why Choose AFFHAN as Your Dubai Sourcing Partner?
+                What a Dubai sourcing partner should actually do
               </h2>
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
-                Partnering with the right import export company in Dubai can accelerate your growth across the GCC. We bring years of B2B trade expertise, ensuring low costs and high quality for UAE importers.
+                Anyone can forward a quotation and add a margin. The value sits in the part that happens in China — the factory visit, the sample approval, the inspection before release — and in a Dubai office that answers when a shipment needs a decision that day.
               </p>
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Our own procurement team on the ground in China
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> A permanent team in China, so an audit never waits on a third party
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Pre-shipment factory audits and quality inspections
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Pre-shipment inspection reported with photographs and video before release
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> LCL and FCL freight with customs clearance into Dubai
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Consolidated sea and air freight into Jebel Ali, cleared and delivered
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> {yearsTrading} Years of Verified Excellence — trading since {FOUNDED_YEAR}
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> In the trade since {FOUNDED_YEAR}, and {yearsTrading} years on this corridor
                 </li>
               </ul>
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mt-6">
