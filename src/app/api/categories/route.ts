@@ -3,7 +3,6 @@ import { prisma } from "../../../lib/prisma";
 import { unstable_cache } from "next/cache";
 import { Category } from ".prisma/client";
 import { blockedCategoryIdSet } from "@/lib/moderation";
-import { getCdnUrl } from "@/lib/cdn";
 
 type CategoryWithCount = Category & {
   _count: { products: number };
@@ -32,13 +31,12 @@ const getCachedCategories = unstable_cache(
       .filter((cat: CategoryWithCount) => !blocked.has(cat.id))
       .map((cat: CategoryWithCount) => ({
         ...cat,
-        thumbnailUrl: getCdnUrl(cat.thumbnailUrl),
         productCount: cat._count.products
       }));
 
     return { data: formattedCategories, totalCount: totalProducts };
   },
-  ["categories-api-data-v6"],
+  ["categories-api-data-v7"],
   { revalidate: 3600 }
 );
 

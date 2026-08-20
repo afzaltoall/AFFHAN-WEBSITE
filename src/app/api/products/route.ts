@@ -40,9 +40,9 @@ const getCachedAllCategories = unstable_cache(
     const cats = await prisma.category.findMany({
       select: { id: true, name: true, parentId: true, parentName: true, thumbnailUrl: true },
     });
-    return cats.map(c => ({ ...c, thumbnailUrl: getCdnUrl(c.thumbnailUrl) }));
+    return cats;
   },
-  ["all-categories-lite-v3"],
+  ["all-categories-lite-v4"],
   { revalidate: 3600 }
 );
 
