@@ -254,7 +254,7 @@ export const CircularTestimonials = ({
           height: 16rem;
           perspective: 1000px;
         }
-        .testimonial-image {
+        :global(.testimonial-image) {
           position: absolute;
           width: 100%;
           height: 100%;
