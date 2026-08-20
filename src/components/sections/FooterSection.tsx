@@ -26,6 +26,8 @@ const usefulLinks = [
   { label: "Contact Us", href: "/contact/" },
   { label: "Privacy Policy", href: "/privacy-policy/" },
   { label: "Terms & Conditions", href: "/terms-conditions/" },
+  { label: "Sourcing in Chennai", href: "/sourcing-company-chennai/" },
+  { label: "Sourcing in Dubai", href: "/sourcing-company-dubai/" },
 ];
 
 const socialLinks = [

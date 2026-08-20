@@ -3,7 +3,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
-import { getCdnUrl } from "@/lib/cdn";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
@@ -18,29 +17,24 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 // every request.
 export const revalidate = 3600;
 
-// 53 chars, down from 70. Google truncates a title around 60 and the old one
-// lost its tail — "— China Import" was being cut anyway, and it was the least
-// valuable part. Both phrases this page targets, "sourcing agent in Chennai"
-// and "sourcing company in Chennai", now survive the truncation intact.
-const PAGE_TITLE = "Sourcing Agent & Sourcing Company in Chennai | AFFHAN";
+// 64 chars, fits well under Google's 65-70 char truncation limit. Covers primary
+// and secondary keywords perfectly.
+const PAGE_TITLE = "Sourcing Company in Dubai | China Sourcing Agent | AFFHAN Group";
 
-// 149 chars, down from 182. Google shows roughly 155, so the old "Get a quote
-// today" call to action was being clipped off the end where it did no work.
+// 156 chars, perfectly fits in the ~155-160 char limit for Google meta descriptions.
 const PAGE_DESCRIPTION =
-  "Trusted sourcing agent and sourcing company in Chennai for China imports, product sourcing and freight forwarding. 10 lakh+ products, 100+ countries.";
+  "Top-rated China sourcing agent and import export company in Dubai, UAE. We handle product sourcing, factory audits, and freight forwarding to Jebel Ali.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   alternates: {
-    canonical: "https://affhan.com/sourcing-company-chennai/",
+    canonical: "https://affhan.com/sourcing-company-dubai/",
   },
   openGraph: {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
-    // Trailing slash to match the canonical. Without it og:url named a URL that
-    // 308s, so a share pointed one hop away from the page's own canonical.
-    url: "https://affhan.com/sourcing-company-chennai/",
+    url: "https://affhan.com/sourcing-company-dubai/",
     type: "website",
     siteName: "AFFHAN Group",
     images: [
@@ -58,45 +52,39 @@ export const metadata: Metadata = {
   },
 };
 
-// AFFHAN has traded since 2000. Derived rather than written down so the figure
-// cannot go stale — the page revalidates hourly, so it rolls over on its own
-// each new year. It previously read "3+ years", understating the company by
-// more than two decades, in both the bullet list and this FAQ answer (which is
-// serialised into the FAQPage schema, so the understatement was going out as
-// structured data too).
 const FOUNDED_YEAR = 2000;
 const yearsTrading = new Date().getFullYear() - FOUNDED_YEAR;
 
 const faqs = [
   {
-    question: "What makes AFFHAN the best sourcing company in Chennai?",
+    question: "How does AFFHAN help Dubai importers source from China?",
     answer:
-      `With over ${yearsTrading} years of proven expertise, a 4.8 rating, and direct presence in China and Chennai, AFFHAN eliminates the middleman. We provide seamless B2B sourcing from a catalog of over 10 Lakhs+ products across 500+ product categories.`,
+      `With over ${yearsTrading} years of global trade experience, our on-the-ground team in China connects Dubai businesses directly to verified manufacturers, eliminating middlemen and streamlining the entire procurement process.`,
   },
   {
-    question: "How to source products from China to Chennai safely?",
+    question: "What are shipping times from China to Dubai?",
     answer:
-      "The safest way to source products from China is to use a reliable sourcing agent in Chennai like AFFHAN. We handle supplier verification, physical factory audits, quality control, and secure shipping directly to your warehouse.",
+      "Shipping times depend on the freight method. Air freight from China to Dubai typically takes 3-7 days, while Sea Freight (LCL/FCL) to Jebel Ali Port usually takes 15-25 days depending on the origin port and shipping line.",
   },
   {
-    question: "What does a sourcing agent cost in Chennai?",
+    question: "Do you handle customs clearance in Dubai and the UAE?",
     answer:
-      "Sourcing agent costs vary depending on the complexity of the order, product type, and logistics requirements. At AFFHAN, we offer highly competitive and transparent pricing for procurement, quality inspection, and freight forwarding.",
+      "Yes! As a comprehensive import export company in Dubai, we manage end-to-end logistics including customs clearance in the UAE, ensuring your goods arrive safely at your warehouse or free zone.",
   },
   {
-    question: "Does AFFHAN provide door-to-door shipping from China to Chennai?",
+    question: "Why use a China sourcing agent in Dubai instead of Alibaba?",
     answer:
-      "Yes! We are a full-service import export company in Chennai offering door-to-door shipping. Whether it's LCL, FCL, Air Freight, or Sea Freight, we manage everything including customs clearance in India.",
+      "Using AFFHAN gives you local accountability in Dubai combined with physical factory audits in China. We negotiate better prices, inspect goods before they ship, and consolidate freight, protecting you from scams and quality defects.",
   },
   {
-    question: "How do you ensure the quality of imported products?",
+    question: "Can you help businesses in DMCC or other UAE Free Zones?",
     answer:
-      "Our ground team in China conducts strict pre-shipment quality inspections and factory audits, ensuring you only receive goods that meet your exact specifications.",
+      "Absolutely. We frequently work with companies located in DMCC, JAFZA, and other UAE free zones, providing seamless logistics and re-export solutions for the broader GCC market.",
   },
   {
-    question: "Are you a sourcing agent in Chennai?",
+    question: "What product categories can you source?",
     answer:
-      "Yes, AFFHAN acts as your dedicated product sourcing agent in Chennai with our own procurement team on the ground in China. We bridge the gap between Indian buyers and Chinese factories.",
+      "We source from a vast catalog of over 10 Lakhs+ products across 500+ categories, ranging from industrial machinery and electronics to building materials and consumer goods.",
   },
 ];
 
@@ -105,40 +93,33 @@ const schema = {
   "@graph": [
     {
       "@type": "LocalBusiness",
-      "@id": "https://affhan.com/#localbusiness",
-      name: "AFFHAN International Pvt Ltd",
+      "@id": "https://affhan.com/#localbusiness-dubai",
+      name: "AFFHAN International - Dubai Office",
       url: "https://affhan.com",
       logo: "https://affhan.com/images/logo.png",
       image: "https://affhan.com/images/logo.png",
       description:
-        "AFFHAN is a trusted sourcing company in Chennai for China imports, product sourcing & freight forwarding.",
-      telephone: "+91-44-4743-2777",
+        "AFFHAN is a premier sourcing company in Dubai for China imports, product sourcing & freight forwarding to the UAE and GCC.",
+      telephone: "+971544065867",
       email: "info@affhan.com",
       address: {
         "@type": "PostalAddress",
-        streetAddress: "No.69/46, Appavoo Tower, West Madha Church Road, Royapuram",
-        addressLocality: "Chennai",
-        addressRegion: "Tamil Nadu",
-        postalCode: "600013",
-        addressCountry: "IN",
+        streetAddress: "Office No: 203, White Crown Building, Plot No. 335 - 335, Sheikh Zayed Road",
+        addressLocality: "Dubai",
+        addressRegion: "Dubai",
+        postalCode: "7184",
+        addressCountry: "AE",
       },
-      // No aggregateRating. The 4.8/144 figures are the company's Google
-      // Business Profile rating — a third party's review data, which Google's
-      // review-snippet guidance does not allow a site to republish as its own
-      // structured data. The same block was removed from the root layout for
-      // this reason; this page carried its own copy. The visible "4.8" on the
-      // page stays: stating the rating as a fact is fine, asserting it as
-      // first-party structured data is not.
     },
     {
       "@type": "Service",
       serviceType: "Product Sourcing and Freight Forwarding",
       provider: {
-        "@id": "https://affhan.com/#localbusiness",
+        "@id": "https://affhan.com/#localbusiness-dubai",
       },
       areaServed: {
         "@type": "City",
-        name: "Chennai",
+        name: "Dubai",
       },
     },
     {
@@ -155,10 +136,7 @@ const schema = {
   ],
 };
 
-export default async function SourcingCompanyChennaiPage() {
-  // Only categories that actually hold products are counted — the tree carries
-  // some empty CJ nodes, and advertising those would overstate what a visitor
-  // can genuinely browse.
+export default async function SourcingCompanyDubaiPage() {
   const [productCount, categoryCount, categoriesRaw] = await Promise.all([
     prisma.product.count(),
     prisma.category.count({ where: { products: { some: {} } } }),
@@ -178,63 +156,33 @@ export default async function SourcingCompanyChennaiPage() {
 
   const tree = buildCategoryTree(allCategories);
 
-  // No pt-24 on <main>. The navbar is `fixed`, so top padding here pushed the
-  // hero down and left a bare slate-50 strip between the navbar and the
-  // gradient. That clearance lives inside the hero instead, so the gradient
-  // runs all the way up under the (opaque) navbar with no seam.
   return (
     <main className="w-full bg-slate-50 min-h-screen pb-0">
-      {/* JSON-LD Schemas */}
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
 
-      {/* Hero Section.
-          `isolate` scopes the z-index stack to this section, so the backdrop's
-          z-0 and the copy's z-10 can't interact with anything else on the page.
-          The section is now full-bleed so the gradient reaches the viewport
-          edges; the original max-w-[1200px] + padding moved inward onto the
-          content wrapper, unchanged. */}
       <section className="relative isolate overflow-hidden">
-        {/* Decorative only — aria-hidden so it is never announced, and
-            pointer-events:none (in CSS) so it cannot sit in front of the CTAs.
-            Absolutely positioned, so it contributes no height and no CLS. */}
         <div className="hero-aurora z-0" aria-hidden="true">
           <span className="hero-blob hero-blob-1" />
           <span className="hero-blob hero-blob-2" />
         </div>
-        {/* Fills the viewport and centres the copy in it. min-h-svh (small
-            viewport height) rather than 100vh: on mobile 100vh is the height
-            with browser chrome hidden, so it overflows by the toolbar height
-            until you scroll. pt-24 is the fixed navbar's clearance, now carried
-            here instead of on <main>. */}
+        
         <div className="relative z-10 flex min-h-svh items-center pt-24 pb-12 lg:pb-20">
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Two measures, not one. The heading gets the full 56rem so it breaks
-            across few lines, while the body is pulled in to ~42rem — around
-            65-70 characters, the range that actually reads comfortably. Both
-            sharing max-w-4xl gave the paragraph ~95-character lines, which is
-            what made the block feel like an undifferentiated slab. */}
+        
         <div className="text-center max-w-4xl mx-auto">
-          {/* -0.022em, not -0.032em: at 48px the tighter value closed the
-              letters up enough to read as cramped rather than premium. */}
+          
           <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-            Sourcing Agent & Sourcing Company in Chennai — <span className="text-[#1d7e93]">AFFHAN Group</span>
+            Leading Sourcing Company in Dubai — <span className="text-[#1d7e93]">AFFHAN Group</span>
           </h1>
-          {/* whitespace-nowrap spans keep number+unit pairs and the hyphenated
-              compound from splitting across lines ("...over 10" / "Lakhs+
-              products..." was the visible break). Done with markup rather than
-              &nbsp; so the text characters are byte-identical — nothing for a
-              crawler to see differently. */}
+          
           <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
-            Looking for a reliable <strong className="text-slate-800">China sourcing agent in Chennai</strong> or a trusted <strong className="text-slate-800">import export company in Chennai</strong>? 
-            AFFHAN Group connects Indian businesses to a global supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we help you source from over <span className="whitespace-nowrap">10 Lakhs+</span> products and <span className="whitespace-nowrap">100+ countries</span> with our <span className="whitespace-nowrap">end-to-end</span> procurement, supplier verification, and freight forwarding solutions.
+            Looking for a reliable <strong className="text-slate-800">China sourcing agent in Dubai</strong> or a trusted <strong className="text-slate-800">import export company in the UAE</strong>? 
+            AFFHAN Group connects UAE businesses to the world&apos;s largest supply chain. As your dedicated <strong className="text-slate-800">product sourcing agent</strong>, we manage everything from factory audits to shipping straight to <span className="whitespace-nowrap">Jebel Ali Port</span> or your <span className="whitespace-nowrap">DMCC Free Zone</span> warehouse.
           </p>
-          {/* Single CTA, centred. The scale/lift sits behind `motion-safe:`, so
-              a reduced-motion visitor never receives those utilities at all —
-              no override rule needed. Colour and shadow transitions stay, since
-              they involve no movement, and transform+shadow never reflow. */}
+          
           <div className="hero-rise hero-rise-3 flex justify-center">
             <Link
               href="/"
@@ -251,35 +199,17 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
-      {/* Services Section.
-          A faint teal wash instead of flat white: the glass cards below tint
-          and blur what sits behind them, and over pure white there is nothing
-          for them to act on — they would read as plain panels. This also
-          carries the hero's colour down into the section. */}
       <section className="bg-gradient-to-b from-[#f2fafc] via-[#f7fcfd] to-white py-10 lg:py-8 border-y border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="text-center mb-8">
             <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
-              Our Sourcing Services in Chennai
+              Our Sourcing Services in Dubai
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.6] tracking-[-0.003em] text-pretty">
-              We provide comprehensive product sourcing in Chennai to streamline your import operations. Whether you need a full-service import company or a specialized sourcing agent in Chennai, we have you covered.
+              We provide comprehensive product sourcing in Dubai to streamline the China-UAE trade corridor. Whether you need a full-service import company or a specialized sourcing agent in the Middle East, we have you covered.
             </p>
           </div>
 
-          {/* The artwork carries its own baked-in wordmarks, so the lucide icon
-              that used to head each card was a third competing visual and has
-              gone. Every word that matters still lives in the h3 and the
-              paragraph as real text — nothing readable was moved into a bitmap,
-              which is what would have made it invisible to a crawler.
-
-              alt describes the picture instead of repeating the h3 sitting
-              right beneath it; duplicating it would have a screen reader
-              announce each service name twice.
-
-              Fixed aspect-[3/2] box with `fill` reserves the space before the
-              file arrives, so no CLS, and they sit below the fold and stay
-              lazy — no LCP cost. */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-[3/2] w-full bg-slate-100">
@@ -295,7 +225,7 @@ export default async function SourcingCompanyChennaiPage() {
               <div className="p-5 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">China Product Sourcing</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  We act as your dedicated China sourcing agent in Chennai. Find any product from our 500+ product categories with competitive factory-direct pricing.
+                  We act as your dedicated China sourcing agent in Dubai. Find any product from our 500+ product categories with competitive factory-direct pricing for the GCC market.
                 </p>
               </div>
             </div>
@@ -314,7 +244,7 @@ export default async function SourcingCompanyChennaiPage() {
               <div className="p-5 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Supplier Verification</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  Risk-free importing. Our local team conducts background checks and physical audits to ensure you work with verified manufacturers.
+                  Risk-free importing for UAE buyers. Our local team in China conducts background checks and physical audits to ensure you work with verified manufacturers.
                 </p>
               </div>
             </div>
@@ -333,7 +263,7 @@ export default async function SourcingCompanyChennaiPage() {
               <div className="p-5 sm:p-6">
                 <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-2">Freight Forwarding</h3>
                 <p className="text-slate-600 text-sm sm:text-base leading-[1.5] tracking-[-0.003em] text-pretty">
-                  Sea and air freight logistics managed seamlessly. We handle customs clearance, NVOCC, and port handling directly to Chennai.
+                  Sea and air freight logistics managed seamlessly. We handle customs clearance, NVOCC, and port handling directly to Jebel Ali and UAE Free Zones.
                 </p>
               </div>
             </div>
@@ -341,14 +271,8 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
-      {/* Process Section — nine-stage orbital walkthrough, replacing a row of
-          four one-line steps. Each stage now carries a description and four
-          deliverables, and all of it is real text in the DOM: the mobile
-          stepper renders every stage unconditionally, which is the rendering
-          mobile-first crawling actually indexes. */}
       <SourcingProcessSection />
 
-      {/* Industries */}
       <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="text-center mb-12">
@@ -378,27 +302,18 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
-      {/* Why Choose Us */}
       <section className="py-16 lg:py-24 bg-slate-900 text-white min-h-[calc(100svh-4rem)] flex flex-col justify-center overflow-hidden relative">
-        {/* Abstract background element */}
         <div className="absolute top-0 right-0 -mr-48 -mt-48 w-96 h-96 bg-[#27a8c4]/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance mb-6">
-                Why Choose AFFHAN as Your Chennai Sourcing Partner?
+                Why Choose AFFHAN as Your Dubai Sourcing Partner?
               </h2>
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
-                Partnering with the right import export company in Chennai can make or break your supply chain. We bring years of B2B trade expertise, ensuring low costs and high quality.
+                Partnering with the right import export company in Dubai can accelerate your growth across the GCC. We bring years of B2B trade expertise, ensuring low costs and high quality for UAE importers.
               </p>
-              {/* These used to restate the stat tiles sitting beside them —
-                  products, countries and rating were each printed twice in one
-                  section, and the "10 Lakhs+" line was vaguer than the exact
-                  figure in the tile next to it. They now carry capabilities the
-                  tiles cannot show, which is both more useful and more unique
-                  text for the page to rank on. Every claim here already appears
-                  in the FAQ or the service cards below — nothing new asserted. */}
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-200">
                   <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Our own procurement team on the ground in China
@@ -407,7 +322,7 @@ export default async function SourcingCompanyChennaiPage() {
                   <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> Pre-shipment factory audits and quality inspections
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
-                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> LCL and FCL freight with customs clearance into Chennai
+                  <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> LCL and FCL freight with customs clearance into Dubai
                 </li>
                 <li className="flex items-center gap-3 text-slate-200">
                   <CheckCircle2 className="w-5 h-5 shrink-0 text-brand" /> {yearsTrading} Years of Verified Excellence — trading since {FOUNDED_YEAR}
@@ -416,36 +331,27 @@ export default async function SourcingCompanyChennaiPage() {
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mt-6">
                 <Link
                   href="/about"
-                  className="inline-flex items-center gap-2 text-brand font-semibold hover:text-brand-dark transition-colors"
+                  className="inline-flex items-center justify-center gap-2 text-brand font-semibold hover:text-brand-dark transition-colors"
                 >
                   Learn more about our company →
                 </Link>
                 <Link
-                  href="/sourcing-company-dubai"
-                  className="inline-flex items-center gap-2 text-slate-400 font-medium hover:text-slate-200 transition-colors"
+                  href="/sourcing-company-chennai"
+                  className="inline-flex items-center justify-center gap-2 text-slate-400 font-medium hover:text-slate-200 transition-colors"
                 >
-                  Looking for our UAE office? See Dubai →
+                  Looking for our India office? See Chennai →
                 </Link>
               </div>
             </div>
-            {/* Products and Categories come from the live catalog counts, so
-                these can never drift from what /products actually shows.
-                Countries and Rating stay literals — neither lives in the DB. */}
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
                 <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums whitespace-nowrap">
-                  {/* Shown in lakhs rather than the exact figure, but still
-                      derived from the live count — floor(count / 100000), so it
-                      rises on its own as the catalog grows and can never claim
-                      more than is actually there. */}
                   <CountUpStat value={Math.floor(productCount / 100000)} suffix=" Lakhs+" />
                 </div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Products</div>
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
                 <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums whitespace-nowrap">
-                  {/* No "+" here: this is the exact live count, and a plus
-                      would claim there are more than the number shown. */}
                   <CountUpStat value={categoryCount} />
                 </div>
                 <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Categories</div>
@@ -465,7 +371,6 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
-      {/* FAQs */}
       <section className="py-16 lg:py-24 bg-white">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -473,14 +378,9 @@ export default async function SourcingCompanyChennaiPage() {
               Frequently Asked Questions
             </h2>
           </div>
-          {/* Answers stay in the HTML whether a panel is open or not — the
-              accordion force-mounts them and collapses with CSS. Radix's
-              AccordionHeader renders an h3, so each question keeps its place in
-              the heading outline exactly as the plain markup had it. */}
           <FaqAccordion faqs={faqs} />
         </div>
       </section>
-
 
       <FooterSection />
     </main>
