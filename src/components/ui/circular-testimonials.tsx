@@ -172,7 +172,7 @@ export const CircularTestimonials = ({
           {testimonials.map((testimonial, index) => (
             <Image
               key={testimonial.src + index}
-              src={getCdnUrl(testimonial.src) as string}
+              src={getCdnUrl(testimonial.src, 300) as string}
               alt={testimonial.name}
               width={600}
               height={400}

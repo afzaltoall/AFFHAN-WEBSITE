@@ -267,7 +267,7 @@ export default function SocialCards({ cards }: SocialCardsProps) {
             const inner = (
               <>
                 <div className="relative w-full h-full overflow-hidden">
-                  <Image src={getCdnUrl(card.imgUrl) as string} width={400} height={500} sizes="(max-width: 768px) 200px, 300px" alt={card.alt || `Card ${index}`} className="absolute inset-0 w-full h-full object-cover z-10" />
+                  <Image src={getCdnUrl(card.imgUrl, 300) as string} width={400} height={500} sizes="(max-width: 768px) 200px, 300px" alt={card.alt || `Card ${index}`} className="absolute inset-0 w-full h-full object-cover z-10" />
                   {(card.tag || card.title) && (
                     <div className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/25 to-transparent p-3 pt-8 text-left">
                       {card.tag && <span className="block text-[9px] font-bold uppercase tracking-wider text-white/70">{card.tag}</span>}
