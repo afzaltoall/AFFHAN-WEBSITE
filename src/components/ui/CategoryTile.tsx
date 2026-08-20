@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Box } from "lucide-react";
+import { getCdnUrl } from "@/lib/cdn";
 
 // Shared circular category tile — the mega-menu's "All Categories" grid and the
 // /products category rows both render through this so the image-thumbnail look
@@ -45,7 +46,7 @@ export function CategoryTile({
       >
         {showImg ? (
           <Image
-            src={thumbnailUrl as string}
+            src={getCdnUrl(thumbnailUrl, 100) as string}
             alt={name}
             fill
             sizes="72px"

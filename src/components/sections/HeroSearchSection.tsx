@@ -145,7 +145,7 @@ export function HeroSearchSection() {
                       {results.categories.map(c => (
                         <button key={c.id} onClick={() => goCategory(c.id)} className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors">
                           <span className="relative w-9 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0">
-                            {c.thumbnailUrl && <Image src={c.thumbnailUrl} alt={c.name} fill sizes="36px" className="object-cover" />}
+                            {c.thumbnailUrl && <Image src={getCdnUrl(c.thumbnailUrl, 50) as string} alt={c.name} fill sizes="36px" className="object-cover" />}
                           </span>
                           <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 min-w-0">
                             <Layers size={13} className="text-brand shrink-0" />
@@ -162,7 +162,7 @@ export function HeroSearchSection() {
                       {results.products.map(p => (
                         <button key={p.id} onClick={() => runSearch(p.name)} className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors">
                           <span className="relative w-10 h-10 rounded-lg overflow-hidden bg-slate-100 border border-slate-100 shrink-0">
-                            {p.imageUrl && <Image src={getCdnUrl(p.imageUrl) as string} alt={p.name} fill sizes="40px" className="object-cover" />}
+                            {p.imageUrl && <Image src={getCdnUrl(p.imageUrl, 100) as string} alt={p.name} fill sizes="40px" className="object-cover" />}
                           </span>
                           <span className="min-w-0">
                             <span className="block text-sm font-semibold text-slate-800 truncate">{p.name}</span>

@@ -333,7 +333,7 @@ export function Navbar() {
                                 className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors cursor-pointer"
                               >
                                 <span className="relative w-9 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center">
-                                  {c.thumbnailUrl ? <Image src={c.thumbnailUrl} alt={c.name} fill sizes="36px" className="object-cover" /> : <Layers size={16} className="text-slate-400" />}
+                                  {c.thumbnailUrl ? <Image src={getCdnUrl(c.thumbnailUrl, 50) as string} alt={c.name} fill sizes="36px" className="object-cover" /> : <Layers size={16} className="text-slate-400" />}
                                 </span>
                                 <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 min-w-0">
                                   <Layers size={13} className="text-brand shrink-0" />
@@ -356,7 +356,7 @@ export function Navbar() {
                               >
                                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center">
                                   {product.imageUrl ? (
-                                    <Image src={getCdnUrl(product.imageUrl) as string} alt={product.name} fill sizes="40px" className="object-cover" />
+                                    <Image src={getCdnUrl(product.imageUrl, 100) as string} alt={product.name} fill sizes="40px" className="object-cover" />
                                   ) : (
                                     <span className="text-[10px] text-slate-400">No Img</span>
                                   )}

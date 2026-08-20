@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight } from "lucide-react";
+import { getCdnUrl } from "@/lib/cdn";
 
 interface Cat {
   id: string;
@@ -22,7 +23,7 @@ function CategoryTile({ cat }: { cat: Cat }) {
       <div className="relative w-full aspect-square bg-slate-50 overflow-hidden">
         {cat.thumbnailUrl && !failed ? (
           <Image
-            src={cat.thumbnailUrl}
+            src={getCdnUrl(cat.thumbnailUrl, 300) as string}
             alt={cat.name}
             fill
             sizes="(max-width:640px) 40vw, (max-width:1024px) 22vw, 15vw"

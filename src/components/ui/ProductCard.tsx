@@ -49,7 +49,7 @@ export function ProductCard({ product, onClick, priority }: ProductCardProps) {
         <div className="relative w-full h-40 sm:h-48 shrink-0 bg-slate-50/40 overflow-hidden">
           {showImage ? (
             <Image
-              src={getCdnUrl(product.imageUrl) as string}
+              src={getCdnUrl(product.imageUrl, 400) as string}
               alt={product.name}
               fill
               priority={priority}
