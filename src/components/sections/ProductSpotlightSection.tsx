@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { CircularTestimonials } from "@/components/ui/circular-testimonials";
 import { InquiryModal } from "@/components/ui/InquiryModal";
-import { getCdnUrl } from "@/lib/cdn";
 import type { ProductCardData } from "@/components/ui/ProductCard";
 
 function sourcingBlurb(categoryName: string) {
@@ -36,7 +35,7 @@ export function ProductSpotlightSection() {
         quote: sourcingBlurb(p.categoryRef?.name || p.category || "product"),
         name: p.name,
         designation: p.categoryRef?.name || p.category || "Global Sourcing",
-        src: getCdnUrl(p.imageUrl) as string,
+        src: p.imageUrl as string,
         _product: p,
       })),
     [products]

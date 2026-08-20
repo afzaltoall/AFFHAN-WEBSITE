@@ -6,7 +6,6 @@ import { ChevronRight, Flame } from "lucide-react";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { TextMorph } from "@/components/ui/text-morph";
 import SocialCards, { type CardItem } from "@/components/ui/card-fan-carousel";
-import { getCdnUrl } from "@/lib/cdn";
 import type { ProductCardData } from "@/components/ui/ProductCard";
 
 export function PopularProductsSection() {
@@ -34,7 +33,7 @@ export function PopularProductsSection() {
     const slice = withImg.length > HERO_COUNT + 4 ? withImg.slice(HERO_COUNT, HERO_COUNT + 20) : withImg.slice(-20);
     return slice
       .map((p) => ({
-        imgUrl: getCdnUrl(p.imageUrl) as string,
+        imgUrl: p.imageUrl as string,
         alt: p.name,
         tag: p.categoryRef?.name || p.category || "Product",
         title: p.name,
