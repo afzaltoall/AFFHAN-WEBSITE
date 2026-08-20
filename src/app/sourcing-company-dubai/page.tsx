@@ -287,7 +287,7 @@ export default async function SourcingCompanyDubaiPage() {
                 return (
                   <Link
                     key={cat.id}
-                    href={`/products?categoryId=${cat.id}`}
+                    href={`/products/?categoryId=${cat.id}`}
                     className="group flex items-start gap-3.5 px-4 py-3.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
                   >
                     <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#1d7e93] mt-0.5" />
@@ -330,13 +330,13 @@ export default async function SourcingCompanyDubaiPage() {
               </ul>
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mt-6">
                 <Link
-                  href="/about"
+                  href="/about/"
                   className="inline-flex items-center justify-center gap-2 text-brand font-semibold hover:text-brand-dark transition-colors"
                 >
                   Learn more about our company →
                 </Link>
                 <Link
-                  href="/sourcing-company-chennai"
+                  href="/sourcing-company-chennai/"
                   className="inline-flex items-center justify-center gap-2 text-slate-400 font-medium hover:text-slate-200 transition-colors"
                 >
                   Looking for our India office? See Chennai →

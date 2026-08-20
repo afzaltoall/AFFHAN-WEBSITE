@@ -71,7 +71,7 @@ export function PopularProductsSection() {
 
         <div className="flex justify-center mt-2">
           <Link
-            href="/products"
+            href="/products/"
             className="inline-flex items-center gap-2 text-sm font-bold text-brand-dark hover:gap-3 transition-all"
           >
             View full catalog <ChevronRight size={16} />

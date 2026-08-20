@@ -143,7 +143,7 @@ export function PrismaRoles() {
                 </ul>
               </div>
 
-              <a href="/contact" className="inline-flex items-center gap-2 group cursor-pointer w-max mt-8">
+              <a href="/contact/" className="inline-flex items-center gap-2 group cursor-pointer w-max mt-8">
                 <span className="text-[#176579] text-xs sm:text-sm font-semibold">Learn more</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[#176579] transition-transform duration-300 group-hover:translate-x-1 -rotate-45" />
               </a>

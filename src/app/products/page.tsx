@@ -354,7 +354,7 @@ export default function ProductsPage() {
     const params = new URLSearchParams(searchParams.toString());
     if (categoryId) params.set("categoryId", categoryId);
     else params.delete("categoryId");
-    router.push(`/products?${params.toString()}`);
+    router.push(`/products/?${params.toString()}`);
   };
 
   const fetchProducts = async (
@@ -440,7 +440,7 @@ export default function ProductsPage() {
   const handleClearAll = () => {
     setSortBy("alpha");
     setQuery("");
-    router.push('/products');
+    router.push('/products/');
   };
 
   const gridClass = "grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-4";
@@ -492,7 +492,7 @@ export default function ProductsPage() {
           {/* Right-side quick action: jump to the Top Ranking page. */}
           {!debouncedQuery && (
             <div className="flex items-center gap-2.5">
-              <QuickLinkPill href="/rankings" icon="/top-1.jpg" label="Top Ranking" hoverTextClass="hover:text-amber-600" />
+              <QuickLinkPill href="/rankings/" icon="/top-1.jpg" label="Top Ranking" hoverTextClass="hover:text-amber-600" />
             </div>
           )}
         </div>

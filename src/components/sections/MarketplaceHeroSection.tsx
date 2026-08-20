@@ -553,7 +553,7 @@ export function MarketplaceHeroSection() {
               initialActiveId={megaInitialId}
               onNavigate={(categoryId) => {
                 setIsMegaOpen(false);
-                router.push(`/products?categoryId=${categoryId}`);
+                router.push(`/products/?categoryId=${categoryId}`);
               }}
             />
           </div>

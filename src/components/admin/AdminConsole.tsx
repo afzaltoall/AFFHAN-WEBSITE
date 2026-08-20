@@ -346,7 +346,7 @@ export function AdminConsole({ data }: Props) {
   const refresh = () => { setRefreshing(true); router.refresh(); setTimeout(() => setRefreshing(false), 700); };
   const logout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/admin/login");
+    router.push("/admin/login/");
     router.refresh();
   };
 

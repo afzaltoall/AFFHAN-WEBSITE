@@ -221,7 +221,7 @@ export default function RankingsPage() {
   useEffect(() => { setAllPage(1); }, [scope, tab]);
 
   const scrollScope = (dir: -1 | 1) => scopeScrollRef.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
-  const goToCategory = (id: string) => router.push(`/products?categoryId=${id}`);
+  const goToCategory = (id: string) => router.push(`/products/?categoryId=${id}`);
 
   // Changing scope/tab reloads the whole grid — jump back to the top so the
   // user sees the new results from the start, not mid-scroll.
@@ -292,7 +292,7 @@ export default function RankingsPage() {
                 </button>
               ))}
             </div>
-            <QuickLinkPill href="/products" icon="/cata.jpg" label="Full Catalog" labelHiddenOnMobile className="shrink-0" />
+            <QuickLinkPill href="/products/" icon="/cata.jpg" label="Full Catalog" labelHiddenOnMobile className="shrink-0" />
           </div>
         </div>
 

@@ -272,7 +272,7 @@ function Section4Philosophy() {
               Our offices span Chennai, Guangzhou, London, Singapore, Malaysia and Dubai &mdash; a close-knit crew where your work is seen and your ideas travel fast. Curious, driven and dependable? You&apos;ll fit right in.
             </p>
             <div className="mt-4">
-              <a href="/contact" className="inline-block text-slate-900 text-sm font-medium uppercase tracking-widest border-b border-slate-300 pb-1 hover:border-slate-900 transition-colors">
+              <a href="/contact/" className="inline-block text-slate-900 text-sm font-medium uppercase tracking-widest border-b border-slate-300 pb-1 hover:border-slate-900 transition-colors">
                 Join Our Team
               </a>
             </div>
