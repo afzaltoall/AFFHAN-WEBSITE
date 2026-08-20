@@ -19,7 +19,7 @@ export function getCdnUrl(url: string | null | undefined, width?: number): strin
       };
       
       // Base64 encode the JSON request
-      const encodedUrl = Buffer.from(JSON.stringify(requestParams)).toString('base64');
+      const encodedUrl = Buffer.from(JSON.stringify(requestParams)).toString('base64url');
       const cleanImageHandlerDomain = imageHandlerDomain.replace(/\/$/, "");
       return `${cleanImageHandlerDomain}/${encodedUrl}`;
     }
