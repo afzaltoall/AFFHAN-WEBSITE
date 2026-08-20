@@ -70,8 +70,8 @@ export function ProductCategoriesSection() {
             <h2 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900">
               Explore our sourcing categories
             </h2>
-            <p className="mt-2 text-slate-500 max-w-xl">
-              Browse across {categories.length.toLocaleString()} verified categories — every product we can source for you.
+            <p className="mt-2 text-slate-500 max-w-2xl">
+              Browse across {categories.length.toLocaleString()} verified categories — every product we can source for you. Whether you're working with our <Link href="/sourcing-company-chennai/" className="text-brand hover:underline font-medium">sourcing company in Chennai</Link> or our <Link href="/sourcing-company-dubai/" className="text-brand hover:underline font-medium">sourcing company in Dubai</Link>, we handle end-to-end procurement, quality checks, and freight.
             </p>
           </div>
           <Link
