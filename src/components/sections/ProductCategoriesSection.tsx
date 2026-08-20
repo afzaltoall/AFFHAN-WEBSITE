@@ -17,7 +17,7 @@ function CategoryTile({ cat }: { cat: Cat }) {
   const [failed, setFailed] = useState(false);
   return (
     <Link
-      href={`/products?categoryId=${cat.id}`}
+      href={`/products/?categoryId=${cat.id}`}
       className="group flex flex-col liquid-glass-card transition-all overflow-hidden"
     >
       <div className="relative w-full aspect-square bg-slate-50 overflow-hidden">
@@ -75,7 +75,7 @@ export function ProductCategoriesSection() {
             </p>
           </div>
           <Link
-            href="/products"
+            href="/products/"
             className="inline-flex items-center gap-2 text-sm font-bold text-brand-dark hover:gap-3 transition-all shrink-0"
           >
             View all categories <ArrowRight size={16} />

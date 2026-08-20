@@ -132,7 +132,7 @@ export function Navbar() {
     setIsInputFocused(false);
     setNavSearchValue(product.name);
     prepCatalogueNav();
-    router.push(`/products?q=${encodeURIComponent(product.name)}`);
+    router.push(`/products/?q=${encodeURIComponent(product.name)}`);
   };
 
   const handleNavbarSearchSubmit = (e: React.FormEvent) => {
@@ -140,7 +140,7 @@ export function Navbar() {
     setIsInputFocused(false);
     if (navSearchValue.trim().length > 0) {
       prepCatalogueNav();
-      router.push(`/products?q=${encodeURIComponent(navSearchValue.trim())}`);
+      router.push(`/products/?q=${encodeURIComponent(navSearchValue.trim())}`);
     }
   };
 
@@ -281,7 +281,7 @@ export function Navbar() {
                             // synchronously, so navigating from the mega-menu lands
                             // on the category view with no hero flash.
                             prepCatalogueNav();
-                            router.push(`/products?categoryId=${categoryId}`);
+                            router.push(`/products/?categoryId=${categoryId}`);
                           }}
                         />
                       )}
@@ -329,7 +329,7 @@ export function Navbar() {
                               <button
                                 key={`desktop-suggest-cat-${c.id}-${idx}`}
                                 type="button"
-                                onClick={() => { setIsInputFocused(false); prepCatalogueNav(); router.push(`/products?categoryId=${c.id}`); }}
+                                onClick={() => { setIsInputFocused(false); prepCatalogueNav(); router.push(`/products/?categoryId=${c.id}`); }}
                                 className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors cursor-pointer"
                               >
                                 <span className="relative w-9 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center">
@@ -378,15 +378,15 @@ export function Navbar() {
 
             {/* Desktop Right Nav (Essential Links) */}
             <div className="hidden lg:flex items-center gap-6 z-10 flex-shrink-0 ml-4">
-              <Link href="/about" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
+              <Link href="/about/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
                 About
                 <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
               </Link>
-              <Link href="/careers" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
+              <Link href="/careers/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
                 Careers
                 <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
               </Link>
-              <Link href="/contact" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
+              <Link href="/contact/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
                 Contact Us
                 <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
               </Link>
@@ -454,11 +454,11 @@ export function Navbar() {
               <nav className="flex-1 overflow-y-auto p-3">
                 {[
                   { href: "/", label: "Home", icon: Home },
-                  { href: "/rankings", label: "Top Ranking", icon: TopRankingIcon },
-                  { href: "/products", label: "All Categories", icon: LayoutGrid },
-                  { href: "/about", label: "About Us", icon: Info },
-                  { href: "/careers", label: "Careers", icon: Briefcase },
-                  { href: "/contact", label: "Contact Us", icon: Mail },
+                  { href: "/rankings/", label: "Top Ranking", icon: TopRankingIcon },
+                  { href: "/products/", label: "All Categories", icon: LayoutGrid },
+                  { href: "/about/", label: "About Us", icon: Info },
+                  { href: "/careers/", label: "Careers", icon: Briefcase },
+                  { href: "/contact/", label: "Contact Us", icon: Mail },
                 ].map(item => (
                   <button
                     key={item.href}
@@ -477,7 +477,7 @@ export function Navbar() {
               {/* CTA */}
               <div className="shrink-0 border-t border-slate-100 p-4">
                 <button
-                  onClick={() => { setMobileMenuOpen(false); router.push("/contact"); }}
+                  onClick={() => { setMobileMenuOpen(false); router.push("/contact/"); }}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1d7e93] py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark"
                 >
                   <Mail size={16} /> Request a Quote

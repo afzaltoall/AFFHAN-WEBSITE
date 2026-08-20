@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Phone } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Phone } from "lucide-react";
 
 const CountryFlag = ({ country }: { country: string }) => {
   switch (country.toLowerCase()) {
@@ -99,6 +100,9 @@ const offices = [
     address:
       "No.69/46, Appavoo Tower, West Madha Church Road, Near by Harbour Gate No: 3, Royapuram, Chennai - 600 013. TAMIL NADU, INDIA",
     phone: "+91 90920 09044 / +91 44 4743 2777",
+    // Links the office card through to the location landing page for the city
+    // it sits in. Contextual body link, not footer boilerplate.
+    localPage: { href: "/sourcing-company-chennai/", label: "Our sourcing company in Chennai" },
   },
   {
     country: "Singapore",
@@ -121,6 +125,7 @@ const offices = [
     address:
       "P.O.Box No. 7184, Office No: 203, White Crown Building, Plot No. 335 - 335, Sheikh Zayed Road, Dubai, UAE",
     phone: "+971 54 406 5867",
+    localPage: { href: "/sourcing-company-dubai/", label: "Our sourcing company in Dubai" },
   },
   {
     country: "United Kingdom",
@@ -300,6 +305,20 @@ export const OfficeLocations = () => {
                     <p className="mt-1 text-[11.5px] sm:text-[12px] text-slate-600 leading-snug font-normal">
                       {office.address}
                     </p>
+
+                    {/* Cities with a dedicated sourcing page link through to it.
+                        A real in-content link, not footer boilerplate — and the
+                        anchor names the service and the city rather than saying
+                        "learn more". */}
+                    {office.localPage && (
+                      <Link
+                        href={office.localPage.href}
+                        className="mt-2 inline-flex items-center gap-1 text-[11.5px] sm:text-[12px] font-semibold text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors"
+                      >
+                        {office.localPage.label}
+                        <ArrowRight className="h-3 w-3" aria-hidden="true" />
+                      </Link>
+                    )}
                   </div>
 
                   {/* Phone */}

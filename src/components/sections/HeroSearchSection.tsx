@@ -72,10 +72,10 @@ export function HeroSearchSection() {
   const runSearch = (term: string = query) => {
     if (!term.trim()) return;
     saveSearch(term);
-    router.push(`/products?q=${encodeURIComponent(term)}`);
+    router.push(`/products/?q=${encodeURIComponent(term)}`);
   };
 
-  const goCategory = (id: string) => { router.push(`/products?categoryId=${id}`); };
+  const goCategory = (id: string) => { router.push(`/products/?categoryId=${id}`); };
 
   const clearRecent = () => { setRecentSearches([]); localStorage.removeItem("recentSearches"); };
   const removeSearch = (e: React.MouseEvent, term: string) => {
@@ -216,8 +216,8 @@ export function HeroSearchSection() {
 
         {/* Right-side quick entry points — Top Ranking / Full Catalog */}
         <div className="flex items-center justify-center gap-2.5 lg:flex-1 lg:justify-start">
-          <QuickLinkPill href="/rankings" icon="/top-1.jpg" label="Top Ranking" hoverTextClass="hover:text-amber-600" />
-          <QuickLinkPill href="/products" icon="/cata.jpg" label="Full Catalog" />
+          <QuickLinkPill href="/rankings/" icon="/top-1.jpg" label="Top Ranking" hoverTextClass="hover:text-amber-600" />
+          <QuickLinkPill href="/products/" icon="/cata.jpg" label="Full Catalog" />
         </div>
       </div>
     </div>

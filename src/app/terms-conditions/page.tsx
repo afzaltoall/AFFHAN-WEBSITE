@@ -200,7 +200,7 @@ export default function TermsConditionsPage() {
                     {sect.id === "privacy" && (
                       <div className="mt-8 pt-6 border-t border-slate-100 flex flex-wrap gap-4">
                         <a
-                          href="/privacy-policy"
+                          href="/privacy-policy/"
                           className="inline-flex items-center gap-2 text-sm font-semibold text-[#245B6D] hover:text-[#19414e] transition-colors"
                         >
                           Read Privacy Policy
@@ -212,7 +212,7 @@ export default function TermsConditionsPage() {
                     {sect.id === "contact-info" && (
                       <div className="mt-8 pt-6 border-t border-slate-100 flex flex-wrap gap-4">
                         <a
-                          href="/contact"
+                          href="/contact/"
                           className="inline-flex items-center gap-2 text-sm font-semibold text-[#245B6D] hover:text-[#19414e] transition-colors"
                         >
                           Visit Contact Page

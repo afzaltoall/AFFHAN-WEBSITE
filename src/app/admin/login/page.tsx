@@ -48,7 +48,7 @@ function LoginContent() {
         return;
       }
       // Admins land on the dashboard, everyone else on home.
-      router.push("/admin");
+      router.push("/admin/");
       router.refresh();
     } catch {
       setError("Something went wrong. Please try again.");

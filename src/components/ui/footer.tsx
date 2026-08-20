@@ -30,7 +30,7 @@ export const Footer: FC<FooterProps> = ({
     { label: "Home", href: "#" },
     { label: "About Us", href: "#" },
     { label: "Contact Us", href: "#" },
-    { label: "Privacy Policy", href: "/privacy-policy" },
+    { label: "Privacy Policy", href: "/privacy-policy/" },
   ],
   socialTitle = "Follow Us",
   socialLinks = [],

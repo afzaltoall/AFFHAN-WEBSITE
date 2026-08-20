@@ -7,10 +7,10 @@ import { Dock, DockIcon, DockItem, DockLabel } from "@/components/ui/dock";
 
 const ITEMS = [
   { title: "Home", href: "/", icon: Home },
-  { title: "Catalog", href: "/products", icon: LayoutGrid },
-  { title: "Top Ranking", href: "/rankings", icon: Trophy },
-  { title: "About", href: "/about", icon: Info },
-  { title: "Contact", href: "/contact", icon: Mail },
+  { title: "Catalog", href: "/products/", icon: LayoutGrid },
+  { title: "Top Ranking", href: "/rankings/", icon: Trophy },
+  { title: "About", href: "/about/", icon: Info },
+  { title: "Contact", href: "/contact/", icon: Mail },
 ];
 
 /**
