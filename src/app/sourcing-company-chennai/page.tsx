@@ -267,11 +267,11 @@ export default async function SourcingCompanyChennaiPage() {
           carries the hero's colour down into the section. */}
       <section className="bg-gradient-to-b from-[#f2fafc] via-[#f7fcfd] to-white py-10 lg:py-8 border-y border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-8">
-            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
+          <div className="text-center mb-5 lg:mb-6">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-2 sm:mb-3">
               Our Sourcing Services in Chennai
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.6] tracking-[-0.003em] text-pretty">
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
               Three services, almost always bought together. Most Chennai importers reach us after a shipment went wrong somewhere in the gap between the factory floor and the Bill of Entry, so we run product sourcing in Chennai end to end instead of handing you between a buying agent, an inspector and a forwarder.
             </p>
           </div>
@@ -291,7 +291,7 @@ export default async function SourcingCompanyChennaiPage() {
               lazy — no LCP cost. */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/china-product-sourcing.webp"
                   unoptimized={false}
@@ -310,7 +310,7 @@ export default async function SourcingCompanyChennaiPage() {
             </div>
 
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/supplier-verification.webp"
                   unoptimized={false}
@@ -329,7 +329,7 @@ export default async function SourcingCompanyChennaiPage() {
             </div>
 
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/freight-forwarding.webp"
                   unoptimized={false}
@@ -407,9 +407,9 @@ export default async function SourcingCompanyChennaiPage() {
       {/* The local counterpart to the shared workflow: what a Chennai importer
           has to have ready at this end. Reuses the narrow max-w-3xl measure and
           the CheckCircle2 list already used elsewhere on the page. */}
-      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+      <section className="py-10 lg:py-12 bg-white border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
             How sourcing works for a Chennai business
           </h2>
           <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
@@ -442,9 +442,9 @@ export default async function SourcingCompanyChennaiPage() {
       </section>
 
       {/* Industries */}
-      <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+      <section className="py-10 lg:py-12 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-12">
+          <div className="text-center mb-6 lg:mb-8">
             <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
               Industries We Source For in Chennai and Tamil Nadu
             </h2>
@@ -455,44 +455,69 @@ export default async function SourcingCompanyChennaiPage() {
           {/* Same liquid-glass-card treatment as the services grid, minus the
               image block — the class is purely a surface, so it works text-only
               and introduces no new visual pattern. */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 mb-10 lg:mb-12">
-            <div className="liquid-glass-card p-5 sm:p-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-6 lg:mb-8">
+            <div className="liquid-glass-card p-5 flex flex-col">
               <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Auto components</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                The Ambattur, Oragadam and Sriperumbudur belt buys fasteners, castings, rubber and plastic mouldings, jigs and press tooling. Drawings matter more than photographs here, and first articles are inspected against them before a production run is released.
+              <p className="text-slate-600 text-sm leading-[1.55] tracking-[-0.003em] text-pretty">
+                The Ambattur, Oragadam and Sriperumbudur belt works to drawings, so first articles are inspected against them before a run is released.
+              </p>
+              <p className="mt-auto pt-3 text-[12.5px] leading-[1.5] text-slate-500 border-t border-white/70">
+                <span className="font-semibold text-slate-600">Typical lines: </span>fasteners, castings and forgings, rubber and plastic mouldings, jigs and press tooling
               </p>
             </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
+            <div className="liquid-glass-card p-5 flex flex-col">
               <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Leather and footwear</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Ambur, Ranipet and Vaniyambadi source buckles and hardware, linings, soles and finishing chemicals, along with spares for cutting and stitching machinery that are no longer stocked in India.
+              <p className="text-slate-600 text-sm leading-[1.55] tracking-[-0.003em] text-pretty">
+                Ambur, Ranipet and Vaniyambadi buy components and machinery spares that are no longer stocked anywhere in India.
+              </p>
+              <p className="mt-auto pt-3 text-[12.5px] leading-[1.5] text-slate-500 border-t border-white/70">
+                <span className="font-semibold text-slate-600">Typical lines: </span>buckles and hardware, linings, soles, finishing chemicals, cutting and stitching spares
               </p>
             </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
+            <div className="liquid-glass-card p-5 flex flex-col">
               <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Textiles and garments</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Tiruppur, Erode and Karur import trims, labels, elastics, zips and retail packaging, plus knitting and dyeing machine parts where the OEM lead time is measured in months rather than weeks.
+              <p className="text-slate-600 text-sm leading-[1.55] tracking-[-0.003em] text-pretty">
+                Tiruppur, Erode and Karur order parts where the OEM lead time runs to months, so the question is availability rather than price.
+              </p>
+              <p className="mt-auto pt-3 text-[12.5px] leading-[1.5] text-slate-500 border-t border-white/70">
+                <span className="font-semibold text-slate-600">Typical lines: </span>labels and tags, elastics, zips, retail packaging, knitting and dyeing spares
               </p>
             </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
+            <div className="liquid-glass-card p-5 flex flex-col">
               <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Engineering and electricals</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Coimbatore and Hosur buy motors, pump components, switchgear, LED assemblies and control-panel parts, usually against a certification requirement that has to be verified at the factory rather than promised in an email.
+              <p className="text-slate-600 text-sm leading-[1.55] tracking-[-0.003em] text-pretty">
+                Coimbatore and Hosur buy against a certification requirement, which has to be verified at the factory rather than promised by email.
+              </p>
+              <p className="mt-auto pt-3 text-[12.5px] leading-[1.5] text-slate-500 border-t border-white/70">
+                <span className="font-semibold text-slate-600">Typical lines: </span>motors, pump components, switchgear, LED assemblies, control-panel parts
               </p>
             </div>
           </div>
-          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-6 max-w-2xl mx-auto">
-            Beyond those, the catalogue below covers every category we can quote against — browse it to find something close to what you need, and we will source to your specification.
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.65] mt-6 max-w-2xl mx-auto">
+            This is where most Tamil Nadu enquiries start rather than the full extent of it. <Link href="/contact/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">Send us your requirement</Link> and we will quote against it.
           </p>
-          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+        </div>
+      </section>
+
+      <section className="py-10 lg:py-12 bg-white min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="text-center mb-6 lg:mb-8">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
+              500+ Product Categories We Source into Chennai
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
+              None of this is inventory. It is a map of what the factories we buy from actually make, which is why you will not find prices against it — costing depends on your drawing, your quantity and where in Tamil Nadu the consignment has to be delivered. Find something close to what you need and we will source to your specification from there.
+            </p>
+          </div>
+          <div className="max-w-6xl mx-auto bg-slate-50 p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-0.5">
               {tree.slice(0, 16).map((cat) => {
                 const Icon = getCategoryIcon(cat.name);
                 return (
                   <Link
                     key={cat.id}
                     href={`/products/?categoryId=${cat.id}`}
-                    className="group flex items-start gap-3.5 px-4 py-3.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
+                    className="group flex items-start gap-3 px-3.5 py-2.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
                   >
                     <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#1d7e93] mt-0.5" />
                     <span className="text-[14px] sm:text-[15px] font-medium text-slate-700 group-hover:text-slate-900 leading-snug">
@@ -503,6 +528,9 @@ export default async function SourcingCompanyChennaiPage() {
               })}
             </div>
           </div>
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.65] mt-6 max-w-2xl mx-auto">
+            Cannot see it? Send a sample or a photograph and we will identify the plant that makes it, or <Link href="/products/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">browse the full product catalogue</Link>.
+          </p>
         </div>
       </section>
 
