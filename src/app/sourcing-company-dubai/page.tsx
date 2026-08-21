@@ -166,17 +166,22 @@ const schema = {
 // so `aspect-[4/5]` and `aspect-[3/2]` are only generated because they are
 // written out literally. Both are checked in the built CSS.
 const dubaiTeamBlocks = [
-  {
-    id: "building",
-    heading: "Finding the building",
-    src: "/dubai-team/dubai-office-building.webp",
-    alt: "AFFHAN Shipping signage on the White Crown Building, Sheikh Zayed Road, Dubai",
-    aspect: "aspect-[3/2]",
-    body: [
-      "The office sits in the White Crown Building on Sheikh Zayed Road, with a supermarket, a pharmacy and a row of cafés along the ground floor. It is an easy address to describe to a driver, which matters more than it sounds when somebody is dropping off a sample that needs quoting the same day.",
-      "Sheikh Zayed Road also puts us a short drive from Jebel Ali, the free zone offices and most of the trading houses we deal with, so a meeting that genuinely needs to happen face to face usually can.",
-    ],
-  },
+  // Slot for an exterior shot of the building. Fill in a photograph taken by
+  // the team, with copy and alt text, and it renders with no other change.
+  //
+  // Do not fill it from public/employees-dubai/image-3.png. That is a Google
+  // Street View capture carrying a visible "© 2020 Google" watermark: Google's
+  // imagery rather than ours, and self-hosting it as marketing on a commercial
+  // site is outside what the Maps terms allow. It was briefly live here and has
+  // been removed along with the converted file.
+  // {
+  //   id: "building",
+  //   heading: "",
+  //   src: "/dubai-team/____.webp",
+  //   alt: "",
+  //   aspect: "aspect-[3/2]",
+  //   body: ["", ""],
+  // },
   {
     id: "office",
     heading: "The office on Sheikh Zayed Road",
@@ -210,17 +215,19 @@ const dubaiTeamBlocks = [
       "It matters most when something is wrong. If an inspection finds a batch short or a finish off-specification, we are arguing with the factory on your behalf rather than relaying messages between two parties who have never met. A problem caught at the factory also tends to get fixed at the factory, which is the only place it is cheap to fix.",
     ],
   },
-  {
-    id: "nameplates",
-    heading: "Trading and freight under one roof",
-    src: "/dubai-team/dubai-office-nameplates.webp",
-    alt: "Nameplates at the entrance to AFFHAN's sourcing and freight office in Dubai",
-    aspect: "aspect-[4/5]",
-    body: [
-      "Sourcing and shipping run as two sides of one operation rather than two suppliers. That shows up when a shipment needs a decision partway through: the person who bought the goods and the person moving them sit in the same office, so nothing waits on a third party to reply.",
-      "For a UAE importer the practical effect is a single point of contact for the whole movement — the factory order, the pre-shipment inspection, the booking into Jebel Ali and the customs paperwork — rather than a buying agent in China and a freight forwarder here who each know half the story.",
-    ],
-  },
+  // Slot for the office nameplates. Held back rather than dropped on the design:
+  // the plaques name two L.L.C entities, and nobody has confirmed both are
+  // current. Naming a legal entity on a page is a claim about it, so this stays
+  // empty until that is checked. If it is, crop to the two AFFHAN plaques only —
+  // the third belongs to a separate company.
+  // {
+  //   id: "nameplates",
+  //   heading: "",
+  //   src: "/dubai-team/____.webp",
+  //   alt: "",
+  //   aspect: "aspect-[4/5]",
+  //   body: ["", ""],
+  // },
 ];
 
 export default async function SourcingCompanyDubaiPage() {
