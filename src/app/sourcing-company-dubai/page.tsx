@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
+import { PinnedScrollPanel } from "@/components/ui/pinned-scroll-panel";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -145,6 +146,89 @@ const schema = {
     },
   ],
 };
+
+// Blocks for the "Inside Our Dubai Operation" sticky-scroll section. Held as
+// data so the markup below stays one mapped row instead of three near-identical
+// copies, and so adding a fourth block is a single entry.
+//
+// The aspect ratios differ per block on purpose. No single ratio suits both a
+// portrait office photograph and the landscape group shot: cropping the group
+// to portrait pushes the two people on the ends out of frame, and cropping the
+// office shots to landscape loses the desk. Both values are fixed, so a
+// per-block ratio costs nothing in layout shift.
+//
+// Per-block ratios are only workable because the panel cross-fades between
+// blocks rather than stacking one over another. A stack needs every frame the
+// same shape to hide the one underneath, and there is no shape that suits both
+// a portrait office shot and a landscape group photo.
+//
+// The class strings have to appear here verbatim — Tailwind scans source text,
+// so `aspect-[4/5]` and `aspect-[3/2]` are only generated because they are
+// written out literally. Both are checked in the built CSS.
+const dubaiTeamBlocks = [
+  // Slot for an exterior shot of the building. Fill in a photograph taken by
+  // the team, with copy and alt text, and it renders with no other change.
+  //
+  // Do not fill it from public/employees-dubai/image-3.png. That is a Google
+  // Street View capture carrying a visible "© 2020 Google" watermark: Google's
+  // imagery rather than ours, and self-hosting it as marketing on a commercial
+  // site is outside what the Maps terms allow. It was briefly live here and has
+  // been removed along with the converted file.
+  // {
+  //   id: "building",
+  //   heading: "",
+  //   src: "/dubai-team/____.webp",
+  //   alt: "",
+  //   aspect: "aspect-[3/2]",
+  //   body: ["", ""],
+  // },
+  {
+    id: "office",
+    heading: "The office on Sheikh Zayed Road",
+    src: "/dubai-team/dubai-office-reception.webp",
+    alt: "Reception desk carrying the AFFHAN logo at the company's Dubai sourcing office",
+    aspect: "aspect-[4/5]",
+    body: [
+      "The UAE side of the business runs from an office on Sheikh Zayed Road, and it is a working office rather than a mailing address. Visitors are welcome, and a good deal of what we do still gets settled across a desk rather than over email.",
+      "Buyers arrive with a sample in a carrier bag more often than you would expect. Being able to hand a physical part to someone who will photograph it, write the specification and put it in front of our buyers the same afternoon takes a week out of a conversation that email alone never quite finishes.",
+    ],
+  },
+  {
+    id: "desk",
+    heading: "The desk that owns your order",
+    src: "/dubai-team/dubai-team-desks.webp",
+    alt: "AFFHAN Dubai coordinators at their desks managing China to UAE sourcing orders",
+    aspect: "aspect-[4/5]",
+    body: [
+      "Every order is assigned to one coordinator here, and that person stays with it from the first quotation through to the day it is delivered. Nobody is handed between a sales contact, an operations contact and an accounts contact, and you never have to explain the order twice.",
+      "China runs four hours ahead of the UAE, which turns out to be an advantage rather than a nuisance. A question raised in Dubai first thing reaches our buyers in Guangzhou while the factory day is still running, and the answer is usually back before this office closes.",
+    ],
+  },
+  {
+    id: "corridor",
+    heading: "One team at both ends of the corridor",
+    src: "/dubai-team/dubai-team-group.webp",
+    alt: "The six-person AFFHAN Dubai team in branded uniform at the company's UAE office",
+    aspect: "aspect-[3/2]",
+    body: [
+      "The people in this photograph and the buyers walking factory floors in Guangzhou work for the same company. That sounds like a small distinction and it is not — most sourcing offers in the region are a local desk that forwards your enquiry to an unrelated agent in China and adds a margin to whatever comes back.",
+      "It matters most when something is wrong. If an inspection finds a batch short or a finish off-specification, we are arguing with the factory on your behalf rather than relaying messages between two parties who have never met. A problem caught at the factory also tends to get fixed at the factory, which is the only place it is cheap to fix.",
+    ],
+  },
+  // Slot for the office nameplates. Held back rather than dropped on the design:
+  // the plaques name two L.L.C entities, and nobody has confirmed both are
+  // current. Naming a legal entity on a page is a claim about it, so this stays
+  // empty until that is checked. If it is, crop to the two AFFHAN plaques only —
+  // the third belongs to a separate company.
+  // {
+  //   id: "nameplates",
+  //   heading: "",
+  //   src: "/dubai-team/____.webp",
+  //   alt: "",
+  //   aspect: "aspect-[4/5]",
+  //   body: ["", ""],
+  // },
+];
 
 export default async function SourcingCompanyDubaiPage() {
   const [productCount, categoryCount, categoriesRaw] = await Promise.all([
@@ -326,49 +410,11 @@ export default async function SourcingCompanyDubaiPage() {
         </div>
       </section>
 
-      <SourcingProcessSection />
-
-      {/* The UAE-side counterpart to the shared workflow. Same narrow measure
-          and CheckCircle2 list the Chennai page uses for its equivalent
-          section, so no new pattern is introduced on either. */}
-      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
-            What a UAE importer needs in place
-          </h2>
-          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
-            Everything above is the order itself. Around it sits a handful of decisions particular to this market, and getting those wrong costs money in a way the order rarely does.
-          </p>
-          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
-            The first question is usually where your company sits. A mainland licence and a free zone licence both permit import, but they change where the goods should land and when duty falls due. A trader supplying UAE retailers and a distributor consolidating for onward shipment to Saudi Arabia or East Africa will not reach the same answer, and it is cheaper to settle before a booking than to move cargo between the two afterwards. What we ask for at the start:
-          </p>
-          <ul className="space-y-3.5 mb-6">
-            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
-              A valid trade licence, with a customs importer code registered against it
-            </li>
-            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
-              A decision on whether the cargo lands in a free zone or clears to the mainland
-            </li>
-            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
-              Agreed Incoterms — FOB China and CIF Jebel Ali stop at very different points, and the gap is yours to cover
-            </li>
-            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
-              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
-              For onward GCC movement, documentation prepared at import rather than retrofitted later
-            </li>
-          </ul>
-          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
-            A factory&apos;s FOB quotation and a delivered price into your warehouse are not comparable numbers, and the distance between them is where most margin surprises live. We quote the whole movement so there is one figure to work from.
-          </p>
-          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
-            For distributors serving more than one market, the saving usually comes from consolidation rather than negotiation — several suppliers&apos; cargo brought together in Guangzhou, shipped once, and split here.
-          </p>
-        </div>
-      </section>
-
+      {/* Sector prose and the catalogue grid sit here rather than further
+          down. The grid carries sixteen internal links into /products/, and
+          the sector names are some of the most commercially relevant text on
+          the page, so both are worth having above the shared workflow block
+          rather than below it. */}
       <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="text-center mb-12">
@@ -429,6 +475,97 @@ export default async function SourcingCompanyDubaiPage() {
               })}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Inside Our Dubai Operation.
+
+          The panel holds still for three viewports of scroll while the block
+          inside it cross-fades, one at a time — screen fixed, content changing,
+          rather than the earlier version where each image pinned inside its own
+          row.
+
+          That earlier version could not do this, and the reason is worth
+          recording. A sticky image stays pinned for (row height - image height)
+          pixels, so equal rows gave a 230px pin on the 4:5 blocks and 543px on
+          the 3:2 one at a 900px viewport, widening to 7x at 720px — the images
+          and their copy visibly drifting apart. Worse, rows sat flush against
+          each other, so the outgoing image ended exactly where the incoming one
+          began and both were on screen while the boundary crossed. No amount of
+          tuning removes that: the gap between them would have to exceed a whole
+          viewport, which means a screen of dead space between every block.
+          Restructuring into one shared grid does not help either, because a
+          grid item's containing block is its grid area, so each image stays
+          confined to its own row regardless.
+
+          A held panel needs to know which block is current, which needs
+          measurement, so this carries a small client component — one
+          IntersectionObserver over three empty markers, no scroll library and
+          no motion library. The cross-fade itself is a CSS opacity transition.
+
+          Every block stays mounted throughout. Swapping content through
+          AnimatePresence would unmount the inactive ones and take roughly 250
+          words of indexable copy out of the HTML with them. Under mobile-first
+          indexing the `lg:` variants never apply at all, so a crawler renders
+          all three stacked, in flow, fully visible. */}
+      <section className="py-16 lg:py-0 bg-white border-t border-slate-200">
+        {/* The header is passed into the panel rather than sitting above it, so
+            the two pin together. Outside the panel it was separated from the
+            first block by half a viewport of dead space — the panel was a full
+            screen tall with its contents centred — and the block then jumped
+            upward the moment the panel stuck. */}
+        <PinnedScrollPanel blocks={dubaiTeamBlocks}>
+          <div className="text-center max-w-2xl mx-auto">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-4">
+              Inside Our Dubai Operation
+            </h2>
+            <p className="text-slate-600 text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty">
+              Sourcing is a trust business, and most of it happens somewhere the buyer cannot see. This is the part that sits in the UAE — the office, the people, and how the work is actually split between here and China.
+            </p>
+          </div>
+        </PinnedScrollPanel>
+      </section>
+
+      <SourcingProcessSection />
+
+      {/* The UAE-side counterpart to the shared workflow. Same narrow measure
+          and CheckCircle2 list the Chennai page uses for its equivalent
+          section, so no new pattern is introduced on either. */}
+      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+            What a UAE importer needs in place
+          </h2>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            Everything above is the order itself. Around it sits a handful of decisions particular to this market, and getting those wrong costs money in a way the order rarely does.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+            The first question is usually where your company sits. A mainland licence and a free zone licence both permit import, but they change where the goods should land and when duty falls due. A trader supplying UAE retailers and a distributor consolidating for onward shipment to Saudi Arabia or East Africa will not reach the same answer, and it is cheaper to settle before a booking than to move cargo between the two afterwards. What we ask for at the start:
+          </p>
+          <ul className="space-y-3.5 mb-6">
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              A valid trade licence, with a customs importer code registered against it
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              A decision on whether the cargo lands in a free zone or clears to the mainland
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Agreed Incoterms — FOB China and CIF Jebel Ali stop at very different points, and the gap is yours to cover
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              For onward GCC movement, documentation prepared at import rather than retrofitted later
+            </li>
+          </ul>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            A factory&apos;s FOB quotation and a delivered price into your warehouse are not comparable numbers, and the distance between them is where most margin surprises live. We quote the whole movement so there is one figure to work from.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+            For distributors serving more than one market, the saving usually comes from consolidation rather than negotiation — several suppliers&apos; cargo brought together in Guangzhou, shipped once, and split here.
+          </p>
         </div>
       </section>
 
