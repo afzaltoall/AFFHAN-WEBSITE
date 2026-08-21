@@ -167,6 +167,17 @@ const schema = {
 // written out literally. Both are checked in the built CSS.
 const dubaiTeamBlocks = [
   {
+    id: "building",
+    heading: "Finding the building",
+    src: "/dubai-team/dubai-office-building.webp",
+    alt: "AFFHAN Shipping signage on the White Crown Building, Sheikh Zayed Road, Dubai",
+    aspect: "aspect-[3/2]",
+    body: [
+      "The office sits in the White Crown Building on Sheikh Zayed Road, with a supermarket, a pharmacy and a row of cafés along the ground floor. It is an easy address to describe to a driver, which matters more than it sounds when somebody is dropping off a sample that needs quoting the same day.",
+      "Sheikh Zayed Road also puts us a short drive from Jebel Ali, the free zone offices and most of the trading houses we deal with, so a meeting that genuinely needs to happen face to face usually can.",
+    ],
+  },
+  {
     id: "office",
     heading: "The office on Sheikh Zayed Road",
     src: "/dubai-team/dubai-office-reception.webp",
@@ -199,22 +210,17 @@ const dubaiTeamBlocks = [
       "It matters most when something is wrong. If an inspection finds a batch short or a finish off-specification, we are arguing with the factory on your behalf rather than relaying messages between two parties who have never met. A problem caught at the factory also tends to get fixed at the factory, which is the only place it is cheap to fix.",
     ],
   },
-  // Fourth slot, intentionally empty. Drop in a photograph taken by the team —
-  // the building entrance or the office door — fill in the copy, and it renders
-  // with no other change.
-  //
-  // Not filled from public/employees-dubai: image-3 there is a Google Street
-  // View capture watermarked "© 2016 Google", which is Google's imagery rather
-  // than ours, and image-5 is the nameplate photograph, which would put two
-  // L.L.C names on the page that have not been confirmed as current.
-  // {
-  //   id: "exterior",
-  //   heading: "",
-  //   src: "/dubai-team/____.webp",
-  //   alt: "",
-  //   aspect: "aspect-[4/5]",
-  //   body: ["", ""],
-  // },
+  {
+    id: "nameplates",
+    heading: "Trading and freight under one roof",
+    src: "/dubai-team/dubai-office-nameplates.webp",
+    alt: "Nameplates at the entrance to AFFHAN's sourcing and freight office in Dubai",
+    aspect: "aspect-[4/5]",
+    body: [
+      "Sourcing and shipping run as two sides of one operation rather than two suppliers. That shows up when a shipment needs a decision partway through: the person who bought the goods and the person moving them sit in the same office, so nothing waits on a third party to reply.",
+      "For a UAE importer the practical effect is a single point of contact for the whole movement — the factory order, the pre-shipment inspection, the booking into Jebel Ali and the customs paperwork — rather than a buying agent in China and a freight forwarder here who each know half the story.",
+    ],
+  },
 ];
 
 export default async function SourcingCompanyDubaiPage() {

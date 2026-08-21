@@ -15,23 +15,22 @@ export type PinnedPanelBlock = {
   body: string[];
 };
 
-/** Track height: 80svh of scroll per block, plus the 100svh the pinned panel
- *  itself occupies. So three blocks is 3x80 + 100 = 340svh... except the panel
- *  is what pins, and pin travel is (track - panel), so the track IS n*80 + 100
- *  only if you want n*80 of pinned scrolling. At 3 blocks that is 240svh, which
- *  gives 140svh of pinning and ~80svh of dwell per block — enough to read one
- *  before the next arrives, without the screenful of dead scroll that 300svh
- *  produced.
+/** Track height: 120svh of scroll per block.
+ *
+ *  A block's dwell is (track / block count) of scroll, so this is the dial that
+ *  controls how fast the panel moves through them. It was 80svh, which read as
+ *  the content flicking past; 120svh gives each block half again as long on
+ *  screen before the next takes over.
  *
  *  A lookup rather than a template string: Tailwind only generates classes it
- *  can find as literal text, so `lg:h-[${n * 80}svh]` would compile to nothing
+ *  can find as literal text, so `lg:h-[${n * 120}svh]` would compile to nothing
  *  and the track would collapse to the height of the panel, leaving no scroll
  *  to drive the swap at all. */
 const TRACK_HEIGHT: Record<number, string> = {
-  2: "lg:h-[160svh]",
-  3: "lg:h-[240svh]",
-  4: "lg:h-[320svh]",
-  5: "lg:h-[400svh]",
+  2: "lg:h-[240svh]",
+  3: "lg:h-[360svh]",
+  4: "lg:h-[480svh]",
+  5: "lg:h-[600svh]",
 };
 
 /**
@@ -134,7 +133,7 @@ export function PinnedScrollPanel({
                   // In flow on mobile; stacked in the same place on desktop so
                   // they can cross-fade without any layout shift between them.
                   "lg:absolute lg:inset-0 lg:grid lg:grid-cols-2 lg:gap-12 xl:gap-16 lg:items-center",
-                  "motion-safe:lg:transition-opacity motion-safe:lg:duration-500 motion-safe:lg:ease-out",
+                  "motion-safe:lg:transition-opacity motion-safe:lg:duration-700 motion-safe:lg:ease-out",
                   i === active
                     ? "lg:opacity-100"
                     : "lg:opacity-0 lg:pointer-events-none",
