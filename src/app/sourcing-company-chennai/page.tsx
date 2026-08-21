@@ -267,11 +267,11 @@ export default async function SourcingCompanyChennaiPage() {
           carries the hero's colour down into the section. */}
       <section className="bg-gradient-to-b from-[#f2fafc] via-[#f7fcfd] to-white py-10 lg:py-8 border-y border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-8">
-            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
+          <div className="text-center mb-5 lg:mb-6">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-2 sm:mb-3">
               Our Sourcing Services in Chennai
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.6] tracking-[-0.003em] text-pretty">
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
               Three services, almost always bought together. Most Chennai importers reach us after a shipment went wrong somewhere in the gap between the factory floor and the Bill of Entry, so we run product sourcing in Chennai end to end instead of handing you between a buying agent, an inspector and a forwarder.
             </p>
           </div>
@@ -291,7 +291,7 @@ export default async function SourcingCompanyChennaiPage() {
               lazy — no LCP cost. */}
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/china-product-sourcing.webp"
                   unoptimized={false}
@@ -310,7 +310,7 @@ export default async function SourcingCompanyChennaiPage() {
             </div>
 
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/supplier-verification.webp"
                   unoptimized={false}
@@ -329,7 +329,7 @@ export default async function SourcingCompanyChennaiPage() {
             </div>
 
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/freight-forwarding.webp"
                   unoptimized={false}
@@ -407,9 +407,9 @@ export default async function SourcingCompanyChennaiPage() {
       {/* The local counterpart to the shared workflow: what a Chennai importer
           has to have ready at this end. Reuses the narrow max-w-3xl measure and
           the CheckCircle2 list already used elsewhere on the page. */}
-      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+      <section className="py-10 lg:py-12 bg-white border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
             How sourcing works for a Chennai business
           </h2>
           <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
@@ -493,10 +493,23 @@ export default async function SourcingCompanyChennaiPage() {
               </p>
             </div>
           </div>
-          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-4 max-w-2xl mx-auto">
-            Browse the catalogue below for something close to what you need, and we will source it to your specification.
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.65] mt-6 max-w-2xl mx-auto">
+            This is where most Tamil Nadu enquiries start rather than the full extent of it. <Link href="/contact/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">Send us your requirement</Link> and we will quote against it.
           </p>
-          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-5 sm:p-6 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        </div>
+      </section>
+
+      <section className="py-10 lg:py-12 bg-white min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="text-center mb-6 lg:mb-8">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
+              500+ Product Categories We Source into Chennai
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
+              None of this is inventory. It is a map of what the factories we buy from actually make, which is why you will not find prices against it — costing depends on your drawing, your quantity and where in Tamil Nadu the consignment has to be delivered. Find something close to what you need and we will source to your specification from there.
+            </p>
+          </div>
+          <div className="max-w-6xl mx-auto bg-slate-50 p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-0.5">
               {tree.slice(0, 16).map((cat) => {
                 const Icon = getCategoryIcon(cat.name);
@@ -515,6 +528,9 @@ export default async function SourcingCompanyChennaiPage() {
               })}
             </div>
           </div>
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.65] mt-6 max-w-2xl mx-auto">
+            Cannot see it? Send a sample or a photograph and we will identify the plant that makes it, or <Link href="/products/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">browse the full product catalogue</Link>.
+          </p>
         </div>
       </section>
 

@@ -294,18 +294,18 @@ export default async function SourcingCompanyDubaiPage() {
 
       <section className="bg-gradient-to-b from-[#f2fafc] via-[#f7fcfd] to-white py-10 lg:py-8 border-y border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-8">
-            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
+          <div className="text-center mb-5 lg:mb-6">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-2 sm:mb-3">
               Our Sourcing Services in Dubai
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.6] tracking-[-0.003em] text-pretty">
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
               Sourcing, verification and freight, run by one team at both ends of the corridor. For a trading company here the risk is rarely the shipping line — it is what went into the container. Product sourcing in Dubai works when somebody has looked at the goods in China before they move.
             </p>
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/china-product-sourcing.webp"
                   unoptimized={false}
@@ -324,7 +324,7 @@ export default async function SourcingCompanyDubaiPage() {
             </div>
 
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/supplier-verification.webp"
                   unoptimized={false}
@@ -343,7 +343,7 @@ export default async function SourcingCompanyDubaiPage() {
             </div>
 
             <div className="liquid-glass-card overflow-hidden">
-              <div className="relative aspect-[3/2] w-full bg-slate-100">
+              <div className="relative aspect-video w-full bg-slate-100">
                 <Image
                   src="/Landing-chennai-services/freight-forwarding.webp"
                   unoptimized={false}
@@ -465,10 +465,23 @@ export default async function SourcingCompanyDubaiPage() {
               </p>
             </div>
           </div>
-          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-4 max-w-2xl mx-auto">
-            Most enquiries reach us as a photograph rather than a category — send the product across and we will find who makes it.
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.65] mt-6 max-w-2xl mx-auto">
+            These are where the volume sits, not a limit on what we handle. <Link href="/contact/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">Tell us what you buy</Link> and we will find the factory for it.
           </p>
-          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-5 sm:p-6 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        </div>
+      </section>
+
+      <section className="py-10 lg:py-12 bg-white min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="text-center mb-6 lg:mb-8">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
+              Browse 500+ Product Categories We Source for Dubai
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
+              Nothing below is stock we hold. It is an index of what our factory base in China can actually produce, which is why no prices sit against it — a quote depends on your specification, your quantity and where in the UAE it has to land. Most enquiries reach us as a photograph rather than a category, so if you cannot see your product, send it across and we will find who makes it.
+            </p>
+          </div>
+          <div className="max-w-6xl mx-auto bg-slate-50 p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-sm">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-0.5">
               {tree.slice(0, 16).map((cat) => {
                 const Icon = getCategoryIcon(cat.name);
@@ -487,6 +500,9 @@ export default async function SourcingCompanyDubaiPage() {
               })}
             </div>
           </div>
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.65] mt-6 max-w-2xl mx-auto">
+            Not listed here? The catalogue runs well past this page — <Link href="/products/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">browse the full product catalogue</Link>, or send us the item and we will source it to your specification.
+          </p>
         </div>
       </section>
 
@@ -543,39 +559,39 @@ export default async function SourcingCompanyDubaiPage() {
       {/* The UAE-side counterpart to the shared workflow. Same narrow measure
           and CheckCircle2 list the Chennai page uses for its equivalent
           section, so no new pattern is introduced on either. */}
-      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+      <section className="py-6 lg:py-8 bg-white border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3 sm:mb-4">
             What a UAE importer needs in place
           </h2>
-          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+          <p className="text-slate-600 text-[14px] sm:text-[15px] leading-[1.65] tracking-[-0.003em] text-pretty mb-3 sm:mb-4">
             Everything above is the order itself. Around it sits a handful of decisions particular to this market, and getting those wrong costs money in a way the order rarely does.
           </p>
-          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+          <p className="text-slate-600 text-[14px] sm:text-[15px] leading-[1.65] tracking-[-0.003em] text-pretty mb-4 sm:mb-5">
             The first question is usually where your company sits. A mainland licence and a free zone licence both permit import, but they change where the goods should land and when duty falls due. A trader supplying UAE retailers and a distributor consolidating for onward shipment to Saudi Arabia or East Africa will not reach the same answer, and it is cheaper to settle before a booking than to move cargo between the two afterwards. What we ask for at the start:
           </p>
-          <ul className="space-y-3.5 mb-6">
-            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+          <ul className="space-y-2.5 sm:space-y-3 mb-4 sm:mb-5">
+            <li className="flex items-start gap-3 text-slate-700 text-[14px] sm:text-[15px] leading-[1.55]">
               <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
               A valid trade licence, with a customs importer code registered against it
             </li>
-            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+            <li className="flex items-start gap-3 text-slate-700 text-[14px] sm:text-[15px] leading-[1.55]">
               <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
               A decision on whether the cargo lands in a free zone or clears to the mainland
             </li>
-            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+            <li className="flex items-start gap-3 text-slate-700 text-[14px] sm:text-[15px] leading-[1.55]">
               <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
               Agreed Incoterms — FOB China and CIF Jebel Ali stop at very different points, and the gap is yours to cover
             </li>
-            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+            <li className="flex items-start gap-3 text-slate-700 text-[14px] sm:text-[15px] leading-[1.55]">
               <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
               For onward GCC movement, documentation prepared at import rather than retrofitted later
             </li>
           </ul>
-          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+          <p className="text-slate-600 text-[14px] sm:text-[15px] leading-[1.65] tracking-[-0.003em] text-pretty mb-3 sm:mb-4">
             A factory&apos;s FOB quotation and a delivered price into your warehouse are not comparable numbers, and the distance between them is where most margin surprises live. We quote the whole movement so there is one figure to work from.
           </p>
-          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+          <p className="text-slate-600 text-[14px] sm:text-[15px] leading-[1.65] tracking-[-0.003em] text-pretty">
             For distributors serving more than one market, the saving usually comes from consolidation rather than negotiation — several suppliers&apos; cargo brought together in Guangzhou, shipped once, and split here.
           </p>
         </div>
