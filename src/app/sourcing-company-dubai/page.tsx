@@ -403,6 +403,74 @@ export default async function SourcingCompanyDubaiPage() {
         </div>
       </section>
 
+      {/* Sector prose and the catalogue grid sit here rather than further
+          down. The grid carries sixteen internal links into /products/, and
+          the sector names are some of the most commercially relevant text on
+          the page, so both are worth having above the shared workflow block
+          rather than below it. */}
+      <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="text-center mb-12">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
+              Sectors We Source For in Dubai and the GCC
+            </h2>
+            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty mt-4">
+              Demand in the UAE tends to be either project-led or resale-led, and the two buy very differently. These are the sectors that reach us most often.
+            </p>
+          </div>
+          {/* liquid-glass-card used text-only here — it is a surface class, so
+              it needs no image child and adds no new visual pattern. */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 mb-10 lg:mb-12">
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Building materials and MEP</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Contractors and fit-out firms order sanitaryware, tiles, cable, lighting, ducting and HVAC components against a programme date, where a slipped delivery costs more than the goods themselves. Production and shipping get scheduled to the site programme, not the other way round.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Retail, wholesale and trading</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                The Deira and Naif trading houses and Dragon Mart resellers buy consumer goods, houseware and seasonal ranges on short cycles, where landing a container before the season is worth considerably more than shaving the unit price.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Hospitality and F&amp;B</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Hotel and restaurant projects source kitchen equipment, furniture, uniforms and disposables against a specification that has to be matched exactly rather than approximated, usually with a sample signed off before production starts.
+              </p>
+            </div>
+            <div className="liquid-glass-card p-5 sm:p-6">
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Industrial and oil-field supply</h3>
+              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
+                Suppliers into the energy sector order safety equipment, valves, fittings and workshop consumables where certification is the binding constraint and has to be verified at the factory, not accepted on a datasheet.
+              </p>
+            </div>
+          </div>
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-6 max-w-2xl mx-auto">
+            Most enquiries reach us as a photograph rather than a category. Browse the listing if it helps, or simply send the product across and let us go and find who makes it.
+          </p>
+          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+              {tree.slice(0, 16).map((cat) => {
+                const Icon = getCategoryIcon(cat.name);
+                return (
+                  <Link
+                    key={cat.id}
+                    href={`/products?categoryId=${cat.id}`}
+                    className="group flex items-start gap-3.5 px-4 py-3.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
+                  >
+                    <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#1d7e93] mt-0.5" />
+                    <span className="text-[14px] sm:text-[15px] font-medium text-slate-700 group-hover:text-slate-900 leading-snug">
+                      {cat.name}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Inside Our Dubai Operation.
 
           The panel holds still for three viewports of scroll while the block
@@ -491,69 +559,6 @@ export default async function SourcingCompanyDubaiPage() {
           <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
             For distributors serving more than one market, the saving usually comes from consolidation rather than negotiation — several suppliers&apos; cargo brought together in Guangzhou, shipped once, and split here.
           </p>
-        </div>
-      </section>
-
-      <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-12">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
-              Sectors We Source For in Dubai and the GCC
-            </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty mt-4">
-              Demand in the UAE tends to be either project-led or resale-led, and the two buy very differently. These are the sectors that reach us most often.
-            </p>
-          </div>
-          {/* liquid-glass-card used text-only here — it is a surface class, so
-              it needs no image child and adds no new visual pattern. */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 mb-10 lg:mb-12">
-            <div className="liquid-glass-card p-5 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Building materials and MEP</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Contractors and fit-out firms order sanitaryware, tiles, cable, lighting, ducting and HVAC components against a programme date, where a slipped delivery costs more than the goods themselves. Production and shipping get scheduled to the site programme, not the other way round.
-              </p>
-            </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Retail, wholesale and trading</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                The Deira and Naif trading houses and Dragon Mart resellers buy consumer goods, houseware and seasonal ranges on short cycles, where landing a container before the season is worth considerably more than shaving the unit price.
-              </p>
-            </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Hospitality and F&amp;B</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Hotel and restaurant projects source kitchen equipment, furniture, uniforms and disposables against a specification that has to be matched exactly rather than approximated, usually with a sample signed off before production starts.
-              </p>
-            </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
-              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Industrial and oil-field supply</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Suppliers into the energy sector order safety equipment, valves, fittings and workshop consumables where certification is the binding constraint and has to be verified at the factory, not accepted on a datasheet.
-              </p>
-            </div>
-          </div>
-          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-6 max-w-2xl mx-auto">
-            Most enquiries reach us as a photograph rather than a category. Browse the listing if it helps, or simply send the product across and let us go and find who makes it.
-          </p>
-          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
-              {tree.slice(0, 16).map((cat) => {
-                const Icon = getCategoryIcon(cat.name);
-                return (
-                  <Link
-                    key={cat.id}
-                    href={`/products?categoryId=${cat.id}`}
-                    className="group flex items-start gap-3.5 px-4 py-3.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
-                  >
-                    <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#1d7e93] mt-0.5" />
-                    <span className="text-[14px] sm:text-[15px] font-medium text-slate-700 group-hover:text-slate-900 leading-snug">
-                      {cat.name}
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
         </div>
       </section>
 
