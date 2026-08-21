@@ -375,28 +375,69 @@ export default async function SourcingCompanyChennaiPage() {
           <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-5 sm:p-6 lg:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <div className="grid gap-5 lg:gap-8 lg:grid-cols-3">
               <div>
-                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-4">
                   Ports, routes and transit times
                 </h3>
-                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
-                  Most of what we move for Chennai buyers loads at Yantian, Ningbo, Shanghai or Nansha and discharges at Chennai Port, with Kattupalli and Ennore absorbing the overflow when berths are tight. Port to port, a sea shipment typically runs 14 to 21 days depending on the service and whether it transships; air freight into Chennai International usually lands in 3 to 6 days. Those are planning ranges rather than guarantees — a blank sailing or a congested transshipment hub moves them. Buyers who cannot fill a container ship LCL, consolidated at our Guangzhou hub alongside other orders heading the same way.
-                </p>
+                <ul className="space-y-3 sm:space-y-4">
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Sea hubs:</strong> Loads at major China ports and discharges at Chennai Port, Kattupalli, or Ennore.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Transit times:</strong> Sea shipments run 14–21 days; air freight into Chennai International lands in 3–6 days.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Variables:</strong> Blank sailings or transshipment congestion can impact these planning ranges.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Consolidation:</strong> LCL buyers can consolidate goods alongside other orders at our Guangzhou hub to save costs.</span>
+                  </li>
+                </ul>
               </div>
               <div>
-                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-4">
                   Customs, duty and the paperwork
                 </h3>
-                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
-                  An Importer Exporter Code from the DGFT has to exist before the first consignment arrives, or the goods simply sit. Clearance runs on a Bill of Entry filed through ICEGATE, against which Basic Customs Duty, the Social Welfare Surcharge and IGST fall due. IGST is the part first-time importers misread: it is recoverable as input credit through your GST return, so it shapes cash flow rather than final cost. Several categories — electronics, toys and medical devices among them — need BIS or CDSCO registration before they can clear at all, which is a question to settle while quoting, not at the port.
-                </p>
+                <ul className="space-y-3 sm:space-y-4">
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">DGFT Code:</strong> An Importer Exporter Code must be in place before the first consignment arrives.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Clearance & Duty:</strong> Filed via ICEGATE; Basic Customs Duty, Social Welfare Surcharge, and IGST apply.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">IGST Credit:</strong> IGST is recoverable as input credit via your GST return, impacting cash flow rather than cost.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Registration:</strong> Electronics, toys, and medical devices require BIS or CDSCO registration before quoting.</span>
+                  </li>
+                </ul>
               </div>
               <div>
-                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-4">
                   Where consignments actually get held
                 </h3>
-                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
-                  In our experience the commonest cause of a delayed clearance is HS classification. The code sets the duty rate and any licensing conditions attached to the goods, and a plausible-looking wrong code produces a query, a re-assessment, and demurrage accruing while it is argued. We classify at the quoting stage so the landed cost you approve is the one you pay, then work with your CHA through assessment, duty payment and delivery to your godown anywhere in Tamil Nadu.
-                </p>
+                <ul className="space-y-3 sm:space-y-4">
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Common delays:</strong> In our experience, the most frequent cause of delayed clearance is incorrect HS classification.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">HS Code impact:</strong> Incorrect codes trigger queries, re-assessments, and costly demurrage while argued.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Our process:</strong> We classify correctly at quoting for accurate landed costs, and coordinate with your CHA for delivery.</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>

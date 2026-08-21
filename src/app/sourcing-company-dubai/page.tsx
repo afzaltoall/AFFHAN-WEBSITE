@@ -383,28 +383,65 @@ export default async function SourcingCompanyDubaiPage() {
           <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-5 sm:p-6 lg:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
             <div className="grid gap-5 lg:gap-8 lg:grid-cols-3">
               <div>
-                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-4">
                   Ports, airports and transit times
                 </h3>
-                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
-                  Jebel Ali takes most of the container volume arriving from China, with Port Rashid handling smaller and specialised cargo and Khalifa Port serving buyers closer to Abu Dhabi. Air freight moves through Dubai International and Al Maktoum. As planning ranges rather than promises, sea freight from China to Jebel Ali runs roughly 15 to 25 days depending on the origin port and the service, and air freight 3 to 7 days. Consolidating at our Guangzhou hub lets a buyer combine several factories&apos; output into one booking instead of paying part-container rates three times over.
-                </p>
+                <ul className="space-y-3 sm:space-y-4">
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Sea hubs:</strong> Jebel Ali takes most volume, with Port Rashid for specialised cargo and Khalifa Port serving Abu Dhabi.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Air hubs:</strong> Air freight primarily moves through Dubai International (DXB) and Al Maktoum (DWC).</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Transit times:</strong> Sea freight from China runs roughly 15–25 days depending on routing; air freight takes 3–7 days.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Consolidation:</strong> Combine several factories&apos; output at our Guangzhou hub into one booking instead of paying part-container rates.</span>
+                  </li>
+                </ul>
               </div>
               <div>
-                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-4">
                   Declarations, duty and VAT
                 </h3>
-                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
-                  Import declarations are filed with Dubai Customs, and goods are assessed against the GCC common external tariff that applies across the customs union. VAT is charged at import and, for a VAT-registered business, accounted for through the return rather than absorbed as a cost — a timing question more than an added expense, as in most VAT systems. The practical requirement is a valid trade licence with a customs importer code registered against it: the declaration has to be made by an entity entitled to import.
-                </p>
+                <ul className="space-y-3 sm:space-y-4">
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Filing & Tariff:</strong> Import declarations are filed with Dubai Customs, assessed against the GCC common external tariff.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Import VAT:</strong> VAT is charged at import, but for registered businesses it is accounted for via returns rather than absorbed as a cost.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Requirements:</strong> A valid trade licence with a customs importer code is mandatory to clear goods into the mainland.</span>
+                  </li>
+                </ul>
               </div>
               <div>
-                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-4">
                   Free zones and why Dubai re-exports
                 </h3>
-                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
-                  This is what makes Dubai a hub rather than a destination. Goods landed into a free zone such as JAFZA or DMCC sit under customs suspension: no import duty is due while they remain inside, and it becomes payable only if they cross into the mainland. Cargo that leaves again for another market can do so without ever having attracted UAE import duty. That mechanism is why one container from China can be broken down here and moved on to several GCC markets — and why it is worth deciding where a shipment will land before it is booked rather than after it arrives.
-                </p>
+                <ul className="space-y-3 sm:space-y-4">
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Customs suspension:</strong> Goods landed into a free zone (e.g. JAFZA, DMCC) incur no import duty while they remain inside.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">Re-exporting:</strong> Cargo that leaves a free zone for another market can do so without ever attracting UAE import duty.</span>
+                  </li>
+                  <li className="flex items-start gap-2.5 text-slate-600 text-[13px] sm:text-[14px] leading-[1.6]">
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#1d7e93] mt-[0.4rem] shrink-0 opacity-80" />
+                    <span><strong className="text-slate-800 font-medium">GCC distribution:</strong> This mechanism allows breaking down a single China container to supply several distinct GCC markets efficiently.</span>
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
