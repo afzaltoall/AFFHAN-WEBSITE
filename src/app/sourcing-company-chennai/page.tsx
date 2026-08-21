@@ -442,9 +442,9 @@ export default async function SourcingCompanyChennaiPage() {
       </section>
 
       {/* Industries */}
-      <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
+      <section className="py-10 lg:py-12 bg-slate-50 border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-12">
+          <div className="text-center mb-6 lg:mb-8">
             <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-5">
               Industries We Source For in Chennai and Tamil Nadu
             </h2>
@@ -455,44 +455,56 @@ export default async function SourcingCompanyChennaiPage() {
           {/* Same liquid-glass-card treatment as the services grid, minus the
               image block — the class is purely a surface, so it works text-only
               and introduces no new visual pattern. */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 mb-10 lg:mb-12">
-            <div className="liquid-glass-card p-5 sm:p-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-6 lg:mb-8">
+            <div className="liquid-glass-card p-5 flex flex-col">
               <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Auto components</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                The Ambattur, Oragadam and Sriperumbudur belt buys fasteners, castings, rubber and plastic mouldings, jigs and press tooling. Drawings matter more than photographs here, and first articles are inspected against them before a production run is released.
+              <p className="text-slate-600 text-sm leading-[1.55] tracking-[-0.003em] text-pretty">
+                The Ambattur, Oragadam and Sriperumbudur belt works to drawings, so first articles are inspected against them before a run is released.
+              </p>
+              <p className="mt-auto pt-3 text-[12.5px] leading-[1.5] text-slate-500 border-t border-white/70">
+                <span className="font-semibold text-slate-600">Typical lines: </span>fasteners, castings and forgings, rubber and plastic mouldings, jigs and press tooling
               </p>
             </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
+            <div className="liquid-glass-card p-5 flex flex-col">
               <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Leather and footwear</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Ambur, Ranipet and Vaniyambadi source buckles and hardware, linings, soles and finishing chemicals, along with spares for cutting and stitching machinery that are no longer stocked in India.
+              <p className="text-slate-600 text-sm leading-[1.55] tracking-[-0.003em] text-pretty">
+                Ambur, Ranipet and Vaniyambadi buy components and machinery spares that are no longer stocked anywhere in India.
+              </p>
+              <p className="mt-auto pt-3 text-[12.5px] leading-[1.5] text-slate-500 border-t border-white/70">
+                <span className="font-semibold text-slate-600">Typical lines: </span>buckles and hardware, linings, soles, finishing chemicals, cutting and stitching spares
               </p>
             </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
+            <div className="liquid-glass-card p-5 flex flex-col">
               <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Textiles and garments</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Tiruppur, Erode and Karur import trims, labels, elastics, zips and retail packaging, plus knitting and dyeing machine parts where the OEM lead time is measured in months rather than weeks.
+              <p className="text-slate-600 text-sm leading-[1.55] tracking-[-0.003em] text-pretty">
+                Tiruppur, Erode and Karur order parts where the OEM lead time runs to months, so the question is availability rather than price.
+              </p>
+              <p className="mt-auto pt-3 text-[12.5px] leading-[1.5] text-slate-500 border-t border-white/70">
+                <span className="font-semibold text-slate-600">Typical lines: </span>labels and tags, elastics, zips, retail packaging, knitting and dyeing spares
               </p>
             </div>
-            <div className="liquid-glass-card p-5 sm:p-6">
+            <div className="liquid-glass-card p-5 flex flex-col">
               <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">Engineering and electricals</h3>
-              <p className="text-slate-600 text-sm leading-[1.6] tracking-[-0.003em] text-pretty">
-                Coimbatore and Hosur buy motors, pump components, switchgear, LED assemblies and control-panel parts, usually against a certification requirement that has to be verified at the factory rather than promised in an email.
+              <p className="text-slate-600 text-sm leading-[1.55] tracking-[-0.003em] text-pretty">
+                Coimbatore and Hosur buy against a certification requirement, which has to be verified at the factory rather than promised by email.
+              </p>
+              <p className="mt-auto pt-3 text-[12.5px] leading-[1.5] text-slate-500 border-t border-white/70">
+                <span className="font-semibold text-slate-600">Typical lines: </span>motors, pump components, switchgear, LED assemblies, control-panel parts
               </p>
             </div>
           </div>
-          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-6 max-w-2xl mx-auto">
-            Beyond those, the catalogue below covers every category we can quote against — browse it to find something close to what you need, and we will source to your specification.
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.6] mb-4 max-w-2xl mx-auto">
+            Browse the catalogue below for something close to what you need, and we will source it to your specification.
           </p>
-          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2">
+          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-5 sm:p-6 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-0.5">
               {tree.slice(0, 16).map((cat) => {
                 const Icon = getCategoryIcon(cat.name);
                 return (
                   <Link
                     key={cat.id}
                     href={`/products/?categoryId=${cat.id}`}
-                    className="group flex items-start gap-3.5 px-4 py-3.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
+                    className="group flex items-start gap-3 px-3.5 py-2.5 text-left transition-all border-l-4 border-transparent hover:bg-white/60 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
                   >
                     <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#1d7e93] mt-0.5" />
                     <span className="text-[14px] sm:text-[15px] font-medium text-slate-700 group-hover:text-slate-900 leading-snug">
