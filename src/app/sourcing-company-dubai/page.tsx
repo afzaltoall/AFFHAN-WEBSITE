@@ -370,39 +370,39 @@ export default async function SourcingCompanyDubaiPage() {
           way wherever it lands — so everything specific to Dubai lives here.
           Transit figures match the FAQ further down this page so the two
           cannot contradict each other. */}
-      <section className="py-16 lg:py-24 bg-gradient-to-b from-white to-[#f5fbfd] border-t border-slate-200">
+      <section className="py-6 lg:py-8 bg-gradient-to-b from-white to-[#f5fbfd] border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-10 lg:mb-12">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-4">
+          <div className="text-center mb-6 lg:mb-8">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
               What it takes to land a China shipment in the UAE
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty">
+            <p className="text-slate-600 max-w-2xl mx-auto text-[14px] sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
               The China&ndash;UAE corridor is one of the busiest in the world and it is well served, so the variable is rarely the shipping. It is whether the right goods were loaded, and whether the declaration matches them.
             </p>
           </div>
-          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 lg:p-10 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <div className="grid gap-8 lg:gap-10 lg:grid-cols-3">
+          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-5 sm:p-6 lg:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="grid gap-5 lg:gap-8 lg:grid-cols-3">
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
                   Ports, airports and transit times
                 </h3>
-                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
                   Jebel Ali takes most of the container volume arriving from China, with Port Rashid handling smaller and specialised cargo and Khalifa Port serving buyers closer to Abu Dhabi. Air freight moves through Dubai International and Al Maktoum. As planning ranges rather than promises, sea freight from China to Jebel Ali runs roughly 15 to 25 days depending on the origin port and the service, and air freight 3 to 7 days. Consolidating at our Guangzhou hub lets a buyer combine several factories&apos; output into one booking instead of paying part-container rates three times over.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
                   Declarations, duty and VAT
                 </h3>
-                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
                   Import declarations are filed with Dubai Customs, and goods are assessed against the GCC common external tariff that applies across the customs union. VAT is charged at import and, for a VAT-registered business, accounted for through the return rather than absorbed as a cost — a timing question more than an added expense, as in most VAT systems. The practical requirement is a valid trade licence with a customs importer code registered against it: the declaration has to be made by an entity entitled to import.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
                   Free zones and why Dubai re-exports
                 </h3>
-                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
                   This is what makes Dubai a hub rather than a destination. Goods landed into a free zone such as JAFZA or DMCC sit under customs suspension: no import duty is due while they remain inside, and it becomes payable only if they cross into the mainland. Cargo that leaves again for another market can do so without ever having attracted UAE import duty. That mechanism is why one container from China can be broken down here and moved on to several GCC markets — and why it is worth deciding where a shipment will land before it is booked rather than after it arrives.
                 </p>
               </div>
@@ -514,7 +514,7 @@ export default async function SourcingCompanyDubaiPage() {
       <GoogleRating
         heading="Our Record on Google"
         rating={4.8}
-        detail="4.8 out of 5, from 144 Google reviews of AFFHAN Group at our Chennai head office. The Dubai office runs on the same team and the same suppliers."
+        detail="4.8 out of 5 across 144 Google reviews of AFFHAN Group. The profile is held at our Chennai head office, trading since 2000."
       />
 
       {/* Inside Our Dubai Operation.
@@ -670,7 +670,7 @@ export default async function SourcingCompanyDubaiPage() {
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
                 <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums whitespace-nowrap">4.8</div>
-                <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Rating</div>
+                <div className="text-xs sm:text-sm text-slate-400 font-medium uppercase tracking-wider leading-tight">Google &middot; Chennai HQ</div>
               </div>
             </div>
           </div>

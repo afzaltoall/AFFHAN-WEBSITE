@@ -362,39 +362,39 @@ export default async function SourcingCompanyChennaiPage() {
           detail that makes this page worth indexing lives here instead.
           Reuses the frosted panel from the Industries section rather than
           introducing another card treatment. */}
-      <section className="py-16 lg:py-24 bg-gradient-to-b from-white to-[#f5fbfd] border-t border-slate-200">
+      <section className="py-6 lg:py-8 bg-gradient-to-b from-white to-[#f5fbfd] border-t border-slate-200 min-h-[calc(100svh-4rem)] flex flex-col justify-center">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="text-center mb-10 lg:mb-12">
-            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-4">
+          <div className="text-center mb-6 lg:mb-8">
+            <h2 className="text-[1.75rem] sm:text-3xl lg:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
               Importing from China into Chennai
             </h2>
-            <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty">
+            <p className="text-slate-600 max-w-2xl mx-auto text-[14px] sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
               Chennai is the natural entry point for importers across South India, and most of what goes wrong on a first shipment goes wrong on paper rather than at sea. This is what the route actually looks like.
             </p>
           </div>
-          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-6 sm:p-8 lg:p-10 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
-            <div className="grid gap-8 lg:gap-10 lg:grid-cols-3">
+          <div className="max-w-6xl mx-auto bg-white/40 backdrop-blur-md p-5 sm:p-6 lg:p-8 rounded-3xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+            <div className="grid gap-5 lg:gap-8 lg:grid-cols-3">
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
                   Ports, routes and transit times
                 </h3>
-                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
                   Most of what we move for Chennai buyers loads at Yantian, Ningbo, Shanghai or Nansha and discharges at Chennai Port, with Kattupalli and Ennore absorbing the overflow when berths are tight. Port to port, a sea shipment typically runs 14 to 21 days depending on the service and whether it transships; air freight into Chennai International usually lands in 3 to 6 days. Those are planning ranges rather than guarantees — a blank sailing or a congested transshipment hub moves them. Buyers who cannot fill a container ship LCL, consolidated at our Guangzhou hub alongside other orders heading the same way.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
                   Customs, duty and the paperwork
                 </h3>
-                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
                   An Importer Exporter Code from the DGFT has to exist before the first consignment arrives, or the goods simply sit. Clearance runs on a Bill of Entry filed through ICEGATE, against which Basic Customs Duty, the Social Welfare Surcharge and IGST fall due. IGST is the part first-time importers misread: it is recoverable as input credit through your GST return, so it shapes cash flow rather than final cost. Several categories — electronics, toys and medical devices among them — need BIS or CDSCO registration before they can clear at all, which is a question to settle while quoting, not at the port.
                 </p>
               </div>
               <div>
-                <h3 className="text-lg sm:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-3">
+                <h3 className="text-base sm:text-lg lg:text-xl font-semibold tracking-[-0.016em] leading-snug text-slate-900 mb-2">
                   Where consignments actually get held
                 </h3>
-                <p className="text-slate-600 text-sm sm:text-[15px] leading-[1.7] tracking-[-0.003em] text-pretty">
+                <p className="text-slate-600 text-[13px] sm:text-[14px] leading-[1.65] tracking-[-0.003em] text-pretty">
                   In our experience the commonest cause of a delayed clearance is HS classification. The code sets the duty rate and any licensing conditions attached to the goods, and a plausible-looking wrong code produces a query, a re-assessment, and demurrage accruing while it is argued. We classify at the quoting stage so the landed cost you approve is the one you pay, then work with your CHA through assessment, duty payment and delivery to your godown anywhere in Tamil Nadu.
                 </p>
               </div>
@@ -540,7 +540,7 @@ export default async function SourcingCompanyChennaiPage() {
       <GoogleRating
         heading="What Our Chennai Customers Rate Us"
         rating={4.8}
-        detail="4.8 out of 5, from 144 Google reviews of our Royapuram office — left by importers we have sourced and shipped for."
+        detail="4.8 out of 5 across 144 Google reviews of our Royapuram office, left by importers we have sourced and shipped for."
       />
 
       {/* Why Choose Us */}
@@ -623,7 +623,7 @@ export default async function SourcingCompanyChennaiPage() {
               </div>
               <div className="bg-slate-800 p-6 rounded-2xl text-center">
                 <div className="text-[1.75rem] sm:text-4xl font-bold tracking-[-0.032em] leading-none text-brand mb-2 tabular-nums whitespace-nowrap">4.8</div>
-                <div className="text-sm text-slate-400 font-medium uppercase tracking-wider">Rating</div>
+                <div className="text-xs sm:text-sm text-slate-400 font-medium uppercase tracking-wider leading-tight">Google Rating</div>
               </div>
             </div>
           </div>
