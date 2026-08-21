@@ -427,9 +427,14 @@ export default async function SourcingCompanyDubaiPage() {
           words of indexable copy out of the HTML with them. Under mobile-first
           indexing the `lg:` variants never apply at all, so a crawler renders
           all three stacked, in flow, fully visible. */}
-      <section className="py-16 lg:pt-24 lg:pb-0 bg-white border-t border-slate-200">
-        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12">
+      <section className="py-16 lg:py-0 bg-white border-t border-slate-200">
+        {/* The header is passed into the panel rather than sitting above it, so
+            the two pin together. Outside the panel it was separated from the
+            first block by half a viewport of dead space — the panel was a full
+            screen tall with its contents centred — and the block then jumped
+            upward the moment the panel stuck. */}
+        <PinnedScrollPanel blocks={dubaiTeamBlocks}>
+          <div className="text-center max-w-2xl mx-auto">
             <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-4">
               Inside Our Dubai Operation
             </h2>
@@ -437,9 +442,7 @@ export default async function SourcingCompanyDubaiPage() {
               Sourcing is a trust business, and most of it happens somewhere the buyer cannot see. This is the part that sits in the UAE — the office, the people, and how the work is actually split between here and China.
             </p>
           </div>
-        </div>
-
-        <PinnedScrollPanel blocks={dubaiTeamBlocks} />
+        </PinnedScrollPanel>
       </section>
 
       <SourcingProcessSection />
