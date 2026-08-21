@@ -146,6 +146,71 @@ const schema = {
   ],
 };
 
+// Blocks for the "Inside Our Dubai Operation" sticky-scroll section. Held as
+// data so the markup below stays one mapped row instead of three near-identical
+// copies, and so adding a fourth block is a single entry.
+//
+// The aspect ratios differ per block on purpose. No single ratio suits both a
+// portrait office photograph and the landscape group shot: cropping the group
+// to portrait pushes the two people on the ends out of frame, and cropping the
+// office shots to landscape loses the desk. Both values are fixed, so a
+// per-block ratio costs nothing in layout shift.
+//
+// The class strings have to appear here verbatim — Tailwind scans source text,
+// so `aspect-[4/5]` and `aspect-[3/2]` are only generated because they are
+// written out literally. Both are checked in the built CSS.
+const dubaiTeamBlocks = [
+  {
+    id: "office",
+    heading: "The office on Sheikh Zayed Road",
+    src: "/dubai-team/dubai-office-reception.webp",
+    alt: "Reception desk carrying the AFFHAN logo at the company's Dubai sourcing office",
+    aspect: "aspect-[4/5]",
+    body: [
+      "The UAE side of the business runs from an office on Sheikh Zayed Road, and it is a working office rather than a mailing address. Visitors are welcome, and a good deal of what we do still gets settled across a desk rather than over email.",
+      "Buyers arrive with a sample in a carrier bag more often than you would expect. Being able to hand a physical part to someone who will photograph it, write the specification and put it in front of our buyers the same afternoon takes a week out of a conversation that email alone never quite finishes.",
+    ],
+  },
+  {
+    id: "desk",
+    heading: "The desk that owns your order",
+    src: "/dubai-team/dubai-team-desks.webp",
+    alt: "AFFHAN Dubai coordinators at their desks managing China to UAE sourcing orders",
+    aspect: "aspect-[4/5]",
+    body: [
+      "Every order is assigned to one coordinator here, and that person stays with it from the first quotation through to the day it is delivered. Nobody is handed between a sales contact, an operations contact and an accounts contact, and you never have to explain the order twice.",
+      "China runs four hours ahead of the UAE, which turns out to be an advantage rather than a nuisance. A question raised in Dubai first thing reaches our buyers in Guangzhou while the factory day is still running, and the answer is usually back before this office closes.",
+    ],
+  },
+  {
+    id: "corridor",
+    heading: "One team at both ends of the corridor",
+    src: "/dubai-team/dubai-team-group.webp",
+    alt: "The six-person AFFHAN Dubai team in branded uniform at the company's UAE office",
+    aspect: "aspect-[3/2]",
+    body: [
+      "The people in this photograph and the buyers walking factory floors in Guangzhou work for the same company. That sounds like a small distinction and it is not — most sourcing offers in the region are a local desk that forwards your enquiry to an unrelated agent in China and adds a margin to whatever comes back.",
+      "It matters most when something is wrong. If an inspection finds a batch short or a finish off-specification, we are arguing with the factory on your behalf rather than relaying messages between two parties who have never met. A problem caught at the factory also tends to get fixed at the factory, which is the only place it is cheap to fix.",
+    ],
+  },
+  // Fourth slot, intentionally empty. Drop in a photograph taken by the team —
+  // the building entrance or the office door — fill in the copy, and it renders
+  // with no other change.
+  //
+  // Not filled from public/employees-dubai: image-3 there is a Google Street
+  // View capture watermarked "© 2016 Google", which is Google's imagery rather
+  // than ours, and image-5 is the nameplate photograph, which would put two
+  // L.L.C names on the page that have not been confirmed as current.
+  // {
+  //   id: "exterior",
+  //   heading: "",
+  //   src: "/dubai-team/____.webp",
+  //   alt: "",
+  //   aspect: "aspect-[4/5]",
+  //   body: ["", ""],
+  // },
+];
+
 export default async function SourcingCompanyDubaiPage() {
   const [productCount, categoryCount, categoriesRaw] = await Promise.all([
     prisma.product.count(),
@@ -322,6 +387,80 @@ export default async function SourcingCompanyDubaiPage() {
                 </p>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Inside Our Dubai Operation — sticky-scroll storytelling.
+
+          Each block is its own two-column grid, with the image column set
+          `lg:sticky lg:top-24`. The image pins while that block's own copy
+          scrolls past it, then the next block's image takes over: the
+          pinned-image-swap effect, with no JavaScript at all.
+
+          One grid per block rather than one grid holding all three, and that is
+          load-bearing. A sticky grid item is positioned against its grid
+          container, so a single shared grid would let the first image stick
+          across the entire section instead of releasing at the end of its own
+          block.
+
+          `lg:items-start` is the other half of it: grid items stretch to row
+          height by default, and a sticky element that already fills its
+          containing block has nowhere to travel. The copy column carries the
+          `lg:min-h-[100svh]` that gives the image something to move against.
+
+          Below `lg` none of these utilities apply, so it degrades to ordinary
+          stacked flow — image, copy, image, copy. No pinning and no scroll
+          maths on touch, where sticky-scroll reads as jank.
+
+          `lg:top-24` clears the fixed navbar, matching the hero's `pt-24`. */}
+      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
+        <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-12 lg:mb-16">
+            <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-4">
+              Inside Our Dubai Operation
+            </h2>
+            <p className="text-slate-600 text-sm sm:text-base leading-[1.65] tracking-[-0.003em] text-pretty">
+              Sourcing is a trust business, and most of it happens somewhere the buyer cannot see. This is the part that sits in the UAE — the office, the people, and how the work is actually split between here and China.
+            </p>
+          </div>
+
+          <div className="space-y-14 lg:space-y-0">
+            {dubaiTeamBlocks.map((block) => (
+              <div key={block.id} className="lg:grid lg:grid-cols-2 lg:gap-12 xl:gap-16 lg:items-start">
+                {/* Fixed aspect box reserves the space before the file lands,
+                    so nothing shifts. All of these sit well below the fold —
+                    the hero h1 is the LCP — so none is marked priority:
+                    preloading them would compete with the real LCP for
+                    bandwidth rather than help it. Lazy is the default. */}
+                <div className="lg:sticky lg:top-24">
+                  <div className={`relative ${block.aspect} w-full overflow-hidden rounded-3xl bg-slate-100 border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)]`}>
+                    <Image
+                      src={block.src}
+                      unoptimized={false}
+                      alt={block.alt}
+                      fill
+                      sizes="(max-width: 1024px) 100vw, 45vw"
+                      className="object-cover"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 lg:mt-0 lg:flex lg:min-h-[100svh] lg:flex-col lg:justify-center lg:py-12">
+                  <h3 className="text-xl sm:text-2xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-4">
+                    {block.heading}
+                  </h3>
+                  {block.body.map((paragraph, i) => (
+                    <p
+                      key={i}
+                      className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-4 last:mb-0"
+                    >
+                      {paragraph}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
