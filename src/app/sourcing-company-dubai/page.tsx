@@ -8,7 +8,7 @@ import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { PinnedScrollPanel } from "@/components/ui/pinned-scroll-panel";
-import { Testimonials, type Testimonial } from "@/components/ui/testimonials";
+import { GoogleRating } from "@/components/ui/google-rating";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -166,20 +166,6 @@ const schema = {
 // The class strings have to appear here verbatim — Tailwind scans source text,
 // so `aspect-[4/5]` and `aspect-[3/2]` are only generated because they are
 // written out literally. Both are checked in the built CSS.
-// Customer quotes for the testimonials section. Empty on purpose: the section
-// renders nothing until real, attributable quotes are added, and inventing them
-// is not an option on a commercial page. Each entry needs the customer's own
-// words, their name, and their permission to publish it.
-//
-// Deliberately NOT filled from the component that was pasted in: those four
-// testimonials are Tailus placeholder content, naming real people and quoting
-// them about an unrelated product.
-//
-// Do not add Review or AggregateRating structured data alongside these. The
-// same markup was removed from this site earlier: a business cannot republish
-// third-party review data as its own first-party schema.
-const dubaiTestimonials: Testimonial[] = [];
-
 const dubaiTeamBlocks = [
   // Slot for an exterior shot of the building. Fill in a photograph taken by
   // the team, with copy and alt text, and it renders with no other change.
@@ -521,10 +507,14 @@ export default async function SourcingCompanyDubaiPage() {
         </div>
       </section>
 
-      <Testimonials
-        heading="What UAE Importers Say About Working With Us"
-        intro="Quotes from buyers we source for across the UAE and the wider GCC."
-        testimonials={dubaiTestimonials}
+      {/* Option (b): the figure belongs to the Chennai head-office profile and
+          says so. The Dubai profile is newer and much smaller, and quoting 4.7
+          without its count would imply a sample that is not there. No schema —
+          see the note in the component. */}
+      <GoogleRating
+        heading="Our Record on Google"
+        rating={4.8}
+        detail="4.8 out of 5, from 144 Google reviews of AFFHAN Group at our Chennai head office. The Dubai office runs on the same team and the same suppliers."
       />
 
       {/* Inside Our Dubai Operation.
