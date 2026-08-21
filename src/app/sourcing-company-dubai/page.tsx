@@ -7,6 +7,7 @@ import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
+import { PinnedScrollPanel } from "@/components/ui/pinned-scroll-panel";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -155,6 +156,11 @@ const schema = {
 // to portrait pushes the two people on the ends out of frame, and cropping the
 // office shots to landscape loses the desk. Both values are fixed, so a
 // per-block ratio costs nothing in layout shift.
+//
+// Per-block ratios are only workable because the panel cross-fades between
+// blocks rather than stacking one over another. A stack needs every frame the
+// same shape to hide the one underneath, and there is no shape that suits both
+// a portrait office shot and a landscape group photo.
 //
 // The class strings have to appear here verbatim — Tailwind scans source text,
 // so `aspect-[4/5]` and `aspect-[3/2]` are only generated because they are
@@ -391,32 +397,39 @@ export default async function SourcingCompanyDubaiPage() {
         </div>
       </section>
 
-      {/* Inside Our Dubai Operation — sticky-scroll storytelling.
+      {/* Inside Our Dubai Operation.
 
-          Each block is its own two-column grid, with the image column set
-          `lg:sticky lg:top-24`. The image pins while that block's own copy
-          scrolls past it, then the next block's image takes over: the
-          pinned-image-swap effect, with no JavaScript at all.
+          The panel holds still for three viewports of scroll while the block
+          inside it cross-fades, one at a time — screen fixed, content changing,
+          rather than the earlier version where each image pinned inside its own
+          row.
 
-          One grid per block rather than one grid holding all three, and that is
-          load-bearing. A sticky grid item is positioned against its grid
-          container, so a single shared grid would let the first image stick
-          across the entire section instead of releasing at the end of its own
-          block.
+          That earlier version could not do this, and the reason is worth
+          recording. A sticky image stays pinned for (row height - image height)
+          pixels, so equal rows gave a 230px pin on the 4:5 blocks and 543px on
+          the 3:2 one at a 900px viewport, widening to 7x at 720px — the images
+          and their copy visibly drifting apart. Worse, rows sat flush against
+          each other, so the outgoing image ended exactly where the incoming one
+          began and both were on screen while the boundary crossed. No amount of
+          tuning removes that: the gap between them would have to exceed a whole
+          viewport, which means a screen of dead space between every block.
+          Restructuring into one shared grid does not help either, because a
+          grid item's containing block is its grid area, so each image stays
+          confined to its own row regardless.
 
-          `lg:items-start` is the other half of it: grid items stretch to row
-          height by default, and a sticky element that already fills its
-          containing block has nowhere to travel. The copy column carries the
-          `lg:min-h-[100svh]` that gives the image something to move against.
+          A held panel needs to know which block is current, which needs
+          measurement, so this carries a small client component — one
+          IntersectionObserver over three empty markers, no scroll library and
+          no motion library. The cross-fade itself is a CSS opacity transition.
 
-          Below `lg` none of these utilities apply, so it degrades to ordinary
-          stacked flow — image, copy, image, copy. No pinning and no scroll
-          maths on touch, where sticky-scroll reads as jank.
-
-          `lg:top-24` clears the fixed navbar, matching the hero's `pt-24`. */}
-      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
+          Every block stays mounted throughout. Swapping content through
+          AnimatePresence would unmount the inactive ones and take roughly 250
+          words of indexable copy out of the HTML with them. Under mobile-first
+          indexing the `lg:` variants never apply at all, so a crawler renders
+          all three stacked, in flow, fully visible. */}
+      <section className="py-16 lg:pt-24 lg:pb-0 bg-white border-t border-slate-200">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-12 lg:mb-16">
+          <div className="text-center max-w-2xl mx-auto mb-12">
             <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-4">
               Inside Our Dubai Operation
             </h2>
@@ -424,45 +437,9 @@ export default async function SourcingCompanyDubaiPage() {
               Sourcing is a trust business, and most of it happens somewhere the buyer cannot see. This is the part that sits in the UAE — the office, the people, and how the work is actually split between here and China.
             </p>
           </div>
-
-          <div className="space-y-14 lg:space-y-0">
-            {dubaiTeamBlocks.map((block) => (
-              <div key={block.id} className="lg:grid lg:grid-cols-2 lg:gap-12 xl:gap-16 lg:items-start">
-                {/* Fixed aspect box reserves the space before the file lands,
-                    so nothing shifts. All of these sit well below the fold —
-                    the hero h1 is the LCP — so none is marked priority:
-                    preloading them would compete with the real LCP for
-                    bandwidth rather than help it. Lazy is the default. */}
-                <div className="lg:sticky lg:top-24">
-                  <div className={`relative ${block.aspect} w-full overflow-hidden rounded-3xl bg-slate-100 border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.06)]`}>
-                    <Image
-                      src={block.src}
-                      unoptimized={false}
-                      alt={block.alt}
-                      fill
-                      sizes="(max-width: 1024px) 100vw, 45vw"
-                      className="object-cover"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6 lg:mt-0 lg:flex lg:min-h-[100svh] lg:flex-col lg:justify-center lg:py-12">
-                  <h3 className="text-xl sm:text-2xl font-semibold tracking-[-0.016em] leading-snug text-balance text-slate-900 mb-4">
-                    {block.heading}
-                  </h3>
-                  {block.body.map((paragraph, i) => (
-                    <p
-                      key={i}
-                      className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-4 last:mb-0"
-                    >
-                      {paragraph}
-                    </p>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
+
+        <PinnedScrollPanel blocks={dubaiTeamBlocks} />
       </section>
 
       <SourcingProcessSection />
