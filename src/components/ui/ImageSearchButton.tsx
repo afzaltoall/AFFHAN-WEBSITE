@@ -89,11 +89,11 @@ function ThinkingSteps() {
           {/* Tail: a rotated square tucked under the bubble's left edge, so it
               reads as pointing at the mascot without needing an SVG. */}
           <span
-            className="absolute -left-1.5 top-1/2 size-3 -translate-y-1/2 rotate-45 rounded-[2px] border-b border-l border-white/70 bg-white/80"
+            className="absolute -left-1.5 top-1/2 size-3 -translate-y-1/2 rotate-45 rounded-[2px] border-b border-l border-slate-200 bg-slate-50"
             aria-hidden="true"
           />
-          <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm">
-            <p key={quote} className="text-sm leading-snug text-slate-700 motion-safe:animate-[fadeIn_450ms_ease-out]">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
+            <p key={quote} className="text-sm leading-snug text-slate-800 motion-safe:animate-[fadeIn_450ms_ease-out]">
               {QUOTES[quote]}
             </p>
           </div>
@@ -143,11 +143,11 @@ function ThinkingSteps() {
               >
                 <span className="flex items-baseline justify-between gap-3">
                   <span className="text-sm font-semibold text-slate-800">{s.label}</span>
-                  <span className="shrink-0 text-[11px] font-medium tabular-nums text-slate-400">
+                  <span className="shrink-0 text-[11px] font-medium tabular-nums text-slate-500">
                     {done ? "Done" : started ? `${pct}%` : "Waiting"}
                   </span>
                 </span>
-                <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{s.detail}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">{s.detail}</span>
 
                 {/* The horizontal line under each step: full width, filling as
                     that stage runs. This is the part a spinner cannot express. */}
@@ -274,8 +274,8 @@ export function ImageSearchButton({ className }: { className?: string }) {
       {/* Glass panel: translucent white over the blurred page, a light top-left
           border to catch the light, and a soft ring so it reads as a raised
           surface rather than a flat sheet. */}
-      <div className="my-auto flex max-h-[90svh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white/95 shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-900/5">
-        <div className="flex shrink-0 items-start gap-4 border-b border-slate-200/70 bg-gradient-to-b from-white/80 to-white/40 p-5">
+      <div className="my-auto flex max-h-[90svh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-900/5">
+        <div className="flex shrink-0 items-start gap-4 border-b border-slate-200 bg-slate-50/60 p-5">
           {preview ? (
             <div className="relative size-16 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element -- blob: URL, nothing for next/image to optimise */}
@@ -286,7 +286,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
             <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-900">
               {busy ? "Search by photo" : result?.productType || "Search by photo"}
             </h2>
-            <p className="mt-0.5 text-sm text-slate-500">
+            <p className="mt-0.5 text-sm text-slate-600">
               {busy
                 ? "Reading the image and matching it to the catalogue."
                 : result?.error
@@ -298,14 +298,14 @@ export function ImageSearchButton({ className }: { className?: string }) {
                       : "Nothing close in the catalogue — send it to us and we will find who makes it."}
             </p>
             {!busy && result?.terms?.length ? (
-              <p className="mt-1.5 text-xs text-slate-400">Matched on: {result.terms.join(", ")}</p>
+              <p className="mt-1.5 text-xs text-slate-500">Matched on: {result.terms.join(", ")}</p>
             ) : null}
           </div>
           <button
             type="button"
             onClick={reset}
             aria-label="Close"
-            className="shrink-0 rounded-full p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            className="shrink-0 rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
           >
             <X size={18} />
           </button>
@@ -323,7 +323,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
             <>
               {categories.length > 0 && (
                 <div className="mb-6">
-                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">
                     Categories to explore
                   </p>
                   <div className="flex flex-wrap gap-2">
@@ -332,10 +332,10 @@ export function ImageSearchButton({ className }: { className?: string }) {
                         key={c.id}
                         href={`/products/?categoryId=${c.id}`}
                         onClick={reset}
-                        className="group inline-flex items-baseline gap-1.5 rounded-full border border-slate-200/80 bg-white/70 px-3.5 py-2 text-sm shadow-sm transition-all hover:border-[#27a8c4] hover:bg-white hover:shadow"
+                        className="group inline-flex items-baseline gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm shadow-sm transition-all hover:border-[#27a8c4] hover:bg-slate-50 hover:shadow"
                       >
                         {c.parentName ? (
-                          <span className="text-xs text-slate-400 group-hover:text-slate-500">
+                          <span className="text-xs text-slate-500 group-hover:text-slate-600">
                             {c.parentName} ›
                           </span>
                         ) : null}
@@ -367,7 +367,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
                 </div>
               ) : (
                 <div className="py-10 text-center">
-                  <p className="mx-auto max-w-md text-sm text-slate-500">
+                  <p className="mx-auto max-w-md text-sm text-slate-600">
                     The catalogue is a guide to what we can source, not stock we hold — so a close match is
                     normal and an exact one is not required.
                   </p>
@@ -407,7 +407,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
         aria-label="Search by photo"
         title="Search by photo"
         className={cn(
-          "inline-flex items-center justify-center rounded-full p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-[#176579] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40",
+          "inline-flex items-center justify-center rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#176579] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40",
           className,
         )}
       >
