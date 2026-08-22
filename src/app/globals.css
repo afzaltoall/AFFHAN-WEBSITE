@@ -834,7 +834,21 @@ html {
 .hero-rise {
   animation: heroRise 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
-.hero-rise-1 { animation-delay: 0s; }
+.hero-rise-1 {
+  animation-delay: 0s;
+  /* The h1 is the LCP element on both location pages and the homepage, and
+     Chrome will not record LCP for an element that starts at opacity 0 — it is
+     not painted yet. `heroRise` fades from 0 over 620ms, which pushes the
+     measurement out by roughly that much for no visual gain: the rise reads
+     the same without the fade. -2 and -3 keep theirs; neither is the LCP
+     element. */
+  animation-name: heroRiseLcp;
+}
+
+@keyframes heroRiseLcp {
+  from { transform: translate3d(0, 18px, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
 .hero-rise-2 { animation-delay: 0.11s; }
 .hero-rise-3 { animation-delay: 0.22s; }
 
