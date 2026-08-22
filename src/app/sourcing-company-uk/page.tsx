@@ -14,10 +14,10 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 
 export const revalidate = 3600;
 
-const PAGE_TITLE = "China Sourcing Agent in the UK | Import Company | AFFHAN";
+const PAGE_TITLE = "China Sourcing Agent London | UK Import Company | AFFHAN";
 
 const PAGE_DESCRIPTION =
-  "China sourcing agent and import company for UK buyers. Factory sourcing, inspection and freight into Felixstowe and Southampton, with CDS customs handling.";
+  "China sourcing agent in London for UK importers. Factory sourcing, inspection and freight into Felixstowe and Southampton, with CDS customs clearance.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -152,7 +152,7 @@ export default async function SourcingCompanyUkPage() {
               {/* hero-rise-1 runs a transform-only keyframe — this is the LCP
                   element and must not fade in from opacity 0. */}
               <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-                China Sourcing Agent in the UK — <span className="text-[#1d7e93]">AFFHAN Group</span>
+                China Sourcing Agent in London &amp; the UK — <span className="text-[#1d7e93]">AFFHAN Group</span>
               </h1>
               <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
                 Buying from China into Britain is a longer corridor than most and a stricter one since Brexit. A <strong className="text-slate-800">China sourcing agent in the UK</strong> is worth having for the part that happens before the container sails — and an <strong className="text-slate-800">import company</strong> that files the declaration, not just books the freight. Our buyers are in Guangzhou; the office is in London.

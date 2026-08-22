@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 const LOCATIONS = [
   { slug: "sourcing-company-chennai", label: "Chennai", anchor: "Sourcing agent in Chennai" },
   { slug: "sourcing-company-dubai", label: "Dubai", anchor: "Sourcing company in Dubai" },
-  { slug: "sourcing-company-uk", label: "UK", anchor: "China sourcing agent in the UK" },
+  { slug: "sourcing-company-uk", label: "London", anchor: "China sourcing agent in London & the UK" },
   { slug: "sourcing-company-singapore", label: "Singapore", anchor: "Sourcing agent in Singapore" },
   { slug: "sourcing-company-malaysia", label: "Malaysia", anchor: "Sourcing agent in Malaysia" },
   { slug: "china-sourcing-office-guangzhou", label: "Guangzhou", anchor: "Our Guangzhou sourcing office" },
