@@ -28,8 +28,20 @@ const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 
 /** Cheap and fast matters more than depth: the task is naming an object, it
- *  runs once per upload, and a user is waiting on it. */
-const GEMINI_MODEL = "gemini-2.0-flash";
+ *  runs once per upload, and a user is waiting on it.
+ *
+ *  Both defaults are measured, not assumed. On this key, against a real product
+ *  photo: gemini-3.1-flash-lite answered in 1.6s with no thinking tokens, while
+ *  gemini-3.6-flash took 74s because it reasons first — same correct answer, 46
+ *  times slower, for a task that is just naming an object. gemini-2.5-flash and
+ *  -lite are listed by the models endpoint but return 404 to this key, so the
+ *  listing is not a reliable guide to what is callable.
+ *
+ *  maxOutputTokens is 800 rather than 300 because thinking tokens are drawn
+ *  from the same budget: at 300 a reasoning model spent 286 on thought, left 7
+ *  for the answer, and returned truncated JSON with finishReason MAX_TOKENS.
+ *  Lite models ignore the headroom, so it costs nothing to leave it there. */
+const GEMINI_MODEL = "gemini-3.1-flash-lite";
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
@@ -110,7 +122,7 @@ async function callGemini(key: string, base64: string, mediaType: string, signal
       ],
       // Gemini can be told to emit JSON directly, which removes most of the
       // parsing guesswork. extractJson still runs as a backstop.
-      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 300, temperature: 0 },
+      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 800, temperature: 0 },
     }),
   });
 
