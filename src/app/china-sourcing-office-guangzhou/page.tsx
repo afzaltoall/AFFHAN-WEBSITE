@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
+import { OtherLocations } from "@/components/sections/OtherLocations";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
@@ -389,6 +390,8 @@ export default async function ChinaSourcingOfficeGuangzhouPage() {
           <FaqAccordion faqs={faqs} />
         </div>
       </section>
+
+      <OtherLocations current="china-sourcing-office-guangzhou" />
 
       <FooterSection />
     </main>
