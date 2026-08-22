@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof ImageSearchUnavailable) {
       // Deliberately explicit: this is a missing environment variable, not a
       // bug, and saying so saves someone debugging the wrong thing.
-      console.error("Image search called without ANTHROPIC_API_KEY set.");
+      console.error("Image search has no provider key. Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY.");
       return NextResponse.json(
         { error: "Image search is not configured yet." },
         { status: 503 },

@@ -2,25 +2,35 @@
  * Turns an uploaded photograph into search terms for the existing catalogue
  * search.
  *
- * The cheap half of image search, and deliberately so. The expensive approach
- * — embedding all 1,068,225 product images and doing nearest-neighbour lookups
- * — buys visual similarity, which this business does not actually need: the
+ * The cheap half of image search, and deliberately so. The expensive approach —
+ * embedding all 1,068,225 product images and doing nearest-neighbour lookups —
+ * buys visual similarity, which this business does not actually need: the
  * catalogue is a demonstrator of what can be sourced, not stock, so "find me
  * products of this kind" is the right answer and "find me this exact photo" is
  * not. pgvector 0.8.6 is available on the Neon instance if that ever changes,
  * but it costs a one-off backfill and roughly 1.3GB of storage, and there is no
  * point spending either until uploads prove people want it.
  *
- * No SDK. One fetch against the Messages API keeps this dependency-free, which
- * matches how the CJ client in this repo is written.
+ * Two providers, because the choice here is mostly about price rather than
+ * capability — naming an object in a photo is not a hard task, and a free tier
+ * does it perfectly well:
+ *
+ *   gemini     GEMINI_API_KEY     free tier, no card to start   <- default
+ *   anthropic  ANTHROPIC_API_KEY  paid, best quality
+ *
+ * Whichever key is present is used; set AI_PROVIDER to force one when both are.
+ * Neither needs an SDK — one fetch each, matching how the CJ client in this
+ * repo is written.
  */
 
-const API_URL = "https://api.anthropic.com/v1/messages";
-const API_VERSION = "2023-06-01";
+const GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models";
+const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_VERSION = "2023-06-01";
 
-/** Cheap and fast matters more than depth here: the task is naming an object,
- *  it runs once per upload, and latency is in front of a waiting user. */
-const DEFAULT_MODEL = "claude-haiku-4-5-20251001";
+/** Cheap and fast matters more than depth: the task is naming an object, it
+ *  runs once per upload, and a user is waiting on it. */
+const GEMINI_MODEL = "gemini-2.0-flash";
+const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -37,7 +47,7 @@ export type ImageDescription = {
 
 export class ImageSearchUnavailable extends Error {}
 
-const SYSTEM_PROMPT = `You identify products in photographs so they can be looked up in a B2B sourcing catalogue.
+const PROMPT = `You identify products in photographs so they can be looked up in a B2B sourcing catalogue.
 
 Reply with ONLY a JSON object, no prose and no code fences:
 {"isProduct": boolean, "productType": string, "terms": string[]}
@@ -48,6 +58,23 @@ Rules:
 - Describe only what is visibly there. Do not guess brand, price, material, dimensions or country of origin.
 - If the image is not a physical product (a person, a document, a screenshot, scenery), set isProduct false, productType "", terms [].
 - Never invent a model number or a manufacturer.`;
+
+type Provider = "gemini" | "anthropic";
+
+function resolveProvider(): { provider: Provider; apiKey: string } {
+  const forced = (process.env.AI_PROVIDER || "").toLowerCase();
+  const gemini = process.env.GEMINI_API_KEY;
+  const anthropic = process.env.ANTHROPIC_API_KEY;
+
+  if (forced === "gemini" && gemini) return { provider: "gemini", apiKey: gemini };
+  if (forced === "anthropic" && anthropic) return { provider: "anthropic", apiKey: anthropic };
+  // Free one first when nothing is forced — there is no quality reason to
+  // spend money on this particular task.
+  if (gemini) return { provider: "gemini", apiKey: gemini };
+  if (anthropic) return { provider: "anthropic", apiKey: anthropic };
+
+  throw new ImageSearchUnavailable("Set GEMINI_API_KEY (free) or ANTHROPIC_API_KEY");
+}
 
 function extractJson(text: string): unknown {
   // The model is asked for bare JSON, but a stray fence or leading sentence
@@ -64,33 +91,53 @@ function extractJson(text: string): unknown {
   }
 }
 
-/**
- * @param base64  raw base64, no data: prefix
- * @param mediaType  one of ACCEPTED_IMAGE_TYPES
- * @throws ImageSearchUnavailable when no API key is configured
- */
-export async function describeProductImage(
-  base64: string,
-  mediaType: string,
-  signal?: AbortSignal,
-): Promise<ImageDescription> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new ImageSearchUnavailable("ANTHROPIC_API_KEY is not set");
+async function callGemini(key: string, base64: string, mediaType: string, signal?: AbortSignal) {
+  const model = process.env.IMAGE_SEARCH_MODEL || GEMINI_MODEL;
+  const res = await fetch(`${GEMINI_URL}/${model}:generateContent`, {
+    method: "POST",
+    signal,
+    headers: { "content-type": "application/json", "x-goog-api-key": key },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: PROMPT }] },
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inline_data: { mime_type: mediaType, data: base64 } },
+            { text: "Identify this product for a catalogue search." },
+          ],
+        },
+      ],
+      // Gemini can be told to emit JSON directly, which removes most of the
+      // parsing guesswork. extractJson still runs as a backstop.
+      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 300, temperature: 0 },
+    }),
+  });
+
+  if (!res.ok) {
+    const detail = await res.text().catch(() => "");
+    throw new Error(`Gemini API ${res.status}: ${detail.slice(0, 300)}`);
   }
 
-  const res = await fetch(API_URL, {
+  const payload = (await res.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  return (payload.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+}
+
+async function callAnthropic(key: string, base64: string, mediaType: string, signal?: AbortSignal) {
+  const res = await fetch(ANTHROPIC_URL, {
     method: "POST",
     signal,
     headers: {
       "content-type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": API_VERSION,
+      "x-api-key": key,
+      "anthropic-version": ANTHROPIC_VERSION,
     },
     body: JSON.stringify({
-      model: process.env.IMAGE_SEARCH_MODEL || DEFAULT_MODEL,
+      model: process.env.IMAGE_SEARCH_MODEL || ANTHROPIC_MODEL,
       max_tokens: 300,
-      system: SYSTEM_PROMPT,
+      system: PROMPT,
       messages: [
         {
           role: "user",
@@ -109,7 +156,25 @@ export async function describeProductImage(
   }
 
   const payload = (await res.json()) as { content?: Array<{ type: string; text?: string }> };
-  const text = (payload.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
+  return (payload.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join("");
+}
+
+/**
+ * @param base64  raw base64, no data: prefix
+ * @param mediaType  one of ACCEPTED_IMAGE_TYPES
+ * @throws ImageSearchUnavailable when no provider key is configured
+ */
+export async function describeProductImage(
+  base64: string,
+  mediaType: string,
+  signal?: AbortSignal,
+): Promise<ImageDescription> {
+  const { provider, apiKey } = resolveProvider();
+
+  const text =
+    provider === "gemini"
+      ? await callGemini(apiKey, base64, mediaType, signal)
+      : await callAnthropic(apiKey, base64, mediaType, signal);
 
   const parsed = extractJson(text) as Partial<ImageDescription> | null;
   if (!parsed || typeof parsed !== "object") {
