@@ -129,7 +129,7 @@ export function HeroSearchSection() {
             )}
             {/* Search by photo. Sits inside the pill so it reads as part of
                 the search control rather than a separate feature. */}
-            <ImageSearchButton className="mr-1 shrink-0" />
+            <ImageSearchButton className="mr-2" />
             <button type="submit" className="h-[calc(100%-8px)] px-5 md:px-6 mr-1 bg-brand hover:bg-brand-dark text-white rounded-full font-bold text-sm transition-colors">
               Search
             </button>

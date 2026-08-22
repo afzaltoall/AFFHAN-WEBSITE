@@ -417,18 +417,32 @@ export function ImageSearchButton({ className }: { className?: string }) {
         }}
       />
 
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        aria-label="Search by photo"
-        title="Search by photo"
-        className={cn(
-          "inline-flex items-center justify-center rounded-full p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#176579] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40",
-          className,
-        )}
-      >
-        <Camera size={18} />
-      </button>
+      {/* A bare icon between an input and a solid button reads as decoration,
+          and this is a feature nobody knows to look for. A rule to separate it
+          from the typing area, a filled target so it looks pressable, and a
+          tooltip on hover or keyboard focus so the affordance is named. */}
+      <span className={cn("group/cam relative flex shrink-0 items-center", className)}>
+        <span className="mr-1.5 h-5 w-px bg-slate-200" aria-hidden="true" />
+
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          aria-label="Search by photo"
+          className="inline-flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-all duration-200 hover:bg-[#e0f2f7] hover:text-[#176579] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 motion-safe:hover:scale-105 motion-safe:active:scale-95 md:size-9"
+        >
+          <Camera size={16} className="md:size-[18px]" />
+        </button>
+
+        {/* Hidden from assistive tech: aria-label already names the button, so
+            announcing this too would repeat it. */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 top-[calc(100%+12px)] z-50 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/cam:opacity-100 group-focus-within/cam:opacity-100"
+        >
+          Search by photo
+          <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rotate-45 bg-slate-900" />
+        </span>
+      </span>
 
       {mounted && dialog ? createPortal(dialog, document.body) : null}
 
