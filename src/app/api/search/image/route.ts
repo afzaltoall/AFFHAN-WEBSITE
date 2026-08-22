@@ -6,6 +6,7 @@ import { isCategoryBlocked, isNameBlocked } from "@/lib/moderation";
 import {
   describeProductImage,
   ImageSearchUnavailable,
+  ImageSearchBusy,
   ACCEPTED_IMAGE_TYPES,
   MAX_IMAGE_BYTES,
 } from "@/lib/imageSearch";
@@ -69,6 +70,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: "Image search is not configured yet." },
         { status: 503 },
+      );
+    }
+    if (error instanceof ImageSearchBusy) {
+      // Not the user's fault and not the image's. Saying "try another image"
+      // here sends people off to crop and re-upload a perfectly good photo.
+      console.warn("Image search provider busy:", error.message);
+      return NextResponse.json(
+        { error: "The image service is busy right now. Give it a few seconds and try again." },
+        { status: 503 },
+      );
+    }
+    if (error instanceof Error && error.name === "TimeoutError") {
+      return NextResponse.json(
+        { error: "That took too long. Try again in a moment." },
+        { status: 504 },
       );
     }
     console.error("Image search vision step failed:", error);

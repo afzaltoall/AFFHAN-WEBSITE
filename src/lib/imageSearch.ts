@@ -41,7 +41,11 @@ const ANTHROPIC_VERSION = "2023-06-01";
  *  from the same budget: at 300 a reasoning model spent 286 on thought, left 7
  *  for the answer, and returned truncated JSON with finishReason MAX_TOKENS.
  *  Lite models ignore the headroom, so it costs nothing to leave it there. */
-const GEMINI_MODEL = "gemini-3.1-flash-lite";
+const GEMINI_MODELS = [
+  "gemini-3.1-flash-lite",
+  "gemini-3.5-flash-lite",
+  "gemini-flash-lite-latest",
+] as const;
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
@@ -58,6 +62,16 @@ export type ImageDescription = {
 };
 
 export class ImageSearchUnavailable extends Error {}
+
+/** Provider is up but would not serve this request — 429 rate limit, or the
+ *  503 UNAVAILABLE the free tier returns when a model is saturated. Transient
+ *  by definition, and worth telling the user apart from "that image is no
+ *  good", which is what it used to be reported as. */
+export class ImageSearchBusy extends Error {}
+
+function isTransient(status: number) {
+  return status === 429 || status === 529 || status >= 500;
+}
 
 const PROMPT = `You identify products in photographs so they can be looked up in a B2B sourcing catalogue.
 
@@ -104,37 +118,55 @@ function extractJson(text: string): unknown {
 }
 
 async function callGemini(key: string, base64: string, mediaType: string, signal?: AbortSignal) {
-  const model = process.env.IMAGE_SEARCH_MODEL || GEMINI_MODEL;
-  const res = await fetch(`${GEMINI_URL}/${model}:generateContent`, {
-    method: "POST",
-    signal,
-    headers: { "content-type": "application/json", "x-goog-api-key": key },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: PROMPT }] },
-      contents: [
-        {
-          role: "user",
-          parts: [
-            { inline_data: { mime_type: mediaType, data: base64 } },
-            { text: "Identify this product for a catalogue search." },
-          ],
-        },
-      ],
-      // Gemini can be told to emit JSON directly, which removes most of the
-      // parsing guesswork. extractJson still runs as a backstop.
-      generationConfig: { responseMimeType: "application/json", maxOutputTokens: 800, temperature: 0 },
-    }),
-  });
+  // A single model is a single point of failure on a free tier: capacity moves
+  // around, and a saturated model answers 503 UNAVAILABLE while its siblings
+  // are fine. Measured at the same moment, all three of these returned 200 in
+  // roughly 1.1 to 1.5 seconds, so falling through costs almost nothing and
+  // turns an outage into a delay.
+  const override = process.env.IMAGE_SEARCH_MODEL;
+  const chain = override ? [override] : [...GEMINI_MODELS];
 
-  if (!res.ok) {
+  let lastStatus = 0;
+  for (const model of chain) {
+    const res = await fetch(`${GEMINI_URL}/${model}:generateContent`, {
+      method: "POST",
+      signal,
+      headers: { "content-type": "application/json", "x-goog-api-key": key },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: PROMPT }] },
+        contents: [
+          {
+            role: "user",
+            parts: [
+              { inline_data: { mime_type: mediaType, data: base64 } },
+              { text: "Identify this product for a catalogue search." },
+            ],
+          },
+        ],
+        // Gemini can be told to emit JSON directly, which removes most of the
+        // parsing guesswork. extractJson still runs as a backstop.
+        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 800, temperature: 0 },
+      }),
+    });
+
+    if (res.ok) {
+      const payload = (await res.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      };
+      return (payload.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+    }
+
+    lastStatus = res.status;
     const detail = await res.text().catch(() => "");
-    throw new Error(`Gemini API ${res.status}: ${detail.slice(0, 300)}`);
+    if (!isTransient(res.status)) {
+      // 400, 403, 404 — a wrong model name or a rejected key. Trying the next
+      // model would only produce the same class of failure more slowly.
+      throw new Error(`Gemini API ${res.status}: ${detail.slice(0, 300)}`);
+    }
+    console.warn(`Image search: ${model} returned ${res.status}, trying the next model.`);
   }
 
-  const payload = (await res.json()) as {
-    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-  };
-  return (payload.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+  throw new ImageSearchBusy(`All Gemini models were unavailable (last status ${lastStatus}).`);
 }
 
 async function callAnthropic(key: string, base64: string, mediaType: string, signal?: AbortSignal) {
@@ -164,6 +196,9 @@ async function callAnthropic(key: string, base64: string, mediaType: string, sig
 
   if (!res.ok) {
     const detail = await res.text().catch(() => "");
+    if (isTransient(res.status)) {
+      throw new ImageSearchBusy(`Anthropic API ${res.status}`);
+    }
     throw new Error(`Anthropic API ${res.status}: ${detail.slice(0, 300)}`);
   }
 
