@@ -980,15 +980,32 @@ html {
    and it is why the card background appeared to lag behind its own text.
    Scoped to .scroll-panel so the glass look is untouched everywhere else. */
 .scroll-panel .liquid-glass-card {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
   background: linear-gradient(135deg, #ffffff 0%, #f7fdfc 100%) !important;
+}
+
+/* Every descendant, not just the card. The first pass only disarmed
+   .liquid-glass-card, and the category badge sitting on the product image
+   carries its own backdrop-blur — so it went on recomputing a blur against a
+   photograph that was moving under it, and went on juddering. */
+.scroll-panel,
+.scroll-panel *,
+.scroll-panel *::before,
+.scroll-panel *::after {
+  backdrop-filter: none !important;
+}
+
+/* That badge is also translucent, which jitters its text for the same reason a
+   blur does: the glyphs are re-composited against whatever shows through, and
+   during a scroll that changes every frame. Opaque inside the panel only. */
+.scroll-panel .bg-white\/85 {
+  background-color: #ffffff !important;
 }
 
 /* While the panel is actually scrolling, the pointer is passing over card after
    card and firing each one's hover transform in turn — an image scaling under a
    cursor that is not deliberately there. Suppressing pointer events for the
    duration removes it without changing hover behaviour when the user is still. */
-.scroll-panel[data-scrolling="true"] .liquid-glass-card {
+.scroll-panel[data-scrolling="true"] .liquid-glass-card,
+.scroll-panel[data-scrolling="true"] .liquid-glass-card * {
   pointer-events: none;
 }
