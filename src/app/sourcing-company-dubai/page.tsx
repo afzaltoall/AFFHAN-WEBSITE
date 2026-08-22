@@ -308,9 +308,9 @@ export default async function SourcingCompanyDubaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-video w-full bg-slate-100">
                 <Image
-                  src="/Landing-chennai-services/china-product-sourcing.webp"
+                  src="/Landing-dubai-services/china-factory-sourcing.webp"
                   unoptimized={false}
-                  alt="Shipping container marked with the Chinese flag being craned onto a dock beside stacked cartons"
+                  alt="AFFHAN-branded shipping container being loaded at a Chinese factory for a Dubai buyer"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="object-cover"
@@ -327,9 +327,9 @@ export default async function SourcingCompanyDubaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-video w-full bg-slate-100">
                 <Image
-                  src="/Landing-chennai-services/supplier-verification.webp"
+                  src="/Landing-dubai-services/supplier-audit.webp"
                   unoptimized={false}
-                  alt="Inspector in a hi-vis vest checking a clipboard against palletised cartons at a loading bay"
+                  alt="AFFHAN inspector working through an audit checklist on a factory production line in China"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="object-cover"
@@ -346,9 +346,9 @@ export default async function SourcingCompanyDubaiPage() {
             <div className="liquid-glass-card overflow-hidden">
               <div className="relative aspect-video w-full bg-slate-100">
                 <Image
-                  src="/Landing-chennai-services/freight-forwarding.webp"
+                  src="/Landing-dubai-services/jebel-ali-freight.webp"
                   unoptimized={false}
-                  alt="Container ship at berth with a cargo aircraft overhead and a haulage truck on the quay"
+                  alt="Container ship discharging at Jebel Ali port against the Dubai skyline"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="object-cover"
