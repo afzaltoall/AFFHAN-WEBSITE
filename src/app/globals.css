@@ -972,3 +972,23 @@ html {
   .step-bar-fill,
   .step-rail-fill { transition: none; }
 }
+
+/* Scrolling results panel ---------------------------------------------------
+   Cards inside a scrolling container cannot afford backdrop-filter. The blur
+   samples whatever is behind the element, so when the element moves the browser
+   recomputes a 24px blur for every card on every frame — that is the judder,
+   and it is why the card background appeared to lag behind its own text.
+   Scoped to .scroll-panel so the glass look is untouched everywhere else. */
+.scroll-panel .liquid-glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: linear-gradient(135deg, #ffffff 0%, #f7fdfc 100%) !important;
+}
+
+/* While the panel is actually scrolling, the pointer is passing over card after
+   card and firing each one's hover transform in turn — an image scaling under a
+   cursor that is not deliberately there. Suppressing pointer events for the
+   duration removes it without changing hover behaviour when the user is still. */
+.scroll-panel[data-scrolling="true"] .liquid-glass-card {
+  pointer-events: none;
+}

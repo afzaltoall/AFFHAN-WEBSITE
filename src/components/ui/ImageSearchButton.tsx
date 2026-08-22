@@ -195,6 +195,20 @@ export function ImageSearchButton({ className }: { className?: string }) {
   const [result, setResult] = useState<Response | null>(null);
   const [inquiry, setInquiry] = useState<Result | null>(null);
 
+  // Flags the panel while it is actively scrolling. Cheap: a data attribute
+  // written straight to the node, so it never re-renders the grid.
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const scrollIdle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onScroll = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    el.dataset.scrolling = "true";
+    if (scrollIdle.current) clearTimeout(scrollIdle.current);
+    scrollIdle.current = setTimeout(() => {
+      el.dataset.scrolling = "false";
+    }, 140);
+  }, []);
+
   useEffect(() => setMounted(true), []);
 
   const reset = useCallback(() => {
@@ -260,7 +274,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
       {/* Glass panel: translucent white over the blurred page, a light top-left
           border to catch the light, and a soft ring so it reads as a raised
           surface rather than a flat sheet. */}
-      <div className="my-auto flex max-h-[90svh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white/85 shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-900/5 backdrop-blur-2xl">
+      <div className="my-auto flex max-h-[90svh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white/95 shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-900/5">
         <div className="flex shrink-0 items-start gap-4 border-b border-slate-200/70 bg-gradient-to-b from-white/80 to-white/40 p-5">
           {preview ? (
             <div className="relative size-16 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 shadow-sm">
@@ -297,7 +311,12 @@ export function ImageSearchButton({ className }: { className?: string }) {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-5">
+        <div
+          ref={scrollerRef}
+          onScroll={onScroll}
+          data-scrolling="false"
+          className="scroll-panel min-h-0 flex-1 overflow-y-auto p-5"
+        >
           {busy ? (
             <ThinkingSteps />
           ) : (
