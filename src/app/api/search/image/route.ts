@@ -148,14 +148,17 @@ export async function POST(request: NextRequest) {
       LEFT JOIN "Category" c ON p."categoryId" = c."id"
       WHERE ${where}
       ORDER BY ${relevance} DESC, p."id" DESC
-      LIMIT 40
+      LIMIT 60
     `);
 
     // Same moderation gate the text search applies. An uploaded photo is not a
     // reason to surface something the typed search would hide.
     const products = rows
       .filter((p) => !isCategoryBlocked(p.categoryName) && !isNameBlocked(p.name))
-      .slice(0, 24)
+      // 48 is a quick-look, not the whole result set. Anyone wanting the rest
+      // is sent to /products/?q= , which paginates properly and does not hold
+      // sixty product images in a modal.
+      .slice(0, 48)
       .map((p) => ({
         id: p.id,
         name: p.name,
@@ -188,6 +191,8 @@ export async function POST(request: NextRequest) {
       isProduct: true,
       productType: description.productType,
       terms: description.terms,
+      // What to put in /products/?q= for the full, paginated result set.
+      searchQuery: description.productType || description.terms[0] || "",
       categories,
       products,
     });

@@ -22,6 +22,7 @@ type Response = {
   isProduct?: boolean;
   productType?: string;
   terms?: string[];
+  searchQuery?: string;
   categories?: Category[];
   products?: Result[];
   message?: string;
@@ -286,7 +287,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
             <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-900">
               {busy ? "Search by photo" : result?.productType || "Search by photo"}
             </h2>
-            <p className="mt-0.5 text-sm text-slate-600">
+            <p className="mt-0.5 text-sm text-slate-700">
               {busy
                 ? "Reading the image and matching it to the catalogue."
                 : result?.error
@@ -298,7 +299,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
                       : "Nothing close in the catalogue — send it to us and we will find who makes it."}
             </p>
             {!busy && result?.terms?.length ? (
-              <p className="mt-1.5 text-xs text-slate-500">Matched on: {result.terms.join(", ")}</p>
+              <p className="mt-1.5 text-xs text-slate-600">Matched on: {result.terms.join(", ")}</p>
             ) : null}
           </div>
           <button
@@ -365,7 +366,22 @@ export function ImageSearchButton({ className }: { className?: string }) {
                     <ProductCard key={p.id} product={p} onClick={() => setInquiry(p)} />
                   ))}
                 </div>
-              ) : (
+              ) : null}
+
+              {products.length >= 48 && result?.searchQuery ? (
+                <p className="mt-6 text-center text-sm text-slate-600">
+                  Showing the closest {products.length}.{" "}
+                  <Link
+                    href={`/products/?q=${encodeURIComponent(result.searchQuery)}`}
+                    onClick={reset}
+                    className="font-semibold text-[#176579] transition-colors hover:text-[#27a8c4] hover:underline"
+                  >
+                    See every match for &ldquo;{result.searchQuery}&rdquo;
+                  </Link>
+                </p>
+              ) : null}
+
+              {products.length ? null : (
                 <div className="py-10 text-center">
                   <p className="mx-auto max-w-md text-sm text-slate-600">
                     The catalogue is a guide to what we can source, not stock we hold — so a close match is
