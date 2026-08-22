@@ -21,7 +21,9 @@ type ProductRow = {
   name: string;
   imageUrl: string | null;
   category: string | null;
+  categoryId: string | null;
   categoryName: string | null;
+  parentName: string | null;
 };
 
 /**
@@ -140,7 +142,8 @@ export async function POST(request: NextRequest) {
     )})`;
 
     const rows = await prisma.$queryRaw<ProductRow[]>(Prisma.sql`
-      SELECT p."id", p."name", p."imageUrl", p."category", c."name" AS "categoryName"
+      SELECT p."id", p."name", p."imageUrl", p."category", p."categoryId",
+             c."name" AS "categoryName", c."parentName" AS "parentName"
       FROM "Product" p
       LEFT JOIN "Category" c ON p."categoryId" = c."id"
       WHERE ${where}
@@ -160,10 +163,32 @@ export async function POST(request: NextRequest) {
         category: p.categoryName || p.category,
       }));
 
+    // Categories are derived from the products that actually matched, not from
+    // a second query against Category by name. Category names are short leaves
+    // like "Quartz Watches", so matching them against a phrase the model
+    // produced ("analog wristwatch") returns nothing — measured, 0 rows. The
+    // branches the matches already sit in are both more accurate and free.
+    const byCategory = new Map<string, { id: string; name: string; parentName: string | null; count: number }>();
+    for (const r of rows) {
+      if (!r.categoryId || !r.categoryName) continue;
+      if (isCategoryBlocked(r.categoryName) || isCategoryBlocked(r.parentName)) continue;
+      const hit = byCategory.get(r.categoryId);
+      if (hit) hit.count += 1;
+      else byCategory.set(r.categoryId, { id: r.categoryId, name: r.categoryName, parentName: r.parentName, count: 1 });
+    }
+    // A single match is usually coincidence rather than a real branch — a
+    // wristwatch search otherwise surfaces "Decorative Flowers & Wreaths" off
+    // one stray listing. Two is enough to mean something. If nothing clears
+    // that bar the top few are still better than an empty row.
+    const ranked = [...byCategory.values()].sort((a, b) => b.count - a.count);
+    const solid = ranked.filter((c) => c.count > 1);
+    const categories = (solid.length >= 2 ? solid : ranked).slice(0, 6);
+
     return NextResponse.json({
       isProduct: true,
       productType: description.productType,
       terms: description.terms,
+      categories,
       products,
     });
   } catch (error) {
