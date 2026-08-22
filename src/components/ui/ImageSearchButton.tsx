@@ -31,22 +31,24 @@ type Response = {
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 
 /** Each step names a phase that genuinely happens server-side, in the order it
- *  happens. The timings approximate a ~2s round trip rather than being progress
- *  reported by the server — but nothing here claims work that is not done. */
+ *  happens, with a rough duration so its bar can fill while it runs. The
+ *  timings approximate a ~2s round trip rather than being progress reported by
+ *  the server — nothing here claims work that is not being done, but it is an
+ *  estimate and worth saying so. */
 const STEPS = [
-  { label: "Reading your image", detail: "Checking format and size", at: 0 },
-  { label: "Identifying the product", detail: "Working out what the object is", at: 400 },
-  { label: "Searching the catalogue", detail: "Across 10 lakh+ products", at: 1300 },
-  { label: "Matching categories", detail: "Finding the branch it belongs to", at: 2000 },
+  { label: "Reading your image", detail: "Checking the file format, size and orientation", at: 0, dur: 400 },
+  { label: "Identifying the product", detail: "Working out what the object in the photo actually is", at: 400, dur: 900 },
+  { label: "Searching the catalogue", detail: "Matching those terms across 10 lakh+ products", at: 1300, dur: 700 },
+  { label: "Matching categories", detail: "Finding which branch of the catalogue it belongs to", at: 2000, dur: 900 },
 ];
 
-/** Rotates while the mascot flies. Kept factual — these describe the service,
- *  not the search in progress, so none of it can be wrong about a given
- *  result. */
+/** Rotates inside the mascot's speech bubble. Deliberately about the service
+ *  rather than the search in progress, so no line can turn out to be wrong
+ *  about a particular result. */
 const QUOTES = [
-  "Send a photo, we will find who makes it.",
+  "Send me a photo and I will find who makes it.",
   "A close match is enough — we source to your specification.",
-  "Nothing here is stock. It is what our factories can build.",
+  "Nothing in here is stock. It is what our factories can build.",
   "Our buyers check the plant before your deposit moves.",
 ];
 
@@ -57,60 +59,65 @@ function ThinkingSteps() {
   useEffect(() => {
     const started = Date.now();
     const tick = setInterval(() => setElapsed(Date.now() - started), 100);
-    const rotate = setInterval(() => setQuote((q) => (q + 1) % QUOTES.length), 3400);
+    const rotate = setInterval(() => setQuote((q) => (q + 1) % QUOTES.length), 3600);
     return () => {
       clearInterval(tick);
       clearInterval(rotate);
     };
   }, []);
 
-  // The rail fills to the last step that has started. Steps are evenly spaced,
-  // so the fill is a share of the gaps between markers rather than of the whole
-  // list — otherwise it overshoots past the final dot.
   const startedCount = STEPS.filter((s) => elapsed >= s.at).length;
-  const fillPct = ((Math.max(1, startedCount) - 1) / (STEPS.length - 1)) * 100;
+  const railPct = ((Math.max(1, startedCount) - 1) / (STEPS.length - 1)) * 100;
 
   return (
-    <div className="py-6">
-      {/* Mascot lane. aria-hidden throughout: the quote below is real text and
-          carries whatever meaning there is. */}
-      <div className="relative mx-auto mb-5 h-16 max-w-sm overflow-hidden" aria-hidden="true">
-        <div className="affhan-fly absolute inset-y-0 left-0 w-16">
+    <div className="mx-auto max-w-2xl px-1 py-4">
+      {/* Mascot and bubble sit together on one row so the quote is clearly his,
+          and the pair uses the full width instead of a narrow centred column. */}
+      <div className="mb-8 flex items-center gap-4 sm:gap-5">
+        <div className="affhan-drift shrink-0" aria-hidden="true">
           <Image
             src="/affhan-robot.webp"
             alt=""
-            width={64}
-            height={63}
-            className="size-16 object-contain drop-shadow-[0_6px_14px_rgba(39,168,196,0.35)]"
+            width={72}
+            height={71}
+            className="size-16 object-contain drop-shadow-[0_8px_18px_rgba(39,168,196,0.35)] sm:size-[72px]"
             priority
           />
         </div>
+
+        <div className="relative min-w-0 flex-1">
+          {/* Tail: a rotated square tucked under the bubble's left edge, so it
+              reads as pointing at the mascot without needing an SVG. */}
+          <span
+            className="absolute -left-1.5 top-1/2 size-3 -translate-y-1/2 rotate-45 rounded-[2px] border-b border-l border-white/70 bg-white/80"
+            aria-hidden="true"
+          />
+          <div className="rounded-2xl border border-white/70 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm">
+            <p key={quote} className="text-sm leading-snug text-slate-700 motion-safe:animate-[fadeIn_450ms_ease-out]">
+              {QUOTES[quote]}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <p
-        key={quote}
-        className="mx-auto mb-7 max-w-sm text-center text-sm font-medium text-slate-600 motion-safe:animate-[fadeIn_500ms_ease-out]"
-      >
-        {QUOTES[quote]}
-      </p>
-
-      <ol className="relative mx-auto max-w-sm">
-        {/* Rail: a grey track with a teal fill that grows downward. Inset by
-            half a marker so it starts and ends at the dot centres. */}
-        <span className="absolute left-[11px] top-3 bottom-3 w-0.5 rounded-full bg-slate-200" aria-hidden="true" />
+      <ol className="relative">
+        <span className="absolute left-[11px] top-3 bottom-6 w-0.5 rounded-full bg-slate-200/80" aria-hidden="true" />
         <span
           className="step-rail-fill absolute left-[11px] top-3 w-0.5 rounded-full bg-gradient-to-b from-[#27a8c4] to-[#176579]"
-          style={{ height: `calc((100% - 1.5rem) * ${fillPct / 100})` }}
+          style={{ height: `calc((100% - 2.25rem) * ${railPct / 100})` }}
           aria-hidden="true"
         />
 
         {STEPS.map((s, i) => {
           const started = elapsed >= s.at;
-          // Done once the next step has begun; the last keeps pulsing until the
-          // response lands and this whole block unmounts.
           const done = i < STEPS.length - 1 && elapsed >= STEPS[i + 1].at;
+          // The final step holds just short of full while the response is still
+          // in flight — showing it complete would be a lie about the state.
+          const raw = started ? Math.min(1, (elapsed - s.at) / s.dur) : 0;
+          const pct = done ? 100 : Math.round((i === STEPS.length - 1 ? Math.min(raw, 0.92) : raw) * 100);
+
           return (
-            <li key={s.label} className="relative flex gap-4 pb-5 last:pb-0">
+            <li key={s.label} className="relative flex gap-4 pb-6 last:pb-0">
               <span
                 className={cn(
                   "relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 bg-white transition-all duration-500",
@@ -124,22 +131,32 @@ function ThinkingSteps() {
                 {done ? (
                   <Check size={13} strokeWidth={3} />
                 ) : (
-                  <span
-                    className={cn(
-                      "size-2 rounded-full bg-current",
-                      started && "motion-safe:animate-pulse",
-                    )}
-                  />
+                  <span className={cn("size-2 rounded-full bg-current", started && "motion-safe:animate-pulse")} />
                 )}
               </span>
+
               <span
                 className={cn(
-                  "min-w-0 transition-opacity duration-500",
-                  started ? "opacity-100" : "opacity-40",
+                  "min-w-0 flex-1 transition-opacity duration-500",
+                  started ? "opacity-100" : "opacity-45",
                 )}
               >
-                <span className="block text-sm font-semibold text-slate-800">{s.label}</span>
-                <span className="block text-xs text-slate-500">{s.detail}</span>
+                <span className="flex items-baseline justify-between gap-3">
+                  <span className="text-sm font-semibold text-slate-800">{s.label}</span>
+                  <span className="shrink-0 text-[11px] font-medium tabular-nums text-slate-400">
+                    {done ? "Done" : started ? `${pct}%` : "Waiting"}
+                  </span>
+                </span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-slate-500">{s.detail}</span>
+
+                {/* The horizontal line under each step: full width, filling as
+                    that stage runs. This is the part a spinner cannot express. */}
+                <span className="mt-2 block h-1 w-full overflow-hidden rounded-full bg-slate-200/70">
+                  <span
+                    className="step-bar-fill block h-full rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579]"
+                    style={{ width: `${pct}%` }}
+                  />
+                </span>
               </span>
             </li>
           );
