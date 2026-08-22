@@ -91,6 +91,7 @@ const offices = [
     name: "GUANGZHOU AFFHAN INTERNATIONAL CO., LTD",
     address:
       "Room 2325, Canton Domestic Finance Centre, No.316 Chang Di Da Ma Lu, Guangzhou, GUANGDONG PROVINCE, China",
+    localPage: { href: "/china-sourcing-office-guangzhou/", label: "Inside our Guangzhou sourcing office" },
     phone: "",
   },
   {
@@ -110,6 +111,7 @@ const offices = [
     name: "AFFHAN INTERNATIONAL PTE. LTD.",
     address: "10 Jalan Besar Sim Lim Tower #08-11, Singapore 208787",
     phone: "+65 6296 0279",
+    localPage: { href: "/sourcing-company-singapore/", label: "Our China sourcing service in Singapore" },
   },
   {
     country: "Malaysia",
@@ -117,6 +119,7 @@ const offices = [
     name: "AFFHAN INTERNATIONAL SDN. BHD.",
     address: "NO 18, JALAN TEMENGGONG, 75000 MELAKA, MALAYSIA",
     phone: "+60 11-5672 6242",
+    localPage: { href: "/sourcing-company-malaysia/", label: "Our China sourcing service in Malaysia" },
   },
   {
     country: "UAE",
