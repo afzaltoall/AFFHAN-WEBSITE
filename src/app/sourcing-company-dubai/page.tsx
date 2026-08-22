@@ -22,7 +22,7 @@ export const revalidate = 3600;
 
 // 64 chars, fits well under Google's 65-70 char truncation limit. Covers primary
 // and secondary keywords perfectly.
-const PAGE_TITLE = "Sourcing Company in Dubai | China Sourcing Agent | AFFHAN Group";
+const PAGE_TITLE = "Sourcing Company in Dubai | China Sourcing Agent | AFFHAN";
 
 // 156 chars, perfectly fits in the ~155-160 char limit for Google meta descriptions.
 const PAGE_DESCRIPTION =

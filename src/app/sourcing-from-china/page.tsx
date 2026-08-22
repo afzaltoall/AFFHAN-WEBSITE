@@ -14,7 +14,7 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 
 export const revalidate = 3600;
 
-const PAGE_TITLE = "Sourcing From China | Lead Times, MOQs & Risks | AFFHAN";
+const PAGE_TITLE = "China Sourcing Agent | Costs, Lead Times & Risks | AFFHAN";
 
 const PAGE_DESCRIPTION =
   "What sourcing from China actually involves: Chinese New Year timing, minimum order quantities, tooling ownership and when China is the wrong answer.";
