@@ -133,6 +133,7 @@ const offices = [
     name: "AFFHAN INTERNATIONAL LTD",
     address: "34, Monarch parade London Road Mitcham CR4 3HA",
     phone: "+44 7438 911975",
+    localPage: { href: "/sourcing-company-uk/", label: "Our China sourcing service in the UK" },
   },
   {
     country: "France",
