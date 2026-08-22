@@ -85,11 +85,26 @@ export async function POST(request: NextRequest) {
     });
   }
 
-  // Most distinctive terms first; the catalogue search is happier with a short
-  // phrase than with six loosely related nouns.
-  const query = description.terms.slice(0, 4).join(" ");
-  const pq = parseQuery(query);
-  if (!pq.isValid) {
+  // One query per term, ORed — not all the terms concatenated into one.
+  //
+  // tsQueryString joins tokens with & , so passing "ski goggles snowboard
+  // goggles winter sports eyewear" as a single phrase demands a product name
+  // containing every one of those words. Measured against the live catalogue
+  // that matches 0 products, while the same terms ORed match 55. The earlier
+  // build returned a single result only because the degenerate-query ILIKE
+  // fallback caught it.
+  //
+  // productType goes in first: it is usually the cleanest single phrase the
+  // model produces ("ski goggles"), and summing the per-term relevance means a
+  // product matching several terms still outranks one matching only a loose
+  // synonym.
+  const phrases = [description.productType, ...description.terms]
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const parsed = phrases.map((t) => parseQuery(t)).filter((pq) => pq.isValid);
+  if (parsed.length === 0) {
     return NextResponse.json({
       isProduct: true,
       productType: description.productType,
@@ -99,8 +114,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const where = buildSearchWhere(pq, { prefix: true });
-    const relevance = buildRelevanceExpr(pq, { prefix: true });
+    const where = Prisma.sql`(${Prisma.join(
+      parsed.map((pq) => buildSearchWhere(pq)),
+      " OR ",
+    )})`;
+    const relevance = Prisma.sql`(${Prisma.join(
+      parsed.map((pq) => buildRelevanceExpr(pq)),
+      " + ",
+    )})`;
 
     const rows = await prisma.$queryRaw<ProductRow[]>(Prisma.sql`
       SELECT p."id", p."name", p."imageUrl", p."category", c."name" AS "categoryName"

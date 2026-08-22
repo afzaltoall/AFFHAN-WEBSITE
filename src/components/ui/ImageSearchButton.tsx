@@ -112,12 +112,12 @@ export function ImageSearchButton({ className }: { className?: string }) {
           role="dialog"
           aria-modal="true"
           aria-label="Search by photo results"
-          className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 backdrop-blur-sm sm:p-8"
+          className="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-slate-900/40 p-4 backdrop-blur-sm sm:p-8"
           onClick={(e) => {
             if (e.target === e.currentTarget) reset();
           }}
         >
-          <div className="w-full max-w-4xl rounded-3xl bg-white shadow-xl">
+          <div className="my-auto w-full max-w-4xl overflow-hidden rounded-3xl bg-white shadow-xl">
             <div className="flex items-start gap-4 border-b border-slate-200 p-5">
               {preview ? (
                 <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
@@ -154,14 +154,25 @@ export function ImageSearchButton({ className }: { className?: string }) {
               </button>
             </div>
 
-            <div className="p-5">
+            <div className="max-h-[70svh] overflow-y-auto p-5">
               {busy ? (
                 <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
                   <Loader2 className="size-5 animate-spin" />
                   <span className="text-sm">One moment</span>
                 </div>
               ) : products.length ? (
-                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                <div
+                  className={cn(
+                    "mx-auto grid gap-4",
+                    products.length === 1
+                      ? "max-w-[220px] grid-cols-1"
+                      : products.length === 2
+                        ? "max-w-md grid-cols-2"
+                        : products.length === 3
+                          ? "max-w-2xl grid-cols-2 sm:grid-cols-3"
+                          : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
+                  )}
+                >
                   {products.map((p) => (
                     <ProductCard key={p.id} product={p} onClick={() => setInquiry(p)} />
                   ))}
