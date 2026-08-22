@@ -520,14 +520,14 @@ export default async function SourcingCompanyDubaiPage() {
             </p>
           </div>
           <div className="max-w-6xl mx-auto bg-slate-50 p-5 sm:p-6 rounded-3xl border border-slate-200/60 shadow-sm">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-start gap-x-5 gap-y-1">
+            <div className="columns-1 sm:columns-2 lg:columns-4 gap-x-5">
               {tree.slice(0, 16).map((cat) => {
                 const Icon = getCategoryIcon(cat.name);
                 return (
                   <Link
                     key={cat.id}
                     href={`/products/?categoryId=${cat.id}`}
-                    className="group flex items-start gap-2.5 px-3 py-2 text-left transition-all border-l-4 border-transparent hover:bg-white/70 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
+                    className="group flex items-start gap-2.5 px-3 py-2 mb-0.5 break-inside-avoid text-left transition-all border-l-4 border-transparent hover:bg-white/70 hover:shadow-sm hover:border-[#27a8c4] rounded-r-xl"
                   >
                     <Icon size={20} className="shrink-0 stroke-[1.5] text-slate-500 group-hover:text-[#1d7e93] mt-0.5" />
                     <span className="text-[14px] sm:text-[15px] font-medium text-slate-700 group-hover:text-slate-900 leading-snug">
