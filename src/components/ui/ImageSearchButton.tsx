@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Image from "next/image";
 import Link from "next/link";
-import { Camera, Check, Loader2, X } from "lucide-react";
+import { Camera, Check, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { cn } from "@/lib/utils";
@@ -30,64 +31,114 @@ type Response = {
 const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
 
 /** Each step names a phase that genuinely happens server-side, in the order it
- *  happens. The timings are approximations of a ~2s round trip rather than
- *  progress reported by the server — but nothing here claims work that is not
- *  being done, which matters more than the animation. */
+ *  happens. The timings approximate a ~2s round trip rather than being progress
+ *  reported by the server — but nothing here claims work that is not done. */
 const STEPS = [
   { label: "Reading your image", detail: "Checking format and size", at: 0 },
-  { label: "Identifying the product", detail: "Working out what the object is", at: 350 },
+  { label: "Identifying the product", detail: "Working out what the object is", at: 400 },
   { label: "Searching the catalogue", detail: "Across 10 lakh+ products", at: 1300 },
-  { label: "Matching categories", detail: "Finding the branch it belongs to", at: 1900 },
+  { label: "Matching categories", detail: "Finding the branch it belongs to", at: 2000 },
+];
+
+/** Rotates while the mascot flies. Kept factual — these describe the service,
+ *  not the search in progress, so none of it can be wrong about a given
+ *  result. */
+const QUOTES = [
+  "Send a photo, we will find who makes it.",
+  "A close match is enough — we source to your specification.",
+  "Nothing here is stock. It is what our factories can build.",
+  "Our buyers check the plant before your deposit moves.",
 ];
 
 function ThinkingSteps() {
   const [elapsed, setElapsed] = useState(0);
+  const [quote, setQuote] = useState(0);
 
   useEffect(() => {
     const started = Date.now();
-    const id = setInterval(() => setElapsed(Date.now() - started), 120);
-    return () => clearInterval(id);
+    const tick = setInterval(() => setElapsed(Date.now() - started), 100);
+    const rotate = setInterval(() => setQuote((q) => (q + 1) % QUOTES.length), 3400);
+    return () => {
+      clearInterval(tick);
+      clearInterval(rotate);
+    };
   }, []);
 
+  // The rail fills to the last step that has started. Steps are evenly spaced,
+  // so the fill is a share of the gaps between markers rather than of the whole
+  // list — otherwise it overshoots past the final dot.
+  const startedCount = STEPS.filter((s) => elapsed >= s.at).length;
+  const fillPct = ((Math.max(1, startedCount) - 1) / (STEPS.length - 1)) * 100;
+
   return (
-    <div className="mx-auto max-w-md py-8">
-      <p className="mb-5 text-center text-sm font-semibold text-slate-900">
-        AFFHAN is looking through the catalogue
+    <div className="py-6">
+      {/* Mascot lane. aria-hidden throughout: the quote below is real text and
+          carries whatever meaning there is. */}
+      <div className="relative mx-auto mb-5 h-16 max-w-sm overflow-hidden" aria-hidden="true">
+        <div className="affhan-fly absolute inset-y-0 left-0 w-16">
+          <Image
+            src="/affhan-robot.webp"
+            alt=""
+            width={64}
+            height={63}
+            className="size-16 object-contain drop-shadow-[0_6px_14px_rgba(39,168,196,0.35)]"
+            priority
+          />
+        </div>
+      </div>
+
+      <p
+        key={quote}
+        className="mx-auto mb-7 max-w-sm text-center text-sm font-medium text-slate-600 motion-safe:animate-[fadeIn_500ms_ease-out]"
+      >
+        {QUOTES[quote]}
       </p>
-      <ol className="space-y-3.5">
+
+      <ol className="relative mx-auto max-w-sm">
+        {/* Rail: a grey track with a teal fill that grows downward. Inset by
+            half a marker so it starts and ends at the dot centres. */}
+        <span className="absolute left-[11px] top-3 bottom-3 w-0.5 rounded-full bg-slate-200" aria-hidden="true" />
+        <span
+          className="step-rail-fill absolute left-[11px] top-3 w-0.5 rounded-full bg-gradient-to-b from-[#27a8c4] to-[#176579]"
+          style={{ height: `calc((100% - 1.5rem) * ${fillPct / 100})` }}
+          aria-hidden="true"
+        />
+
         {STEPS.map((s, i) => {
           const started = elapsed >= s.at;
-          // A step counts as done once the next one has begun; the last stays
-          // spinning until the response lands and this whole block unmounts.
+          // Done once the next step has begun; the last keeps pulsing until the
+          // response lands and this whole block unmounts.
           const done = i < STEPS.length - 1 && elapsed >= STEPS[i + 1].at;
           return (
-            <li
-              key={s.label}
-              className={cn(
-                "flex items-start gap-3 transition-opacity duration-300",
-                started ? "opacity-100" : "opacity-35",
-              )}
-            >
+            <li key={s.label} className="relative flex gap-4 pb-5 last:pb-0">
               <span
                 className={cn(
-                  "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors",
+                  "relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 bg-white transition-all duration-500",
                   done
                     ? "border-[#1d7e93] bg-[#1d7e93] text-white"
                     : started
-                      ? "border-[#1d7e93] text-[#1d7e93]"
-                      : "border-slate-300 text-slate-300",
+                      ? "border-[#27a8c4] text-[#1d7e93] shadow-[0_0_0_4px_rgba(39,168,196,0.14)]"
+                      : "border-slate-200 text-slate-300",
                 )}
               >
                 {done ? (
-                  <Check size={12} strokeWidth={3} />
-                ) : started ? (
-                  <Loader2 size={12} className="animate-spin" />
+                  <Check size={13} strokeWidth={3} />
                 ) : (
-                  <span className="size-1.5 rounded-full bg-current" />
+                  <span
+                    className={cn(
+                      "size-2 rounded-full bg-current",
+                      started && "motion-safe:animate-pulse",
+                    )}
+                  />
                 )}
               </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-medium text-slate-800">{s.label}</span>
+              <span
+                className={cn(
+                  "min-w-0 transition-opacity duration-500",
+                  started ? "opacity-100" : "opacity-40",
+                )}
+              >
+                <span className="block text-sm font-semibold text-slate-800">{s.label}</span>
                 <span className="block text-xs text-slate-500">{s.detail}</span>
               </span>
             </li>
@@ -110,8 +161,7 @@ function ThinkingSteps() {
  * button lives inside the search pill, which carries `liquid-glass-card` and
  * therefore `backdrop-filter`. An element with a backdrop-filter becomes the
  * containing block for fixed-position descendants, so `fixed inset-0` rendered
- * in place was sized to the search bar rather than the viewport — which is
- * exactly what the broken overlay looked like.
+ * in place was sized to the search bar rather than the viewport.
  *
  * The preview is a local object URL rather than an upload to storage: the file
  * only needs to exist for the length of the request, and keeping it client-side
@@ -141,7 +191,6 @@ export function ImageSearchButton({ className }: { className?: string }) {
     if (inputRef.current) inputRef.current.value = "";
   }, []);
 
-  // Escape closes, and the page behind stops scrolling while the dialog is up.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -186,21 +235,24 @@ export function ImageSearchButton({ className }: { className?: string }) {
       role="dialog"
       aria-modal="true"
       aria-label="Search by photo results"
-      className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-sm sm:p-8"
+      className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-md sm:p-8"
       onClick={(e) => {
         if (e.target === e.currentTarget) reset();
       }}
     >
-      <div className="my-auto flex max-h-[90svh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl">
-        <div className="flex shrink-0 items-start gap-4 border-b border-slate-200 p-5">
+      {/* Glass panel: translucent white over the blurred page, a light top-left
+          border to catch the light, and a soft ring so it reads as a raised
+          surface rather than a flat sheet. */}
+      <div className="my-auto flex max-h-[90svh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-white/70 bg-white/85 shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-900/5 backdrop-blur-2xl">
+        <div className="flex shrink-0 items-start gap-4 border-b border-slate-200/70 bg-gradient-to-b from-white/80 to-white/40 p-5">
           {preview ? (
-            <div className="relative size-16 shrink-0 overflow-hidden rounded-xl bg-slate-100">
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 shadow-sm">
               {/* eslint-disable-next-line @next/next/no-img-element -- blob: URL, nothing for next/image to optimise */}
               <img src={preview} alt="The photo you uploaded" className="size-full object-cover" />
             </div>
           ) : null}
           <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold text-slate-900">
+            <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-900">
               {busy ? "Search by photo" : result?.productType || "Search by photo"}
             </h2>
             <p className="mt-0.5 text-sm text-slate-500">
@@ -233,9 +285,6 @@ export function ImageSearchButton({ className }: { className?: string }) {
             <ThinkingSteps />
           ) : (
             <>
-              {/* Categories first. A photograph tells us the kind of thing
-                  somebody wants, and the branch of the catalogue it sits in is
-                  often more useful to a sourcing buyer than any one listing. */}
               {categories.length > 0 && (
                 <div className="mb-6">
                   <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -247,7 +296,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
                         key={c.id}
                         href={`/products/?categoryId=${c.id}`}
                         onClick={reset}
-                        className="group inline-flex items-baseline gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3.5 py-2 text-sm transition-colors hover:border-[#27a8c4] hover:bg-white"
+                        className="group inline-flex items-baseline gap-1.5 rounded-full border border-slate-200/80 bg-white/70 px-3.5 py-2 text-sm shadow-sm transition-all hover:border-[#27a8c4] hover:bg-white hover:shadow"
                       >
                         {c.parentName ? (
                           <span className="text-xs text-slate-400 group-hover:text-slate-500">
@@ -331,8 +380,6 @@ export function ImageSearchButton({ className }: { className?: string }) {
 
       {mounted && dialog ? createPortal(dialog, document.body) : null}
 
-      {/* Same quick-quote modal the product grids use, so an image search
-          ends where every other route through the catalogue ends. */}
       {mounted && inquiry
         ? createPortal(
             <InquiryModal product={inquiry} onClose={() => setInquiry(null)} />,

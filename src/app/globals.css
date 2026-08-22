@@ -933,3 +933,28 @@ html {
     transition: none;
   }
 }
+
+/* Image-search loading state ------------------------------------------------
+   The mascot drifts across the panel while the catalogue is queried. Transform
+   only — no width/left animation — so it never triggers layout, and it sits in
+   an aria-hidden wrapper because the quote beside it carries the meaning. */
+@keyframes affhanFly {
+  0%   { transform: translate3d(-8%, 0, 0) rotate(-3deg); }
+  50%  { transform: translate3d(46%, -7px, 0) rotate(3deg); }
+  100% { transform: translate3d(100%, 0, 0) rotate(-3deg); }
+}
+.affhan-fly {
+  animation: affhanFly 3.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  will-change: transform;
+}
+
+/* The rail behind the step markers. The filled portion grows downward as steps
+   complete, which reads as progress in a way a spinning circle does not. */
+.step-rail-fill {
+  transition: height 600ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .affhan-fly { animation: none; transform: translate3d(46%, 0, 0); }
+  .step-rail-fill { transition: none; }
+}
