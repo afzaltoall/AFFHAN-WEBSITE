@@ -947,3 +947,28 @@ html {
     transition: none;
   }
 }
+
+/* Image-search loading state ------------------------------------------------
+   The mascot carries a speech bubble now, so it drifts gently in place rather
+   than traversing the panel — a bubble sliding off the edge reads as a bug.
+   Transform only, so it never triggers layout. */
+@keyframes affhanDrift {
+  0%, 100% { transform: translate3d(-6px, 0, 0) rotate(-2.5deg); }
+  50%      { transform: translate3d(6px, -6px, 0) rotate(2.5deg); }
+}
+.affhan-drift {
+  animation: affhanDrift 3.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Per-step progress bars and the rail that links the markers. Short, linear
+   transitions: the value is refreshed every 100ms, so anything longer or eased
+   lags visibly behind the step it is describing. */
+.step-bar-fill { transition: width 160ms linear; }
+.step-rail-fill { transition: height 400ms cubic-bezier(0.22, 1, 0.36, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .affhan-drift { animation: none; }
+  .step-bar-fill,
+  .step-rail-fill { transition: none; }
+}

@@ -44,7 +44,7 @@ const STOP_WORDS = new Set([
 
 // Escapes LIKE/ILIKE wildcards so user text is matched literally. Postgres'
 // default LIKE escape character is backslash.
-function escapeLike(str: string): string {
+export function escapeLike(str: string): string {
   return str.replace(/[\\%_]/g, (m) => `\\${m}`);
 }
 

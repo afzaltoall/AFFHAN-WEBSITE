@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
+import { OtherLocations } from "@/components/sections/OtherLocations";
 import { getCdnUrl } from "@/lib/cdn";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
@@ -23,12 +24,12 @@ export const revalidate = 3600;
 // lost its tail — "— China Import" was being cut anyway, and it was the least
 // valuable part. Both phrases this page targets, "sourcing agent in Chennai"
 // and "sourcing company in Chennai", now survive the truncation intact.
-const PAGE_TITLE = "Sourcing Agent & Sourcing Company in Chennai | AFFHAN";
+const PAGE_TITLE = "Sourcing Agent & Sourcing Company in Chennai, India | AFFHAN";
 
 // 149 chars, down from 182. Google shows roughly 155, so the old "Get a quote
 // today" call to action was being clipped off the end where it did no work.
 const PAGE_DESCRIPTION =
-  "Trusted sourcing agent and sourcing company in Chennai for China imports, product sourcing and freight forwarding. 10 lakh+ products, 100+ countries.";
+  "Trusted sourcing agent and sourcing company in Chennai, India for China imports, product sourcing and freight forwarding. 10 lakh+ products sourced.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -231,7 +232,7 @@ export default async function SourcingCompanyChennaiPage() {
           {/* -0.022em, not -0.032em: at 48px the tighter value closed the
               letters up enough to read as cramped rather than premium. */}
           <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-            Sourcing Agent & Sourcing Company in Chennai — <span className="text-[#1d7e93]">AFFHAN Group</span>
+            Sourcing Agent & Sourcing Company in Chennai, India — <span className="text-[#1d7e93]">AFFHAN Group</span>
           </h1>
           {/* whitespace-nowrap spans keep number+unit pairs and the hyphenated
               compound from splitting across lines ("...over 10" / "Lakhs+
@@ -687,6 +688,8 @@ export default async function SourcingCompanyChennaiPage() {
         </div>
       </section>
 
+
+      <OtherLocations current="sourcing-company-chennai" />
 
       <FooterSection />
     </main>

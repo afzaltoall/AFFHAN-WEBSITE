@@ -7,6 +7,7 @@ import { Search, Clock, Trash2, TrendingUp, X, Loader2, Layers } from "lucide-re
 import { getCdnUrl } from "@/lib/cdn";
 import { TrustBadges } from "@/components/ui/TrustBadges";
 import { QuickLinkPill } from "@/components/ui/QuickLinkPill";
+import { ImageSearchButton } from "@/components/ui/ImageSearchButton";
 
 interface CatMatch { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
 interface ProdMatch { id: number; name: string; imageUrl: string | null; category: string | null }
@@ -126,6 +127,9 @@ export function HeroSearchSection() {
             {query && (
               <button type="button" onClick={() => setQuery("")} className="p-1 text-slate-300 hover:text-slate-500"><X size={16} /></button>
             )}
+            {/* Search by photo. Sits inside the pill so it reads as part of
+                the search control rather than a separate feature. */}
+            <ImageSearchButton className="mr-1 shrink-0" />
             <button type="submit" className="h-[calc(100%-8px)] px-5 md:px-6 mr-1 bg-brand hover:bg-brand-dark text-white rounded-full font-bold text-sm transition-colors">
               Search
             </button>
