@@ -89,7 +89,7 @@ export function FooterSection() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Facebook"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
             >
               <FacebookIcon />
             </a>
@@ -98,7 +98,7 @@ export function FooterSection() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
             >
               <InstagramIcon />
             </a>
@@ -107,7 +107,7 @@ export function FooterSection() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="TikTok"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
             >
               <TiktokIcon />
             </a>
@@ -116,7 +116,7 @@ export function FooterSection() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="YouTube"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
             >
               <YouTubeIcon />
             </a>
@@ -125,7 +125,7 @@ export function FooterSection() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="LinkedIn"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
             >
               <LinkedinIcon />
             </a>
@@ -134,7 +134,7 @@ export function FooterSection() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Twitter/X"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:shadow-lg"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
             >
               <TwitterXIcon />
             </a>

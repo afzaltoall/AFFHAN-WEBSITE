@@ -115,17 +115,22 @@ export function HeroSearchSection() {
             onSubmit={(e) => { e.preventDefault(); runSearch(); }}
             className={`flex items-center w-full h-11 md:h-12 liquid-glass-card hover:!transform-none !rounded-full transition-colors ${isFocused ? "shadow-[0_4px_16px_rgba(39,168,196,0.12)]" : "shadow-sm"}`}
           >
-            <div className="pl-5 pr-2 text-slate-400"><Search size={18} className={isFocused ? "text-brand" : ""} /></div>
+            {/* slate-500, not slate-400. Measured against the pill's white
+                background: slate-400 is 2.56:1 and slate-300 is 1.48:1, so
+                both miss WCAG AA — 4.5:1 for the placeholder and label text,
+                3:1 for icons as non-text controls. slate-500 is 4.76:1 and
+                clears both. */}
+            <div className="pl-5 pr-2 text-slate-500"><Search size={18} className={isFocused ? "text-brand" : ""} /></div>
             <input
               type="text"
-              className="flex-1 h-full bg-transparent outline-none text-slate-700 text-sm md:text-base font-medium placeholder:text-slate-400 placeholder:font-normal"
+              className="flex-1 h-full bg-transparent outline-none text-slate-700 text-sm md:text-base font-medium placeholder:text-slate-500 placeholder:font-normal"
               placeholder="What are you sourcing today?"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setIsFocused(true)}
             />
             {query && (
-              <button type="button" onClick={() => setQuery("")} className="p-1 text-slate-300 hover:text-slate-500"><X size={16} /></button>
+              <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="p-1 text-slate-500 hover:text-slate-700"><X size={16} /></button>
             )}
             {/* Search by photo. Sits inside the pill so it reads as part of
                 the search control rather than a separate feature. */}
@@ -140,12 +145,12 @@ export function HeroSearchSection() {
               {hasQuery ? (
                 <>
                   {loading && results.categories.length === 0 && results.products.length === 0 && (
-                    <div className="flex items-center gap-2 text-slate-400 text-sm py-6 justify-center"><Loader2 size={16} className="animate-spin" /> Searching…</div>
+                    <div className="flex items-center gap-2 text-slate-500 text-sm py-6 justify-center"><Loader2 size={16} className="animate-spin" /> Searching…</div>
                   )}
 
                   {results.categories.length > 0 && (
                     <div className="mb-2">
-                      <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Categories</p>
+                      <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Categories</p>
                       {results.categories.map(c => (
                         <button key={c.id} onClick={() => goCategory(c.id)} className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors">
                           <span className="relative w-9 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0">
@@ -153,7 +158,7 @@ export function HeroSearchSection() {
                           </span>
                           <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 min-w-0">
                             <Layers size={13} className="text-brand shrink-0" />
-                            <span className="truncate">{c.name} {c.parentName ? <span className="text-[10px] text-slate-400 uppercase tracking-wider ml-1">in {c.parentName}</span> : ""}</span>
+                            <span className="truncate">{c.name} {c.parentName ? <span className="text-[10px] text-slate-500 uppercase tracking-wider ml-1">in {c.parentName}</span> : ""}</span>
                           </span>
                         </button>
                       ))}
@@ -162,7 +167,7 @@ export function HeroSearchSection() {
 
                   {results.products.length > 0 && (
                     <div className={results.categories.length > 0 ? "pt-2 border-t border-slate-100" : ""}>
-                      <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Products</p>
+                      <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Products</p>
                       {results.products.map(p => (
                         <button key={p.id} onClick={() => runSearch(p.name)} className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors">
                           <span className="relative w-10 h-10 rounded-lg overflow-hidden bg-slate-100 border border-slate-100 shrink-0">
@@ -170,7 +175,7 @@ export function HeroSearchSection() {
                           </span>
                           <span className="min-w-0">
                             <span className="block text-sm font-semibold text-slate-800 truncate">{p.name}</span>
-                            <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-400 truncate">{p.category || "Product"}</span>
+                            <span className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 truncate">{p.category || "Product"}</span>
                           </span>
                         </button>
                       ))}
@@ -188,14 +193,14 @@ export function HeroSearchSection() {
                   {recentSearches.length > 0 && (
                     <div className="mb-4">
                       <div className="flex items-center justify-between mb-2 px-1">
-                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><Clock size={16} className="text-slate-400" /> Recent Searches</h3>
+                        <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2"><Clock size={16} className="text-slate-500" /> Recent Searches</h3>
                         <button onClick={clearRecent} className="text-xs font-medium text-slate-500 hover:text-red-500 flex items-center gap-1 transition-colors"><Trash2 size={14} /> Clear</button>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {recentSearches.map((term, i) => (
                           <div key={i} className="group flex items-center gap-1 bg-slate-50 hover:bg-brand/5 border border-slate-200 hover:border-brand/30 text-slate-700 hover:text-brand-dark rounded-full px-4 py-2 text-sm font-medium cursor-pointer transition-colors" onClick={() => runSearch(term)}>
                             <span>{term}</span>
-                            <button className="ml-1 p-0.5 rounded-full text-slate-400 hover:bg-slate-200 hover:text-slate-700 opacity-0 group-hover:opacity-100 transition-all" onClick={(e) => removeSearch(e, term)}><X size={14} /></button>
+                            <button className="ml-1 p-0.5 rounded-full text-slate-500 hover:bg-slate-200 hover:text-slate-700 opacity-0 group-hover:opacity-100 transition-all" onClick={(e) => removeSearch(e, term)}><X size={14} /></button>
                           </div>
                         ))}
                       </div>

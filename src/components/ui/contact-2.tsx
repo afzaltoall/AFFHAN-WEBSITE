@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { COUNTRIES } from "@/lib/countries";
+import { isValidMobile } from "@/lib/phone";
 interface Contact2Props {
   title?: string;
   description?: string;
@@ -62,6 +63,16 @@ export const Contact2 = ({
 
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
 
+  // Same strict phone rule the enquiry modal uses (see lib/phone.ts): the
+  // number must be a valid MOBILE for the SELECTED country, checked against
+  // libphonenumber's full metadata. That is what rejects both a made-up string
+  // of digits and the "right number, wrong country code" mistake — a length
+  // check alone would happily accept 3993939393939393 under +91.
+  const phoneCountry = COUNTRIES.find((c) => c.iso === form.phoneIso) || null;
+  const phoneEntered = form.phone.trim() !== "";
+  const phoneOk = isValidMobile(form.phone, form.phoneIso);
+  const phoneInvalid = phoneEntered && !phoneOk;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (status === "submitting") return;
@@ -69,6 +80,11 @@ export const Contact2 = ({
     if (!emailValid) { setStatus("error"); setFeedback("Please enter a valid email address."); return; }
     if (!form.country.trim()) { setStatus("error"); setFeedback("Please select a country."); return; }
     if (!form.phone.trim()) { setStatus("error"); setFeedback("Please enter your phone number."); return; }
+    if (!phoneOk) {
+      setStatus("error");
+      setFeedback(`Enter a valid ${phoneCountry?.name ?? "phone"} mobile number, or pick the matching country code.`);
+      return;
+    }
     if (!form.message.trim()) { setStatus("error"); setFeedback("Please enter a message."); return; }
 
     setStatus("submitting");
@@ -240,7 +256,7 @@ export const Contact2 = ({
                     href="https://www.facebook.com/affhaninternational/reels/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 border border-[#27a8c4]/25 text-[#176579] hover:bg-gradient-to-br hover:from-[#27a8c4] hover:to-[#176579] hover:border-transparent hover:text-white hover:shadow-[0_6px_16px_rgba(39,168,196,0.35)] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
                     aria-label="Facebook"
                   >
                     <FacebookIcon />
@@ -249,7 +265,7 @@ export const Contact2 = ({
                     href="https://www.linkedin.com/company/affhanglobal/posts/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 border border-[#27a8c4]/25 text-[#176579] hover:bg-gradient-to-br hover:from-[#27a8c4] hover:to-[#176579] hover:border-transparent hover:text-white hover:shadow-[0_6px_16px_rgba(39,168,196,0.35)] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
                     aria-label="LinkedIn"
                   >
                     <LinkedinIcon />
@@ -258,7 +274,7 @@ export const Contact2 = ({
                     href="https://www.instagram.com/affhanglobal?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 border border-[#27a8c4]/25 text-[#176579] hover:bg-gradient-to-br hover:from-[#27a8c4] hover:to-[#176579] hover:border-transparent hover:text-white hover:shadow-[0_6px_16px_rgba(39,168,196,0.35)] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
                     aria-label="Instagram"
                   >
                     <InstagramIcon />
@@ -267,7 +283,7 @@ export const Contact2 = ({
                     href="https://www.tiktok.com/@affhan_global"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 border border-[#27a8c4]/25 text-[#176579] hover:bg-gradient-to-br hover:from-[#27a8c4] hover:to-[#176579] hover:border-transparent hover:text-white hover:shadow-[0_6px_16px_rgba(39,168,196,0.35)] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
                     aria-label="TikTok"
                   >
                     <TiktokIcon />
@@ -276,7 +292,7 @@ export const Contact2 = ({
                     href="https://www.youtube.com/@affhan_global/shorts"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 border border-[#27a8c4]/25 text-[#176579] hover:bg-gradient-to-br hover:from-[#27a8c4] hover:to-[#176579] hover:border-transparent hover:text-white hover:shadow-[0_6px_16px_rgba(39,168,196,0.35)] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
                     aria-label="YouTube"
                   >
                     <YouTubeIcon />
@@ -285,7 +301,7 @@ export const Contact2 = ({
                     href="https://x.com/affhan_shipping"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 border border-slate-200 text-[#176579] hover:bg-[#27a8c4]/15 hover:border-[#27a8c4]/40 hover:text-[#176579] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-white/70 border border-[#27a8c4]/25 text-[#176579] hover:bg-gradient-to-br hover:from-[#27a8c4] hover:to-[#176579] hover:border-transparent hover:text-white hover:shadow-[0_6px_16px_rgba(39,168,196,0.35)] hover:scale-[1.08] transition-all duration-300 shadow-sm cursor-pointer"
                     aria-label="Twitter/X"
                   >
                     <TwitterXIcon />
@@ -334,14 +350,44 @@ export const Contact2 = ({
                       mode="dial"
                       align="right"
                       placeholder="Code"
-                      selected={COUNTRIES.find((c) => c.iso === form.phoneIso) || null}
-                      onSelect={(c) => setForm((f) => ({ ...f, phoneIso: c.iso, phoneCode: c.dial }))}
+                      selected={phoneCountry}
+                      onSelect={(c) => {
+                        setForm((f) => ({ ...f, phoneIso: c.iso, phoneCode: c.dial }));
+                        if (status === "error") { setStatus("idle"); setFeedback(""); }
+                      }}
                       onOpenChange={setDialOpen}
                       buttonClassName="!h-11 bg-slate-100"
                     />
                   </div>
-                  <Input type="tel" inputMode="numeric" id="phone" name="phone" autoComplete="tel-national" value={form.phone} onChange={setField("phone")} placeholder="9876543210" className="min-w-0 flex-1 bg-slate-50/70 border border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
+                  <Input
+                    type="tel"
+                    inputMode="numeric"
+                    id="phone"
+                    name="phone"
+                    autoComplete="tel-national"
+                    value={form.phone}
+                    // Digits only, so pasted formatting cannot masquerade as a
+                    // longer number than it is.
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "");
+                      setForm((f) => ({ ...f, phone: digits }));
+                      if (status === "error" || status === "success") { setStatus("idle"); setFeedback(""); }
+                    }}
+                    aria-invalid={phoneInvalid}
+                    aria-describedby={phoneInvalid ? "phone-error" : undefined}
+                    placeholder="9876543210"
+                    className={`min-w-0 flex-1 bg-slate-50/70 border text-slate-950 placeholder:text-slate-500 focus-visible:bg-white rounded-xl transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] ${
+                      phoneInvalid
+                        ? "border-red-400 focus-visible:ring-red-400/30 focus-visible:border-red-500"
+                        : "border-slate-200 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]"
+                    }`}
+                  />
                 </div>
+                {phoneInvalid && (
+                  <p id="phone-error" role="alert" className="text-xs font-semibold text-red-600">
+                    Enter a valid {phoneCountry?.name ?? ""} phone number.
+                  </p>
+                )}
               </div>
             </div>
             <div className="grid w-full gap-2">
@@ -366,7 +412,10 @@ export const Contact2 = ({
 
             <button
               type="submit"
-              disabled={status === "submitting"}
+              // A bad number cannot be sent at all, not merely warned about.
+              // The handleSubmit guard still stands behind this for the keyboard
+              // path and for anyone who re-enables the control.
+              disabled={status === "submitting" || phoneInvalid}
               className="w-full h-12 rounded-xl bg-gradient-to-r from-[#27a8c4] to-[#176579] text-white font-bold hover:from-[#176579] hover:to-[#081f2a] shadow-[0_8px_24px_rgba(39,168,196,0.25)] hover:shadow-[0_12px_32px_rgba(23,85,101,0.35)] transition-all duration-300 cursor-pointer flex items-center justify-center gap-2 text-sm hover:scale-[1.01] active:scale-[0.99] disabled:opacity-70 disabled:cursor-not-allowed disabled:hover:scale-100"
             >
               <span>{status === "submitting" ? "Sending…" : "Send Message"}</span>

@@ -7,6 +7,7 @@ import Link from "next/link";
 import { Camera, Check, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
+import { lockBodyScroll } from "@/lib/scrollLock";
 import { cn } from "@/lib/utils";
 
 type Result = {
@@ -226,16 +227,23 @@ export function ImageSearchButton({ className }: { className?: string }) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") reset();
+      if (e.key !== "Escape") return;
+      // Peel one layer. With the quote form open on top, Escape belongs to it
+      // — calling reset() here would close the results underneath as well and
+      // lose the search the user is still working through.
+      if (inquiry) setInquiry(null);
+      else reset();
     };
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    // Counted, not saved and restored: the inquiry modal opens on top of this
+    // panel and locks scrolling too, so two independent restores would fight
+    // over which value goes back and could leave the page frozen.
+    const unlock = lockBodyScroll();
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = previous;
+      unlock();
       window.removeEventListener("keydown", onKey);
     };
-  }, [open, reset]);
+  }, [open, reset, inquiry]);
 
   const onPick = useCallback(async (file: File) => {
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);

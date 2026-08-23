@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useMemo } from "react";
 import { ChevronDown, Search, Check } from "lucide-react";
 import { COUNTRIES, flagUrl, type Country } from "@/lib/countries";
 
@@ -32,6 +32,12 @@ interface FlagSelectProps {
 
 // A tiny flag thumbnail. Plain <img> (not next/image) on purpose: these are
 // external flagcdn.com SVGs that don't need Next's optimizer / domain config.
+// The menu is measured and repositioned before the browser paints, so it never
+// flashes at the off-screen position first. useLayoutEffect would warn during
+// SSR, and this component is server-rendered even though it is a client
+// component, so fall back to useEffect where there is no layout to measure.
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 const Flag = ({ iso, className = "" }: { iso: string; className?: string }) => (
   // eslint-disable-next-line @next/next/no-img-element
   <img
@@ -59,8 +65,47 @@ export function FlagSelect({
   const [query, setQuery] = useState("");
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Horizontal correction, in px, that pulls the menu back inside the viewport.
+  const [shift, setShift] = useState(0);
 
   useEffect(() => { onOpenChange?.(open); }, [open, onOpenChange]);
+
+  // Keep the menu on screen.
+  //
+  // The menu is up to 18rem wide but is anchored to its trigger, and in dial
+  // mode that trigger is only w-24. Anchored right-0 it therefore extends ~288px
+  // to the LEFT of a control that sits about 100px from the edge of a phone
+  // screen, so the country names ran off-canvas. The existing
+  // calc(100vw-2rem) caps the width but says nothing about position, which is
+  // why it did not help.
+  //
+  // Measuring is what makes this correct for every case rather than for the one
+  // that was reported: it works in both modes, at either alignment, on any
+  // viewport, and it re-runs when the window changes size.
+  useIsomorphicLayoutEffect(() => {
+    if (!open) { setShift(0); return; }
+
+    const measure = () => {
+      const el = panelRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const margin = 8;
+      setShift((prev) => {
+        // rect already includes the previous correction, so undo it first —
+        // otherwise a resize would compound the shift instead of replacing it.
+        const left = rect.left - prev;
+        const right = rect.right - prev;
+        if (left < margin) return margin - left;
+        if (right > window.innerWidth - margin) return window.innerWidth - margin - right;
+        return 0;
+      });
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, [open]);
 
   useEffect(() => {
     if (!open) { setQuery(""); return; }
@@ -99,19 +144,21 @@ export function FlagSelect({
             </span>
           </>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-left text-slate-400">{placeholder}</span>
+          <span className="min-w-0 flex-1 truncate text-left text-slate-500">{placeholder}</span>
         )}
-        <ChevronDown size={mode === "dial" ? 13 : 15} className={`shrink-0 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        <ChevronDown size={mode === "dial" ? 13 : 15} className={`shrink-0 text-slate-500 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
         <div
+          ref={panelRef}
           role="listbox"
-          className={`absolute top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl ring-1 ring-black/5 ${align === "right" ? "right-0" : "left-0"}`}
+          style={{ transform: shift ? `translateX(${shift}px)` : undefined }}
+          className={`absolute top-full z-50 mt-2 w-[min(18rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl ring-1 ring-black/5 ${align === "right" ? "right-0" : "left-0"}`}
         >
           <div className="border-b border-slate-100 p-2">
             <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-500" />
               <input
                 ref={inputRef}
                 value={query}
@@ -123,7 +170,7 @@ export function FlagSelect({
           </div>
           <ul className="max-h-64 overflow-y-auto p-1">
             {filtered.length === 0 && (
-              <li className="px-3 py-6 text-center text-sm text-slate-400">No matches</li>
+              <li className="px-3 py-6 text-center text-sm text-slate-500">No matches</li>
             )}
             {filtered.map((c) => {
               const active = selected?.iso === c.iso && selected?.dial === c.dial;
@@ -138,7 +185,7 @@ export function FlagSelect({
                   >
                     <Flag iso={c.iso} />
                     <span className="min-w-0 flex-1 truncate font-medium">{c.name}</span>
-                    <span className="shrink-0 text-xs font-semibold text-slate-400">{c.dial}</span>
+                    <span className="shrink-0 text-xs font-semibold text-slate-500">{c.dial}</span>
                     {active && <Check size={15} className="shrink-0 text-[#27a8c4]" />}
                   </button>
                 </li>
