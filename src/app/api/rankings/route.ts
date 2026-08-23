@@ -19,7 +19,6 @@ import { isCategoryBlocked } from "@/lib/moderation";
 // showcase. No fabricated numbers, no prices (consistent with the whole site).
 // ---------------------------------------------------------------------------
 
-import { getCdnUrl } from "@/lib/cdn";
 
 export const dynamic = "force-dynamic";
 

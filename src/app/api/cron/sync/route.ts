@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import type { Product } from "@prisma/client";
 import { prisma } from "../../../../lib/prisma";
 import { fetchCategories, fetchCjProducts, delay, type CjCategoryNode, type CjRawProduct } from "../../../../lib/cj";
 import { isCategoryBlocked } from "../../../../lib/moderation";
@@ -142,7 +143,10 @@ export async function GET(request: Request) {
           );
 
         const batches = chunkArray(cjProducts, 5);
-        let results: PromiseSettledResult<any>[] = [];
+        // Each batch entry resolves to the upserted row, or null when the
+        // product was skipped (no pid, or a blocked category). Only pushed to,
+        // never reassigned.
+        const results: PromiseSettledResult<Product | null>[] = [];
 
         for (const batch of batches) {
           const batchPromises = batch.map(async (cp: CjRawProduct) => {

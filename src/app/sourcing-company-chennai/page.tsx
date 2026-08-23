@@ -4,7 +4,6 @@ import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { OtherLocations } from "@/components/sections/OtherLocations";
-import { getCdnUrl } from "@/lib/cdn";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";

@@ -21,7 +21,6 @@ type MappedProduct = {
   categoryRef: { name: string | null } | null;
 };
 
-import { getCdnUrl } from "@/lib/cdn";
 
 const getCachedProductCount = unstable_cache(
   async (): Promise<number> => await prisma.product.count(),

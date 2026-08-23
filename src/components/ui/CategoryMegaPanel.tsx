@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronRight, Shirt, Tv, Dumbbell, Gem, Baby, Sofa, Car, Smartphone, Laptop, Heart, Pill, Dog, Wheat, Box, Factory, Wrench, Camera, Lightbulb } from "lucide-react";
+// Only ChevronRight is rendered here — the per-category icons live in
+// getCategoryIcon (see lib/categoryTree), which is where they moved to.
+import { ChevronRight } from "lucide-react";
 import { flattenLeaves, getCategoryIcon, type CategoryTreeNode } from "@/lib/categoryTree";
 import { CategoryTile } from "@/components/ui/CategoryTile";
 
