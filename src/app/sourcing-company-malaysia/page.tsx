@@ -78,6 +78,7 @@ const schema = {
     {
       "@type": "LocalBusiness",
       "@id": "https://affhan.com/#localbusiness-malaysia",
+      parentOrganization: { "@id": "https://affhan.com/#organization" },
       name: "AFFHAN INTERNATIONAL SDN. BHD.",
       url: "https://affhan.com",
       logo: "https://affhan.com/images/logo.png",

@@ -107,8 +107,16 @@ const schema = {
     {
       "@type": "LocalBusiness",
       "@id": "https://affhan.com/#localbusiness-dubai",
-      name: "AFFHAN International - Dubai Office",
-      url: "https://affhan.com",
+      parentOrganization: { "@id": "https://affhan.com/#organization" },
+      // Exactly as registered on the Google Business Profile. Name, address and
+      // phone are the three fields Google matches between a site and a profile,
+      // so a descriptive label like "AFFHAN International - Dubai Office" is
+      // actively worse here than the real trading name.
+      name: "AFFHAN SHIPPING LLC",
+      legalName: "AFFHAN SHIPPING LLC",
+      // The page for this location, not the site root. A LocalBusiness node
+      // pointing at the homepage gives Google nothing to tie the entity to.
+      url: "https://affhan.com/sourcing-company-dubai/",
       logo: "https://affhan.com/images/logo.png",
       image: "https://affhan.com/images/logo.png",
       description:
@@ -117,12 +125,45 @@ const schema = {
       email: "info@affhan.com",
       address: {
         "@type": "PostalAddress",
-        streetAddress: "Office No: 203, White Crown Building, Plot No. 335 - 335, Sheikh Zayed Road",
+        // Wording follows the Google Business Profile, which reads "Sheikh
+        // Zayed Rd - Trade Centre - Trade Centre 1 - Dubai". The district was
+        // missing here, and the address on the page is one of the signals
+        // Google matches against the profile.
+        streetAddress: "Office 203, White Crown Building, Plot 335-335, Sheikh Zayed Road, Trade Centre 1",
         addressLocality: "Dubai",
         addressRegion: "Dubai",
-        postalCode: "7184",
+        // 7184 is a P.O. Box, not a postcode — Dubai does not issue postcodes,
+        // and declaring one as postalCode publishes an address that can never
+        // match the profile.
+        postOfficeBoxNumber: "7184",
         addressCountry: "AE",
       },
+      // Ties this listing to the profiles the Business Profile already links,
+      // so the social accounts and the site resolve to one entity rather than
+      // several unrelated ones.
+      sameAs: [
+        "https://www.facebook.com/affhaninternational",
+        "https://www.instagram.com/affhanglobal",
+        "https://www.linkedin.com/company/affhanglobal",
+        "https://www.tiktok.com/@affhan_global",
+        "https://www.youtube.com/@affhan_global",
+        "https://x.com/affhan_shipping",
+      ],
+      areaServed: [
+        { "@type": "Country", name: "United Arab Emirates" },
+        { "@type": "AdministrativeArea", name: "GCC" },
+      ],
+      // The Business Profile shows an opening time but the site published none,
+      // so Google had nothing to corroborate. Keep these in step with the
+      // profile — hours that disagree are worse than hours that are absent.
+      openingHoursSpecification: [
+        {
+          "@type": "OpeningHoursSpecification",
+          dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
+          opens: "09:00",
+          closes: "18:00",
+        },
+      ],
     },
     {
       "@type": "Service",

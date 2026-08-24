@@ -48,13 +48,26 @@ export const metadata: Metadata = {
   },
 };
 
-const localBusinessSchema = {
+// Organization, not LocalBusiness, and that distinction is the whole point.
+//
+// This node renders on EVERY page. As a LocalBusiness describing the Chennai
+// branch it therefore put a Chennai business — Indian phone number, Indian
+// address — on the Dubai page, the UK page and every other location page,
+// competing with the actual branch each of those pages is about. Google was
+// being asked which of two businesses the Dubai page represented.
+//
+// It previously shared an @id with the Chennai page's own node to paper over
+// that on Chennai specifically, which merged two LocalBusiness definitions
+// into one entity and left the conflict everywhere else.
+//
+// The standard shape for a multi-location company is one Organization for the
+// group plus one LocalBusiness per branch, each pointing back to it with
+// parentOrganization. Every location page then declares exactly one business:
+// its own.
+const organizationSchema = {
   "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  // Same @id the Chennai landing page uses for its own LocalBusiness node.
-  // Without it Google saw two unrelated businesses on that page — this one and
-  // the page's — instead of one entity described in two places.
-  "@id": "https://affhan.com/#localbusiness",
+  "@type": "Organization",
+  "@id": "https://affhan.com/#organization",
   name: "AFFHAN International Pvt Ltd",
   image: "https://affhan.com/images/logo.png",
   url: "https://affhan.com",
@@ -104,7 +117,7 @@ export default function RootLayout({
         {/* LocalBusiness JSON-LD Schema */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
         <Suspense fallback={<div className="h-16" />}>
           <Navbar />

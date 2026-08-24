@@ -320,9 +320,14 @@ export default function AboutUsContent() {
             </div>
             <div className="flex flex-col justify-center space-y-6 text-3xl md:text-4xl lg:text-[2.75rem] font-medium tracking-tight leading-tight text-black">
               <motion.span style={{ opacity: reachText1 }}>500K+ Products Sourced globally.</motion.span>
-              <motion.span style={{ opacity: reachText2 }}>8 Global Offices managing operations.</motion.span>
+              {/* Seven, and the two lines below name exactly seven. Hong Kong
+                  was listed here as an eighth office and there is no business
+                  there — it appeared in no office record, so the count and the
+                  list disagreed with the Contact page. Keep this number in step
+                  with the office records in OfficeLocations. */}
+              <motion.span style={{ opacity: reachText2 }}>7 Global Offices managing operations.</motion.span>
               <motion.span style={{ opacity: reachText3, color: "#d4a373" }}>United Kingdom, France, China, UAE.</motion.span>
-              <motion.span style={{ opacity: reachText4, color: "#d4a373" }}>Singapore, Malaysia, India, Hong Kong.</motion.span>
+              <motion.span style={{ opacity: reachText4, color: "#d4a373" }}>Singapore, Malaysia, India.</motion.span>
             </div>
           </div>
         </div>

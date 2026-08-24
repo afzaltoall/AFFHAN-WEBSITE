@@ -116,7 +116,8 @@ const schema = {
   "@graph": [
     {
       "@type": "LocalBusiness",
-      "@id": "https://affhan.com/#localbusiness",
+      "@id": "https://affhan.com/#localbusiness-chennai",
+      parentOrganization: { "@id": "https://affhan.com/#organization" },
       name: "AFFHAN International Pvt Ltd",
       url: "https://affhan.com",
       logo: "https://affhan.com/images/logo.png",
@@ -145,7 +146,7 @@ const schema = {
       "@type": "Service",
       serviceType: "Product Sourcing and Freight Forwarding",
       provider: {
-        "@id": "https://affhan.com/#localbusiness",
+        "@id": "https://affhan.com/#localbusiness-chennai",
       },
       areaServed: {
         "@type": "City",

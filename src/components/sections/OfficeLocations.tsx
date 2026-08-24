@@ -84,7 +84,16 @@ const CountryFlag = ({ country }: { country: string }) => {
   }
 };
 
-const offices = [
+type Office = {
+  country: string;
+  badge: string;
+  name: string;
+  address: string;
+  phone: string;
+  localPage?: { href: string; label: string };
+};
+
+const offices: Office[] = [
   {
     country: "China",
     badge: "Head Office China",
@@ -124,9 +133,17 @@ const offices = [
   {
     country: "UAE",
     badge: "UAE",
-    name: "AFFHAN INTERNATIONAL TRADING LLC",
+    // Matches the Google Business Profile exactly. The card previously read
+    // "AFFHAN INTERNATIONAL TRADING LLC" while the profile read "AFFHAN
+    // SHIPPING LLC" and the page schema a third thing again — three names for
+    // one office, which is precisely the inconsistency local ranking punishes.
+    name: "AFFHAN SHIPPING LLC",
+    // "Trade Centre 1" added to match the Google Business Profile, which reads
+    // "Sheikh Zayed Rd - Trade Centre - Trade Centre 1 - Dubai". Local ranking
+    // leans on the address on the site matching the profile, so the district
+    // should not be missing from one of them.
     address:
-      "P.O.Box No. 7184, Office No: 203, White Crown Building, Plot No. 335 - 335, Sheikh Zayed Road, Dubai, UAE",
+      "P.O. Box 7184, Office 203, White Crown Building, Plot 335-335, Sheikh Zayed Road, Trade Centre 1, Dubai, UAE",
     phone: "+971 54 406 5867",
     localPage: { href: "/sourcing-company-dubai/", label: "Our sourcing company in Dubai" },
   },
@@ -306,9 +323,11 @@ export const OfficeLocations = () => {
                     </h3>
 
                     {/* Address */}
-                    <p className="mt-1 text-[11.5px] sm:text-[12px] text-slate-600 leading-snug font-normal">
-                      {office.address}
-                    </p>
+                    {office.address && (
+                      <p className="mt-1 text-[11.5px] sm:text-[12px] text-slate-600 leading-snug font-normal">
+                        {office.address}
+                      </p>
+                    )}
 
                     {/* Cities with a dedicated sourcing page link through to it.
                         A real in-content link, not footer boilerplate — and the

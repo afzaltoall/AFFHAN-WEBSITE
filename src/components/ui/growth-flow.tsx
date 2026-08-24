@@ -16,7 +16,9 @@ const STEPS = [
   { tag: "London", title: "European gateway", desc: "Serving Western clients." },
   { tag: "Singapore", title: "APAC trade desk", desc: "Regional momentum." },
   { tag: "Dubai", title: "Middle-East hub", desc: "Bridging East and West." },
-  { tag: "Today", title: "190+ markets", desc: "6 offices. One team." },
+  // Seven, matching the office records in OfficeLocations and the count on the
+  // About page. This read "6 offices" while those said 7 and 8 respectively.
+  { tag: "Today", title: "190+ markets", desc: "7 offices. One team." },
 ];
 
 // Node anchor points as percentages of the flow area (rising left → right).
