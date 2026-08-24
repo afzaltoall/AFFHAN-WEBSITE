@@ -15,6 +15,7 @@ import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import dynamic from 'next/dynamic';
 const CategoryMegaPanel = dynamic(() => import("@/components/ui/CategoryMegaPanel").then(mod => mod.CategoryMegaPanel), { ssr: true });
 import { getCdnUrl } from "@/lib/cdn";
+import { ShipNavMark } from "@/components/ui/ShipNavMark";
 import { prepCatalogueNav } from "@/lib/scroll";
 
 interface SuggestCategory { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
@@ -378,6 +379,9 @@ export function Navbar() {
 
             {/* Desktop Right Nav (Essential Links) */}
             <div className="hidden lg:flex items-center gap-6 z-10 flex-shrink-0 ml-4">
+              {/* Lives inside the desktop-only nav group, so the crowded mobile
+                  bar is left alone without needing its own breakpoint. */}
+              <ShipNavMark />
               <Link href="/about/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
                 About
                 <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>

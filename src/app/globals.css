@@ -1009,3 +1009,30 @@ html {
 .scroll-panel[data-scrolling="true"] .liquid-glass-card * {
   pointer-events: none;
 }
+
+/* Navbar ship mark ----------------------------------------------------------
+   The AFFHAN sail mark riding gently in the navbar's right-hand gap.
+
+   The keyframes translate from zero, not from -50%. The mark is centred by
+   flex now, so the animation is free to own `transform` completely. The old
+   version had the element centred with -translate-y-1/2 AND animated on the
+   same property, which is what lifted it up out of the bar.
+
+   Only a transform is animated, so it stays on the compositor and never causes
+   layout or paint. Drift rather than roll: this artwork has its own wave baked
+   into it, and rotating tilts the water with the hull, which reads as the sea
+   tipping rather than the boat riding it. */
+.ship-mark__vessel {
+  animation: shipMarkDrift 4.2s ease-in-out infinite;
+}
+
+@keyframes shipMarkDrift {
+  0%, 100% { transform: translate3d(0, -1.5px, 0); }
+  50%      { transform: translate3d(0, 1.5px, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ship-mark__vessel {
+    animation: none;
+  }
+}
