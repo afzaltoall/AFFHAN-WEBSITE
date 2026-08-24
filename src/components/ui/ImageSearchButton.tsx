@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
-import { Camera, Check, X } from "lucide-react";
+import { Camera, Check, Upload, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { lockBodyScroll } from "@/lib/scrollLock";
@@ -30,7 +30,34 @@ type Response = {
   error?: string;
 };
 
-const ACCEPT = "image/jpeg,image/png,image/webp,image/gif";
+/* Kept in step with ACCEPTED_IMAGE_TYPES in lib/imageSearch. Anything beyond
+   JPEG/PNG/WebP is transcoded to JPEG server-side before it reaches a vision
+   provider, so the wide list here is real support rather than a filter that
+   lets a file through only for the API to reject it.
+
+   .heic and .heif appear as bare extensions too: iOS and some desktop file
+   pickers report an empty MIME type for them, and an accept list of MIME types
+   alone greys those photos out in the chooser. */
+const ACCEPT =
+  "image/jpeg,image/png,image/webp,image/avif,image/gif,image/heic,image/heif,image/tiff,image/bmp,.heic,.heif,.avif";
+const ACCEPTED_TYPES = [
+  "image/jpeg", "image/png", "image/webp", "image/avif",
+  "image/gif", "image/heic", "image/heif", "image/tiff", "image/bmp",
+];
+/** Some pickers hand back an empty type for HEIC/AVIF. Falling back to the
+ *  extension stops a valid phone photo being refused before it is ever sent;
+ *  the server re-checks and can still decline it. */
+const ACCEPTED_EXTS = /\.(jpe?g|png|webp|avif|gif|heic|heif|tiff?|bmp)$/i;
+
+/** Mirrors MAX_IMAGE_BYTES in lib/imageSearch. Deliberately re-declared rather
+ *  than imported: that module resolves provider API keys, and it has no place
+ *  in a client bundle. The server still enforces the real limit — this only
+ *  saves the user a 5MB upload that was going to be refused. */
+const MAX_BYTES = 5 * 1024 * 1024;
+
+/** Width of the upload panel, and the margin it keeps from the viewport edge. */
+const PANEL_W = 380;
+const PANEL_MARGIN = 12;
 
 /** Each step names a phase that genuinely happens server-side, in the order it
  *  happens, with a rough duration so its bar can fill while it runs. The
@@ -197,6 +224,17 @@ export function ImageSearchButton({ className }: { className?: string }) {
   const [result, setResult] = useState<Response | null>(null);
   const [inquiry, setInquiry] = useState<Result | null>(null);
 
+  // The upload panel that drops from the camera: paste, drag-drop, or browse.
+  const camRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [panelError, setPanelError] = useState<string | null>(null);
+  // Windows says Ctrl, macOS says Cmd. Showing the wrong one is a small lie in
+  // the one place the panel is actually instructing the user.
+  const [isMac, setIsMac] = useState(false);
+
   // Flags the panel while it is actively scrolling. Cheap: a data attribute
   // written straight to the node, so it never re-renders the grid.
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -211,7 +249,31 @@ export function ImageSearchButton({ className }: { className?: string }) {
     }, 140);
   }, []);
 
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    setMounted(true);
+    setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
+  }, []);
+
+  /* The panel is portalled to document.body and positioned from the button's
+     own rect, rather than absolutely inside the search pill. The pill carries
+     liquid-glass-card, so it has a backdrop-filter — which makes it a
+     containing block for fixed descendants and a stacking context, and its
+     rounded overflow would clip a dropdown hanging below it. Measuring is the
+     way out of all three at once. */
+  const placePanel = useCallback(() => {
+    const b = camRef.current?.getBoundingClientRect();
+    if (!b) return;
+    const width = Math.min(PANEL_W, window.innerWidth - PANEL_MARGIN * 2);
+    const centred = b.left + b.width / 2 - width / 2;
+    const left = Math.max(PANEL_MARGIN, Math.min(centred, window.innerWidth - width - PANEL_MARGIN));
+    setPanelPos({ top: b.bottom + 10, left, width });
+  }, []);
+
+  const closePanel = useCallback(() => {
+    setPanelOpen(false);
+    setDragOver(false);
+    setPanelError(null);
+  }, []);
 
   const reset = useCallback(() => {
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
@@ -267,15 +329,163 @@ export function ImageSearchButton({ className }: { className?: string }) {
     }
   }, []);
 
+  /* One gate for all three routes in — paste, drop and browse. Checking here
+     rather than in each handler means a 20MB TIFF is refused identically
+     however it arrived, and the user is told which rule it broke instead of
+     watching the panel open and fail. */
+  const acceptFile = useCallback(
+    (file: File | null | undefined) => {
+      if (!file) {
+        setPanelError("That did not contain an image.");
+        return;
+      }
+      const looksRight = file.type
+        ? ACCEPTED_TYPES.includes(file.type)
+        : ACCEPTED_EXTS.test(file.name);
+      if (!looksRight) {
+        setPanelError("That file type will not work. Use a JPEG, PNG, WebP, AVIF, HEIC, GIF, TIFF or BMP.");
+        return;
+      }
+      if (file.size > MAX_BYTES) {
+        setPanelError(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. The limit is 5MB.`);
+        return;
+      }
+      closePanel();
+      void onPick(file);
+    },
+    [closePanel, onPick],
+  );
+
+  // Ctrl/Cmd+V anywhere while the panel is open. Bound to the window rather
+  // than to a focused input, because there is no text field here to paste into
+  // and asking the user to click a box first would be a step for nothing.
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith("image/"));
+      if (!item) {
+        setPanelError("There is no image on the clipboard. Copy an image first, then paste.");
+        return;
+      }
+      e.preventDefault();
+      acceptFile(item.getAsFile());
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [panelOpen, acceptFile]);
+
+  // Dismissal and re-anchoring. Scroll is captured so the panel also follows
+  // when an inner scroller moves, not just the page.
+  useEffect(() => {
+    if (!panelOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closePanel();
+    };
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (panelRef.current?.contains(t) || camRef.current?.contains(t)) return;
+      closePanel();
+    };
+    window.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    window.addEventListener("resize", placePanel);
+    window.addEventListener("scroll", placePanel, true);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+      window.removeEventListener("resize", placePanel);
+      window.removeEventListener("scroll", placePanel, true);
+    };
+  }, [panelOpen, closePanel, placePanel]);
+
   const products = result?.products ?? [];
   const categories = result?.categories ?? [];
+
+  const uploadPanel = !panelOpen || !panelPos ? null : (
+    <div
+      ref={panelRef}
+      role="dialog"
+      aria-modal="false"
+      aria-label="Search by photo"
+      style={{ top: panelPos.top, left: panelPos.left, width: panelPos.width }}
+      className="fixed z-[210] rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_-12px_rgba(8,31,42,0.35)] motion-safe:animate-[fadeIn_140ms_ease-out]"
+    >
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <h2 className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
+          Find products with a photo
+        </h2>
+        <button
+          type="button"
+          onClick={closePanel}
+          aria-label="Close"
+          className="-mr-1 -mt-1 shrink-0 rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* The drop target. onDragOver must preventDefault or the browser
+          refuses the drop and navigates to the file instead. */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          acceptFile(e.dataTransfer.files?.[0]);
+        }}
+        className={cn(
+          "rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors duration-150",
+          dragOver ? "border-[#27a8c4] bg-[#27a8c4]/[0.07]" : "border-slate-300 bg-slate-50/70",
+        )}
+      >
+        <Upload
+          size={26}
+          className={cn("mx-auto mb-2.5 transition-colors", dragOver ? "text-[#176579]" : "text-slate-500")}
+          aria-hidden="true"
+        />
+
+        <p className="text-[13px] text-slate-700">
+          Paste an image with{" "}
+          <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">
+            {isMac ? "⌘" : "Ctrl"}
+          </kbd>{" "}
+          <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">
+            V
+          </kbd>
+        </p>
+        <p className="mt-1 text-[13px] text-slate-600">or drag and drop one here</p>
+
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)] transition-all duration-200 hover:shadow-[0_10px_22px_rgba(23,101,121,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50 focus-visible:ring-offset-2 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"
+        >
+          Upload a file
+        </button>
+      </div>
+
+      {panelError ? (
+        <p role="alert" className="mt-3 text-[12px] font-semibold text-red-600">
+          {panelError}
+        </p>
+      ) : (
+        <p className="mt-3 text-center text-[11px] text-slate-500">
+          JPEG, PNG, WebP, AVIF, HEIC, GIF, TIFF or BMP · up to 5MB
+        </p>
+      )}
+    </div>
+  );
 
   const dialog = !open ? null : (
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Search by photo results"
-      className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-slate-900/50 p-4 backdrop-blur-md sm:p-8"
+      className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-[#081f2a]/50 p-4 backdrop-blur-md sm:p-8"
       onClick={(e) => {
         if (e.target === e.currentTarget) reset();
       }}
@@ -421,7 +631,12 @@ export function ImageSearchButton({ className }: { className?: string }) {
         className="sr-only"
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) void onPick(f);
+          // Through the same gate as paste and drop, so an oversized or wrong
+          // file is reported the same way however it was chosen. Clearing the
+          // value afterwards matters: without it, picking the same file again
+          // fires no change event and the panel appears to ignore the click.
+          e.target.value = "";
+          acceptFile(f);
         }}
       />
 
@@ -429,28 +644,55 @@ export function ImageSearchButton({ className }: { className?: string }) {
           and this is a feature nobody knows to look for. A rule to separate it
           from the typing area, a filled target so it looks pressable, and a
           tooltip on hover or keyboard focus so the affordance is named. */}
-      <span className={cn("group/cam relative flex shrink-0 items-center", className)}>
+      <span className={cn("relative flex shrink-0 items-center", className)}>
         <span className="mr-1.5 h-5 w-px bg-slate-200" aria-hidden="true" />
 
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          aria-label="Search by photo"
-          className="inline-flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-all duration-200 hover:bg-[#e0f2f7] hover:text-[#176579] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 motion-safe:hover:scale-105 motion-safe:active:scale-95 md:size-9"
-        >
-          <Camera size={16} className="md:size-[18px]" />
-        </button>
+        {/* The tooltip is centred with left-1/2, so its positioning context has
+            to be exactly the button. It used to be the outer span, which also
+            holds the divider and its 6px margin — 43px wide against the
+            button's 36px, putting the centre 3.5px to the left and visibly
+            missing the arrow. Wrapping the button alone fixes it at any button
+            size, where a hand-tuned offset would not.
 
-        {/* Hidden from assistive tech: aria-label already names the button, so
-            announcing this too would repeat it. */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute left-1/2 top-[calc(100%+12px)] z-50 -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/cam:opacity-100 group-focus-within/cam:opacity-100"
-        >
-          Search by photo
-          <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rotate-45 bg-slate-900" />
+            group/cam moves here too, so the hairline divider no longer
+            triggers the tooltip. */}
+        <span className="group/cam relative flex">
+          <button
+            ref={camRef}
+            type="button"
+            onClick={() => {
+              if (panelOpen) return closePanel();
+              placePanel();
+              setPanelOpen(true);
+            }}
+            aria-label="Search by photo"
+            aria-haspopup="dialog"
+            aria-expanded={panelOpen}
+          // Hover inverts to the same dark the tooltip uses, so the button and
+          // the label read as one object rather than a pale chip with an
+          // unrelated black box under it. focus-visible mirrors hover, so the
+          // keyboard path gets the same state and not just a ring.
+            className="inline-flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-all duration-200 hover:bg-[#081f2a] hover:text-white hover:shadow-[0_4px_14px_rgba(8,31,42,0.35)] focus-visible:bg-[#081f2a] focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 motion-safe:hover:scale-105 motion-safe:active:scale-95 md:size-9"
+          >
+            <Camera size={16} className="md:size-[18px]" />
+          </button>
+
+          {/* Hidden from assistive tech: aria-label already names the button, so
+              announcing this too would repeat it. */}
+          <span
+            aria-hidden="true"
+            className={cn(
+              "pointer-events-none absolute left-1/2 top-[calc(100%+12px)] z-50 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[#081f2a] px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/cam:opacity-100 group-focus-within/cam:opacity-100",
+              panelOpen && "!opacity-0",
+            )}
+          >
+            Search by photo
+            <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rotate-45 bg-[#081f2a]" />
+          </span>
         </span>
       </span>
+
+      {mounted && uploadPanel ? createPortal(uploadPanel, document.body) : null}
 
       {mounted && dialog ? createPortal(dialog, document.body) : null}
 

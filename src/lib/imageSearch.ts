@@ -48,8 +48,45 @@ const GEMINI_MODELS = [
 ] as const;
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
-export const ACCEPTED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+/**
+ * What the vision providers can be handed directly. Deliberately short: both
+ * Gemini and Anthropic document PNG, JPEG and WebP, and anything outside that
+ * is a 400 from the API rather than a graceful degradation.
+ */
+export const PROVIDER_NATIVE_TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
+
+/**
+ * What the UPLOAD accepts, which is deliberately much wider. Everything not in
+ * PROVIDER_NATIVE_TYPES is transcoded to JPEG server-side before it reaches a
+ * provider (see normaliseForProvider), so the user is not made to care which
+ * codec their phone or screenshot tool happened to use.
+ *
+ * AVIF is verified working: sharp decodes it through libheif and reports the
+ * format as "heif". HEIC/HEIF are accepted on the same code path — sharp cannot
+ * ENCODE them, HEVC being patent-encumbered, but decoding is all that is needed
+ * and it is what phone cameras produce.
+ *
+ * SVG is excluded on purpose. It is a document format rather than a photograph,
+ * nobody photographs a product as SVG, and rasterising untrusted markup is an
+ * attack surface this feature has no reason to take on.
+ */
+export const ACCEPTED_IMAGE_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/avif",
+  "image/gif",
+  "image/heic",
+  "image/heif",
+  "image/tiff",
+  "image/bmp",
+] as const;
+
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+/** Longest edge sent to the provider. Vision models downscale internally
+ *  anyway, so anything larger is upload time and tokens spent for nothing. */
+const MAX_EDGE = 1568;
 
 export type ImageDescription = {
   /** Short noun phrase, e.g. "digital tyre pressure gauge". */
@@ -62,6 +99,63 @@ export type ImageDescription = {
 };
 
 export class ImageSearchUnavailable extends Error {}
+
+/** The upload was accepted but could not be decoded — a truncated file, or a
+ *  codec this build of libvips was not compiled with. Distinct from a rejected
+ *  MIME type, because the advice to the user is different. */
+export class ImageDecodeFailed extends Error {}
+
+/**
+ * Hand back something a vision provider will definitely accept.
+ *
+ * PNG, JPEG and WebP pass straight through untouched unless they are oversized.
+ * Everything else — AVIF, HEIC, GIF, TIFF, BMP — is decoded and re-encoded as
+ * JPEG. Without this, widening the upload filter would only move the failure
+ * from the browser to the provider, which answers 400 for a format it does not
+ * know and gives the user nothing useful.
+ *
+ * sharp is imported lazily so it is only pulled in when a conversion is
+ * actually needed, and never at module load.
+ */
+export async function normaliseForProvider(
+  input: Buffer,
+  mediaType: string,
+): Promise<{ base64: string; mediaType: string }> {
+  const native = (PROVIDER_NATIVE_TYPES as readonly string[]).includes(mediaType);
+
+  try {
+    const sharp = (await import("sharp")).default;
+    const image = sharp(input, { animated: false });
+    const meta = await image.metadata();
+    const oversized = Math.max(meta.width ?? 0, meta.height ?? 0) > MAX_EDGE;
+
+    // Decide from the decoded bytes, not from what the upload claimed. File
+    // pickers routinely report an empty type or application/octet-stream for
+    // AVIF and HEIC, so the declared value is a hint at best.
+    const detected =
+      meta.format === "jpeg" ? "image/jpeg" :
+      meta.format === "png" ? "image/png" :
+      meta.format === "webp" ? "image/webp" :
+      null;
+
+    if (detected && !oversized) {
+      return { base64: input.toString("base64"), mediaType: detected };
+    }
+
+    const out = await image
+      .rotate() // honour EXIF orientation, or phone photos arrive sideways
+      .resize({ width: MAX_EDGE, height: MAX_EDGE, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 88 })
+      .toBuffer();
+
+    return { base64: out.toString("base64"), mediaType: "image/jpeg" };
+  } catch (error) {
+    // A native type that sharp could not read is still worth trying as-is: the
+    // provider may well decode it, and failing here would be worse.
+    if (native) return { base64: input.toString("base64"), mediaType };
+    throw new ImageDecodeFailed(error instanceof Error ? error.message : "could not decode image");
+  }
+}
 
 /** Provider is up but would not serve this request — 429 rate limit, or the
  *  503 UNAVAILABLE the free tier returns when a model is saturated. Transient

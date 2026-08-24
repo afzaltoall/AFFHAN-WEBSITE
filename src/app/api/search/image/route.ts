@@ -5,8 +5,10 @@ import { parseQuery, buildSearchWhere, buildRelevanceExpr } from "@/lib/search";
 import { isCategoryBlocked, isNameBlocked } from "@/lib/moderation";
 import {
   describeProductImage,
+  normaliseForProvider,
   ImageSearchUnavailable,
   ImageSearchBusy,
+  ImageDecodeFailed,
   ACCEPTED_IMAGE_TYPES,
   MAX_IMAGE_BYTES,
 } from "@/lib/imageSearch";
@@ -47,9 +49,23 @@ export async function POST(request: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: "No image was attached." }, { status: 400 });
   }
-  if (!ACCEPTED_IMAGE_TYPES.includes(file.type as (typeof ACCEPTED_IMAGE_TYPES)[number])) {
+  // The declared MIME type is a hint, not proof. File pickers on iOS and
+  // Windows routinely hand back "" or application/octet-stream for AVIF and
+  // HEIC, so rejecting on it alone turns away perfectly valid phone photos —
+  // measured: a real AVIF posted without an explicit type was refused here
+  // while the identical bytes with type=image/avif went through the whole
+  // pipeline. Anything unrecognised is passed to the decoder and judged on its
+  // actual content; only files that positively declare themselves something
+  // else are refused up front.
+  const declared = file.type || "";
+  const known = ACCEPTED_IMAGE_TYPES.includes(declared as (typeof ACCEPTED_IMAGE_TYPES)[number]);
+  // SVG is markup, not a photograph. Rasterising untrusted markup is an attack
+  // surface this feature has no reason to accept.
+  const isSvg = declared === "image/svg+xml";
+  const unlabelled = declared === "" || declared === "application/octet-stream";
+  if (isSvg || (!known && !unlabelled)) {
     return NextResponse.json(
-      { error: "Upload a JPEG, PNG, WebP or GIF." },
+      { error: "That is not an image we can read. Use a JPEG, PNG, WebP, AVIF, HEIC, GIF, TIFF or BMP." },
       { status: 415 },
     );
   }
@@ -62,9 +78,20 @@ export async function POST(request: NextRequest) {
 
   let description;
   try {
-    const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
-    description = await describeProductImage(base64, file.type, AbortSignal.timeout(20_000));
+    // Transcode first when needed. The upload filter accepts AVIF, HEIC, GIF,
+    // TIFF and BMP, none of which a vision provider will take directly — this
+    // turns them into JPEG (and corrects EXIF rotation) before the call.
+    const raw = Buffer.from(await file.arrayBuffer());
+    const { base64, mediaType } = await normaliseForProvider(raw, file.type);
+    description = await describeProductImage(base64, mediaType, AbortSignal.timeout(20_000));
   } catch (error) {
+    if (error instanceof ImageDecodeFailed) {
+      console.warn("Image search could not decode upload:", file.type, error.message);
+      return NextResponse.json(
+        { error: "That image could not be read. It may be damaged — try re-saving or exporting it." },
+        { status: 415 },
+      );
+    }
     if (error instanceof ImageSearchUnavailable) {
       // Deliberately explicit: this is a missing environment variable, not a
       // bug, and saying so saves someone debugging the wrong thing.
