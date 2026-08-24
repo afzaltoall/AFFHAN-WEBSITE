@@ -52,22 +52,26 @@ export default async function ProductPage({
   const product = await getProduct(id);
   if (!product) notFound();
 
-  // Similar products from the same category (exclude this one, need an image).
-  const similarRows = product.categoryId
-    ? await prisma.product.findMany({
-        where: {
-          categoryId: product.categoryId,
-          id: { not: product.id },
-          imageUrl: { not: null },
-        },
-        take: 10,
-        // No orderBy: sorting a large category by lastSynced forced a full scan
-        // of the category and was the main source of PDP latency. An arbitrary
-        // 10 served straight off the categoryId index is plenty for "similar",
-        // and `select` avoids the categoryRef join entirely.
-        select: { id: true, name: true, imageUrl: true },
-      })
-    : [];
+  // Similar products, and how many the category holds, fetched together so the
+  // count costs no extra round trip. Both are served off the categoryId index.
+  const [similarRows, categoryCount] = product.categoryId
+    ? await Promise.all([
+        prisma.product.findMany({
+          where: {
+            categoryId: product.categoryId,
+            id: { not: product.id },
+            imageUrl: { not: null },
+          },
+          take: 10,
+          // No orderBy: sorting a large category by lastSynced forced a full scan
+          // of the category and was the main source of PDP latency. An arbitrary
+          // 10 served straight off the categoryId index is plenty for "similar",
+          // and `select` avoids the categoryRef join entirely.
+          select: { id: true, name: true, imageUrl: true },
+        }),
+        prisma.product.count({ where: { categoryId: product.categoryId } }),
+      ])
+    : [[], 0];
 
   const pdpProduct: PDPProduct = {
     id: product.id,
@@ -77,6 +81,11 @@ export default async function ProductPage({
     description: product.description,
     categoryName: product.categoryRef?.name ?? product.category ?? null,
     categoryId: product.categoryId,
+    // Built from our own row id. Never product.sku — every SKU in this
+    // catalogue is a CJ code, and publishing one identifies the supplier and
+    // lets anyone look the item up at its source price.
+    reference: `AFF-${product.id}`,
+    categoryCount,
   };
 
   // Every "similar" product shares this category, so reuse the parent's

@@ -3,7 +3,17 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ShieldCheck, BadgeCheck, Globe, ChevronRight, Info } from "lucide-react";
+import {
+  ShieldCheck,
+  BadgeCheck,
+  Globe,
+  ChevronRight,
+  Info,
+  FileText,
+  Factory,
+  ClipboardCheck,
+  Ship,
+} from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { ProductCard, type ProductCardData } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
@@ -16,7 +26,38 @@ export interface PDPProduct {
   description: string | null;
   categoryName: string | null;
   categoryId: string | null;
+  /**
+   * Our own reference, built from the internal row id — NEVER the `sku` column.
+   *
+   * Every SKU in the catalogue begins with "CJ" (measured: 1,068,225 of
+   * 1,068,225). Printing one on a public page names the supplier on every
+   * product we list, and anyone can paste it into that supplier's own site to
+   * pull up the item and its price — the single thing this business has
+   * decided must never be visible, because their dollar price is not our
+   * quote. The internal id gives a buyer something equally unambiguous to
+   * quote back and gives away nothing.
+   */
+  reference: string;
+  /** How many products sit in this category, for the "one of N" line. 0 when
+   *  the product has no category. */
+  categoryCount: number;
 }
+
+/**
+ * What actually happens after the button is pressed.
+ *
+ * This exists because the description field is empty for all 1,068,225 rows —
+ * CJ's list endpoint does not return one — so the column had a title, a notice
+ * and a button and nothing else. These four steps are the real process rather
+ * than filler, and being static they are true of every product, which no
+ * scraped copy would be.
+ */
+const STEPS = [
+  { Icon: FileText, title: "You send the request", body: "Quantity, the spec you need, and where it ships to." },
+  { Icon: Factory, title: "We match a factory", body: "Our Guangzhou team sources it and checks the plant." },
+  { Icon: ClipboardCheck, title: "Quality inspection", body: "Goods are inspected before they leave China." },
+  { Icon: Ship, title: "Freight and customs", body: "Sea or air, cleared and delivered to your door." },
+];
 
 interface Props {
   product: PDPProduct;
@@ -106,9 +147,39 @@ export function ProductDetailView({ product, similar }: Props) {
               {product.name}
             </h1>
 
-            {product.description && (
+            {/* Ours, not the supplier's — see the note on `reference` above. */}
+            <p className="mt-2.5 text-xs text-slate-500">
+              Quote reference{" "}
+              <span className="font-semibold tracking-wide text-slate-700">{product.reference}</span>
+            </p>
+
+            {product.description ? (
               <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-600 sm:text-base">
                 {product.description}
+              </p>
+            ) : (
+              /* No description exists for any product in the catalogue, so this
+                 is the normal path rather than the exception. Saying plainly
+                 what the listing is beats leaving the space blank — and it is
+                 the honest framing: the catalogue demonstrates capability, it
+                 is not stock we hold. */
+              <p className="mt-4 text-sm leading-relaxed text-slate-600 sm:text-[15px]">
+                This is a reference product, not stock we hold. We source items like it to your
+                specification — your own material, size, finish, packaging or branding.
+                {product.categoryName && product.categoryCount > 1 && product.categoryId ? (
+                  <>
+                    {" "}
+                    It is one of{" "}
+                    <Link
+                      href={`/products/?categoryId=${encodeURIComponent(product.categoryId)}`}
+                      className="font-semibold text-[#176579] hover:underline"
+                    >
+                      {product.categoryCount.toLocaleString("en-US")} products we can source in{" "}
+                      {product.categoryName}
+                    </Link>
+                    .
+                  </>
+                ) : null}
               </p>
             )}
 
@@ -128,16 +199,52 @@ export function ProductDetailView({ product, similar }: Props) {
               <ChevronRight className="h-4 w-4" />
             </button>
 
-            {/* Trust badges */}
+            {/* MOQ, stated the honest way. The quote form's lowest tier is 20
+                pieces, but the real minimum is the factory's, so promising a
+                number here would be a claim we cannot keep. */}
+            <p className="mt-3 text-xs leading-relaxed text-slate-500">
+              Minimum order quantity is set by the factory and confirmed with your quote. Tell us
+              your target quantity and we will come back with options.
+            </p>
+
+            {/* What happens next */}
+            <div className="mt-6 border-t border-slate-200 pt-5">
+              <h2 className="mb-3.5 text-xs font-bold uppercase tracking-wider text-slate-500">
+                What happens after you ask
+              </h2>
+              <ol className="grid gap-3 sm:grid-cols-2">
+                {STEPS.map(({ Icon, title, body }, i) => (
+                  <li key={title} className="flex gap-2.5">
+                    <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-[#27a8c4]/10 text-[#176579]">
+                      <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[12.5px] font-bold text-[#081f2a]">
+                        <span className="text-slate-400">{i + 1}.</span> {title}
+                      </span>
+                      <span className="mt-0.5 block text-[11.5px] leading-relaxed text-slate-500">
+                        {body}
+                      </span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+
+            {/* Trust row. Each item now carries a fact that is checkable against
+                our own records — seven office entries, trading since 2000, 509
+                product-bearing categories — rather than three bare labels. */}
             <div className="mt-6 flex flex-wrap gap-x-6 gap-y-3 border-t border-slate-200 pt-5">
               <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
-                <ShieldCheck className="h-4.5 w-4.5 text-emerald-500" /> Verified sourcing
+                <ShieldCheck className="h-4.5 w-4.5 shrink-0 text-emerald-500" /> Factory-checked
+                sourcing since 2000
               </span>
               <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
-                <BadgeCheck className="h-4.5 w-4.5 text-emerald-500" /> Quality inspection
+                <BadgeCheck className="h-4.5 w-4.5 shrink-0 text-emerald-500" /> Inspected before
+                shipment
               </span>
               <span className="inline-flex items-center gap-2 text-xs font-medium text-slate-600">
-                <Globe className="h-4.5 w-4.5 text-emerald-500" /> Global shipping
+                <Globe className="h-4.5 w-4.5 shrink-0 text-emerald-500" /> 7 offices worldwide
               </span>
             </div>
           </div>
