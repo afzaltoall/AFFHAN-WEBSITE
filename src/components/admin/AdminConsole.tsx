@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
 import {
   LayoutGrid, Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
@@ -48,7 +49,7 @@ interface Theme {
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
-    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; jobAlerts: number };
+    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; jobAlerts: number; suppliers: number };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
     jobAlerts: JobAlert[]; deletedJobAlerts: JobAlert[];
@@ -548,13 +549,14 @@ export function AdminConsole({ data }: Props) {
     { label: "Inquiries", value: data.stats.inquiries, icon: Inbox, tint: "text-amber-500", bg: dark ? "bg-amber-500/15" : "bg-amber-50" },
     { label: "Messages", value: data.stats.contacts, icon: MessageSquare, tint: "text-emerald-500", bg: dark ? "bg-emerald-500/15" : "bg-emerald-50" },
     { label: "Careers", value: data.stats.jobAlerts, icon: Briefcase, tint: "text-rose-500", bg: dark ? "bg-rose-500/15" : "bg-rose-50" },
+    { label: "Suppliers", value: data.stats.suppliers, hint: "From the WeChat book", icon: Users, tint: "text-teal-500", bg: dark ? "bg-teal-500/15" : "bg-teal-50" },
   ];
 
   return (
-    <div style={sfFont} className={`min-h-screen w-full pt-16 antialiased transition-colors duration-200 ${t.page}`}>
+    <div style={sfFont} className={`min-h-screen w-full antialiased transition-colors duration-200 ${t.page}`}>
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`sticky top-16 hidden h-[calc(100vh-4rem)] w-60 shrink-0 flex-col border-r backdrop-blur-xl lg:flex ${t.sidebar}`}>
+        <aside className={`sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r backdrop-blur-xl lg:flex ${t.sidebar}`}>
           <div className="flex items-center gap-2.5 px-5 py-5">
             <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.thumb}`}>
               <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
@@ -576,6 +578,17 @@ export function AdminConsole({ data }: Props) {
                 {n.count !== undefined && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(n.count)}</span>}
               </button>
             ))}
+            {/* A link rather than a view: the supplier book is its own route, so
+                it survives a reload and can be opened in its own tab, which is
+                how it actually gets used — open beside a chat window. */}
+            <Link
+              href="/admin/suppliers/"
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
+            >
+              <Users size={17} className={t.soft} />
+              <span className="flex-1 text-left">Suppliers</span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.suppliers)}</span>
+            </Link>
           </nav>
           <div className={`border-t p-3 ${t.border}`}>
             <div className="flex items-center gap-2.5 px-2 py-2">
@@ -622,6 +635,7 @@ export function AdminConsole({ data }: Props) {
                 {nav.map((n) => (
                   <button key={n.key} onClick={() => { setView(n.key); setQ(""); }} className={`rounded-full px-3 py-2 text-xs font-semibold ring-1 ${view === n.key ? "bg-[#1d1d1f] text-white ring-transparent" : t.pill}`}>{n.label}</button>
                 ))}
+                <Link href="/admin/suppliers/" className={`rounded-full px-3 py-2 text-xs font-semibold ring-1 ${t.pill}`}>Suppliers</Link>
               </div>
               {/* Dark toggle lives in the sidebar on desktop — only expose it in
                   the top bar on mobile (where there is no sidebar). */}
@@ -638,11 +652,11 @@ export function AdminConsole({ data }: Props) {
           </div>
 
           {/* Stat cards */}
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-5">
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
             {statCards.map((s) => (
               <button
                 key={s.label}
-                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Careers") setView("careers"); }}
+                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Careers") setView("careers"); else if (s.label === "Suppliers") router.push("/admin/suppliers/"); }}
                 className={`rounded-2xl p-5 text-left shadow-sm ring-1 transition-all hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
               >
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${s.bg}`}>

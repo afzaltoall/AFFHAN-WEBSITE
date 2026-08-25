@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { prisma } from "../../lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { AdminConsole } from "@/components/admin/AdminConsole";
-import { AdminAutoLogout } from "@/components/admin/AdminAutoLogout";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +19,7 @@ export default async function AdminPage() {
   if (!admin) redirect("/admin/login");
   if (admin.role !== "admin") redirect("/");
 
-  const [productCount, categoryCount, categoryTotal, inquiryCount, inquiries, deletedInquiries, contactCount, contacts, deletedContacts, jobAlertCount, jobAlerts, deletedJobAlerts] = await Promise.all([
+  const [productCount, categoryCount, categoryTotal, inquiryCount, inquiries, deletedInquiries, contactCount, contacts, deletedContacts, jobAlertCount, jobAlerts, deletedJobAlerts, supplierCount] = await Promise.all([
     prisma.product.count(),
     // Categories a customer can actually browse, matching what the public site
     // advertises. The raw row count is 634, but 125 of those are empty nodes in
@@ -39,6 +38,10 @@ export default async function AdminPage() {
     prisma.jobAlert.count({ where: { status: { not: "deleted" } } }),
     prisma.jobAlert.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" }, take: 200 }),
     prisma.jobAlert.findMany({ where: { status: "deleted" }, orderBy: { createdAt: "desc" }, take: 200 }),
+    // The WeChat supplier book. Only the count here — the directory itself is
+    // its own route, since 845 rows with every contact inline is a page, not a
+    // panel.
+    prisma.supplier.count(),
   ]);
 
   const mapInquiry = (i: (typeof inquiries)[number]) => ({
@@ -87,6 +90,7 @@ export default async function AdminPage() {
       inquiries: inquiryCount,
       contacts: contactCount,
       jobAlerts: jobAlertCount,
+      suppliers: supplierCount,
     },
     inquiries: inquiries.map(mapInquiry),
     deletedInquiries: deletedInquiries.map(mapInquiry),
@@ -96,10 +100,5 @@ export default async function AdminPage() {
     deletedJobAlerts: deletedJobAlerts.map(mapJobAlert),
   };
 
-  return (
-    <>
-      <AdminAutoLogout />
-      <AdminConsole data={data} />
-    </>
-  );
+  return <AdminConsole data={data} />;
 }

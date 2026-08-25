@@ -169,6 +169,11 @@ export function Navbar() {
   // combination caused visible jitter there, so the bar stays fixed on /rankings.
   // We also keep it fixed on the chennai landing page.
   const normalizedPath = pathname.replace(/\/$/, "");
+  // The admin area is a different product with its own header and sidebar. The
+  // shopfront bar — categories, "What are you sourcing today?", About/Careers —
+  // is not navigation an admin can use, and it cost 64px at the top of every
+  // console screen. Previously only the login page opted out.
+  const isAdminArea = normalizedPath === "/admin" || normalizedPath.startsWith("/admin/");
   const disableAutoHide = normalizedPath === "/rankings" || normalizedPath === "/sourcing-company-chennai" || normalizedPath === "/sourcing-company-dubai";
 
   useEffect(() => {
@@ -199,15 +204,18 @@ export function Navbar() {
   // Publish the bar's current offset so sticky sub-bars (e.g. the rankings
   // filter bar) can sit flush under it and follow it up/down as it hides —
   // otherwise a dead 80px gap opened above them when the bar slid away.
+  // Zero on admin screens: there is no bar there for a sub-bar to sit under, so
+  // anything anchored to this variable would otherwise float 64px down the page
+  // with nothing above it.
   useEffect(() => {
-    document.documentElement.style.setProperty("--nav-shift", hidden ? "0px" : "4rem");
+    const shift = isAdminArea || hidden ? "0px" : "4rem";
+    document.documentElement.style.setProperty("--nav-shift", shift);
     return () => {
       document.documentElement.style.setProperty("--nav-shift", "4rem");
     };
-  }, [hidden]);
+  }, [hidden, isAdminArea]);
 
-  const bare = pathname.replace(/\/$/, "");
-  if (bare === "/admin/login") return null;
+  if (isAdminArea) return null;
 
   return (
     <header className="relative">

@@ -111,7 +111,10 @@ export function WhatsAppButton() {
     }
   };
 
-  if (pathname?.includes("experience")) {
+  // Not on the admin console: it is a customer-facing "chat to us" bubble, and
+  // it sits over the bottom-right of every admin screen where the table is.
+  const bare = pathname?.replace(/\/$/, "") ?? "";
+  if (pathname?.includes("experience") || bare === "/admin" || bare.startsWith("/admin/")) {
     return null;
   }
 
