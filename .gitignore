@@ -56,3 +56,11 @@ public/static/images/map*.png
 
 .vercel
 .env*
+
+# Source spreadsheets from the sourcing team. "SUPPLIER DATA-1.xlsx" is the
+# whole WeChat supplier book — 845 factories with names, numbers and WeChat
+# IDs — and it is the single most competitively sensitive file in this repo.
+# It lives in the database (see scripts/import_suppliers.mjs); it must never
+# live in git history, where deleting it later would not remove it.
+/*.xlsx
+/*.xls

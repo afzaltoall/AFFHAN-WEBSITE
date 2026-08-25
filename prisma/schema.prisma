@@ -149,3 +149,33 @@ model AdminUser {
   updatedAt    DateTime @updatedAt
 }
 
+
+// The WeChat supplier book — 845 rows the sourcing team accumulated in a
+// spreadsheet ("SUPPLIER DATA-1.xlsx"), one per factory or trader they have
+// actually talked to. Imported by scripts/import_suppliers.mjs.
+//
+// Every column is stored exactly as it was typed, including the messy ones:
+// CONTACT holds phone numbers, WeChat IDs and DingTalk IDs mixed together, and
+// 364 rows have no company name while 510 have no address. Parsing and
+// presentation happen in src/lib/suppliers.ts at read time rather than at
+// import, so improving the parser never requires re-importing, and the
+// original text is always there to fall back on.
+//
+// sourceRow is the spreadsheet row number and the stable identity for re-import
+// — serial (the sheet's own S.NO) is missing on one row and so cannot be it.
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  sourceRow   Int      @unique
+  serial      Int?
+  personName  String?
+  companyName String?
+  productsRaw String?  @db.Text
+  address     String?  @db.Text
+  contactRaw  String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([serial])
+  @@index([companyName])
+  @@index([personName])
+}
