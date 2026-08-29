@@ -1398,18 +1398,42 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { 
             its end. */}
         <div className="grid min-h-0 gap-5 overflow-y-auto overscroll-contain p-5 sm:grid-cols-2">
           {/* Click the image to view it close-up.
-              The height is capped on small screens: a full-width square is
-              close to an entire phone viewport, which pushed every detail
-              below the fold and made the modal look empty. */}
+
+              The image is in normal flow — no `fill`, no aspect-ratio box.
+
+              It used to be `<Image fill>` inside an `aspect-square` button,
+              which is absolute positioning inside a box whose height came from
+              an aspect ratio. On a phone that produced an image painted over
+              the customer's name, company, country and phone: the labels were
+              legible *through* the photograph. Capping the box height did not
+              fix it, because the absolute child never depended on the box in
+              the first place.
+
+              A plain image with `h-auto` and a `max-h` cannot overlap its
+              siblings whatever the container does, so the entire class of bug
+              is gone rather than tuned. The button keeps `relative` only so the
+              hover badge has something to anchor to; nothing inside it is
+              positioned any more. */}
           {img ? (
-            <button onClick={() => onZoom(img)} className={`group relative aspect-square max-h-[38vh] w-full overflow-hidden rounded-2xl sm:max-h-none ${t.thumb}`} title="Click to enlarge">
-              <Image src={img} alt={inquiry.productName} fill sizes="(max-width:640px) 90vw, 380px" className="object-contain transition-transform duration-300 group-hover:scale-105" />
-              <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+            <button
+              onClick={() => onZoom(img)}
+              title="Click to enlarge"
+              className={`group relative block w-full overflow-hidden rounded-2xl ${t.thumb}`}
+            >
+              <Image
+                src={img}
+                alt={inquiry.productName}
+                width={760}
+                height={760}
+                sizes="(max-width:640px) 92vw, 380px"
+                className="mx-auto block h-auto max-h-[38vh] w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-105 sm:max-h-[380px]"
+              />
+              <span className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
                 <ZoomIn className="h-3.5 w-3.5" /> Enlarge
               </span>
             </button>
           ) : (
-            <div className={`flex aspect-square max-h-[38vh] w-full items-center justify-center rounded-2xl text-sm sm:max-h-none ${t.thumb} ${t.soft}`}>No image available</div>
+            <div className={`flex h-40 w-full items-center justify-center rounded-2xl text-sm sm:h-64 ${t.thumb} ${t.soft}`}>No image available</div>
           )}
           <div className="min-w-0">
             {/* Full product name — no truncation. */}
