@@ -1117,7 +1117,7 @@ export function AdminConsole({ data }: Props) {
             </nav>
 
             {/* Account actions, matching the desktop sidebar foot. */}
-            <div className={`space-y-2 border-t p-3 ${t.border}`}>
+            <div className={`space-y-2 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] ${t.border}`}>
               <button onClick={() => { setMenuOpen(false); setShowEmail(true); }} className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
                 <Mail size={15} /> Change email
               </button>
@@ -1379,7 +1379,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
-      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88vh] ${t.modal}`}>
+      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88dvh] ${t.modal}`}>
         <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
           <p className="text-sm font-semibold">Ordered product</p>
           <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand`}>
@@ -1399,41 +1399,41 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { 
         <div className="grid min-h-0 gap-5 overflow-y-auto overscroll-contain p-5 sm:grid-cols-2">
           {/* Click the image to view it close-up.
 
-              The image is in normal flow — no `fill`, no aspect-ratio box.
+              An explicit height plus `fill`, which is the pattern Thumb and the
+              zoom overlay already use here and the only one that has proved
+              reliable in this codebase.
 
-              It used to be `<Image fill>` inside an `aspect-square` button,
-              which is absolute positioning inside a box whose height came from
-              an aspect ratio. On a phone that produced an image painted over
-              the customer's name, company, country and phone: the labels were
-              legible *through* the photograph. Capping the box height did not
-              fix it, because the absolute child never depended on the box in
-              the first place.
+              Two earlier shapes failed. `<Image fill>` inside an
+              `aspect-square` box put an absolutely positioned child in a
+              container whose height came from an aspect ratio; on a phone the
+              photograph painted straight over the customer's name, company and
+              phone, which were legible through it. Replacing it with a
+              normal-flow `h-auto` image cured the overlap and then rendered
+              nothing at all — a `w-auto`/`h-auto` pair fighting next/image's
+              own width and height attributes.
 
-              A plain image with `h-auto` and a `max-h` cannot overlap its
-              siblings whatever the container does, so the entire class of bug
-              is gone rather than tuned. The button keeps `relative` only so the
-              hover badge has something to anchor to; nothing inside it is
-              positioned any more. */}
+              A container with a real height in `h-*` has neither problem: it
+              occupies that height in flow, so it cannot overlap what follows,
+              and `fill` has a definite box to fill, so it cannot collapse. */}
           {img ? (
             <button
               onClick={() => onZoom(img)}
               title="Click to enlarge"
-              className={`group relative block w-full overflow-hidden rounded-2xl ${t.thumb}`}
+              className={`group relative block h-56 w-full shrink-0 overflow-hidden rounded-2xl sm:h-72 lg:h-80 ${t.thumb}`}
             >
               <Image
                 src={img}
                 alt={inquiry.productName}
-                width={760}
-                height={760}
+                fill
                 sizes="(max-width:640px) 92vw, 380px"
-                className="mx-auto block h-auto max-h-[38vh] w-auto max-w-full object-contain transition-transform duration-300 group-hover:scale-105 sm:max-h-[380px]"
+                className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
               />
               <span className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
                 <ZoomIn className="h-3.5 w-3.5" /> Enlarge
               </span>
             </button>
           ) : (
-            <div className={`flex h-40 w-full items-center justify-center rounded-2xl text-sm sm:h-64 ${t.thumb} ${t.soft}`}>No image available</div>
+            <div className={`flex h-56 w-full shrink-0 items-center justify-center rounded-2xl text-sm sm:h-72 lg:h-80 ${t.thumb} ${t.soft}`}>No image available</div>
           )}
           <div className="min-w-0">
             {/* Full product name — no truncation. */}
@@ -1642,7 +1642,7 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
-      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88vh] ${t.modal}`}>
+      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88dvh] ${t.modal}`}>
         <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
           <p className="text-sm font-semibold">Contact message</p>
           <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand`}>
