@@ -16,6 +16,17 @@ const SELECT_NAME = { serial: true, personName: true, companyName: true } as con
  */
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const robots = { index: false, follow: false };
+
+  // The auth check has to be repeated here. generateMetadata runs
+  // independently of the page component, so the redirect below protects the
+  // body and nothing else — without this, an anonymous request to
+  // /admin/suppliers/1/ came back with <title>Wesmo Industries Limited
+  // Guangzhou office</title>, and walking the ids from 1 upwards would hand
+  // over the name of every supplier in the book. noindex keeps it out of
+  // search results; it does nothing about someone simply asking for the URL.
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== "admin") return { title: "Affhan Admin", robots };
+
   const { id } = await params;
   const numericId = Number.parseInt(id, 10);
   if (Number.isNaN(numericId)) return { title: "Supplier | Affhan Admin", robots };
