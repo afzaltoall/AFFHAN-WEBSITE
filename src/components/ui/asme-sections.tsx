@@ -207,12 +207,12 @@ function YouTubeIcon({ className }: { className?: string }) {
 
 // Affhan's official social channels (order: IG, FB, X, TikTok, LinkedIn, YouTube)
 const SOCIALS: { label: string; href: string; Icon: (p: { className?: string }) => React.ReactElement }[] = [
-  { label: "Instagram", href: "https://www.instagram.com/affhanglobal?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==", Icon: InstagramIcon },
-  { label: "Facebook", href: "https://www.facebook.com/affhaninternational/reels/", Icon: FacebookIcon },
+  { label: "Instagram", href: "https://www.instagram.com/affhanglobal", Icon: InstagramIcon },
+  { label: "Facebook", href: "https://www.facebook.com/affhaninternational", Icon: FacebookIcon },
   { label: "Twitter", href: "https://x.com/affhan_shipping", Icon: TwitterIcon },
   { label: "TikTok", href: "https://www.tiktok.com/@affhan_global", Icon: TikTokIcon },
-  { label: "LinkedIn", href: "https://www.linkedin.com/company/affhanglobal/posts/", Icon: LinkedInIcon },
-  { label: "YouTube", href: "https://www.youtube.com/@affhan_global/shorts", Icon: YouTubeIcon },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/affhanglobal/", Icon: LinkedInIcon },
+  { label: "YouTube", href: "https://www.youtube.com/@affhan_global", Icon: YouTubeIcon },
 ];
 
 // ==========================================

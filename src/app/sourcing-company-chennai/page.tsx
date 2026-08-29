@@ -9,6 +9,7 @@ import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { GoogleRating } from "@/components/ui/google-rating";
+import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -117,23 +118,29 @@ const schema = {
     {
       "@type": "LocalBusiness",
       "@id": "https://affhan.com/#localbusiness-chennai",
-      parentOrganization: { "@id": "https://affhan.com/#organization" },
-      name: "AFFHAN International Pvt Ltd",
-      url: "https://affhan.com",
-      logo: "https://affhan.com/images/logo.png",
-      image: "https://affhan.com/images/logo.png",
+      parentOrganization: { "@id": ORG_ID },
+      name: OFFICES.chennai.legalName,
+      legalName: OFFICES.chennai.legalName,
+      url: "https://affhan.com/sourcing-company-chennai/",
+      logo: LOGO_URL,
+      image: LOGO_URL,
       description:
         "AFFHAN is a trusted sourcing company in Chennai for China imports, product sourcing & freight forwarding.",
-      telephone: "+91-44-4743-2777",
+      // The Royapuram profile lists the mobile first; the landline follows.
+      telephone: OFFICES.chennai.telephone,
       email: "info@affhan.com",
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "No.69/46, Appavoo Tower, West Madha Church Road, Royapuram",
-        addressLocality: "Chennai",
-        addressRegion: "Tamil Nadu",
-        postalCode: "600013",
-        addressCountry: "IN",
-      },
+      address: postalAddress(OFFICES.chennai),
+      // The other four branches declare this and Chennai did not, which left
+      // the group's own head office as the least completely described of the
+      // five. Royapuram serves the city, the state and Indian importers
+      // generally.
+      areaServed: [
+        { "@type": "City", name: "Chennai" },
+        { "@type": "AdministrativeArea", name: "Tamil Nadu" },
+        { "@type": "Country", name: "India" },
+      ],
+      foundingDate: FOUNDING_DATE,
+      sameAs: [...SOCIAL_PROFILES],
       // No aggregateRating. The 4.8/144 figures are the company's Google
       // Business Profile rating — a third party's review data, which Google's
       // review-snippet guidance does not allow a site to republish as its own

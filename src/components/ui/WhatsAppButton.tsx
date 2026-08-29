@@ -144,14 +144,14 @@ export function WhatsAppButton() {
       <div className="relative flex flex-col items-center pointer-events-auto">
         {/* Action Trigger */}
         <a
-          href="https://www.instagram.com/affhanglobal?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
+          href="https://www.instagram.com/affhanglobal"
           target="_blank"
           rel="noopener noreferrer"
           onClick={(e) => {
             // Force-open Instagram in a brand-new tab, never navigating this site away.
             e.preventDefault();
             window.open(
-              "https://www.instagram.com/affhanglobal?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
+              "https://www.instagram.com/affhanglobal",
               "_blank",
               "noopener,noreferrer"
             );

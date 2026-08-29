@@ -177,10 +177,10 @@ export function SocialBeams() {
     >
       {/* Left social column */}
       <div className="flex flex-col justify-between h-full py-4">
-        <SocialNode ref={l1} href="https://www.facebook.com/affhaninternational/reels/" label="Facebook" previewSrc={PREVIEWS.facebook}>
+        <SocialNode ref={l1} href="https://www.facebook.com/affhaninternational" label="Facebook" previewSrc={PREVIEWS.facebook}>
           <Glyph d={PATHS.facebook} className={iconClass} />
         </SocialNode>
-        <SocialNode ref={l2} href="https://www.instagram.com/affhanglobal?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==" label="Instagram" previewSrc={PREVIEWS.instagram}>
+        <SocialNode ref={l2} href="https://www.instagram.com/affhanglobal" label="Instagram" previewSrc={PREVIEWS.instagram}>
           <Glyph d={PATHS.instagram} className={iconClass} />
         </SocialNode>
         <SocialNode ref={l3} href="https://www.tiktok.com/@affhan_global" label="TikTok" previewSrc={PREVIEWS.tiktok}>
@@ -198,10 +198,10 @@ export function SocialBeams() {
 
       {/* Right social column */}
       <div className="flex flex-col justify-between h-full py-4">
-        <SocialNode ref={r1} href="https://www.youtube.com/@affhan_global/shorts" label="YouTube" previewSrc={PREVIEWS.youtube}>
+        <SocialNode ref={r1} href="https://www.youtube.com/@affhan_global" label="YouTube" previewSrc={PREVIEWS.youtube}>
           <Glyph d={PATHS.youtube} className={iconClass} />
         </SocialNode>
-        <SocialNode ref={r2} href="https://www.linkedin.com/company/affhanglobal/posts/" label="LinkedIn" previewSrc={PREVIEWS.linkedin}>
+        <SocialNode ref={r2} href="https://www.linkedin.com/company/affhanglobal/" label="LinkedIn" previewSrc={PREVIEWS.linkedin}>
           <Glyph d={PATHS.linkedin} className={iconClass} />
         </SocialNode>
         <SocialNode ref={r3} href="https://x.com/affhan_shipping" label="X" previewSrc={PREVIEWS.x}>

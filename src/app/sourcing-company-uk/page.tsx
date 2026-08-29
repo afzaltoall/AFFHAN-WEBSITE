@@ -8,6 +8,7 @@ import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { GoogleRating } from "@/components/ui/google-rating";
+import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -90,23 +91,25 @@ const schema = {
     {
       "@type": "LocalBusiness",
       "@id": "https://affhan.com/#localbusiness-uk",
-      parentOrganization: { "@id": "https://affhan.com/#organization" },
-      name: "AFFHAN International Ltd",
-      url: "https://affhan.com",
-      logo: "https://affhan.com/images/logo.png",
-      image: "https://affhan.com/images/logo.png",
+      parentOrganization: { "@id": ORG_ID },
+      name: OFFICES.uk.legalName,
+      legalName: OFFICES.uk.legalName,
+      // The page this branch is described on, not the site root: two branches
+      // sharing one url read as one place with two addresses.
+      url: "https://affhan.com/sourcing-company-uk/",
+      logo: LOGO_URL,
+      image: LOGO_URL,
       description:
         "AFFHAN is a China sourcing agent and import company for UK buyers, handling factory sourcing, inspection, freight and customs clearance.",
-      telephone: "+44-7815-098806",
+      telephone: OFFICES.uk.telephone,
       email: "info@affhan.com",
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "No.4, Laings Corner, Mitcham",
-        addressLocality: "London",
-        addressRegion: "Greater London",
-        postalCode: "CR4 2JA",
-        addressCountry: "GB",
-      },
+      // 34 Monarch Parade, London Road, Mitcham CR4 3HA. The schema here
+      // previously read "No.4, Laings Corner, Mitcham CR4 2JA" — a different
+      // office entirely — while the office card carried the correct one.
+      address: postalAddress(OFFICES.uk),
+      areaServed: { "@type": "Country", name: "United Kingdom" },
+      foundingDate: FOUNDING_DATE,
+      sameAs: [...SOCIAL_PROFILES],
     },
     {
       "@type": "Service",

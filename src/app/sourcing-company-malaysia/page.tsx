@@ -8,6 +8,7 @@ import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { GoogleRating } from "@/components/ui/google-rating";
+import { FOUNDING_DATE, LOGO_URL, MALAYSIA_HOURS, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -78,22 +79,23 @@ const schema = {
     {
       "@type": "LocalBusiness",
       "@id": "https://affhan.com/#localbusiness-malaysia",
-      parentOrganization: { "@id": "https://affhan.com/#organization" },
-      name: "AFFHAN INTERNATIONAL SDN. BHD.",
-      url: "https://affhan.com",
-      logo: "https://affhan.com/images/logo.png",
-      image: "https://affhan.com/images/logo.png",
+      parentOrganization: { "@id": ORG_ID },
+      name: OFFICES.malaysia.legalName,
+      legalName: OFFICES.malaysia.legalName,
+      url: "https://affhan.com/sourcing-company-malaysia/",
+      logo: LOGO_URL,
+      image: LOGO_URL,
       description:
         "AFFHAN is a China sourcing agent in Malaysia handling factory sourcing, halal and SIRIM compliance, inspection, freight and customs clearance.",
-      telephone: "+60-11-5672-6242",
+      telephone: OFFICES.malaysia.telephone,
       email: "info@affhan.com",
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "18, Jalan Temenggong",
-        addressLocality: "Melaka",
-        postalCode: "75000",
-        addressCountry: "MY",
-      },
+      address: postalAddress(OFFICES.malaysia),
+      areaServed: { "@type": "Country", name: "Malaysia" },
+      foundingDate: FOUNDING_DATE,
+      // Melaka is the only profile that publishes every day of the week, so it
+      // is the only page where hours can be stated without inventing them.
+      openingHoursSpecification: [...MALAYSIA_HOURS],
+      sameAs: [...SOCIAL_PROFILES],
     },
     {
       "@type": "Service",

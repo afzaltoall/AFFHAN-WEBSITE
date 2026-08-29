@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { WhatsAppButton } from "@/components/ui/WhatsAppButton";
 import { Navbar } from "@/components/sections/Navbar";
+import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SITE_URL, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 
 // Premium, modern sans used site-wide. Plus Jakarta Sans reads far more
 // refined than a generic system/Geist stack — the difference the brief called
@@ -67,28 +68,26 @@ export const metadata: Metadata = {
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  "@id": "https://affhan.com/#organization",
+  "@id": ORG_ID,
   name: "AFFHAN International Pvt Ltd",
-  image: "https://affhan.com/images/logo.png",
-  url: "https://affhan.com",
-  telephone: "+91-44-4743-2777",
+  legalName: OFFICES.chennai.legalName,
+  image: LOGO_URL,
+  logo: LOGO_URL,
+  url: SITE_URL,
+  // The group's registered office is Chennai, and this is the number its
+  // Google profile lists first. The landline stays reachable as an alternate.
+  telephone: OFFICES.chennai.telephone,
   email: "info@affhan.com",
-  address: {
-    "@type": "PostalAddress",
-    streetAddress: "No.69/46, Appavoo Tower, West Madha Church Road, Royapuram",
-    addressLocality: "Chennai",
-    addressRegion: "Tamil Nadu",
-    postalCode: "600013",
-    addressCountry: "IN",
-  },
-  sameAs: [
-    "https://www.facebook.com/affhaninternational/reels/",
-    "https://www.instagram.com/affhanglobal",
-    "https://www.linkedin.com/company/affhanglobal/",
-    "https://www.youtube.com/@affhan_global",
-    "https://www.tiktok.com/@affhan_global",
-    "https://x.com/affhan_shipping"
-  ],
+  address: postalAddress(OFFICES.chennai),
+  // "Opening date: 1 July 2000" on every one of the company's Google profiles.
+  // Worth stating: twenty-five years of trading is the strongest trust signal
+  // this business has, and nothing in the markup was carrying it.
+  foundingDate: FOUNDING_DATE,
+  // Profile roots, not sub-tabs. Facebook previously pointed at
+  // /affhaninternational/reels/ — a tab inside the page rather than the page —
+  // and this is the entity-linking signal Google reads on every URL of the
+  // site, so it was the one worth getting exactly right.
+  sameAs: [...SOCIAL_PROFILES],
   hasOfferCatalog: {
     "@type": "OfferCatalog",
     name: "Logistics and Sourcing Services",

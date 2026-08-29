@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
+import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 import { OtherLocations } from "@/components/sections/OtherLocations";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
@@ -107,50 +108,39 @@ const schema = {
     {
       "@type": "LocalBusiness",
       "@id": "https://affhan.com/#localbusiness-dubai",
-      parentOrganization: { "@id": "https://affhan.com/#organization" },
+      parentOrganization: { "@id": ORG_ID },
       // Exactly as registered on the Google Business Profile. Name, address and
       // phone are the three fields Google matches between a site and a profile,
       // so a descriptive label like "AFFHAN International - Dubai Office" is
       // actively worse here than the real trading name.
-      name: "AFFHAN SHIPPING LLC",
-      legalName: "AFFHAN SHIPPING LLC",
+      name: OFFICES.dubai.legalName,
+      legalName: OFFICES.dubai.legalName,
       // The page for this location, not the site root. A LocalBusiness node
       // pointing at the homepage gives Google nothing to tie the entity to.
       url: "https://affhan.com/sourcing-company-dubai/",
-      logo: "https://affhan.com/images/logo.png",
-      image: "https://affhan.com/images/logo.png",
+      logo: LOGO_URL,
+      image: LOGO_URL,
       description:
         "AFFHAN is a premier sourcing company in Dubai for China imports, product sourcing & freight forwarding to the UAE and GCC.",
-      telephone: "+971544065867",
+      telephone: OFFICES.dubai.telephone,
       email: "info@affhan.com",
-      address: {
-        "@type": "PostalAddress",
-        // Wording follows the Google Business Profile, which reads "Sheikh
-        // Zayed Rd - Trade Centre - Trade Centre 1 - Dubai". The district was
-        // missing here, and the address on the page is one of the signals
-        // Google matches against the profile.
-        streetAddress: "Office 203, White Crown Building, Plot 335-335, Sheikh Zayed Road, Trade Centre 1",
-        addressLocality: "Dubai",
-        addressRegion: "Dubai",
-        // 7184 is a P.O. Box, not a postcode — Dubai does not issue postcodes,
-        // and declaring one as postalCode publishes an address that can never
-        // match the profile.
-        postOfficeBoxNumber: "7184",
-        addressCountry: "AE",
-      },
+      // Wording follows the Google Business Profile, which reads "White Crown
+      // Building Office 203, Sheikh Zayed Rd - Trade Centre - Trade Centre 1".
+      // 7184 is a P.O. Box, not a postcode — Dubai issues no postcodes, and
+      // declaring one as postalCode publishes an address that can never match.
+      address: postalAddress(OFFICES.dubai),
+      foundingDate: FOUNDING_DATE,
       // Ties this listing to the profiles the Business Profile already links,
       // so the social accounts and the site resolve to one entity rather than
       // several unrelated ones.
-      sameAs: [
-        "https://www.facebook.com/affhaninternational",
-        "https://www.instagram.com/affhanglobal",
-        "https://www.linkedin.com/company/affhanglobal",
-        "https://www.tiktok.com/@affhan_global",
-        "https://www.youtube.com/@affhan_global",
-        "https://x.com/affhan_shipping",
-      ],
+      sameAs: [...SOCIAL_PROFILES],
+      // The emirates the profile names under "Service area", plus the wider
+      // GCC the business actually covers.
       areaServed: [
         { "@type": "Country", name: "United Arab Emirates" },
+        { "@type": "City", name: "Dubai" },
+        { "@type": "City", name: "Sharjah" },
+        { "@type": "City", name: "Abu Dhabi" },
         { "@type": "AdministrativeArea", name: "GCC" },
       ],
       // The Business Profile shows an opening time but the site published none,

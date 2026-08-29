@@ -8,6 +8,7 @@ import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { GoogleRating } from "@/components/ui/google-rating";
+import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -79,21 +80,25 @@ const schema = {
     {
       "@type": "LocalBusiness",
       "@id": "https://affhan.com/#localbusiness-singapore",
-      parentOrganization: { "@id": "https://affhan.com/#organization" },
-      name: "AFFHAN INTERNATIONAL PTE. LTD.",
-      url: "https://affhan.com",
-      logo: "https://affhan.com/images/logo.png",
-      image: "https://affhan.com/images/logo.png",
+      parentOrganization: { "@id": ORG_ID },
+      name: OFFICES.singapore.legalName,
+      legalName: OFFICES.singapore.legalName,
+      url: "https://affhan.com/sourcing-company-singapore/",
+      logo: LOGO_URL,
+      image: LOGO_URL,
+      foundingDate: FOUNDING_DATE,
+      sameAs: [...SOCIAL_PROFILES],
       description:
         "AFFHAN is a China sourcing agent in Singapore handling factory sourcing, inspection, freight, customs permits and ASEAN re-export.",
+      // This node previously carried no telephone at all — one of the three
+      // fields Google matches a listing on, simply missing.
+      telephone: OFFICES.singapore.telephone,
       email: "info@affhan.com",
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "10 Jalan Besar, #08-11 Sim Lim Tower",
-        addressLocality: "Singapore",
-        postalCode: "208787",
-        addressCountry: "SG",
-      },
+      // Company records rather than the Google profile: the Singapore listing
+      // exists but its contact tab has not been read off yet. See the
+      // profileConfirmed flag in src/lib/brand.ts.
+      address: postalAddress(OFFICES.singapore),
+      areaServed: { "@type": "Country", name: "Singapore" },
     },
     {
       "@type": "Service",

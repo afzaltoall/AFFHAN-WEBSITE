@@ -85,7 +85,7 @@ export function FooterSection() {
           <p>Copyright &copy; 2026 Affhan. All rights reserved.</p>
           <div className="flex items-center gap-4">
             <a
-              href="https://www.facebook.com/affhaninternational/reels/"
+              href="https://www.facebook.com/affhaninternational"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Facebook"
@@ -94,7 +94,7 @@ export function FooterSection() {
               <FacebookIcon />
             </a>
             <a
-              href="https://www.instagram.com/affhanglobal?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw=="
+              href="https://www.instagram.com/affhanglobal"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Instagram"
@@ -112,7 +112,7 @@ export function FooterSection() {
               <TiktokIcon />
             </a>
             <a
-              href="https://www.youtube.com/@affhan_global/shorts"
+              href="https://www.youtube.com/@affhan_global"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="YouTube"
@@ -121,7 +121,7 @@ export function FooterSection() {
               <YouTubeIcon />
             </a>
             <a
-              href="https://www.linkedin.com/company/affhanglobal/posts/"
+              href="https://www.linkedin.com/company/affhanglobal/"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="LinkedIn"

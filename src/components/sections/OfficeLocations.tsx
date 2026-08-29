@@ -151,8 +151,12 @@ const offices: Office[] = [
     country: "United Kingdom",
     badge: "United Kingdom",
     name: "AFFHAN INTERNATIONAL LTD",
-    address: "34, Monarch parade London Road Mitcham CR4 3HA",
-    phone: "+44 7438 911975",
+    // This card had the address right; the UK landing page did not, carrying
+    // "No.4, Laings Corner, Mitcham CR4 2JA" — a different office — and the
+    // phone here (+44 7438 911975) matched neither. Both now come from
+    // src/lib/brand.ts so one office cannot be spelled three ways again.
+    address: "34 Monarch Parade, London Road, Mitcham, CR4 3HA, United Kingdom",
+    phone: "+44 7815 098806",
     localPage: { href: "/sourcing-company-uk/", label: "Our China sourcing service in the UK" },
   },
   {
