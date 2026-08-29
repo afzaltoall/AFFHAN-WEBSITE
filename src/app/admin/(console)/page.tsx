@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
-import { prisma } from "@/lib/prisma";
+import { prisma, withDbRetry } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { AdminConsole } from "@/components/admin/AdminConsole";
 
@@ -19,30 +19,57 @@ export default async function AdminPage() {
   if (!admin) redirect("/admin/login");
   if (admin.role !== "admin") redirect("/");
 
-  const [productCount, categoryCount, categoryTotal, inquiryCount, inquiries, deletedInquiries, contactCount, contacts, deletedContacts, jobAlertCount, jobAlerts, deletedJobAlerts, supplierCount] = await Promise.all([
-    prisma.product.count(),
-    // Categories a customer can actually browse, matching what the public site
-    // advertises. The raw row count is 634, but 125 of those are empty nodes in
-    // CJ's tree that never appear in any category UI — the dashboard reading
-    // 634 while the site said 509 looked like one of them was wrong.
-    prisma.category.count({ where: { products: { some: {} } } }),
-    prisma.category.count(),
-    prisma.inquiry.count({ where: { status: { not: "deleted" } } }),
-    // High take so the "All" customer checklist and grouping never silently drop
-    // rows — the master export reads the full DB server-side regardless.
-    prisma.inquiry.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" }, take: 5000, include: { product: true } }),
-    prisma.inquiry.findMany({ where: { status: "deleted" }, orderBy: { createdAt: "desc" }, take: 500, include: { product: true } }),
-    prisma.contactMessage.count({ where: { status: { not: "deleted" } } }),
-    prisma.contactMessage.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" }, take: 200 }),
-    prisma.contactMessage.findMany({ where: { status: "deleted" }, orderBy: { createdAt: "desc" }, take: 200 }),
-    prisma.jobAlert.count({ where: { status: { not: "deleted" } } }),
-    prisma.jobAlert.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" }, take: 200 }),
-    prisma.jobAlert.findMany({ where: { status: "deleted" }, orderBy: { createdAt: "desc" }, take: 200 }),
-    // The WeChat supplier book. Only the count here — the directory itself is
-    // its own route, since 845 rows with every contact inline is a page, not a
-    // panel.
-    prisma.supplier.count(),
-  ]);
+  // Four round trips, not thirteen.
+  //
+  // This fired thirteen concurrent queries against a pool of ten, which is
+  // where the intermittent PrismaClientKnownRequestError came from: Neon's
+  // free tier suspends after a few minutes idle, and the first load after that
+  // woke a cold database with more queries at once than it had connections,
+  // so the surplus queued until they timed out. Every count is now one SQL
+  // statement, and each active/deleted pair is one query split in JavaScript
+  // rather than two round trips asking the same table opposite questions.
+  const [counts, allInquiries, allContacts, allJobAlerts] = await withDbRetry(() =>
+    Promise.all([
+      prisma.$queryRaw<[{
+        products: bigint; categories: bigint; categoriesTotal: bigint;
+        inquiries: bigint; contacts: bigint; jobAlerts: bigint; suppliers: bigint;
+      }]>`
+        SELECT
+          (SELECT count(*) FROM "Product")                                        AS products,
+          -- Categories a customer can actually browse, matching what the public
+          -- site advertises. The raw row count is 634, but 125 of those are
+          -- empty nodes in CJ's tree that never appear in any category UI.
+          (SELECT count(*) FROM "Category" c
+             WHERE EXISTS (SELECT 1 FROM "Product" p WHERE p."categoryId" = c."id")) AS categories,
+          (SELECT count(*) FROM "Category")                                       AS "categoriesTotal",
+          (SELECT count(*) FROM "Inquiry"        WHERE status <> 'deleted')        AS inquiries,
+          (SELECT count(*) FROM "ContactMessage" WHERE status <> 'deleted')        AS contacts,
+          (SELECT count(*) FROM "JobAlert"       WHERE status <> 'deleted')        AS "jobAlerts",
+          (SELECT count(*) FROM "Supplier")                                        AS suppliers
+      `,
+      // High take so the "All" customer checklist and grouping never silently
+      // drop rows — the master export reads the full DB server-side regardless.
+      prisma.inquiry.findMany({ orderBy: { createdAt: "desc" }, take: 5500, include: { product: true } }),
+      prisma.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 400 }),
+      prisma.jobAlert.findMany({ orderBy: { createdAt: "desc" }, take: 400 }),
+    ])
+  );
+
+  const n = (v: bigint) => Number(v);
+  const productCount = n(counts[0].products);
+  const categoryCount = n(counts[0].categories);
+  const categoryTotal = n(counts[0].categoriesTotal);
+  const inquiryCount = n(counts[0].inquiries);
+  const contactCount = n(counts[0].contacts);
+  const jobAlertCount = n(counts[0].jobAlerts);
+  const supplierCount = n(counts[0].suppliers);
+
+  const inquiries = allInquiries.filter((i) => i.status !== "deleted");
+  const deletedInquiries = allInquiries.filter((i) => i.status === "deleted");
+  const contacts = allContacts.filter((c) => c.status !== "deleted");
+  const deletedContacts = allContacts.filter((c) => c.status === "deleted");
+  const jobAlerts = allJobAlerts.filter((j) => j.status !== "deleted");
+  const deletedJobAlerts = allJobAlerts.filter((j) => j.status === "deleted");
 
   const mapInquiry = (i: (typeof inquiries)[number]) => ({
     id: i.id,
