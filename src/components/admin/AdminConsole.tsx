@@ -8,7 +8,7 @@ import {
   LayoutGrid, Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown,
+  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -90,10 +90,29 @@ export function AdminConsole({ data }: Props) {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [showPwd, setShowPwd] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
+  // The mobile navigation drawer. Below lg there is no sidebar, and the nav
+  // used to be seven pills wrapping onto three rows above the content — a
+  // third of a phone screen spent on navigation before anything was read.
+  const [menuOpen, setMenuOpen] = useState(false);
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
   useEffect(() => setSelected(new Set()), [view, statusFilter, q]);
+
+  // The drawer closes itself when a view is chosen, and Escape closes it too.
+  useEffect(() => setMenuOpen(false), [view]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setMenuOpen(false); };
+    window.addEventListener("keydown", onKey);
+    // Stop the page behind the drawer scrolling under it on iOS.
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = previous;
+    };
+  }, [menuOpen]);
 
   // --- Contact Us (contact form submissions) ---------------------------------
   // Self-contained state so it never crosses wires with the inquiry lists above.
@@ -525,6 +544,11 @@ export function AdminConsole({ data }: Props) {
     XLSX.writeFile(wb, `${file}-${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
+  // What the hamburger badges. With the nav collapsed behind a button, an
+  // unread inquiry would otherwise be invisible until the menu was opened —
+  // the count has to survive on the button itself.
+  const newTotal = statusCounts.new + newContactCount + newCareerCount;
+
   const nav: { key: View; label: string; icon: LucideIcon; count?: number }[] = [
     { key: "all", label: "All", icon: LayoutList },
     { key: "overview", label: "Overview", icon: LayoutGrid },
@@ -631,12 +655,23 @@ export function AdminConsole({ data }: Props) {
               <p className={`mt-0.5 text-[13px] ${t.soft}`}>Welcome back, {data.adminName.split(" ")[0]}.</p>
             </div>
             <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
-              <div className="flex flex-wrap gap-1.5 lg:hidden">
-                {nav.map((n) => (
-                  <button key={n.key} onClick={() => { setView(n.key); setQ(""); }} className={`rounded-full px-3 py-2 text-xs font-semibold ring-1 ${view === n.key ? "bg-[#1d1d1f] text-white ring-transparent" : t.pill}`}>{n.label}</button>
-                ))}
-                <Link href="/admin/suppliers/" className={`rounded-full px-3 py-2 text-xs font-semibold ring-1 ${t.pill}`}>Suppliers</Link>
-              </div>
+              {/* One button instead of seven wrapping pills. The pills were
+                  the whole navigation laid flat, which on a phone pushed the
+                  first stat card most of the way down the screen. */}
+              <button
+                type="button"
+                onClick={() => setMenuOpen(true)}
+                aria-label="Open menu"
+                aria-expanded={menuOpen}
+                aria-controls="admin-mobile-nav"
+                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors lg:hidden ${t.pill}`}
+              >
+                <Menu size={16} />
+                Menu
+                {newTotal > 0 && (
+                  <span className="ml-0.5 rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">{fmtNum(newTotal)}</span>
+                )}
+              </button>
               {/* Dark toggle lives in the sidebar on desktop — only expose it in
                   the top bar on mobile (where there is no sidebar). */}
               <button onClick={() => setDark((d) => !d)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors lg:hidden ${t.pill}`}>
@@ -1018,6 +1053,90 @@ export function AdminConsole({ data }: Props) {
       )}
 
       {/* Full-screen product image zoom */}
+      {/* Mobile navigation drawer.
+          z-[115] sits under the dialogs (z-120+) so opening an inquiry from the
+          drawer never leaves the drawer on top of it. */}
+      {menuOpen && (
+        <div className="fixed inset-0 z-[115] lg:hidden" role="dialog" aria-modal="true" aria-label="Admin navigation">
+          <button
+            aria-label="Close menu"
+            onClick={() => setMenuOpen(false)}
+            className={`absolute inset-0 h-full w-full cursor-default ${t.overlay}`}
+          />
+          <div
+            id="admin-mobile-nav"
+            // t.card, not t.sidebar: the sidebar token is bg-white/80, which is
+            // translucent by design because it sits over the page with a
+            // backdrop-blur behind it. A drawer has the scrolled content moving
+            // underneath it and needs to be opaque. Pairing the two tokens also
+            // put two background utilities on one element, where which one wins
+            // depends on CSS source order rather than anything readable here.
+            className={`admin-drawer absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col border-r shadow-2xl ${t.card} ${t.strong}`}
+          >
+            <div className={`flex items-center gap-2.5 border-b px-4 py-4 ${t.border}`}>
+              <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.thumb}`}>
+                <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
+              </span>
+              <div className="min-w-0 flex-1 leading-tight">
+                <p className="truncate text-sm font-semibold tracking-tight">{data.adminName}</p>
+                <p className={`text-[11px] ${t.soft}`}>Administrator</p>
+              </div>
+              <button
+                onClick={() => setMenuOpen(false)}
+                aria-label="Close menu"
+                className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft}`}
+              >
+                <X size={17} />
+              </button>
+            </div>
+
+            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
+              {nav.map((n) => (
+                <button
+                  key={n.key}
+                  onClick={() => { setView(n.key); setQ(""); }}
+                  aria-current={view === n.key ? "page" : undefined}
+                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[14px] font-medium transition-colors ${view === n.key ? t.navActive : t.navIdle}`}
+                >
+                  <n.icon size={18} className={view === n.key ? "text-brand" : t.soft} />
+                  <span className="flex-1 text-left">{n.label}</span>
+                  {n.count !== undefined && (
+                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(n.count)}</span>
+                  )}
+                </button>
+              ))}
+              <Link
+                href="/admin/suppliers/"
+                onClick={() => setMenuOpen(false)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[14px] font-medium transition-colors ${t.navIdle}`}
+              >
+                <Users size={18} className={t.soft} />
+                <span className="flex-1 text-left">Suppliers</span>
+                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.suppliers)}</span>
+              </Link>
+            </nav>
+
+            {/* Account actions, matching the desktop sidebar foot. */}
+            <div className={`space-y-2 border-t p-3 ${t.border}`}>
+              <button onClick={() => { setMenuOpen(false); setShowEmail(true); }} className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
+                <Mail size={15} /> Change email
+              </button>
+              <button onClick={() => { setMenuOpen(false); setShowPwd(true); }} className={`flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
+                <KeyRound size={15} /> Change password
+              </button>
+              <div className="flex gap-2">
+                <button onClick={() => setDark((d) => !d)} className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
+                  {dark ? <Sun size={15} /> : <Moon size={15} />}{dark ? "Light" : "Dark"}
+                </button>
+                <button onClick={logout} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-red-600">
+                  <LogOut size={15} /> Sign out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {zoomImg && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-black/85 p-4" onClick={() => setZoomImg(null)}>
           <button onClick={() => setZoomImg(null)} aria-label="Close" className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20">
@@ -1260,24 +1379,37 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
-      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 ${t.modal}`}>
+      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88vh] ${t.modal}`}>
         <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
           <p className="text-sm font-semibold">Ordered product</p>
           <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand`}>
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="grid gap-5 overflow-y-auto p-5 sm:grid-cols-2">
-          {/* Click the image to view it close-up. */}
+        {/* min-h-0 is doing the real work here. A flex child's min-height
+            defaults to its content, so this grid refused to shrink inside the
+            max-h-[88vh] shell and the shell's overflow-hidden cropped it
+            instead of letting it scroll. On desktop the two columns were short
+            enough to hide the fault; stacked into one column on a phone the
+            content is twice as tall, and the modal lost everything past the
+            first few rows — which is what made the product name and customer
+            details look like they were sitting on top of the photograph.
+            overscroll-contain stops the page behind scrolling once this hits
+            its end. */}
+        <div className="grid min-h-0 gap-5 overflow-y-auto overscroll-contain p-5 sm:grid-cols-2">
+          {/* Click the image to view it close-up.
+              The height is capped on small screens: a full-width square is
+              close to an entire phone viewport, which pushed every detail
+              below the fold and made the modal look empty. */}
           {img ? (
-            <button onClick={() => onZoom(img)} className={`group relative aspect-square w-full overflow-hidden rounded-2xl ${t.thumb}`} title="Click to enlarge">
+            <button onClick={() => onZoom(img)} className={`group relative aspect-square max-h-[38vh] w-full overflow-hidden rounded-2xl sm:max-h-none ${t.thumb}`} title="Click to enlarge">
               <Image src={img} alt={inquiry.productName} fill sizes="(max-width:640px) 90vw, 380px" className="object-contain transition-transform duration-300 group-hover:scale-105" />
               <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
                 <ZoomIn className="h-3.5 w-3.5" /> Enlarge
               </span>
             </button>
           ) : (
-            <div className={`flex aspect-square w-full items-center justify-center rounded-2xl text-sm ${t.thumb} ${t.soft}`}>No image available</div>
+            <div className={`flex aspect-square max-h-[38vh] w-full items-center justify-center rounded-2xl text-sm sm:max-h-none ${t.thumb} ${t.soft}`}>No image available</div>
           )}
           <div className="min-w-0">
             {/* Full product name — no truncation. */}
@@ -1486,14 +1618,14 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
-      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 ${t.modal}`}>
+      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88vh] ${t.modal}`}>
         <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
           <p className="text-sm font-semibold">Contact message</p>
           <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand`}>
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="overflow-y-auto p-5">
+        <div className="min-h-0 overflow-y-auto overscroll-contain p-5">
           <div className="flex items-center gap-3">
             <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${t.thumb} ${t.soft}`}>
               <MessageSquare className="h-5 w-5" />

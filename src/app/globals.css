@@ -1036,3 +1036,18 @@ html {
     animation: none;
   }
 }
+
+/* Admin mobile navigation drawer.
+   Slides in rather than appearing, so the panel reads as covering the page
+   instead of replacing it. Honours reduced-motion: the drawer still opens,
+   it just does not travel. */
+@keyframes adminDrawerIn {
+  from { transform: translate3d(-100%, 0, 0); }
+  to   { transform: translate3d(0, 0, 0); }
+}
+.admin-drawer {
+  animation: adminDrawerIn 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .admin-drawer { animation: none; }
+}
