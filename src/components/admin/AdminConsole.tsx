@@ -965,12 +965,12 @@ export function AdminConsole({ data }: Props) {
                           <button onClick={() => setActiveInquiry(i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                             <Thumb t={t} src={i.productImage} alt={i.productName} big />
                             <div className="min-w-0 flex-1">
-                              <p className={`line-clamp-2 text-[13px] font-semibold leading-snug hover:text-brand ${st !== "new" ? "line-through opacity-70" : ""}`}>{i.productName}</p>
-                              <div className={`mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${t.soft}`}>
-                                <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {i.customerName}</span>
-                                <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {i.country}</span>
-                                <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {i.phone}</span>
-                                {i.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" /> {i.email}</span>}
+                              <p className={`line-clamp-2 text-[14px] font-semibold leading-snug hover:text-brand sm:text-[13px] ${st !== "new" ? "line-through opacity-70" : ""}`}>{i.productName}</p>
+                              <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Users className="h-3 w-3 shrink-0" /><span className="truncate">{i.customerName}</span></span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{i.country}</span></span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{i.phone}</span></span>
+                                {i.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{i.email}</span></span>}
                               </div>
                             </div>
                           </button>
@@ -1003,9 +1003,9 @@ export function AdminConsole({ data }: Props) {
                             <Thumb t={t} src={i.productImage} alt={i.productName} big />
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-[13px] font-semibold leading-snug opacity-70 hover:text-brand">{i.productName}</p>
-                              <div className={`mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${t.soft}`}>
-                                <span className="inline-flex items-center gap-1"><Users className="h-3 w-3" /> {i.customerName}</span>
-                                <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {i.phone}</span>
+                              <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Users className="h-3 w-3 shrink-0" /><span className="truncate">{i.customerName}</span></span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{i.phone}</span></span>
                               </div>
                             </div>
                           </button>
@@ -1598,10 +1598,10 @@ function ContactsSection({
                         {contactName(c)}{c.companyName ? <span className={`font-normal ${t.soft}`}> · {c.companyName}</span> : null}
                       </p>
                       <p className={`mt-0.5 line-clamp-1 text-xs ${t.soft}`}>{c.message}</p>
-                      <div className={`mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${t.soft}`}>
-                        <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" /> {c.email}</span>
-                        <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {c.phone}</span>
-                        <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {c.country}</span>
+                      <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{c.email}</span></span>
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{c.phone}</span></span>
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{c.country}</span></span>
                         <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmtDate(c.createdAt)}</span>
                       </div>
                     </div>
@@ -1768,27 +1768,33 @@ function CustomerGroupRow({ g, t }: { g: CustomerGroup; t: Theme }) {
   const [open, setOpen] = useState(false);
   return (
     <li className={`transition-colors ${t.hover}`}>
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-center gap-3 p-4 text-left">
+      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-start gap-3 p-4 text-left">
         <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}>
           <Users className="h-[18px] w-[18px]" />
         </span>
         <div className="min-w-0 flex-1">
-          <p className="line-clamp-1 text-[13px] font-semibold leading-snug">
+          {/* The customer's name is what you are scanning for, so it wraps to a
+              second line on a phone rather than being cut mid-word. The other
+              names they have written in are demoted to their own line: they
+              were what pushed the real name out of view. */}
+          <p className="line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13px]">
             {g.customerName}
-            {g.altNames.length > 0 && <span className={`font-normal ${t.soft}`}> · aka {g.altNames.join(", ")}</span>}
           </p>
-          <div className={`mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${t.soft}`}>
-            <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {g.phone}</span>
-            {g.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" /> {g.email}</span>}
-            <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {g.country}</span>
-            <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> Last {fmtDate(g.lastInquiry)}</span>
+          {g.altNames.length > 0 && (
+            <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
+          )}
+          <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{g.phone}</span></span>
+            {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{g.email}</span></span>}
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{g.country}</span></span>
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Calendar className="h-3 w-3 shrink-0" /><span className="truncate">Last {fmtDate(g.lastInquiry)}</span></span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
           <a onClick={(e) => e.stopPropagation()} href={waLink(g.phone)} target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white sm:inline-flex">
             <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
           </a>
-          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>{g.inquiryCount} {g.inquiryCount === 1 ? "product" : "products"}</span>
+          <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${t.qty}`}>{g.inquiryCount} {g.inquiryCount === 1 ? "product" : "products"}</span>
           <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""} ${t.soft}`} />
         </div>
       </button>
@@ -1958,28 +1964,30 @@ function AllSection({
               const open = expanded.has(g.key);
               return (
                 <li key={g.key} className={`transition-colors ${sel ? "bg-brand/[0.05]" : t.hover}`}>
-                  <div className="flex items-center gap-3 p-4">
+                  <div className="flex items-start gap-3 p-4">
                     <button onClick={() => toggle(g.key)} aria-label="Select customer" className={`shrink-0 transition-colors ${sel ? "text-brand" : `${t.soft} hover:text-brand`}`}>
                       {sel ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
                     </button>
-                    <button onClick={() => toggleExpand(g.key)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                    <button onClick={() => toggleExpand(g.key)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}>
                         <Users className="h-4 w-4" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-1 text-[13px] font-semibold leading-snug">
+                        <p className="line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13px]">
                           {g.customerName}
-                          {g.altNames.length > 0 && <span className={`font-normal ${t.soft}`}> · aka {g.altNames.join(", ")}</span>}
                         </p>
-                        <div className={`mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${t.soft}`}>
-                          <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {g.phone}</span>
-                          {g.email && <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" /> {g.email}</span>}
-                          <span className="inline-flex items-center gap-1"><MapPin className="h-3 w-3" /> {g.country}</span>
+                        {g.altNames.length > 0 && (
+                          <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
+                        )}
+                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{g.phone}</span></span>
+                          {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{g.email}</span></span>}
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{g.country}</span></span>
                         </div>
                       </div>
                     </button>
                     <div className="flex shrink-0 items-center gap-2.5">
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>{g.inquiryCount} {g.inquiryCount === 1 ? "product" : "products"}</span>
+                      <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${t.qty}`}>{g.inquiryCount} {g.inquiryCount === 1 ? "product" : "products"}</span>
                       <button onClick={() => toggleExpand(g.key)} aria-label="Show products">
                         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""} ${t.soft}`} />
                       </button>
@@ -2126,7 +2134,7 @@ function CareersSection({
                   </span>
                   <div className="min-w-0 flex-1">
                     <p className={`line-clamp-1 text-[13px] font-semibold leading-snug ${tab === "trash" ? "opacity-70" : ""}`}>{j.email}</p>
-                    <div className={`mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs ${t.soft}`}>
+                    <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
                       <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmtDate(j.createdAt)}</span>
                     </div>
                   </div>
