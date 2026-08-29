@@ -120,7 +120,11 @@ export default function AboutUsContent() {
   const servicesList = [
     {
       title: "Manufacturing, Sourcing & Supply",
-      desc: "Backed by strong production capabilities and global partnerships, we manufacture, source, stock and supply high-quality products across 40+ categories seamlessly serving over 190+ markets in 6 countries worldwide.",
+      // "500+ categories", matching every other page and the catalogue itself:
+      // 509 categories currently hold products. "40+" was true but understated
+      // it by thirteen times, and it was the one figure on the site that
+      // disagreed with the rest.
+      desc: "Backed by strong production capabilities and global partnerships, we manufacture, source, stock and supply high-quality products across 500+ categories seamlessly serving over 190+ markets in 6 countries worldwide.",
       img: "/services/img_1.webp"
     },
     {
