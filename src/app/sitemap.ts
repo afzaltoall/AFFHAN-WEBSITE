@@ -26,6 +26,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1.0,
     },
     {
+      // Keyword landing page for "china sourcing company" / "import export
+      // company in china". Distinct from the Guangzhou office page below it:
+      // this one is the service, that one is the place.
+      url: `${baseUrl}/china-sourcing-company/`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.9,
+    },
+    {
       url: `${baseUrl}/sourcing-company-chennai/`,
       lastModified: new Date(),
       changeFrequency: 'weekly',

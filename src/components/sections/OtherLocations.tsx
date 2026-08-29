@@ -22,6 +22,7 @@ const LOCATIONS = [
   { slug: "sourcing-company-singapore", label: "Singapore", anchor: "Sourcing agent in Singapore" },
   { slug: "sourcing-company-malaysia", label: "Malaysia", anchor: "Sourcing agent in Malaysia" },
   { slug: "china-sourcing-office-guangzhou", label: "Guangzhou", anchor: "Our Guangzhou sourcing office" },
+  { slug: "china-sourcing-company", label: "China", anchor: "China sourcing company services" },
   { slug: "sourcing-from-china", label: "China", anchor: "Sourcing from China: a buyer's guide" },
 ];
 

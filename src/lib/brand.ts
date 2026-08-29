@@ -140,6 +140,22 @@ export const OFFICES = {
       addressCountry: "MY",
     },
   },
+  guangzhou: {
+    // The buying office. No Google profile — it serves overseas buyers rather
+    // than walk-in local trade — so this is the company's own record. It has
+    // no published direct line either; enquiries route through the arrival-end
+    // office, which is why `telephone` carries the Chennai head-office number
+    // rather than inventing a Guangzhou one.
+    profileConfirmed: false,
+    legalName: "GUANGZHOU AFFHAN INTERNATIONAL CO., LTD",
+    telephone: "+91-90920-09044",
+    address: {
+      streetAddress: "Room 2325, Canton Domestic Finance Centre, No.316 Chang Di Da Ma Lu",
+      addressLocality: "Guangzhou",
+      addressRegion: "Guangdong",
+      addressCountry: "CN",
+    },
+  },
   singapore: {
     // The profile exists but its contact tab has not been read, so this is the
     // company's own record — the same address and number the office card on

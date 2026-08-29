@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2 } from "lucide-react";
 import { FooterSection } from "@/components/sections/FooterSection";
+import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 import { OtherLocations } from "@/components/sections/OtherLocations";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
@@ -79,21 +80,22 @@ const schema = {
     {
       "@type": "LocalBusiness",
       "@id": "https://affhan.com/#localbusiness-guangzhou",
-      parentOrganization: { "@id": "https://affhan.com/#organization" },
-      name: "GUANGZHOU AFFHAN INTERNATIONAL CO., LTD",
-      url: "https://affhan.com",
-      logo: "https://affhan.com/images/logo.png",
-      image: "https://affhan.com/images/logo.png",
+      parentOrganization: { "@id": ORG_ID },
+      name: OFFICES.guangzhou.legalName,
+      legalName: OFFICES.guangzhou.legalName,
+      // This branch's own page, not the site root — the same correction the
+      // other five location pages got. This one was missed in that pass.
+      url: "https://affhan.com/china-sourcing-office-guangzhou/",
+      logo: LOGO_URL,
+      image: LOGO_URL,
       description:
         "AFFHAN's Guangzhou office handles factory sourcing, supplier audits, quality inspection and container consolidation for buyers worldwide.",
+      telephone: OFFICES.guangzhou.telephone,
       email: "info@affhan.com",
-      address: {
-        "@type": "PostalAddress",
-        streetAddress: "Room 2325, Canton Domestic Finance Centre, No.316 Chang Di Da Ma Lu",
-        addressLocality: "Guangzhou",
-        addressRegion: "Guangdong",
-        addressCountry: "CN",
-      },
+      address: postalAddress(OFFICES.guangzhou),
+      areaServed: { "@type": "Country", name: "China" },
+      foundingDate: FOUNDING_DATE,
+      sameAs: [...SOCIAL_PROFILES],
     },
     {
       "@type": "Service",
