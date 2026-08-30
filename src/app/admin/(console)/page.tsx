@@ -49,7 +49,15 @@ export default async function AdminPage() {
       `,
       // High take so the "All" customer checklist and grouping never silently
       // drop rows — the master export reads the full DB server-side regardless.
-      prisma.inquiry.findMany({ orderBy: { createdAt: "desc" }, take: 5500, include: { product: true } }),
+      // Only imageUrl is read off the relation (see mapInquiry below), but
+      // `include: { product: true }` fetched every Product column — cjPid, sku,
+      // description and the allImages JSON among them. Measured on the live
+      // data that was 54KB of the 134KB this page ships, to use one string.
+      prisma.inquiry.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 5500,
+        include: { product: { select: { imageUrl: true } } },
+      }),
       prisma.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 400 }),
       prisma.jobAlert.findMany({ orderBy: { createdAt: "desc" }, take: 400 }),
     ])
