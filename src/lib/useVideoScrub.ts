@@ -51,29 +51,40 @@ export function useVideoScrub(): VideoScrub {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let raf = 0;
+    let running = false;
     let last = performance.now();
     let current = 0;
-    // Recomputed on resize rather than read every frame: offsetHeight forces
-    // layout, and doing that once per frame is how a scroll effect ends up
-    // costing more than the video it is driving.
+
+    /* Both the track's height and its distance from the top of the document
+       are cached. The previous version cached only the height, with a comment
+       explaining that reading it every frame forces layout — and then called
+       getBoundingClientRect() every frame anyway, three lines below, for the
+       offset. The forced layout it was written to avoid happened regardless. */
     let span = 0;
+    let top = 0;
 
     const measure = () => {
+      const rect = track.getBoundingClientRect();
+      top = rect.top + window.scrollY;
       span = Math.max(1, track.offsetHeight - window.innerHeight);
     };
     measure();
 
-    const readProgress = () => {
-      const top = track.getBoundingClientRect().top + window.scrollY;
-      return Math.min(1, Math.max(0, (window.scrollY - top) / span));
-    };
+    const readProgress = () =>
+      Math.min(1, Math.max(0, (window.scrollY - top) / span));
 
     const tick = (now: number) => {
       const dt = Math.min(0.1, (now - last) / 1000);
       last = now;
 
       const p = readProgress();
-      setProgress(p);
+      // Hundredths. The progress drives three text beats, so a value finer
+      // than this cannot change what is on screen — it only queues a React
+      // render for the hero on every frame of every scroll.
+      setProgress((prev) => {
+        const next = Math.round(p * 100) / 100;
+        return prev === next ? prev : next;
+      });
 
       const duration = video.duration;
       if (duration > 0 && Number.isFinite(duration)) {
@@ -96,12 +107,51 @@ export function useVideoScrub(): VideoScrub {
       raf = requestAnimationFrame(tick);
     };
 
-    raf = requestAnimationFrame(tick);
+    const start = () => {
+      if (running) return;
+      running = true;
+      last = performance.now();
+      raf = requestAnimationFrame(tick);
+    };
+    const stop = () => {
+      if (!running) return;
+      running = false;
+      cancelAnimationFrame(raf);
+    };
+
+    /* The loop used to run for the life of the page. This section is one of
+       seven on a fourteen-screen page, so most of the time it was easing a
+       playhead nobody could see and seeking a video nobody was looking at.
+       It now runs only while the track is on screen. */
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          measure();
+          start();
+        } else {
+          stop();
+          // Settle at whichever end we left by, so the text beats are correct
+          // when the section is scrolled back into view.
+          setProgress(readProgress() > 0.5 ? 1 : 0);
+        }
+      },
+      { rootMargin: "200px 0px" },
+    );
+    io.observe(track);
+
+    // The cached offset is only valid until something above this section
+    // changes height — an image finishing, a font swapping, the address bar
+    // collapsing. Cheap to recompute, and never in the frame loop.
+    const ro = new ResizeObserver(measure);
+    ro.observe(document.body);
+
     window.addEventListener("resize", measure);
     window.addEventListener("orientationchange", measure);
 
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
+      io.disconnect();
+      ro.disconnect();
       window.removeEventListener("resize", measure);
       window.removeEventListener("orientationchange", measure);
     };
