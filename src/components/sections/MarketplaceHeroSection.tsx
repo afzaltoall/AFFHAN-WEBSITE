@@ -7,7 +7,7 @@ import { Star, ChevronRight } from "lucide-react";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { ProductCard, type ProductCardData } from "@/components/ui/ProductCard";
 import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
-import { useBackDismiss } from "@/lib/useBackDismiss";
+import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
@@ -556,6 +556,9 @@ export function MarketplaceHeroSection() {
               tree={topLevelCategories}
               initialActiveId={megaInitialId}
               onNavigate={(categoryId) => {
+                // Signal before closing: the close pops this overlay's history
+                // entry, and that pop cancels the router.push below.
+                overlayWillNavigate();
                 setIsMegaOpen(false);
                 router.push(`/products/?categoryId=${categoryId}`);
               }}

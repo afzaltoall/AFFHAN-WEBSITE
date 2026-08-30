@@ -290,6 +290,9 @@ export function Navbar() {
                         <CategoryMegaPanel
                           tree={categoryTree}
                           onNavigate={(categoryId) => {
+                            // Signal before closing: the close pops this
+                            // overlay's entry, cancelling the push below.
+                            overlayWillNavigate();
                             setIsCategoryMenuOpen(false);
                             // Hide the /products opening hero + jump to top NOW,
                             // synchronously, so navigating from the mega-menu lands

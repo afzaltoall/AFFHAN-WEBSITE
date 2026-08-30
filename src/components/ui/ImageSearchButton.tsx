@@ -8,7 +8,7 @@ import { Camera, Check, Upload, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { lockBodyScroll } from "@/lib/scrollLock";
-import { useBackDismiss, overlayHandoff } from "@/lib/useBackDismiss";
+import { useBackDismiss, overlayHandoff, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { capturePhoto, hasNativeCamera, CameraCancelled } from "@/lib/nativeCamera";
 import { cn } from "@/lib/utils";
 
@@ -399,6 +399,15 @@ export function ImageSearchButton({ className }: { className?: string }) {
   useBackDismiss(open, reset);
   useBackDismiss(panelOpen, closePanel);
 
+  /* Closing the dialog on the way to another page.
+     reset() alone pops the dialog's history entry, and that pop cancels the
+     <Link> navigation that triggered it — Next routes asynchronously, so the
+     pop lands first. Every link out of the results was dead because of it. */
+  const navigateAway = useCallback(() => {
+    overlayWillNavigate();
+    reset();
+  }, [reset]);
+
   // Ctrl/Cmd+V anywhere while the panel is open. Bound to the window rather
   // than to a focused input, because there is no text field here to paste into
   // and asking the user to click a box first would be a step for nothing.
@@ -625,7 +634,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
                       <Link
                         key={c.id}
                         href={`/products/?categoryId=${c.id}`}
-                        onClick={reset}
+                        onClick={navigateAway}
                         className="group inline-flex items-baseline gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm shadow-sm transition-all hover:border-[#27a8c4] hover:bg-slate-50 hover:shadow"
                       >
                         {c.parentName ? (
@@ -666,7 +675,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
                   Showing the closest {products.length}.{" "}
                   <Link
                     href={`/products/?q=${encodeURIComponent(result.searchQuery)}`}
-                    onClick={reset}
+                    onClick={navigateAway}
                     className="font-semibold text-[#176579] transition-colors hover:text-[#27a8c4] hover:underline"
                   >
                     See every match for &ldquo;{result.searchQuery}&rdquo;
@@ -682,7 +691,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
                   </p>
                   <Link
                     href="/contact/"
-                    onClick={reset}
+                    onClick={navigateAway}
                     className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#176579] transition-colors hover:text-[#27a8c4] hover:underline"
                   >
                     Send us the product instead
