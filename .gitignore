@@ -64,3 +64,9 @@ public/static/images/map*.png
 # live in git history, where deleting it later would not remove it.
 /*.xlsx
 /*.xls
+
+# Master video files. These are the high-bitrate originals that
+# scripts/build_scrub_video.mjs encodes down for the web — 12MB apiece, never
+# served, and not worth carrying in git history. Keep them in cloud storage;
+# only the encoded output under public/ is committed.
+/media-source/

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { motion, useInView } from "framer-motion";
+import { motion, useInView, useScroll, useMotionValueEvent, useReducedMotion } from "framer-motion";
 import { Check, Loader2 } from "lucide-react";
 import { Instrument_Serif } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -20,7 +20,48 @@ export function AsmeSections() {
 // ==========================================
 // SECTION 1: HERO
 // ==========================================
+/**
+ * "Never miss a role" — the job-alerts sign-up.
+ *
+ * The autoplaying loop of career-3.mp4 and the dark gradient laid over it are
+ * gone; the gradient only ever existed to hold white text on moving footage.
+ * The section keeps its dark ground because the glass pill, the white type and
+ * the social row are all built for white-on-dark, and because it sits between
+ * two light sections and gives the page somewhere to breathe.
+ *
+ * The reveal is tied to scroll position rather than to a one-shot on-enter
+ * animation, so it arrives with you as you come down the page.
+ *
+ * It is NOT a tall sticky track like the two sections above it. There is a
+ * form here, and burying a text field three screens deep so it can be animated
+ * on the way past would be an animation charged to the person trying to use
+ * it. The section stays one screen tall and the reveal plays as it enters.
+ */
+const HEADLINE = ["Never", "miss", "a", "role."];
+
 function Section1Hero() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const reduced = useReducedMotion();
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "center center"],
+  });
+  const [raw, setRaw] = useState(0);
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    const next = Math.round(v * 100) / 100;
+    setRaw((prev) => (prev === next ? prev : next));
+  });
+  const p = reduced ? 1 : raw;
+
+  // Everything lands by 0.9 so the form is fully usable well before the
+  // section settles in the middle of the screen.
+  const at = (start: number, over = 0.16) => Math.min(1, Math.max(0, (p - start) / over));
+  const reveal = (lit: number, shift = 18) => ({
+    opacity: lit,
+    transform: `translateY(${(1 - lit) * shift}px)`,
+    transition: "opacity 0.4s ease-out, transform 0.7s cubic-bezier(0.16,1,0.3,1)",
+  });
+
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [msg, setMsg] = useState("");
@@ -54,49 +95,66 @@ function Section1Hero() {
   };
 
   return (
-    <section className="relative flex flex-col h-screen min-h-[640px] overflow-hidden bg-white">
-      {/* Background Video */}
-      <div className="absolute inset-0 z-0">
-        <video
-          src="/career-video/career-3.mp4"
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          poster="/career-video/career-3-poster.jpg"
-          className="w-full h-full object-cover object-bottom"
-        />
-        {/* Subtle dark gradient to help text readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80 mix-blend-multiply" />
-      </div>
+    <section ref={sectionRef} className="relative flex h-screen min-h-[640px] flex-col overflow-hidden bg-[#FAFAF7]">
+      {/* The starfield that replaced the video only worked on a dark ground.
+          On white it would be invisible, so the atmosphere here is a single
+          cool wash off the brand teal — enough to stop the panel reading as a
+          blank rectangle, faint enough to leave the type at full contrast. */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 z-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 50% at 50% 44%, rgba(23,101,121,0.07) 0%, rgba(23,101,121,0.025) 45%, rgba(250,250,247,0) 75%)",
+        }}
+      />
 
       {/* Hero Content */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-6 text-center">
-        <h1 className={cn("text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-white tracking-tight whitespace-nowrap mb-4 sm:mb-6", instrument.className)}>
-          Never miss a <em className="italic font-light">role</em>.
-        </h1>
+        {/* h2, not h1. The page already has one — "Grow without limits, with
+            Affhan." in the hero — and this section had a second, which leaves
+            a document with two competing titles for search engines and no
+            single landmark for anyone navigating by heading. */}
+        <h2 className={cn("mb-4 whitespace-nowrap text-5xl tracking-tight text-[#08222e] sm:mb-6 sm:text-6xl md:text-7xl lg:text-8xl", instrument.className)}>
+          {HEADLINE.map((word, i) => {
+            const lit = at(0.06 + i * 0.07, 0.2);
+            const last = i === HEADLINE.length - 1;
+            return (
+              <span
+                key={word}
+                className="inline-block whitespace-pre"
+                style={reveal(lit, 26)}
+              >
+                {last ? <em className="font-light italic">role</em> : word}
+                {last ? "." : " "}
+              </span>
+            );
+          })}
+        </h2>
 
-        <p className="text-white/80 text-sm sm:text-base leading-relaxed max-w-lg mb-6 sm:mb-8 px-4">
+        <p
+          className="mb-6 max-w-lg px-4 text-sm leading-relaxed text-[#5a6e77] sm:mb-8 sm:text-base"
+          style={reveal(at(0.34))}
+        >
           Get Affhan&apos;s newest openings and team stories delivered to your inbox. No spam &mdash; just opportunities to build a career without borders.
         </p>
 
-        <div className="w-full max-w-xl mx-auto">
+        <div className="mx-auto w-full max-w-xl" style={reveal(at(0.46))}>
           {state === "done" ? (
             // Confirmation replaces the input entirely — a calm glass pill with a
             // check badge, so subscribing feels finished rather than "just a green line".
-            <div className="liquid-glass rounded-full w-full pl-3 pr-6 py-3 flex items-center gap-3 border border-emerald-300/30 mx-auto animate-in fade-in">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-400 text-black">
+            <div className="animate-in fade-in mx-auto flex w-full items-center gap-3 rounded-full border border-emerald-700/25 bg-white py-3 pl-3 pr-6 shadow-[0_1px_2px_rgba(8,34,46,0.05)]">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
                 <Check className="w-5 h-5" strokeWidth={3} />
               </span>
               <div className="text-left min-w-0">
-                <p className="text-white font-medium text-sm sm:text-base leading-tight">You&apos;re on the list.</p>
-                <p className="text-white/60 text-xs sm:text-sm leading-tight">We&apos;ll email you the moment a role opens up.</p>
+                <p className="text-sm font-medium leading-tight text-[#08222e] sm:text-base">You&apos;re on the list.</p>
+                <p className="text-xs leading-tight text-[#5a6e77] sm:text-sm">We&apos;ll email you the moment a role opens up.</p>
               </div>
               <button
                 type="button"
                 onClick={() => { setState("idle"); setMsg(""); }}
-                className="ml-auto shrink-0 text-white/60 hover:text-white text-xs font-medium underline underline-offset-4 transition-colors"
+                className="ml-auto shrink-0 text-xs font-medium text-[#5a6e77] underline underline-offset-4 transition-colors hover:text-[#08222e]"
               >
                 Add another
               </button>
@@ -104,20 +162,23 @@ function Section1Hero() {
           ) : (
             // Submit is driven by the "Life at Affhan" button below — the pill
             // is input-only (Enter still submits via the form's onSubmit).
-            <form onSubmit={subscribe} className="liquid-glass rounded-full w-full px-6 py-3.5 flex items-center border border-white/10">
+            <form
+              onSubmit={subscribe}
+              className="flex w-full items-center rounded-full border border-[#08222e]/15 bg-white px-6 py-3.5 shadow-[0_1px_2px_rgba(8,34,46,0.05)] transition-colors focus-within:border-[#176579]/45"
+            >
               <input
                 type="email"
                 value={email}
                 onChange={(e) => { setEmail(e.target.value); if (state === "error") setState("idle"); }}
                 placeholder="Enter your email for job alerts"
                 disabled={state === "loading"}
-                className="flex-1 bg-transparent text-white placeholder:text-white/40 focus:outline-none text-sm sm:text-base min-w-0 disabled:opacity-60"
+                className="min-w-0 flex-1 bg-transparent text-sm text-[#08222e] placeholder:text-[#63757d] focus:outline-none disabled:opacity-60 sm:text-base"
                 required
               />
             </form>
           )}
           {state === "error" && msg && (
-            <p className="mt-3 text-sm text-red-300">{msg}</p>
+            <p className="mt-3 text-sm font-medium text-red-700">{msg}</p>
           )}
         </div>
 
@@ -128,7 +189,8 @@ function Section1Hero() {
             type="button"
             onClick={subscribe}
             disabled={state === "loading"}
-            className="mt-6 sm:mt-8 liquid-glass rounded-full px-8 py-3 text-white text-sm font-medium border border-white/10 hover:bg-white/10 transition-colors flex items-center gap-2 disabled:opacity-70"
+            style={reveal(at(0.56))}
+            className="mt-6 flex items-center gap-2 rounded-full bg-[#08222e] px-8 py-3 text-sm font-medium text-[#FAFAF7] transition-colors hover:bg-[#0d3243] disabled:opacity-70 sm:mt-8"
           >
             {state === "loading" ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : "Life at Affhan"}
           </button>
@@ -136,15 +198,16 @@ function Section1Hero() {
       </div>
 
       {/* Social Icons Footer — Affhan's official channels */}
-      <div className="relative z-10 flex flex-wrap justify-center gap-3 sm:gap-4 pb-6 sm:pb-8 mt-auto shrink-0">
-        {SOCIALS.map(({ label, href, Icon }) => (
+      <div className="relative z-10 mt-auto flex shrink-0 flex-wrap justify-center gap-3 pb-6 sm:gap-4 sm:pb-8">
+        {SOCIALS.map(({ label, href, Icon }, i) => (
           <a
+            style={reveal(at(0.62 + i * 0.03, 0.14), 12)}
             key={label}
             href={href}
             target="_blank"
             rel="noopener noreferrer"
             aria-label={label}
-            className="liquid-glass rounded-full p-3.5 border border-white/10 text-white/80 hover:text-white hover:bg-white/10 transition-all"
+            className="rounded-full border border-[#08222e]/12 bg-white p-3.5 text-[#5a6e77] shadow-[0_1px_2px_rgba(8,34,46,0.04)] transition-all hover:border-[#176579]/40 hover:text-[#08222e]"
           >
             <Icon className="w-5 h-5" />
           </a>
@@ -218,9 +281,53 @@ const SOCIALS: { label: string; href: string; Icon: (p: { className?: string }) 
 // ==========================================
 // SECTION 4: PHILOSOPHY
 // ==========================================
+
+/**
+ * The working day the paragraph beside this already describes.
+ *
+ * Nothing here is a new claim. The copy says "a morning call with a Guangzhou
+ * factory, an afternoon untangling a customs hold for a London client"; these
+ * are those same two moments plus the outcome, drawn instead of stated. The
+ * offices and the time-zone gap between them are the company's own.
+ */
+const DAY = [
+  {
+    when: "Morning",
+    where: "Guangzhou",
+    what: "A call with the factory floor. The sample is either right or it is not, and today is when that gets said.",
+  },
+  {
+    when: "Afternoon",
+    where: "London",
+    what: "A customs hold, untangled. The commodity code was arguable; somebody has to go and argue it.",
+  },
+  {
+    when: "By close",
+    where: "On the water",
+    what: "The container sails. What you decided this morning is on it.",
+  },
+];
+
 function Section4Philosophy() {
   const ref = useRef<HTMLElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-100px" });
+
+  // The day advances with the scroll rather than on a timer, so the reader
+  // moves through it at their own pace.
+  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
+  const [dayP, setDayP] = useState(0);
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    const next = Math.round(v * 100) / 100;
+    setDayP((prev) => (prev === next ? prev : next));
+  });
+  const reducedDay = useReducedMotion();
+  const stepLit = (i: number) => {
+    if (reducedDay) return 1;
+    // The panel is read between roughly a third and two thirds of the way
+    // through the section, which is when it is actually on screen.
+    const from = 0.3 + i * 0.11;
+    return Math.min(1, Math.max(0, (dayP - from) / 0.1));
+  };
 
   return (
     <section 
@@ -238,25 +345,46 @@ function Section4Philosophy() {
         </motion.h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
-          {/* Left: Video */}
-          <motion.div 
+          {/* Left: the day, advancing as you scroll.
+              Was an autoplaying loop of career-4.mp4 — stock footage that said
+              nothing the paragraph beside it did not already say better. */}
+          <motion.ol
             initial={{ opacity: 0, x: -40 }}
             animate={isInView ? { opacity: 1, x: 0 } : { opacity: 0, x: -40 }}
             transition={{ duration: 1, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-            className="rounded-3xl overflow-hidden aspect-[4/3] bg-slate-100 relative"
+            className="relative rounded-3xl border border-slate-200 bg-slate-50/70 p-7 sm:p-9"
           >
-            <video
-              src="/career-video/career-4.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              preload="auto"
-              poster="/career-video/career-4-poster.jpg"
-              className="w-full h-full object-cover"
+            {/* The rail the day runs down. */}
+            <span
+              aria-hidden="true"
+              className="absolute left-[42px] top-10 bottom-10 w-px bg-slate-200 sm:left-[54px]"
             />
-            <div className="absolute inset-0 bg-black/5 mix-blend-multiply pointer-events-none" />
-          </motion.div>
+            {DAY.map((d, i) => {
+              const lit = stepLit(i);
+              return (
+                <li key={d.when} className="relative flex gap-5 pb-9 last:pb-0">
+                  <span className="relative z-10 mt-1 flex h-4 w-4 shrink-0 items-center justify-center">
+                    <span
+                      className="h-4 w-4 rounded-full border-2 bg-white transition-colors duration-500"
+                      style={{ borderColor: lit > 0.5 ? "#176579" : "#cbd5e1" }}
+                    />
+                  </span>
+                  <div
+                    style={{
+                      opacity: 0.3 + lit * 0.7,
+                      transform: `translateY(${(1 - lit) * 10}px)`,
+                      transition: "opacity 0.4s ease-out, transform 0.6s cubic-bezier(0.16,1,0.3,1)",
+                    }}
+                  >
+                    <p className="text-[11.5px] font-bold uppercase tracking-[0.2em] text-[#176579]">
+                      {d.when} · {d.where}
+                    </p>
+                    <p className="mt-2 text-[15px] leading-relaxed text-slate-700 sm:text-base">{d.what}</p>
+                  </div>
+                </li>
+              );
+            })}
+          </motion.ol>
           
           {/* Right: Text Content */}
           <motion.div 
@@ -269,7 +397,11 @@ function Section4Philosophy() {
               No two days are the same. A morning call with a Guangzhou factory, an afternoon untangling a customs hold for a London client &mdash; hands-on, high-trust work where your decisions actually ship.
             </p>
             <p className="text-slate-500 text-sm sm:text-base leading-relaxed">
-              Our offices span Chennai, Guangzhou, London, Singapore, Malaysia and Dubai &mdash; a close-knit crew where your work is seen and your ideas travel fast. Curious, driven and dependable? You&apos;ll fit right in.
+              {/* Seven, not six. This listed Chennai, Guangzhou, London,
+                  Singapore, Malaysia and Dubai while the office records, the
+                  About page and the hero beside it all say seven — Paris was
+                  the one being dropped. */}
+              Our offices span Chennai, Guangzhou, London, Singapore, Malaysia, Dubai and Paris &mdash; a close-knit crew where your work is seen and your ideas travel fast. Curious, driven and dependable? You&apos;ll fit right in.
             </p>
             <div className="mt-4">
               <a href="/contact/" className="inline-block text-slate-900 text-sm font-medium uppercase tracking-widest border-b border-slate-300 pb-1 hover:border-slate-900 transition-colors">
