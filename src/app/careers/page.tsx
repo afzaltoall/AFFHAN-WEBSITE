@@ -9,15 +9,15 @@ import { GrowthFlow } from "@/components/ui/growth-flow";
 import { ScrollPortraitWall, type Speaker } from "@/components/ui/scroll-portrait-wall";
 
 const TEAMS: Speaker[] = [
-  { name: "MOHAMED YACOOB", role: "COO", hoverRole: "Chief Operation Officer", src: "/our teams/MOHAMED YACOOB.png", imageClassName: "object-[center_20%]" },
-  { name: "JAMIL AHAMED", role: "CMO", hoverRole: "Chief Marketing Officer", src: "/our teams/jamil.png", imageClassName: "object-top" },
-  { name: "ILLIYAZ", role: "CFO", hoverRole: "Chief Financial Officer", src: "/our teams/iliyas.png", imageClassName: "object-[center_20%]" },
-  { name: "JAFEER AHAMED", role: "CTO", hoverRole: "Chief Technology Officer", src: "/our teams/Jafeer.png", imageClassName: "object-[center_20%]" },
-  { name: "NANDHINEE", role: "Managing UAE OPERATION", hideHoverRole: true, src: "/our teams/nandhinee.png", imageClassName: "object-top" },
+  { name: "MOHAMED YACOOB", role: "COO", hoverRole: "Chief Operation Officer", src: "/our teams/MOHAMED YACOOB.webp", imageClassName: "object-[center_20%]" },
+  { name: "JAMIL AHAMED", role: "CMO", hoverRole: "Chief Marketing Officer", src: "/our teams/jamil.webp", imageClassName: "object-top" },
+  { name: "ILLIYAZ", role: "CFO", hoverRole: "Chief Financial Officer", src: "/our teams/iliyas.webp", imageClassName: "object-[center_20%]" },
+  { name: "JAFEER AHAMED", role: "CTO", hoverRole: "Chief Technology Officer", src: "/our teams/Jafeer.webp", imageClassName: "object-[center_20%]" },
+  { name: "NANDHINEE", role: "Managing UAE OPERATION", hideHoverRole: true, src: "/our teams/nandhinee.webp", imageClassName: "object-top" },
   { name: "", role: "", src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" },
-  { name: "ANIS DAWOOD", role: "Managing UK OPERATIONS", hideHoverRole: true, src: "/our teams/anis.png", imageClassName: "object-top" },
-  { name: "MUHAMMAD KASSIM", role: "MANAGING MALAYSIA OPERATIONS", hideHoverRole: true, src: "/our teams/muhammad kassim.png", imageClassName: "object-top" },
-  { name: "CHEN YUCHAO", role: "CUSTOMER EXPERIENCE MANAGER", hideHoverRole: true, src: "/our teams/Chen Yuchao.png" },
+  { name: "ANIS DAWOOD", role: "Managing UK OPERATIONS", hideHoverRole: true, src: "/our teams/anis.webp", imageClassName: "object-top" },
+  { name: "MUHAMMAD KASSIM", role: "MANAGING MALAYSIA OPERATIONS", hideHoverRole: true, src: "/our teams/muhammad kassim.webp", imageClassName: "object-top" },
+  { name: "CHEN YUCHAO", role: "CUSTOMER EXPERIENCE MANAGER", hideHoverRole: true, src: "/our teams/Chen Yuchao.webp" },
 ];
 
 export default function CareersPage() {
