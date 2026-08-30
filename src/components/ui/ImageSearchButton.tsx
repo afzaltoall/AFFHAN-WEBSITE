@@ -8,6 +8,7 @@ import { Camera, Check, Upload, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { lockBodyScroll } from "@/lib/scrollLock";
+import { useBackDismiss } from "@/lib/useBackDismiss";
 import { capturePhoto, hasNativeCamera, CameraCancelled } from "@/lib/nativeCamera";
 import { cn } from "@/lib/utils";
 
@@ -389,6 +390,10 @@ export function ImageSearchButton({ className }: { className?: string }) {
       setCapturing(false);
     }
   }, [acceptFile, capturing]);
+
+  // Back closes the results, then the upload panel, before it touches the page.
+  useBackDismiss(open, reset);
+  useBackDismiss(panelOpen, closePanel);
 
   // Ctrl/Cmd+V anywhere while the panel is open. Bound to the window rather
   // than to a focused input, because there is no text field here to paste into

@@ -7,6 +7,7 @@ import { FlagSelect } from '@/components/ui/FlagSelect';
 import { COUNTRIES } from '@/lib/countries';
 import { isValidMobile } from '@/lib/phone';
 import { lockBodyScroll } from '@/lib/scrollLock';
+import { useBackDismiss } from "@/lib/useBackDismiss";
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize, X, ChevronLeft, ChevronRight, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -90,6 +91,14 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
     setIsVisible(false);
     setTimeout(onClose, 250);
   };
+
+  // The modal only exists while it is open, so `true` is its open state.
+  // Routed through handleClose rather than onClose so Back gets the same 250ms
+  // dismissal as the X button instead of snapping the form away.
+  useBackDismiss(true, handleClose);
+  // The lightbox sits on top of the form and owns a second entry, so Back
+  // closes the enlarged image first and leaves the form standing.
+  useBackDismiss(isLightboxOpen, () => setIsLightboxOpen(false));
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();

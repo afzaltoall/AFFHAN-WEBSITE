@@ -7,6 +7,7 @@ import { Star, ChevronRight } from "lucide-react";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { ProductCard, type ProductCardData } from "@/components/ui/ProductCard";
 import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
+import { useBackDismiss } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
@@ -39,6 +40,9 @@ export function MarketplaceHeroSection() {
   // dims/blurs the page. `megaInitialId` scrolls the panel to the clicked
   // category, matching the navbar's "All Categories" behavior.
   const [isMegaOpen, setIsMegaOpen] = useState(false);
+
+  // Back closes the mega menu before it leaves the page.
+  useBackDismiss(isMegaOpen, () => setIsMegaOpen(false));
   const [megaInitialId, setMegaInitialId] = useState<string | null>(null);
 
   const openMega = (categoryId: string | null) => {

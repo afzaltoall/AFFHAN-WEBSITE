@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useBackDismiss } from "@/lib/useBackDismiss";
 import { Search, Mail, X, Menu, ChevronDown, ChevronRight, Layers, Loader2, LayoutGrid, Home, Info, Briefcase } from "lucide-react";
 
 const TopRankingIcon = ({ size, className }: { size?: number, className?: string }) => (
@@ -144,6 +145,10 @@ export function Navbar() {
       router.push(`/products/?q=${encodeURIComponent(navSearchValue.trim())}`);
     }
   };
+
+  // Back closes the drawer or the mega menu before it leaves the page.
+  useBackDismiss(mobileMenuOpen, () => setMobileMenuOpen(false));
+  useBackDismiss(isCategoryMenuOpen, () => setIsCategoryMenuOpen(false));
 
   const handleClickCategoryMenu = () => {
     setIsCategoryMenuOpen(true);
