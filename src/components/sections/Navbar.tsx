@@ -408,9 +408,12 @@ export function Navbar() {
 
             {/* Mobile Nav Triggers */}
             <div className="flex lg:hidden items-center gap-3 z-10">
-              <Link href="/" className="flex h-10 w-10 items-center justify-center text-slate-700 hover:text-brand-dark bg-slate-100 rounded-full" aria-label="Search">
-                <Search size={20} />
-              </Link>
+              {/* The magnifier that used to sit here was a <Link href="/">
+                  labelled "Search". It did not search — it navigated to the
+                  homepage, so a screen reader announced "Search" and the user
+                  was taken somewhere else, and on the homepage it appeared to
+                  do nothing at all. The hero carries a real search field a
+                  screen further down, which is what it was standing in for. */}
               <button
                 className="flex h-10 w-10 items-center justify-center text-slate-700 hover:text-brand-dark cursor-pointer"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}

@@ -110,7 +110,15 @@ export function HeroSearchSection() {
       <div className="w-full flex flex-col items-center gap-4 lg:flex-row lg:items-center lg:justify-center">
         {/* Trust badges: auto-sliding ticker on mobile, spotlight row on desktop */}
         <TrustBadges />
-        <div className={`relative w-full max-w-2xl transition-all duration-300 ${isFocused ? "scale-[1.01]" : ""}`} ref={containerRef}>
+        {/* z-50 is load-bearing and not decoration. Focusing the input applies
+              scale-[1.01], and a transform creates a stacking context — which
+              traps the suggestions panel's own z-50 inside this wrapper. The
+              Top Ranking / Full Catalog pills below carry .liquid-glass-card,
+              whose backdrop-filter makes stacking contexts of them too, and
+              being later siblings at z-auto they then paint straight over the
+              open dropdown. An explicit z-index here lifts the whole wrapper
+              instead, so the panel clears them. */}
+          <div className={`relative z-50 w-full max-w-2xl transition-all duration-300 ${isFocused ? "scale-[1.01]" : ""}`} ref={containerRef}>
           <form
             onSubmit={(e) => { e.preventDefault(); runSearch(); }}
             className={`flex items-center w-full h-11 md:h-12 liquid-glass-card hover:!transform-none !rounded-full transition-colors ${isFocused ? "shadow-[0_4px_16px_rgba(39,168,196,0.12)]" : "shadow-sm"}`}
@@ -141,7 +149,7 @@ export function HeroSearchSection() {
           </form>
 
           {isFocused && (
-            <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 z-50 max-h-[70vh] overflow-y-auto custom-scrollbar">
+            <div className="absolute top-full left-0 right-0 mt-3 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 z-50 max-h-[70dvh] overflow-y-auto overscroll-contain custom-scrollbar">
               {hasQuery ? (
                 <>
                   {loading && results.categories.length === 0 && results.products.length === 0 && (
