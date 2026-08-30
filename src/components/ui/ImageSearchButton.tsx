@@ -8,7 +8,7 @@ import { Camera, Check, Upload, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { lockBodyScroll } from "@/lib/scrollLock";
-import { useBackDismiss } from "@/lib/useBackDismiss";
+import { useBackDismiss, overlayHandoff } from "@/lib/useBackDismiss";
 import { capturePhoto, hasNativeCamera, CameraCancelled } from "@/lib/nativeCamera";
 import { cn } from "@/lib/utils";
 
@@ -362,6 +362,10 @@ export function ImageSearchButton({ className }: { className?: string }) {
         setPanelError(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. The limit is 5MB.`);
         return;
       }
+      // The panel is closing because the results are opening. Without this the
+      // panel's history pop arrives after the dialog has pushed its own entry
+      // and closes it on the spot — the photo is taken and nothing appears.
+      overlayHandoff();
       closePanel();
       void onPick(file);
     },

@@ -39,10 +39,30 @@ const MARKER = "__affhanOverlay";
 let navigatingUntil = 0;
 const NAV_GRACE_MS = 1500;
 
-/** Call immediately before a client-side navigation that also closes an overlay. */
+/**
+ * Keep an overlay's history entry when it closes, instead of popping it.
+ *
+ * Two situations need this, and neither is distinguishable from inside the
+ * hook — by the time cleanup runs, the state that would tell them apart has
+ * not been written yet:
+ *
+ *   Navigating away. router.push is asynchronous, so a pop issued during the
+ *   commit cancels a navigation that has not yet touched history.
+ *
+ *   Handing off to another overlay. The photo-search panel closes as the
+ *   results dialog opens; history.back() delivers its popstate a beat later,
+ *   by which point the dialog has pushed its own entry and is listening — so
+ *   the pop closes the dialog the instant it appears.
+ *
+ * Leaving the entry costs nothing. It holds the URL we were already on, so
+ * Back behaves identically whether or not it is there.
+ */
 export function overlayWillNavigate() {
   navigatingUntil = Date.now() + NAV_GRACE_MS;
 }
+
+/** Same mechanism, named for the overlay-to-overlay case. */
+export const overlayHandoff = overlayWillNavigate;
 
 type MarkerState = Record<string, unknown> | null;
 
