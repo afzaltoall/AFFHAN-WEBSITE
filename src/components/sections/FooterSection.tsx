@@ -28,6 +28,10 @@ const usefulLinks = [
   { label: "Terms & Conditions", href: "/terms-conditions/" },
   { label: "Sourcing in Chennai", href: "/sourcing-company-chennai/" },
   { label: "Sourcing in Dubai", href: "/sourcing-company-dubai/" },
+  { label: "Sourcing in UK", href: "/sourcing-company-uk/" },
+  { label: "Sourcing in Singapore", href: "/sourcing-company-singapore/" },
+  { label: "Sourcing in Malaysia", href: "/sourcing-company-malaysia/" },
+  { label: "China Sourcing", href: "/china-sourcing-company/" },
 ];
 
 const socialLinks = [
