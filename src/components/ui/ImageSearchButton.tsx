@@ -8,6 +8,7 @@ import { Camera, Check, Upload, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { lockBodyScroll } from "@/lib/scrollLock";
+import { capturePhoto, hasNativeCamera, CameraCancelled } from "@/lib/nativeCamera";
 import { cn } from "@/lib/utils";
 
 type Result = {
@@ -224,6 +225,15 @@ export function ImageSearchButton({ className }: { className?: string }) {
   const [result, setResult] = useState<Response | null>(null);
   const [inquiry, setInquiry] = useState<Result | null>(null);
 
+  /* Whether a real camera can be opened, which is true only inside the Android
+     app. Resolved in an effect rather than during render because the Capacitor
+     bridge is a client-side global: reading it while rendering would make the
+     server and the browser disagree about the markup and trip hydration. It
+     stays false for one paint, which is correct — the file input works for
+     everyone and the camera button is the addition. */
+  const [nativeCamera, setNativeCamera] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+
   // The upload panel that drops from the camera: paste, drag-drop, or browse.
   const camRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -252,6 +262,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
   useEffect(() => {
     setMounted(true);
     setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
+    setNativeCamera(hasNativeCamera());
   }, []);
 
   /* The panel is portalled to document.body and positioned from the button's
@@ -356,6 +367,29 @@ export function ImageSearchButton({ className }: { className?: string }) {
     [closePanel, onPick],
   );
 
+  /* The fourth way in, and the only one that needs the app: photograph the
+     thing you want sourced. Everything after the shutter is shared — the
+     capture becomes a File and goes through acceptFile like a pasted or
+     dropped one, so the size and type rules apply to it unchanged. */
+  const takePhoto = useCallback(async () => {
+    if (capturing) return;
+    setCapturing(true);
+    setPanelError(null);
+    try {
+      acceptFile(await capturePhoto());
+    } catch (err) {
+      // Backing out of the camera is a decision, not a failure. Saying
+      // anything here would put an error under a panel the user just chose to
+      // leave.
+      if (err instanceof CameraCancelled) return;
+      setPanelError(
+        "The camera would not open. Check the app's camera permission, or upload a photo instead.",
+      );
+    } finally {
+      setCapturing(false);
+    }
+  }, [acceptFile, capturing]);
+
   // Ctrl/Cmd+V anywhere while the panel is open. Bound to the window rather
   // than to a focused input, because there is no text field here to paste into
   // and asking the user to click a box first would be a step for nothing.
@@ -442,30 +476,62 @@ export function ImageSearchButton({ className }: { className?: string }) {
           dragOver ? "border-[#27a8c4] bg-[#27a8c4]/[0.07]" : "border-slate-300 bg-slate-50/70",
         )}
       >
-        <Upload
-          size={26}
-          className={cn("mx-auto mb-2.5 transition-colors", dragOver ? "text-[#176579]" : "text-slate-500")}
-          aria-hidden="true"
-        />
+        {nativeCamera ? (
+          <>
+            <Camera size={26} className="mx-auto mb-2.5 text-[#176579]" aria-hidden="true" />
 
-        <p className="text-[13px] text-slate-700">
-          Paste an image with{" "}
-          <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">
-            {isMac ? "⌘" : "Ctrl"}
-          </kbd>{" "}
-          <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">
-            V
-          </kbd>
-        </p>
-        <p className="mt-1 text-[13px] text-slate-600">or drag and drop one here</p>
+            <p className="text-[13px] font-semibold text-slate-800">Photograph the product</p>
+            <p className="mt-1 text-[13px] leading-[1.5] text-slate-600">
+              Point the camera at a sample and we&rsquo;ll search the catalogue for
+              what matches it.
+            </p>
 
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)] transition-all duration-200 hover:shadow-[0_10px_22px_rgba(23,101,121,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50 focus-visible:ring-offset-2 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"
-        >
-          Upload a file
-        </button>
+            <button
+              type="button"
+              onClick={() => void takePhoto()}
+              disabled={capturing}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)] transition-all duration-200 hover:shadow-[0_10px_22px_rgba(23,101,121,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"
+            >
+              <Camera size={15} aria-hidden="true" />
+              {capturing ? "Opening camera…" : "Take a photo"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="mx-auto mt-3 block rounded text-[13px] font-semibold text-[#176579] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50"
+            >
+              Choose an existing photo
+            </button>
+          </>
+        ) : (
+          <>
+            <Upload
+              size={26}
+              className={cn("mx-auto mb-2.5 transition-colors", dragOver ? "text-[#176579]" : "text-slate-500")}
+              aria-hidden="true"
+            />
+
+            <p className="text-[13px] text-slate-700">
+              Paste an image with{" "}
+              <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">
+                {isMac ? "⌘" : "Ctrl"}
+              </kbd>{" "}
+              <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">
+                V
+              </kbd>
+            </p>
+            <p className="mt-1 text-[13px] text-slate-600">or drag and drop one here</p>
+
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)] transition-all duration-200 hover:shadow-[0_10px_22px_rgba(23,101,121,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50 focus-visible:ring-offset-2 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"
+            >
+              Upload a file
+            </button>
+          </>
+        )}
       </div>
 
       {panelError ? (
