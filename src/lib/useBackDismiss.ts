@@ -20,6 +20,30 @@ import { useEffect, useRef } from "react";
 
 const MARKER = "__affhanOverlay";
 
+/* Set when an overlay is closing *because* we are navigating away.
+
+   Next's App Router navigates asynchronously — router.push awaits the RSC
+   payload before it touches history — while React runs this hook's cleanup
+   synchronously during the commit that follows setState. So in
+
+       onClick={() => { setMenuOpen(false); router.push(href); }}
+
+   the cleanup's history.back() lands first and cancels a navigation that has
+   not yet pushed anything. Measured on the device: the whole tap produced one
+   pushState (ours, on open) and one back, and router.push never reached
+   history at all — the menu item simply did nothing.
+
+   Checking whether our marker is still the current entry does not catch it,
+   because at that instant it is: Next has not pushed yet. The only reliable
+   signal is the caller saying so. */
+let navigatingUntil = 0;
+const NAV_GRACE_MS = 1500;
+
+/** Call immediately before a client-side navigation that also closes an overlay. */
+export function overlayWillNavigate() {
+  navigatingUntil = Date.now() + NAV_GRACE_MS;
+}
+
 type MarkerState = Record<string, unknown> | null;
 
 export function useBackDismiss(open: boolean, onClose: () => void) {
@@ -41,6 +65,7 @@ export function useBackDismiss(open: boolean, onClose: () => void) {
     const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     window.history.pushState({ [MARKER]: id }, "", window.location.href);
 
+    const hrefAtPush = window.location.href;
     let dismissedByBack = false;
     const onPop = () => {
       dismissedByBack = true;
@@ -59,6 +84,13 @@ export function useBackDismiss(open: boolean, onClose: () => void) {
       // Guarded on the marker still being the current entry. Without that, an
       // overlay unmounted by a navigation (a link inside it, or a route
       // change) would call back() and undo the very navigation that closed it.
+      // Navigating away: leave the entry alone. It carries the URL we were
+      // already on, so Back from the new page returns here exactly as it
+      // would have anyway — and popping it now would cancel the navigation.
+      if (Date.now() < navigatingUntil) return;
+      // A navigation that has already committed is the same story.
+      if (window.location.href !== hrefAtPush) return;
+
       const state = window.history.state as MarkerState;
       if (state && state[MARKER] === id) window.history.back();
     };

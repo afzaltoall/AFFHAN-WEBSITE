@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useBackDismiss } from "@/lib/useBackDismiss";
+import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { Search, Mail, X, Menu, ChevronDown, ChevronRight, Layers, Loader2, LayoutGrid, Home, Info, Briefcase } from "lucide-react";
 
 const TopRankingIcon = ({ size, className }: { size?: number, className?: string }) => (
@@ -482,7 +482,7 @@ export function Navbar() {
                 ].map(item => (
                   <button
                     key={item.href}
-                    onClick={() => { setMobileMenuOpen(false); router.push(item.href); }}
+                    onClick={() => { overlayWillNavigate(); setMobileMenuOpen(false); router.push(item.href); }}
                     className="group flex w-full items-center gap-3.5 rounded-2xl px-3 py-3 text-[15px] font-semibold text-slate-700 transition-colors hover:bg-brand/5 hover:text-brand-dark"
                   >
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-colors group-hover:bg-brand/15 group-hover:text-brand">
@@ -497,7 +497,7 @@ export function Navbar() {
               {/* CTA */}
               <div className="shrink-0 border-t border-slate-100 p-4">
                 <button
-                  onClick={() => { setMobileMenuOpen(false); router.push("/contact/"); }}
+                  onClick={() => { overlayWillNavigate(); setMobileMenuOpen(false); router.push("/contact/"); }}
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1d7e93] py-3.5 text-sm font-bold text-white transition-colors hover:bg-brand-dark"
                 >
                   <Mail size={16} /> Request a Quote
