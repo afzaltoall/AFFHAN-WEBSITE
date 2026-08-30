@@ -1,5 +1,5 @@
-const sharp = require('sharp');
-const fs = require('fs');
+import sharp from 'sharp';
+import fs from 'node:fs';
 
 const dir = 'public/Landing-chennai-services';
 const files = [

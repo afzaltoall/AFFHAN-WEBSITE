@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'node:fs';
 const key = fs.readFileSync('.env', 'utf8').match(/CJ_API_KEY="([^"]+)"/)[1];
 
 fetch('https://developers.cjdropshipping.com/api2.0/v1/authentication/getAccessToken', {

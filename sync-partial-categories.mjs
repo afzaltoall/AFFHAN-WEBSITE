@@ -153,7 +153,7 @@ async function upsertProduct(item, categoryId, fallbackCategoryName) {
           flaggedKeyword: mod.keyword,
         },
       });
-    } catch (e) {
+    } catch {
       // likely already logged before, ignore
     }
     return "moderated";
