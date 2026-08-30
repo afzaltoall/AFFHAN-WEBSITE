@@ -62,11 +62,18 @@ export function PrismaHero() {
     offset: ["start start", "end end"],
   });
 
-  // Mirrored into state because the word loop reads it during render. Rounded
-  // so a sub-pixel scroll does not queue a re-render nobody can see.
+  /* Two update paths, because the two halves of this section cost very
+     different amounts to redraw.
+
+     The forty words are written straight to the DOM below, outside React. The
+     footnote rows, the fact line and the button are half a dozen elements, so
+     they stay on state — quantised to fiftieths, which is fifty re-renders
+     across the whole scroll instead of one per frame. Rounding to thousandths
+     as before meant a re-render on very nearly every frame, and each one
+     rebuilt the style object of all forty words as well. */
   const [raw, setRaw] = useState(0);
   useMotionValueEvent(scrollYProgress, "change", (v) => {
-    const next = Math.round(v * 1000) / 1000;
+    const next = Math.round(v * 50) / 50;
     setRaw((prev) => (prev === next ? prev : next));
   });
   // With reduced motion the section is simply fully revealed.
@@ -81,14 +88,9 @@ export function PrismaHero() {
   const LIST_FROM = 0.54;
   const LIST_TO = 0.86;
 
+  // Each word lifts over three word-widths, so several are always in motion
+  // and the sentence reads as a wave rather than a row of switches.
   const span = (READ_TO - READ_FROM) / WORDS.length;
-  const wordLit = (i: number) => {
-    if (reduced) return 1;
-    // Each word lifts over three word-widths, so several are always in motion
-    // and the sentence reads as a wave rather than a row of switches.
-    const t = (p - (READ_FROM + i * span)) / (span * 3);
-    return Math.min(1, Math.max(0, t));
-  };
 
   const rowLit = (i: number) => {
     if (reduced) return 1;
@@ -99,11 +101,46 @@ export function PrismaHero() {
   const factsLit = reduced ? 1 : Math.min(1, Math.max(0, (p - 0.84) / 0.06));
   const ctaLit = reduced ? 1 : Math.min(1, Math.max(0, (p - 0.88) / 0.06));
 
-  // Lit navy and unlit grey, both measured against the background above.
+  /* Lit navy and unlit grey, both measured against the background above.
+
+     No transition. There was one — color and transform over 0.2s — and it was
+     actively harmful: the value behind it was being replaced on every scroll
+     frame, so the browser was running forty colour interpolations that never
+     reached their target before the next one arrived. Scroll position already
+     supplies the smoothness; the transition only added work. */
   const ink = (lit: number) => ({
     color: `color-mix(in srgb, #08222e ${Math.round(lit * 100)}%, #63757d)`,
     transform: `translateY(${(1 - lit) * 5}px)`,
-    transition: "color 0.2s linear, transform 0.2s linear",
+  });
+
+  /* The words are painted by hand, not by React.
+
+     Changing a word's colour re-rasterises its text, and there are forty of
+     them. Driving that through state meant React reconciling forty elements
+     and the compositor repainting all forty on every frame of a scroll, even
+     though at any moment only the three or four words inside the wave are
+     actually changing.
+
+     So each span keeps a ref, and the scroll handler writes only the ones
+     whose value has moved. Quantised to twenty-five steps: finer than the eye
+     resolves across a word's reveal, and it collapses a continuous stream of
+     repaints into a couple of dozen per word for the whole section. */
+  const wordEls = useRef<(HTMLSpanElement | null)[]>([]);
+  const wordStep = useRef<number[]>([]);
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    if (reduced) return;
+    for (let i = 0; i < WORDS.length; i += 1) {
+      const el = wordEls.current[i];
+      if (!el) continue;
+      const t = (v - (READ_FROM + i * span)) / (span * 3);
+      const lit = t < 0 ? 0 : t > 1 ? 1 : t;
+      const step = Math.round(lit * 25);
+      if (wordStep.current[i] === step) continue;
+      wordStep.current[i] = step;
+      const pct = step * 4;
+      el.style.color = `color-mix(in srgb, #08222e ${pct}%, #63757d)`;
+      el.style.transform = `translateY(${((100 - pct) / 100) * 5}px)`;
+    }
   });
 
   return (
@@ -132,8 +169,11 @@ export function PrismaHero() {
                 {WORDS.map((word, i) => (
                   <span
                     key={`${word}-${i}`}
+                    ref={(el) => {
+                      wordEls.current[i] = el;
+                    }}
                     className="inline-block whitespace-pre"
-                    style={ink(wordLit(i))}
+                    style={ink(reduced ? 1 : 0)}
                   >
                     {word}
                     {i < WORDS.length - 1 ? " " : ""}

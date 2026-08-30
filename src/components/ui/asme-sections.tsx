@@ -48,7 +48,10 @@ function Section1Hero() {
   });
   const [raw, setRaw] = useState(0);
   useMotionValueEvent(scrollYProgress, "change", (v) => {
-    const next = Math.round(v * 100) / 100;
+    // Fiftieths, not hundredths: half the re-renders for a step finer
+      // than the eye resolves. Only a handful of elements depend on this, so
+      // it is not worth the hand-written DOM writes prisma-hero needed.
+      const next = Math.round(v * 50) / 50;
     setRaw((prev) => (prev === next ? prev : next));
   });
   const p = reduced ? 1 : raw;
@@ -317,7 +320,10 @@ function Section4Philosophy() {
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
   const [dayP, setDayP] = useState(0);
   useMotionValueEvent(scrollYProgress, "change", (v) => {
-    const next = Math.round(v * 100) / 100;
+    // Fiftieths, not hundredths: half the re-renders for a step finer
+      // than the eye resolves. Only a handful of elements depend on this, so
+      // it is not worth the hand-written DOM writes prisma-hero needed.
+      const next = Math.round(v * 50) / 50;
     setDayP((prev) => (prev === next ? prev : next));
   });
   const reducedDay = useReducedMotion();
