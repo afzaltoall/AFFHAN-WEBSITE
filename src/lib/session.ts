@@ -46,7 +46,7 @@ export function verifySession(token: string | undefined): SessionUser | null {
 
 export const cookieOptions = {
   httpOnly: true,
-  sameSite: "lax" as const,
+  sameSite: "strict" as const,
   secure: process.env.NODE_ENV === "production",
   path: "/",
   maxAge: MAX_AGE,

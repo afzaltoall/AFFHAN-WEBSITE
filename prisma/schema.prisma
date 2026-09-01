@@ -41,6 +41,7 @@ model Category {
 
   products     Product[]
   syncProgress SyncProgress?
+  videos       Video[]
 }
 
 model SyncProgress {
@@ -178,4 +179,33 @@ model Supplier {
   @@index([serial])
   @@index([companyName])
   @@index([personName])
+}
+
+// Videos shown in the app's Play tab and managed from /admin/videos.
+//
+// videoUrl and thumbnailUrl are CloudFront URLs, not S3 keys: the files live
+// under a videos/ prefix in the same bucket the product images use, so the
+// existing distribution serves them and no new infrastructure is involved.
+//
+// The file itself never passes through the API. A Vercel function caps its
+// request body at 4.5MB, which is smaller than almost any real video, so the
+// browser PUTs straight to S3 with a presigned URL and only the resulting URL
+// is posted here.
+model Video {
+  id           String    @id @default(uuid())
+  title        String
+  description  String?   @db.Text
+  thumbnailUrl String
+  videoUrl     String
+  views        Int       @default(0)
+  createdAt    DateTime  @default(now())
+
+  // Optional, and SetNull rather than Cascade: deleting a category must not
+  // silently delete the videos filed under it.
+  categoryId   String?
+  category     Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  // The Play tab lists newest-first, and the admin filters by category.
+  @@index([createdAt])
+  @@index([categoryId])
 }

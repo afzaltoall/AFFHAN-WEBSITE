@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Turnstile, TurnstileInstance } from "@marsidev/react-turnstile";
+import { useRef } from "react";
 
 const quotes = [
   { title: "Source anything from China, effortlessly.", subtitle: "Sign in to manage your quote requests and sourcing inquiries with Affhan International." },
@@ -23,6 +25,8 @@ function LoginContent() {
   const [loading, setLoading] = useState(false);
   const [quoteIdx, setQuoteIdx] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -33,18 +37,25 @@ function LoginContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!turnstileToken) {
+      setError("Please complete the security check.");
+      return;
+    }
+    
     setError(null);
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstileToken }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Login failed.");
         setLoading(false);
+        turnstileRef.current?.reset();
+        setTurnstileToken(null);
         return;
       }
       // Admins land on the dashboard, everyone else on home.
@@ -53,6 +64,8 @@ function LoginContent() {
     } catch {
       setError("Something went wrong. Please try again.");
       setLoading(false);
+      turnstileRef.current?.reset();
+      setTurnstileToken(null);
     }
   };
 
@@ -138,10 +151,21 @@ function LoginContent() {
                 </button>
               </div>
             </div>
+            
+            <div className="flex justify-center pt-2">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+                onSuccess={(token) => setTurnstileToken(token)}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => { setTurnstileToken(null); setError("Security check failed. Please try again."); }}
+                options={{ theme: "light", action: "admin_login" }}
+              />
+            </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !turnstileToken}
               className="w-full py-3 rounded-xl bg-white hover:bg-slate-50 text-brand font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-70 shadow-sm"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}

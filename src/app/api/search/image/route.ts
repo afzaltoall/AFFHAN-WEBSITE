@@ -11,7 +11,7 @@ import {
   ImageDecodeFailed,
   ACCEPTED_IMAGE_TYPES,
   MAX_IMAGE_BYTES,
-} from "@/lib/imageSearch";
+} from "@/lib/imageSearch";import { checkImageSearchRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 /** Vision call plus a catalogue query. Comfortably inside the Hobby limit, but
@@ -38,6 +38,18 @@ type ProductRow = {
  * product, a price or a lead time. Results are real rows or there are none.
  */
 export async function POST(request: NextRequest) {
+  // Check rate limit first
+  const rateLimit = await checkImageSearchRateLimit(request);
+  if (!rateLimit.success) {
+    return NextResponse.json(
+      { error: "Too many image searches. Please try again later." },
+      { 
+        status: 429, 
+        headers: { "Retry-After": Math.ceil(((rateLimit.reset || Date.now()) - Date.now()) / 1000).toString() }
+      }
+    );
+  }
+
   let form: FormData;
   try {
     form = await request.formData();

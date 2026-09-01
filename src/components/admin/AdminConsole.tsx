@@ -8,7 +8,7 @@ import {
   LayoutGrid, Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu,
+  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -49,7 +49,7 @@ interface Theme {
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
-    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; jobAlerts: number; suppliers: number };
+    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; jobAlerts: number; suppliers: number; videos: number };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
     jobAlerts: JobAlert[]; deletedJobAlerts: JobAlert[];
@@ -574,6 +574,7 @@ export function AdminConsole({ data }: Props) {
     { label: "Messages", value: data.stats.contacts, icon: MessageSquare, tint: "text-emerald-500", bg: dark ? "bg-emerald-500/15" : "bg-emerald-50" },
     { label: "Careers", value: data.stats.jobAlerts, icon: Briefcase, tint: "text-rose-500", bg: dark ? "bg-rose-500/15" : "bg-rose-50" },
     { label: "Suppliers", value: data.stats.suppliers, hint: "From the WeChat book", icon: Users, tint: "text-teal-500", bg: dark ? "bg-teal-500/15" : "bg-teal-50" },
+    { label: "Videos", value: data.stats.videos, icon: PlayCircle, tint: "text-fuchsia-500", bg: dark ? "bg-fuchsia-500/15" : "bg-fuchsia-50" },
   ];
 
   return (
@@ -612,6 +613,14 @@ export function AdminConsole({ data }: Props) {
               <Users size={17} className={t.soft} />
               <span className="flex-1 text-left">Suppliers</span>
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.suppliers)}</span>
+            </Link>
+            <Link
+              href="/admin/videos/"
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
+            >
+              <PlayCircle size={17} className={t.soft} />
+              <span className="flex-1 text-left">Videos</span>
+              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.videos)}</span>
             </Link>
           </nav>
           <div className={`border-t p-3 ${t.border}`}>
@@ -691,7 +700,7 @@ export function AdminConsole({ data }: Props) {
             {statCards.map((s) => (
               <button
                 key={s.label}
-                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Careers") setView("careers"); else if (s.label === "Suppliers") router.push("/admin/suppliers/"); }}
+                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Careers") setView("careers"); else if (s.label === "Suppliers") router.push("/admin/suppliers/"); else if (s.label === "Videos") router.push("/admin/videos/"); }}
                 className={`rounded-2xl p-5 text-left shadow-sm ring-1 transition-all hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
               >
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${s.bg}`}>

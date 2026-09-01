@@ -32,7 +32,7 @@ export default async function AdminPage() {
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
-        inquiries: bigint; contacts: bigint; jobAlerts: bigint; suppliers: bigint;
+        inquiries: bigint; contacts: bigint; jobAlerts: bigint; suppliers: bigint; videos: bigint;
       }]>`
         SELECT
           (SELECT count(*) FROM "Product")                                        AS products,
@@ -45,7 +45,8 @@ export default async function AdminPage() {
           (SELECT count(*) FROM "Inquiry"        WHERE status <> 'deleted')        AS inquiries,
           (SELECT count(*) FROM "ContactMessage" WHERE status <> 'deleted')        AS contacts,
           (SELECT count(*) FROM "JobAlert"       WHERE status <> 'deleted')        AS "jobAlerts",
-          (SELECT count(*) FROM "Supplier")                                        AS suppliers
+          (SELECT count(*) FROM "Supplier")                                        AS suppliers,
+          (SELECT count(*) FROM "Video")                                           AS videos
       `,
       // High take so the "All" customer checklist and grouping never silently
       // drop rows — the master export reads the full DB server-side regardless.
@@ -71,6 +72,7 @@ export default async function AdminPage() {
   const contactCount = n(counts[0].contacts);
   const jobAlertCount = n(counts[0].jobAlerts);
   const supplierCount = n(counts[0].suppliers);
+  const videoCount = n(counts[0].videos);
 
   const inquiries = allInquiries.filter((i) => i.status !== "deleted");
   const deletedInquiries = allInquiries.filter((i) => i.status === "deleted");
@@ -126,6 +128,7 @@ export default async function AdminPage() {
       contacts: contactCount,
       jobAlerts: jobAlertCount,
       suppliers: supplierCount,
+      videos: videoCount,
     },
     inquiries: inquiries.map(mapInquiry),
     deletedInquiries: deletedInquiries.map(mapInquiry),
