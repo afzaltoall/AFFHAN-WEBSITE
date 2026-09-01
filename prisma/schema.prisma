@@ -209,3 +209,45 @@ model Video {
   @@index([createdAt])
   @@index([categoryId])
 }
+
+// -----------------------------------------------------------------------------
+// MOBILE APP AUTHENTICATION
+// -----------------------------------------------------------------------------
+// Dedicated authentication system exclusively for the Flutter mobile application.
+// Completely isolated from the AdminUser system.
+model MobileUser {
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  passwordHash  String?         // Nullable for Google-only users
+  profileImage  String?         @db.Text
+  authProvider  String          // "EMAIL", "GOOGLE", or "EMAIL_AND_GOOGLE"
+  emailVerified Boolean         @default(false)
+  googleId      String?         @unique // Verified Google 'sub' claim
+  
+  accountStatus String          @default("ACTIVE") // ACTIVE, SUSPENDED
+  loginCount    Int             @default(0)
+  lastLoginAt   DateTime?
+  
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  sessions      MobileSession[]
+
+  @@index([email])
+}
+
+// Mobile sessions using cryptographically secure opaque tokens.
+// The raw token is NEVER stored in the database. 
+// tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+model MobileSession {
+  id        String     @id @default(uuid())
+  tokenHash String     @unique 
+  userId    String
+  user      MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime   @default(now())
+
+  @@index([tokenHash])
+  @@index([userId])
+}

@@ -8,7 +8,7 @@ import {
   LayoutGrid, Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle,
+  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle, Smartphone,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -621,6 +621,13 @@ export function AdminConsole({ data }: Props) {
               <PlayCircle size={17} className={t.soft} />
               <span className="flex-1 text-left">Videos</span>
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.videos)}</span>
+            </Link>
+            <Link
+              href="/admin/users/"
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
+            >
+              <Smartphone size={17} className={t.soft} />
+              <span className="flex-1 text-left">App Users</span>
             </Link>
           </nav>
           <div className={`border-t p-3 ${t.border}`}>
