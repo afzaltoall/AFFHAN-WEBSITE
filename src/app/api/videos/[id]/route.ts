@@ -27,7 +27,7 @@ export async function GET(
 
   try {
     const rateLimit = await checkVideoViewRateLimit(req as any, id);
-    
+
     // If rate limited, we still return the video, just DON'T increment the views.
     if (!rateLimit.success) {
       const video = await prisma.video.findUnique({

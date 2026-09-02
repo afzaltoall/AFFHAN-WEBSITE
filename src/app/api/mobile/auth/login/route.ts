@@ -13,8 +13,8 @@ export async function POST(request: Request) {
     if (!rateLimit.success) {
       return NextResponse.json(
         { error: "Too many login attempts. Please try again later." },
-        { 
-          status: 429, 
+        {
+          status: 429,
           headers: { "Retry-After": Math.ceil(((rateLimit.reset || Date.now()) - Date.now()) / 1000).toString() }
         }
       );
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
     if (!user.passwordHash) {
       // User registered with Google and has no password set
-      return authFailedResponse; 
+      return authFailedResponse;
     }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);

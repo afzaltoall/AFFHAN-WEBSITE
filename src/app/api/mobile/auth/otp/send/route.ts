@@ -41,7 +41,7 @@ export async function POST(req: Request) {
       const nowMs = Date.now();
       const createdMs = latestOtp.createdAt.getTime();
       const diffMs = nowMs - createdMs;
-      
+
       if (diffMs < OTP_RESEND_COOLDOWN_MS) {
         const remaining = Math.ceil((OTP_RESEND_COOLDOWN_MS - diffMs) / 1000);
         return NextResponse.json(

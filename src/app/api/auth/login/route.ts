@@ -9,19 +9,19 @@ export const dynamic = "force-dynamic";
 export async function POST(request: Request) {
   try {
     const { email, password, turnstileToken } = await request.json();
-    
+
     // 1. Validate CAPTCHA (Turnstile) first
     if (!turnstileToken) {
       return NextResponse.json({ error: "Please complete the security check." }, { status: 400 });
     }
-    
+
     const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
     if (turnstileSecret) {
       const formData = new URLSearchParams();
       formData.append("secret", turnstileSecret);
       formData.append("response", turnstileToken);
       // Optional: you can also pass remoteip here if needed, but not strictly required by CF unless enabled
-      
+
       const cfRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
         method: "POST",
         body: formData,
@@ -39,8 +39,8 @@ export async function POST(request: Request) {
     if (!rateLimit.success) {
       return NextResponse.json(
         { error: "Too many login attempts. Please try again later." },
-        { 
-          status: 429, 
+        {
+          status: 429,
           headers: { "Retry-After": Math.ceil(((rateLimit.reset || Date.now()) - Date.now()) / 1000).toString() }
         }
       );
