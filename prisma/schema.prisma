@@ -24,7 +24,8 @@ model Product {
   description String?   @db.Text
   lastSynced  DateTime? @default(now())
 
-  inquiries Inquiry[]
+  inquiries       Inquiry[]
+  mobileInquiries MobileInquiry[]
 
   @@index([categoryId])
   @@index([name])
@@ -237,6 +238,7 @@ model MobileUser {
   updatedAt     DateTime        @updatedAt
 
   sessions      MobileSession[]
+  inquiries     MobileInquiry[]
 
   @@index([email])
 }
@@ -254,4 +256,60 @@ model MobileSession {
 
   @@index([tokenHash])
   @@index([userId])
+}
+
+// Inquiries raised from the mobile app.
+//
+// Deliberately NOT the Inquiry model above. That one is the website's guest
+// quote form: no account behind it, its own status vocabulary (new/handled/
+// spam), and the admin console, the CSV exports and two public POST routes all
+// read it. App inquiries belong to a MobileUser, carry a status the customer is
+// shown, and are worked in a separate admin screen — so they get their own
+// table, the same way MobileUser is kept apart from AdminUser.
+model MobileInquiry {
+  id     String     @id @default(uuid())
+  userId String
+  user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId Int?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  // Copied at submission time. The catalogue is re-synced from CJ daily and a
+  // product can vanish from it; an inquiry still has to render its own history.
+  productName  String
+  productImage String? @db.Text
+
+  requestedMOQ Int
+
+  // PENDING | CHECKED | IN_PROGRESS | CUSTOM. With CUSTOM the admin's own
+  // wording in statusNote is what the customer sees; for the fixed three it is
+  // an optional note shown underneath.
+  status     String  @default("PENDING")
+  statusNote String? @db.Text
+
+  // Last time the customer changed the quantity. The full before/after trail
+  // lives in MobileInquiryMoqEdit — a single timestamp cannot answer "what did
+  // they change it from", which is the thing the sourcing team needs to see.
+  moqEditedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  moqEdits MobileInquiryMoqEdit[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+// One row per customer edit of the requested quantity, so the admin screen can
+// show "changed 500 -> 1200" rather than only the latest number.
+model MobileInquiryMoqEdit {
+  id        String        @id @default(uuid())
+  inquiryId String
+  inquiry   MobileInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  fromMOQ   Int
+  toMOQ     Int
+  editedAt  DateTime      @default(now())
+
+  @@index([inquiryId])
 }
