@@ -70,3 +70,10 @@ public/static/images/map*.png
 # served, and not worth carrying in git history. Keep them in cloud storage;
 # only the encoded output under public/ is committed.
 /media-source/
+
+# Agent Scratch
+.claude/
+.gemini/
+*.mjs
+*.csv
+flutter-patch-*.js

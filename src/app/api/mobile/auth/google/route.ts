@@ -93,6 +93,9 @@ export async function POST(request: Request) {
 
     await prisma.mobileSession.create({
       data: {
+        // Stamped so the admin lists can tell an app session from a
+        // browser one without inferring it from a missing value.
+        platform: "APP",
         tokenHash,
         userId: user.id,
         expiresAt,

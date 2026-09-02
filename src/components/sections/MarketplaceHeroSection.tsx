@@ -11,6 +11,7 @@ import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
+import { ShippingBar } from "@/components/ui/ShippingBar";
 
 // The diverse-sample query can return overlapping products across paged
 // load-more calls; dedupe by id so a duplicate React key never reaches the
@@ -175,6 +176,7 @@ export function MarketplaceHeroSection() {
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
           <div className="relative mb-3 flex justify-center">
+            <ShippingBar />
             <style dangerouslySetInnerHTML={{
               __html: `
               @keyframes b2bFlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
@@ -435,7 +437,12 @@ export function MarketplaceHeroSection() {
                 Clicking a category opens the same full mega-panel the navbar
                 uses (centered modal); no hover means no page dim/blur. */}
           <div className="col-span-1 relative">
-            <div className="absolute inset-0 flex flex-col liquid-glass-card !border-none z-30">
+            {/* Same liquid-glass-card the product cards beside it use, borders
+                included. It previously carried !border-none, which removed the
+                white top/left highlight and the darker bottom/right edge — the
+                two things that make the surface read as glass rather than as a
+                flat translucent panel. */}
+            <div className="absolute inset-0 flex flex-col liquid-glass-card overflow-hidden z-30">
               <button
                 onClick={() => openMega(null)}
                 className="flex items-center px-4 py-3 cursor-pointer transition-colors w-full hover:bg-white/40 border-b border-slate-200/50 group shrink-0 text-left"

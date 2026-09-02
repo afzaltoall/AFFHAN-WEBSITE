@@ -16,6 +16,9 @@ const DETAIL_SELECT = {
   moqEditedAt: true,
   createdAt: true,
   updatedAt: true,
+  moqHistory: {
+    orderBy: { createdAt: "desc" },
+  },
 } as const;
 
 // One inquiry, for the detail screen.
@@ -78,8 +81,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // The inquiry and its trail move together — an admin looking at a changed
     // quantity must always find the row saying where it came from.
     const [, updated] = await prisma.$transaction([
-      prisma.mobileInquiryMoqEdit.create({
-        data: { inquiryId: existing.id, fromMOQ: existing.requestedMOQ, toMOQ: requestedMOQ },
+      prisma.mobileInquiryMoqHistory.create({
+        data: { 
+          inquiryId: existing.id, 
+          oldMOQ: existing.requestedMOQ, 
+          newMOQ: requestedMOQ,
+          changedByUserId: user.id
+        },
       }),
       prisma.mobileInquiry.update({
         where: { id: existing.id },

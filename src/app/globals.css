@@ -17,6 +17,160 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Sea along the bottom of the Affhan Shipping pill.
+ *
+ * Three layers, each a wave drawn once and tiled horizontally, drifting at a
+ * different speed. One wave alone reads as a decal; layers sliding past each
+ * other read as water, because that parallax is what depth actually looks like
+ * on a moving surface.
+ *
+ * The periods are deliberately not multiples of each other (9s / 6.5s / 4.5s),
+ * so the three never realign into a visibly repeating frame.
+ *
+ * Each layer is 200% wide and travels exactly -50%, which lands the tile back
+ * on itself — the loop has no seam. Only `transform` animates. */
+@keyframes ship-wave-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+.ship-wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  background-repeat: repeat-x;
+  background-size: 50% 100%;
+  animation: ship-wave-drift linear infinite;
+  will-change: transform;
+}
+
+/* Furthest back: palest, slowest, sitting lowest. */
+.ship-wave--back {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 20' preserveAspectRatio='none'%3E%3Cpath d='M0 12c10 0 15-5 30-5s20 5 30 5 15-5 30-5 20 5 30 5v8H0z' fill='%2327a8c4' fill-opacity='0.18'/%3E%3C/svg%3E");
+  animation-duration: 9s;
+}
+
+.ship-wave--mid {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 20' preserveAspectRatio='none'%3E%3Cpath d='M0 14c12 0 16-6 28-6s18 6 32 6 16-6 28-6 18 6 32 6v6H0z' fill='%2327a8c4' fill-opacity='0.28'/%3E%3C/svg%3E");
+  animation-duration: 6.5s;
+  animation-direction: reverse;
+}
+
+/* Nearest: strongest, quickest, and the one with a crest of foam on it. */
+.ship-wave--front {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 20' preserveAspectRatio='none'%3E%3Cpath d='M0 16c14 0 14-7 30-7s16 7 30 7 14-7 30-7 16 7 30 7v4H0z' fill='%23176579' fill-opacity='0.4'/%3E%3Cpath d='M0 16c14 0 14-7 30-7s16 7 30 7 14-7 30-7 16 7 30 7' fill='none' stroke='%23ffffff' stroke-opacity='0.55' stroke-width='1'/%3E%3C/svg%3E");
+  animation-duration: 4.5s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ship-wave { animation: none; }
+}
+
+/* Water splash under the cursor on the Affhan Shipping pill.
+ *
+ * Two parts, because a real splash is two things: the ring that races outward
+ * across the surface, and the droplets thrown up out of it that then fall back
+ * under gravity.
+ *
+ * The droplets do not travel in a straight line. Each gets an --dx/--dy from
+ * the component and the keyframes ease the vertical component differently from
+ * the horizontal one, so they rise, slow, and drop — a linear translate reads
+ * as sparks, not water.
+ *
+ * transform and opacity only: a burst of a dozen elements animating anything
+ * that triggers layout would stutter on the hover it is meant to reward. */
+@keyframes splash-ring {
+  0%   { transform: translate(-50%, -50%) scale(0.15); opacity: 0.55; }
+  70%  { opacity: 0.18; }
+  100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+@keyframes splash-drop {
+  0% {
+    transform: translate(-50%, -50%) translate(0, 0) scale(1);
+    opacity: 0.9;
+  }
+  /* Apex: most of the horizontal distance is covered, the rise is spent. */
+  55% {
+    transform: translate(-50%, -50%)
+      translate(calc(var(--dx) * 0.7), calc(var(--dy) * 1.05)) scale(0.85);
+    opacity: 0.75;
+  }
+  100% {
+    transform: translate(-50%, -50%)
+      translate(var(--dx), calc(var(--dy) * -0.35 + 16px)) scale(0.35);
+    opacity: 0;
+  }
+}
+
+.splash-ring {
+  position: absolute;
+  border-radius: 9999px;
+  border: 1.5px solid rgba(39, 168, 196, 0.55);
+  background: radial-gradient(circle, rgba(39, 168, 196, 0.14) 0%, transparent 70%);
+  animation: splash-ring 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.splash-drop {
+  position: absolute;
+  border-radius: 9999px;
+  /* A droplet is not a flat dot: a bright specular edge on top, teal body,
+     matching the beads on the hero badge. */
+  background: radial-gradient(
+    circle at 32% 28%,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(160, 226, 240, 0.9) 38%,
+    rgba(39, 168, 196, 0.85) 100%
+  );
+  box-shadow: 0 1px 2px rgba(23, 101, 121, 0.35);
+  animation: splash-drop 700ms cubic-bezier(0.33, 0.9, 0.4, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-ring,
+  .splash-drop { display: none; }
+}
+
+/* Scroll reveals (see components/ui/Reveal.tsx).
+ *
+ * The hidden state lives under prefers-reduced-motion: no-preference, so a
+ * visitor who has asked for less motion never has content hidden from them
+ * waiting for an animation that will not play — the rule simply does not apply
+ * and everything renders in place.
+ *
+ * Transform and opacity only: both are composited, so a page of these does not
+ * cost a layout on every frame the way animating height or top would. */
+@media (prefers-reduced-motion: no-preference) {
+  .reveal {
+    opacity: 0;
+    transform: translateY(var(--reveal-shift, 24px));
+    transition:
+      opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+    /* Dropped once it has played; leaving it on promotes a layer for the life
+       of the page, for an animation that will never run again. */
+    will-change: auto;
+  }
+
+  /* Touch scrolling carries momentum, so a long travel distance reads as the
+     content chasing the finger. Shorter shift, quicker settle. */
+  @media (max-width: 767px) {
+    .reveal {
+      transform: translateY(var(--reveal-shift-mobile, 14px));
+      transition-duration: 0.45s;
+    }
+  }
+}
+
 /* Crisper text rendering for the premium sans across the whole site. */
 html {
   -webkit-font-smoothing: antialiased;

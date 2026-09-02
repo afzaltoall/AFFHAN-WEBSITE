@@ -1,10 +1,15 @@
 import Image from "next/image";
+import Link from "next/link";
 
 /**
- * The AFFHAN sail mark, in the gap on the right of the navbar.
+ * The AFFHAN sail mark, in the gap on the right of the navbar — now the way in
+ * to the shipping side of the business.
  *
- * Decorative only, so it is aria-hidden with an empty alt — a screen reader
- * announcing "ship" between the search field and the About link would be noise.
+ * It began decorative and aria-hidden. As a link it cannot stay that way: a
+ * control with no accessible name is announced as just "link", so the mark
+ * carries an aria-label and a visible tooltip instead. The <img> itself keeps
+ * its empty alt, because the label belongs on the anchor — naming both would
+ * have a screen reader read the destination twice.
  *
  * No SVG sea under it, deliberately. Earlier revisions of this component drew
  * three animated wave layers because the supplied artwork was a photograph of a
@@ -35,9 +40,11 @@ export function ShipNavMark({ className = "" }: { className?: string }) {
      * No fixed height either: the parent nav row is already `items-center`, so
      * the mark inherits the bar's own vertical centre instead of guessing at
      * it. */
-    <span
-      aria-hidden="true"
-      className={`ship-mark flex shrink-0 items-center ${className}`}
+    <Link
+      href="/shipping/"
+      aria-label="Shipping and freight forwarding"
+      title="Shipping & freight forwarding"
+      className={`ship-mark flex shrink-0 items-center rounded-lg transition-opacity hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand ${className}`}
     >
       {/* w-/h-auto as a pair: sizing only one of the two makes next/image warn
           that the aspect ratio changed, and it would be right. */}
@@ -49,6 +56,6 @@ export function ShipNavMark({ className = "" }: { className?: string }) {
         sizes="44px"
         className="ship-mark__vessel block w-11 h-auto object-contain"
       />
-    </span>
+    </Link>
   );
 }

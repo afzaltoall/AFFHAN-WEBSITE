@@ -26,6 +26,8 @@ model Product {
 
   inquiries       Inquiry[]
   mobileInquiries MobileInquiry[]
+  views           ProductView[]
+  favourites      ProductFavourite[]
 
   @@index([categoryId])
   @@index([name])
@@ -221,15 +223,28 @@ model Video {
 // Dedicated authentication system exclusively for the Flutter mobile application.
 // Completely isolated from the AdminUser system.
 model MobileUser {
-  id            String          @id @default(uuid())
-  name          String
-  email         String          @unique
+  id String @id @default(uuid())
+  // The display name, kept populated for everything that already reads it —
+  // the navbar, the admin lists, the inquiry rows. Sign-up now collects the
+  // two halves separately, so they are stored as well rather than being
+  // reverse-engineered out of `name` later by splitting on a space, which gets
+  // "Van der Berg" and every mononym wrong.
+  name      String
+  firstName String?
+  lastName  String?
+  // Nullable since phone sign-in: someone who only ever entered a number has
+  // no email to store. Postgres allows many NULLs under a unique index, so the
+  // constraint still holds for everyone who does have one. Code must treat a
+  // MobileUser as having an email OR a phone, never assume both.
+  email         String?         @unique
+  phone         String?         @unique // E.164, e.g. +919876543210
+  phoneVerified Boolean         @default(false)
   passwordHash  String?         // Nullable for Google-only users
   profileImage  String?         @db.Text
-  authProvider  String          // "EMAIL", "GOOGLE", or "EMAIL_AND_GOOGLE"
+  authProvider  String          // "EMAIL", "GOOGLE", "EMAIL_AND_GOOGLE", or "PHONE"
   emailVerified Boolean         @default(false)
   googleId      String?         @unique // Verified Google 'sub' claim
-  
+
   accountStatus String          @default("ACTIVE") // ACTIVE, SUSPENDED
   loginCount    Int             @default(0)
   lastLoginAt   DateTime?
@@ -239,8 +254,39 @@ model MobileUser {
 
   sessions      MobileSession[]
   inquiries     MobileInquiry[]
+  productViews  ProductView[]
+  favourites    ProductFavourite[]
+  changes       AccountChange[]
 
   @@index([email])
+  @@index([phone])
+}
+
+// One-time codes for phone sign-in.
+//
+// Only the hash is stored, for the same reason session tokens are hashed: a
+// database copy must not hand someone a working login. Rows are keyed by phone
+// rather than by user, because the first code someone receives is sent before
+// any account exists.
+model MobilePhoneOtp {
+  id    String @id @default(uuid())
+  phone String // E.164
+  // Null since the move to Twilio Verify, which generates, holds, expires and
+  // checks the code itself — we never see the digits. Rows are now a record
+  // that a send happened, used for the resend cooldown and to keep our own
+  // endpoint from being hammered into a Twilio bill. Kept nullable rather than
+  // dropped so rows written by the earlier self-issued implementation survive.
+  codeHash String?
+
+  // Guesses spent against this code. A short numeric code is trivially
+  // brute-forced without a ceiling.
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
 }
 
 // Mobile sessions using cryptographically secure opaque tokens.
@@ -248,9 +294,15 @@ model MobileUser {
 // tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
 model MobileSession {
   id        String     @id @default(uuid())
-  tokenHash String     @unique 
+  tokenHash String     @unique
   userId    String
   user      MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Where this session was opened: APP (Bearer token in secure storage) or WEB
+  // (httpOnly cookie). The token and the table are the same either way — this
+  // only records which envelope it travels in, so "sign out everywhere else"
+  // and support questions can tell the two apart. Nullable because sessions
+  // predating the website had no such distinction to record.
+  platform  String?
   expiresAt DateTime
   createdAt DateTime   @default(now())
 
@@ -294,22 +346,97 @@ model MobileInquiry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  moqEdits MobileInquiryMoqEdit[]
+  moqHistory MobileInquiryMoqHistory[]
 
   @@index([userId])
   @@index([status])
   @@index([createdAt(sort: Desc)])
 }
 
-// One row per customer edit of the requested quantity, so the admin screen can
-// show "changed 500 -> 1200" rather than only the latest number.
-model MobileInquiryMoqEdit {
-  id        String        @id @default(uuid())
-  inquiryId String
-  inquiry   MobileInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
-  fromMOQ   Int
-  toMOQ     Int
-  editedAt  DateTime      @default(now())
+// One row per customer (or admin) edit of the requested quantity.
+model MobileInquiryMoqHistory {
+  id              String        @id @default(uuid())
+  inquiryId       String
+  inquiry         MobileInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  oldMOQ          Int
+  newMOQ          Int
+  changedByUserId String?       // ID of the user or admin who made the change
+  createdAt       DateTime      @default(now())
 
   @@index([inquiryId])
+}
+
+// What a signed-in customer has looked at, for the account area's browsing
+// history.
+//
+// CLAUDE.md notes that this could not be built before, and the reason was real:
+// there were no accounts, so there was nobody to attribute a view to. There are
+// accounts now, so the history is per-customer and follows them between
+// devices — which is the whole point of it over a localStorage list.
+//
+// One row per customer per product, with the timestamp moved forward on a
+// revisit rather than a new row each time. History is "what have I looked at",
+// not "how many times did I open this", and an append-only log would fill the
+// list with the same product.
+/// What a customer changed about their own account, and when.
+///
+/// Exists because the admin console could show what an account looks like now
+/// and nothing about how it got there — "they say they changed their email"
+/// had no answer. Written at the point of each change, so it starts empty:
+/// accounts that existed before this table have no history, and showing none
+/// is the truth rather than a gap to apologise for.
+///
+/// Never stores a password, hashed or otherwise. A password change records
+/// that it happened and nothing about what it became — the row exists to
+/// answer "was it changed", which needs no secret to answer.
+model AccountChange {
+  id     String     @id @default(uuid())
+  userId String
+  user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// name | email | phone | password | status
+  field String
+  /// Null for password, and for a value being set for the first time.
+  fromValue String? @db.Text
+  toValue   String? @db.Text
+
+  /// WEB | APP | ADMIN — where the change was made from.
+  source String
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model ProductFavourite {
+  id     String     @id @default(uuid())
+  userId String
+  user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // One heart per person per product: saving something twice is the same
+  // saved thing, and the toggle relies on this to know which way it is going.
+  @@unique([userId, productId])
+  // The only query this table serves: one customer's list, newest first.
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model ProductView {
+  id     String     @id @default(uuid())
+  userId String
+  user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  // The only query this table serves: one customer's list, newest first.
+  @@index([userId, viewedAt(sort: Desc)])
 }

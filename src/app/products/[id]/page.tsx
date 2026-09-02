@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { ProductDetailView, type PDPProduct } from "@/components/ui/ProductDetailView";
+import { RecordProductView } from "@/components/ui/RecordProductView";
 import type { ProductCardData } from "@/components/ui/ProductCard";
 
 export const dynamic = "force-dynamic";
@@ -99,6 +100,9 @@ export default async function ProductPage({
 
   return (
     <>
+      {/* Renders nothing; adds this product to the signed-in customer's own
+          browsing history. Signed-out visitors record nothing at all. */}
+      <RecordProductView productId={product.id} />
       <ProductDetailView product={pdpProduct} similar={similar} />
       <FooterSection />
     </>

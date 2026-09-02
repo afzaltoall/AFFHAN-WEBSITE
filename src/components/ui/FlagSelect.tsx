@@ -28,6 +28,10 @@ interface FlagSelectProps {
   // Notified whenever the menu opens/closes, so a parent can hide overlapping
   // chrome (e.g. a fixed "scroll down" cue) while the list is showing.
   onOpenChange?: (open: boolean) => void;
+  // Extra classes for the dropdown panel. The default 18rem suits a full-width
+  // form field; inside something narrow like a login card it reads as oversized,
+  // so the caller can tighten it without every other caller changing.
+  menuClassName?: string;
 }
 
 // A tiny flag thumbnail. Plain <img> (not next/image) on purpose: these are
@@ -55,6 +59,7 @@ export function FlagSelect({
   onSelect,
   mode = "country",
   placeholder = "Select country",
+  menuClassName = "",
   countries = COUNTRIES,
   buttonClassName = "",
   align = "left",
@@ -154,7 +159,7 @@ export function FlagSelect({
           ref={panelRef}
           role="listbox"
           style={{ transform: shift ? `translateX(${shift}px)` : undefined }}
-          className={`absolute top-full z-50 mt-2 w-[min(18rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl ring-1 ring-black/5 ${align === "right" ? "right-0" : "left-0"}`}
+          className={`absolute top-full z-50 mt-2 w-[min(18rem,calc(100vw-1rem))] overflow-hidden rounded-xl border border-slate-100 bg-white shadow-xl ring-1 ring-black/5 ${align === "right" ? "right-0" : "left-0"} ${menuClassName}`}
         >
           <div className="border-b border-slate-100 p-2">
             <div className="relative">

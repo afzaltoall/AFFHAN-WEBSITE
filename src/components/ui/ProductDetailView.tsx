@@ -17,6 +17,7 @@ import {
 import { getCdnUrl } from "@/lib/cdn";
 import { ProductCard, type ProductCardData } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
+import { SaveProductButton } from "@/components/ui/SaveProductButton";
 
 export interface PDPProduct {
   id: number;
@@ -191,13 +192,19 @@ export function ProductDetailView({ product, similar }: Props) {
               </p>
             </div>
 
-            <button
-              onClick={openMainInquiry}
-              className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#27a8c4] to-[#176579] text-sm font-bold text-white shadow-[0_8px_24px_rgba(39,168,196,0.25)] transition-all duration-300 hover:from-[#176579] hover:to-[#081f2a] hover:shadow-[0_12px_32px_rgba(23,85,101,0.35)] hover:scale-[1.01] active:scale-[0.99] sm:w-auto sm:px-10"
-            >
-              Request a Quote
-              <ChevronRight className="h-4 w-4" />
-            </button>
+            {/* Save sits beside the quote button rather than over the gallery:
+                on the detail page the decision being made is "do I want this",
+                and the two answers to it belong together. */}
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button
+                onClick={openMainInquiry}
+                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#27a8c4] to-[#176579] text-sm font-bold text-white shadow-[0_8px_24px_rgba(39,168,196,0.25)] transition-all duration-300 hover:from-[#176579] hover:to-[#081f2a] hover:shadow-[0_12px_32px_rgba(23,85,101,0.35)] hover:scale-[1.01] active:scale-[0.99] sm:w-auto sm:px-10"
+              >
+                Request a Quote
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <SaveProductButton productId={product.id} />
+            </div>
 
             {/* MOQ, stated the honest way. The quote form's lowest tier is 20
                 pieces, but the real minimum is the factory's, so promising a

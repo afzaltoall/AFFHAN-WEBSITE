@@ -8,7 +8,7 @@ import {
   LayoutGrid, Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle, Smartphone,
+  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle, Smartphone, Globe,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -622,12 +622,30 @@ export function AdminConsole({ data }: Props) {
               <span className="flex-1 text-left">Videos</span>
               <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.videos)}</span>
             </Link>
+            {/* Two lists, because the office asks two different questions:
+                who signs in on the site, and who signs in on the app. One
+                table underneath — somebody who uses both appears on both,
+                which is the honest answer rather than a duplicate. */}
             <Link
-              href="/admin/users/"
+              href="/admin/users/website/"
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
+            >
+              <Globe size={17} className={t.soft} />
+              <span className="flex-1 text-left">Website Users</span>
+            </Link>
+            <Link
+              href="/admin/users/app/"
               className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
             >
               <Smartphone size={17} className={t.soft} />
               <span className="flex-1 text-left">App Users</span>
+            </Link>
+            <Link
+              href="/admin/mobile-inquiries/"
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
+            >
+              <MessageSquare size={17} className={t.soft} />
+              <span className="flex-1 text-left">App Inquiries</span>
             </Link>
           </nav>
           <div className={`border-t p-3 ${t.border}`}>

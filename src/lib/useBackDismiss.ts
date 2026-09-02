@@ -64,6 +64,23 @@ export function overlayWillNavigate() {
 /** Same mechanism, named for the overlay-to-overlay case. */
 export const overlayHandoff = overlayWillNavigate;
 
+/* Pops this hook caused itself, waiting to be recognised.
+
+   history.back() does not fire popstate synchronously — the event arrives a
+   task later. By then a listener may be attached that had nothing to do with
+   the pop, and it will read a genuine "the user pressed Back".
+
+   That is not hypothetical. In development React mounts every effect twice:
+   push, clean up (which calls back()), push again. The back() from the first
+   cleanup then lands on the second mount's listener, and the overlay closes
+   roughly 250ms after opening — measured on the homepage, where the quote
+   modal is mounted only while a product is selected, so the double-mount
+   happens at the moment of opening rather than at page load.
+
+   Counting our own pops separates the two cases exactly: a pop we asked for is
+   swallowed once, and anything else is the user. */
+let selfPops = 0;
+
 type MarkerState = Record<string, unknown> | null;
 
 export function useBackDismiss(open: boolean, onClose: () => void) {
@@ -88,6 +105,12 @@ export function useBackDismiss(open: boolean, onClose: () => void) {
     const hrefAtPush = window.location.href;
     let dismissedByBack = false;
     const onPop = () => {
+      // A pop this hook asked for, arriving late. Not the user, so it must not
+      // close anything — see the note on selfPops.
+      if (selfPops > 0) {
+        selfPops -= 1;
+        return;
+      }
       dismissedByBack = true;
       closeRef.current();
     };
@@ -112,7 +135,10 @@ export function useBackDismiss(open: boolean, onClose: () => void) {
       if (window.location.href !== hrefAtPush) return;
 
       const state = window.history.state as MarkerState;
-      if (state && state[MARKER] === id) window.history.back();
+      if (state && state[MARKER] === id) {
+        selfPops += 1;
+        window.history.back();
+      }
     };
   }, [open]);
 }

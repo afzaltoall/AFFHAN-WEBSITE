@@ -54,6 +54,12 @@ const nextConfig: NextConfig = {
         hostname: "flagcdn.com",
       },
       {
+        // Profile pictures from Google sign-in. Served from lh3/lh4/lh5/…,
+        // so the wildcard rather than one host.
+        protocol: "https",
+        hostname: "**.googleusercontent.com",
+      },
+      {
         protocol: "https",
         hostname: "**.aliyuncs.com",
       },

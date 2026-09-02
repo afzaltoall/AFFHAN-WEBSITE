@@ -4,6 +4,8 @@ import { Suspense } from "react";
 import "./globals.css";
 import { WhatsAppButton } from "@/components/ui/WhatsAppButton";
 import { Navbar } from "@/components/sections/Navbar";
+import { AuthProvider } from "@/context/AuthContext";
+import { FavouritesProvider } from "@/context/FavouritesContext";
 import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SITE_URL, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 
 // Premium, modern sans used site-wide. Plus Jakarta Sans reads far more
@@ -118,10 +120,19 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
-        <Suspense fallback={<div className="h-16" />}>
-          <Navbar />
-        </Suspense>
-        {children}
+        {/* Wraps the navbar as well as the page: the navbar is where being
+            signed in is visible, so it has to sit inside the same provider. */}
+        <AuthProvider>
+          {/* Inside AuthProvider, because which products are saved depends on
+              who is signed in. Every product grid on the site reads this, so
+              it belongs at the root rather than around one page. */}
+          <FavouritesProvider>
+            <Suspense fallback={<div className="h-16" />}>
+              <Navbar />
+            </Suspense>
+            {children}
+          </FavouritesProvider>
+        </AuthProvider>
         <WhatsAppButton />
       </body>
     </html>

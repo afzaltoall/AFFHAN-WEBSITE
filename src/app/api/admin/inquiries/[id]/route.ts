@@ -33,9 +33,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
           select: { id: true, name: true, email: true, authProvider: true, createdAt: true },
         },
         // Oldest first: read top to bottom, this is the story of the quantity.
-        moqEdits: {
-          orderBy: { editedAt: "asc" },
-          select: { id: true, fromMOQ: true, toMOQ: true, editedAt: true },
+        moqHistory: {
+          orderBy: { createdAt: "asc" },
+          select: { id: true, oldMOQ: true, newMOQ: true, changedByUserId: true, createdAt: true },
         },
       },
     });
@@ -47,7 +47,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
         ...describeStatus(inquiry.status, inquiry.statusNote),
         // The number the customer first asked for, before any edit. Without it
         // the trail starts mid-sentence.
-        originalMOQ: inquiry.moqEdits[0]?.fromMOQ ?? inquiry.requestedMOQ,
+        originalMOQ: inquiry.moqHistory[0]?.oldMOQ ?? inquiry.requestedMOQ,
       },
     });
   } catch (error) {

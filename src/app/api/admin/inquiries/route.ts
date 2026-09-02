@@ -45,22 +45,22 @@ export async function GET(request: Request) {
           user: { select: { id: true, name: true, email: true } },
           // Enough to flag "the customer changed this" in the list; the full
           // trail is on the detail route.
-          _count: { select: { moqEdits: true } },
-          moqEdits: {
-            orderBy: { editedAt: "desc" },
+          _count: { select: { moqHistory: true } },
+          moqHistory: {
+            orderBy: { createdAt: "desc" },
             take: 1,
-            select: { fromMOQ: true, toMOQ: true, editedAt: true },
+            select: { oldMOQ: true, newMOQ: true, createdAt: true },
           },
         },
       }),
     ]);
 
     return NextResponse.json({
-      inquiries: rows.map(({ _count, moqEdits, ...i }) => ({
+      inquiries: rows.map(({ _count, moqHistory, ...i }) => ({
         ...i,
         ...describeStatus(i.status, i.statusNote),
-        moqEditCount: _count.moqEdits,
-        lastMoqEdit: moqEdits[0] ?? null,
+        moqEditCount: _count.moqHistory,
+        lastMoqEdit: moqHistory[0] ?? null,
       })),
       pagination: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });

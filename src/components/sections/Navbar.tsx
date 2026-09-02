@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
-import { Search, Mail, X, Menu, ChevronDown, ChevronRight, Layers, Loader2, LayoutGrid, Home, Info, Briefcase } from "lucide-react";
+import { Search, Mail, X, Menu, ChevronDown, ChevronRight, Layers, Loader2, LayoutGrid, Home, Info, Briefcase, Ship } from "lucide-react";
 
 const TopRankingIcon = ({ size, className }: { size?: number, className?: string }) => (
   // eslint-disable-next-line @next/next/no-img-element
@@ -16,7 +16,16 @@ import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import dynamic from 'next/dynamic';
 const CategoryMegaPanel = dynamic(() => import("@/components/ui/CategoryMegaPanel").then(mod => mod.CategoryMegaPanel), { ssr: true });
 import { getCdnUrl } from "@/lib/cdn";
-import { ShipNavMark } from "@/components/ui/ShipNavMark";
+import { AuthButtonPlaceholder } from "@/components/ui/NavAuthButton";
+
+// Client-only: who is signed in comes from an httpOnly cookie the server never
+// reads, so server HTML can only show the signed-out shape. Rendering this on
+// the server and hydrating it inside the navbar's Suspense boundary produced a
+// mismatch; skipping SSR for this one control removes the comparison entirely.
+const NavAuthButton = dynamic(
+  () => import("@/components/ui/NavAuthButton").then((m) => m.NavAuthButton),
+  { ssr: false, loading: () => <AuthButtonPlaceholder /> }
+);
 import { prepCatalogueNav } from "@/lib/scroll";
 
 interface SuggestCategory { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
@@ -397,7 +406,6 @@ export function Navbar() {
             <div className="hidden lg:flex items-center gap-6 z-10 flex-shrink-0 ml-4">
               {/* Lives inside the desktop-only nav group, so the crowded mobile
                   bar is left alone without needing its own breakpoint. */}
-              <ShipNavMark />
               <Link href="/about/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
                 About
                 <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
@@ -411,6 +419,7 @@ export function Navbar() {
                 <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
               </Link>
 
+              <NavAuthButton />
 
             </div>
 
@@ -479,6 +488,10 @@ export function Navbar() {
                   { href: "/", label: "Home", icon: Home },
                   { href: "/rankings/", label: "Top Ranking", icon: TopRankingIcon },
                   { href: "/products/", label: "All Categories", icon: LayoutGrid },
+                  // The sail mark that leads here on desktop is decorative-sized
+                  // and lives outside the drawer, so shipping needs a named row
+                  // of its own on mobile or it is unreachable from a phone.
+                  { href: "/shipping/", label: "Shipping", icon: Ship },
                   { href: "/about/", label: "About Us", icon: Info },
                   { href: "/careers/", label: "Careers", icon: Briefcase },
                   { href: "/contact/", label: "Contact Us", icon: Mail },

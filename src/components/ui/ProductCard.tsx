@@ -4,6 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { getCdnUrl } from "@/lib/cdn";
+import { FavouriteButton } from "@/components/ui/FavouriteButton";
 
 export interface ProductCardData {
   id: number | string;
@@ -42,7 +43,16 @@ export function ProductCard({ product, onClick, priority }: ProductCardProps) {
   const href = `/products/${product.id}`;
 
   return (
-    <div className="liquid-glass-card group flex flex-col text-left w-full overflow-hidden">
+    <div className="liquid-glass-card group relative flex flex-col text-left w-full overflow-hidden">
+      {/* Outside the Link on purpose. A <button> inside an <a> is invalid
+          HTML, and the two would fight over the same click. Positioned over
+          the image instead, which is where a save control is looked for. */}
+      <FavouriteButton
+        productId={Number(product.id)}
+        size="sm"
+        className="absolute right-2.5 top-2.5 z-20"
+      />
+
       <Link href={href} aria-label={product.name} className="flex flex-1 flex-col text-left w-full">
         {/* Fixed image height so cards stay a consistent height regardless of
             how many grid columns fit. */}

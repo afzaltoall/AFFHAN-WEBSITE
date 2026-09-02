@@ -32,12 +32,74 @@ export function extractBearerToken(request: Request): string | null {
 }
 
 /**
- * Verifies a mobile session based on the provided Request.
- * Looks up the hashed token in the database, ensures it's not expired, 
- * and returns the associated MobileUser if valid.
+ * The website's session cookie.
+ *
+ * A browser cannot hold a Bearer token the way the app does: anywhere script
+ * can read it, an XSS can read it too. So the same session token travels as an
+ * httpOnly cookie instead — same table, same hash, same expiry, only a
+ * different envelope.
+ *
+ * Named apart from the admin console's `affhan_session`, because these are
+ * different populations with different privileges and must never be mistaken
+ * for one another.
+ */
+/**
+ * Label a session that phone-auth already created.
+ *
+ * authenticateByPhone is shared by the app and the website and opens the
+ * session itself, deliberately without a platform — neither caller's answer
+ * would be right for the other. Each one stamps it afterwards, found by the
+ * hash of the token it was just handed.
+ */
+export async function markSessionPlatform(
+  rawToken: string,
+  platform: "WEB" | "APP"
+): Promise<void> {
+  await prisma.mobileSession
+    .update({ where: { tokenHash: hashMobileToken(rawToken) }, data: { platform } })
+    .catch(() => {
+      // Not worth failing a successful sign-in over a label.
+    });
+}
+
+export const WEB_SESSION_COOKIE = "affhan_user";
+
+export function webSessionCookieOptions(expiresAt: Date) {
+  return {
+    httpOnly: true,
+    // Lax rather than Strict: a customer following a link to a product from
+    // an email or search result should already be signed in when they land,
+    // and Lax still withholds the cookie from cross-site POSTs.
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    expires: expiresAt,
+  };
+}
+
+/** The raw token from the website cookie, if the request carries one. */
+export function extractSessionCookie(request: Request): string | null {
+  const header = request.headers.get("cookie");
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const [name, ...rest] = part.trim().split("=");
+    if (name === WEB_SESSION_COOKIE) return decodeURIComponent(rest.join("="));
+  }
+  return null;
+}
+
+/**
+ * Verifies a customer session from the request.
+ *
+ * Accepts either envelope: the app's `Authorization: Bearer`, or the website's
+ * httpOnly cookie. Both carry the same opaque token against the same
+ * MobileSession row, so a customer is one account whichever they signed in on.
+ *
+ * The header is checked first. If a request somehow carries both, the explicit
+ * one wins over the one the browser attached on its own.
  */
 export async function verifyMobileSession(request: Request) {
-  const rawToken = extractBearerToken(request);
+  const rawToken = extractBearerToken(request) ?? extractSessionCookie(request);
   if (!rawToken) {
     return null;
   }
