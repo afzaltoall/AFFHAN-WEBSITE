@@ -28,6 +28,30 @@ const getCachedProductCount = unstable_cache(
   { revalidate: 3600 }
 );
 
+// Exact product count for a category subtree, for the pagination footer.
+//
+// Once the rows query stopped dominating, this became what was left: counting
+// "Home, Garden & Furniture" means walking 286,739 rows through the moderation
+// regex, ~3.5s, and it ran on every page of every category. The number only
+// moves when the daily sync does, so it is cached on the id set rather than
+// recomputed per request — the page still shows a true count, just not one
+// recalculated for a catalogue that has not changed.
+const getCachedCategoryProductCount = unstable_cache(
+  async (categoryIds: string[]): Promise<number> => {
+    const rows = await prisma.$queryRaw<Array<{ count: number }>>(
+      Prisma.sql`
+        SELECT COUNT(*)::int AS count
+        FROM "Product" p
+        WHERE p."categoryId" IN (${Prisma.join(categoryIds)})
+          AND p."name" !~* ${blockedNameRegex()}
+      `
+    );
+    return Number(rows[0]?.count ?? 0);
+  },
+  ["category-product-count-v1"],
+  { revalidate: 3600 }
+);
+
 type CategoryLite = { id: string; name: string; parentId: string | null; parentName: string | null; thumbnailUrl: string | null };
 
 // The whole category table is small (~600 rows) and rarely changes, so we load
@@ -430,10 +454,19 @@ export async function GET(request: Request) {
             `
           );
 
+      // Plain category browsing gets the cached subtree count; anything with a
+      // search or an anchor narrows the set further and must count for real.
+      const countQuery: Promise<number> =
+        browseCatIds !== null && browseCatIds.length > 0 && !pq.isValid && !anchorId
+          ? getCachedCategoryProductCount(browseCatIds)
+          : prisma
+              .$queryRaw<Array<{ count: number }>>(countSql)
+              .then((r) => Number(r[0]?.count ?? 0));
+
       // One round trip: page rows, (capped) count and facets in parallel.
-      const [rows, countRows, facetRows] = await Promise.all([
+      const [rows, countValue, facetRows] = await Promise.all([
         rowsQuery,
-        prisma.$queryRaw<Array<{ count: number }>>(countSql),
+        countQuery,
         facetQuery,
       ]);
 
@@ -444,7 +477,7 @@ export async function GET(request: Request) {
         category: r.category,
         categoryRef: r.categoryId ? { name: catById.get(r.categoryId)?.name ?? null } : null
       }));
-      total = isUnfilteredBrowse ? await getCachedProductCount() : Number(countRows[0]?.count ?? 0);
+      total = isUnfilteredBrowse ? await getCachedProductCount() : countValue;
       totalCapped = pq.isValid && total >= SEARCH_COUNT_CAP;
 
       facets = facetRows
