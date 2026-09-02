@@ -46,11 +46,23 @@ export async function GET() {
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const cached = await getCachedCategories();
-      return NextResponse.json({
-        success: true,
-        data: cached.data,
-        totalCount: cached.totalCount,
-      });
+      // The unstable_cache above already spares Postgres, but with
+      // force-dynamic the function still wakes and re-serialises ~180KB for
+      // every caller. CJ's taxonomy is fixed at 634 nodes and the cron sync
+      // only ever refreshes thumbnails, so let the edge serve it outright and
+      // keep serving a stale copy for a day while it refreshes.
+      return NextResponse.json(
+        {
+          success: true,
+          data: cached.data,
+          totalCount: cached.totalCount,
+        },
+        {
+          headers: {
+            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+          },
+        }
+      );
     } catch (error: unknown) {
       lastError = error;
       console.error(`Failed to fetch categories (attempt ${attempt + 1}/3):`, error);

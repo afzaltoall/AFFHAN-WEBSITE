@@ -123,6 +123,53 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+// Newest-first rows for a set of category ids, one index scan per category.
+//
+// The obvious query — `WHERE categoryId IN (...) ORDER BY id DESC LIMIT n` —
+// is a trap at this table size. Postgres costs a backward walk of Product_pkey
+// at ~23 for a LIMIT 4 (it assumes matches are spread evenly through the id
+// range) and picks it over any categoryId index. But a category's products were
+// all synced together, so they sit in one narrow id band, usually nowhere near
+// the newest ids. Measured on "Computer & Office": 1,025,929 rows read and
+// discarded to return 4, taking 4–12s. Adding (categoryId, id DESC) did not
+// help on its own — the planner still preferred the backward scan.
+//
+// LATERAL removes the choice. Each category gets its own ordered index scan
+// that stops after `take` rows, and the merge sorts at most take × categories.
+// Same 14 homepage categories: worst case 10.1s -> 0.6s.
+//
+// Correctness for pagination: a row in the global newest `take` must also be
+// within its own category's newest `take`, so taking `take` per category and
+// re-sorting cannot miss one. Callers pass skip + limit as `take`.
+function buildLateralRows(
+  categoryIds: string[],
+  take: number,
+  extraWhere: Prisma.Sql[],
+  descending: boolean,
+): Prisma.Sql {
+  const inner = extraWhere.length
+    ? Prisma.sql`AND ${Prisma.join(extraWhere, " AND ")}`
+    : Prisma.empty;
+  const dir = descending ? Prisma.sql`DESC` : Prisma.sql`ASC`;
+  return Prisma.sql`
+    SELECT x."id", x."name", x."imageUrl", x."category", x."categoryId"
+    FROM unnest(ARRAY[${Prisma.join(categoryIds)}]::text[]) AS c(id)
+    CROSS JOIN LATERAL (
+      SELECT p."id", p."name", p."imageUrl", p."category", p."categoryId"
+      FROM "Product" p
+      WHERE p."categoryId" = c.id ${inner}
+      ORDER BY p."id" ${dir}
+      LIMIT ${take}
+    ) x
+    ORDER BY x."id" ${dir}
+    LIMIT ${take}
+  `;
+}
+
+// Beyond this many rows the per-category fan-out (take × categories) costs more
+// than it saves, so deep pages fall back to the plain query.
+const LATERAL_MAX_TAKE = 400;
+
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
@@ -186,6 +233,11 @@ export async function GET(request: Request) {
     const conditions: Prisma.Sql[] = [];
     const facetConditions: Prisma.Sql[] = [];
 
+    // Set when browsing by category: the requested categories plus every
+    // descendant, minus moderated ones. Kept out here so the LATERAL fast path
+    // below can scan them one at a time.
+    let browseCatIds: string[] | null = null;
+
     if (anchorId) {
       const anchor = Prisma.sql`p."id" <= ${parseInt(anchorId, 10)}`;
       conditions.push(anchor);
@@ -222,6 +274,10 @@ export async function GET(request: Request) {
         }
       }
       conditions.push(Prisma.sql`p."categoryId" IN (${Prisma.join(Array.from(descendantSet))})`);
+      // Drop blocked categories here rather than carrying the NOT IN clause
+      // into the LATERAL, where each scan is already pinned to one category.
+      const blockedSet = blockedCategoryIdSet(allCats);
+      browseCatIds = Array.from(descendantSet).filter((id) => !blockedSet.has(id));
     } else if (category) {
       conditions.push(Prisma.sql`p."category" ILIKE ${"%" + category + "%"}`);
     }
@@ -249,7 +305,12 @@ export async function GET(request: Request) {
     // `sortBy=alpha` (the full catalogue's A–Z view) opts OUT of this diverse
     // feed and falls through to the deterministic, name-ordered browse branch
     // so the whole catalogue truly starts at A.
-    if (!hasFilters && page === 1 && sortBy !== "alpha" && sortBy !== "za" && sortBy !== "oldest") {
+    // This branch draws a fresh random sample per request, so its response is
+    // the one thing here that must never be cached at the edge — a shared copy
+    // would freeze one shuffle in place for everybody.
+    const isRandomisedFeed = !hasFilters && page === 1 && sortBy !== "alpha" && sortBy !== "za" && sortBy !== "oldest";
+
+    if (isRandomisedFeed) {
       const excludeParam = searchParams.get('excludeIds');
       const excludeIds = excludeParam ? excludeParam.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id)) : [];
 
@@ -330,17 +391,48 @@ export async function GET(request: Request) {
           )
         : Promise.resolve([]);
 
+      // Plain category browsing — no text search, ordered by id — is the shape
+      // the backward-pkey-scan trap bites (see buildLateralRows). It is also
+      // the shape the app's home feed issues 14 times per open, so it gets the
+      // per-category path. Everything else (search relevance, name ordering,
+      // deep pages) keeps the straightforward query.
+      const idOrdered = sortBy !== "alpha" && sortBy !== "za";
+      const useLateral =
+        browseCatIds !== null &&
+        browseCatIds.length > 0 &&
+        !pq.isValid &&
+        idOrdered &&
+        skip + limit <= LATERAL_MAX_TAKE;
+
+      const rowsQuery = useLateral
+        ? prisma
+            .$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
+              buildLateralRows(
+                browseCatIds!,
+                skip + limit,
+                [
+                  Prisma.sql`p."name" !~* ${blockedNameRegex()}`,
+                  ...(anchorId ? [Prisma.sql`p."id" <= ${parseInt(anchorId, 10)}`] : []),
+                ],
+                sortBy !== "oldest",
+              )
+            )
+            // The LATERAL returns the global first skip+limit rows; drop the
+            // pages already served to leave this one.
+            .then((r) => r.slice(skip))
+        : prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
+            Prisma.sql`
+              SELECT p."id", p."name", p."imageUrl", p."category", p."categoryId"
+              FROM "Product" p
+              ${whereSql}
+              ORDER BY ${orderSql}
+              LIMIT ${limit} OFFSET ${skip}
+            `
+          );
+
       // One round trip: page rows, (capped) count and facets in parallel.
       const [rows, countRows, facetRows] = await Promise.all([
-        prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
-          Prisma.sql`
-            SELECT p."id", p."name", p."imageUrl", p."category", p."categoryId"
-            FROM "Product" p
-            ${whereSql}
-            ORDER BY ${orderSql}
-            LIMIT ${limit} OFFSET ${skip}
-          `
-        ),
+        rowsQuery,
         prisma.$queryRaw<Array<{ count: number }>>(countSql),
         facetQuery,
       ]);
@@ -386,18 +478,32 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      data: products,
-      facets,
-      pagination: {
-        total,
-        totalCapped,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit)
+    // Everything except the shuffled feed is a pure function of the query
+    // string over a catalogue the cron sync touches once a day, so let Vercel's
+    // edge answer repeats without waking the function. The app's home feed
+    // fires the same 14 category requests on every open; only the first of them
+    // reaches Postgres.
+    return NextResponse.json(
+      {
+        success: true,
+        data: products,
+        facets,
+        pagination: {
+          total,
+          totalCapped,
+          page,
+          limit,
+          totalPages: Math.ceil(total / limit)
+        }
+      },
+      {
+        headers: {
+          "Cache-Control": isRandomisedFeed
+            ? "no-store"
+            : "public, s-maxage=600, stale-while-revalidate=86400",
+        },
       }
-    });
+    );
     } catch (error: unknown) {
       lastError = error;
       console.error(`Failed to fetch products (attempt ${attempt + 1}/3):`, error);

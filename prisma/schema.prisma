@@ -28,6 +28,10 @@ model Product {
 
   @@index([categoryId])
   @@index([name])
+  // Newest-first within a category, for the API's LATERAL per-category scans.
+  // Recorded here so `prisma db push` does not drop it; it was created on the
+  // live database with CREATE INDEX CONCURRENTLY (66MB, ~5s).
+  @@index([categoryId, id(sort: Desc)], map: "Product_categoryId_id_desc_idx")
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_name_trgm_idx")
   @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_desc_trgm_idx")
 }
