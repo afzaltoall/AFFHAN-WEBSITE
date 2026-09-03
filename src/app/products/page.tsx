@@ -287,7 +287,16 @@ export default function ProductsPage() {
   );
 
   const popularSubcategories = useMemo(() => {
-    const allLeaves = categoryTree.flatMap(flattenLeaves);
+    // Deduplicated by id, which matters now that a category can be promoted:
+    // a promoted node stands at the root as well as under its real parent, so
+    // walking every root reaches its leaves twice. Measured before this was
+    // added — 22 of the 48 tiles were the same category shown twice.
+    const seen = new Set<string>();
+    const allLeaves = categoryTree.flatMap(flattenLeaves).filter((leaf) => {
+      if (seen.has(leaf.id)) return false;
+      seen.add(leaf.id);
+      return true;
+    });
     return allLeaves
       .sort((a, b) => (b.recursiveProductCount - a.recursiveProductCount) || a.name.localeCompare(b.name))
       .slice(0, 48)

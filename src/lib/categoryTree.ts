@@ -34,6 +34,10 @@ export interface CategoryRecord {
   parentId: string | null;
   thumbnailUrl?: string | null;
   productCount: number;
+  /** Draw this at the top of the menu as well as in its real place. */
+  displayAsTopLevel?: boolean | null;
+  /** What to call it when promoted, if its own name would be ambiguous. */
+  displayLabel?: string | null;
   [key: string]: unknown;
 }
 
@@ -62,6 +66,32 @@ export function buildCategoryTree(categories: CategoryRecord[]): CategoryTreeNod
     }
   });
 
+  // Promoted categories appear at the top as well as where they really live.
+  //
+  // CJ's taxonomy puts fourteen nodes at the top and buries the things people
+  // actually shop by underneath — "Furniture" is three levels down, inside
+  // "Home Storage". Rather than rewrite CJ's tree (the sync would overwrite
+  // it, and the real shape is what every product link depends on), a flag
+  // lifts a copy of the node to the root.
+  //
+  // A copy, deliberately, not a move: "Women's Shoes" is a sensible thing to
+  // find at the top of the menu AND the thing you expect to see when you open
+  // "Bags & Shoes". Taking it out of its parent would leave that panel looking
+  // gutted. So the same node is reachable from two places, which is how a
+  // large menu is normally navigated.
+  //
+  // The copy is shallow-cloned before finalize runs, because finalize mutates
+  // children in place — sharing one object between two positions would let the
+  // second pass see an already-finalized subtree and drop it.
+  const promoted = categories.filter(c => c.displayAsTopLevel && nodeById.has(c.id));
+  for (const c of promoted) {
+    const original = nodeById.get(c.id)!;
+    // Already at the top in CJ's own tree: the flag is redundant, not a
+    // reason to draw it twice.
+    if (!original.parentId || !nodeById.has(original.parentId)) continue;
+    roots.push(cloneForRoot(original));
+  }
+
   // Bottom-up: compute each node's recursive product count, drop any node
   // (at any depth) whose subtree has zero products, sort each level by count.
   // The zero-product filter is what keeps empty categories (level-1/level-2
@@ -87,6 +117,25 @@ export function buildCategoryTree(categories: CategoryRecord[]): CategoryTreeNod
   };
 
   return finalize(roots);
+}
+
+/**
+ * A deep copy of a node, standing at the root under its display name.
+ *
+ * Deep because finalize() rewrites children arrays in place; two positions
+ * sharing one object would have the second pass operate on the first pass's
+ * output. The id is kept as-is — the promoted tile links to the same category
+ * page as the nested one, which is the point.
+ */
+function cloneForRoot(node: CategoryTreeNode): CategoryTreeNode {
+  return {
+    ...node,
+    name: node.displayLabel || node.name,
+    children: node.children.map(cloneForRoot),
+    // Marks this as the promoted copy, so a UI that wants to tell them apart
+    // can. Nothing needs it today.
+    promotedCopy: true,
+  };
 }
 
 // Flattens a node's descendant leaves (nodes with no children) — for UIs

@@ -75,5 +75,9 @@ public/static/images/map*.png
 .claude/
 .gemini/
 *.mjs
+# …except the ones that are tooling, not scratch. This one is how a category
+# promotion is applied and, more importantly, undone — it has to travel with
+# the code that reads the flags it sets.
+!scripts/promote_categories.mjs
 *.csv
 flutter-patch-*.js

@@ -6,16 +6,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { flattenLeaves, getCategoryIcon, type CategoryTreeNode } from "@/lib/categoryTree";
 import { CategoryTile } from "@/components/ui/CategoryTile";
+import { CategoryLeafPreview } from "@/components/ui/CategoryLeafPreview";
 
 interface CategoryMegaPanelProps {
   tree: CategoryTreeNode[];
   onNavigate: (categoryId: string) => void;
+  /**
+   * Open a product page. Only reached from a promoted leaf's preview tiles;
+   * a caller that does not pass it simply gets no product previews, and the
+   * leaf section falls back to its single category tile.
+   */
+  onNavigateProduct?: (productId: number) => void;
   // When opened from a specific category (e.g. a sidebar row click), scroll
   // the right panel straight to that category's section.
   initialActiveId?: string | null;
 }
 
-export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: CategoryMegaPanelProps) {
+export function CategoryMegaPanel({ tree, onNavigate, onNavigateProduct, initialActiveId }: CategoryMegaPanelProps) {
   const [activeId, setActiveId] = useState<string | null>(initialActiveId ?? tree[0]?.id ?? null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -28,6 +35,12 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
       id: topCat.id,
       name: topCat.name,
       total: topCat.recursiveProductCount,
+      // A promoted leaf has nothing beneath it — flattenLeaves returns the
+      // node itself — so its row would be one tile of itself next to "View
+      // All". Marked here and filled with products instead, further down.
+      // Deliberately derived from the tree rather than from a flag, so a leaf
+      // promoted next month behaves the same without anyone remembering.
+      isLeaf: topCat.children.length === 0,
       leaves: flattenLeaves(topCat)
         .sort((a, b) => (b.recursiveProductCount - a.recursiveProductCount) || a.name.localeCompare(b.name))
         .slice(0, 23)
@@ -100,7 +113,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
       </div>
 
       {/* Right: one continuous scrollable panel, one section per category */}
-      <div ref={scrollRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto custom-scrollbar p-6">
+      <div data-mega-scroll ref={scrollRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto custom-scrollbar p-6">
         {sections.map((s, idx) => (
           <div
             key={s.id}
@@ -117,9 +130,17 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
               </button>
             </div>
             <div className="grid grid-cols-7 gap-x-4 gap-y-6">
-              {s.leaves.map(leaf => (
-                <CategoryTile key={leaf.id} name={leaf.name} thumbnailUrl={leaf.displayThumbnail} hideOnError onClick={() => onNavigate(leaf.id)} />
-              ))}
+              {s.isLeaf && onNavigateProduct ? (
+                <CategoryLeafPreview
+                  categoryId={s.id}
+                  count={6}
+                  onOpenProduct={onNavigateProduct}
+                />
+              ) : (
+                s.leaves.map(leaf => (
+                  <CategoryTile key={leaf.id} name={leaf.name} thumbnailUrl={leaf.displayThumbnail} hideOnError onClick={() => onNavigate(leaf.id)} />
+                ))
+              )}
               <button
                 onClick={() => onNavigate(s.id)}
                 className="flex flex-col items-center gap-2 group text-center"

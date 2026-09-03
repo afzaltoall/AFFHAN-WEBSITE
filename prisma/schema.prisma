@@ -46,6 +46,26 @@ model Category {
   parentName   String?
   thumbnailUrl String?
 
+  /// Show this category at the top of the menu, alongside CJ's own 14.
+  ///
+  /// Display only. parentId is untouched, so the real tree — and the sync that
+  /// writes it — is unaware this exists. CJ's taxonomy puts 14 nodes at the
+  /// top and buries "Furniture" three levels down under "Home Storage";
+  /// this lifts the ones customers actually shop by, without editing what CJ
+  /// says.
+  ///
+  /// Reversing the whole thing is one statement:
+  ///   UPDATE "Category" SET "displayAsTopLevel" = false;
+  displayAsTopLevel Boolean @default(false)
+
+  /// What to call it once promoted, when its own name will not do.
+  ///
+  /// Needed because names are only unique within a parent. "Outerwear &
+  /// Jackets", "Bottoms" and "Accessories" each exist twice — once under
+  /// Men's Clothing, once under Women's — and side by side at the top level
+  /// they would be indistinguishable. Null means the name is fine as it is.
+  displayLabel String?
+
   products     Product[]
   syncProgress SyncProgress?
   videos       Video[]
