@@ -12,6 +12,12 @@ import { CategoryTile } from "@/components/ui/CategoryTile";
  * section rather than a small one. Its products are the only thing it has to
  * show, so it shows those.
  *
+ * The tiles are a preview, not a set of links to individual products. Every
+ * other tile in this menu opens a listing, and a row that looks identical but
+ * behaves differently is a trap — someone browsing "Rings" wants the rings,
+ * not whichever ring happened to be sixth in the row. So all of them, and
+ * "View All", go to the same place: the category.
+ *
  * Fetched when the section scrolls into view, not when the menu opens. The
  * panel stacks fifty sections in one scroller and only the first is visible;
  * loading every leaf's products up front would fire a request per promoted
@@ -32,12 +38,13 @@ interface PreviewProduct {
 export function CategoryLeafPreview({
   categoryId,
   count = 7,
-  onOpenProduct,
+  onOpenCategory,
 }: {
   categoryId: string;
   /** How many tiles to draw, matching the width of a sub-category row. */
   count?: number;
-  onOpenProduct: (productId: number) => void;
+  /** Where every tile goes — the category, the same as "View All". */
+  onOpenCategory: (categoryId: string) => void;
 }) {
   const [products, setProducts] = useState<PreviewProduct[] | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -105,13 +112,14 @@ export function CategoryLeafPreview({
           ))
         : products.map((p) => (
             // The same tile the sub-category rows use, so a leaf section and a
-            // parent section look like the same menu.
+            // parent section look like the same menu — and, for the same
+            // reason, the same destination: the listing, not the one item.
             <CategoryTile
               key={p.id}
               name={p.name}
               thumbnailUrl={p.imageUrl}
               hideOnError
-              onClick={() => onOpenProduct(p.id)}
+              onClick={() => onOpenCategory(categoryId)}
             />
           ))}
     </>

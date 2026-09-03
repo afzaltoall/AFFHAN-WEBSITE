@@ -11,18 +11,12 @@ import { CategoryLeafPreview } from "@/components/ui/CategoryLeafPreview";
 interface CategoryMegaPanelProps {
   tree: CategoryTreeNode[];
   onNavigate: (categoryId: string) => void;
-  /**
-   * Open a product page. Only reached from a promoted leaf's preview tiles;
-   * a caller that does not pass it simply gets no product previews, and the
-   * leaf section falls back to its single category tile.
-   */
-  onNavigateProduct?: (productId: number) => void;
   // When opened from a specific category (e.g. a sidebar row click), scroll
   // the right panel straight to that category's section.
   initialActiveId?: string | null;
 }
 
-export function CategoryMegaPanel({ tree, onNavigate, onNavigateProduct, initialActiveId }: CategoryMegaPanelProps) {
+export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: CategoryMegaPanelProps) {
   const [activeId, setActiveId] = useState<string | null>(initialActiveId ?? tree[0]?.id ?? null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -130,11 +124,14 @@ export function CategoryMegaPanel({ tree, onNavigate, onNavigateProduct, initial
               </button>
             </div>
             <div className="grid grid-cols-7 gap-x-4 gap-y-6">
-              {s.isLeaf && onNavigateProduct ? (
+              {s.isLeaf ? (
+                // Products stand in for the sub-categories a leaf does not
+                // have. They are a picture of what is inside, and they lead
+                // where the rest of the row leads.
                 <CategoryLeafPreview
                   categoryId={s.id}
                   count={6}
-                  onOpenProduct={onNavigateProduct}
+                  onOpenCategory={onNavigate}
                 />
               ) : (
                 s.leaves.map(leaf => (

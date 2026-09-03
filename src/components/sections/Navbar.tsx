@@ -309,13 +309,6 @@ export function Navbar() {
                             prepCatalogueNav();
                             router.push(`/products/?categoryId=${categoryId}`);
                           }}
-                          // Same dance, different destination: a promoted leaf
-                          // shows its products, and tapping one opens it.
-                          onNavigateProduct={(productId) => {
-                            overlayWillNavigate();
-                            setIsCategoryMenuOpen(false);
-                            router.push(`/products/${productId}/`);
-                          }}
                         />
                       )}
                       </div>

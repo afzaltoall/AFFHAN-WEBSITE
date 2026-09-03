@@ -569,13 +569,6 @@ export function MarketplaceHeroSection() {
                 setIsMegaOpen(false);
                 router.push(`/products/?categoryId=${categoryId}`);
               }}
-              // Same dance, different destination: a promoted leaf shows its
-              // products, and tapping one opens that product.
-              onNavigateProduct={(productId) => {
-                overlayWillNavigate();
-                setIsMegaOpen(false);
-                router.push(`/products/${productId}/`);
-              }}
             />
           </div>
         </div>
