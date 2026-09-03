@@ -4,10 +4,10 @@ import {
   generateMobileSessionToken,
   hashMobileToken,
   markSessionPlatform,
+  SESSION_DAYS,
   WEB_SESSION_COOKIE,
   webSessionCookieOptions,
 } from "@/lib/mobile-auth";
-import { SESSION_DAYS } from "@/lib/phone-auth";
 
 // ---------------------------------------------------------------------------
 // Browser sessions, on the same table the app uses.
@@ -80,6 +80,8 @@ export function publicUser(user: {
   emailVerified?: boolean;
   phoneVerified?: boolean;
   createdAt?: Date;
+  /** Read only to answer "is there one" — see below. */
+  passwordHash?: string | null;
 }) {
   return {
     id: user.id,
@@ -101,5 +103,9 @@ export function publicUser(user: {
     emailVerified: user.emailVerified ?? false,
     phoneVerified: user.phoneVerified ?? false,
     createdAt: user.createdAt ? user.createdAt.toISOString() : null,
+    // A boolean, never the hash. The account page needs to know whether to
+    // offer "Set password" or "Change password", and that is the whole of
+    // what it needs.
+    hasPassword: Boolean(user.passwordHash),
   };
 }

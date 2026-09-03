@@ -138,13 +138,12 @@ export function ShippingBar() {
           />
         </motion.span>
 
-        <span className="relative leading-tight">
-          <span className="block bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[13px] font-extrabold uppercase tracking-[0.16em] text-transparent">
-            Affhan Shipping
-          </span>
-          <span className="mt-0.5 block text-[10px] font-medium tracking-wide text-slate-500">
-            Freight forwarding &amp; NVOCC
-          </span>
+        {/* The name on its own. A one-line label sits on the pill's optical
+            centre, which a stacked pair did not — so the type goes up a step
+            and the letter-spacing opens slightly, letting the name carry the
+            whole width the two lines used to fill. */}
+        <span className="relative block bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[15px] font-extrabold uppercase leading-none tracking-[0.18em] text-transparent">
+          Affhan Shipping
         </span>
 
         <ArrowRight

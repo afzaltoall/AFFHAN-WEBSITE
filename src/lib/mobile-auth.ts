@@ -1,6 +1,22 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * How long a sign-in lasts, for the app and the website alike.
+ *
+ * Absolute, not sliding: verifyMobileSession never moves expiresAt forward, so
+ * this counts from the moment of signing in and the customer signs in again on
+ * the thirtieth day however much they used it. Changing that is a decision,
+ * not a tidy-up — the value here only says how long.
+ *
+ * It lives in this module because this is where sessions are made. It used to
+ * live in phone-auth, which meant the browser path pulled the whole Twilio
+ * module in to read one number, and the four app login routes did not read it
+ * at all — each wrote its own 30, so changing this constant would have moved
+ * the website and left the app behind.
+ */
+export const SESSION_DAYS = 30;
+
 export const MOBILE_TOKEN_BYTES = 32;
 
 /**

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { generateMobileSessionToken } from "@/lib/mobile-auth";
+import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
 import { normalisePhone, otpMatches, OTP_MAX_ATTEMPTS } from "@/lib/mobile-otp";
 
 export const dynamic = "force-dynamic";
@@ -106,7 +106,7 @@ export async function POST(req: Request) {
     // We'll also return a session row just to match what happens for google/email.
     const { rawToken, tokenHash } = generateMobileSessionToken();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + SESSION_DAYS);
 
     const session = await prisma.mobileSession.create({
       data: {

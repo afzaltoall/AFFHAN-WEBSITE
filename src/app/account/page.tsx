@@ -7,6 +7,7 @@ import { GoogleG } from "@/components/ui/GoogleG";
 import { avatarUrl } from "@/lib/avatar";
 import { Card, Fade, SectionHeader } from "@/components/account/AccountShell";
 import { AddPhoneDialog } from "@/components/account/AddPhoneDialog";
+import { PasswordSection } from "@/components/account/PasswordSection";
 
 /**
  * The customer's own profile: see it, correct it.
@@ -243,6 +244,11 @@ export default function AccountPage() {
         </div>
       </Card>
 
+      {/* Below the profile card rather than inside it: saving a name and
+          setting a password are different acts, and one Save button for both
+          would make the second one look optional. */}
+      <PasswordSection hasPassword={user.hasPassword} onChanged={() => void refreshSession()} />
+
       <AddPhoneDialog
         open={addPhoneOpen}
         onClose={() => setAddPhoneOpen(false)}
@@ -259,14 +265,21 @@ export default function AccountPage() {
   );
 }
 
-/** "PHONE" / "GOOGLE_AND_PHONE" is storage; this is what a person reads. */
+/**
+ * "PHONE_AND_EMAIL" is storage; this is what a person reads.
+ *
+ * All three parts, joined. The earlier version stopped at the first match it
+ * found, so an account that could sign in with a code OR a password was told
+ * it could only use the code — which is exactly the thing this page exists to
+ * tell someone accurately.
+ */
 function signInMethod(provider: string) {
-  const google = provider.includes("GOOGLE");
-  const phone = provider.includes("PHONE");
-  if (google && phone) return "Google or OTP";
-  if (google) return "Google";
-  if (phone) return "Mobile OTP";
-  return "Email";
+  const parts = [
+    provider.includes("GOOGLE") && "Google",
+    provider.includes("PHONE") && "OTP",
+    provider.includes("EMAIL") && "password",
+  ].filter(Boolean) as string[];
+  return parts.length ? parts.join(" or ") : provider;
 }
 
 function Fact({ label, value, good }: { label: string; value: string; good?: boolean }) {

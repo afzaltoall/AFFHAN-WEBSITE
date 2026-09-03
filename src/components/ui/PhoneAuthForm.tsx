@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Loader2 } from "lucide-react";
+import { Check, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { COUNTRIES, type Country } from "@/lib/countries";
+import { checkPasswordStrength } from "@/lib/password-rules";
 
 export type PhoneAuthStep = "phone" | "otp" | "profile";
 /** Which door someone came through. See `authCopy` for what it changes. */
@@ -33,15 +34,15 @@ export function authCopy(step: PhoneAuthStep, intent: PhoneAuthIntent, phone?: s
   if (step === "profile") {
     return {
       heading: "Almost done",
-      subheading: "Your name and email. The number is already verified.",
+      subheading: "Your name, email and a password. The number is already verified.",
     };
   }
   return intent === "signup"
     ? {
         heading: "Create your account",
-        subheading: "No password to invent — your mobile number is the account.",
+        subheading: "Confirm your number, then choose a password.",
       }
-    : { heading: "Sign in", subheading: "We'll text you a code to confirm it's you." };
+    : { heading: "Sign in with your phone", subheading: "We'll text you a code to confirm it's you." };
 }
 
 /**
@@ -66,9 +67,19 @@ export function PhoneAuthForm({
   onStepChange,
   onIntentChange,
   onPhoneChange,
+  onUsePassword,
+  initialIntent = "signin",
   autoFocus = true,
 }: {
   onSuccess?: () => void;
+  /**
+   * Which door this was opened through. The caller knows — it has a "Create
+   * an account" link and a "sign in with a code instead" link, and they mean
+   * different things — and the form cannot work it out for itself.
+   */
+  initialIntent?: PhoneAuthIntent;
+  /** Back to email + password. Absent when there is nowhere to go back to. */
+  onUsePassword?: () => void;
   onStepChange?: (step: PhoneAuthStep) => void;
   onIntentChange?: (intent: PhoneAuthIntent) => void;
   onPhoneChange?: (phone: string) => void;
@@ -77,7 +88,7 @@ export function PhoneAuthForm({
   const { refreshSession } = useAuth();
 
   const [step, setStepState] = useState<PhoneAuthStep>("phone");
-  const [intent, setIntentState] = useState<PhoneAuthIntent>("signin");
+  const [intent, setIntentState] = useState<PhoneAuthIntent>(initialIntent);
   const [phone, setPhone] = useState("");
   // India first because most customers are here, but every country is
   // selectable — a fixed "+91" made everyone else read the small print and
@@ -90,6 +101,9 @@ export function PhoneAuthForm({
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [signupToken, setSignupToken] = useState<string | null>(null);
 
   const [busy, setBusy] = useState(false);
@@ -120,6 +134,14 @@ export function PhoneAuthForm({
     },
     [onIntentChange]
   );
+
+  // Announce the opening intent once, so the caller's heading is right on the
+  // first render rather than only after something is clicked.
+  useEffect(() => {
+    onIntentChange?.(initialIntent);
+    // Deliberately once, on mount: after this the form owns the intent.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     onPhoneChange?.(fullPhone);
@@ -193,6 +215,7 @@ export function PhoneAuthForm({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       email: email.trim(),
+      password,
     });
     setBusy(false);
     if (!res.ok) {
@@ -204,6 +227,11 @@ export function PhoneAuthForm({
   };
 
   const emailLooksValid = /^[^s@]+@[^s@]+.[^s@]+$/.test(email.trim());
+  // The same function the server calls, so the button and the API cannot
+  // disagree about what an acceptable password is.
+  const passwordCheck = checkPasswordStrength(password);
+  const passwordsMatch = password !== "" && password === confirm;
+  const profileReady = firstName.trim() !== "" && emailLooksValid && passwordCheck.ok && passwordsMatch;
 
   const goBack = () => {
     setError(null);
@@ -255,34 +283,74 @@ export function PhoneAuthForm({
               and tells a new one there is no password to think up. */}
           <p className="text-[12px] text-slate-400">
             {intent === "signup"
-              ? "Verify the number and we'll set the account up — no password to remember."
-              : "No password needed. Just your number."}
+              ? "We'll text a code to confirm the number, then you choose a password."
+              : "We'll text you a code — no password needed for this way in."}
           </p>
 
           <Primary onClick={sendOtp} busy={busy} disabled={!phone.trim()}>
             Send OTP
           </Primary>
 
-          {/* The way in for someone who has never been here.
-              Without it the card only ever says "Sign in", which reads as a
-              locked door — and the account-creating half of this flow was
-              invisible unless you guessed that typing an unknown number would
-              offer it. This does not switch pipelines: the number still
-              decides. It switches the promise the card is making, so a first
-              time visitor can see one addressed to them. */}
-          <p className="pt-1 text-center text-[13px] text-slate-500">
-            {intent === "signup" ? "Already have an account?" : "New to Affhan?"}{" "}
-            <button
-              type="button"
-              onClick={() => {
-                setError(null);
-                setIntent(intent === "signup" ? "signin" : "signup");
-              }}
-              className="font-semibold text-brand underline-offset-2 transition-colors hover:text-brand-dark hover:underline cursor-pointer"
-            >
-              {intent === "signup" ? "Sign in" : "Create an account"}
-            </button>
-          </p>
+          {/* Where each screen sends someone who is on the wrong one.
+              These are not symmetrical, because the two screens are not:
+
+              Signing up is the ONLY way to make an account, and it has to
+              start with a code — a number nobody has proved is not an
+              identity. So this screen offers no way to create an account
+              with an email and a password; "Sign in" here means "I already
+              have one", and that belongs on the password screen.
+
+              Signing in with a code is a fallback, for the accounts that
+              existed before passwords. So that screen keeps both doors: back
+              to email and password, or on to creating an account. */}
+          {intent === "signup" ? (
+            <p className="pt-1 text-center text-[13px] text-slate-500">
+              Already have an account?{" "}
+              <button
+                type="button"
+                onClick={() => {
+                  setError(null);
+                  // Back to email and password, which is where a returning
+                  // customer belongs. Only if there is one to go back to —
+                  // a caller without a password screen falls back to the
+                  // code sign-in rather than to nowhere.
+                  if (onUsePassword) onUsePassword();
+                  else setIntent("signin");
+                }}
+                className="font-semibold text-brand underline-offset-2 transition-colors hover:text-brand-dark hover:underline cursor-pointer"
+              >
+                Sign in
+              </button>
+            </p>
+          ) : (
+            <>
+              <p className="pt-1 text-center text-[13px] text-slate-500">
+                New to Affhan?{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setIntent("signup");
+                  }}
+                  className="font-semibold text-brand underline-offset-2 transition-colors hover:text-brand-dark hover:underline cursor-pointer"
+                >
+                  Create an account
+                </button>
+              </p>
+
+              {onUsePassword && (
+                <p className="text-center text-[13px] text-slate-500">
+                  <button
+                    type="button"
+                    onClick={onUsePassword}
+                    className="font-medium underline-offset-2 transition-colors hover:text-slate-700 hover:underline cursor-pointer"
+                  >
+                    Use email and password
+                  </button>
+                </p>
+              )}
+            </>
+          )}
         </>
       )}
 
@@ -359,18 +427,53 @@ export function PhoneAuthForm({
               placeholder="you@company.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={(e) =>
-                e.key === "Enter" &&
-                firstName.trim() &&
-                emailLooksValid &&
-                !busy &&
-                void completeProfile()
-              }
+              onKeyDown={(e) => e.key === "Enter" && profileReady && !busy && void completeProfile()}
               className={inputClass}
             />
             <p className="mt-1.5 text-[12px] text-slate-400">
-              Where your quotes and replies will be sent.
+              Where your quotes go — and how you&apos;ll sign in next time.
             </p>
+          </Field>
+
+          <Field label="Password">
+            <span className="relative block">
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="new-password"
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className={`${inputClass} pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-400 transition-colors hover:text-slate-600 cursor-pointer"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </span>
+            {/* Only once they have typed something. Telling someone their
+                empty password is too short is noise. */}
+            {password !== "" && !passwordCheck.ok && (
+              <p className="mt-1.5 text-[12px] text-amber-700">{passwordCheck.error}</p>
+            )}
+          </Field>
+
+          <Field label="Confirm password">
+            <input
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              placeholder="Type it again"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && profileReady && !busy && void completeProfile()}
+              className={inputClass}
+            />
+            {confirm !== "" && !passwordsMatch && (
+              <p className="mt-1.5 text-[12px] text-amber-700">Those don&apos;t match.</p>
+            )}
           </Field>
 
           {/* The number is the third part of the account, so it belongs on the
@@ -387,11 +490,7 @@ export function PhoneAuthForm({
             </div>
           </Field>
 
-          <Primary
-            onClick={completeProfile}
-            busy={busy}
-            disabled={!firstName.trim() || !emailLooksValid}
-          >
+          <Primary onClick={completeProfile} busy={busy} disabled={!profileReady}>
             Create account
           </Primary>
 

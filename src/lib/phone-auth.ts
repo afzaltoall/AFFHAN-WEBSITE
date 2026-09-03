@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { generateMobileSessionToken } from "@/lib/mobile-auth";
+import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
 import { checkVerification, sendVerification } from "@/lib/twilio-verify";
 import { maskPhone, OTP_RESEND_COOLDOWN_MS, OTP_TTL_MS } from "@/lib/mobile-otp";
 
@@ -11,8 +11,6 @@ import { maskPhone, OTP_RESEND_COOLDOWN_MS, OTP_TTL_MS } from "@/lib/mobile-otp"
 // the app reads it out of the JSON, the browser gets an httpOnly cookie. That
 // difference belongs in the routes, so it is the only thing they hold.
 // ---------------------------------------------------------------------------
-
-export const SESSION_DAYS = 30;
 
 export type PhoneAuthResult =
   | {

@@ -389,6 +389,67 @@ model MobileInquiryMoqHistory {
 /// Never stores a password, hashed or otherwise. A password change records
 /// that it happened and nothing about what it became — the row exists to
 /// answer "was it changed", which needs no secret to answer.
+/// A one-time code sent to an email address.
+///
+/// Separate from MobilePhoneOtp, which only records *when* a code was asked
+/// for — Twilio Verify holds the phone codes and checks them itself. Nobody
+/// holds an email code for us, so this table stores one, hashed the same way
+/// session tokens are: a copy of the table is not a set of working codes.
+///
+/// Rows are kept after use rather than deleted. `consumedAt` is what makes a
+/// code single-use, and the recent history is also what the per-address rate
+/// limit counts — a limit that deleted its own evidence would not be one.
+/// Failed password logins, counted so they can be throttled.
+///
+/// Per address rather than per IP, and in the database rather than in Redis,
+/// for the same reason the email-OTP limit is: the Upstash limiters in
+/// lib/rate-limit.ts fail open when they are not configured, and they are not.
+/// A limit that only exists when a service we have not set up is running is
+/// not a limit.
+///
+/// Only failures are recorded, and only the address — never the password, nor
+/// anything derived from it. A successful login clears the row set, so someone
+/// who mistypes four times and then gets in does not start the next session
+/// one mistake from being locked out.
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  /// Lower-cased. Not a foreign key: attempts are made against addresses that
+  /// may not have accounts, and that is exactly the case worth counting.
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt(sort: Desc)])
+}
+
+model EmailOtp {
+  id String @id @default(uuid())
+
+  /// Lower-cased. Not a foreign key: a code is requested by typing an address,
+  /// and whether it belongs to an account is decided when the code is issued,
+  /// not by the shape of this table.
+  email String
+  /// SHA-256 of the code. The code itself is never stored and never logged.
+  codeHash String
+
+  /// What the code authorises. One value today (PASSWORD_RESET); named so a
+  /// second use cannot silently accept a code issued for the first.
+  purpose String
+
+  attempts   Int       @default(0)
+  /// When the code was accepted. Set by the verify step.
+  consumedAt DateTime?
+  /// When the token minted from this code was actually spent — set by the
+  /// reset step. The token is a stateless HMAC, so this row is the only thing
+  /// that can make it single-use: without it a token stayed good for its whole
+  /// ten minutes and could change the password again and again.
+  resetAt    DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt(sort: Desc)])
+  @@index([expiresAt])
+}
+
 model AccountChange {
   id     String     @id @default(uuid())
   userId String

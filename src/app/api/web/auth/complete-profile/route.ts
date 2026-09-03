@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readSignupToken } from "@/lib/signup-token";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
+import { checkPasswordStrength, hashPassword } from "@/lib/password";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
     }
 
+    // Required from here on. The number is still what proves the account, but
+    // a password is what lets the customer back in next time without another
+    // SMS — which is the whole point of asking for one. Accounts made before
+    // this have none and are not broken by it: they sign in with a code or
+    // with Google, and can add a password from /account.
+    const password = typeof body?.password === "string" ? body.password : "";
+    const strength = checkPasswordStrength(password);
+    if (!strength.ok) {
+      return NextResponse.json({ error: strength.error }, { status: 400 });
+    }
+    const passwordHash = await hashPassword(password);
+
     // Between the 409 and this call, the same number could have been signed in
     // on another device. Treat that as a login rather than colliding with the
     // unique index.
@@ -71,6 +84,11 @@ export async function POST(request: Request) {
               name: byEmail.name || name,
               firstName: byEmail.firstName || firstName || null,
               lastName: byEmail.lastName || lastName || null,
+              // They have just chosen one, so an account that had none gets
+              // it. An account that already had a password keeps it: this
+              // path is reached by proving a phone number, which is not
+              // proof of the old password.
+              ...(byEmail.passwordHash ? {} : { passwordHash }),
               authProvider: byEmail.authProvider.includes("PHONE")
                 ? byEmail.authProvider
                 : `${byEmail.authProvider}_AND_PHONE`,
@@ -83,8 +101,11 @@ export async function POST(request: Request) {
               lastName: lastName || null,
               phone,
               email,
+              passwordHash,
               phoneVerified: true,
-              authProvider: "PHONE",
+              // Both ways in from the start: the number that was just proved,
+              // and the password just chosen.
+              authProvider: "PHONE_AND_EMAIL",
               lastLoginAt: new Date(),
               loginCount: 1,
             },

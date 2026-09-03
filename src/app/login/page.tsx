@@ -12,6 +12,7 @@ import {
   type PhoneAuthIntent,
   type PhoneAuthStep,
 } from "@/components/ui/PhoneAuthForm";
+import { PasswordAuthForm } from "@/components/ui/PasswordAuthForm";
 import { GoogleButton } from "@/components/ui/GoogleButton";
 import { LoginBrandPanel } from "@/components/ui/LoginBrandPanel";
 import { LoginBackground } from "@/components/ui/LoginBackground";
@@ -35,6 +36,12 @@ function LoginPageInner() {
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
 
+  // Email and password is the default: a phone code costs an SMS every time a
+  // returning customer comes back, and most of them come back often.
+  const [method, setMethod] = useState<"password" | "phone">("password");
+  // Which door the phone form was opened through, so it can start on the right
+  // screen instead of always starting on sign-in.
+  const [phoneIntent, setPhoneIntent] = useState<PhoneAuthIntent>("signin");
   const [step, setStep] = useState<PhoneAuthStep>("phone");
   const [intent, setIntent] = useState<PhoneAuthIntent>("signin");
   const [phone, setPhone] = useState("");
@@ -51,7 +58,10 @@ function LoginPageInner() {
     router.replace(destination);
   }, [router, destination]);
 
-  const { heading, subheading } = authCopy(step, intent, phone);
+  const { heading, subheading } =
+    method === "password"
+      ? { heading: "Sign in", subheading: "Use the email and password on your account." }
+      : authCopy(step, intent, phone);
 
   // Only an already-signed-in visitor sees the spinner, and only for the moment
   // before the redirect lands. The form is not gated on `loading`: doing that
@@ -105,17 +115,45 @@ function LoginPageInner() {
               <p className="mt-1.5 text-sm text-slate-500">{subheading}</p>
 
               <div className="mt-6">
-                <PhoneAuthForm
-                  onSuccess={onSuccess}
-                  onStepChange={setStep}
-                  onIntentChange={setIntent}
-                  onPhoneChange={setPhone}
-                />
+                {method === "password" ? (
+                  <PasswordAuthForm
+                    onSuccess={onSuccess}
+                    // Two destinations, and the difference matters: creating
+                    // an account has to start with a code, while signing in
+                    // with one is only a fallback. Keyed so the phone form
+                    // remounts and opens on the right intent rather than
+                    // keeping whatever it was last time.
+                    onCreateAccount={() => {
+                      setPhoneIntent("signup");
+                      setMethod("phone");
+                    }}
+                    onUsePhone={() => {
+                      setPhoneIntent("signin");
+                      setMethod("phone");
+                    }}
+                  />
+                ) : (
+                  <PhoneAuthForm
+                    key={phoneIntent}
+                    initialIntent={phoneIntent}
+                    onSuccess={onSuccess}
+                    onStepChange={setStep}
+                    onIntentChange={setIntent}
+                    onPhoneChange={setPhone}
+                    onUsePassword={() => {
+                      // Back to a clean password screen: the phone flow's own
+                      // step must not leak into what the heading says.
+                      setStep("phone");
+                      setIntent("signin");
+                      setMethod("password");
+                    }}
+                  />
+                )}
               </div>
 
-              {/* Only on the first step: once a code is on its way, offering a
+              {/* Only on a first screen: once a code is on its way, offering a
                   different way in would only strand the one in progress. */}
-              {step === "phone" && (
+              {(method === "password" || step === "phone") && (
                 <>
                   <div className="my-5 flex items-center gap-3">
                     <span className="h-px flex-1 bg-slate-200" />
@@ -128,7 +166,7 @@ function LoginPageInner() {
                   {/* Google is a way in and a way to start — the heading above
                       already says which, so the label follows it. */}
                   <GoogleButton onSuccess={onSuccess} />
-                  {intent === "signup" && (
+                  {method === "phone" && intent === "signup" && (
                     <p className="mt-2.5 text-center text-[12px] text-slate-400">
                       Signing up with Google skips the code entirely.
                     </p>

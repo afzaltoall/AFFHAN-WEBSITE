@@ -95,3 +95,37 @@ export async function checkVideoViewRateLimit(req: NextRequest, videoId: string)
     return { success: true };
   }
 }
+
+// ============================================================================
+// Password-reset codes (5 requests per 15 minutes per IP)
+//
+// The per-IP half of the pair. The per-address half lives in lib/email-otp.ts
+// and is enforced in the database, because this one fails open when Upstash is
+// not configured — which it is not today, so treat this as defence that will
+// switch on when UPSTASH_REDIS_REST_* are set, not as the limit that is
+// currently holding.
+//
+// Five rather than three: one IP is a household, an office or a mobile
+// carrier's NAT, so the address limit is the one that should bite first.
+// ============================================================================
+const passwordResetLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "15 m"),
+      analytics: false,
+    })
+  : null;
+
+export async function checkPasswordResetRateLimit(req: NextRequest) {
+  if (!passwordResetLimiter) return { success: true };
+
+  try {
+    const ip = getClientIp(req);
+    const { success, limit, remaining, reset } = await passwordResetLimiter.limit(`pwreset:${ip}`);
+    return { success, limit, remaining, reset };
+  } catch (error) {
+    console.error("Redis Password Reset RateLimit Error:", error);
+    // Fail safely (open) if Redis is down.
+    return { success: true };
+  }
+}

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/prisma";
-import { generateMobileSessionToken } from "@/lib/mobile-auth";
+import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
 
 export const dynamic = "force-dynamic";
 
@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     // Create session
     const { rawToken, tokenHash } = generateMobileSessionToken();
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 30);
+    expiresAt.setDate(expiresAt.getDate() + SESSION_DAYS);
 
     await prisma.mobileSession.create({
       data: {

@@ -15,6 +15,8 @@ export interface WebUser {
   phoneVerified: boolean;
   /** ISO string, or null on the older sessions that predate the field. */
   createdAt: string | null;
+  /** Whether the account has a password at all. Never the password itself. */
+  hasPassword: boolean;
 }
 
 interface AuthValue {
