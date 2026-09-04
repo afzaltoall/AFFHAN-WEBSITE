@@ -762,7 +762,7 @@ export default function ProductsPage() {
       </div>
       <FooterSection />
       <CatalogueDock />
-      <InquiryModal product={inquiryProduct} onClose={() => setInquiryProduct(null)} />
+      {inquiryProduct && <InquiryModal product={inquiryProduct} onClose={() => setInquiryProduct(null)} />}
     </div>
   );
 }

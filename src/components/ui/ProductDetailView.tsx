@@ -284,7 +284,7 @@ export function ProductDetailView({ product, similar }: Props) {
         )}
       </div>
 
-      <InquiryModal product={inquiry} onClose={() => setInquiry(null)} />
+      {inquiry && <InquiryModal product={inquiry} onClose={() => setInquiry(null)} />}
     </main>
   );
 }

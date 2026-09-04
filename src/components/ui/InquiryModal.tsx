@@ -92,13 +92,13 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
     setTimeout(onClose, 250);
   };
 
-  // The modal only exists while it is open, so `true` is its open state.
+  // Back dismiss is active only while the modal is actually open and showing a product.
   // Routed through handleClose rather than onClose so Back gets the same 250ms
   // dismissal as the X button instead of snapping the form away.
-  useBackDismiss(true, handleClose);
+  useBackDismiss(Boolean(product && isVisible), handleClose);
   // The lightbox sits on top of the form and owns a second entry, so Back
   // closes the enlarged image first and leaves the form standing.
-  useBackDismiss(isLightboxOpen, () => setIsLightboxOpen(false));
+  useBackDismiss(Boolean(product && isLightboxOpen), () => setIsLightboxOpen(false));
 
   const handleInquirySubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -341,7 +341,7 @@ export default function RankingsPage() {
       </div>
 
       <FooterSection />
-      <InquiryModal product={inquiryProduct} onClose={() => setInquiryProduct(null)} />
+      {inquiryProduct && <InquiryModal product={inquiryProduct} onClose={() => setInquiryProduct(null)} />}
     </div>
   );
 }
