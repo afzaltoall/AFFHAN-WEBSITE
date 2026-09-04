@@ -10,7 +10,7 @@ import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
 import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph";
-import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
+import { buildCategoryTree, getCategoryIcon, type CategoryRecord } from "@/lib/categoryTree";
 import { ShippingBar } from "@/components/ui/ShippingBar";
 
 // The diverse-sample query can return overlapping products across paged
@@ -454,16 +454,22 @@ export function MarketplaceHeroSection() {
                 <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-brand transition-colors" />
               </button>
               <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                {topLevelCategories.map(cat => (
-                  <button
-                    key={cat.id}
-                    onClick={() => openMega(cat.id)}
-                    className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13px] text-slate-700 hover:bg-white/40 hover:text-brand-dark transition-colors"
-                  >
-                    <span className="truncate pr-2">{cat.name}</span>
-                    <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
-                  </button>
-                ))}
+                {topLevelCategories.map(cat => {
+                  const Icon = getCategoryIcon(cat.name);
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => openMega(cat.id)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13.5px] font-semibold text-slate-700 hover:bg-white/40 hover:text-brand-dark transition-colors group"
+                    >
+                      <div className="flex items-center gap-3 pr-2">
+                        <Icon className="w-4 h-4 text-slate-500 group-hover:text-brand transition-colors shrink-0" />
+                        <span className="break-words leading-tight">{cat.name}</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 group-hover:text-brand transition-colors" />
+                    </button>
+                  );
+                })}
               </div>
               {/* "View All" opens the full-category mega-panel (the toggle
                     screen), matching Alibaba's sidebar behavior — not a direct
