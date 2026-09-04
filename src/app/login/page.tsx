@@ -36,12 +36,11 @@ function LoginPageInner() {
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
 
-  // Email and password is the default: a phone code costs an SMS every time a
-  // returning customer comes back, and most of them come back often.
+  // Email and password is the default and now the only way to sign in: a phone
+  // code costs an SMS every time a returning customer comes back, and most of
+  // them come back often. The phone form is still reachable, but only for
+  // creating an account — which is the one thing a code is actually for.
   const [method, setMethod] = useState<"password" | "phone">("password");
-  // Which door the phone form was opened through, so it can start on the right
-  // screen instead of always starting on sign-in.
-  const [phoneIntent, setPhoneIntent] = useState<PhoneAuthIntent>("signin");
   const [step, setStep] = useState<PhoneAuthStep>("phone");
   const [intent, setIntent] = useState<PhoneAuthIntent>("signin");
   const [phone, setPhone] = useState("");
@@ -118,24 +117,12 @@ function LoginPageInner() {
                 {method === "password" ? (
                   <PasswordAuthForm
                     onSuccess={onSuccess}
-                    // Two destinations, and the difference matters: creating
-                    // an account has to start with a code, while signing in
-                    // with one is only a fallback. Keyed so the phone form
-                    // remounts and opens on the right intent rather than
-                    // keeping whatever it was last time.
-                    onCreateAccount={() => {
-                      setPhoneIntent("signup");
-                      setMethod("phone");
-                    }}
-                    onUsePhone={() => {
-                      setPhoneIntent("signin");
-                      setMethod("phone");
-                    }}
+                    onCreateAccount={() => setMethod("phone")}
                   />
                 ) : (
                   <PhoneAuthForm
-                    key={phoneIntent}
-                    initialIntent={phoneIntent}
+                    // The only reason to be here now.
+                    initialIntent="signup"
                     onSuccess={onSuccess}
                     onStepChange={setStep}
                     onIntentChange={setIntent}

@@ -86,14 +86,22 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
   return (
     <div className="flex bg-white rounded-2xl shadow-xl border border-slate-200/70 overflow-hidden w-[900px] max-h-[70vh]">
       {/* Left icon rail */}
-      <div className="w-56 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
+      {/* 288px, measured rather than guessed: at 14px semibold the longest of
+          the fifty names ("Women's Outerwear & Jackets") is 207px wide, and the
+          icon, gaps and padding around it come to 66 — so a single line needs
+          273. It used to be 224, which cut seven names mid-word.
+
+          A name longer than that would clip rather than wrap. Nothing in the
+          taxonomy comes close, but if one is promoted later this is the number
+          to raise. */}
+      <div className="w-72 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
         {sections.map(s => (
           <button
             key={s.id}
             onClick={() => scrollToSection(s.id)}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm transition-colors border-l-4 ${
+            className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold transition-colors border-l-4 ${
               activeId === s.id
-                ? "bg-white text-brand-dark font-semibold border-brand"
+                ? "bg-white text-brand-dark border-brand"
                 : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 border-transparent"
             }`}
           >
@@ -101,7 +109,12 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
               const Icon = getCategoryIcon(s.name);
               return <Icon size={18} className="shrink-0 stroke-[1.5]" />;
             })()}
-            <span className="truncate flex-1">{s.name}</span>
+            {/* One line, whole. Not truncated — a name cut to "Women's
+                Outerwear & Jack…" tells you less than the icon does — and not
+                wrapped either, because a two-line row among forty-nine
+                one-line rows reads as a mistake. The rail is sized above to
+                make that possible. */}
+            <span className="flex-1 whitespace-nowrap">{s.name}</span>
           </button>
         ))}
       </div>
@@ -123,7 +136,11 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
                 View all
               </button>
             </div>
-            <div className="grid grid-cols-7 gap-x-4 gap-y-6">
+            {/* Six across, not seven. The left rail grew to fit whole
+                category names, which left each tile column at 71px — narrow
+                enough that the two-line labels started clipping. Six gives
+                them 99px, slightly more than they had before the rail moved. */}
+            <div className="grid grid-cols-6 gap-x-4 gap-y-6">
               {s.isLeaf ? (
                 // Products stand in for the sub-categories a leaf does not
                 // have. They are a picture of what is inside, and they lead

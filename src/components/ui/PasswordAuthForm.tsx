@@ -12,19 +12,19 @@ import { useAuth } from "@/context/AuthContext";
  * customer who comes back weekly costs one every time. A password costs
  * nothing to check.
  *
- * Phone codes have not gone anywhere: they are how an account is created, how
- * someone without a password gets in, and the way back when a password is
- * forgotten. This screen offers both, with the cheap one first.
+ * Phone codes remain how an account is CREATED — a number nobody has proved is
+ * not an identity — but they are no longer offered as a way to sign in. Every
+ * account that predates passwords signs in with Google, so the fallback this
+ * screen used to carry had nobody left to serve, and for those six it was
+ * worse than useless: none of them has a number on file, so entering one would
+ * have started a second account rather than opening theirs.
  */
 export function PasswordAuthForm({
   onSuccess,
-  onUsePhone,
   onCreateAccount,
   autoFocus = true,
 }: {
   onSuccess?: () => void;
-  /** The fallback: sign in with a code, for accounts that have no password. */
-  onUsePhone: () => void;
   /** Making a new account, which always starts with a code. */
   onCreateAccount: () => void;
   autoFocus?: boolean;
@@ -124,17 +124,9 @@ export function PasswordAuthForm({
         Sign in
       </button>
 
-      {/* Two different destinations, kept apart on purpose.
-
-          Creating an account is a first-class action and gets the prominent
-          link — without it, the only route to signing up would be through a
-          fallback meant for something else, which is how account creation
-          ends up invisible.
-
-          The code fallback is smaller because it is for a shrinking set of
-          people: the accounts that existed before passwords. It is still the
-          only door that works for every customer on the site today, so it is
-          secondary, not hidden. */}
+      {/* The one way off this screen that is not signing in: making an
+          account. Without it the only route to signing up would be guesswork,
+          which is how account creation ends up invisible. */}
       <p className="pt-1 text-center text-[13px] text-slate-500">
         New to Affhan?{" "}
         <button
@@ -143,16 +135,6 @@ export function PasswordAuthForm({
           className="font-semibold text-brand underline-offset-2 transition-colors hover:text-brand-dark hover:underline cursor-pointer"
         >
           Create an account
-        </button>
-      </p>
-
-      <p className="text-center text-[12px] text-slate-400">
-        <button
-          type="button"
-          onClick={onUsePhone}
-          className="font-medium underline-offset-2 transition-colors hover:text-slate-600 hover:underline cursor-pointer"
-        >
-          Sign in with phone instead
         </button>
       </p>
 
