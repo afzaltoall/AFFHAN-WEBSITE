@@ -12,6 +12,7 @@ import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph";
 import { buildCategoryTree, getCategoryIcon, type CategoryRecord } from "@/lib/categoryTree";
 import { ShippingBar } from "@/components/ui/ShippingBar";
+import { AffhanBrandBar } from "@/components/ui/AffhanBrandBar";
 
 // The diverse-sample query can return overlapping products across paged
 // load-more calls; dedupe by id so a duplicate React key never reaches the
@@ -176,6 +177,7 @@ export function MarketplaceHeroSection() {
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
           <div className="relative mb-3 flex justify-center">
+            <AffhanBrandBar />
             <ShippingBar />
             <style dangerouslySetInnerHTML={{
               __html: `

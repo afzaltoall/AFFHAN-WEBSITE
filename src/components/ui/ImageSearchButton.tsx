@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
-import { Camera, Check, Upload, X } from "lucide-react";
+import { Camera, Check, Loader2, Sparkles, Upload, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { lockBodyScroll } from "@/lib/scrollLock";
@@ -67,10 +67,34 @@ const PANEL_MARGIN = 12;
  *  the server — nothing here claims work that is not being done, but it is an
  *  estimate and worth saying so. */
 const STEPS = [
-  { label: "Reading your image", detail: "Checking the file format, size and orientation", at: 0, dur: 400 },
-  { label: "Identifying the product", detail: "Working out what the object in the photo actually is", at: 400, dur: 900 },
-  { label: "Searching the catalogue", detail: "Matching those terms across 10 lakh+ products", at: 1300, dur: 700 },
-  { label: "Matching categories", detail: "Finding which branch of the catalogue it belongs to", at: 2000, dur: 900 },
+  {
+    label: "Reading your image",
+    detail: "Checking the file format, size and orientation",
+    at: 0,
+    dur: 350,
+    activeText: "Scanning file…",
+  },
+  {
+    label: "Identifying the product",
+    detail: "Working out what the object in the photo actually is",
+    at: 350,
+    dur: 750,
+    activeText: "Analyzing photo…",
+  },
+  {
+    label: "Searching the catalogue",
+    detail: "Matching those terms across 10 lakh+ products",
+    at: 1100,
+    dur: 700,
+    activeText: "Searching catalogue…",
+  },
+  {
+    label: "Matching categories",
+    detail: "Finding which branch of the catalogue it belongs to",
+    at: 1800,
+    dur: 800,
+    activeText: "Matching categories…",
+  },
 ];
 
 /** Rotates inside the mascot's speech bubble. Deliberately about the service
@@ -83,13 +107,13 @@ const QUOTES = [
   "Our buyers check the plant before your deposit moves.",
 ];
 
-function ThinkingSteps() {
+function ThinkingSteps({ complete = false }: { complete?: boolean }) {
   const [elapsed, setElapsed] = useState(0);
   const [quote, setQuote] = useState(0);
 
   useEffect(() => {
     const started = Date.now();
-    const tick = setInterval(() => setElapsed(Date.now() - started), 100);
+    const tick = setInterval(() => setElapsed(Date.now() - started), 80);
     const rotate = setInterval(() => setQuote((q) => (q + 1) % QUOTES.length), 3600);
     return () => {
       clearInterval(tick);
@@ -97,18 +121,19 @@ function ThinkingSteps() {
     };
   }, []);
 
-  const startedCount = STEPS.filter((s) => elapsed >= s.at).length;
-  const railPct = ((Math.max(1, startedCount) - 1) / (STEPS.length - 1)) * 100;
+  const startedCount = complete ? STEPS.length : STEPS.filter((s) => elapsed >= s.at).length;
+  const railPct = complete
+    ? 100
+    : ((Math.max(1, startedCount) - 1) / (STEPS.length - 1)) * 100;
 
   return (
     <div className="mx-auto max-w-2xl px-1 py-4">
-      {/* Mascot and bubble sit together on one row so the quote is clearly his,
-          and the pair uses the full width instead of a narrow centred column. */}
+      {/* Mascot and speech bubble */}
       <div className="mb-8 flex items-center gap-4 sm:gap-5">
         <div className="affhan-drift shrink-0" aria-hidden="true">
           <Image
             src="/affhan-robot.webp"
-            alt=""
+            alt="Affhan Assistant"
             width={72}
             height={71}
             className="size-16 object-contain drop-shadow-[0_8px_18px_rgba(39,168,196,0.35)] sm:size-[72px]"
@@ -117,14 +142,18 @@ function ThinkingSteps() {
         </div>
 
         <div className="relative min-w-0 flex-1">
-          {/* Tail: a rotated square tucked under the bubble's left edge, so it
-              reads as pointing at the mascot without needing an SVG. */}
           <span
-            className="absolute -left-1.5 top-1/2 size-3 -translate-y-1/2 rotate-45 rounded-[2px] border-b border-l border-slate-200 bg-slate-50"
+            className="absolute -left-1.5 top-1/2 size-3 -translate-y-1/2 rotate-45 rounded-[2px] border-b border-l border-slate-200/80 bg-slate-50"
             aria-hidden="true"
           />
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 shadow-sm">
-            <p key={quote} className="text-sm leading-snug text-slate-800 motion-safe:animate-[fadeIn_450ms_ease-out]">
+          <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-50 via-cyan-50/20 to-slate-50 p-4 shadow-sm">
+            <div className="mb-1 flex items-center gap-1.5">
+              <Sparkles size={13} className="text-[#27a8c4]" />
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#176579]">
+                Affhan AI Sourcing
+              </span>
+            </div>
+            <p key={quote} className="text-sm font-medium leading-relaxed text-slate-700 motion-safe:animate-[fadeIn_450ms_ease-out]">
               {QUOTES[quote]}
             </p>
           </div>
@@ -140,53 +169,75 @@ function ThinkingSteps() {
         />
 
         {STEPS.map((s, i) => {
-          const started = elapsed >= s.at;
-          const done = i < STEPS.length - 1 && elapsed >= STEPS[i + 1].at;
-          // The final step holds just short of full while the response is still
-          // in flight — showing it complete would be a lie about the state.
-          const raw = started ? Math.min(1, (elapsed - s.at) / s.dur) : 0;
-          const pct = done ? 100 : Math.round((i === STEPS.length - 1 ? Math.min(raw, 0.92) : raw) * 100);
+          const isDone = complete || (i < STEPS.length - 1 ? elapsed >= STEPS[i + 1].at : complete);
+          const isStarted = complete || elapsed >= s.at;
+          const isActive = !isDone && isStarted;
+
+          const raw = isStarted ? Math.min(1, (elapsed - s.at) / s.dur) : 0;
+          const fillWidth = isDone ? 100 : isActive ? Math.min(92, Math.max(18, Math.round(raw * 100))) : 0;
 
           return (
             <li key={s.label} className="relative flex gap-4 pb-6 last:pb-0">
               <span
                 className={cn(
-                  "relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 bg-white transition-all duration-500",
-                  done
-                    ? "border-[#1d7e93] bg-[#1d7e93] text-white"
-                    : started
-                      ? "border-[#27a8c4] text-[#1d7e93] shadow-[0_0_0_4px_rgba(39,168,196,0.14)]"
+                  "relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 bg-white transition-all duration-300",
+                  isDone
+                    ? "border-[#176579] bg-gradient-to-br from-[#27a8c4] to-[#176579] text-white shadow-[0_2px_8px_rgba(23,101,121,0.3)]"
+                    : isActive
+                      ? "border-[#27a8c4] text-[#176579] shadow-[0_0_0_4px_rgba(39,168,196,0.18)]"
                       : "border-slate-200 text-slate-300",
                 )}
               >
-                {done ? (
-                  <Check size={13} strokeWidth={3} />
+                {isDone ? (
+                  <Check size={13} strokeWidth={3} className="motion-safe:animate-[fadeIn_200ms_ease-out]" />
+                ) : isActive ? (
+                  <Loader2 size={13} className="animate-spin text-[#176579]" />
                 ) : (
-                  <span className={cn("size-2 rounded-full bg-current", started && "motion-safe:animate-pulse")} />
+                  <span className="size-2 rounded-full bg-slate-300" />
                 )}
               </span>
 
               <span
                 className={cn(
-                  "min-w-0 flex-1 transition-opacity duration-500",
-                  started ? "opacity-100" : "opacity-45",
+                  "min-w-0 flex-1 transition-opacity duration-300",
+                  isStarted ? "opacity-100" : "opacity-45",
                 )}
               >
-                <span className="flex items-baseline justify-between gap-3">
+                <div className="flex items-center justify-between gap-3">
                   <span className="text-sm font-semibold text-slate-800">{s.label}</span>
-                  <span className="shrink-0 text-[11px] font-medium tabular-nums text-slate-500">
-                    {done ? "Done" : started ? `${pct}%` : "Waiting"}
-                  </span>
-                </span>
+                  <div className="shrink-0">
+                    {isDone ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200/60 shadow-xs">
+                        <Check size={10} strokeWidth={3} className="text-emerald-600" /> Done
+                      </span>
+                    ) : isActive ? (
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-2.5 py-0.5 text-[11px] font-semibold text-[#176579] border border-cyan-200/70 shadow-xs">
+                        <span className="relative flex size-1.5">
+                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#27a8c4] opacity-75" />
+                          <span className="relative inline-flex size-1.5 rounded-full bg-[#176579]" />
+                        </span>
+                        {s.activeText}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-medium text-slate-600">Waiting</span>
+                    )}
+                  </div>
+                </div>
                 <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">{s.detail}</span>
 
-                {/* The horizontal line under each step: full width, filling as
-                    that stage runs. This is the part a spinner cannot express. */}
-                <span className="mt-2 block h-1 w-full overflow-hidden rounded-full bg-slate-200/70">
-                  <span
-                    className="step-bar-fill block h-full rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579]"
-                    style={{ width: `${pct}%` }}
-                  />
+                {/* Progress bar */}
+                <span className="relative mt-2.5 block h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                  {isDone ? (
+                    <span className="block h-full w-full rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] transition-all duration-300" />
+                  ) : isActive ? (
+                    <span className="relative block h-full w-full overflow-hidden rounded-full bg-slate-100">
+                      <span
+                        className="step-bar-fill absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579]"
+                        style={{ width: `${fillWidth}%` }}
+                      />
+                      <span className="step-active-shimmer absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+                    </span>
+                  ) : null}
                 </span>
               </span>
             </li>
@@ -222,6 +273,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [complete, setComplete] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<Response | null>(null);
   const [inquiry, setInquiry] = useState<Result | null>(null);
@@ -294,6 +346,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
     setResult(null);
     setInquiry(null);
     setBusy(false);
+    setComplete(false);
     setOpen(false);
     if (inputRef.current) inputRef.current.value = "";
   }, []);
@@ -319,25 +372,49 @@ export function ImageSearchButton({ className }: { className?: string }) {
     };
   }, [open, reset, inquiry]);
 
-  const onPick = useCallback(async (file: File) => {
+  const onPick = useCallback(async (file: File | null, sourceUrl?: string) => {
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
-    const url = URL.createObjectURL(file);
-    previewUrl.current = url;
-    setPreview(url);
+    if (file) {
+      const url = URL.createObjectURL(file);
+      previewUrl.current = url;
+      setPreview(url);
+    } else if (sourceUrl) {
+      previewUrl.current = null;
+      setPreview(sourceUrl);
+    }
     setResult(null);
     setOpen(true);
     setBusy(true);
+    setComplete(false);
+
+    const startTime = Date.now();
 
     try {
       const body = new FormData();
-      body.append("image", file);
+      if (file) {
+        body.append("image", file);
+        if (file.name) body.append("fileName", file.name);
+      }
+      if (sourceUrl) body.append("sourceUrl", sourceUrl);
       const res = await fetch("/api/search/image", { method: "POST", body });
       const data: Response = await res.json().catch(() => ({ error: "Something went wrong." }));
+
+      // Ensure minimum step pacing so the user experiences the smooth AI sourcing progression
+      const elapsed = Date.now() - startTime;
+      if (elapsed < 1400) {
+        await new Promise((resolve) => setTimeout(resolve, 1400 - elapsed));
+      }
+
+      // Mark all steps as completely Done with checkmarks before revealing results
+      setComplete(true);
+      await new Promise((resolve) => setTimeout(resolve, 380));
+
       setResult(res.ok ? data : { error: data.error ?? "Something went wrong." });
     } catch {
       setResult({ error: "Could not reach the server. Check your connection and try again." });
     } finally {
       setBusy(false);
+      setComplete(false);
     }
   }, []);
 
@@ -346,28 +423,30 @@ export function ImageSearchButton({ className }: { className?: string }) {
      however it arrived, and the user is told which rule it broke instead of
      watching the panel open and fail. */
   const acceptFile = useCallback(
-    (file: File | null | undefined) => {
-      if (!file) {
+    (file: File | null | undefined, sourceUrl?: string) => {
+      if (!file && !sourceUrl) {
         setPanelError("That did not contain an image.");
         return;
       }
-      const looksRight = file.type
-        ? ACCEPTED_TYPES.includes(file.type)
-        : ACCEPTED_EXTS.test(file.name);
-      if (!looksRight) {
-        setPanelError("That file type will not work. Use a JPEG, PNG, WebP, AVIF, HEIC, GIF, TIFF or BMP.");
-        return;
-      }
-      if (file.size > MAX_BYTES) {
-        setPanelError(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. The limit is 5MB.`);
-        return;
+      if (file) {
+        const looksRight = file.type
+          ? ACCEPTED_TYPES.includes(file.type)
+          : ACCEPTED_EXTS.test(file.name);
+        if (!looksRight) {
+          setPanelError("That file type will not work. Use a JPEG, PNG, WebP, AVIF, HEIC, GIF, TIFF or BMP.");
+          return;
+        }
+        if (file.size > MAX_BYTES) {
+          setPanelError(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. The limit is 5MB.`);
+          return;
+        }
       }
       // The panel is closing because the results are opening. Without this the
       // panel's history pop arrives after the dialog has pushed its own entry
       // and closes it on the spot — the photo is taken and nothing appears.
       overlayHandoff();
       closePanel();
-      void onPick(file);
+      void onPick(file || null, sourceUrl);
     },
     [closePanel, onPick],
   );
@@ -414,13 +493,23 @@ export function ImageSearchButton({ className }: { className?: string }) {
   useEffect(() => {
     if (!panelOpen) return;
     const onPaste = (e: ClipboardEvent) => {
+      let sourceUrl = "";
+      const html = e.clipboardData?.getData("text/html") || "";
+      const text = e.clipboardData?.getData("text/plain") || "";
+      const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (imgMatch) {
+        sourceUrl = imgMatch[1];
+      } else if (/^https?:\/\/.+/i.test(text.trim())) {
+        sourceUrl = text.trim();
+      }
+
       const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith("image/"));
       if (!item) {
         setPanelError("There is no image on the clipboard. Copy an image first, then paste.");
         return;
       }
       e.preventDefault();
-      acceptFile(item.getAsFile());
+      acceptFile(item.getAsFile(), sourceUrl);
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
@@ -484,10 +573,32 @@ export function ImageSearchButton({ className }: { className?: string }) {
           setDragOver(true);
         }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
+        onDrop={async (e) => {
           e.preventDefault();
           setDragOver(false);
-          acceptFile(e.dataTransfer.files?.[0]);
+          let sourceUrl = "";
+          const uri = e.dataTransfer.getData("text/uri-list");
+          const html = e.dataTransfer.getData("text/html");
+          if (uri) {
+            sourceUrl = uri;
+          } else if (html) {
+            const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+            if (m) sourceUrl = m[1];
+          }
+          let file = e.dataTransfer.files?.[0];
+          if (!file && sourceUrl) {
+            try {
+              const res = await fetch(sourceUrl);
+              if (res.ok) {
+                const blob = await res.blob();
+                const cleanName = sourceUrl.split("/").pop()?.split("?")[0] || "product.jpg";
+                file = new File([blob], cleanName, { type: blob.type || "image/jpeg" });
+              }
+            } catch {
+              // Direct fetch failed (e.g. CORS), fallback to passing sourceUrl to the server
+            }
+          }
+          acceptFile(file, sourceUrl);
         }}
         className={cn(
           "rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors duration-150",
@@ -580,9 +691,12 @@ export function ImageSearchButton({ className }: { className?: string }) {
       <div className="my-auto flex max-h-[90svh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-900/5">
         <div className="flex shrink-0 items-start gap-4 border-b border-slate-200 bg-slate-50/60 p-5">
           {preview ? (
-            <div className="relative size-16 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 shadow-sm">
+            <div className="relative size-16 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 shadow-sm ring-1 ring-slate-900/10">
               {/* eslint-disable-next-line @next/next/no-img-element -- blob: URL, nothing for next/image to optimise */}
               <img src={preview} alt="The photo you uploaded" className="size-full object-cover" />
+              {busy && (
+                <span className="scan-laser-beam absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_8px_rgba(34,211,238,0.9)]" />
+              )}
             </div>
           ) : null}
           <div className="min-w-0 flex-1">
@@ -621,7 +735,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
           className="scroll-panel min-h-0 flex-1 overflow-y-auto p-5"
         >
           {busy ? (
-            <ThinkingSteps />
+            <ThinkingSteps complete={complete} />
           ) : (
             <>
               {categories.length > 0 && (

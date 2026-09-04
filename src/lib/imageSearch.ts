@@ -42,9 +42,9 @@ const ANTHROPIC_VERSION = "2023-06-01";
  *  for the answer, and returned truncated JSON with finishReason MAX_TOKENS.
  *  Lite models ignore the headroom, so it costs nothing to leave it there. */
 const GEMINI_MODELS = [
+  "gemini-3.5-flash",
   "gemini-3.1-flash-lite",
-  "gemini-3.5-flash-lite",
-  "gemini-flash-lite-latest",
+  "gemini-flash-latest",
 ] as const;
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
@@ -222,42 +222,53 @@ async function callGemini(key: string, base64: string, mediaType: string, signal
 
   let lastStatus = 0;
   for (const model of chain) {
-    const res = await fetch(`${GEMINI_URL}/${model}:generateContent`, {
-      method: "POST",
-      signal,
-      headers: { "content-type": "application/json", "x-goog-api-key": key },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: PROMPT }] },
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inline_data: { mime_type: mediaType, data: base64 } },
-              { text: "Identify this product for a catalogue search." },
-            ],
+    try {
+      const perModelSignals = [AbortSignal.timeout(8_000)];
+      if (signal) perModelSignals.push(signal);
+      const combinedSignal = AbortSignal.any(perModelSignals);
+
+      const res = await fetch(`${GEMINI_URL}/${model}:generateContent`, {
+        method: "POST",
+        signal: combinedSignal,
+        headers: { "content-type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: PROMPT }] },
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { inline_data: { mime_type: mediaType, data: base64 } },
+                { text: "Identify this product for a catalogue search." },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+            maxOutputTokens: 800,
+            temperature: 0,
+            thinkingConfig: { thinkingBudget: 0 },
           },
-        ],
-        // Gemini can be told to emit JSON directly, which removes most of the
-        // parsing guesswork. extractJson still runs as a backstop.
-        generationConfig: { responseMimeType: "application/json", maxOutputTokens: 800, temperature: 0 },
-      }),
-    });
+        }),
+      });
 
-    if (res.ok) {
-      const payload = (await res.json()) as {
-        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-      };
-      return (payload.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
-    }
+      if (res.ok) {
+        const payload = (await res.json()) as {
+          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        };
+        return (payload.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+      }
 
-    lastStatus = res.status;
-    const detail = await res.text().catch(() => "");
-    if (!isTransient(res.status)) {
-      // 400, 403, 404 — a wrong model name or a rejected key. Trying the next
-      // model would only produce the same class of failure more slowly.
-      throw new Error(`Gemini API ${res.status}: ${detail.slice(0, 300)}`);
+      lastStatus = res.status;
+      const detail = await res.text().catch(() => "");
+      if (!isTransient(res.status)) {
+        // 400, 403, 404 — a wrong model name or a rejected key.
+        console.warn(`Image search: ${model} rejected with ${res.status}: ${detail.slice(0, 200)}`);
+      } else {
+        console.warn(`Image search: ${model} returned ${res.status}, trying next model.`);
+      }
+    } catch (err) {
+      console.warn(`Image search: ${model} attempt failed (${err instanceof Error ? err.message : String(err)}), trying next model.`);
     }
-    console.warn(`Image search: ${model} returned ${res.status}, trying the next model.`);
   }
 
   throw new ImageSearchBusy(`All Gemini models were unavailable (last status ${lastStatus}).`);

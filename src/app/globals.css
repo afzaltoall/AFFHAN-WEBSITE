@@ -1121,8 +1121,28 @@ html {
 .step-bar-fill { transition: width 160ms linear; }
 .step-rail-fill { transition: height 400ms cubic-bezier(0.22, 1, 0.36, 1); }
 
+@keyframes stepShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.step-active-shimmer {
+  animation: stepShimmer 1.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes scanLaser {
+  0%, 100% { top: 0%; opacity: 0.85; }
+  50% { top: 100%; opacity: 1; }
+}
+.scan-laser-beam {
+  animation: scanLaser 2.2s ease-in-out infinite;
+  will-change: top, opacity;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .affhan-drift { animation: none; }
+  .affhan-drift,
+  .step-active-shimmer,
+  .scan-laser-beam { animation: none; }
   .step-bar-fill,
   .step-rail-fill { transition: none; }
 }

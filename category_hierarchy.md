@@ -1,0 +1,638 @@
+# Category Hierarchy
+
+**Total Categories**: 634
+
+- **Automobiles & Motorcycles** (ID: `A2F799BE-FB59-428E-A953-296AA2673FCF`)
+  - **Auto Replacement Parts** (ID: `FBA0652F-AC56-4EB6-9360-8CE42B83BF48`)
+    - **Automobiles Sensors** (ID: `C8B7A95E-0E98-41F8-892B-35B5679713A6`) *(Leaf)*
+    - **Car Brake System** (ID: `3166F1D4-5213-42D7-A2B6-670ACF0D489A`) *(Leaf)*
+    - **Car Lights** (ID: `E987126C-FF3D-4BCF-B496-40990D39D2F8`) *(Leaf)*
+    - **Exterior Parts** (ID: `CAE924E7-EB56-4299-A5B0-8DB86C9ECB52`) *(Leaf)*
+    - **Interior Parts** (ID: `28508884-954A-4F76-83BC-FAEA0E0C43FE`) *(Leaf)*
+    - **Other Replacement Parts** (ID: `CB255FA6-9B4C-4542-82CC-F774DE8F8C68`) *(Leaf)*
+    - **Spark Plugs & Ignition System** (ID: `9F6B73A9-0E4F-4EE9-978F-69984CF3E300`) *(Leaf)*
+    - **Windscreen Wipers & Windows** (ID: `FF672D98-F632-4C18-ABA3-E86C9C8951FE`) *(Leaf)*
+  - **Car Electronics** (ID: `AE1E932F-7832-4CE8-9DFE-885044383863`)
+    - **Alarm Systems & Security** (ID: `BCC009E7-B5FF-4E4B-8D1D-7DE5B5DBFAE0`) *(Leaf)*
+    - **Car Mirror Video** (ID: `5F6BBD36-AFDE-4433-81D1-8684781E04DE`) *(Leaf)*
+    - **Car Monitors** (ID: `4B2ED078-B253-4105-98A2-1203875448F5`) *(Leaf)*
+    - **Car Multimedia Player** (ID: `B43C754E-838C-4028-99E7-D3D0E029C68C`) *(Leaf)*
+    - **Car Radios** (ID: `A3E67E41-8A5C-449F-8C22-739889760AAD`) *(Leaf)*
+    - **DVR & Dash Camera** (ID: `2A64C22F-F04A-4AAA-9C1C-8AF89323FB63`) *(Leaf)*
+    - **GPS Trackers** (ID: `B39B6F95-9C89-4D6C-9E98-1633DA6A51CF`) *(Leaf)*
+    - **Jump Starter** (ID: `C7B399B2-4D26-4363-8062-C6F451DA55B3`) *(Leaf)*
+    - **Vehicle Camera** (ID: `10B94E89-4E22-4BC8-8E6C-9A5CB2119F03`) *(Leaf)*
+    - **Vehicle GPS** (ID: `5D2C4AD8-AF51-4258-A329-45A675E2805D`) *(Leaf)*
+  - **Exterior Accessories** (ID: `1D5C8310-38DC-436D-B281-37660F7673B1`)
+    - **Car Covers** (ID: `ED8B5070-DA72-451A-A0BF-DBE65FDA465E`) *(Leaf)*
+    - **Car Stickers** (ID: `255A489E-8518-4E31-AC84-A2E8EB645C78`) *(Leaf)*
+    - **Other Exterior Accessories** (ID: `ED1BECF0-0B39-41EE-968C-2948FED771C3`) *(Leaf)*
+  - **Interior Accessories** (ID: `575086BA-B96B-4557-85C9-004D3DF6A9AE`)
+    - **Automobiles Seat Covers** (ID: `808A409E-8E16-43A8-879A-153672135DB9`) *(Leaf)*
+    - **Car Aromatherapy** (ID: `2601070551311618400`) *(Leaf)*
+    - **Car Perfume** (ID: `2601070551481626500`) *(Leaf)*
+    - **Floor Mats** (ID: `090E48F4-B406-438B-9EBF-D52450AC370A`) *(Leaf)*
+    - **Key Case for Car** (ID: `309854A6-BDC2-4F52-80D8-93E5109B3A53`) *(Leaf)*
+    - **Steering Covers** (ID: `5559DD57-7F12-44BC-9C29-9E9BD1CDB029`) *(Leaf)*
+    - **Stowing Tidying** (ID: `D44C3391-0AF1-455A-A671-29214DA68F27`) *(Leaf)*
+  - **Motorcycle Accessories & Parts** (ID: `D82400A8-94A4-410C-9155-0DCD4115DEA4`)
+    - **Body & Frame** (ID: `9EB55782-830D-41A5-B29C-B5A13520923E`) *(Leaf)*
+    - **Exhaust & Exhaust Systems** (ID: `45EA5F91-6654-48C5-8D3A-0E5E97156F16`) *(Leaf)*
+    - **Helmet Headset** (ID: `683FC820-3B12-4F92-A250-FF213D8D3899`) *(Leaf)*
+    - **Lighting** (ID: `11B12208-A434-467B-8AD3-DC65E32EC2E5`) *(Leaf)*
+    - **Motor Brake System** (ID: `482DBC73-CA1B-4FF5-A943-D282D7FBC18F`) *(Leaf)*
+    - **Motorcycle Seat Covers** (ID: `4FB5AA23-AA52-4928-A653-616ED3347074`) *(Leaf)*
+    - **Other Motorcycle Accessories** (ID: `628E44C8-73BF-4D4C-87C9-0B4F9A60D0C3`) *(Leaf)*
+  - **Tools, Maintenance & Care** (ID: `8D23F08A-3D9E-4A29-A184-EB6F8145E739`)
+    - **Car Washer** (ID: `00E6FC51-B865-4D50-9EF9-21E7050F5653`) *(Leaf)*
+    - **Diagnostic Tools** (ID: `3627FAE5-F4A4-4227-8066-A7D460BA6E21`) *(Leaf)*
+    - **Other Maintenance Products** (ID: `D24CEB99-1ABB-4643-B0B6-33C60AF9B101`) *(Leaf)*
+    - **Paint Care** (ID: `77A90826-779B-47DD-AB79-8FEE91AE0A3E`) *(Leaf)*
+- **Bags & Shoes** (ID: `2415A90C-5D7B-4CC7-BA8C-C0949F9FF5D8`)
+  - **Men's Luggage & Bags** (ID: `D82A6AF3-78F1-4A33-8F44-A37F282B2209`)
+    - **Briefcases** (ID: `9F5FDE97-3BE8-4EBE-A8EA-48723A307E37`) *(Leaf)*
+    - **Crossbody Bags** (ID: `EA292A58-E696-428B-8BEB-DE105690DDB3`) *(Leaf)*
+    - **Girls Bags** (ID: `C50C5B6E-1517-4CBE-97FE-ECC923C83D35`) *(Leaf)*
+    - **Luggage & Travel Bags** (ID: `E89AC661-0B9E-4967-A0A3-7B0C6DEDDC7D`) *(Leaf)*
+    - **Man Wallets** (ID: `F3F4B418-17DF-49A1-AD76-A436B7618FFC`) *(Leaf)*
+    - **Men's Backpacks** (ID: `CDCCB9B1-D5DD-4C20-AF32-101FE427B63C`) *(Leaf)*
+    - **Waist Bags** (ID: `B701FAC3-80F0-43B1-9EA5-2C05C55F582A`) *(Leaf)*
+  - **Men's Shoes** (ID: `FE8AD446-B2BF-4C8C-B90B-49A6F2B3FF6A`)
+    - **Casual Shoes** (ID: `F419006D-AE55-4691-93FC-52FEBB459DBA`) *(Leaf)*
+    - **Formal Shoes** (ID: `11C9DE73-0438-40E2-80B8-72697795C9F2`) *(Leaf)*
+    - **Man Boots** (ID: `0F0296D6-F057-4FD4-9E06-95D5DBCCE6EB`) *(Leaf)*
+    - **Man Sandals** (ID: `D0E37ED0-65C8-43E3-8B84-C973040DCE9C`) *(Leaf)*
+    - **Man Slippers** (ID: `312428E8-5075-4F74-A317-8EB051C0C068`) *(Leaf)*
+    - **Men's Insoles** (ID: `2502190401401619600`) *(Leaf)*
+    - **Vulcanize Shoe** (ID: `B8640E7B-F07D-4C0F-A5CF-8ACC533DA86F`) *(Leaf)*
+  - **Women's Luggage & Bags** (ID: `EC2E9303-E704-43F3-834A-A15EA653232E`)
+    - **Bag Accessories** (ID: `2502190501141602700`) *(Leaf)*
+    - **Boys Bags** (ID: `96C833A9-93EC-4D76-B093-3A3B945659C6`) *(Leaf)*
+    - **Clutches** (ID: `CB7C7348-41DC-4AA5-9BD0-CC2D555899BB`) *(Leaf)*
+    - **Evening Bags** (ID: `33AFFE07-CC46-4557-9FD9-27CC9975BEED`) *(Leaf)*
+    - **Fashion Backpacks** (ID: `78BCE010-8E22-416F-82E2-6E5C6AE0CECE`) *(Leaf)*
+    - **Shoulder Bags** (ID: `7DC7FA45-C8E1-4A2E-BA84-B81FB9CA2815`) *(Leaf)*
+    - **Totes** (ID: `8F3ADC01-68FE-4CBE-BB1D-0DE42A730749`) *(Leaf)*
+    - **Woman Wallets** (ID: `0ADE366E-CDF4-47E7-8720-B480220E1BD4`) *(Leaf)*
+    - **Women's Crossbody Bags** (ID: `2410301013451614000`) *(Leaf)*
+  - **Women's Shoes** (ID: `E93B19EF-4E2C-4526-B2DF-BBFB6F2A80A7`)
+    - **Flats** (ID: `F35FC838-1CFE-49D1-A8CA-CF7401F9C444`) *(Leaf)*
+    - **Pumps** (ID: `638284D0-3651-4FC9-9F25-B0A0BA323D83`) *(Leaf)*
+    - **Vulcanize Shoes** (ID: `1B559D30-B370-4C8E-8CFD-1E1BC47E217F`) *(Leaf)*
+    - **Woman Boots** (ID: `1988B912-7A18-4ED2-B1E1-61ED290A0E82`) *(Leaf)*
+    - **Woman Sandals** (ID: `AAB54987-4E92-40C7-B0F5-5E814C1E6980`) *(Leaf)*
+    - **Woman Slippers** (ID: `8F756420-4840-474E-B2D6-6725ED219970`) *(Leaf)*
+    - **Women's Insoles** (ID: `2502190401571622500`) *(Leaf)*
+- **Computer & Office** (ID: `1126E280-CB7D-418A-90AB-7118E2D97CCC`)
+  - **Laptop & Tablets** (ID: `7ECEEABC-0396-411D-969A-8F69CC7369E5`)
+    - **2 in 1 Tablets** (ID: `25E64DFD-1ED3-4171-86CD-0C2F40052F3B`) *(Leaf)*
+    - **Gaming Laptops** (ID: `E3963C40-89BE-46AC-985D-A86FA417F6B8`) *(Leaf)*
+    - **Laptops** (ID: `7D962F30-E20E-4DE9-8911-EB8AB078FB23`) *(Leaf)*
+    - **Phone Call Tablets** (ID: `1E9A3E86-7E5A-439E-9B33-CBD495421F0B`) *(Leaf)*
+    - **Tablets** (ID: `D190FBF9-A352-48BD-9F4B-B6AB432988E5`) *(Leaf)*
+  - **Networking** (ID: `E79489E4-8022-42F5-9847-9B4543C8763F`)
+    - **3G Modems** (ID: `A77A4E59-D931-4BBE-9D48-FF995C481B66`) *(Leaf)*
+    - **Modem-Router Combos** (ID: `4F7EE88B-4209-42E8-A501-5F634B58BB35`) *(Leaf)*
+    - **Network Cards** (ID: `C019C59C-C274-44F9-B04B-5520F1EBE5FA`) *(Leaf)*
+    - **Networking Tools** (ID: `9A33970D-F4BC-48EC-BEAB-FEC19C130963`) *(Leaf)*
+    - **Wireless Routers** (ID: `76CD1BD4-2A0A-4D72-913C-6DAADD7E9EDB`) *(Leaf)*
+  - **Office Electronics** (ID: `188CE695-A4AF-48A4-B855-6BE1C7F0A44F`)
+    - **3D Pens** (ID: `D8BBE038-9ECD-4698-8CB1-DE63E27F33C7`) *(Leaf)*
+    - **3D Printers** (ID: `C7365895-913A-4078-9946-681EFD45D2B8`) *(Leaf)*
+    - **Computer Tablet Accessories** (ID: `2502190343061609600`) *(Leaf)*
+    - **Office & School Supplies** (ID: `2252588B-72E3-4397-8C92-7D9967161084`) *(Leaf)*
+    - **Printer Supplies** (ID: `874B7C94-D225-43FE-AB79-FFAF1B800651`) *(Leaf)*
+    - **Printers** (ID: `E33443F7-144C-4CBE-8D34-C1B6256A6325`) *(Leaf)*
+    - **Scanners** (ID: `F8024D10-AB96-4558-AC79-C49625F768DA`) *(Leaf)*
+  - **Security & Protection** (ID: `192C9D30-5FEA-4B67-B251-AF6E97678DFF`)
+    - **Alarm & Sensor** (ID: `0598E853-9BF7-4939-A571-2407E819C91E`) *(Leaf)*
+    - **Door Intercom** (ID: `28F0E5A1-0A9A-43C5-8197-F1420A9BD10B`) *(Leaf)*
+    - **Fire Protection** (ID: `0ACCE01C-2C83-4767-B9E8-736B7E0CC38D`) *(Leaf)*
+    - **Surveillance Products** (ID: `BB57B72C-A8C6-40FF-BCBB-EAE0251273C6`) *(Leaf)*
+    - **Workplace Safety Supplies** (ID: `0B50EC4B-F78C-4D2D-839C-4767D6B4B7C7`) *(Leaf)*
+  - **Storage Devices** (ID: `23AD5346-5552-4392-A922-69CE426EC583`)
+    - **External Hard Drives** (ID: `C62BC6BF-BA2B-41ED-AB12-599A6D7FCAA5`) *(Leaf)*
+    - **HDD Enclosures** (ID: `76B88FB8-9B37-4B55-AA09-082C5627DFE8`) *(Leaf)*
+    - **Memory Cards** (ID: `7E65A403-CF6E-4B55-96FF-B7C3C376A47A`) *(Leaf)*
+    - **SSD** (ID: `4D3B9582-E92E-46BF-B00E-715E70FB4742`) *(Leaf)*
+    - **USB Flash Drives** (ID: `591E8920-019B-42FA-AE0B-420052E6C4F0`) *(Leaf)*
+  - **Tablet & Laptop Accessories** (ID: `764DB83F-C286-4CA9-9ACF-4017CFC86A39`)
+    - **Laptop Bags & Cases** (ID: `74B144C9-321D-4E78-986C-757BA551DD8C`) *(Leaf)*
+    - **Laptop Batteries** (ID: `3F3EFC96-82B8-44C1-BF7A-2E3E7083A875`) *(Leaf)*
+    - **Tablet Accessories** (ID: `EDC3EDAF-1ED7-4776-8416-E9F8F0A5B4C6`) *(Leaf)*
+    - **Tablet Cases** (ID: `87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E`) *(Leaf)*
+    - **Tablet LCD Screens** (ID: `24FAA1AB-BF10-41ED-8405-A9FA53031B3A`) *(Leaf)*
+- **Consumer Electronics** (ID: `D9E66BF8-4E81-4CAB-A425-AEDEC5FBFBF2`)
+  - **Accessories & Parts** (ID: `30063684-45E2-4929-BB85-441C1DF80DDE`)
+    - **Audio & Video Cables** (ID: `66D0D817-353B-492E-87A5-024091FF9000`) *(Leaf)*
+    - **Batteries** (ID: `A0D39205-3770-4F0B-91BD-65E711263577`) *(Leaf)*
+    - **Charger** (ID: `6DB79FAF-593D-4F52-B6FF-AB1D14331862`) *(Leaf)*
+    - **Digital Cables** (ID: `40CC2ED1-8998-4515-9139-787CC25D42A7`) *(Leaf)*
+    - **Digital Gear Bags** (ID: `AD2B299F-EC10-4209-998A-8916AE4D4900`) *(Leaf)*
+    - **Home Electronic Accessories** (ID: `599DFE31-C6AD-42D2-93AA-762126BBA475`) *(Leaf)*
+  - **Camera & Photo** (ID: `85E0D3B7-C3C4-4F1B-98A6-958389A1BEBE`)
+    - **Action Cameras** (ID: `AD21D6F7-42CB-44E7-89B2-542692C7D101`) *(Leaf)*
+    - **Camcorders** (ID: `DE5A9724-8B92-404F-B15E-1FCAD6594BAF`) *(Leaf)*
+    - **Camera & Photo Accessories** (ID: `A2B55BEF-9B7D-44A0-8E80-A14FFFBBBD94`) *(Leaf)*
+    - **Camera Drones** (ID: `907BBB40-C131-4D3C-BA05-794D47EEBC90`) *(Leaf)*
+    - **Digital Cameras** (ID: `AA40156F-A334-475E-9CA0-7E5520645980`) *(Leaf)*
+    - **Photo Studio** (ID: `11D96803-A0A3-4175-B49B-2102EC285965`) *(Leaf)*
+  - **Home Audio & Video** (ID: `4BFAF763-DD09-4DD3-A7E9-E03724D1D51B`)
+    - **Audio Amplifiers** (ID: `872FA218-4F48-4F03-8FEE-ADE7CF21BC45`) *(Leaf)*
+    - **Home Audio & Video** (ID: `D6C23AAE-B8EE-481C-9B61-34557971D45F`) *(Leaf)*
+    - **Projectors** (ID: `0AC6B44A-12CC-456F-831F-54064C77D303`) *(Leaf)*
+    - **Projectors & Acessories** (ID: `A9B643D0-7AA9-4703-A59B-D01C4526CDF9`) *(Leaf)*
+    - **Television** (ID: `0F932A8E-47CB-4CB6-B7C3-C4D9F7CF62EC`) *(Leaf)*
+    - **TV Receivers** (ID: `3A557A5A-FDAF-48BF-A989-3ED90B9ED228`) *(Leaf)*
+    - **TV Sticks** (ID: `D8515A8C-ECAC-422B-9963-14D7B07E10DB`) *(Leaf)*
+  - **Portable Audio & Video** (ID: `DC11C779-CCD5-429C-9A93-F638456E745B`)
+    - **Earphones & Headphones** (ID: `DAECCC3B-13D8-4978-86A8-61D3DF186134`) *(Leaf)*
+    - **Microphones** (ID: `8FD4CA46-AA88-4CDC-8EBA-EBD8412152E2`) *(Leaf)*
+    - **MP3 Players** (ID: `F34292A3-2774-4380-9ADF-78F90AB90863`) *(Leaf)*
+    - **Speakers** (ID: `C1AB7563-AED4-44D8-9F01-05BD91C65307`) *(Leaf)*
+    - **VR & AR Devices** (ID: `EE64B306-1A1F-4879-A080-BF0ACA4400A9`) *(Leaf)*
+  - **Smart Electronics** (ID: `6A03FBB1-F7D9-441F-B06D-EF45CA87B553`)
+    - **Smart Home Appliances** (ID: `36F73513-6A5A-445D-87F9-BF3D6629E649`) *(Leaf)*
+    - **Smart Remote Controls** (ID: `E95322D2-FF23-4837-A0C0-0CA686B9F062`) *(Leaf)*
+    - **Smart Watches** (ID: `C83EF2A0-8FA3-4713-9901-2FD6E4554D97`) *(Leaf)*
+    - **Smart Wearable Accessories** (ID: `4336FAFE-B9C9-4673-8706-BCFAE1448DA2`) *(Leaf)*
+    - **Smart Wristbands** (ID: `895CF515-0F6B-481D-8A32-604EDCBEFBED`) *(Leaf)*
+    - **Wearable Devices** (ID: `11D33F89-9B90-4D1A-B977-DE229BAA7E86`) *(Leaf)*
+  - **Video Games** (ID: `997DBFF0-627C-4397-80D3-C12EA3906969`)
+    - **Gamepads** (ID: `1F23F16D-0A39-4D38-AB9C-1F21EEDEBEDD`) *(Leaf)*
+    - **Handheld Game Players** (ID: `2F6CCFAA-853F-41EF-8B91-24028A333948`) *(Leaf)*
+    - **Joysticks** (ID: `A96C59E8-C39A-4C8E-BA75-5B4AA347FCCC`) *(Leaf)*
+    - **Stickers** (ID: `A8EBE688-6787-4ECF-8E5A-8802AC9C2135`) *(Leaf)*
+    - **Video Game Consoles** (ID: `56892B7E-0C59-4DAB-8336-57C6CA548043`) *(Leaf)*
+- **Health, Beauty & Hair** (ID: `2C7D4A0B-1AB2-41EC-8F9E-13DC31B1C902`)
+  - **Beauty Tools** (ID: `CE5FADBB-B432-40B9-8B20-200F6928762A`)
+    - **Curling Iron** (ID: `C75F27EE-695C-423E-BCB4-7CFE67221332`) *(Leaf)*
+    - **Electric Face Cleanser** (ID: `6D086E0D-8C3F-4B99-BA44-140F3F7C444E`) *(Leaf)*
+    - **Face Skin Care Tools** (ID: `AB11F624-D292-4A8E-9284-BD368B893A2C`) *(Leaf)*
+    - **Facial Steamer** (ID: `D23FFB85-4185-4FA3-BAF0-224A4F516741`) *(Leaf)*
+    - **Mirrors** (ID: `2502140311201613700`) *(Leaf)*
+    - **Straightening Irons** (ID: `47D355FB-E6C1-4E0B-AE31-0B1696A4B68E`) *(Leaf)*
+  - **Food & Health** (ID: `2409190607141613700`)
+    - **Health Care Products** (ID: `2409190611101616600`) *(Leaf)*
+  - **Hair & Accessories** (ID: `3B5BDD4D-34F4-4807-BC6C-943C2C1BCDB8`)
+    - **Headband & Hair Band & Hairpin** (ID: `2502140903111619100`) *(Leaf)*
+    - **Human Hair** (ID: `B3D7C9CA-9B1E-4E97-8310-39083F0308C9`) *(Leaf)*
+  - **Hair Weaves** (ID: `71BB975B-A54E-489E-95BF-3105433858D0`)
+    - **Hair Styling** (ID: `9A3105F2-AFFD-42FC-8A52-D0FB4ACDCB63`) *(Leaf)*
+    - **Hair Weaving** (ID: `57DCC498-DF74-4E8F-929F-F4DF256AA72D`) *(Leaf)*
+    - **Pre-Colored Hair Weave** (ID: `D7EF49F5-F75D-45DC-A0BB-CFCFF4346E18`) *(Leaf)*
+    - **Pre-Colored One Pack** (ID: `4B3ED595-B44D-4A7A-81F8-B0E3B272B62A`) *(Leaf)*
+    - **Salon Bundle Hair** (ID: `C6368BAF-38E8-4741-86F3-66878F069841`) *(Leaf)*
+  - **Makeup** (ID: `7EAF3E36-620B-4D78-818F-EE80955462A4`)
+    - **Eyebrow Pencil** (ID: `2502140902411611700`) *(Leaf)*
+    - **Eyeshadow** (ID: `8FB2C16C-4C1B-4B5A-89F8-BC30FB2C442A`) *(Leaf)*
+    - **False Eyelashes** (ID: `E31E5996-7B86-4FEC-B929-9AEB11E76853`) *(Leaf)*
+    - **Lipstick** (ID: `B68DF53F-4DD5-4659-A530-66D414CF2147`) *(Leaf)*
+    - **Makeup Brushes** (ID: `A30E8F55-DC2C-4842-9372-91B96DEFDCC2`) *(Leaf)*
+    - **Makeup Set** (ID: `426792A7-4906-403D-AD17-8293AFF00E66`) *(Leaf)*
+  - **Nail Art & Tools** (ID: `01FD30A0-118E-4269-A6D2-8415E9C163BA`)
+    - **Nail Art Kits** (ID: `EADB666A-12A5-4FA1-AD1F-BC351A7E7AF5`) *(Leaf)*
+    - **Nail Decorations** (ID: `26F7660F-A00A-468A-BA29-E61A465C0D0B`) *(Leaf)*
+    - **Nail Dryers** (ID: `E157D35B-156B-49F6-A678-7C55D4E81D6C`) *(Leaf)*
+    - **Nail Gel** (ID: `9F96CE84-962D-4992-81DC-BF79A4A9002D`) *(Leaf)*
+    - **Nail Glitters** (ID: `1B1A9B82-1833-4721-88CA-86F5F542D7A5`) *(Leaf)*
+    - **Stickers & Decals** (ID: `25A6516D-3AE3-4207-BA00-6FD3CCE20201`) *(Leaf)*
+  - **Skin Care** (ID: `6289460B-5660-468A-AE43-3D619A05AAC2`)
+    - **Body Care** (ID: `E0238E88-0C63-427F-812E-BA1FCE4C67B4`) *(Leaf)*
+    - **Essential Oil** (ID: `CB1A9CEF-8333-4D2F-B19A-418C6DE376C7`) *(Leaf)*
+    - **Face Masks** (ID: `88AF62DE-5586-40E4-A287-864523D9AE50`) *(Leaf)*
+    - **Facial Care** (ID: `EDE3FAD9-0E6C-4F7C-9016-A2299469AA7C`) *(Leaf)*
+    - **Razor** (ID: `5DE3BC4F-41A8-4806-8E66-47537903123A`) *(Leaf)*
+    - **Sun Care** (ID: `B6A8B971-793B-4F9E-AA56-3A5D12F63827`) *(Leaf)*
+  - **Synthetic Hair** (ID: `3C677D1C-C1AA-461F-851F-3E8A42C82984`)
+    - **Cosplay Wigs** (ID: `C8148B69-25D4-4DEE-8388-3D627D35163D`) *(Leaf)*
+  - **Wigs & Extensions** (ID: `BF7AE6E9-E175-48FD-B1E3-3CF0126C90D0`)
+    - **Hair Braids** (ID: `B30591BD-0353-4791-8BF6-F4876CC7F9B1`) *(Leaf)*
+    - **Human Hair Lace Wigs** (ID: `93B5702F-DEF0-443D-847B-9287DEDF5BD9`) *(Leaf)*
+    - **Human Hair Wigs** (ID: `44733589-BEE4-448D-86F9-A1B5A9710C79`) *(Leaf)*
+    - **Synthetic Hair Pieces** (ID: `6ADDD8E4-4141-4B5A-9A85-6D87FED7799C`) *(Leaf)*
+    - **Synthetic Lace Wigs** (ID: `6C4CEB64-10FD-447E-BB1D-F6F5C1E71442`) *(Leaf)*
+    - **Synthetic Wigs** (ID: `DB81767B-2083-4C66-8E8D-1A0D897ABA7C`) *(Leaf)*
+- **Home Improvement** (ID: `6A5D2EB4-13BD-462E-A627-78CFED11B2A2`)
+  - **Home Appliances** (ID: `85EF081C-819E-448F-BD5C-C5D3F4CFAADA`)
+    - **Air Conditioning Appliances** (ID: `36686698-230D-46F9-A076-8CC61AE36CE3`) *(Leaf)*
+    - **Cleaning Appliances** (ID: `3633986F-83D2-4A6F-8F4D-79EE2CF77B8F`) *(Leaf)*
+    - **Home Appliance Parts** (ID: `4D91D172-D6D0-429E-AABC-6F3325A273A6`) *(Leaf)*
+    - **Kitchen Appliances** (ID: `A028998B-C8CF-4533-BBE4-E04FA244CDC6`) *(Leaf)*
+    - **Personal Care Appliances** (ID: `02EA33AA-4174-497D-86F4-D4FF9E525B81`) *(Leaf)*
+  - **Indoor Lighting** (ID: `BEFFF5CB-EF79-4984-9C55-62C23B95C0F7`)
+    - **Ceiling Lights** (ID: `D6A70719-5E93-40E6-AE8B-A060D667A17B`) *(Leaf)*
+    - **Chandeliers** (ID: `02795B1D-0E81-4201-B6D5-19A2605DEC10`) *(Leaf)*
+    - **Downlights** (ID: `36C55794-4437-4782-B8CF-D265C12CA4E5`) *(Leaf)*
+    - **Night Lights** (ID: `538CB48E-B7A0-46F7-B5A2-BB8183247B23`) *(Leaf)*
+    - **Pendant Lights** (ID: `0591D043-4EFC-494A-9901-358197CC3D18`) *(Leaf)*
+    - **Wall Lamps** (ID: `AC4A8F93-27FF-4531-8394-53E97F02159D`) *(Leaf)*
+  - **LED Lighting** (ID: `392D3DB2-1E98-474E-9E45-9F2FE95A7608`)
+    - **LED Spotlights** (ID: `DFFFDEDF-42F8-4D1F-B0A3-6B6744F7C1D3`) *(Leaf)*
+  - **Outdoor Lighting** (ID: `59AEBD05-0FDB-4392-BCF5-518C411A26E0`)
+    - **Flashlights & Torches** (ID: `7E431502-1275-4FF3-A236-B97C107C3AFA`) *(Leaf)*
+    - **Floodlights** (ID: `A33B0665-E26F-4870-B2B3-B13B4C36EE66`) *(Leaf)*
+    - **Solar Lamps** (ID: `F9749558-9C47-4612-9411-88FF301DB7AD`) *(Leaf)*
+    - **String Lights** (ID: `EDB5F43E-EAC0-489A-8355-5188EAB72D08`) *(Leaf)*
+    - **Underwater Lights** (ID: `E6271C99-8F7B-457D-AE11-3950081DD093`) *(Leaf)*
+  - **Tools** (ID: `67391D45-D736-40E9-9D90-F56418804ECC`)
+    - **Garden Tools** (ID: `CDB10A90-3D34-4396-99B2-919E7CAD4B53`) *(Leaf)*
+    - **Hand Tools** (ID: `55795653-09E8-4EE6-B477-1E30E7A601B2`) *(Leaf)*
+    - **Home Improvement Materials** (ID: `2601070550031612900`) *(Leaf)*
+    - **Machine Tools & Accessories** (ID: `964AB089-A154-4971-9A4F-DB9C57E06854`) *(Leaf)*
+    - **Measurement & Analysis** (ID: `4D7853CE-9E1C-4103-A06F-46401827A535`) *(Leaf)*
+    - **Power Tools** (ID: `9FC79C6B-AE70-472C-B8F8-D62479F0D03E`) *(Leaf)*
+    - **Tool Sets** (ID: `7B18EF9A-B48E-4917-84AF-624919C32CA6`) *(Leaf)*
+    - **Tools Storage** (ID: `924090C3-8179-437F-8219-37582113FB08`) *(Leaf)*
+    - **Welding & Soldering Supplies** (ID: `4E013A02-FB26-4CA4-998C-85CC07623984`) *(Leaf)*
+    - **Welding Equipment** (ID: `52500EBD-C120-4C0E-9EF8-0F381E530633`) *(Leaf)*
+    - **Woodworking Machinery** (ID: `C9F154F8-5782-40E7-B749-3CF89763F16D`) *(Leaf)*
+- **Home, Garden & Furniture** (ID: `52FC6CA5-669B-4D0B-B1AC-415675931399`)
+  - **Arts, Crafts & Sewing** (ID: `2180A6DC-32EC-44B2-8FD4-CE3DD6DB4C19`)
+    - **Apparel Sewing & Fabric** (ID: `93671B1A-DE8F-4398-B139-8B2214206648`) *(Leaf)*
+    - **Cross-Stitch** (ID: `C8AA2A38-B339-468F-87D3-AD2DB0697F93`) *(Leaf)*
+    - **Decor Paintings** (ID: `2409230854411618700`) *(Leaf)*
+    - **Diamond Painting Cross Stitch** (ID: `EEC881A3-0A55-4BBF-9ADB-EB290116A67A`) *(Leaf)*
+    - **Fabric** (ID: `FD2629CD-9379-4EC4-BCF3-5998AEA3E642`) *(Leaf)*
+    - **Lace** (ID: `664B9B04-4697-437A-AA46-631EFCC3DF03`) *(Leaf)*
+    - **Ribbons** (ID: `D60B979B-3779-47BD-8F55-D17581817273`) *(Leaf)*
+  - **Festive & Party Supplies** (ID: `7D40D0BB-1466-4EEA-B275-0EB4CC0020D8`)
+    - **Cake Decorating Supplies** (ID: `779524FE-7E6E-4948-A739-999E07602BE5`) *(Leaf)*
+    - **Christmas Decoration Supplies** (ID: `621F9C38-814C-40C2-9F9D-7CE12DB8FB4C`) *(Leaf)*
+    - **Decorative Flowers & Wreaths** (ID: `7B975B46-46DF-4C3A-BC58-1F4F2DDB9413`) *(Leaf)*
+    - **Event & Party Supplies** (ID: `C329460A-9074-4E42-B1FD-D9E91568A64B`) *(Leaf)*
+    - **Invitation Cards** (ID: `768DE38B-3FCB-4DD1-B14C-687F03F78D0A`) *(Leaf)*
+    - **Party Masks** (ID: `9F52617D-F420-4FA7-8F25-53A9577A9111`) *(Leaf)*
+  - **Home Storage** (ID: `ED8E61AA-2260-4E03-BA66-DEAE3DF02CDC`)
+    - **Adult Wellness** (ID: `1697200256204677120`) *(Leaf)*
+    - **Bathroom Storage** (ID: `B62EE40F-7650-4715-A7A5-BA227540593C`) *(Leaf)*
+    - **Clothing & Wardrobe Storage** (ID: `A0E89009-FFD6-4B2E-906A-8076DF45B32C`) *(Leaf)*
+    - **First Aid Supplies** (ID: `2601070551041636400`) *(Leaf)*
+    - **Furniture** (ID: `2410301014451618100`) *(Leaf)*
+    - **Home Office Storage** (ID: `87CF251F-8D11-4DE0-A154-9694D9858EB3`) *(Leaf)*
+    - **Kitchen Storage** (ID: `56845C3D-4D9E-4729-B5D4-6D7DE310C031`) *(Leaf)*
+    - **Seasonal products** (ID: `1711658677159079936`) *(Leaf)*
+    - **Stationeries** (ID: `2409230543341601500`) *(Leaf)*
+    - **Storage Bags & Cases & Boxes** (ID: `2502140315331600200`) *(Leaf)*
+    - **Storage Bottles & Jars** (ID: `C1394E10-1EDF-4107-AA93-F142B44C3136`) *(Leaf)*
+  - **Home Textiles** (ID: `1AD00A3C-465A-430A-9820-F2D097FDA53A`)
+    - **Bedding Sets** (ID: `496E6FFC-4BC4-4CA6-8225-5BC0D56E8E11`) *(Leaf)*
+    - **Comforters** (ID: `36F37524-3EAF-4E20-B989-10137FD0ED70`) *(Leaf)*
+    - **Curtains** (ID: `1A9A9965-A914-46D7-B8E2-49AD256F2B6B`) *(Leaf)*
+    - **Cushion Covers** (ID: `300CC260-CF9D-4AEA-9FC2-6C8DB8A35B51`) *(Leaf)*
+    - **Floor Mats** (ID: `2601070550351602500`) *(Leaf)*
+    - **Pillows** (ID: `6939DA08-F7F8-48FB-A7E8-169AEAC92404`) *(Leaf)*
+    - **Towels** (ID: `331F43CE-CA1D-45F2-BE2A-8AE62EC10251`) *(Leaf)*
+  - **Kitchen, Dining & Bar** (ID: `D5D120D0-1262-461A-97C5-74AC732625B5`)
+    - **Bakeware** (ID: `7C8E809A-460A-4F50-8A2F-B62AD010BFF8`) *(Leaf)*
+    - **Barware** (ID: `BEDFD1CC-E7CC-438F-9050-D7737904203D`) *(Leaf)*
+    - **Cooking Tools** (ID: `E448A723-43DC-4BD8-A9AD-2FB9699338B4`) *(Leaf)*
+    - **Dinnerware** (ID: `0F4CFA22-8B97-4016-94A6-18066B9BD05C`) *(Leaf)*
+    - **Drinkware** (ID: `CF330457-0E5B-4FAF-9BAE-7D2C247BD8DE`) *(Leaf)*
+    - **Kitchen Knives & Accessories** (ID: `23ADD7CB-065A-4A02-B8E8-43D3F041B90B`) *(Leaf)*
+  - **Musical Instruments** (ID: `2502140306341614500`)
+    - **Guitars** (ID: `2502140306571605000`) *(Leaf)*
+    - **Steel Tongue Drum** (ID: `2603180848241600400`) *(Leaf)*
+    - **Violins** (ID: `2502140307181607100`) *(Leaf)*
+- **Jewelry & Watches** (ID: `2837816E-2FEA-4455-845C-6F40C6D70D1E`)
+  - **Fashion Jewelry** (ID: `123ACC01-7A11-4FB9-A532-338C0E7C04C5`)
+    - **Anklets** (ID: `2601070548141611900`) *(Leaf)*
+    - **Body Jewelry** (ID: `633E1860-7C63-4006-AB35-3FC16BECFA62`) *(Leaf)*
+    - **Bracelets & Bangles** (ID: `0615F8DB-C10F-4BEF-892B-1C5B04268938`) *(Leaf)*
+    - **Brooches** (ID: `1363024200339689472`) *(Leaf)*
+    - **Charms** (ID: `2909669F-96C4-457A-A425-19799F2A47BF`) *(Leaf)*
+    - **Earrings** (ID: `D28405AE-66C6-42E6-BFF0-D6FDCB5C083C`) *(Leaf)*
+    - **Fashion Jewelry Sets** (ID: `89D165E3-EF5F-461D-9DC9-D1041CECEF09`) *(Leaf)*
+    - **Keychains** (ID: `1363289906151034880`) *(Leaf)*
+    - **Men's Cuff Links** (ID: `B5525066-3504-4E5C-962F-9C2D8C38F66D`) *(Leaf)*
+    - **Necklace & Pendants** (ID: `95D9F317-1DB3-4E42-A031-02223215B9C5`) *(Leaf)*
+    - **Pocket Watches** (ID: `2601070547231620800`) *(Leaf)*
+    - **Rings** (ID: `56B4F8B6-8600-4A18-913E-53F2F693EC2C`) *(Leaf)*
+  - **Fine Jewelry** (ID: `3E53507E-2EDB-49F1-8D0D-AD01225DAD8A`)
+    - **925 Silver Jewelry** (ID: `552F095A-904C-40E4-A43B-0CD1CE15D29F`) *(Leaf)*
+    - **Fine Earrings** (ID: `D7CE9827-F50A-4B07-84BF-1BFE44188A1C`) *(Leaf)*
+    - **Fine Jewelry Sets** (ID: `E8B256EF-44F0-4FA0-847B-F104FD29E101`) *(Leaf)*
+    - **K-Gold** (ID: `7BCF191E-A4CC-403E-AF46-81370EB3AB19`) *(Leaf)*
+    - **Men's Fine Jewelry** (ID: `E403FB8A-B59A-4A81-B776-EBF3343FE3E3`) *(Leaf)*
+    - **Pearls Jewelry** (ID: `84ED4B7F-D7C3-412F-AF18-04F25C91985C`) *(Leaf)*
+    - **Various Gemstones** (ID: `391F1C45-D86B-4A92-893E-48C1CA84C461`) *(Leaf)*
+  - **Men's Watches** (ID: `603B4E08-4226-4BFC-A46E-FCCE92ED1C63`)
+    - **Digital Watches** (ID: `3D882765-B20E-4EFD-BFCC-136942A83C4C`) *(Leaf)*
+    - **Dual Display Watches** (ID: `76B0FCF7-2571-4B64-AE23-82D6A15C4C19`) *(Leaf)*
+    - **Mechanical Watches** (ID: `369EB061-A5CD-4F1F-A105-6DAB1D520F49`) *(Leaf)*
+    - **Men Sports Watches** (ID: `BF68CA3E-F698-475E-A1AD-C8E4C44D7C8D`) *(Leaf)*
+    - **Quartz Watches** (ID: `1987B0AD-8C6A-4D02-B5B2-5D94E83B069F`) *(Leaf)*
+  - **Wedding & Engagement** (ID: `01114D8D-79BD-4AD9-85A0-72D1B050E3F8`)
+    - **Bridal Jewelry Sets** (ID: `04B879BE-79E7-4CB9-B493-B03F628B5130`) *(Leaf)*
+    - **Engagement Rings** (ID: `FCE034F6-A2BF-47E3-852F-FA9F67F904B2`) *(Leaf)*
+    - **Wedding & Engagement** (ID: `FCF87613-7AF4-4053-B688-B415FDD242CE`) *(Leaf)*
+    - **Wedding Hair Jewelry** (ID: `443467E0-29C5-4850-9BF4-B0D8F9008EEB`) *(Leaf)*
+  - **Women's Watches** (ID: `F1B0B876-9103-4DF0-9EA5-524094648BFD`)
+    - **Children's Watches** (ID: `FBD85934-5409-4EC6-A6B5-FDBF072AA0E2`) *(Leaf)*
+    - **Creative Watches** (ID: `DAE17D16-A15F-445D-AE34-B698F3290E56`) *(Leaf)*
+    - **Dress Watches** (ID: `A044AC0D-BA3B-4967-8300-1BD57F00048E`) *(Leaf)*
+    - **Lovers' Watches** (ID: `DC682F4C-BD7E-4DB0-93CB-33B4CD54BE87`) *(Leaf)*
+    - **Watch Accessories** (ID: `2601070548491632400`) *(Leaf)*
+    - **Women Sports Watches** (ID: `9D78B3E3-99F4-4EDA-8C70-2F5B95061CAA`) *(Leaf)*
+    - **Women's Bracelet Watches** (ID: `F40CB152-1391-4CA9-9BAE-0316DA2D3D2B`) *(Leaf)*
+- **Men's Clothing** (ID: `B8302697-CF47-4211-9BD0-DFE8995AEB30`)
+  - **Accessories** (ID: `90619059-822F-469F-9231-D58761546093`)
+    - **Belts** (ID: `ECF5842F-2FE6-4DD7-8827-FAA8A1D3D199`) *(Leaf)*
+    - **Man Gloves & Mittens** (ID: `44A3ADE0-A8EC-4101-A8DE-DF42F56EF3F1`) *(Leaf)*
+    - **Man Prescription Glasses** (ID: `EF619898-429D-49B6-BD66-49057C06259B`) *(Leaf)*
+    - **Men's Ties** (ID: `2410301013241608600`) *(Leaf)*
+    - **Scarves** (ID: `37F32196-21BB-49CE-B2D4-80787A5DF276`) *(Leaf)*
+    - **Skullies & Beanies** (ID: `C0EFBA18-A36D-48CD-B953-85DDFCB9B1C6`) *(Leaf)*
+    - **Socks** (ID: `1C592A63-6E0F-4F25-9496-8BDD82BF4281`) *(Leaf)*
+  - **Bottoms** (ID: `ACCD31BE-6CFB-40DB-AB0D-FD5FAA14153A`)
+    - **Cargo Pants** (ID: `846D76D8-095D-4DD8-89DF-1E48D869F60C`) *(Leaf)*
+    - **Casual Pants** (ID: `C992BFAB-12A9-4C61-A1DA-6E09C926BB81`) *(Leaf)*
+    - **Harem Pants** (ID: `B97A0CAD-6160-485B-A3FD-04EE4493A442`) *(Leaf)*
+    - **Man Jeans** (ID: `911754C0-443D-4ECF-9083-DF04C907BD81`) *(Leaf)*
+    - **Man Shorts** (ID: `7D830BF3-03DB-4EBB-8A50-ED5F1231E17A`) *(Leaf)*
+    - **Pajama Sets** (ID: `758FE9DE-16D9-4860-8472-46C5BA460FF7`) *(Leaf)*
+    - **Sweatpants** (ID: `D75F1892-F6F8-4295-966B-CB405B77070A`) *(Leaf)*
+  - **Hats & Caps** (ID: `DC3A5713-984B-4877-95C4-8400B7151AF8`)
+    - **Baseball Caps** (ID: `0203EC28-49AF-49E4-B899-333C0A235BD4`) *(Leaf)*
+    - **Berets** (ID: `3F464061-C4C7-43FE-A3FE-84AD92838E56`) *(Leaf)*
+    - **Bomber Hats** (ID: `243C5278-C220-4110-B2AF-129118F09171`) *(Leaf)*
+    - **Fedoras** (ID: `EB891BA4-6F5C-4625-B76A-49504556B127`) *(Leaf)*
+  - **Outerwear & Jackets** (ID: `609C16BC-2A1E-4FE5-9A07-7D7E36EA24F5`)
+    - **Down Jackets** (ID: `F7CF2C2C-A7F5-488B-B457-646028917DF2`) *(Leaf)*
+    - **Genuine Leather** (ID: `1ED06BF8-F5D4-45E5-A95F-D7FC278C7EF3`) *(Leaf)*
+    - **Man Hoodies & Sweatshirts** (ID: `976399B4-534B-46F0-B18A-62075824A717`) *(Leaf)*
+    - **Man Trench** (ID: `222439DF-4ED5-4DCF-BB22-8FB41607C7D2`) *(Leaf)*
+    - **Men's Jackets** (ID: `2409230540351618000`) *(Leaf)*
+    - **Men's Shirts** (ID: `2409230540121629100`) *(Leaf)*
+    - **Men's Suits** (ID: `2502140305411618900`) *(Leaf)*
+    - **Men's Sweaters** (ID: `1357252400104214528`) *(Leaf)*
+    - **Parkas** (ID: `E6E0E866-DB80-4EC9-9557-578320427C34`) *(Leaf)*
+    - **Suits & Blazer** (ID: `007F26BA-B50A-4ADA-BD36-2CD341411230`) *(Leaf)*
+    - **Wool & Blends** (ID: `CD1AEB49-F87A-42D2-AD82-77708A8CDFD7`) *(Leaf)*
+  - **T-Shirts** (ID: `C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073`)
+    - **3D** (ID: `9E77F21D-54E4-41B5-BB97-2CECBEA9DA96`) *(Leaf)*
+    - **Geometric** (ID: `05B15AC3-931A-4A72-9F1D-DC54CBCA51C4`) *(Leaf)*
+    - **Men's Long-Sleeved** (ID: `2502140308291606200`) *(Leaf)*
+    - **Print** (ID: `BE11EEDB-B765-4A39-8A3D-F6015FC7A846`) *(Leaf)*
+    - **Solid** (ID: `655B8008-6BB9-4AA1-8025-6206ACFF018A`) *(Leaf)*
+    - **Striped** (ID: `521887E1-D6D5-4475-81B7-63B9F72DDFCA`) *(Leaf)*
+  - **Underwear & Loungewear** (ID: `20DA7E59-3A12-40DE-B8B6-78AD03A61DB1`)
+    - **Boxers** (ID: `AEEDE316-97ED-442D-AE77-3A444B1AF073`) *(Leaf)*
+    - **Briefs** (ID: `1A3AF8F0-0549-4529-873A-5D109B301643`) *(Leaf)*
+    - **Long Johns** (ID: `E7F165D8-BBE8-4AE3-87E8-999864158243`) *(Leaf)*
+    - **Man Pajama Sets** (ID: `A6A734F9-6F0B-4A9F-9ED4-0D35A9F5B877`) *(Leaf)*
+    - **Men's Sleep & Lounge** (ID: `0222F963-84BC-4ED8-87A0-2EE6B7890B53`) *(Leaf)*
+    - **Robes** (ID: `60A76402-BF69-49A3-8FEC-28B9235BED62`) *(Leaf)*
+    - **Shorts** (ID: `12A1288F-063D-427F-BF07-10F53784849B`) *(Leaf)*
+- **Pet Supplies** (ID: `2409110611570657700`)
+  - **Bird Supplies** (ID: `2410110337451628400`)
+    - **Bird Accessories** (ID: `2410110344551611100`) *(Leaf)*
+    - **Bird Cages** (ID: `2410110344031621500`) *(Leaf)*
+    - **Bird Feeders** (ID: `2410110343481625100`) *(Leaf)*
+    - **Bird Swings** (ID: `2410110344161629700`) *(Leaf)*
+    - **Bird Toys** (ID: `2410110344291609800`) *(Leaf)*
+    - **Bird Travel Bags** (ID: `2410110344421608600`) *(Leaf)*
+  - **Fish & Aquatic Pets** (ID: `2410110338011611100`)
+    - **Fish Tank Cleaning Supplies** (ID: `2410110347591607300`) *(Leaf)*
+    - **Fish Tank Decorations** (ID: `2410110345231624700`) *(Leaf)*
+    - **Fish Tanks** (ID: `2410110345121610800`) *(Leaf)*
+  - **Pet Apparels** (ID: `2410110338151629800`)
+    - **Pet Bags** (ID: `2410110351121613900`) *(Leaf)*
+    - **Pet Clothing Sets** (ID: `2410110350161600700`) *(Leaf)*
+    - **Pet Clothings** (ID: `2410110349471606300`) *(Leaf)*
+    - **Pet Coats & Jackets** (ID: `2410110349061619800`) *(Leaf)*
+    - **Pet Down & Parkas** (ID: `2410110350311612500`) *(Leaf)*
+    - **Pet Dresses** (ID: `2410110348131619300`) *(Leaf)*
+    - **Pet Functional Clothings** (ID: `2410110350021615300`) *(Leaf)*
+    - **Pet Jumpsuits** (ID: `2410110349201623700`) *(Leaf)*
+    - **Pet Pajamas** (ID: `2410110349341618600`) *(Leaf)*
+    - **Pet Scarves** (ID: `2410110350591620800`) *(Leaf)*
+    - **Pet Shoes & Socks** (ID: `2410110350451606900`) *(Leaf)*
+    - **Pet Sweaters** (ID: `2410110348401611500`) *(Leaf)*
+    - **Pet Sweatshirts & Hoodies** (ID: `2410110348531624100`) *(Leaf)*
+    - **Pet Tops** (ID: `2410110348271614500`) *(Leaf)*
+  - **Pet Bedding** (ID: `2410110339121629200`)
+    - **Pet Beds** (ID: `2410110358051626100`) *(Leaf)*
+    - **Pet Blankets & Quilts** (ID: `2410110358191601900`) *(Leaf)*
+    - **Pet Mats** (ID: `2410110357391611900`) *(Leaf)*
+    - **Pet Nests** (ID: `2410110357511615700`) *(Leaf)*
+  - **Pet Collars, Harnesses & Accessories** (ID: `2410110338321625700`)
+    - **Custom Pet tags, Collars, Leashes & Harnesses** (ID: `2410110354301620700`) *(Leaf)*
+    - **Pet Bows & Ties** (ID: `2410110351401621300`) *(Leaf)*
+    - **Pet Collar, Leash & Harness Sets** (ID: `2410110353301600600`) *(Leaf)*
+    - **Pet Collars** (ID: `2410110352331629800`) *(Leaf)*
+    - **Pet Glasses** (ID: `2410110352191611200`) *(Leaf)*
+    - **Pet Hair Accessories** (ID: `2410110351231616600`) *(Leaf)*
+    - **Pet Harnesses** (ID: `2410110352591600400`) *(Leaf)*
+    - **Pet Headwears** (ID: `2410110352051607900`) *(Leaf)*
+    - **Pet Leashes** (ID: `2410110352471611400`) *(Leaf)*
+    - **Pet Muzzles** (ID: `2410110353131601000`) *(Leaf)*
+    - **Pet Necklaces** (ID: `2410110351521627800`) *(Leaf)*
+  - **Pet Drinking & Feeding** (ID: `2410110337031615300`)
+    - **Pet Bowls** (ID: `2410110341061612000`) *(Leaf)*
+    - **Pet Drinking Tools** (ID: `2410110341331606800`) *(Leaf)*
+    - **Pet Feeding Tools** (ID: `2410110341451628800`) *(Leaf)*
+  - **Pet Furnitures** (ID: `2410110338591602500`)
+    - **Cat Scratching Posts** (ID: `2410110355491614000`) *(Leaf)*
+    - **Cat Trees & Condos** (ID: `2410110356161627200`) *(Leaf)*
+    - **Dog Stairs & Steps** (ID: `2410110356561607500`) *(Leaf)*
+    - **Pet Furniture Protectors** (ID: `2410110356041603300`) *(Leaf)*
+    - **Pet Furniture Tools** (ID: `2410110356301618100`) *(Leaf)*
+    - **Pet Hammocks** (ID: `2410110357221629500`) *(Leaf)*
+    - **Pet Houses & Cages** (ID: `2410110356441603600`) *(Leaf)*
+    - **Pet Tents** (ID: `2410110357091627600`) *(Leaf)*
+  - **Pet Groomings** (ID: `2410110338471603600`)
+    - **Pet Hair Removers & Combs** (ID: `2410110354491625800`) *(Leaf)*
+    - **Pet Nail Polishers** (ID: `2410110355021623200`) *(Leaf)*
+    - **Pet Shower Products** (ID: `2410110355151622300`) *(Leaf)*
+    - **Pet Towels** (ID: `2410110355321622400`) *(Leaf)*
+  - **Pet Outdoor Supplies** (ID: `2410110337231611800`)
+    - **Barking Control Equipments** (ID: `2410110342021620700`) *(Leaf)*
+    - **Dog Training Pads & Diapers** (ID: `2410110342321607200`) *(Leaf)*
+    - **Pet Bags** (ID: `2410110342571606700`) *(Leaf)*
+    - **Pet Car Mats** (ID: `2410110343211625200`) *(Leaf)*
+    - **Pet Guardrails** (ID: `2410110343361612300`) *(Leaf)*
+    - **Pet Seat Belts** (ID: `2410110343091603200`) *(Leaf)*
+    - **Pet Snacks** (ID: `2410110342461620700`) *(Leaf)*
+    - **Trainers** (ID: `2410110342161616300`) *(Leaf)*
+  - **Pet Toys** (ID: `2410110335471602500`)
+    - **Pet Chase Toys** (ID: `2410110339311602900`) *(Leaf)*
+    - **Pet Chew Toys** (ID: `2410110339451623300`) *(Leaf)*
+    - **Pet Plush Toys** (ID: `2410110340531618900`) *(Leaf)*
+    - **Pet Sound Toys** (ID: `2410110340161623400`) *(Leaf)*
+    - **Pet Toy Set** (ID: `2410110340411608400`) *(Leaf)*
+    - **Pet Training and Educational Toys** (ID: `2410110340031614900`) *(Leaf)*
+    - **Pet Tunnel Toys** (ID: `2410110340291603400`) *(Leaf)*
+- **Phones & Accessories** (ID: `E9FDC79A-8365-4CA6-AC23-64D971F08B8B`)
+  - **Cases & Covers** (ID: `9FA474CF-E06D-4708-AD56-F39FED7F88E3`)
+    - **Cases For iPhone 6 & 6 Plus** (ID: `1EE2EA4E-87BC-4108-BBF3-0A98A4A1EF89`) *(Leaf)*
+    - **Cases For iPhone 7 & 7 Plus** (ID: `496A6FD1-4D2C-4E96-93B3-1BEBF5D7DA34`) *(Leaf)*
+    - **Cases For iPhone 8 & 8 Plus** (ID: `7FD2D2BD-852D-4028-870E-AEB73594A95E`) *(Leaf)*
+    - **Flip Cases** (ID: `DD47EFC1-E65E-469A-94DA-658707A124B3`) *(Leaf)*
+    - **Galaxy S7 Cases** (ID: `7CB75550-C920-47A8-8A65-27C34ED1C05E`) *(Leaf)*
+    - **Galaxy S8 Cases** (ID: `4E8B1C9C-3126-4115-A5CA-357A8C164AD2`) *(Leaf)*
+    - **Huawei Cases** (ID: `0480D511-C923-4F7A-90F2-435F439DFE00`) *(Leaf)*
+    - **IPhone X Cases** (ID: `65AC23D3-BA63-438B-B8FE-71E117D717AF`) *(Leaf)*
+    - **Leather Cases** (ID: `F77E8C4C-649A-4553-BD44-7604FADBB0BD`) *(Leaf)*
+    - **Patterned Cases** (ID: `0B52E7DF-CBBD-4C4C-A43D-46B53056313C`) *(Leaf)*
+    - **Silicone Cases** (ID: `C19F0351-2A98-43FF-BEA2-952BA6F75997`) *(Leaf)*
+    - **Wallet Cases** (ID: `2CF32BF2-246D-4EC7-A060-6835C7EFD4AD`) *(Leaf)*
+    - **Waterproof Cases** (ID: `E6C70353-4E58-4253-A840-3760667A9BE4`) *(Leaf)*
+    - **Xiaomi Cases** (ID: `948E69C1-D825-4797-B7F9-8D4FC69A20DA`) *(Leaf)*
+  - **Mobile Phone Accessories** (ID: `912FD088-248B-4D58-84F7-1F10B888CF8A`)
+    - **Cables** (ID: `00134C46-B7DF-4500-A3D9-ABB7B779EFD0`) *(Leaf)*
+    - **Chargers** (ID: `B200FABB-A76B-4750-9957-FEA3DCB21F1F`) *(Leaf)*
+    - **Holders & Stands** (ID: `9170B3F9-5B9C-4C39-8CD6-7DC00E481D47`) *(Leaf)*
+    - **Lenses** (ID: `82643737-E055-4FDF-AD69-4E2C3FB6970B`) *(Leaf)*
+    - **Power Bank** (ID: `491E5474-524C-4666-BDD7-4E35E38900EA`) *(Leaf)*
+    - **Screen Protectors** (ID: `51D68796-F1B5-4BDC-B9E0-32C3D9FF6994`) *(Leaf)*
+  - **Mobile Phone Parts** (ID: `BAD75444-1463-4B4C-8AD2-BC9ABDD92E5B`)
+    - **Flex Cables** (ID: `5FE5E389-0B85-4592-A08D-B4AD79B164D4`) *(Leaf)*
+    - **Housings** (ID: `3F222BC3-4864-487B-8E89-CE516D55638B`) *(Leaf)*
+    - **LCDs** (ID: `4C9F6BA4-70BB-49BC-A350-3D5E4E685B84`) *(Leaf)*
+    - **Mobile Batteries** (ID: `2C46D1EB-148D-4DF3-8F23-EC0C5D5FDC1D`) *(Leaf)*
+    - **SIM Card & Tools** (ID: `14CC2DBB-21D3-4D3B-A263-75BF069ED074`) *(Leaf)*
+    - **Touch Panel** (ID: `FF1E0375-F5BF-40D9-8B18-708F79D52E44`) *(Leaf)*
+  - **Mobile Phones** (ID: `F9AAF742-3A67-4887-BFBE-CF16B08910CF`)
+    - **3GB RAM** (ID: `B1C9BC0B-A019-48C5-A06A-F25FB45DD9A9`) *(Leaf)*
+    - **5-inch Display** (ID: `F22F83A5-633C-4269-85A7-3FE844BD555F`) *(Leaf)*
+    - **Dual SIM Card** (ID: `40FFAFDA-47CD-473A-B654-94D1923B15CF`) *(Leaf)*
+    - **Octa Core** (ID: `D0E7FF56-E94C-460D-8DB1-6695458475F4`) *(Leaf)*
+    - **Quad Core** (ID: `0AADEC4E-024A-41DF-8801-4A0204F0E568`) *(Leaf)*
+    - **Single SIM Card** (ID: `20278181-7942-4E22-B3CB-7CDFEE89297E`) *(Leaf)*
+- **Sports & Outdoors** (ID: `4B397425-26C1-4D0E-B6D2-96B0B03689DB`)
+  - **Cycling** (ID: `55A1D05D-A254-4242-A4BD-4BE88F0680B6`)
+    - **Bicycle Frames** (ID: `A0A24BC7-F4F4-4090-9D83-6ECA1F4A78FD`) *(Leaf)*
+    - **Bicycle Helmets** (ID: `3D0169CF-0F24-4EEA-948E-E48C3980862E`) *(Leaf)*
+    - **Bicycle Lights** (ID: `161FA128-487C-4451-8B49-CB81B5A30A54`) *(Leaf)*
+    - **Bicycles** (ID: `FF18DE9F-3D6A-48A0-A246-EF5B1D0D4E0E`) *(Leaf)*
+    - **Cycling Eyewear** (ID: `7992143D-A8B2-4A05-A4E4-7F4AF73AA577`) *(Leaf)*
+    - **Cycling Gloves** (ID: `2502140309251616200`) *(Leaf)*
+    - **Cycling Jerseys** (ID: `BE08AC4E-D953-413F-93FC-452F635E73EC`) *(Leaf)*
+    - **Scooters** (ID: `2410301013021610400`) *(Leaf)*
+  - **Fishing** (ID: `CD4184EB-CD02-4789-8CFA-8FF3B4DEFC4E`)
+    - **Fishing Lines** (ID: `E2019E0B-EDC1-4B90-8C65-EE6A87AF7E73`) *(Leaf)*
+    - **Fishing Lures** (ID: `9704D88F-46A0-49F6-98C4-929AE91941F5`) *(Leaf)*
+    - **Fishing Reels** (ID: `11E0FCD6-AD17-4F72-B5FF-8F8C79F85CE5`) *(Leaf)*
+    - **Fishing Rods** (ID: `B27D0790-81A0-484A-9D92-0AFBA04FDA31`) *(Leaf)*
+    - **Fishing Tackle Boxes** (ID: `37C76B77-3E08-456A-B184-4516E7D6EE81`) *(Leaf)*
+    - **Rod Combos** (ID: `1210D5B0-E172-47F8-8ADA-E3280624F5A5`) *(Leaf)*
+  - **Other Sports Equipment** (ID: `36492F79-E7EB-42F0-8DCC-6129BD9D2AE1`)
+    - **Camping & Hiking** (ID: `EA851596-F20F-4AA5-8869-4BB5CA1968DC`) *(Leaf)*
+    - **Fitness & Bodybuilding** (ID: `C20B25A2-348C-48C8-A2C8-FE33749A40DE`) *(Leaf)*
+    - **Golf** (ID: `FD5E95E1-C8DC-4CBD-A203-8BCF3BA951B9`) *(Leaf)*
+    - **Hunting** (ID: `2D818FE8-522E-4102-B659-F807564251ED`) *(Leaf)*
+    - **Musical Instruments** (ID: `02FB2558-F014-4E0A-A2FE-30BE514A2B01`) *(Leaf)*
+    - **Skiing & Snowboarding** (ID: `8B8C7FFB-6686-4994-B6DB-E5B8C1AAC9A6`) *(Leaf)*
+  - **Sneakers** (ID: `1E2633D4-2F96-4E2A-ABF7-BCBF3DFEE28A`)
+    - **Basketball Shoes** (ID: `C8FD79F7-DF24-495F-BE12-5F8585A8E5ED`) *(Leaf)*
+    - **Dance Shoes** (ID: `3928EB2C-04C4-4862-BCBD-A4987005A629`) *(Leaf)*
+    - **Hiking Shoes** (ID: `5F140735-E3D7-46A0-A28D-34607B05B720`) *(Leaf)*
+    - **Running Shoes** (ID: `24A29AC9-8B9B-4552-AF5E-431E6CF47C67`) *(Leaf)*
+    - **Skateboarding Shoes** (ID: `4B83DB4C-2D1F-4FA4-8844-FC39C6DBD60B`) *(Leaf)*
+    - **Soccer Shoes** (ID: `9DA4624F-A8A2-4DC1-9088-81877A4944F2`) *(Leaf)*
+  - **Sportswear** (ID: `66C86053-159B-436E-B4A9-4A7CCB5CAC8A`)
+    - **Hiking Jackets** (ID: `AB04A021-C988-476D-88E7-3CAAE3019D9E`) *(Leaf)*
+    - **Jerseys** (ID: `5A053E55-5D18-42EF-A4E7-B08AEA4D9B2F`) *(Leaf)*
+    - **Outdoor Shorts** (ID: `8E8CE199-A134-45B1-9EDE-0D4F122F4568`) *(Leaf)*
+    - **Pants** (ID: `FE1DB733-120C-4506-B990-107EAC5E62E5`) *(Leaf)*
+    - **Sports Accessories** (ID: `79F47CD1-F813-4B4D-8D21-2B35966FBA66`) *(Leaf)*
+    - **Sports Bags** (ID: `937A06CE-ECCC-4C7D-A270-B216DE612AC0`) *(Leaf)*
+  - **Swimming** (ID: `4B36F14A-6894-4047-8845-56CAFCF9A914`)
+    - **Bikini Sets** (ID: `56F1151E-2544-4044-BB41-03081A532B2F`) *(Leaf)*
+    - **Children's Swimwear** (ID: `9CFD57D3-3BEB-498F-85F1-C752C4937D75`) *(Leaf)*
+    - **Cover-Ups** (ID: `7B7C97C3-34E3-4DC6-A639-FB7FA421E146`) *(Leaf)*
+    - **Men's Swimwear** (ID: `76C86F19-2411-450E-8F69-DDE1DC6580E9`) *(Leaf)*
+    - **One-Piece Suits** (ID: `0653C2F4-A393-4BD1-B903-7B0569960868`) *(Leaf)*
+    - **Swimming Goggles** (ID: `2605290527531628800`) *(Leaf)*
+    - **Two-Piece Suits** (ID: `5E554D7C-64F3-4457-82AA-B0483EED26FB`) *(Leaf)*
+- **Toys, Kids & Babies** (ID: `A50A92FA-BCB3-4716-9BD9-BEC629BEE735`)
+  - **Baby & Mother** (ID: `8C946349-0DC4-4B1E-AC41-E4FE30288DEE`)
+    - **Activity & Gear** (ID: `4065FFF7-4AAA-4CFA-B04B-639C93624469`) *(Leaf)*
+    - **Baby Care** (ID: `77A1D79C-B67E-42C0-850F-00005042548C`) *(Leaf)*
+    - **Backpacks & Carriers** (ID: `5C374126-AE88-4617-B732-011174077E00`) *(Leaf)*
+    - **Maternity** (ID: `CBAB567C-28EA-4916-97C9-786EEA80A3B8`) *(Leaf)*
+    - **Nappy Changing** (ID: `0B08F5C8-0381-446D-A1C0-B90F69F45041`) *(Leaf)*
+  - **Baby Clothing** (ID: `7A31FADF-137D-4C83-AD7B-BCF28CACDA94`)
+    - **Baby Accessories** (ID: `8F8C7970-3965-4EB6-8E13-ED77EB686DBA`) *(Leaf)*
+    - **Baby Clothing Sets** (ID: `04D82B39-7CF8-4CA5-ABC9-279181DE7E26`) *(Leaf)*
+    - **Baby Dresses** (ID: `B34957D5-3AF6-4BE7-AC9F-72BAB8433CB6`) *(Leaf)*
+    - **Baby Outerwear** (ID: `A91DDCDF-A80E-40EE-ADB6-C3CB20CCB07E`) *(Leaf)*
+    - **Baby Pants** (ID: `B81FEFAC-C995-4665-8154-631E447F7236`) *(Leaf)*
+    - **Baby Rompers** (ID: `80304DEB-99FB-4E29-9065-A99F732702C4`) *(Leaf)*
+  - **Boys Clothing** (ID: `54251EAE-F02B-4B6B-93D7-DE2BB387F60B`)
+    - **Boy Accessories** (ID: `D91A4505-6495-4DFD-9984-C8E728913127`) *(Leaf)*
+    - **Boy Clothing Sets** (ID: `C938C806-CB88-46AB-B782-89ECD0B25E25`) *(Leaf)*
+    - **Boy Hoodies & Sweatshirts** (ID: `BB0B0BAD-326B-4328-B1BF-319C420DF782`) *(Leaf)*
+    - **Boy Jeans** (ID: `7BF9295D-69A0-483C-871C-9E3AF2A3496C`) *(Leaf)*
+    - **Boy T-Shirts** (ID: `8DA1BB63-9FC2-4817-9271-3474CDBDDB30`) *(Leaf)*
+    - **Outerwear & Coats** (ID: `BE16F1EB-5C31-4A1E-B80F-F1905F046E7F`) *(Leaf)*
+  - **Girls Clothing** (ID: `BE42B051-DE15-444A-97FA-79580E6AEC78`)
+    - **Family Matching Outfits** (ID: `5795C34B-0DF0-4838-A78C-C125AA3BED18`) *(Leaf)*
+    - **Girl Accessories** (ID: `88856603-65DA-419C-8C64-4C1E91A9E983`) *(Leaf)*
+    - **Girl Clothing Sets** (ID: `713CBA54-B38E-4C86-9323-1252113E437F`) *(Leaf)*
+    - **Girl Dresses** (ID: `C421D769-76CC-4515-909E-4E7167EE6ABE`) *(Leaf)*
+    - **Girls Underwear** (ID: `1357514957859721216`) *(Leaf)*
+    - **Girls' Pants** (ID: `2601070549181635500`) *(Leaf)*
+    - **Sleepwear & Robes** (ID: `5CC68C6B-8D69-41B2-838A-A98CB7DDD744`) *(Leaf)*
+    - **Tops & Tees** (ID: `6ED3E32C-89DD-4DD1-A991-FEAA4F3C1BFD`) *(Leaf)*
+  - **Shoes & Bags** (ID: `0F88CF9B-C46C-491B-8933-115806ED8A13`)
+    - **Baby's First Walkers** (ID: `C7FEF0C8-C59D-44DC-9715-7C377441ECFE`) *(Leaf)*
+    - **Boys Shoes** (ID: `5AF1783E-547C-44E5-AD8A-82B354860BCB`) *(Leaf)*
+    - **Children's Shoes** (ID: `2502190154341624400`) *(Leaf)*
+    - **Girls Shoes** (ID: `C6FBABFE-2E34-4BD8-B643-C3060E9D343B`) *(Leaf)*
+    - **Kids Wallets** (ID: `929F5F58-AFBB-43AE-B1BB-CC6AA3844530`) *(Leaf)*
+    - **School Bags** (ID: `62A4235C-31EE-40E3-9D61-8F310470FEBC`) *(Leaf)*
+  - **Toys & Hobbies** (ID: `04D68B68-1048-4971-BAFA-18FA0A6DB95C`)
+    - **Action & Toy Figures** (ID: `F18491A9-2F33-4D85-A154-78EE4CD2AD33`) *(Leaf)*
+    - **Blocks** (ID: `835F7743-8432-4D0F-90F0-E76C89F7C5B7`) *(Leaf)*
+    - **Electronic Pets** (ID: `6614840A-DB50-4FBB-80FD-705F4FD59BFA`) *(Leaf)*
+    - **RC Helicopters** (ID: `AEABDF3C-35E9-4BDA-8F5B-DA602BC5B9C8`) *(Leaf)*
+    - **Stuffed & Plush Animals** (ID: `DD918287-C279-466A-B9C6-56079DE4B37A`) *(Leaf)*
+- **Women's Clothing** (ID: `2FE8A083-5E7B-4179-896D-561EA116F730`)
+  - **Accessories** (ID: `23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6`)
+    - **Belts & Cummerbunds** (ID: `1E4A1FD7-738C-4AEF-9793-BDE062158BD6`) *(Leaf)*
+    - **Eyewear & Accessories** (ID: `3B4C41C0-EA46-4F03-A2F4-9A9948947439`) *(Leaf)*
+    - **Face Masks** (ID: `1374953557614268416`) *(Leaf)*
+    - **Scarves & Wraps** (ID: `0DC4DF6F-4EC5-47DF-B20D-863ADF69319F`) *(Leaf)*
+    - **Woman Gloves & Mittens** (ID: `7B2039D9-FF87-4514-954B-021289724271`) *(Leaf)*
+    - **Woman Hats & Caps** (ID: `F72DD534-E394-4958-B591-149C488648D7`) *(Leaf)*
+    - **Woman Prescription Glasses** (ID: `2EB0613C-E73D-4A09-A21C-90E5F1C227D3`) *(Leaf)*
+    - **Woman Socks** (ID: `96EBD53A-C941-445C-BBBD-C1D9F858E433`) *(Leaf)*
+  - **Bottoms** (ID: `4257920C-6E7D-4B56-B031-0FC7AC6EF981`)
+    - **Leggings** (ID: `396E962A-5632-49C2-B9BF-9529DE3B9141`) *(Leaf)*
+    - **Pants & Capris** (ID: `9694B484-7EA0-4D71-993B-9CF02D24B271`) *(Leaf)*
+    - **Skirts** (ID: `3B8946E7-B608-4DAB-B2F0-C425B7875035`) *(Leaf)*
+    - **Wide Leg Pants** (ID: `A7DE167B-ECFF-481E-A52A-2E7937BFAA95`) *(Leaf)*
+    - **Woman Jeans** (ID: `63584B9B-5275-4268-8BEA-7D3C7A7BB925`) *(Leaf)*
+    - **Woman Shorts** (ID: `8A22518D-0C6F-430D-8CD9-7E043062A279`) *(Leaf)*
+  - **Couple&Parent-Child Clothing** (ID: `2502190915541622500`)
+    - **Couple&Parent -Child Jackets** (ID: `2502190916401605200`) *(Leaf)*
+    - **Couple&Parent-Child Pants** (ID: `2502190917241609600`) *(Leaf)*
+    - **Couple&Parent-Child Short-Sleeves** (ID: `2502190916291603600`) *(Leaf)*
+    - **Couple&Parent-Child Suits** (ID: `2502190917131623500`) *(Leaf)*
+    - **Couple&Parent-Child Sweatshirts·** (ID: `2502190916161603800`) *(Leaf)*
+    - **Couple&Parent-Child Tops** (ID: `2502190916551623100`) *(Leaf)*
+  - **Outerwear & Jackets** (ID: `773E0DBE-EEB6-40E9-984F-4ACFB0F58C9A`)
+    - **Basic Jacket** (ID: `4CF7E664-A644-4B96-951B-B76FA973320A`) *(Leaf)*
+    - **Blazers** (ID: `07398ADB-FC5E-4CC4-AD00-EB230E779E88`) *(Leaf)*
+    - **Leather & Suede** (ID: `D680731F-1AE8-46E4-9BE7-E98C39F07E1E`) *(Leaf)*
+    - **Real Fur** (ID: `F5C6B4C3-0362-40D3-811B-19C37C5C4AC2`) *(Leaf)*
+    - **Woman Trench** (ID: `441DA450-5E5F-41DF-8911-3BAE883C30E8`) *(Leaf)*
+    - **Women's Padded Jackets** (ID: `2409230541081607100`) *(Leaf)*
+    - **Wool & Blend** (ID: `1366AF62-E9CB-4834-9EC9-6126C077B5E0`) *(Leaf)*
+  - **Tops & Sets** (ID: `422D4713-284A-49EE-8E53-680B7DCC72FE`)
+    - **Blouses & Shirts** (ID: `5A3E7341-18B5-4C61-BFCD-8965B3479A9A`) *(Leaf)*
+    - **Ladies Short Sleeve** (ID: `1357251872037146624`) *(Leaf)*
+    - **Lady Dresses** (ID: `D2432903-0D4E-4787-886F-D3D9DA7890D9`) *(Leaf)*
+    - **Sweaters** (ID: `DE9C662C-3F48-4855-87E7-E18733EFF6D2`) *(Leaf)*
+    - **Woman Hoodies & Sweatshirts** (ID: `5E656DFB-9BAE-44DD-A755-40AFA2E0E686`) *(Leaf)*
+    - **Women's Long-Sleeved Shirts** (ID: `2502190153531612600`) *(Leaf)*
+    - **Women's Short-Sleeved Shirts** (ID: `2502190153271613100`) *(Leaf)*
+    - **Women's Vests** (ID: `2502140253001614100`) *(Leaf)*
+  - **Weddings & Events** (ID: `85CC5FF8-1CAC-4725-9F07-C778AB627E1B`)
+    - **Bridesmaid Dresses** (ID: `6C2516C4-F999-434C-B3F4-467FAFA13E2E`) *(Leaf)*
+    - **Cocktail Dresses** (ID: `1AFD1C87-0BB1-4BAB-AA1A-D082E767811C`) *(Leaf)*
+    - **Evening Dresses** (ID: `30E8E5CF-FBBA-48DA-84DD-E29D733089E0`) *(Leaf)*
+    - **Prom Dresses** (ID: `88E43313-84C6-4550-B2C7-83A415AFA2DD`) *(Leaf)*
+    - **Wedding Dresses** (ID: `935BCF1B-5D61-422F-8439-19179FE8B492`) *(Leaf)*
