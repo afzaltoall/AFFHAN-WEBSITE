@@ -95,6 +95,10 @@ export default async function AdminPage() {
     quantity: i.quantity,
     message: i.message,
     status: i.status,
+    userId: i.userId,
+    customerStatus: i.customerStatus,
+    statusNote: i.statusNote,
+    statusUpdatedAt: i.statusUpdatedAt?.toISOString() ?? null,
   });
 
   const mapContact = (c: (typeof contacts)[number]) => ({

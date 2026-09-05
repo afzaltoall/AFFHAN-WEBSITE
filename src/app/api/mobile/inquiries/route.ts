@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyMobileSession } from "@/lib/mobile-auth";
-import { describeStatus, parseMOQ } from "@/lib/mobile-inquiry";
+import { describeStatus, parseMOQ } from "@/lib/inquiry-status";
 
 export const dynamic = "force-dynamic";
 

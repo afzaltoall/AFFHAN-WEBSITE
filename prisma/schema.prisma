@@ -94,8 +94,70 @@ model Inquiry {
   country      String
   phone        String
   message      String?  @db.Text
-  status       String   @default("new") // inquiry triage: new | handled | spam
-  createdAt    DateTime @default(now())
+
+  // Who raised it, when we know. Nullable and it must stay that way: "Inquire
+  // Now" does not require an account, and most visitors who use it do not have
+  // one. A null here means an anonymous submission, not missing data — the 223
+  // rows that predate this column were deliberately left null rather than
+  // guessed at by matching email addresses to accounts.
+  //
+  // SetNull, not Cascade: a deleted account must not take the sourcing team's
+  // record of the request with it.
+  userId String?
+  user   MobileUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Two different questions, deliberately two different columns.
+  //
+  // `status` is internal triage and always has been — new | handled | spam,
+  // plus `deleted` for the admin console's soft-delete. Nobody outside the
+  // office sees it, and "spam" is not a stage a customer moves through.
+  //
+  // `customerStatus` is the lifecycle the customer is shown. It uses the app's
+  // vocabulary rather than a new one so that a single describeStatus() and a
+  // single step-tracker render inquiries from both tables without a
+  // translation layer in between. String rather than a Prisma enum to match
+  // MobileInquiry and every other status column here.
+  status         String    @default("new")
+  customerStatus String    @default("PENDING") // PENDING | CHECKED | IN_PROGRESS | CUSTOM
+  statusNote     String?   @db.Text
+  // Null until someone actually moves it. "Submitted and untouched" is not the
+  // same fact as "updated at the moment it was created", and the customer-facing
+  // "Updated 2 days ago" line must not claim the latter.
+  statusUpdatedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  statusEvents InquiryStatusEvent[]
+
+  @@index([userId])
+  @@index([customerStatus])
+  @@index([createdAt(sort: Desc)])
+}
+
+// Who moved an inquiry, when, and to what.
+//
+// Append-only and deliberately thin: enough to answer "why does this say
+// Quoted, and who said so" months later, without becoming a second source of
+// truth for the current status — that stays on Inquiry.customerStatus.
+model InquiryStatusEvent {
+  id        String  @id @default(uuid())
+  inquiryId String
+  inquiry   Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  // Null on the row written at submission time, where there is no "from".
+  fromStatus String?
+  toStatus   String
+  note       String? @db.Text
+
+  // The admin's AdminUser id, and their name copied alongside it. The copy is
+  // what keeps the trail readable after staff turnover, when the id no longer
+  // resolves to anyone.
+  changedById   String?
+  changedByName String?
+
+  createdAt DateTime @default(now())
+
+  @@index([inquiryId, createdAt])
 }
 
 
@@ -274,6 +336,10 @@ model MobileUser {
 
   sessions      MobileSession[]
   inquiries     MobileInquiry[]
+  // Quote requests raised on the website rather than in the app. Separate from
+  // `inquiries` because the two live in different tables — see the note on
+  // Inquiry.userId for why they were not merged.
+  webInquiries  Inquiry[]
   productViews  ProductView[]
   favourites    ProductFavourite[]
   changes       AccountChange[]

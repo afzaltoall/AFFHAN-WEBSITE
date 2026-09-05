@@ -17,13 +17,17 @@ import { Card, EmptyState, Fade, SectionHeader } from "@/components/account/Acco
  * it up yet. Naming the section after the thing that exists beats naming it
  * after the thing a marketplace usually has and then showing an empty page.
  *
- * Reads /api/mobile/inquiries, which the app already uses: it authenticates
- * with either a Bearer token or the browser's session cookie, so the same rows
- * back both clients rather than two endpoints drifting apart.
+ * Reads /api/account/inquiries, which merges both tables the company stores
+ * inquiries in — Inquiry for this website's "Inquire Now" modal, MobileInquiry
+ * for the app — and flattens them to one row shape. The page used to read
+ * /api/mobile/inquiries directly, which meant a customer who had only ever
+ * used the website saw an empty page telling them they had never asked for
+ * anything.
  */
 
 interface InquiryRow {
   id: string;
+  source: "WEBSITE" | "APP";
   productId: number | null;
   productName: string;
   productImage: string | null;
@@ -31,7 +35,35 @@ interface InquiryRow {
   status: "PENDING" | "CHECKED" | "IN_PROGRESS" | "CUSTOM";
   label: string;
   message: string;
+  /** What the customer typed on the website form, if anything. */
+  customerNote: string | null;
   createdAt: string;
+  /** Null while nobody has moved it yet. */
+  statusChangedAt: string | null;
+}
+
+/**
+ * "Updated 2 days ago" — the line that answers the question this page exists
+ * for. An absolute date cannot: "14 Aug" leaves the customer counting, which is
+ * exactly the moment they give up and send a chasing message instead.
+ */
+function timeAgo(iso: string): string {
+  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  // Largest unit that fits, so a fortnight reads "2 weeks ago" and not
+  // "14 days ago".
+  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+    ["year", 31_536_000],
+    ["month", 2_592_000],
+    ["week", 604_800],
+    ["day", 86_400],
+    ["hour", 3_600],
+    ["minute", 60],
+  ];
+  for (const [unit, size] of units) {
+    if (seconds >= size) return rtf.format(-Math.floor(seconds / size), unit);
+  }
+  return "just now";
 }
 
 // The server sends the wording; these are only the colours it is shown in.
@@ -121,7 +153,7 @@ export default function InquiriesPage() {
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await fetch("/api/mobile/inquiries", {
+      const res = await fetch("/api/account/inquiries", {
         credentials: "include",
         cache: "no-store",
       });
@@ -205,7 +237,9 @@ export default function InquiriesPage() {
       ) : (
         <div className="space-y-3">
           {rows.map((row) => (
-            <Card key={row.id}>
+            // Keyed by source too: the two tables mint their own ids and have
+            // no shared uniqueness guarantee.
+            <Card key={`${row.source}-${row.id}`}>
               <div className="flex gap-4 p-4">
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                   {row.productImage ? (
@@ -259,11 +293,32 @@ export default function InquiriesPage() {
                       month: "short",
                       year: "numeric",
                     })}
+                    {/* The reassurance this page is for: proof that somebody
+                        has touched it since. Absent until someone actually
+                        has, rather than echoing the submission date back as
+                        an "update" that never happened. */}
+                    {row.statusChangedAt && (
+                      <>
+                        <span className="mx-1.5 text-slate-300">·</span>
+                        <span className="font-medium text-slate-600">
+                          Updated {timeAgo(row.statusChangedAt)}
+                        </span>
+                      </>
+                    )}
                   </p>
 
                   {row.message && (
                     <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[12px] leading-relaxed text-slate-600">
                       {row.message}
+                    </p>
+                  )}
+
+                  {/* The customer's own words, kept visually distinct from the
+                      status line above it. Merging the two would let our
+                      message and theirs read as one sentence. */}
+                  {row.customerNote && (
+                    <p className="mt-2 border-l-2 border-slate-200 pl-3 text-[12px] italic leading-relaxed text-slate-500">
+                      &ldquo;{row.customerNote}&rdquo;
                     </p>
                   )}
 

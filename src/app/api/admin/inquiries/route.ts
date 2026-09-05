@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from ".prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { describeStatus, isMobileInquiryStatus } from "@/lib/mobile-inquiry";
+import { describeStatus, isMobileInquiryStatus } from "@/lib/inquiry-status";
 
 export const dynamic = "force-dynamic";
 

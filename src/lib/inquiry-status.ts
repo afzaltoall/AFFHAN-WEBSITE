@@ -1,11 +1,20 @@
 // ---------------------------------------------------------------------------
-// Status vocabulary for inquiries raised in the mobile app.
+// The customer-facing status vocabulary, shared by both kinds of inquiry.
 //
-// Separate from the website's Inquiry triage (new | handled | spam). That one
-// is internal shorthand nobody outside the office sees. These are shown to the
-// customer in the app, so the wording is part of the contract: the API sends
-// the sentence to display rather than leaving each client to invent its own and
-// drift apart.
+// It began as the app's alone (hence the MobileInquiry* names, kept so the
+// app's route handlers did not have to churn). The website's Inquiry table now
+// uses the same four values in its own `customerStatus` column, because the
+// account page renders inquiries from both tables through one step-tracker and
+// a second vocabulary would have meant a translation layer between them.
+//
+// This is NOT the website's `Inquiry.status`, which is internal triage —
+// new | handled | spam, plus `deleted` for the admin console's soft-delete.
+// Those are office shorthand nobody outside sees, and "spam" is not a stage a
+// customer moves through. The two columns answer different questions and are
+// deliberately kept apart; see the note on the Inquiry model.
+//
+// The wording below is part of the API contract: the server sends the sentence
+// to display rather than leaving each client to invent its own and drift.
 // ---------------------------------------------------------------------------
 
 export const MOBILE_INQUIRY_STATUSES = ["PENDING", "CHECKED", "IN_PROGRESS", "CUSTOM"] as const;
@@ -15,6 +24,16 @@ export type MobileInquiryStatus = (typeof MOBILE_INQUIRY_STATUSES)[number];
 export function isMobileInquiryStatus(value: unknown): value is MobileInquiryStatus {
   return typeof value === "string" && (MOBILE_INQUIRY_STATUSES as readonly string[]).includes(value);
 }
+
+/**
+ * Which table a merged inquiry row came from.
+ *
+ * The account page shows both in one list, but they are not interchangeable:
+ * only a website inquiry carries the customer's own typed message, and only an
+ * app inquiry can have its quantity edited afterwards. The client needs to know
+ * which it is holding.
+ */
+export type InquirySource = "WEBSITE" | "APP";
 
 // Short label for the status badge.
 const LABELS: Record<MobileInquiryStatus, string> = {

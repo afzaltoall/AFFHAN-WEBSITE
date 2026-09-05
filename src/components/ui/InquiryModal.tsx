@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Image from "next/image";
 import { getCdnUrl } from "@/lib/cdn";
+import { useAuth } from "@/context/AuthContext";
 import { FlagSelect } from '@/components/ui/FlagSelect';
 import { COUNTRIES } from '@/lib/countries';
 import { isValidMobile } from '@/lib/phone';
@@ -37,7 +38,10 @@ interface InquiryModalProps {
 
 export function InquiryModal({ product, onClose }: InquiryModalProps) {
   const [isVisible, setIsVisible] = useState(true);
-  
+  // Only to save a signed-in customer retyping what we already know. The form
+  // stays fully usable signed out — `user` is simply null then.
+  const { user } = useAuth();
+
   // Reset visibility and submission state when the modal is opened for a new product
   useEffect(() => {
     if (product) {
@@ -67,6 +71,18 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
     message: "",
   });
   
+  // Fill in what the account already knows, without ever overwriting something
+  // the customer has typed — they may be inquiring for a colleague, and having
+  // the form snatch a field back mid-edit is worse than not prefilling at all.
+  useEffect(() => {
+    if (!user) return;
+    setInquiryForm((f) => ({
+      ...f,
+      name: f.name || user.name || "",
+      email: f.email || user.email || "",
+    }));
+  }, [user]);
+
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMoqDropdownOpen, setIsMoqDropdownOpen] = useState(false);
@@ -112,6 +128,10 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
       const response = await fetch('/api/inquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Explicit, because the session cookie is what lets the server attach
+        // this inquiry to the customer's account. Anonymous submission is
+        // unaffected — there is simply no cookie to send.
+        credentials: 'include',
         body: JSON.stringify({
           productId: product?.id,
           productName: product?.name || "Unknown Product",

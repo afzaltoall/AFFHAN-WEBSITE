@@ -18,7 +18,28 @@ interface Inquiry {
   id: string; createdAt: string; customerName: string; companyName: string | null;
   email: string | null; country: string; phone: string; productName: string; quantity: number;
   message: string | null; productId: number | null; productImage: string | null; status: string;
+  // Set when the inquiry was raised by someone signed in. Null for the
+  // anonymous majority, and for every row that predates the account linkage.
+  userId: string | null;
+  // The lifecycle the CUSTOMER sees, distinct from `status` above, which is
+  // internal triage. See the note on the Inquiry model in schema.prisma.
+  customerStatus: string; statusNote: string | null; statusUpdatedAt: string | null;
 }
+
+// Kept in step with lib/inquiry-status.ts. Not imported from it because that
+// module is server-shaped; this is only the wording for the console's own
+// selector, which describes each stage from the office's point of view rather
+// than the customer's.
+type CustomerStatus = "PENDING" | "CHECKED" | "IN_PROGRESS" | "CUSTOM";
+const CUSTOMER_STATUS_META: Record<CustomerStatus, { label: string; hint: string; chip: string; dot: string }> = {
+  PENDING: { label: "Pending", hint: "Nobody has picked it up yet", chip: "bg-amber-500/10 text-amber-600", dot: "bg-amber-500" },
+  CHECKED: { label: "Checked", hint: "Read, feasibility being confirmed", chip: "bg-sky-500/10 text-sky-600", dot: "bg-sky-500" },
+  IN_PROGRESS: { label: "In Progress", hint: "Sourcing / quoting under way", chip: "bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-500" },
+  CUSTOM: { label: "Custom", hint: "Your own wording is shown instead", chip: "bg-violet-500/10 text-violet-600", dot: "bg-violet-500" },
+};
+const CUSTOMER_STATUSES = Object.keys(CUSTOMER_STATUS_META) as CustomerStatus[];
+const asCustomerStatus = (s: string): CustomerStatus =>
+  (CUSTOMER_STATUSES as readonly string[]).includes(s) ? (s as CustomerStatus) : "PENDING";
 
 interface ContactMessage {
   id: string; createdAt: string; fullName: string; companyName: string | null;
@@ -321,6 +342,40 @@ export function AdminConsole({ data }: Props) {
   // Per-row triage (New/Handled/Spam).
   const setStatus = (id: string, status: Status) => bulkAction([id], "status", status);
 
+  /**
+   * Move an inquiry along the lifecycle the customer can see.
+   *
+   * Separate from triage above and deliberately not a bulk action: this is the
+   * text a named customer reads on their account page, and there is no version
+   * of "tell forty people at once that we are sourcing their thing" that is
+   * honest. Optimistic, with the previous rows restored if the write fails,
+   * matching how triage already behaves here.
+   */
+  const setCustomerStatus = async (id: string, customerStatus: CustomerStatus, statusNote: string) => {
+    const note = statusNote.trim();
+    if (customerStatus === "CUSTOM" && !note) {
+      window.alert("A custom status needs the text to show the customer.");
+      return;
+    }
+    const prev = items;
+    const stampedAt = new Date().toISOString();
+    const patch = { customerStatus, statusNote: note || null, statusUpdatedAt: stampedAt };
+    setItems(items.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    setActiveInquiry((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
+    try {
+      const res = await fetch(`/api/admin/inquiry/${id}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerStatus, statusNote: note }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setItems(prev);
+      setActiveInquiry((cur) => (cur && cur.id === id ? prev.find((x) => x.id === id) ?? cur : cur));
+      window.alert("Could not update the customer's status. Please try again.");
+    }
+  };
+
   const deleteInquiry = (id: string) =>
     setConfirm({
       title: "Move to Recently Deleted?",
@@ -401,6 +456,26 @@ export function AdminConsole({ data }: Props) {
   const statusCounts = useMemo(() => {
     const c = { all: items.length, new: 0, handled: 0, spam: 0 };
     items.forEach((i) => { c[asStatus(i.status)]++; });
+    return c;
+  }, [items]);
+
+  /**
+   * The lifecycle backlog: how many signed-in customers are currently being
+   * told each thing.
+   *
+   * Counts only inquiries with an account attached, because those are the only
+   * ones with somewhere to display a status. Folding the anonymous majority in
+   * would produce a "Pending" number dominated by people who will never see it,
+   * which is the opposite of the question being asked — "who is waiting on us
+   * and can tell?"
+   */
+  const customerStatusCounts = useMemo(() => {
+    const c = { linked: 0, PENDING: 0, CHECKED: 0, IN_PROGRESS: 0, CUSTOM: 0 };
+    items.forEach((i) => {
+      if (!i.userId) return;
+      c.linked++;
+      c[asCustomerStatus(i.customerStatus)]++;
+    });
     return c;
   }, [items]);
   const trashList = useMemo(
@@ -932,6 +1007,27 @@ export function AdminConsole({ data }: Props) {
                 </div>
               </div>
 
+              {/* Lifecycle backlog, for the inquiries that have a customer
+                  account behind them. Read-only on purpose: moving someone
+                  along is a per-customer decision, made in their drawer. */}
+              {view === "inquiries" && customerStatusCounts.linked > 0 && (
+                <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2.5 ${t.border}`}>
+                  <span className={`text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>
+                    Signed-in customers
+                  </span>
+                  {CUSTOMER_STATUSES.map((s) => (
+                    <span key={s} className="inline-flex items-center gap-1.5 text-[13px]">
+                      <span className={`h-2 w-2 rounded-full ${CUSTOMER_STATUS_META[s].dot}`} />
+                      <span className={`font-bold ${t.strong}`}>{customerStatusCounts[s]}</span>
+                      <span className={t.soft}>{CUSTOMER_STATUS_META[s].label}</span>
+                    </span>
+                  ))}
+                  <span className={`ml-auto text-[12px] ${t.soft}`}>
+                    {customerStatusCounts.linked} of {items.length} can see a status
+                  </span>
+                </div>
+              )}
+
               {/* Selection + bulk-action bar. Inquiries: set status / delete.
                   Recently Deleted: restore / delete forever. */}
               {(view === "inquiries" || view === "trash") && visibleIds.length > 0 && !(view === "inquiries" && groupByCustomer) && (
@@ -1071,6 +1167,7 @@ export function AdminConsole({ data }: Props) {
           onZoom={(src) => setZoomImg(src)}
           onDelete={() => deleteInquiry(activeInquiry.id)}
           onSetStatus={(s) => setStatus(activeInquiry.id, s)}
+          onSetCustomerStatus={(s, note) => void setCustomerStatus(activeInquiry.id, s, note)}
         />
       )}
 
@@ -1408,7 +1505,7 @@ function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNull
 
 // Opens the ordered product's image + full details inside the admin, so staff
 // never have to leave the console to see what a customer requested.
-function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; t: Theme }) {
+function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCustomerStatus, t }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; onSetCustomerStatus: (s: CustomerStatus, note: string) => void; t: Theme }) {
   const img = inquiry.productImage ? (getCdnUrl(inquiry.productImage) as string) : null;
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
@@ -1495,6 +1592,12 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { 
               <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this customer</p>
               <StatusControl t={t} value={asStatus(inquiry.status)} onChange={onSetStatus} big />
             </div>
+
+            {/* What the customer is told. Only shown when there is a customer
+                to tell — an anonymous inquiry has no account page to read it
+                on, so offering the control would promise something that cannot
+                happen. */}
+            <CustomerStatusControl t={t} inquiry={inquiry} onChange={onSetCustomerStatus} />
             <div className="mt-4 flex flex-wrap gap-2">
               <a href={`tel:${inquiry.phone.replace(/\s/g, "")}`} className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"><PhoneCall className="h-3.5 w-3.5" /> Call</a>
               <a href={waLink(inquiry.phone)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
@@ -1504,6 +1607,103 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, t }: { 
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The stage the customer sees on their own account page, and the note that
+ * goes with it.
+ *
+ * Anonymous inquiries get an explanation instead of a control. Most inquiries
+ * are anonymous — "Inquire Now" does not ask anyone to sign in — and an
+ * enabled selector on a row with nobody attached would look like it had
+ * notified someone.
+ *
+ * The note is applied on an explicit press rather than on every keystroke: it
+ * is customer-visible copy, and saving half-typed sentences as they are typed
+ * would show them half-typed.
+ */
+function CustomerStatusControl({
+  inquiry, onChange, t,
+}: { inquiry: Inquiry; onChange: (s: CustomerStatus, note: string) => void; t: Theme }) {
+  const current = asCustomerStatus(inquiry.customerStatus);
+  const [choice, setChoice] = useState<CustomerStatus>(current);
+  const [note, setNote] = useState(inquiry.statusNote ?? "");
+
+  // Re-seed when the drawer is pointed at a different inquiry, so the last
+  // one's half-written note does not follow it.
+  useEffect(() => {
+    setChoice(asCustomerStatus(inquiry.customerStatus));
+    setNote(inquiry.statusNote ?? "");
+  }, [inquiry.id, inquiry.customerStatus, inquiry.statusNote]);
+
+  if (!inquiry.userId) {
+    return (
+      <div className={`mt-5 rounded-xl p-3 text-xs ${t.thumb} ${t.soft}`}>
+        <p className="font-semibold uppercase tracking-wide text-[11px]">Customer status</p>
+        <p className="mt-1 leading-relaxed">
+          Submitted without signing in, so there is no account page to show a status on.
+          Reach them on the phone or WhatsApp above.
+        </p>
+      </div>
+    );
+  }
+
+  const dirty = choice !== current || note.trim() !== (inquiry.statusNote ?? "");
+
+  return (
+    <div className="mt-5">
+      <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>
+        What the customer sees
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {CUSTOMER_STATUSES.map((s) => {
+          const meta = CUSTOMER_STATUS_META[s];
+          const on = choice === s;
+          return (
+            <button
+              key={s}
+              onClick={() => setChoice(s)}
+              title={meta.hint}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+                on ? meta.chip : `${t.thumb} ${t.soft} hover:opacity-80`
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${on ? meta.dot : "bg-current opacity-40"}`} />
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <textarea
+        value={note}
+        onChange={(e) => setNote(e.target.value)}
+        maxLength={500}
+        rows={2}
+        placeholder={
+          choice === "CUSTOM"
+            ? "Required — this text is shown to the customer instead of a stage."
+            : "Optional note, shown to the customer under the status."
+        }
+        className={`mt-2 w-full rounded-xl px-3 py-2 text-sm outline-none ${t.thumb} ${t.border} border`}
+      />
+
+      <div className="mt-2 flex items-center gap-3">
+        <button
+          onClick={() => onChange(choice, note)}
+          disabled={!dirty}
+          className="rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+        >
+          Update customer
+        </button>
+        {inquiry.statusUpdatedAt && (
+          <span className={`text-[11px] ${t.soft}`}>
+            Last changed {fmtDateTime(inquiry.statusUpdatedAt)}
+          </span>
+        )}
       </div>
     </div>
   );
