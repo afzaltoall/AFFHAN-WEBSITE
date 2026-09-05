@@ -235,19 +235,40 @@ export default function InquiriesPage() {
    * pressed. Separate from the header's Refresh, which reloads the whole list
    * and says so.
    */
-  const track = useCallback(
-    async (key: string) => {
-      setTrackingKey(key);
-      setCheckedKey(null);
-      await load();
+  const track = useCallback(async (key: string) => {
+    setTrackingKey(key);
+    setCheckedKey(null);
+    try {
+      const res = await fetch("/api/account/inquiries", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const list: InquiryRow[] = Array.isArray(json?.inquiries) ? json.inquiries : [];
+        const fresh = list.find((r) => `${r.source}-${r.id}` === key);
+        // ONLY the card that was pressed. The endpoint answers for every
+        // inquiry — it is the same merged feed the page loads from — but
+        // applying all of it would quietly move the other cards too, and this
+        // button asks one question about one inquiry. The rest are left
+        // exactly as they were; the header's Refresh is what updates them all.
+        if (fresh) {
+          setRows((prev) =>
+            prev ? prev.map((r) => (`${r.source}-${r.id}` === key ? fresh : r)) : prev
+          );
+        }
+      }
+    } catch {
+      // A failed check leaves the card showing what it already showed, which
+      // is truthful — nothing new was learned.
+    } finally {
       setTrackingKey(null);
       // Held briefly, so pressing it never looks like it did nothing — which
       // is exactly what "nothing has changed yet" would otherwise look like.
       setCheckedKey(key);
       setTimeout(() => setCheckedKey((k) => (k === key ? null : k)), 2400);
-    },
-    [load]
-  );
+    }
+  }, []);
 
   useEffect(() => {
     void load();
