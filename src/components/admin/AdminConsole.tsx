@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  LayoutGrid, Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
+  Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, CheckSquare, Square, KeyRound,
   MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle, Smartphone, Globe,
@@ -83,7 +83,7 @@ const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("en-US", { mon
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
 const sfFont = { fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif' } as const;
 
-type View = "all" | "overview" | "inquiries" | "trash" | "contacts" | "careers";
+type View = "all" | "inquiries" | "trash" | "contacts" | "careers";
 
 type ConfirmState = {
   title: string;
@@ -95,7 +95,9 @@ type ConfirmState = {
 
 export function AdminConsole({ data }: Props) {
   const router = useRouter();
-  const [view, setView] = useState<View>("overview");
+  // "All" is the landing screen now: recent activity first, then the export
+  // tools. It absorbed the old "Overview" tab, which held nothing else.
+  const [view, setView] = useState<View>("all");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [refreshing, setRefreshing] = useState(false);
@@ -626,7 +628,6 @@ export function AdminConsole({ data }: Props) {
 
   const nav: { key: View; label: string; icon: LucideIcon; count?: number }[] = [
     { key: "all", label: "All", icon: LayoutList },
-    { key: "overview", label: "Overview", icon: LayoutGrid },
     { key: "inquiries", label: "Inquiries", icon: Inbox, count: statusCounts.new },
     { key: "contacts", label: "Contact Us", icon: MessageSquare, count: newContactCount },
     { key: "careers", label: "Careers", icon: Briefcase, count: newCareerCount },
@@ -759,7 +760,7 @@ export function AdminConsole({ data }: Props) {
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {view === "all" ? "All" : view === "inquiries" ? "Inquiries" : view === "contacts" ? "Contact Us" : view === "careers" ? "Careers" : view === "trash" ? "Recently Deleted" : "Overview"}
+                {view === "all" ? "All" : view === "inquiries" ? "Inquiries" : view === "contacts" ? "Contact Us" : view === "careers" ? "Careers" : "Recently Deleted"}
               </h1>
               <p className={`mt-0.5 text-[13px] ${t.soft}`}>Welcome back, {data.adminName.split(" ")[0]}.</p>
             </div>
@@ -814,16 +815,18 @@ export function AdminConsole({ data }: Props) {
           </div>
 
           {view === "all" ? (
-            <AllSection
-              t={t}
-              stats={{ inquiries: data.stats.inquiries, contacts: data.stats.contacts, jobAlerts: data.stats.jobAlerts, customers: allCustomerGroups.length }}
-              groups={allCustomerGroups}
-              onGoInquiries={() => setView("inquiries")}
-              onGoContacts={() => setView("contacts")}
-              onGoCareers={() => setView("careers")}
-            />
-          ) : view === "overview" ? (
-            <div className="grid gap-4 lg:grid-cols-2">
+            /* One landing screen instead of two.
+             *
+             * "Overview" used to be a separate menu item holding nothing but
+             * the two panels below — the stat cards above are drawn for every
+             * view, so the only thing that distinguished it was recent
+             * activity. Splitting "what just came in" from "the customers who
+             * sent it" across two tabs meant checking both to know where the
+             * day stood. Recent activity leads, because it is the thing that
+             * changes hourly; the export tools follow, because they are what
+             * you come here to DO once you have read it. */
+            <>
+              <div className="mb-4 grid gap-4 lg:grid-cols-2">
               <Panel t={t} title="Recent inquiries" onView={() => setView("inquiries")}>
                 {items.slice(0, 8).map((i) => (
                   <button key={i.id} onClick={() => setActiveInquiry(i)} className="flex w-full items-center gap-3 py-3 text-left">
@@ -852,7 +855,17 @@ export function AdminConsole({ data }: Props) {
                 ))}
                 {!contactItems.length && <Empty t={t} label="No messages yet." />}
               </Panel>
-            </div>
+              </div>
+
+              <AllSection
+                t={t}
+                stats={{ inquiries: data.stats.inquiries, contacts: data.stats.contacts, jobAlerts: data.stats.jobAlerts, customers: allCustomerGroups.length }}
+                groups={allCustomerGroups}
+                onGoInquiries={() => setView("inquiries")}
+                onGoContacts={() => setView("contacts")}
+                onGoCareers={() => setView("careers")}
+              />
+            </>
           ) : view === "contacts" ? (
             <ContactsSection
               t={t}
