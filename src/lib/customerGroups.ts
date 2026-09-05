@@ -13,12 +13,15 @@
 
 /** The subset of an inquiry the grouping cares about. */
 export interface GroupableInquiry {
+  /** The row's own id, so a grouped line can be traced back to its inquiry. */
+  id?: string;
   customerName: string;
   companyName?: string | null;
   email?: string | null;
   country: string;
   phone: string;
   productName: string;
+  productImage?: string | null;
   quantity: number;
   createdAt: string | Date;
   status?: string;
@@ -26,7 +29,16 @@ export interface GroupableInquiry {
 
 /** One product line inside a grouped customer. */
 export interface GroupedProduct {
+  /**
+   * The inquiry this line came from. Optional because grouping is also run
+   * over the export's own row shape, which has no ids to give — the .xlsx
+   * lists products, not links. Present for anything the console groups, which
+   * is what lets a grouped line open the inquiry it belongs to.
+   */
+  inquiryId?: string;
   productName: string;
+  /** For the thumbnail. A grouped line reads as a product, so it shows one. */
+  productImage?: string | null;
   quantity: number;
   createdAt: string;
 }
@@ -114,7 +126,13 @@ export function groupCustomers(rows: GroupableInquiry[]): CustomerGroup[] {
     if (!g.companyName && r.companyName) g.companyName = r.companyName;
     if (!g.email && r.email) g.email = r.email;
 
-    g.products.push({ productName: r.productName, quantity: r.quantity, createdAt: created });
+    g.products.push({
+      inquiryId: r.id,
+      productName: r.productName,
+      productImage: r.productImage ?? null,
+      quantity: r.quantity,
+      createdAt: created,
+    });
     g.totalQuantity += r.quantity || 0;
     g.inquiryCount += 1;
     if (created < g.firstInquiry) g.firstInquiry = created;

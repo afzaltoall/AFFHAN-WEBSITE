@@ -14,7 +14,16 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const user = await verifyMobileSession(request);
-    if (!user) return NextResponse.json({ user: null }, { status: 401 });
+    // 200 with a null user, not 401.
+    //
+    // "Nobody is signed in" is the correct answer to "who is signed in", not a
+    // failure to answer it. Returning 401 made every browser log a red console
+    // error on every page load for every signed-out visitor — and on the admin
+    // console, which has an admin cookie but no customer one, it fired on all
+    // of them. The body was already { user: null } and AuthContext already
+    // treats a non-ok response and a null user identically, so nothing
+    // downstream changes.
+    if (!user) return NextResponse.json({ user: null });
     return NextResponse.json({ user: publicUser(user) });
   } catch (error) {
     console.error("Web me error:", error);

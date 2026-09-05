@@ -63,6 +63,13 @@ const asStatus = (s: string): Status => (s === "handled" || s === "spam" ? s : "
 // built once from the `dark` toggle (see the `t` definition further down).
 interface Theme {
   page: string; sidebar: string; card: string; soft: string; strong: string;
+  /**
+   * Between `soft` and `strong`. Row metadata — a customer's name, phone,
+   * email — is not a caption; it is the content people scan a list for. At
+   * #86868b it washed out against white and every list read as greyed-out
+   * placeholder text.
+   */
+  mid: string;
   border: string; divide: string; hover: string; navIdle: string; navActive: string;
   input: string; chip: string; pill: string; thumb: string; qty: string;
   overlay: string; modal: string;
@@ -431,7 +438,7 @@ export function AdminConsole({ data }: Props) {
   const t = dark
     ? {
         page: "bg-[#0b0b0c] text-[#f2f2f4]", sidebar: "bg-[#151517]/90 border-white/10",
-        card: "bg-[#151517] ring-white/[0.08]", soft: "text-[#8a8a8e]", strong: "text-white",
+        card: "bg-[#151517] ring-white/[0.08]", soft: "text-[#8a8a8e]", mid: "text-[#c7c7cc]", strong: "text-white",
         border: "border-white/[0.08]", divide: "divide-white/[0.06]", hover: "hover:bg-white/[0.03]",
         navIdle: "text-[#a1a1a6] hover:bg-white/[0.05]", navActive: "bg-white/[0.1] text-white",
         input: "bg-white/[0.05] text-white placeholder:text-[#8a8a8e]", chip: "bg-white/[0.08] text-[#a1a1a6]",
@@ -440,7 +447,7 @@ export function AdminConsole({ data }: Props) {
       }
     : {
         page: "bg-[#f5f5f7] text-[#1d1d1f]", sidebar: "bg-white/80 border-black/[0.06]",
-        card: "bg-white ring-black/[0.04]", soft: "text-[#86868b]", strong: "text-[#1d1d1f]",
+        card: "bg-white ring-black/[0.04]", soft: "text-[#86868b]", mid: "text-[#48484a]", strong: "text-[#1d1d1f]",
         border: "border-black/[0.06]", divide: "divide-black/[0.06]", hover: "hover:bg-black/[0.015]",
         navIdle: "text-[#515154] hover:bg-black/[0.03]", navActive: "bg-[#ececed] text-[#1d1d1f]",
         input: "bg-[#f5f5f7] text-[#1d1d1f] placeholder:text-[#86868b]", chip: "bg-black/[0.06] text-[#86868b]",
@@ -840,7 +847,7 @@ export function AdminConsole({ data }: Props) {
                     <Thumb t={t} src={i.productImage} alt={i.productName} />
                     <div className="min-w-0 flex-1">
                       <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand ${asStatus(i.status) !== "new" ? "line-through opacity-60" : ""}`}>{i.productName}</p>
-                      <p className={`text-xs ${t.soft}`}>{i.customerName} · {i.country}</p>
+                      <p className={`text-[12px] font-medium ${t.mid}`}>{i.customerName} · {i.country}</p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(i.status)].chip}`}>{STATUS_META[asStatus(i.status)].label}</span>
                   </button>
@@ -855,7 +862,7 @@ export function AdminConsole({ data }: Props) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand ${asStatus(c.status) !== "new" ? "opacity-60" : ""}`}>{c.fullName} <span className="font-normal text-slate-500 ml-1">{c.companyName ? `(${c.companyName})` : ""}</span></p>
-                      <p className={`line-clamp-1 text-xs ${t.soft}`}>{c.country} · {c.phone} · {c.message}</p>
+                      <p className={`line-clamp-1 text-[12px] font-medium ${t.mid}`}>{c.country} · {c.phone} · {c.message}</p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(c.status)].chip}`}>{STATUS_META[asStatus(c.status)].label}</span>
                   </button>
@@ -998,20 +1005,24 @@ export function AdminConsole({ data }: Props) {
                         {s} {s === "all" ? statusCounts.all : statusCounts[s as Status]}
                       </button>
                     ))}
-                  </div>
-                )}
-                <div className={`flex flex-wrap items-center gap-2 ${view === "inquiries" ? "" : "sm:ml-auto"}`}>
-                  {/* Collapse duplicate customers (deduped by phone) into one
-                      row each, listing every product they asked about. */}
-                  {view === "inquiries" && (
+
+                    {/* Grouping sits with the filters, not with Export beside
+                        it. All four change what the list SHOWS; Export and
+                        Grouped .xlsx take something away with them. Standing
+                        alone among the actions, this read as a third download. */}
+                    {/* Literal classes: Tailwind scans source text, so a class
+                        assembled at runtime is never emitted into the CSS. */}
+                    <span className={`mx-0.5 hidden h-5 w-px sm:block ${dark ? "bg-white/[0.12]" : "bg-black/[0.10]"}`} />
                     <button
                       onClick={() => setGroupByCustomer((g) => !g)}
                       title="Collapse duplicate customers by phone number"
-                      className={`inline-flex items-center justify-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${groupByCustomer ? "bg-brand text-white ring-transparent" : t.pill}`}
+                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ring-1 ${groupByCustomer ? "bg-brand text-white ring-transparent" : t.pill}`}
                     >
-                      <Users size={15} /> Group by customer
+                      <Users size={13} /> Group by customer
                     </button>
-                  )}
+                  </div>
+                )}
+                <div className={`flex flex-wrap items-center gap-2 ${view === "inquiries" ? "" : "sm:ml-auto"}`}>
                   {view !== "trash" && (
                     <button onClick={exportExcel} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export the visible list"} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black">
                       <Download size={15} /> Export{selected.size > 0 ? ` (${selected.size})` : ""}
@@ -1031,19 +1042,33 @@ export function AdminConsole({ data }: Props) {
                   account behind them. Read-only on purpose: moving someone
                   along is a per-customer decision, made in their drawer. */}
               {view === "inquiries" && customerStatusCounts.linked > 0 && (
-                <div className={`flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-2.5 ${t.border}`}>
-                  <span className={`text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>
+                /* Four counts on a flat line all weighed the same, so nothing
+                   led and the strip read as a caption. Each stage is now a
+                   chip carrying its own colour, the number is the largest
+                   thing in it, and a zero is dimmed so a busy stage is what
+                   the eye lands on. */
+                <div className={`flex flex-wrap items-center gap-x-2 gap-y-2 border-b px-4 py-3 ${t.border}`}>
+                  <span className={`mr-1 text-[11px] font-bold uppercase tracking-wider ${t.mid}`}>
                     Signed-in customers
                   </span>
-                  {CUSTOMER_STATUSES.map((s) => (
-                    <span key={s} className="inline-flex items-center gap-1.5 text-[13px]">
-                      <span className={`h-2 w-2 rounded-full ${CUSTOMER_STATUS_META[s].dot}`} />
-                      <span className={`font-bold ${t.strong}`}>{customerStatusCounts[s]}</span>
-                      <span className={t.soft}>{CUSTOMER_STATUS_META[s].label}</span>
-                    </span>
-                  ))}
-                  <span className={`ml-auto text-[12px] ${t.soft}`}>
-                    {customerStatusCounts.linked} of {items.length} can see a status
+                  {CUSTOMER_STATUSES.map((s) => {
+                    const n = customerStatusCounts[s];
+                    return (
+                      <span
+                        key={s}
+                        title={CUSTOMER_STATUS_META[s].hint}
+                        className={`inline-flex items-center gap-2 rounded-full py-1 pl-2.5 pr-3 text-[12.5px] ring-1 ${
+                          n > 0 ? `${CUSTOMER_STATUS_META[s].chip} ring-transparent` : `${t.pill} opacity-60`
+                        }`}
+                      >
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${n > 0 ? CUSTOMER_STATUS_META[s].dot : "bg-current opacity-40"}`} />
+                        <span className="text-[14px] font-bold tabular-nums leading-none">{n}</span>
+                        <span className="font-semibold">{CUSTOMER_STATUS_META[s].label}</span>
+                      </span>
+                    );
+                  })}
+                  <span className={`ml-auto text-[12px] font-medium ${t.mid}`}>
+                    <span className="font-bold">{customerStatusCounts.linked}</span> of {items.length} can see a status
                   </span>
                 </div>
               )}
@@ -1096,7 +1121,20 @@ export function AdminConsole({ data }: Props) {
                   </div>
                   {customerGroups.length ? (
                     <ul className={`divide-y ${t.divide}`}>
-                      {customerGroups.map((g) => <CustomerGroupRow key={g.key} g={g} t={t} />)}
+                      {customerGroups.map((g) => (
+                        <CustomerGroupRow
+                          key={g.key}
+                          g={g}
+                          t={t}
+                          // Opens the drawer the ungrouped list uses. Looked up
+                          // by id rather than passed down, so the row the drawer
+                          // shows is the live one, not a copy frozen at group time.
+                          onOpenInquiry={(id) => {
+                            const found = items.find((x) => x.id === id);
+                            if (found) setActiveInquiry(found);
+                          }}
+                        />
+                      ))}
                     </ul>
                   ) : <Empty t={t} label="No customers found." pad />}
                 </>
@@ -1115,12 +1153,16 @@ export function AdminConsole({ data }: Props) {
                           <button onClick={() => setActiveInquiry(i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                             <Thumb t={t} src={i.productImage} alt={i.productName} big />
                             <div className="min-w-0 flex-1">
-                              <p className={`line-clamp-2 text-[14px] font-semibold leading-snug hover:text-brand sm:text-[13px] ${st !== "new" ? "line-through opacity-70" : ""}`}>{i.productName}</p>
-                              <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Users className="h-3 w-3 shrink-0" /><span className="truncate">{i.customerName}</span></span>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{i.country}</span></span>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{i.phone}</span></span>
-                                {i.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{i.email}</span></span>}
+                              <p className={`line-clamp-2 text-[14px] font-semibold leading-snug hover:text-brand sm:text-[13.5px] ${st !== "new" ? `line-through ${t.soft}` : t.strong}`}>{i.productName}</p>
+                              {/* 12px at `mid`, with the icons left soft. The
+                                  icon is decoration and can stay quiet; the
+                                  name, number and address are what the row is
+                                  scanned for, so they carry the contrast. */}
+                              <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Users className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-semibold">{i.customerName}</span></span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{i.country}</span></span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{i.phone}</span></span>
+                                {i.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{i.email}</span></span>}
                               </div>
                             </div>
                           </button>
@@ -1547,7 +1589,13 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
             details look like they were sitting on top of the photograph.
             overscroll-contain stops the page behind scrolling once this hits
             its end. */}
-        <div className="grid min-h-0 gap-5 overflow-y-auto overscroll-contain p-5 sm:grid-cols-2">
+        {/* items-start, and a narrower first column.
+            Two equal columns stretched the image's cell to the full height of
+            the details beside it, which are twice as tall — that is where the
+            dead white space under the photograph came from. The image column
+            now sizes to its own content and the actions sit beneath it, so the
+            two sides finish at roughly the same place. */}
+        <div className="grid min-h-0 items-start gap-5 overflow-y-auto overscroll-contain p-5 sm:grid-cols-[minmax(0,17rem)_1fr]">
           {/* Click the image to view it close-up.
 
               An explicit height plus `fill`, which is the pattern Thumb and the
@@ -1566,26 +1614,40 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
               A container with a real height in `h-*` has neither problem: it
               occupies that height in flow, so it cannot overlap what follows,
               and `fill` has a definite box to fill, so it cannot collapse. */}
-          {img ? (
-            <button
-              onClick={() => onZoom(img)}
-              title="Click to enlarge"
-              className={`group relative block h-56 w-full shrink-0 overflow-hidden rounded-2xl sm:h-72 lg:h-80 ${t.thumb}`}
-            >
-              <Image
-                src={img}
-                alt={inquiry.productName}
-                fill
-                sizes="(max-width:640px) 92vw, 380px"
-                className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
-              />
-              <span className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
-                <ZoomIn className="h-3.5 w-3.5" /> Enlarge
-              </span>
+          <div className="space-y-3">
+            {img ? (
+              <button
+                onClick={() => onZoom(img)}
+                title="Click to enlarge"
+                className={`group relative block aspect-square w-full overflow-hidden rounded-2xl ${t.thumb}`}
+              >
+                <Image
+                  src={img}
+                  alt={inquiry.productName}
+                  fill
+                  sizes="(max-width:640px) 92vw, 272px"
+                  className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                />
+                <span className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <ZoomIn className="h-3.5 w-3.5" /> Enlarge
+                </span>
+              </button>
+            ) : (
+              <div className={`flex aspect-square w-full items-center justify-center rounded-2xl text-sm ${t.thumb} ${t.soft}`}>No image available</div>
+            )}
+
+            {/* Reaching the customer is what this drawer is FOR, so it lives
+                under their photograph rather than at the end of a scroll past
+                two status controls. It also fills the space the fixed-height
+                image used to waste. */}
+            <div className="flex flex-wrap gap-2">
+              <a href={`tel:${inquiry.phone.replace(/\s/g, "")}`} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"><PhoneCall className="h-3.5 w-3.5" /> Call</a>
+              <a href={waLink(inquiry.phone)} target="_blank" rel="noopener noreferrer" className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
+            </div>
+            <button onClick={onDelete} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500 hover:text-white">
+              <Trash2 className="h-3.5 w-3.5" /> Delete
             </button>
-          ) : (
-            <div className={`flex h-56 w-full shrink-0 items-center justify-center rounded-2xl text-sm sm:h-72 lg:h-80 ${t.thumb} ${t.soft}`}>No image available</div>
-          )}
+          </div>
           <div className="min-w-0">
             {/* Full product name — no truncation. */}
             <h3 className={`text-lg font-semibold leading-snug ${asStatus(inquiry.status) !== "new" ? "line-through opacity-70" : ""}`}>{inquiry.productName}</h3>
@@ -1593,18 +1655,24 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
               <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${t.qty}`}>Quantity: {inquiry.quantity}</span>
               <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[asStatus(inquiry.status)].chip}`}>{STATUS_META[asStatus(inquiry.status)].label}</span>
             </div>
-            <dl className={`mt-4 space-y-2.5 text-sm ${t.soft}`}>
-              <Row icon={Users} label="Customer" value={inquiry.customerName} />
-              {inquiry.companyName && <Row icon={Package} label="Company" value={inquiry.companyName} />}
-              <Row icon={MapPin} label="Country" value={inquiry.country} />
-              <Row icon={Phone} label="Phone" value={inquiry.phone} />
-              {inquiry.email && <Row icon={Mail} label="Email" value={inquiry.email} />}
-              <Row icon={Inbox} label="Received" value={fmtDateTime(inquiry.createdAt)} />
+            {/* The colour lives on each value now, not on the whole list.
+                Setting t.soft here greyed the customer's name, phone and email
+                — the facts the drawer exists to state — to the same weight as
+                their own labels, so the panel read as placeholder text. */}
+            <dl className="mt-4 space-y-2.5 text-sm">
+              <Row t={t} icon={Users} label="Customer" value={inquiry.customerName} />
+              {inquiry.companyName && <Row t={t} icon={Package} label="Company" value={inquiry.companyName} />}
+              <Row t={t} icon={MapPin} label="Country" value={inquiry.country} />
+              <Row t={t} icon={Phone} label="Phone" value={inquiry.phone} />
+              {inquiry.email && <Row t={t} icon={Mail} label="Email" value={inquiry.email} />}
+              <Row t={t} icon={Inbox} label="Received" value={fmtDateTime(inquiry.createdAt)} />
             </dl>
             {inquiry.message && (
-              <div className={`mt-4 rounded-xl p-3 text-sm ${t.thumb}`}>
+              <div className={`mt-4 rounded-xl p-3 ${t.thumb}`}>
                 <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Message</p>
-                <p>{inquiry.message}</p>
+                {/* What the customer actually asked for. It was inheriting the
+                    muted colour from the block around it. */}
+                <p className={`text-sm font-medium leading-relaxed ${t.strong}`}>{inquiry.message}</p>
               </div>
             )}
             {/* Triage the customer: New / Handled / Spam (fake). */}
@@ -1618,13 +1686,6 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
                 on, so offering the control would promise something that cannot
                 happen. */}
             <CustomerStatusControl t={t} inquiry={inquiry} onChange={onSetCustomerStatus} />
-            <div className="mt-4 flex flex-wrap gap-2">
-              <a href={`tel:${inquiry.phone.replace(/\s/g, "")}`} className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"><PhoneCall className="h-3.5 w-3.5" /> Call</a>
-              <a href={waLink(inquiry.phone)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
-              <button onClick={onDelete} className="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500 hover:text-white">
-                <Trash2 className="h-3.5 w-3.5" /> Delete
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -1971,12 +2032,14 @@ function StatusControl({ value, onChange, t, big }: { value: Status; onChange: (
   );
 }
 
-function Row({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+function Row({ icon: Icon, label, value, t }: { icon: LucideIcon; label: string; value: string; t?: Theme }) {
   return (
     <div className="flex items-center gap-2">
-      <Icon className="h-3.5 w-3.5 shrink-0" />
-      <span className="w-20 shrink-0 text-xs uppercase tracking-wide opacity-70">{label}</span>
-      <span className="min-w-0 flex-1 font-medium">{value}</span>
+      <Icon className={`h-3.5 w-3.5 shrink-0 ${t?.soft ?? ""}`} />
+      <span className={`w-20 shrink-0 text-xs uppercase tracking-wide ${t ? t.soft : "opacity-70"}`}>{label}</span>
+      {/* The value is the point of the row and now outranks its label:
+          semibold and full-contrast, against a muted icon and caption. */}
+      <span className={`min-w-0 flex-1 font-semibold ${t?.strong ?? ""}`}>{value}</span>
     </div>
   );
 }
@@ -2018,7 +2081,9 @@ function Empty({ label, pad, t }: { label: string; pad?: boolean; t: Theme }) {
 // One de-duplicated customer, with an expandable list of every product they
 // inquired about. This is the on-screen version of the "Group by customer"
 // view; the Excel version comes from /api/admin/export/all?only=customers.
-function CustomerGroupRow({ g, t }: { g: CustomerGroup; t: Theme }) {
+function CustomerGroupRow({
+  g, t, onOpenInquiry,
+}: { g: CustomerGroup; t: Theme; onOpenInquiry?: (inquiryId: string) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <li className={`transition-colors ${t.hover}`}>
@@ -2031,17 +2096,17 @@ function CustomerGroupRow({ g, t }: { g: CustomerGroup; t: Theme }) {
               second line on a phone rather than being cut mid-word. The other
               names they have written in are demoted to their own line: they
               were what pushed the real name out of view. */}
-          <p className="line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13px]">
+          <p className={`line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13.5px] ${t.strong}`}>
             {g.customerName}
           </p>
           {g.altNames.length > 0 && (
             <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
           )}
-          <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
-            <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{g.phone}</span></span>
-            {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{g.email}</span></span>}
-            <span className="inline-flex min-w-0 max-w-full items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{g.country}</span></span>
-            <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Calendar className="h-3 w-3 shrink-0" /><span className="truncate">Last {fmtDate(g.lastInquiry)}</span></span>
+          <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{g.phone}</span></span>
+            {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.email}</span></span>}
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.country}</span></span>
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Calendar className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">Last {fmtDate(g.lastInquiry)}</span></span>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
@@ -2054,15 +2119,32 @@ function CustomerGroupRow({ g, t }: { g: CustomerGroup; t: Theme }) {
       </button>
       {open && (
         <ul className={`border-t px-4 pb-3 pt-1 ${t.border}`}>
-          {g.products.map((p, idx) => (
-            <li key={idx} className={`flex items-center justify-between gap-3 py-2 text-sm ${idx > 0 ? `border-t ${t.divide}` : ""}`}>
-              <span className="min-w-0 flex-1">
-                <span className="line-clamp-2 font-medium">{p.productName}</span>
-                <span className={`text-xs ${t.soft}`}>{fmtDate(p.createdAt)}</span>
-              </span>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {p.quantity}</span>
-            </li>
-          ))}
+          {g.products.map((p, idx) => {
+            // A grouped line is an inquiry like any other, so it opens the same
+            // drawer the ungrouped list does rather than being a dead label.
+            // Only when the id survived the grouping — the export path has none.
+            const openable = Boolean(p.inquiryId && onOpenInquiry);
+            const Row = openable ? "button" : "div";
+            return (
+              <li key={p.inquiryId ?? idx} className={idx > 0 ? `border-t ${t.divide}` : ""}>
+                <Row
+                  {...(openable
+                    ? { onClick: () => onOpenInquiry!(p.inquiryId!), type: "button" as const }
+                    : {})}
+                  className={`flex w-full items-center gap-3 py-2 text-left text-sm ${
+                    openable ? `rounded-lg transition-colors ${t.hover} cursor-pointer` : ""
+                  }`}
+                >
+                  <Thumb t={t} src={p.productImage ?? null} alt={p.productName} />
+                  <span className="min-w-0 flex-1">
+                    <span className="line-clamp-2 font-medium">{p.productName}</span>
+                    <span className={`text-xs ${t.soft}`}>{fmtDate(p.createdAt)}</span>
+                  </span>
+                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {p.quantity}</span>
+                </Row>
+              </li>
+            );
+          })}
         </ul>
       )}
     </li>

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Loader2, MessageSquareText, Package, RefreshCw } from "lucide-react";
+import { BadgeCheck, Check, Loader2, MessageSquareText, Package, RefreshCw } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { Card, EmptyState, Fade, SectionHeader } from "@/components/account/AccountShell";
 
@@ -86,57 +86,102 @@ const STAGES = [
   { key: "IN_PROGRESS", label: "Sourcing", blurb: "Finding you a factory" },
 ] as const;
 
-function Tracker({ status }: { status: InquiryRow["status"] }) {
-  if (status === "CUSTOM") return null;
+function Tracker({
+  status, tracking, justChecked, onTrack,
+}: {
+  status: InquiryRow["status"];
+  /** A check for THIS card is in flight. */
+  tracking: boolean;
+  /** That check just finished — held briefly so the press is acknowledged. */
+  justChecked: boolean;
+  onTrack: () => void;
+}) {
   const current = STAGES.findIndex((s) => s.key === status);
 
+  // CUSTOM sits off the fixed path — the team wrote its own message, which by
+  // definition does not claim a position on the line. The button still belongs
+  // there: it is the same question ("has anything moved?"), and it was the one
+  // status where the card offered no way to ask.
+  const line =
+    status === "CUSTOM" ? null : (
+      <ol className="flex min-w-[19rem] flex-1 items-start gap-0">
+        {STAGES.map((stage, i) => {
+          const done = i < current;
+          const active = i === current;
+          return (
+            <li key={stage.key} className="flex flex-1 items-start gap-2">
+              <span className="flex flex-col items-center">
+                <span
+                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
+                    done
+                      ? "bg-emerald-500 text-white"
+                      : active
+                        ? "bg-brand text-white ring-4 ring-brand/15"
+                        : "bg-slate-200 text-slate-400"
+                  }`}
+                >
+                  {done ? <Check size={11} strokeWidth={3} /> : i + 1}
+                </span>
+              </span>
+
+              <span className="min-w-0 flex-1">
+                <span
+                  className={`block text-[11px] font-semibold leading-tight ${
+                    done || active ? "text-slate-800" : "text-slate-400"
+                  }`}
+                >
+                  {stage.label}
+                </span>
+                <span className="mt-0.5 block text-[10px] leading-tight text-slate-400">
+                  {stage.blurb}
+                </span>
+              </span>
+
+              {/* The connector belongs between steps, not after the last one. */}
+              {i < STAGES.length - 1 && (
+                <span
+                  aria-hidden="true"
+                  className={`mt-2.5 hidden h-px flex-1 sm:block ${done ? "bg-emerald-300" : "bg-slate-200"}`}
+                />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    );
+
   return (
-    <ol className="mt-3.5 flex items-start gap-0 border-t border-slate-100 pt-3.5">
-      {STAGES.map((stage, i) => {
-        const done = i < current;
-        const active = i === current;
-        return (
-          <li key={stage.key} className="flex flex-1 items-start gap-2">
-            <span className="flex flex-col items-center">
-              <span
-                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
-                  done
-                    ? "bg-emerald-500 text-white"
-                    : active
-                      ? "bg-brand text-white ring-4 ring-brand/15"
-                      : "bg-slate-200 text-slate-400"
-                }`}
-              >
-                {done ? <Check size={11} strokeWidth={3} /> : i + 1}
-              </span>
-            </span>
-
-            <span className="min-w-0 flex-1">
-              <span
-                className={`block text-[11px] font-semibold leading-tight ${
-                  done || active ? "text-slate-800" : "text-slate-400"
-                }`}
-              >
-                {stage.label}
-              </span>
-              <span className="mt-0.5 block text-[10px] leading-tight text-slate-400">
-                {stage.blurb}
-              </span>
-            </span>
-
-            {/* The connector belongs between steps, not after the last one. */}
-            {i < STAGES.length - 1 && (
-              <span
-                aria-hidden="true"
-                className={`mt-2.5 hidden h-px flex-1 sm:block ${done ? "bg-emerald-300" : "bg-slate-200"}`}
-              />
-            )}
-          </li>
-        );
-      })}
-    </ol>
+    // The dead space to the right of the last step is where this button goes.
+    // Per card, not one for the page: "has MY thing moved" is the question
+    // being asked, and the answer arrives on the card being looked at.
+    // Wraps rather than squeezes. Sharing one row with the button left the
+    // three steps too narrow and their captions broke over two lines; below a
+    // comfortable width the button drops to its own line instead.
+    <div className="mt-3.5 flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-slate-100 pt-3.5">
+      {line}
+      <button
+        type="button"
+        onClick={onTrack}
+        disabled={tracking}
+        className={`ml-auto flex shrink-0 items-center gap-1.5 self-center rounded-full px-3.5 py-2 text-[12px] font-semibold ring-1 transition-colors disabled:cursor-not-allowed ${
+          justChecked
+            ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+            : "bg-white text-brand ring-brand/25 hover:bg-brand/5"
+        } cursor-pointer`}
+      >
+        {tracking ? (
+          <Loader2 size={13} className="animate-spin" />
+        ) : justChecked ? (
+          <Check size={13} strokeWidth={3} />
+        ) : (
+          <RefreshCw size={13} />
+        )}
+        {tracking ? "Checking…" : justChecked ? "Up to date" : "Track status"}
+      </button>
+    </div>
   );
 }
+
 
 const TONE: Record<InquiryRow["status"], string> = {
   PENDING: "bg-amber-50 text-amber-700 ring-amber-200",
@@ -149,6 +194,9 @@ export default function InquiriesPage() {
   const [rows, setRows] = useState<InquiryRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  /** Which card's "Track status" is in flight, and which just finished. */
+  const [trackingKey, setTrackingKey] = useState<string | null>(null);
+  const [checkedKey, setCheckedKey] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -172,6 +220,34 @@ export default function InquiriesPage() {
       setRefreshing(false);
     }
   }, []);
+
+  /**
+   * "Track status" on one card.
+   *
+   * Goes back to the same endpoint the page loads from, so whatever the office
+   * has changed is what comes back — the card re-renders with the new stage,
+   * message and "Updated …" line. It reads the whole list rather than one row
+   * because the merged feed is the only shape the server offers, and it is a
+   * handful of rows; a per-inquiry endpoint would be a second thing to keep in
+   * step for no gain.
+   *
+   * The spinner and the "Up to date" tick are scoped to the card that was
+   * pressed. Separate from the header's Refresh, which reloads the whole list
+   * and says so.
+   */
+  const track = useCallback(
+    async (key: string) => {
+      setTrackingKey(key);
+      setCheckedKey(null);
+      await load();
+      setTrackingKey(null);
+      // Held briefly, so pressing it never looks like it did nothing — which
+      // is exactly what "nothing has changed yet" would otherwise look like.
+      setCheckedKey(key);
+      setTimeout(() => setCheckedKey((k) => (k === key ? null : k)), 2400);
+    },
+    [load]
+  );
 
   useEffect(() => {
     void load();
@@ -307,22 +383,43 @@ export default function InquiriesPage() {
                     )}
                   </p>
 
+                  {/* Said BY somebody, and now it says so.
+                      Unattributed, this read as system boilerplate and got
+                      skimmed — it is the answer the customer is waiting for,
+                      written by our team, so it is signed like a message
+                      rather than printed like a field. */}
                   {row.message && (
-                    <p className="mt-2 rounded-lg bg-slate-50 px-3 py-2 text-[12px] leading-relaxed text-slate-600">
-                      {row.message}
-                    </p>
+                    <div className="mt-2.5 rounded-xl border border-brand/15 bg-brand/[0.04] px-3.5 py-3">
+                      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-brand-dark">
+                        <BadgeCheck size={13} className="shrink-0" />
+                        Message from the Affhan team
+                      </p>
+                      <p className="text-[13.5px] font-medium leading-relaxed text-slate-800">
+                        {row.message}
+                      </p>
+                    </div>
                   )}
 
-                  {/* The customer's own words, kept visually distinct from the
-                      status line above it. Merging the two would let our
-                      message and theirs read as one sentence. */}
+                  {/* The customer's own words. Labelled for the same reason
+                      the message above is: two quoted blocks stacked on one
+                      card, and nothing said which of them was whose. */}
                   {row.customerNote && (
-                    <p className="mt-2 border-l-2 border-slate-200 pl-3 text-[12px] italic leading-relaxed text-slate-500">
-                      &ldquo;{row.customerNote}&rdquo;
-                    </p>
+                    <div className="mt-2 border-l-2 border-slate-200 pl-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                        What you asked for
+                      </p>
+                      <p className="mt-0.5 text-[12.5px] italic leading-relaxed text-slate-600">
+                        &ldquo;{row.customerNote}&rdquo;
+                      </p>
+                    </div>
                   )}
 
-                  <Tracker status={row.status} />
+                  <Tracker
+                    status={row.status}
+                    tracking={trackingKey === `${row.source}-${row.id}`}
+                    justChecked={checkedKey === `${row.source}-${row.id}`}
+                    onTrack={() => void track(`${row.source}-${row.id}`)}
+                  />
                 </div>
               </div>
             </Card>
