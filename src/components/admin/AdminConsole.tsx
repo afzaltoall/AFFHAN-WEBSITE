@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
-  Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle, Smartphone, Globe,
+  Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
+  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -107,6 +107,11 @@ export function AdminConsole({ data }: Props) {
   const [view, setView] = useState<View>("all");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  // The Filter dropdown. Held open across a grouping toggle — that one changes
+  // the list under you, and having the menu vanish makes it hard to tell it
+  // was you who did it — but closed on picking a status, which is a decision.
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dark, setDark] = useState(false);
   const [activeInquiry, setActiveInquiry] = useState<Inquiry | null>(null);
@@ -128,6 +133,26 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
   useEffect(() => setSelected(new Set()), [view, statusFilter, q]);
+
+  // Close the filter menu on an outside click or Escape, the way every other
+  // menu on this page behaves.
+  useEffect(() => {
+    if (!filterMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
+        setFilterMenuOpen(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFilterMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [filterMenuOpen]);
 
   // The drawer closes itself when a view is chosen, and Escape closes it too.
   useEffect(() => setMenuOpen(false), [view]);
@@ -993,33 +1018,98 @@ export function AdminConsole({ data }: Props) {
                     className={`h-10 w-full rounded-xl pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`}
                   />
                 </div>
-                {/* Status filter — inquiries only. */}
+                {/* One Filter control, with the choices INSIDE it.
+                    Four status pills plus a grouping toggle sat across the
+                    toolbar as five competing buttons, which is what made the
+                    bar read as a row of unrelated actions. They are all one
+                    question — "what should this list show?" — so they now live
+                    under one button that states the current answer. */}
                 {view === "inquiries" && (
-                  <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
-                    {(["all", "new", "handled", "spam"] as const).map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => setStatusFilter(s)}
-                        className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition-colors ring-1 ${statusFilter === s ? (s === "all" ? "bg-[#1d1d1f] text-white ring-transparent" : `${STATUS_META[s as Status].chip} ring-transparent`) : t.pill}`}
-                      >
-                        {s} {s === "all" ? statusCounts.all : statusCounts[s as Status]}
-                      </button>
-                    ))}
-
-                    {/* Grouping sits with the filters, not with Export beside
-                        it. All four change what the list SHOWS; Export and
-                        Grouped .xlsx take something away with them. Standing
-                        alone among the actions, this read as a third download. */}
-                    {/* Literal classes: Tailwind scans source text, so a class
-                        assembled at runtime is never emitted into the CSS. */}
-                    <span className={`mx-0.5 hidden h-5 w-px sm:block ${dark ? "bg-white/[0.12]" : "bg-black/[0.10]"}`} />
+                  <div className="relative sm:ml-auto" ref={filterMenuRef}>
                     <button
-                      onClick={() => setGroupByCustomer((g) => !g)}
-                      title="Collapse duplicate customers by phone number"
-                      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors ring-1 ${groupByCustomer ? "bg-brand text-white ring-transparent" : t.pill}`}
+                      onClick={() => setFilterMenuOpen((o) => !o)}
+                      aria-haspopup="menu"
+                      aria-expanded={filterMenuOpen}
+                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${
+                        statusFilter !== "all" || groupByCustomer
+                          ? "bg-brand text-white ring-transparent"
+                          : t.pill
+                      }`}
                     >
-                      <Users size={13} /> Group by customer
+                      <SlidersHorizontal size={15} />
+                      Filter
+                      {/* What is currently on, so the button answers the
+                          question without being opened. */}
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                          statusFilter !== "all" || groupByCustomer
+                            ? "bg-white/25"
+                            : `${t.chip}`
+                        }`}
+                      >
+                        {statusFilter === "all" ? statusCounts.all : statusCounts[statusFilter]}
+                        {groupByCustomer ? " · grouped" : ""}
+                      </span>
+                      <ChevronDown size={14} className={`transition-transform ${filterMenuOpen ? "rotate-180" : ""}`} />
                     </button>
+
+                    {filterMenuOpen && (
+                      <div
+                        role="menu"
+                        className={`absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}
+                      >
+                        <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
+                          Status
+                        </p>
+                        {(["all", "new", "handled", "spam"] as const).map((s) => {
+                          const on = statusFilter === s;
+                          const n = s === "all" ? statusCounts.all : statusCounts[s as Status];
+                          return (
+                            <button
+                              key={s}
+                              role="menuitemradio"
+                              aria-checked={on}
+                              onClick={() => { setStatusFilter(s); setFilterMenuOpen(false); }}
+                              className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold capitalize transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                            >
+                              <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : s === "all" ? "bg-slate-300" : STATUS_META[s as Status].dot}`} />
+                              <span className="flex-1">{s}</span>
+                              <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{n}</span>
+                              {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                            </button>
+                          );
+                        })}
+
+                        <div className={`my-1.5 h-px ${dark ? "bg-white/[0.10]" : "bg-black/[0.08]"}`} />
+
+                        <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
+                          View
+                        </p>
+                        <button
+                          role="menuitemcheckbox"
+                          aria-checked={groupByCustomer}
+                          onClick={() => setGroupByCustomer((g) => !g)}
+                          title="Collapse duplicate customers by phone number"
+                          className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${groupByCustomer ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                        >
+                          <Users size={14} className="shrink-0" />
+                          <span className="flex-1">Group by customer</span>
+                          {groupByCustomer && <Check className="h-3.5 w-3.5 shrink-0" />}
+                        </button>
+
+                        {(statusFilter !== "all" || groupByCustomer) && (
+                          <>
+                            <div className={`my-1.5 h-px ${dark ? "bg-white/[0.10]" : "bg-black/[0.08]"}`} />
+                            <button
+                              onClick={() => { setStatusFilter("all"); setGroupByCustomer(false); setFilterMenuOpen(false); }}
+                              className={`w-full rounded-xl px-2.5 py-2 text-left text-[12.5px] font-semibold text-red-500 transition-colors ${t.hover}`}
+                            >
+                              Clear filters
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
                 <div className={`flex flex-wrap items-center gap-2 ${view === "inquiries" ? "" : "sm:ml-auto"}`}>
