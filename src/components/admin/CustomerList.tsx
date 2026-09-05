@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Globe, Loader2, Search, Smartphone } from "lucide-react";
+import { ArrowLeft, Globe, Loader2, RefreshCw, Search, Smartphone } from "lucide-react";
+import { GoogleG } from "@/components/ui/GoogleG";
 
 /**
  * One customer list, pointed at whichever client you want to see.
@@ -97,20 +98,34 @@ export function CustomerList({
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+      {/* Full width, not a centred column. This is a data table with eight
+          columns; capping it at 1152px left the numbers crushed together in the
+          middle of a wide screen with empty grey either side. */}
+      <div className="px-5 py-8 sm:px-8">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/admin/"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
           >
             <ArrowLeft size={16} />
           </Link>
-          <div>
+          <div className="min-w-0">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             <p className="text-[13px] text-[#86868b]">
               {error ? error : `${total} ${total === 1 ? "account" : "accounts"} · ${blurb}`}
             </p>
           </div>
+
+          {/* Sessions expire and people sign in while you are looking at this,
+              so the list goes stale as you read it. */}
+          <button
+            onClick={() => void load()}
+            disabled={loading}
+            className="ml-auto flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-[13px] font-semibold shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] disabled:opacity-60 cursor-pointer"
+          >
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
         </div>
 
         {/* Switching between the two lists, and the honest note about why a
@@ -211,7 +226,15 @@ export function CustomerList({
                         )}
                       </td>
                       <td className="px-5 py-3">
-                        <span className="inline-flex rounded-md bg-black/[0.04] px-2 py-1 text-[11px] font-bold text-[#1d1d1f]">
+                        <span className="inline-flex items-center gap-1.5 rounded-md bg-black/[0.04] px-2 py-1 text-[11px] font-bold text-[#1d1d1f]">
+                          {/* The mark, not just the word — it is the one
+                              sign-in method with a logo people recognise at a
+                              glance, which is the point of a dense table. */}
+                          {u.authProvider.includes("GOOGLE") && (
+                            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-white">
+                              <GoogleG size={9} />
+                            </span>
+                          )}
                           {readableProvider(u.authProvider)}
                         </span>
                       </td>
@@ -233,12 +256,15 @@ export function CustomerList({
                         {u.changeCount > 0 ? u.changeCount : "—"}
                       </td>
                       <td className="px-5 py-3 text-[#86868b]">
+                        {/* hour12, or en-GB renders 22:25 — railway time,
+                            which nobody in the office reads back correctly. */}
                         {u.lastLoginAt
                           ? new Date(u.lastLoginAt).toLocaleDateString("en-GB", {
                               day: "numeric",
                               month: "short",
                               hour: "numeric",
                               minute: "2-digit",
+                              hour12: true,
                             })
                           : "Never"}
                       </td>

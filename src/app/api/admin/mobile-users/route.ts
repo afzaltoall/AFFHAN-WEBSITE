@@ -79,7 +79,16 @@ export async function GET(request: Request) {
           // Never passwordHash or googleId. What the console needs to know is
           // whether a password exists, which the count answers without the
           // hash ever leaving the database.
-          _count: { select: { inquiries: true, favourites: true, changes: true } },
+          _count: {
+            select: {
+              inquiries: true,
+              // Website quote requests. Left out, this column read 0 for
+              // every customer who had only ever used the site.
+              webInquiries: { where: { status: { not: "deleted" } } },
+              favourites: true,
+              changes: true,
+            },
+          },
           sessions: { select: { platform: true, createdAt: true } },
         },
       }),
@@ -97,7 +106,7 @@ export async function GET(request: Request) {
         // would put people on the wrong list.
         unknownSessions: sessions.filter((s) => !s.platform).length,
         activeSessions: sessions.length,
-        inquiryCount: u._count.inquiries,
+        inquiryCount: u._count.inquiries + u._count.webInquiries,
         favouriteCount: u._count.favourites,
         changeCount: u._count.changes,
       })),

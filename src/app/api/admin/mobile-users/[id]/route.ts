@@ -79,13 +79,66 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             createdAt: true,
           },
         },
-        _count: { select: { inquiries: true, favourites: true, productViews: true } },
+        // Quote requests raised on the website. Without these the page showed
+        // "0 inquiries · None yet" for a customer who had asked for several —
+        // it only ever read the app's table.
+        webInquiries: {
+          where: { status: { not: "deleted" } },
+          orderBy: { createdAt: "desc" },
+          take: 25,
+          select: {
+            id: true,
+            productId: true,
+            productName: true,
+            quantity: true,
+            customerStatus: true,
+            statusNote: true,
+            statusUpdatedAt: true,
+            createdAt: true,
+            product: { select: { imageUrl: true } },
+          },
+        },
+        _count: {
+          select: {
+            inquiries: true,
+            webInquiries: { where: { status: { not: "deleted" } } },
+            favourites: true,
+            productViews: true,
+          },
+        },
       },
     });
 
     if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const { passwordHash, ...rest } = user;
+    const { passwordHash, webInquiries, ...rest } = user;
+
+    // Both tables, one list, newest first — the office does not care which
+    // client the customer happened to use, only what they asked for.
+    const merged = [
+      ...user.inquiries.map((i) => ({
+        id: i.id,
+        source: "APP" as const,
+        productId: i.productId,
+        productName: i.productName,
+        productImage: i.productImage,
+        requestedMOQ: i.requestedMOQ,
+        createdAt: i.createdAt,
+        statusUpdatedAt: null as Date | null,
+        ...describeStatus(i.status, i.statusNote),
+      })),
+      ...webInquiries.map((i) => ({
+        id: i.id,
+        source: "WEBSITE" as const,
+        productId: i.productId,
+        productName: i.productName,
+        productImage: i.product?.imageUrl ?? null,
+        requestedMOQ: i.quantity,
+        createdAt: i.createdAt,
+        statusUpdatedAt: i.statusUpdatedAt,
+        ...describeStatus(i.customerStatus, i.statusNote),
+      })),
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
     return NextResponse.json({
       user: {
@@ -93,13 +146,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         hasPassword: Boolean(passwordHash),
         usesWeb: user.sessions.some((s) => s.platform === "WEB"),
         usesApp: user.sessions.some((s) => s.platform === "APP"),
-        inquiryCount: user._count.inquiries,
+        inquiryCount: user._count.inquiries + user._count.webInquiries,
         favouriteCount: user._count.favourites,
         viewCount: user._count.productViews,
-        inquiries: user.inquiries.map((i) => ({
-          ...i,
-          ...describeStatus(i.status, i.statusNote),
-        })),
+        inquiries: merged,
       },
     });
   } catch (error) {

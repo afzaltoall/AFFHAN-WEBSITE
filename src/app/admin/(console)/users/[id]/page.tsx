@@ -14,6 +14,8 @@ import {
   Smartphone,
 } from "lucide-react";
 import { readableProvider } from "@/components/admin/CustomerList";
+import { getCdnUrl } from "@/lib/cdn";
+import { GoogleG } from "@/components/ui/GoogleG";
 
 /**
  * One customer, in full.
@@ -59,8 +61,11 @@ interface Detail {
   }>;
   inquiries: Array<{
     id: string;
+    /** Which table it came from — the website's or the app's. */
+    source: "WEBSITE" | "APP";
     productId: number | null;
     productName: string;
+    productImage: string | null;
     requestedMOQ: number;
     label: string;
     createdAt: string;
@@ -79,6 +84,7 @@ const dt = (iso: string) =>
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
+    hour12: true,
   });
 
 export default function CustomerDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -120,7 +126,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8">
+      <div className="mx-auto max-w-5xl px-5 py-8 sm:px-8">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/admin/users/"
@@ -183,7 +189,17 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
 
         {/* Facts */}
         <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-black/[0.06] shadow-sm ring-1 ring-black/[0.04] sm:grid-cols-4">
-          <Fact label="Signs in with" value={readableProvider(user.authProvider)} />
+          <Fact
+            label="Signs in with"
+            value={readableProvider(user.authProvider)}
+            icon={
+              user.authProvider.includes("GOOGLE") ? (
+                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white ring-1 ring-black/10">
+                  <GoogleG size={10} />
+                </span>
+              ) : undefined
+            }
+          />
           <Fact label="Status" value={user.accountStatus} />
           <Fact label="Logins" value={String(user.loginCount)} />
           <Fact
@@ -284,28 +300,57 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           ) : (
             <ul className="divide-y divide-black/[0.06]">
               {user.inquiries.map((i) => (
-                <li key={i.id} className="flex flex-wrap items-baseline gap-x-3 px-5 py-3">
-                  {i.productId ? (
-                    <Link
-                      href={`/products/${i.productId}/`}
-                      target="_blank"
-                      className="max-w-md truncate text-[13px] font-medium hover:underline"
-                    >
-                      {i.productName}
-                    </Link>
-                  ) : (
-                    <span className="max-w-md truncate text-[13px] font-medium">
-                      {i.productName}
-                    </span>
-                  )}
-                  <span className="text-[12px] text-[#86868b]">
-                    {i.requestedMOQ.toLocaleString()} pcs
+                <li key={`${i.source}-${i.id}`} className="flex items-center gap-3 px-5 py-3">
+                  {/* The picture is how you recognise the thing being asked
+                      for; a truncated CJ product name mostly is not. */}
+                  <span className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-[#f5f5f7] ring-1 ring-black/[0.06]">
+                    {i.productImage && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={getCdnUrl(i.productImage) ?? i.productImage}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    )}
                   </span>
-                  <span className="ml-auto flex items-center gap-3 text-[12px] text-[#86868b]">
-                    <span className="rounded-md bg-black/[0.05] px-2 py-0.5 font-bold">
+
+                  <span className="min-w-0 flex-1">
+                    {i.productId ? (
+                      <Link
+                        href={`/products/${i.productId}/`}
+                        target="_blank"
+                        className="line-clamp-1 text-[13px] font-semibold text-[#1d1d1f] hover:underline"
+                      >
+                        {i.productName}
+                      </Link>
+                    ) : (
+                      <span className="line-clamp-1 text-[13px] font-semibold text-[#1d1d1f]">
+                        {i.productName}
+                      </span>
+                    )}
+                    <span className="mt-0.5 flex items-center gap-2 text-[12px] text-[#6e6e73]">
+                      {i.requestedMOQ.toLocaleString()} pcs
+                      <span className="text-black/20">·</span>
+                      {dt(i.createdAt)}
+                    </span>
+                  </span>
+
+                  <span className="flex shrink-0 items-center gap-2">
+                    {/* Which client it arrived from. The two tables behave
+                        differently — only a website inquiry can be anonymous —
+                        so the office needs to know which it is looking at. */}
+                    <span
+                      className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                        i.source === "WEBSITE"
+                          ? "bg-sky-500/10 text-sky-700"
+                          : "bg-violet-500/10 text-violet-700"
+                      }`}
+                    >
+                      {i.source === "WEBSITE" ? "Web" : "App"}
+                    </span>
+                    <span className="rounded-md bg-black/[0.05] px-2 py-0.5 text-[11px] font-bold text-[#1d1d1f]">
                       {i.label}
                     </span>
-                    {dt(i.createdAt)}
                   </span>
                 </li>
               ))}
@@ -323,11 +368,16 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
   );
 }
 
-function Fact({ label, value }: { label: string; value: string }) {
+function Fact({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div className="bg-white px-5 py-3.5">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-[#86868b]">{label}</p>
-      <p className="mt-1 text-[13px] font-semibold">{value}</p>
+      {/* text-[#1d1d1f], not the inherited grey: these are the facts the page
+          exists to state, and they were rendering lighter than their labels. */}
+      <p className="mt-1 flex items-center gap-1.5 text-[13px] font-semibold text-[#1d1d1f]">
+        {icon}
+        {value}
+      </p>
     </div>
   );
 }
