@@ -796,7 +796,13 @@ export function AdminConsole({ data }: Props) {
             </div>
           </div>
 
-          {/* Stat cards */}
+          {/* Stat cards — the dashboard only.
+              They used to be drawn above the view switch, so every screen
+              opened with the same seven totals. On Inquiries or Contact Us
+              that is a wall of numbers about something else standing between
+              you and the list you came for. "All" is where the state of the
+              business belongs; the other views get straight to their work. */}
+          {view === "all" && (
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
             {statCards.map((s) => (
               <button
@@ -813,12 +819,13 @@ export function AdminConsole({ data }: Props) {
               </button>
             ))}
           </div>
+          )}
 
           {view === "all" ? (
             /* One landing screen instead of two.
              *
              * "Overview" used to be a separate menu item holding nothing but
-             * the two panels below — the stat cards above are drawn for every
+             * the two panels below — the stat cards were drawn for every
              * view, so the only thing that distinguished it was recent
              * activity. Splitting "what just came in" from "the customers who
              * sent it" across two tabs meant checking both to know where the
