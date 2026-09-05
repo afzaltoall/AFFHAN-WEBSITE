@@ -38,6 +38,42 @@ const CUSTOMER_STATUS_META: Record<CustomerStatus, { label: string; hint: string
   CUSTOM: { label: "Custom", hint: "Your own wording is shown instead", chip: "bg-violet-500/10 text-violet-600", dot: "bg-violet-500" },
 };
 const CUSTOMER_STATUSES = Object.keys(CUSTOMER_STATUS_META) as CustomerStatus[];
+/**
+ * A write from the console, with the reason it failed kept intact.
+ *
+ * Every one of these used to be `if (!res.ok) throw new Error()` and an alert
+ * saying "Please try again" — which is wrong advice for the failure that
+ * actually happens here. The admin session ends when the page is reloaded or
+ * the tab is closed, by design, but the console that is already on screen
+ * carries on looking signed in; the next save then 401s and the admin is told
+ * to retry something that cannot succeed until they log in again.
+ *
+ * So a 401 says so and goes to the login screen. Anything else surfaces
+ * whatever the server actually said, rather than a shrug.
+ */
+class AdminWriteError extends Error {}
+
+async function adminWrite(url: string, body: unknown, method: "POST" | "PATCH" = "POST"): Promise<void> {
+  const res = await fetch(url, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify(body),
+  });
+  if (res.ok) return;
+
+  if (res.status === 401) {
+    window.alert("Your admin session has ended — signing in again will restore it.\n\n(The session closes when the page is reloaded or the tab is closed.)");
+    window.location.href = "/admin/login";
+    // Never resolves, so the caller does not also show its own message on the
+    // way out of the page.
+    await new Promise(() => {});
+  }
+
+  const said = await res.json().then((j) => j?.error).catch(() => null);
+  throw new AdminWriteError(said || `The server refused it (HTTP ${res.status}).`);
+}
+
 const asCustomerStatus = (s: string): CustomerStatus =>
   (CUSTOMER_STATUSES as readonly string[]).includes(s) ? (s as CustomerStatus) : "PENDING";
 
@@ -205,15 +241,10 @@ export function AdminConsole({ data }: Props) {
     setCareerSelected(new Set());
     setCareerBusy(true);
     try {
-      const res = await fetch(`/api/admin/careers/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, action, status: newStatus }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
+      await adminWrite(`/api/admin/careers/`, { ids, action, status: newStatus });
+    } catch (e) {
       setCareerItems(prevA); setCareerDeleted(prevD);
-      window.alert("Action failed. Please try again.");
+      window.alert(e instanceof Error ? e.message : "Action failed.");
     } finally {
       setCareerBusy(false);
     }
@@ -260,15 +291,10 @@ export function AdminConsole({ data }: Props) {
     );
     setContactBusy(true);
     try {
-      const res = await fetch(`/api/admin/contact/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, action, status: newStatus }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
+      await adminWrite(`/api/admin/contact/`, { ids, action, status: newStatus });
+    } catch (e) {
       setContactItems(prevA); setContactDeleted(prevD);
-      window.alert("Action failed. Please try again.");
+      window.alert(e instanceof Error ? e.message : "Action failed.");
     } finally {
       setContactBusy(false);
     }
@@ -334,15 +360,10 @@ export function AdminConsole({ data }: Props) {
     );
     setBulkBusy(true);
     try {
-      const res = await fetch(`/api/admin/inquiry/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids, action, status: newStatus }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
+      await adminWrite(`/api/admin/inquiry/`, { ids, action, status: newStatus });
+    } catch (e) {
       setItems(prevA); setDeletedItems(prevD);
-      window.alert("Action failed. Please try again.");
+      window.alert(e instanceof Error ? e.message : "Action failed.");
     } finally {
       setBulkBusy(false);
     }
@@ -379,16 +400,11 @@ export function AdminConsole({ data }: Props) {
     setItems(items.map((x) => (x.id === id ? { ...x, ...patch } : x)));
     setActiveInquiry((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
     try {
-      const res = await fetch(`/api/admin/inquiry/${id}/`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerStatus, statusNote: note }),
-      });
-      if (!res.ok) throw new Error();
-    } catch {
+      await adminWrite(`/api/admin/inquiry/${id}/`, { customerStatus, statusNote: note }, "PATCH");
+    } catch (e) {
       setItems(prev);
       setActiveInquiry((cur) => (cur && cur.id === id ? prev.find((x) => x.id === id) ?? cur : cur));
-      window.alert("Could not update the customer's status. Please try again.");
+      window.alert(e instanceof Error ? e.message : "Could not update the customer's status.");
     }
   };
 
@@ -490,14 +506,25 @@ export function AdminConsole({ data }: Props) {
    * which is the opposite of the question being asked — "who is waiting on us
    * and can tell?"
    */
+  /**
+   * What the PDF prints: the ticked rows if any are ticked, otherwise whatever
+   * the list is currently showing — the same rule Export already follows, so
+   * the two buttons never disagree about what "this" means.
+   */
+  const printRows = useMemo(
+    () => (selected.size > 0 ? inquiries.filter((i) => selected.has(i.id)) : inquiries),
+    [inquiries, selected]
+  );
+
   /** Says on the printed sheet which slice of the data it actually is. */
   const printFilterLabel = useMemo(() => {
+    if (selected.size > 0) return `${selected.size} selected`;
     const parts: string[] = [];
     parts.push(statusFilter === "all" ? "All inquiries" : `Status: ${statusFilter}`);
     if (customerStageFilter) parts.push(`signed-in · ${CUSTOMER_STATUS_META[customerStageFilter].label}`);
     if (q.trim()) parts.push(`search: “${q.trim()}”`);
     return parts.join("  ·  ");
-  }, [statusFilter, customerStageFilter, q]);
+  }, [statusFilter, customerStageFilter, q, selected]);
 
   const customerStatusCounts = useMemo(() => {
     const c = { linked: 0, PENDING: 0, CHECKED: 0, IN_PROGRESS: 0, CUSTOM: 0 };
@@ -686,7 +713,7 @@ export function AdminConsole({ data }: Props) {
       {/* The printable sheet. Hidden on screen, and the only thing on the page
           when printing — see InquirySheet for why this beats generating a PDF
           in JavaScript. */}
-      <InquirySheet rows={inquiries} filterLabel={printFilterLabel} />
+      <InquirySheet rows={printRows} filterLabel={printFilterLabel} />
 
       <div className="flex print:hidden">
         {/* Sidebar */}
@@ -1069,7 +1096,7 @@ export function AdminConsole({ data }: Props) {
                       title="Print or save the visible list as a PDF, with product photos"
                       className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}
                     >
-                      <FileText size={15} /> PDF
+                      <FileText size={15} /> PDF{selected.size > 0 ? ` (${selected.size})` : ""}
                     </button>
                   )}
                   {/* Server-side grouped export: one row per unique customer,
@@ -2251,7 +2278,7 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
-      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88dvh] ${t.modal}`}>
+      <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88dvh] ${t.modal}`}>
         <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
           <p className="text-sm font-semibold">Contact message</p>
           <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand`}>
@@ -2331,12 +2358,20 @@ function StatusControl({ value, onChange, t, big }: { value: Status; onChange: (
 
 function Row({ icon: Icon, label, value, t }: { icon: LucideIcon; label: string; value: string; t?: Theme }) {
   return (
-    <div className="flex items-center gap-2">
-      <Icon className={`h-3.5 w-3.5 shrink-0 ${t?.soft ?? ""}`} />
-      <span className={`w-20 shrink-0 text-xs uppercase tracking-wide ${t ? t.soft : "opacity-70"}`}>{label}</span>
-      {/* The value is the point of the row and now outranks its label:
-          semibold and full-contrast, against a muted icon and caption. */}
-      <span className={`min-w-0 flex-1 font-semibold ${t?.strong ?? ""}`}>{value}</span>
+    // items-start, because a long value now wraps to a second line and the
+    // icon and label belong beside its first, not floating at its middle.
+    <div className="flex items-start gap-2">
+      <Icon className={`mt-[3px] h-3.5 w-3.5 shrink-0 ${t?.soft ?? ""}`} />
+      <span className={`mt-px w-[70px] shrink-0 text-xs uppercase tracking-wide ${t ? t.soft : "opacity-70"}`}>{label}</span>
+      {/* The value is the point of the row and outranks its label: semibold
+          and full-contrast, against a muted icon and caption.
+
+          break-words is load-bearing. min-w-0 lets the flex item shrink below
+          its content, but an unbroken string like an email address still
+          paints straight out of the box — which is exactly what it did once
+          these rows were laid out two to a line: vasimbpharm@gmail.com ran
+          over the top of the COUNTRY label next to it. */}
+      <span className={`min-w-0 flex-1 break-words font-semibold leading-snug ${t?.strong ?? ""}`}>{value}</span>
     </div>
   );
 }
