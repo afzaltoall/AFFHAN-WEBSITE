@@ -2009,15 +2009,22 @@ function ContactsSection({
                       <MessageSquare className="h-[18px] w-[18px]" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className={`line-clamp-1 text-[13px] font-semibold leading-snug hover:text-brand ${tab === "trash" ? "opacity-70" : ""}`}>
+                      {/* Struck through once it is off "new", exactly as the
+                          inquiry list does. Scanning an inbox of twenty, the
+                          only question is "which of these have I dealt with" —
+                          a small green chip on the far right answers it far
+                          more slowly than the line through the name does. */}
+                      <p className={`line-clamp-1 text-[13.5px] font-semibold leading-snug hover:text-brand ${
+                        st !== "new" ? `line-through ${t.soft}` : t.strong
+                      } ${tab === "trash" ? "opacity-70" : ""}`}>
                         {contactName(c)}{c.companyName ? <span className={`font-normal ${t.soft}`}> · {c.companyName}</span> : null}
                       </p>
-                      <p className={`mt-0.5 line-clamp-1 text-xs ${t.soft}`}>{c.message}</p>
-                      <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{c.email}</span></span>
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{c.phone}</span></span>
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{c.country}</span></span>
-                        <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmtDate(c.createdAt)}</span>
+                      <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${st !== "new" ? `line-through ${t.soft}` : t.mid}`}>{c.message}</p>
+                      <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{c.email}</span></span>
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{c.phone}</span></span>
+                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{c.country}</span></span>
+                        <span className="inline-flex items-center gap-1.5"><Calendar className={`h-3 w-3 ${t.soft}`} /><span className="font-medium">{fmtDate(c.createdAt)}</span></span>
                       </div>
                     </div>
                   </button>
@@ -2070,22 +2077,25 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
               <MessageSquare className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold leading-snug">{contactName(contact)}</h3>
+              <h3 className={`text-lg font-semibold leading-snug ${t.strong}`}>{contactName(contact)}</h3>
               <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_META[asStatus(contact.status)].chip}`}>{STATUS_META[asStatus(contact.status)].label}</span>
             </div>
           </div>
 
-          <dl className={`mt-4 space-y-2.5 text-sm ${t.soft}`}>
-            <Row icon={Mail} label="Email" value={contact.email} />
-            {contact.companyName && <Row icon={Package} label="Company" value={contact.companyName} />}
-            <Row icon={MapPin} label="Country" value={contact.country} />
-            <Row icon={Phone} label="Phone" value={contact.phone} />
-            <Row icon={Calendar} label="Received" value={fmtDateTime(contact.createdAt)} />
+          {/* Two up, and the values outrank their labels — the same treatment
+              the inquiry drawer got. Passing t.soft over the whole list greyed
+              the email and phone to match their own captions. */}
+          <dl className="mt-5 grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2">
+            <Row t={t} icon={Mail} label="Email" value={contact.email} />
+            {contact.companyName && <Row t={t} icon={Package} label="Company" value={contact.companyName} />}
+            <Row t={t} icon={MapPin} label="Country" value={contact.country} />
+            <Row t={t} icon={Phone} label="Phone" value={contact.phone} />
+            <Row t={t} icon={Calendar} label="Received" value={fmtDateTime(contact.createdAt)} />
           </dl>
 
-          <div className={`mt-4 rounded-xl p-3 text-sm ${t.thumb}`}>
+          <div className={`mt-4 rounded-xl p-3 ${t.thumb}`}>
             <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Message</p>
-            <p className="whitespace-pre-wrap">{contact.message}</p>
+            <p className={`whitespace-pre-wrap text-sm font-medium leading-relaxed ${t.strong}`}>{contact.message}</p>
           </div>
 
           {!deleted && (
@@ -2565,9 +2575,12 @@ function CareersSection({
                     <Briefcase className="h-[18px] w-[18px]" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className={`line-clamp-1 text-[13px] font-semibold leading-snug ${tab === "trash" ? "opacity-70" : ""}`}>{j.email}</p>
-                    <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
-                      <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {fmtDate(j.createdAt)}</span>
+                    {/* Same "dealt with" line as the other two inboxes. */}
+                    <p className={`line-clamp-1 text-[13.5px] font-semibold leading-snug ${
+                      st !== "new" ? `line-through ${t.soft}` : t.strong
+                    } ${tab === "trash" ? "opacity-70" : ""}`}>{j.email}</p>
+                    <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
+                      <span className="inline-flex items-center gap-1.5"><Calendar className={`h-3 w-3 ${t.soft}`} /><span className="font-medium">{fmtDate(j.createdAt)}</span></span>
                     </div>
                   </div>
                 </div>
