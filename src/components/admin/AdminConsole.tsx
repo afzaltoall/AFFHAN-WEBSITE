@@ -107,11 +107,6 @@ export function AdminConsole({ data }: Props) {
   const [view, setView] = useState<View>("all");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
-  // The Filter dropdown. Held open across a grouping toggle — that one changes
-  // the list under you, and having the menu vanish makes it hard to tell it
-  // was you who did it — but closed on picking a status, which is a decision.
-  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
-  const filterMenuRef = useRef<HTMLDivElement | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dark, setDark] = useState(false);
   const [activeInquiry, setActiveInquiry] = useState<Inquiry | null>(null);
@@ -133,26 +128,6 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
   useEffect(() => setSelected(new Set()), [view, statusFilter, q]);
-
-  // Close the filter menu on an outside click or Escape, the way every other
-  // menu on this page behaves.
-  useEffect(() => {
-    if (!filterMenuOpen) return;
-    const onDown = (e: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(e.target as Node)) {
-        setFilterMenuOpen(false);
-      }
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFilterMenuOpen(false);
-    };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [filterMenuOpen]);
 
   // The drawer closes itself when a view is chosen, and Escape closes it too.
   useEffect(() => setMenuOpen(false), [view]);
@@ -1018,99 +993,32 @@ export function AdminConsole({ data }: Props) {
                     className={`h-10 w-full rounded-xl pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`}
                   />
                 </div>
-                {/* One Filter control, with the choices INSIDE it.
-                    Four status pills plus a grouping toggle sat across the
-                    toolbar as five competing buttons, which is what made the
-                    bar read as a row of unrelated actions. They are all one
-                    question — "what should this list show?" — so they now live
-                    under one button that states the current answer. */}
+                {/* Every "what should this list show?" choice lives inside one
+                    control — see FilterMenu. The grouping toggle is passed in
+                    as the View section because it is only meaningful here. */}
                 {view === "inquiries" && (
-                  <div className="relative sm:ml-auto" ref={filterMenuRef}>
-                    <button
-                      onClick={() => setFilterMenuOpen((o) => !o)}
-                      aria-haspopup="menu"
-                      aria-expanded={filterMenuOpen}
-                      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${
-                        statusFilter !== "all" || groupByCustomer
-                          ? "bg-brand text-white ring-transparent"
-                          : t.pill
-                      }`}
-                    >
-                      <SlidersHorizontal size={15} />
-                      Filter
-                      {/* What is currently on, so the button answers the
-                          question without being opened. */}
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                          statusFilter !== "all" || groupByCustomer
-                            ? "bg-white/25"
-                            : `${t.chip}`
-                        }`}
+                  <FilterMenu
+                    t={t}
+                    statusFilter={statusFilter}
+                    setStatusFilter={setStatusFilter}
+                    statusCounts={statusCounts}
+                    extraActive={groupByCustomer}
+                    summarySuffix={groupByCustomer ? " · grouped" : ""}
+                    onClear={() => { setStatusFilter("all"); setGroupByCustomer(false); }}
+                    viewSection={
+                      <button
+                        role="menuitemcheckbox"
+                        aria-checked={groupByCustomer}
+                        onClick={() => setGroupByCustomer((g) => !g)}
+                        title="Collapse duplicate customers by phone number"
+                        className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${groupByCustomer ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
                       >
-                        {statusFilter === "all" ? statusCounts.all : statusCounts[statusFilter]}
-                        {groupByCustomer ? " · grouped" : ""}
-                      </span>
-                      <ChevronDown size={14} className={`transition-transform ${filterMenuOpen ? "rotate-180" : ""}`} />
-                    </button>
-
-                    {filterMenuOpen && (
-                      <div
-                        role="menu"
-                        className={`absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}
-                      >
-                        <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
-                          Status
-                        </p>
-                        {(["all", "new", "handled", "spam"] as const).map((s) => {
-                          const on = statusFilter === s;
-                          const n = s === "all" ? statusCounts.all : statusCounts[s as Status];
-                          return (
-                            <button
-                              key={s}
-                              role="menuitemradio"
-                              aria-checked={on}
-                              onClick={() => { setStatusFilter(s); setFilterMenuOpen(false); }}
-                              className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold capitalize transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                            >
-                              <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : s === "all" ? "bg-slate-300" : STATUS_META[s as Status].dot}`} />
-                              <span className="flex-1">{s}</span>
-                              <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{n}</span>
-                              {on && <Check className="h-3.5 w-3.5 shrink-0" />}
-                            </button>
-                          );
-                        })}
-
-                        <div className={`my-1.5 h-px ${dark ? "bg-white/[0.10]" : "bg-black/[0.08]"}`} />
-
-                        <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
-                          View
-                        </p>
-                        <button
-                          role="menuitemcheckbox"
-                          aria-checked={groupByCustomer}
-                          onClick={() => setGroupByCustomer((g) => !g)}
-                          title="Collapse duplicate customers by phone number"
-                          className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${groupByCustomer ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                        >
-                          <Users size={14} className="shrink-0" />
-                          <span className="flex-1">Group by customer</span>
-                          {groupByCustomer && <Check className="h-3.5 w-3.5 shrink-0" />}
-                        </button>
-
-                        {(statusFilter !== "all" || groupByCustomer) && (
-                          <>
-                            <div className={`my-1.5 h-px ${dark ? "bg-white/[0.10]" : "bg-black/[0.08]"}`} />
-                            <button
-                              onClick={() => { setStatusFilter("all"); setGroupByCustomer(false); setFilterMenuOpen(false); }}
-                              className={`w-full rounded-xl px-2.5 py-2 text-left text-[12.5px] font-semibold text-red-500 transition-colors ${t.hover}`}
-                            >
-                              Clear filters
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                        <Users size={14} className="shrink-0" />
+                        <span className="flex-1">Group by customer</span>
+                        {groupByCustomer && <Check className="h-3.5 w-3.5 shrink-0" />}
+                      </button>
+                    }
+                  />
                 )}
                 <div className={`flex flex-wrap items-center gap-2 ${view === "inquiries" ? "" : "sm:ml-auto"}`}>
                   {view !== "trash" && (
@@ -1685,71 +1593,57 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
             dead white space under the photograph came from. The image column
             now sizes to its own content and the actions sit beneath it, so the
             two sides finish at roughly the same place. */}
-        <div className="grid min-h-0 items-start gap-5 overflow-y-auto overscroll-contain p-5 sm:grid-cols-[minmax(0,17rem)_1fr]">
-          {/* Click the image to view it close-up.
-
-              An explicit height plus `fill`, which is the pattern Thumb and the
-              zoom overlay already use here and the only one that has proved
-              reliable in this codebase.
-
-              Two earlier shapes failed. `<Image fill>` inside an
-              `aspect-square` box put an absolutely positioned child in a
-              container whose height came from an aspect ratio; on a phone the
-              photograph painted straight over the customer's name, company and
-              phone, which were legible through it. Replacing it with a
-              normal-flow `h-auto` image cured the overlap and then rendered
-              nothing at all — a `w-auto`/`h-auto` pair fighting next/image's
-              own width and height attributes.
-
-              A container with a real height in `h-*` has neither problem: it
-              occupies that height in flow, so it cannot overlap what follows,
-              and `fill` has a definite box to fill, so it cannot collapse. */}
-          <div className="space-y-3">
+        {/* One column, not two.
+            Splitting this into image-plus-actions beside details-plus-controls
+            meant one side always ran out before the other, and whichever lost
+            left a slab of white behind it. Narrowing the image only moved the
+            gap. So the layout stops competing: a product band across the top,
+            the customer's facts in a two-up grid under it, then the controls
+            full width, then the actions pinned to the bottom of the panel. */}
+        <div className="flex min-h-0 flex-col overflow-y-auto overscroll-contain p-5">
+          {/* Product band. The photograph is a square thumbnail beside the
+              name and quantity rather than a tall column of its own — at that
+              size it still identifies the item, and it no longer sets a height
+              the rest of the panel has to live with. Click to enlarge. */}
+          <div className="flex items-start gap-4">
             {img ? (
               <button
                 onClick={() => onZoom(img)}
                 title="Click to enlarge"
-                className={`group relative block aspect-square w-full overflow-hidden rounded-2xl ${t.thumb}`}
+                className={`group relative block h-28 w-28 shrink-0 overflow-hidden rounded-2xl sm:h-32 sm:w-32 ${t.thumb}`}
               >
                 <Image
                   src={img}
                   alt={inquiry.productName}
                   fill
-                  sizes="(max-width:640px) 92vw, 272px"
-                  className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
+                  sizes="128px"
+                  className="object-contain p-1.5 transition-transform duration-300 group-hover:scale-105"
                 />
-                <span className="pointer-events-none absolute bottom-2 right-2 flex items-center gap-1 rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
-                  <ZoomIn className="h-3.5 w-3.5" /> Enlarge
+                <span className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-black/55 py-1 text-[10px] font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <ZoomIn className="h-3 w-3" /> Enlarge
                 </span>
               </button>
             ) : (
-              <div className={`flex aspect-square w-full items-center justify-center rounded-2xl text-sm ${t.thumb} ${t.soft}`}>No image available</div>
+              <div className={`flex h-28 w-28 shrink-0 items-center justify-center rounded-2xl text-center text-[11px] sm:h-32 sm:w-32 ${t.thumb} ${t.soft}`}>No image</div>
             )}
-
-            {/* Reaching the customer is what this drawer is FOR, so it lives
-                under their photograph rather than at the end of a scroll past
-                two status controls. It also fills the space the fixed-height
-                image used to waste. */}
-            <div className="flex flex-wrap gap-2">
-              <a href={`tel:${inquiry.phone.replace(/\s/g, "")}`} className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-brand px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"><PhoneCall className="h-3.5 w-3.5" /> Call</a>
-              <a href={waLink(inquiry.phone)} target="_blank" rel="noopener noreferrer" className="inline-flex flex-1 items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
+            <div className="min-w-0 flex-1">
+              <h3 className={`text-lg font-semibold leading-snug ${asStatus(inquiry.status) !== "new" ? `line-through ${t.soft}` : t.strong}`}>{inquiry.productName}</h3>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${t.qty}`}>Quantity: {inquiry.quantity}</span>
+                <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[asStatus(inquiry.status)].chip}`}>{STATUS_META[asStatus(inquiry.status)].label}</span>
+              </div>
             </div>
-            <button onClick={onDelete} className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500 hover:text-white">
-              <Trash2 className="h-3.5 w-3.5" /> Delete
-            </button>
           </div>
+
           <div className="min-w-0">
-            {/* Full product name — no truncation. */}
-            <h3 className={`text-lg font-semibold leading-snug ${asStatus(inquiry.status) !== "new" ? "line-through opacity-70" : ""}`}>{inquiry.productName}</h3>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${t.qty}`}>Quantity: {inquiry.quantity}</span>
-              <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[asStatus(inquiry.status)].chip}`}>{STATUS_META[asStatus(inquiry.status)].label}</span>
-            </div>
             {/* The colour lives on each value now, not on the whole list.
                 Setting t.soft here greyed the customer's name, phone and email
                 — the facts the drawer exists to state — to the same weight as
                 their own labels, so the panel read as placeholder text. */}
-            <dl className="mt-4 space-y-2.5 text-sm">
+            {/* Two up on desktop. Six stacked rows made the panel taller than
+                it needed to be, which is what left room for a gap beside it in
+                the first place. */}
+            <dl className="mt-5 grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2">
               <Row t={t} icon={Users} label="Customer" value={inquiry.customerName} />
               {inquiry.companyName && <Row t={t} icon={Package} label="Company" value={inquiry.companyName} />}
               <Row t={t} icon={MapPin} label="Country" value={inquiry.country} />
@@ -1776,6 +1670,17 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
                 on, so offering the control would promise something that cannot
                 happen. */}
             <CustomerStatusControl t={t} inquiry={inquiry} onChange={onSetCustomerStatus} />
+
+            {/* Reaching the customer is what this drawer is for, so the actions
+                close it out on their own rule — full width, nothing beside them
+                to leave a gap. */}
+            <div className={`mt-5 flex flex-wrap items-center gap-2 border-t pt-4 ${t.border}`}>
+              <a href={`tel:${inquiry.phone.replace(/\s/g, "")}`} className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"><PhoneCall className="h-3.5 w-3.5" /> Call</a>
+              <a href={waLink(inquiry.phone)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
+              <button onClick={onDelete} className="ml-auto inline-flex items-center gap-2 rounded-full bg-red-500/10 px-4 py-2.5 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500 hover:text-white">
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1880,6 +1785,115 @@ function CustomerStatusControl({
   );
 }
 
+/**
+ * One control holding every "what should this list show?" choice.
+ *
+ * Inquiries, Contact Us and Careers each had the same four status pills laid
+ * across their toolbar, competing with Export for attention and pushing the
+ * search box around at narrow widths. They are one question, so they get one
+ * button, which states its own answer: the count for whatever is selected,
+ * brand-coloured once anything is applied.
+ *
+ * Owns its own open state — three instances exist and none of them needs to
+ * know about the others.
+ */
+function FilterMenu({
+  t, statusFilter, setStatusFilter, statusCounts,
+  viewSection, extraActive = false, summarySuffix = "", onClear,
+}: {
+  t: Theme;
+  statusFilter: "all" | Status;
+  setStatusFilter: (v: "all" | Status) => void;
+  statusCounts: { all: number; new: number; handled: number; spam: number };
+  /** Optional rows under a "View" heading — grouping, on the inquiries list. */
+  viewSection?: React.ReactNode;
+  /** Whether anything in `viewSection` is currently on. */
+  extraActive?: boolean;
+  summarySuffix?: string;
+  onClear?: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const active = statusFilter !== "all" || extraActive;
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className="relative sm:ml-auto" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${active ? "bg-brand text-white ring-transparent" : t.pill}`}
+      >
+        <SlidersHorizontal size={15} />
+        Filter
+        <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${active ? "bg-white/25" : t.chip}`}>
+          {statusFilter === "all" ? statusCounts.all : statusCounts[statusFilter]}
+          {summarySuffix}
+        </span>
+        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div role="menu" className={`absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}>
+          <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Status</p>
+          {(["all", "new", "handled", "spam"] as const).map((s) => {
+            const on = statusFilter === s;
+            const n = s === "all" ? statusCounts.all : statusCounts[s as Status];
+            return (
+              <button
+                key={s}
+                role="menuitemradio"
+                aria-checked={on}
+                onClick={() => { setStatusFilter(s); setOpen(false); }}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold capitalize transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+              >
+                <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : s === "all" ? "bg-slate-300" : STATUS_META[s as Status].dot}`} />
+                <span className="flex-1">{s}</span>
+                <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{n}</span>
+                {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            );
+          })}
+
+          {viewSection && (
+            <>
+              <div className={`my-1.5 border-t ${t.border}`} />
+              <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>View</p>
+              {viewSection}
+            </>
+          )}
+
+          {active && onClear && (
+            <>
+              <div className={`my-1.5 border-t ${t.border}`} />
+              <button
+                onClick={() => { onClear(); setOpen(false); }}
+                className={`w-full rounded-xl px-2.5 py-2 text-left text-[12.5px] font-semibold text-red-500 transition-colors ${t.hover}`}
+              >
+                Clear filters
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Contact Us management: list of contact-form submissions with the same
 // search / triage / soft-delete UX as inquiries, minus the product bits.
 function ContactsSection({
@@ -1927,17 +1941,13 @@ function ContactsSection({
         </div>
         {/* Status filter — active inbox only. */}
         {tab === "active" && (
-          <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
-            {(["all", "new", "handled", "spam"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition-colors ring-1 ${statusFilter === s ? (s === "all" ? "bg-[#1d1d1f] text-white ring-transparent" : `${STATUS_META[s as Status].chip} ring-transparent`) : t.pill}`}
-              >
-                {s} {s === "all" ? statusCounts.all : statusCounts[s as Status]}
-              </button>
-            ))}
-          </div>
+          <FilterMenu
+            t={t}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            statusCounts={statusCounts}
+            onClear={() => setStatusFilter("all")}
+          />
         )}
         <button onClick={onExport} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export all"} className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black ${tab === "active" ? "" : "sm:ml-auto"}`}>
           <Download size={15} /> Export{selected.size > 0 ? ` (${selected.size})` : ""}
@@ -2489,17 +2499,13 @@ function CareersSection({
           ))}
         </div>
         {tab === "active" && (
-          <div className="flex flex-wrap items-center gap-1.5 sm:ml-auto">
-            {(["all", "new", "handled", "spam"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s)}
-                className={`rounded-full px-3 py-1.5 text-xs font-bold capitalize transition-colors ring-1 ${statusFilter === s ? (s === "all" ? "bg-[#1d1d1f] text-white ring-transparent" : `${STATUS_META[s as Status].chip} ring-transparent`) : t.pill}`}
-              >
-                {s} {s === "all" ? statusCounts.all : statusCounts[s as Status]}
-              </button>
-            ))}
-          </div>
+          <FilterMenu
+            t={t}
+            statusFilter={statusFilter}
+            setStatusFilter={setStatusFilter}
+            statusCounts={statusCounts}
+            onClear={() => setStatusFilter("all")}
+          />
         )}
         <button onClick={onExport} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export all"} className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black ${tab === "active" ? "" : "sm:ml-auto"}`}>
           <Download size={15} /> Export{selected.size > 0 ? ` (${selected.size})` : ""}
