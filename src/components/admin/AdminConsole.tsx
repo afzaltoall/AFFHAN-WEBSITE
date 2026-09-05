@@ -8,7 +8,7 @@ import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal,
+  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -107,6 +107,13 @@ export function AdminConsole({ data }: Props) {
   const [view, setView] = useState<View>("all");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  /**
+   * Which stage of the customer-facing lifecycle the list is narrowed to.
+   *
+   * Null means "not narrowed". Set by clicking a chip in the signed-in strip,
+   * which until now stated four numbers and gave no way to see who they were.
+   */
+  const [customerStageFilter, setCustomerStageFilter] = useState<CustomerStatus | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dark, setDark] = useState(false);
   const [activeInquiry, setActiveInquiry] = useState<Inquiry | null>(null);
@@ -127,7 +134,7 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
-  useEffect(() => setSelected(new Set()), [view, statusFilter, q]);
+  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, q]);
 
   // The drawer closes itself when a view is chosen, and Escape closes it too.
   useEffect(() => setMenuOpen(false), [view]);
@@ -458,9 +465,14 @@ export function AdminConsole({ data }: Props) {
   const inquiries = useMemo(
     () => items.filter((i) =>
       (statusFilter === "all" || asStatus(i.status) === statusFilter) &&
+      // Narrowed to one stage of the customer-facing lifecycle, when a chip in
+      // the signed-in strip has been clicked. Anonymous rows are excluded
+      // outright: they have no account, so they are in no stage at all.
+      (customerStageFilter === null ||
+        (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
       (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
     ),
-    [items, q, statusFilter]
+    [items, q, statusFilter, customerStageFilter]
   );
   const statusCounts = useMemo(() => {
     const c = { all: items.length, new: 0, handled: 0, spam: 0 };
@@ -478,6 +490,15 @@ export function AdminConsole({ data }: Props) {
    * which is the opposite of the question being asked — "who is waiting on us
    * and can tell?"
    */
+  /** Says on the printed sheet which slice of the data it actually is. */
+  const printFilterLabel = useMemo(() => {
+    const parts: string[] = [];
+    parts.push(statusFilter === "all" ? "All inquiries" : `Status: ${statusFilter}`);
+    if (customerStageFilter) parts.push(`signed-in · ${CUSTOMER_STATUS_META[customerStageFilter].label}`);
+    if (q.trim()) parts.push(`search: “${q.trim()}”`);
+    return parts.join("  ·  ");
+  }, [statusFilter, customerStageFilter, q]);
+
   const customerStatusCounts = useMemo(() => {
     const c = { linked: 0, PENDING: 0, CHECKED: 0, IN_PROGRESS: 0, CUSTOM: 0 };
     items.forEach((i) => {
@@ -662,7 +683,12 @@ export function AdminConsole({ data }: Props) {
 
   return (
     <div style={sfFont} className={`min-h-screen w-full antialiased transition-colors duration-200 ${t.page}`}>
-      <div className="flex">
+      {/* The printable sheet. Hidden on screen, and the only thing on the page
+          when printing — see InquirySheet for why this beats generating a PDF
+          in JavaScript. */}
+      <InquirySheet rows={inquiries} filterLabel={printFilterLabel} />
+
+      <div className="flex print:hidden">
         {/* Sidebar */}
         <aside className={`sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r backdrop-blur-xl lg:flex ${t.sidebar}`}>
           <div className="flex items-center gap-2.5 px-5 py-5">
@@ -878,6 +904,12 @@ export function AdminConsole({ data }: Props) {
                 onGoInquiries={() => setView("inquiries")}
                 onGoContacts={() => setView("contacts")}
                 onGoCareers={() => setView("careers")}
+                // Looked up live rather than passed down, so the drawer shows
+                // the current row and not a copy frozen when the group was built.
+                onOpenInquiry={(id) => {
+                  const found = items.find((x) => x.id === id);
+                  if (found) setActiveInquiry(found);
+                }}
               />
             </>
           ) : view === "contacts" ? (
@@ -1026,6 +1058,20 @@ export function AdminConsole({ data }: Props) {
                       <Download size={15} /> Export{selected.size > 0 ? ` (${selected.size})` : ""}
                     </button>
                   )}
+                  {/* Prints the sheet at the top of this component. The browser's
+                      own print dialog offers "Save as PDF", which is where the
+                      file comes from — no PDF library, and the product photos
+                      come out at print resolution because the browser already
+                      has them. */}
+                  {view === "inquiries" && (
+                    <button
+                      onClick={() => window.print()}
+                      title="Print or save the visible list as a PDF, with product photos"
+                      className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}
+                    >
+                      <FileText size={15} /> PDF
+                    </button>
+                  )}
                   {/* Server-side grouped export: one row per unique customer,
                       over the WHOLE database (not just the loaded page). */}
                   {view === "inquiries" && (
@@ -1051,23 +1097,45 @@ export function AdminConsole({ data }: Props) {
                   </span>
                   {CUSTOMER_STATUSES.map((s) => {
                     const n = customerStatusCounts[s];
+                    const on = customerStageFilter === s;
                     return (
-                      <span
+                      // A count nobody could click was a dead end: it said two
+                      // customers were waiting and gave no way to see which.
+                      // Clicking narrows the list to exactly those rows; the
+                      // same chip again clears it.
+                      <button
                         key={s}
-                        title={CUSTOMER_STATUS_META[s].hint}
-                        className={`inline-flex items-center gap-2 rounded-full py-1 pl-2.5 pr-3 text-[12.5px] ring-1 ${
-                          n > 0 ? `${CUSTOMER_STATUS_META[s].chip} ring-transparent` : `${t.pill} opacity-60`
+                        onClick={() => setCustomerStageFilter(on ? null : s)}
+                        disabled={n === 0}
+                        title={n === 0 ? `No signed-in customer is at ${CUSTOMER_STATUS_META[s].label}` : `Show the ${n} at ${CUSTOMER_STATUS_META[s].label} — ${CUSTOMER_STATUS_META[s].hint}`}
+                        className={`inline-flex items-center gap-2 rounded-full py-1 pl-2.5 pr-3 text-[12.5px] ring-1 transition-all ${
+                          n === 0
+                            ? `${t.pill} cursor-not-allowed opacity-50`
+                            : on
+                              ? `${CUSTOMER_STATUS_META[s].chip} ring-2 ring-brand cursor-pointer`
+                              : `${CUSTOMER_STATUS_META[s].chip} ring-transparent hover:brightness-95 cursor-pointer`
                         }`}
                       >
                         <span className={`h-2 w-2 shrink-0 rounded-full ${n > 0 ? CUSTOMER_STATUS_META[s].dot : "bg-current opacity-40"}`} />
                         <span className="text-[14px] font-bold tabular-nums leading-none">{n}</span>
                         <span className="font-semibold">{CUSTOMER_STATUS_META[s].label}</span>
-                      </span>
+                        {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                      </button>
                     );
                   })}
-                  <span className={`ml-auto text-[12px] font-medium ${t.mid}`}>
-                    <span className="font-bold">{customerStatusCounts.linked}</span> of {items.length} can see a status
-                  </span>
+
+                  {customerStageFilter ? (
+                    <button
+                      onClick={() => setCustomerStageFilter(null)}
+                      className={`ml-auto text-[12px] font-semibold text-red-500 transition-colors ${t.hover} rounded-lg px-2 py-1 cursor-pointer`}
+                    >
+                      Show everyone again
+                    </button>
+                  ) : (
+                    <span className={`ml-auto text-[12px] font-medium ${t.mid}`}>
+                      <span className="font-bold">{customerStatusCounts.linked}</span> of {items.length} can see a status
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -1786,6 +1854,125 @@ function CustomerStatusControl({
 }
 
 /**
+ * The inquiry list as a printable sheet — "Export PDF".
+ *
+ * Printed rather than generated. A PDF built in JavaScript would mean a new
+ * dependency in the bundle and, worse, every product photograph fetched and
+ * base64'd into the document from an S3 bucket that would have to start
+ * sending CORS headers to allow it. The browser already has these images
+ * decoded on screen, already paginates, already draws text at print
+ * resolution, and already offers "Save as PDF" in its print dialog. So this
+ * is a real sheet in the page, invisible until the moment of printing.
+ *
+ * Same tab deliberately: AdminAutoLogout ends the session when it unmounts,
+ * so opening this in a second tab and closing it would sign the admin out.
+ *
+ * It prints whatever the console is currently showing — filter, search and
+ * all — because "export what I am looking at" is the only rule that does not
+ * surprise anyone. The heading says which that was.
+ */
+function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: string }) {
+  return (
+    <div className="hidden print:block">
+      {/* Colour-exact, so the status chips do not print as empty outlines, and
+          a row is never split across a page break. */}
+      <style>{`
+        @page { size: A4 landscape; margin: 12mm 10mm; }
+        @media print {
+          html, body { background: #fff !important; }
+          .affhan-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .affhan-sheet tr { break-inside: avoid; page-break-inside: avoid; }
+          .affhan-sheet thead { display: table-header-group; }
+        }
+      `}</style>
+
+      <div className="affhan-sheet text-[#1d1d1f]">
+        <div className="mb-3 flex items-end justify-between border-b-2 border-[#1d1d1f] pb-2">
+          <div>
+            <h1 className="text-[18px] font-bold tracking-tight">Affhan International — Inquiries</h1>
+            <p className="mt-0.5 text-[10px] text-[#6e6e73]">
+              {filterLabel} · {rows.length} {rows.length === 1 ? "inquiry" : "inquiries"}
+            </p>
+          </div>
+          <p className="text-[10px] text-[#6e6e73]">
+            Exported {new Date().toLocaleString("en-GB", {
+              day: "numeric", month: "short", year: "numeric",
+              hour: "numeric", minute: "2-digit", hour12: true,
+            })}
+          </p>
+        </div>
+
+        {/* A real table, so the columns line up down the whole document and
+            the header repeats on every page. */}
+        <table className="w-full border-collapse text-[10px]">
+          <thead>
+            <tr className="border-b border-[#1d1d1f]/30 text-left">
+              <th className="w-[26px] py-1.5 pr-1 font-bold">#</th>
+              <th className="w-[46px] py-1.5 pr-2 font-bold">Photo</th>
+              <th className="py-1.5 pr-3 font-bold">Product requested</th>
+              <th className="w-[15%] py-1.5 pr-3 font-bold">Customer</th>
+              <th className="w-[17%] py-1.5 pr-3 font-bold">Email</th>
+              <th className="w-[12%] py-1.5 pr-3 font-bold">Mobile</th>
+              <th className="w-[9%] py-1.5 pr-3 font-bold">Country</th>
+              <th className="w-[38px] py-1.5 pr-2 text-right font-bold">Qty</th>
+              <th className="w-[13%] py-1.5 font-bold">Requested at</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((i, idx) => {
+              const src = i.productImage ? getCdnUrl(i.productImage) : null;
+              return (
+                <tr key={i.id} className="border-b border-black/[0.08] align-top">
+                  <td className="py-1.5 pr-1 tabular-nums text-[#6e6e73]">{idx + 1}</td>
+                  <td className="py-1.5 pr-2">
+                    <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded border border-black/10 bg-[#f5f5f7]">
+                      {src ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={src} alt="" className="h-full w-full object-contain" />
+                      ) : null}
+                    </span>
+                  </td>
+                  <td className="py-1.5 pr-3 font-semibold leading-snug">{i.productName}</td>
+                  <td className="py-1.5 pr-3 leading-snug">
+                    {i.customerName}
+                    {i.companyName ? <span className="block text-[9px] text-[#6e6e73]">{i.companyName}</span> : null}
+                  </td>
+                  <td className="py-1.5 pr-3 break-all leading-snug">{i.email || "—"}</td>
+                  <td className="py-1.5 pr-3 tabular-nums leading-snug">{i.phone}</td>
+                  <td className="py-1.5 pr-3 leading-snug">{i.country}</td>
+                  <td className="py-1.5 pr-2 text-right font-semibold tabular-nums">{i.quantity}</td>
+                  <td className="py-1.5 tabular-nums leading-snug">{fmtDateTime(i.createdAt)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* The customer's own message, only for the rows that have one. Kept
+            off the table so a long paragraph cannot stretch a column and throw
+            every other row out of alignment. */}
+        {rows.some((i) => i.message) && (
+          <div className="mt-4 break-inside-avoid">
+            <h2 className="mb-1 border-b border-[#1d1d1f]/30 pb-1 text-[11px] font-bold">Customer notes</h2>
+            <ul className="text-[9.5px] leading-relaxed">
+              {rows.map((i, idx) =>
+                i.message ? (
+                  <li key={i.id} className="break-inside-avoid border-b border-black/[0.06] py-1">
+                    <span className="font-semibold">{idx + 1}. {i.customerName}</span>
+                    <span className="text-[#6e6e73]"> — {i.productName}</span>
+                    <span className="block">{i.message}</span>
+                  </li>
+                ) : null
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
  * One control holding every "what should this list show?" choice.
  *
  * Inquiries, Contact Us and Careers each had the same four status pills laid
@@ -2265,12 +2452,14 @@ function CustomerGroupRow({
 // (deduped by phone, all products shown) that can be ticked and exported to a
 // clean .xlsx — same header-band structure as the master workbook.
 function AllSection({
-  t, stats, groups, onGoInquiries, onGoContacts, onGoCareers,
+  t, stats, groups, onGoInquiries, onGoContacts, onGoCareers, onOpenInquiry,
 }: {
   t: Theme;
   stats: { inquiries: number; contacts: number; jobAlerts: number; customers: number };
   groups: CustomerGroup[];
   onGoInquiries: () => void; onGoContacts: () => void; onGoCareers: () => void;
+  /** Opens the drawer for one of a customer's products. */
+  onOpenInquiry?: (inquiryId: string) => void;
 }) {
   const [q, setQ] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -2419,16 +2608,16 @@ function AllSection({
                         <Users className="h-4 w-4" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className="line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13px]">
+                        <p className={`line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13.5px] ${t.strong}`}>
                           {g.customerName}
                         </p>
                         {g.altNames.length > 0 && (
                           <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
                         )}
-                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{g.phone}</span></span>
-                          {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Mail className="h-3 w-3 shrink-0" /><span className="truncate">{g.email}</span></span>}
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1"><MapPin className="h-3 w-3 shrink-0" /><span className="truncate">{g.country}</span></span>
+                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{g.phone}</span></span>
+                          {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.email}</span></span>}
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.country}</span></span>
                         </div>
                       </div>
                     </button>
@@ -2441,15 +2630,34 @@ function AllSection({
                   </div>
                   {open && (
                     <ul className={`border-t px-4 pb-3 pt-1 ${t.border}`}>
-                      {g.products.map((p, idx) => (
-                        <li key={idx} className={`flex items-center justify-between gap-3 py-2 text-sm ${idx > 0 ? `border-t ${t.divide}` : ""}`}>
-                          <span className="min-w-0 flex-1">
-                            <span className="line-clamp-2 font-medium">{idx + 1}. {p.productName}</span>
-                            <span className={`text-xs ${t.soft}`}>{fmtDate(p.createdAt)}</span>
-                          </span>
-                          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {p.quantity}</span>
-                        </li>
-                      ))}
+                      {g.products.map((p, idx) => {
+                        // Same treatment the grouped inquiry list got: the
+                        // picture identifies the item where a truncated CJ
+                        // product name mostly does not, and the row opens the
+                        // inquiry it came from rather than being a dead label.
+                        const openable = Boolean(p.inquiryId && onOpenInquiry);
+                        const Row = openable ? "button" : "div";
+                        return (
+                          <li key={p.inquiryId ?? idx} className={idx > 0 ? `border-t ${t.divide}` : ""}>
+                            <Row
+                              {...(openable
+                                ? { onClick: () => onOpenInquiry!(p.inquiryId!), type: "button" as const }
+                                : {})}
+                              className={`flex w-full items-center gap-3 py-2 text-left text-sm ${
+                                openable ? `rounded-lg transition-colors ${t.hover} cursor-pointer` : ""
+                              }`}
+                            >
+                              <span className={`w-5 shrink-0 text-center text-[11px] font-bold tabular-nums ${t.soft}`}>{idx + 1}</span>
+                              <Thumb t={t} src={p.productImage ?? null} alt={p.productName} />
+                              <span className="min-w-0 flex-1">
+                                <span className={`line-clamp-2 font-medium ${t.strong}`}>{p.productName}</span>
+                                <span className={`text-xs ${t.soft}`}>{fmtDate(p.createdAt)}</span>
+                              </span>
+                              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {p.quantity}</span>
+                            </Row>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </li>
