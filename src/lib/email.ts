@@ -85,6 +85,21 @@ export interface EmailMessage {
 export async function sendEmail(message: EmailMessage): Promise<SendResult> {
   const ses = getClient();
   if (!ses) {
+    // Says which knob is missing, without printing any value. Before this, an
+    // unconfigured SES returned silently, so "the email never arrived and the
+    // log is empty" was ambiguous between missing env vars and a send that was
+    // rejected — the first thing you need to rule out, and the one that left
+    // no trace.
+    const missing = [
+      !process.env.AWS_SES_REGION && "AWS_SES_REGION",
+      !process.env.AWS_SES_ACCESS_KEY_ID && "AWS_SES_ACCESS_KEY_ID",
+      !process.env.AWS_SES_SECRET_ACCESS_KEY && "AWS_SES_SECRET_ACCESS_KEY",
+      !process.env.AWS_SES_FROM_ADDRESS && "AWS_SES_FROM_ADDRESS",
+    ].filter(Boolean);
+    console.warn(
+      "[email] not configured; nothing sent. Missing: " +
+        (missing.length ? missing.join(", ") : "(client init failed despite vars being present)")
+    );
     return {
       ok: false,
       reason: "unconfigured",

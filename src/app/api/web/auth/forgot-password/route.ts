@@ -53,7 +53,14 @@ export async function POST(request: NextRequest) {
     // end, the owner of the inbox is told why no code arrived — which reveals
     // nothing to anyone else, because only they can read it.
     if (!user.passwordHash) {
-      await sendEmail({ to: email, ...noPasswordOnAccountEmail() });
+      // Checked like the code path below, not fired and forgotten. A Google-only
+      // account hitting a broken SES was the one branch that sent an email and
+      // never looked at whether it left — so a misconfiguration here was
+      // invisible in exactly the case we were testing with.
+      const sent = await sendEmail({ to: email, ...noPasswordOnAccountEmail() });
+      if (!sent.ok) {
+        console.error("[forgot-password] no-password notice not delivered:", sent.reason);
+      }
       return generic;
     }
 
