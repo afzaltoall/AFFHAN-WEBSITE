@@ -121,6 +121,15 @@ interface Props {
 }
 
 const fmtNum = (n: number) => n.toLocaleString("en-US");
+/**
+ * A count small enough to sit on a 17px icon in the collapsed sidebar.
+ *
+ * The full figure stays in the expanded pill; this one only has to answer
+ * "how many, roughly" at a glance — "1.1k" beside the icon rather than a
+ * five-digit number overflowing the rail.
+ */
+const fmtBadge = (n: number) =>
+  n < 1000 ? String(n) : n < 1_000_000 ? `${Math.round(n / 100) / 10}k` : `${Math.round(n / 100_000) / 10}M`;
 const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
@@ -167,6 +176,16 @@ export function AdminConsole({ data }: Props) {
   // used to be seven pills wrapping onto three rows above the content — a
   // third of a phone screen spent on navigation before anything was read.
   const [menuOpen, setMenuOpen] = useState(false);
+  /**
+   * The desktop sidebar rides collapsed to an icon rail and opens on hover.
+   *
+   * Hover alone would strand a keyboard user on a rail of unlabelled icons, so
+   * focus moving into the sidebar opens it too — which is also what makes the
+   * labels reachable by Tab. The labels stay in the DOM in both states (width
+   * and opacity, never `display`), so a screen reader reads the same menu
+   * whether or not a mouse is anywhere near it.
+   */
+  const [sideOpen, setSideOpen] = useState(false);
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
@@ -461,6 +480,9 @@ export function AdminConsole({ data }: Props) {
   const t = dark
     ? {
         page: "bg-[#0b0b0c] text-[#f2f2f4]", sidebar: "bg-[#151517]/90 border-white/10",
+        // Opaque while the rail is open: it floats over the table then, and
+        // 90% let the rows underneath show through the panel.
+        sidebarOpen: "bg-[#151517] border-white/10",
         card: "bg-[#151517] ring-white/[0.08]", soft: "text-[#8a8a8e]", mid: "text-[#c7c7cc]", strong: "text-white",
         border: "border-white/[0.08]", divide: "divide-white/[0.06]", hover: "hover:bg-white/[0.03]",
         navIdle: "text-[#a1a1a6] hover:bg-white/[0.05]", navActive: "bg-white/[0.1] text-white",
@@ -470,6 +492,7 @@ export function AdminConsole({ data }: Props) {
       }
     : {
         page: "bg-[#f5f5f7] text-[#1d1d1f]", sidebar: "bg-white/80 border-black/[0.06]",
+        sidebarOpen: "bg-white border-black/[0.06]",
         card: "bg-white ring-black/[0.04]", soft: "text-[#86868b]", mid: "text-[#48484a]", strong: "text-[#1d1d1f]",
         border: "border-black/[0.06]", divide: "divide-black/[0.06]", hover: "hover:bg-black/[0.015]",
         navIdle: "text-[#515154] hover:bg-black/[0.03]", navActive: "bg-[#ececed] text-[#1d1d1f]",
@@ -708,6 +731,21 @@ export function AdminConsole({ data }: Props) {
     { label: "Videos", value: data.stats.videos, icon: PlayCircle, tint: "text-fuchsia-500", bg: dark ? "bg-fuchsia-500/15" : "bg-fuchsia-50" },
   ];
 
+  /* Sidebar geometry, in one place because every row has to agree on it.
+     The rail is 60px wide: 8px of nav padding + 6px of row padding + a 32px
+     icon column puts every icon's centre on 30px, the rail's midline. The
+     same numbers hold when the panel opens, so opening it moves no icon by a
+     pixel — the labels simply arrive beside them. */
+  const sideRow = "flex w-full items-center rounded-xl px-1.5 py-2.5 text-[13px] font-medium transition-colors";
+  const sideIconCol = "relative flex h-[22px] w-8 shrink-0 items-center justify-center";
+  const sideLabel = `overflow-hidden whitespace-nowrap text-left transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${sideOpen ? "ml-2.5 max-w-[190px] opacity-100" : "ml-0 max-w-0 opacity-0"}`;
+  /* A count in two forms: the pill beside the label when the panel is open,
+     and a dot on the icon when it is closed. The office reads those numbers
+     at a glance — how many new inquiries, how many unread messages — so they
+     survive the collapse instead of leaving with the text. */
+  const sideDot = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${sideOpen ? "opacity-0" : "opacity-100"}`;
+  const sidePill = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[11px] font-semibold leading-5 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${sideOpen ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
+
   return (
     <div style={sfFont} className={`min-h-screen w-full antialiased transition-colors duration-200 ${t.page}`}>
       {/* The printable sheet. Hidden on screen, and the only thing on the page
@@ -716,104 +754,140 @@ export function AdminConsole({ data }: Props) {
       <InquirySheet rows={printRows} filterLabel={printFilterLabel} />
 
       <div className="flex print:hidden">
-        {/* Sidebar */}
-        <aside className={`sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r backdrop-blur-xl lg:flex ${t.sidebar}`}>
-          <div className="flex items-center gap-2.5 px-5 py-5">
-            <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.thumb}`}>
-              <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
-            </span>
-            <div className="leading-tight">
-              <p className="text-sm font-semibold tracking-tight">Affhan</p>
-              <p className={`text-[11px] ${t.soft}`}>Admin</p>
-            </div>
-          </div>
-          <nav className="flex-1 space-y-1 px-3">
-            {nav.map((n) => (
-              <button
-                key={n.key}
-                onClick={() => { setView(n.key); setQ(""); }}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${view === n.key ? t.navActive : t.navIdle}`}
-              >
-                <n.icon size={17} className={view === n.key ? "text-brand" : t.soft} />
-                <span className="flex-1 text-left">{n.label}</span>
-                {n.count !== undefined && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(n.count)}</span>}
-              </button>
-            ))}
-            {/* A link rather than a view: the supplier book is its own route, so
-                it survives a reload and can be opened in its own tab, which is
-                how it actually gets used — open beside a chat window. */}
-            <Link
-              href="/admin/suppliers/"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
-            >
-              <Users size={17} className={t.soft} />
-              <span className="flex-1 text-left">Suppliers</span>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.suppliers)}</span>
-            </Link>
-            <Link
-              href="/admin/videos/"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
-            >
-              <PlayCircle size={17} className={t.soft} />
-              <span className="flex-1 text-left">Videos</span>
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.videos)}</span>
-            </Link>
-            {/* Two lists, because the office asks two different questions:
-                who signs in on the site, and who signs in on the app. One
-                table underneath — somebody who uses both appears on both,
-                which is the honest answer rather than a duplicate. */}
-            <Link
-              href="/admin/users/website/"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
-            >
-              <Globe size={17} className={t.soft} />
-              <span className="flex-1 text-left">Website Users</span>
-            </Link>
-            <Link
-              href="/admin/users/app/"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
-            >
-              <Smartphone size={17} className={t.soft} />
-              <span className="flex-1 text-left">App Users</span>
-            </Link>
-            <Link
-              href="/admin/mobile-inquiries/"
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-[13px] font-medium transition-colors ${t.navIdle}`}
-            >
-              <MessageSquare size={17} className={t.soft} />
-              <span className="flex-1 text-left">App Inquiries</span>
-            </Link>
-          </nav>
-          <div className={`border-t p-3 ${t.border}`}>
-            <div className="flex items-center gap-2.5 px-2 py-2">
-              {data.adminImage ? (
-                <Avatar name={data.adminName} image={data.adminImage} size={32} />
-              ) : (
-                <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-black/10">
-                  <Image src="/logo.png" alt="Affhan" width={26} height={26} className="object-contain" />
-                </span>
-              )}
-              <div className="min-w-0 flex-1 leading-tight">
-                <p className="truncate text-[13px] font-semibold">{data.adminName}</p>
-                <p className={`text-[11px] ${t.soft}`}>Administrator</p>
+        {/* Sidebar — an icon rail that opens on hover.
+            The console is a working screen: wide tables of inquiries, and a
+            printable sheet. 240px of permanent navigation was a fifth of a
+            laptop's width spent on a menu that is read once a session, so it
+            now rides collapsed to a 60px rail of icons and opens to its full
+            width when the pointer (or the keyboard focus) is in it.
+
+            It overlays the content rather than pushing it: the outer div
+            reserves the rail's 60px and never changes, so nothing reflows on
+            hover — a table that re-wrapped its columns every time the mouse
+            crossed the left edge would be worse than the space it saved.
+
+            Everything the sidebar did, it still does. Only two things are
+            new: the labels have a width and an opacity, and the counts have a
+            second, smaller form for when there is no room for the pill. */}
+        <div className="hidden w-[60px] shrink-0 lg:block">
+          <aside
+            onMouseEnter={() => setSideOpen(true)}
+            onMouseLeave={() => setSideOpen(false)}
+            onFocusCapture={() => setSideOpen(true)}
+            // Only when focus actually leaves the sidebar — moving between two
+            // buttons inside it fires a blur too, and closing on that would
+            // shut the panel under a keyboard user mid-Tab.
+            onBlurCapture={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSideOpen(false);
+            }}
+            className={`sticky top-0 z-40 flex h-screen flex-col overflow-hidden border-r backdrop-blur-xl transition-[width,box-shadow] duration-300 ease-out motion-reduce:transition-none ${sideOpen ? `w-[272px] shadow-2xl ${t.sidebarOpen}` : `w-[60px] ${t.sidebar}`}`}
+          >
+            <div className="flex items-center px-3.5 py-5">
+              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
+                <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
+              </span>
+              <div className={`leading-tight ${sideLabel}`}>
+                <p className="text-sm font-semibold tracking-tight">Affhan</p>
+                <p className={`text-[11px] ${t.soft}`}>Admin</p>
               </div>
             </div>
-            <button onClick={() => setShowEmail(true)} className={`mt-1 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
-              <Mail size={15} /> Change email
-            </button>
-            <button onClick={() => setShowPwd(true)} className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
-              <KeyRound size={15} /> Change password
-            </button>
-            <div className="mt-2 flex gap-2">
-              <button onClick={() => setDark((d) => !d)} className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
-                {dark ? <Sun size={15} /> : <Moon size={15} />}{dark ? "Light" : "Dark"}
+            <nav className="flex-1 space-y-1 px-2">
+              {nav.map((n) => (
+                <button
+                  key={n.key}
+                  onClick={() => { setView(n.key); setQ(""); }}
+                  // The rail's tooltip. Collapsed, the icon is all there is.
+                  title={n.label}
+                  className={`${sideRow} ${view === n.key ? t.navActive : t.navIdle}`}
+                >
+                  <span className={sideIconCol}>
+                    <n.icon size={17} className={view === n.key ? "text-brand" : t.soft} />
+                    {n.count !== undefined && n.count > 0 && (
+                      <span className={sideDot}>{fmtBadge(n.count)}</span>
+                    )}
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>{n.label}</span>
+                  {n.count !== undefined && <span className={sidePill}>{fmtNum(n.count)}</span>}
+                </button>
+              ))}
+              {/* A link rather than a view: the supplier book is its own route, so
+                  it survives a reload and can be opened in its own tab, which is
+                  how it actually gets used — open beside a chat window. */}
+              <Link href="/admin/suppliers/" title="Suppliers" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <Users size={17} className={t.soft} />
+                  {data.stats.suppliers > 0 && <span className={sideDot}>{fmtBadge(data.stats.suppliers)}</span>}
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>Suppliers</span>
+                <span className={sidePill}>{fmtNum(data.stats.suppliers)}</span>
+              </Link>
+              <Link href="/admin/videos/" title="Videos" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <PlayCircle size={17} className={t.soft} />
+                  {data.stats.videos > 0 && <span className={sideDot}>{fmtBadge(data.stats.videos)}</span>}
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>Videos</span>
+                <span className={sidePill}>{fmtNum(data.stats.videos)}</span>
+              </Link>
+              {/* Two lists, because the office asks two different questions:
+                  who signs in on the site, and who signs in on the app. One
+                  table underneath — somebody who uses both appears on both,
+                  which is the honest answer rather than a duplicate. */}
+              <Link href="/admin/users/website/" title="Website Users" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <Globe size={17} className={t.soft} />
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>Website Users</span>
+              </Link>
+              <Link href="/admin/users/app/" title="App Users" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <Smartphone size={17} className={t.soft} />
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>App Users</span>
+              </Link>
+              <Link href="/admin/mobile-inquiries/" title="App Inquiries" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <MessageSquare size={17} className={t.soft} />
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>App Inquiries</span>
+              </Link>
+            </nav>
+            <div className={`border-t p-2 ${t.border}`}>
+              <div className="flex items-center px-1.5 py-2">
+                {data.adminImage ? (
+                  <Avatar name={data.adminName} image={data.adminImage} size={32} />
+                ) : (
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-black/10">
+                    <Image src="/logo.png" alt="Affhan" width={26} height={26} className="object-contain" />
+                  </span>
+                )}
+                <div className={`min-w-0 flex-1 leading-tight ${sideLabel}`}>
+                  <p className="truncate text-[13px] font-semibold">{data.adminName}</p>
+                  <p className={`text-[11px] ${t.soft}`}>Administrator</p>
+                </div>
+              </div>
+              {/* Stacked, not the two-across pair they used to be: side by side
+                  they had 22px each in the collapsed rail, which is not a
+                  button. One per row works at both widths. */}
+              <button onClick={() => setShowEmail(true)} title="Change email" className={`mt-1 ${sideRow} justify-start rounded-xl font-semibold ring-1 ${t.pill}`}>
+                <span className={sideIconCol}><Mail size={15} /></span>
+                <span className={sideLabel}>Change email</span>
               </button>
-              <button onClick={logout} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-red-600">
-                <LogOut size={15} /> Sign out
+              <button onClick={() => setShowPwd(true)} title="Change password" className={`mt-2 ${sideRow} justify-start rounded-xl font-semibold ring-1 ${t.pill}`}>
+                <span className={sideIconCol}><KeyRound size={15} /></span>
+                <span className={sideLabel}>Change password</span>
+              </button>
+              <button onClick={() => setDark((d) => !d)} title={dark ? "Light mode" : "Dark mode"} className={`mt-2 ${sideRow} justify-start rounded-xl font-semibold ring-1 ${t.pill}`}>
+                <span className={sideIconCol}>{dark ? <Sun size={15} /> : <Moon size={15} />}</span>
+                <span className={sideLabel}>{dark ? "Light" : "Dark"}</span>
+              </button>
+              <button onClick={logout} title="Sign out" className={`mt-2 ${sideRow} justify-start rounded-xl bg-red-500 font-semibold text-white hover:bg-red-600`}>
+                <span className={sideIconCol}><LogOut size={15} /></span>
+                <span className={sideLabel}>Sign out</span>
               </button>
             </div>
-          </div>
-        </aside>
+          </aside>
+        </div>
 
         {/* Main */}
         <main className="min-w-0 flex-1 px-5 pb-16 pt-6 sm:px-8">
