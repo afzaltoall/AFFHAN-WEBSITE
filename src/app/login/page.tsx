@@ -6,13 +6,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import {
-  PhoneAuthForm,
-  authCopy,
-  type PhoneAuthIntent,
-  type PhoneAuthStep,
-} from "@/components/ui/PhoneAuthForm";
 import { PasswordAuthForm } from "@/components/ui/PasswordAuthForm";
+import { SignupForm } from "@/components/ui/SignupForm";
 import { GoogleButton } from "@/components/ui/GoogleButton";
 import { LoginBrandPanel } from "@/components/ui/LoginBrandPanel";
 import { LoginBackground } from "@/components/ui/LoginBackground";
@@ -36,14 +31,11 @@ function LoginPageInner() {
   const searchParams = useSearchParams();
   const { user, loading } = useAuth();
 
-  // Email and password is the default and now the only way to sign in: a phone
-  // code costs an SMS every time a returning customer comes back, and most of
-  // them come back often. The phone form is still reachable, but only for
-  // creating an account — which is the one thing a code is actually for.
-  const [method, setMethod] = useState<"password" | "phone">("password");
-  const [step, setStep] = useState<PhoneAuthStep>("phone");
-  const [intent, setIntent] = useState<PhoneAuthIntent>("signin");
-  const [phone, setPhone] = useState("");
+  // Two screens: signing in, and creating an account. Both are email and
+  // password now — signup no longer starts with an SMS code, so the step and
+  // intent this page used to track (which OTP screen was showing, and whether
+  // it was a sign-in or a sign-up) have nothing left to describe.
+  const [method, setMethod] = useState<"password" | "signup">("password");
 
   const destination = safeRedirect(searchParams.get("redirect"));
 
@@ -60,7 +52,7 @@ function LoginPageInner() {
   const { heading, subheading } =
     method === "password"
       ? { heading: "Sign in", subheading: "Use the email and password on your account." }
-      : authCopy(step, intent, phone);
+      : { heading: "Create your account", subheading: "One screen, and you are in — no code to wait for." };
 
   // Only an already-signed-in visitor sees the spinner, and only for the moment
   // before the redirect lands. The form is not gated on `loading`: doing that
@@ -117,31 +109,24 @@ function LoginPageInner() {
                 {method === "password" ? (
                   <PasswordAuthForm
                     onSuccess={onSuccess}
-                    onCreateAccount={() => setMethod("phone")}
+                    onCreateAccount={() => setMethod("signup")}
                   />
                 ) : (
-                  <PhoneAuthForm
-                    // The only reason to be here now.
-                    initialIntent="signup"
+                  // Creating an account: one screen, no code. This is where
+                  // PhoneAuthForm used to be — it and the Twilio routes behind
+                  // it are still in the codebase, just not on this path while
+                  // production access is pending.
+                  <SignupForm
                     onSuccess={onSuccess}
-                    onStepChange={setStep}
-                    onIntentChange={setIntent}
-                    onPhoneChange={setPhone}
-                    onUsePassword={() => {
-                      // Back to a clean password screen: the phone flow's own
-                      // step must not leak into what the heading says.
-                      setStep("phone");
-                      setIntent("signin");
-                      setMethod("password");
-                    }}
+                    onHaveAccount={() => setMethod("password")}
                   />
                 )}
               </div>
 
-              {/* Only on a first screen: once a code is on its way, offering a
-                  different way in would only strand the one in progress. */}
-              {(method === "password" || step === "phone") && (
-                <>
+              {/* Always shown now. This used to be hidden once a code was on
+                  its way, so that a second way in could not strand the one in
+                  progress; with no code step there is nothing to strand. */}
+              <>
                   <div className="my-5 flex items-center gap-3">
                     <span className="h-px flex-1 bg-slate-200" />
                     <span className="text-[12px] font-medium uppercase tracking-wider text-slate-400">
@@ -153,13 +138,12 @@ function LoginPageInner() {
                   {/* Google is a way in and a way to start — the heading above
                       already says which, so the label follows it. */}
                   <GoogleButton onSuccess={onSuccess} />
-                  {method === "phone" && intent === "signup" && (
+                  {method === "signup" && (
                     <p className="mt-2.5 text-center text-[12px] text-slate-400">
-                      Signing up with Google skips the code entirely.
+                      Signing up with Google fills this in for you.
                     </p>
                   )}
-                </>
-              )}
+              </>
 
               <p className="mt-7 text-[12px] leading-relaxed text-slate-400">
                 By continuing you agree to our{" "}
