@@ -30,3 +30,22 @@ export const DIAL_TO_ISO: Record<string, string> = {
   "+91": "IN", "+86": "CN", "+44": "GB", "+65": "SG", "+60": "MY",
   "+971": "AE", "+1": "US", "+61": "AU", "+49": "DE", "+33": "FR",
 };
+
+/**
+ * The same check as isValidMobile, for a number already in E.164 form.
+ *
+ * The signup route receives one string ("+919876543210") rather than a country
+ * and a national part, and the server has to repeat the check the form makes —
+ * a form is a convenience, not a guarantee, and anyone can POST past it.
+ */
+export function isValidMobileE164(e164: string): boolean {
+  const value = (e164 || "").trim();
+  if (!value.startsWith("+")) return false;
+  try {
+    if (!isValidPhoneNumber(value)) return false;
+    const type = parsePhoneNumber(value)?.getType();
+    return type !== undefined && ACCEPTED_TYPES.has(type);
+  } catch {
+    return false;
+  }
+}

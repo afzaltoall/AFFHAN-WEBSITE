@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
 import { checkPasswordStrength, hashPassword } from "@/lib/password";
+import { isValidMobileE164 } from "@/lib/phone";
 
 export const dynamic = "force-dynamic";
 
@@ -48,13 +49,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Enter a valid email address." }, { status: 400 });
     }
 
-    // Format only — a shape check, not proof of ownership. E.164: a leading +,
-    // then 8 to 15 digits. Anything shorter is a typo rather than a number.
+    // The same validation the quote form and this form's own field use, out of
+    // the same helper: libphonenumber's full metadata, so the number has to be
+    // a real mobile for its country rather than merely the right length. A
+    // form is a convenience — anyone can POST straight past it — so the check
+    // that matters is this one.
+    //
+    // Still not proof of OWNERSHIP. That is what the code step did and what
+    // this phase does without; this only rejects what could not be a number.
     const phone = typeof body?.phone === "string" ? body.phone.trim().replace(/[\s-]/g, "") : "";
     if (!phone) {
       return NextResponse.json({ error: "Enter your mobile number." }, { status: 400 });
     }
-    if (!/^\+[1-9]\d{7,14}$/.test(phone)) {
+    if (!/^\+[1-9]\d{7,14}$/.test(phone) || !isValidMobileE164(phone)) {
       return NextResponse.json(
         { error: "Enter a valid mobile number, including the country code." },
         { status: 400 }
