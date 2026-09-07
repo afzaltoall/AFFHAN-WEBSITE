@@ -41,12 +41,12 @@ const PATHS = {
  * here as %20). Each social node reveals its brand image on hover. The X node
  * maps to twitter.png, and tiktok.png is expected to be dropped in later. */
 const PREVIEWS = {
-  facebook: "/Social%20media/facebook.png",
-  instagram: "/Social%20media/instagram.png",
-  tiktok: "/Social%20media/TikTok.png",
-  youtube: "/Social%20media/youtube.png",
-  linkedin: "/Social%20media/linkedin.png",
-  x: "/Social%20media/twitter.png",
+  facebook: "/Social%20media/facebook.webp",
+  instagram: "/Social%20media/instagram.webp",
+  tiktok: "/Social%20media/TikTok.webp",
+  youtube: "/Social%20media/youtube.webp",
+  linkedin: "/Social%20media/linkedin.webp",
+  x: "/Social%20media/twitter.webp",
 };
 
 /**

@@ -23,10 +23,12 @@ export function AffhanBrandBar() {
           transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
         >
           <Image
-            src="/affhan-emblem.png"
+            src="/affhan-emblem.webp"
             alt="Affhan Logo"
-            width={100}
-            height={100}
+            // 200x156 source for a mark drawn 44px tall — 2x for retina and
+            // nothing more. The PNG this replaced was 697x543 and 506KB.
+            width={200}
+            height={156}
             priority
             className="h-11 w-auto object-contain drop-shadow-[0_2px_8px_rgba(23,101,121,0.22)] transition-transform duration-300 group-hover:scale-105"
           />
