@@ -51,6 +51,20 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
     }
   };
 
+  // Hovering a rail row previews its section on the right; clicking it opens
+  // the category. The delay is what makes that bearable — without it, crossing
+  // the rail on the way to a tile drags the panel through every section the
+  // pointer passes.
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewSection = (id: string) => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => scrollToSection(id), 180);
+  };
+  const cancelPreview = () => {
+    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+  };
+  useEffect(() => () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); }, []);
+
   // Open scrolled to the requested category.
   useEffect(() => {
     if (initialActiveId) scrollToSection(initialActiveId, false);
@@ -96,9 +110,17 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
           to raise. */}
       <div className="w-72 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
         {sections.map(s => (
+          // A row in a list of categories opens that category — the same place
+          // its tiles and its "View all" go. It used to only scroll the right
+          // panel, which meant clicking the category you wanted, on the list
+          // that looks most like a menu, appeared to do nothing at all when
+          // that section was already in view. Reading the section without
+          // leaving is still possible: hovering the row brings it up.
           <button
             key={s.id}
-            onClick={() => scrollToSection(s.id)}
+            onClick={() => onNavigate(s.id)}
+            onMouseEnter={() => previewSection(s.id)}
+            onMouseLeave={cancelPreview}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold transition-colors border-l-4 ${
               activeId === s.id
                 ? "bg-white text-brand-dark border-brand"

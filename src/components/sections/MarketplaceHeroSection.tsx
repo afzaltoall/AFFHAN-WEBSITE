@@ -459,9 +459,15 @@ export function MarketplaceHeroSection() {
                 {topLevelCategories.map(cat => {
                   const Icon = getCategoryIcon(cat.name);
                   return (
+                    // Straight to the listing. Opening the mega panel scrolled
+                    // to the category was a second menu on top of the menu:
+                    // one more click before any product, and indistinguishable
+                    // from nothing having happened when the panel opened over
+                    // the row that was just clicked. "View All" above and below
+                    // still opens the panel — that is what it is for.
                     <button
                       key={cat.id}
-                      onClick={() => openMega(cat.id)}
+                      onClick={() => router.push(`/products/?categoryId=${cat.id}`)}
                       className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13.5px] font-semibold text-slate-700 hover:bg-white/40 hover:text-brand-dark transition-colors group"
                     >
                       <div className="flex items-center gap-3 pr-2">
