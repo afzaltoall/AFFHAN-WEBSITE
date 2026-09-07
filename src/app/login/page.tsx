@@ -8,6 +8,7 @@ import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { PasswordAuthForm } from "@/components/ui/PasswordAuthForm";
 import { SignupForm } from "@/components/ui/SignupForm";
+import { SignupMascot, type MascotFocus } from "@/components/ui/SignupMascot";
 import { GoogleButton } from "@/components/ui/GoogleButton";
 import { LoginBrandPanel } from "@/components/ui/LoginBrandPanel";
 import { LoginBackground } from "@/components/ui/LoginBackground";
@@ -36,6 +37,8 @@ function LoginPageInner() {
   // intent this page used to track (which OTP screen was showing, and whether
   // it was a sign-in or a sign-up) have nothing left to describe.
   const [method, setMethod] = useState<"password" | "signup">("password");
+  // Lifted only so the illustration in the other column can see it.
+  const [fieldFocus, setFieldFocus] = useState<MascotFocus>(null);
 
   const destination = safeRedirect(searchParams.get("redirect"));
 
@@ -72,11 +75,18 @@ function LoginPageInner() {
     // easily, and the card floats on the gradient, which is what gives it
     // something to glow against.
     <main className="grid min-h-screen lg:grid-cols-[1fr_1fr]">
-      <div className="flex items-center bg-white">
+      <div className="flex flex-col justify-center bg-white">
         <LoginBrandPanel />
+        {/* On both screens. There is no separate /signup route — creating an
+            account is a mode of this page — and the characters follow the
+            cursor whether or not a form is being filled in, so gating them on
+            the mode would only make them vanish when someone switched. */}
+        <div className="hidden px-8 pb-10 sm:px-12 lg:block lg:px-16">
+          <SignupMascot focus={fieldFocus} />
+        </div>
       </div>
 
-      <div className="relative flex items-center justify-center overflow-hidden px-5 py-12 sm:px-8 lg:px-12">
+      <div className="relative flex items-center justify-center overflow-hidden px-5 py-8 sm:px-8 lg:px-12">
         <LoginBackground />
 
         <TiltCard className="relative w-full max-w-md">
@@ -101,11 +111,11 @@ function LoginPageInner() {
             {/* No overflow-hidden: the country dial menu opens downward out of
                 this box, and clipping it would cut the list off inside the
                 card. The travelling light does its own clipping. */}
-            <div className="relative rounded-2xl border border-white/60 bg-white/95 p-6 shadow-2xl backdrop-blur-xl sm:p-7">
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900">{heading}</h1>
-              <p className="mt-1.5 text-sm text-slate-500">{subheading}</p>
+            <div className="relative rounded-2xl border border-white/60 bg-white/95 px-6 py-5 shadow-2xl backdrop-blur-xl">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">{heading}</h1>
+              <p className="mt-1 text-[13px] text-slate-500">{subheading}</p>
 
-              <div className="mt-6">
+              <div className="mt-4">
                 {method === "password" ? (
                   <PasswordAuthForm
                     onSuccess={onSuccess}
@@ -119,6 +129,7 @@ function LoginPageInner() {
                   <SignupForm
                     onSuccess={onSuccess}
                     onHaveAccount={() => setMethod("password")}
+                    onFieldFocus={setFieldFocus}
                   />
                 )}
               </div>
@@ -127,7 +138,7 @@ function LoginPageInner() {
                   its way, so that a second way in could not strand the one in
                   progress; with no code step there is nothing to strand. */}
               <>
-                  <div className="my-5 flex items-center gap-3">
+                  <div className="my-3.5 flex items-center gap-3">
                     <span className="h-px flex-1 bg-slate-200" />
                     <span className="text-[12px] font-medium uppercase tracking-wider text-slate-400">
                       or
@@ -139,13 +150,13 @@ function LoginPageInner() {
                       already says which, so the label follows it. */}
                   <GoogleButton onSuccess={onSuccess} />
                   {method === "signup" && (
-                    <p className="mt-2.5 text-center text-[12px] text-slate-400">
+                    <p className="mt-2 text-center text-[12px] text-slate-400">
                       Signing up with Google fills this in for you.
                     </p>
                   )}
               </>
 
-              <p className="mt-7 text-[12px] leading-relaxed text-slate-400">
+              <p className="mt-4 text-[12px] leading-relaxed text-slate-400">
                 By continuing you agree to our{" "}
                 <Link
                   href="/terms-conditions/"

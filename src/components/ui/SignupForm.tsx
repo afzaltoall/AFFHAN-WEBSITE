@@ -6,6 +6,8 @@ import { useAuth } from "@/context/AuthContext";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { COUNTRIES, type Country } from "@/lib/countries";
 import { checkPasswordStrength } from "@/lib/password-rules";
+import { isValidMobile } from "@/lib/phone";
+import type { MascotFocus } from "@/components/ui/SignupMascot";
 
 /**
  * Creating an account, on one screen.
@@ -25,11 +27,14 @@ import { checkPasswordStrength } from "@/lib/password-rules";
 export function SignupForm({
   onSuccess,
   onHaveAccount,
+  onFieldFocus,
   autoFocus = true,
 }: {
   onSuccess?: () => void;
   /** Back to the sign-in screen. */
   onHaveAccount: () => void;
+  /** Which field is being typed into, for the illustration beside the card. */
+  onFieldFocus?: (field: MascotFocus) => void;
   autoFocus?: boolean;
 }) {
   const { refreshSession } = useAuth();
@@ -51,10 +56,28 @@ export function SignupForm({
   const strength = checkPasswordStrength(password);
   const mismatch = confirm !== "" && password !== confirm;
 
+  // The same check the quote form makes, out of the same helper: a real MOBILE
+  // number for the selected country, judged by libphonenumber's full metadata
+  // rather than by counting digits. "383838383838838383" is not a number
+  // anybody answers, and an account whose only contact detail is invented is
+  // worth less than no account.
+  //
+  // This is not proof of ownership — that is what the code step did, and this
+  // phase does without it. It rejects numbers that could not exist at all.
+  const phoneDigits = phone.replace(/\D/g, "");
+  const phoneValid = isValidMobile(phoneDigits, country.iso.toUpperCase());
+  const phoneBad = phoneDigits !== "" && !phoneValid;
+
+  // Caught here as well as on the server, so "a@b@c.com" is answered while
+  // they are still looking at the field instead of after a round trip.
+  const emailTrimmed = email.trim();
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed);
+  const emailBad = emailTrimmed !== "" && !emailValid;
+
   const ready =
     name.trim() !== "" &&
-    email.trim() !== "" &&
-    phone.trim() !== "" &&
+    emailValid &&
+    phoneValid &&
     password !== "" &&
     confirm !== "";
 
@@ -65,6 +88,14 @@ export function SignupForm({
     }
     if (!strength.ok) {
       setError(strength.error);
+      return;
+    }
+    if (!emailValid) {
+      setError("Enter a valid email address.");
+      return;
+    }
+    if (!phoneValid) {
+      setError("Enter a valid mobile number for the country you picked.");
       return;
     }
 
@@ -100,19 +131,28 @@ export function SignupForm({
     }
   };
 
+  // Focus in and out of every field, reported upward. "secret" covers both
+  // password boxes: the illustration only needs to know that it should not be
+  // looking, not which of the two is active.
+  const focusProps = (field: MascotFocus) => ({
+    onFocus: () => onFieldFocus?.(field),
+    onBlur: () => onFieldFocus?.(null),
+  });
+
   const onEnter = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && ready && !busy) void submit();
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-2.5">
       <label className="block">
-        <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">Full name</span>
+        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">Full name</span>
         <input
           autoFocus={autoFocus}
           type="text"
           autoComplete="name"
           placeholder="Your name"
+          {...focusProps("name")}
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={onEnter}
@@ -121,20 +161,26 @@ export function SignupForm({
       </label>
 
       <label className="block">
-        <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">Email</span>
+        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">Email</span>
         <input
           type="email"
           autoComplete="email"
           placeholder="you@company.com"
+          {...focusProps("email")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           onKeyDown={onEnter}
           className={inputClass}
         />
+        {emailBad && (
+          <span className="mt-1 block text-[12px] text-red-600">
+            Enter a valid email address.
+          </span>
+        )}
       </label>
 
       <div className="block">
-        <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">Mobile number</span>
+        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">Mobile number</span>
         <div className="flex items-stretch gap-2">
           {/* The same searchable dial picker the quote modal and the old phone
               form use — one list of countries, one set of flags. */}
@@ -144,7 +190,7 @@ export function SignupForm({
               align="left"
               selected={country}
               onSelect={setCountry}
-              buttonClassName="!h-[46px] !rounded-xl !bg-white !border-slate-200"
+              buttonClassName="!h-[38px] !rounded-xl !bg-white !border-slate-200"
               menuClassName="!w-[15.5rem] [&_ul]:!max-h-56"
             />
           </div>
@@ -153,21 +199,31 @@ export function SignupForm({
             inputMode="numeric"
             autoComplete="tel-national"
             placeholder="98765 43210"
+            {...focusProps("phone")}
             value={phone}
+            // E.164 tops out at 15 digits; the field stops a little past that
+            // so a stuck key cannot produce a twenty-digit "number".
+            maxLength={18}
             onChange={(e) => setPhone(e.target.value.replace(/[^\d ]/g, ""))}
             onKeyDown={onEnter}
             className={inputClass}
           />
         </div>
+        {phoneBad && (
+          <span className="mt-1 block text-[12px] text-red-600">
+            Enter a valid mobile number for {country.name}.
+          </span>
+        )}
       </div>
 
       <label className="block">
-        <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">Password</span>
+        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">Password</span>
         <span className="relative block">
           <input
             type={show ? "text" : "password"}
             autoComplete="new-password"
             placeholder="At least 8 characters"
+          {...focusProps("secret")}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             onKeyDown={onEnter}
@@ -185,25 +241,26 @@ export function SignupForm({
         {/* Only once they have started typing: a rule stated under an empty
             box reads as an error before anything is wrong. */}
         {password !== "" && !strength.ok && (
-          <span className="mt-1.5 block text-[12px] text-amber-600">{strength.error}</span>
+          <span className="mt-1 block text-[12px] text-amber-600">{strength.error}</span>
         )}
       </label>
 
       <label className="block">
-        <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">
+        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">
           Confirm password
         </span>
         <input
           type={show ? "text" : "password"}
           autoComplete="new-password"
           placeholder="Type it again"
+          {...focusProps("secret")}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}
           onKeyDown={onEnter}
           className={inputClass}
         />
         {mismatch && (
-          <span className="mt-1.5 block text-[12px] text-red-600">
+          <span className="mt-1 block text-[12px] text-red-600">
             Both passwords must match.
           </span>
         )}
@@ -212,13 +269,13 @@ export function SignupForm({
       <button
         onClick={() => void submit()}
         disabled={busy || !ready || mismatch || !strength.ok}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-2.5 mt-0.5 text-sm font-semibold text-white transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
       >
         {busy && <Loader2 size={15} className="animate-spin" />}
         Create account
       </button>
 
-      <p className="pt-1 text-center text-[13px] text-slate-500">
+      <p className="text-center text-[13px] text-slate-500">
         Already have an account?{" "}
         <button
           type="button"
@@ -239,4 +296,4 @@ export function SignupForm({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20";
+  "w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20";
