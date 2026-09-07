@@ -12,7 +12,9 @@ import { ImageSearchButton } from "@/components/ui/ImageSearchButton";
 interface CatMatch { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
 interface ProdMatch { id: number; name: string; imageUrl: string | null; category: string | null }
 
-export function HeroSearchSection() {
+import { type CategoryRecord } from "@/lib/categoryTree";
+
+export function HeroSearchSection({ categories = [] }: { categories?: CategoryRecord[] }) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
@@ -32,19 +34,15 @@ export function HeroSearchSection() {
   useEffect(() => {
     const saved = localStorage.getItem("recentSearches");
     if (saved) { try { setRecentSearches(JSON.parse(saved)); } catch { } }
+    
     // Real popular categories (top by product count, with a thumbnail).
-    fetch("/api/categories")
-      .then(r => (r.ok ? r.json() : { data: [] }))
-      .then(d => {
-        const cats = (d.data || [])
-          .filter((c: CatMatch & { productCount: number }) => c.thumbnailUrl && c.productCount > 0)
-          .sort((a: { productCount: number }, b: { productCount: number }) => b.productCount - a.productCount)
-          .slice(0, 8)
-          .map((c: CatMatch) => ({ id: c.id, name: c.name, thumbnailUrl: c.thumbnailUrl }));
-        setPopularCats(cats);
-      })
-      .catch(() => { });
-  }, []);
+    const cats = categories
+      .filter((c) => c.thumbnailUrl && (c.productCount || 0) > 0)
+      .sort((a, b) => (b.productCount || 0) - (a.productCount || 0))
+      .slice(0, 8)
+      .map((c) => ({ id: String(c.id), name: c.name, thumbnailUrl: c.thumbnailUrl || null }));
+    setPopularCats(cats);
+  }, [categories]);
 
   // Live suggestions (debounced). Amazon/Flipkart-style: only from 2+ chars,
   // and stale in-flight requests are aborted so results never flicker.

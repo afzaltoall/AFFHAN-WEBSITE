@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { motion } from "framer-motion";
 
 /**
  * Affhan.com Brand Lockup (Alibaba.com style, pure clean branding - NO badge/pill box)
@@ -16,11 +15,9 @@ export function AffhanBrandBar() {
         className="group flex items-center gap-3 select-none transition-transform duration-200 hover:scale-[1.02]"
       >
         {/* 3D Affhan Orbital Emblem - Clean & Proudly Sized without badge container */}
-        <motion.div
+        <div
           aria-hidden="true"
-          className="relative flex shrink-0 items-center justify-center"
-          animate={{ y: [0, -2, 0] }}
-          transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+          className="relative flex shrink-0 items-center justify-center animate-float-small"
         >
           <Image
             src="/affhan-emblem.webp"
@@ -32,7 +29,7 @@ export function AffhanBrandBar() {
             priority
             className="h-11 w-auto object-contain drop-shadow-[0_2px_8px_rgba(23,101,121,0.22)] transition-transform duration-300 group-hover:scale-105"
           />
-        </motion.div>
+        </div>
 
         {/* Vertically Stacked Text Lockup - Perfect Optical Alignment */}
         <div className="flex flex-col justify-center text-left">

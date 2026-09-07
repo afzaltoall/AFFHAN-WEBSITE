@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Sparkles } from "lucide-react";
-import { CircularTestimonials } from "@/components/ui/circular-testimonials";
-import { InquiryModal } from "@/components/ui/InquiryModal";
+import dynamic from 'next/dynamic';
+const CircularTestimonials = dynamic(() => import("@/components/ui/circular-testimonials").then(mod => mod.CircularTestimonials), { ssr: true });
+const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then(mod => mod.InquiryModal), { ssr: false });
 import type { ProductCardData } from "@/components/ui/ProductCard";
 
 function sourcingBlurb(categoryName: string) {
@@ -16,16 +17,13 @@ function sourcingBlurb(categoryName: string) {
  * bottom of the home page, right before the footer. Clicking opens the quote
  * modal.
  */
-export function ProductSpotlightSection() {
-  const [products, setProducts] = useState<ProductCardData[]>([]);
+export function ProductSpotlightSection({ initialProducts = [] }: { initialProducts?: ProductCardData[] }) {
+  const [products, setProducts] = useState<ProductCardData[]>(() => 
+    initialProducts.filter((p: ProductCardData) => p.imageUrl)
+  );
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
-  useEffect(() => {
-    fetch("/api/products?limit=140")
-      .then((r) => r.json())
-      .then((d) => setProducts((d?.data || []).filter((p: ProductCardData) => p.imageUrl)))
-      .catch(() => {});
-  }, []);
+  // Initial products are fetched server-side; we no longer fetch on mount.
 
   // Take a LATER slice than the trending fan / orbit so the spotlight shows a
   // different set of products.

@@ -64,7 +64,7 @@ export function CategoryTile({
       >
         {name}
       </span>
-      {typeof count === "number" && <span className="text-[10px] text-slate-400 -mt-1">{count.toLocaleString()}</span>}
+      {typeof count === "number" && <span className="text-[10px] text-slate-400 -mt-1">{count.toLocaleString("en-US")}</span>}
     </button>
   );
 }

@@ -4,12 +4,13 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Star, ChevronRight } from "lucide-react";
-import { InquiryModal } from "@/components/ui/InquiryModal";
+import dynamic from 'next/dynamic';
+const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then(mod => mod.InquiryModal), { ssr: false });
 import { ProductCard, type ProductCardData } from "@/components/ui/ProductCard";
 import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
 import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
-import { TextMorph } from "@/components/ui/text-morph";
+import { TextMorph } from "@/components/ui/text-morph-wrapper";
 import { buildCategoryTree, getCategoryIcon, type CategoryRecord } from "@/lib/categoryTree";
 import { ShippingBar } from "@/components/ui/ShippingBar";
 import { AffhanBrandBar } from "@/components/ui/AffhanBrandBar";
@@ -26,11 +27,11 @@ function dedupeById<T extends { id: number | string }>(items: T[]): T[] {
   });
 }
 
-export function MarketplaceHeroSection() {
+export function MarketplaceHeroSection({ initialProducts = [], initialCategories = [] }: { initialProducts?: ProductCardData[], initialCategories?: CategoryRecord[] }) {
   const router = useRouter();
-  const [categories, setCategories] = useState<CategoryRecord[]>([]);
-  const [products, setProducts] = useState<ProductCardData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<CategoryRecord[]>(initialCategories);
+  const [products, setProducts] = useState<ProductCardData[]>(initialProducts.slice(0, 61));
+  const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const loadMoreLock = useRef(false);
@@ -63,49 +64,10 @@ export function MarketplaceHeroSection() {
   // Modal state
   const [selectedProduct, setSelectedProduct] = useState<ProductCardData | null>(null);
 
-  // Fetch Categories
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch("/api/categories", { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          setCategories(json.data || []);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchCategories();
-  }, []);
+  // Initial data is provided via props from the server component.
+  // We no longer fetch categories or initial products on mount.
 
   const topLevelCategories = useMemo(() => buildCategoryTree(categories), [categories]);
-
-  // Fetch the diverse product mix once.
-  useEffect(() => {
-    const fetchProducts = async () => {
-      const seq = ++requestSeq.current;
-      try {
-        setLoading(true);
-        // A fixed, modest set — no infinite scroll on the homepage. The old
-        // load-more kept appending up to ~200 products as you scrolled, which
-        // continually grew the page and pushed the Trending section away. A
-        // stable set keeps the page height fixed and Trending reachable.
-        const res = await fetch(`/api/products?limit=61`);
-        if (res.ok) {
-          const json = await res.json();
-          if (seq !== requestSeq.current) return;
-          setProducts(dedupeById(json.data || []));
-          setHasMore(false);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (seq === requestSeq.current) setLoading(false);
-      }
-    };
-    fetchProducts();
-  }, []);
 
   // Infinite Scroll Handler
   useEffect(() => {
@@ -428,7 +390,7 @@ export function MarketplaceHeroSection() {
         </div>
 
         {/* Large Hero Search Section */}
-        <HeroSearchSection />
+        <HeroSearchSection categories={categories} />
 
         {/* CSS Grid Auto-flow Container */}
         <div className="hidden lg:grid lg:grid-cols-6 gap-4 xl:gap-5 pb-8 relative">
@@ -505,7 +467,7 @@ export function MarketplaceHeroSection() {
           ) : (
             displayProducts.map((product, idx) => (
               <div key={product.id} className="col-span-1 flex items-start">
-                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx < 12} />
+                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} />
               </div>
             ))
           )}
@@ -536,7 +498,7 @@ export function MarketplaceHeroSection() {
             ) : (
               displayProducts.map((product, idx) => (
                 <div key={product.id} className="col-span-1">
-                  <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx < 6} />
+                  <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} />
                 </div>
               ))
             )}

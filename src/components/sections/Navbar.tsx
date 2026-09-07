@@ -14,7 +14,7 @@ const TopRankingIcon = ({ size, className }: { size?: number, className?: string
 import { AnimatePresence, motion } from "framer-motion";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import dynamic from 'next/dynamic';
-const CategoryMegaPanel = dynamic(() => import("@/components/ui/CategoryMegaPanel").then(mod => mod.CategoryMegaPanel), { ssr: true });
+const CategoryMegaPanel = dynamic(() => import("@/components/ui/CategoryMegaPanel").then(mod => mod.CategoryMegaPanel), { ssr: false });
 import { getCdnUrl } from "@/lib/cdn";
 import { AuthButtonPlaceholder } from "@/components/ui/NavAuthButton";
 
@@ -60,24 +60,31 @@ export function Navbar() {
   // Categories Data
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [categoriesFetched, setCategoriesFetched] = useState(false);
 
 
   // Fetch Categories for Mega Menu
   useEffect(() => {
+    if (!isCategoryMenuOpen && !categoriesFetched) return;
+    if (categoriesFetched) return;
+
+    let isMounted = true;
     const fetchCategories = async () => {
       try {
         const res = await fetch("/api/categories", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch categories");
         const json = await res.json();
-        setCategories(json.data || []);
+        if (isMounted) setCategories(json.data || []);
       } catch (err) {
         console.error(err);
       } finally {
-        setLoadingCategories(false);
+        if (isMounted) setLoadingCategories(false);
       }
     };
+    setCategoriesFetched(true);
     fetchCategories();
-  }, []);
+    return () => { isMounted = false; };
+  }, [isCategoryMenuOpen, categoriesFetched]);
 
   // Shared tree builder: prunes any branch (at any depth) with zero products
   // anywhere underneath it — same function the homepage sidebar and catalog

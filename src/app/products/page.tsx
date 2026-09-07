@@ -16,6 +16,10 @@ import { getCategoryMeta } from "@/lib/categoryMeta";
  * migration with redirects, not a metadata fix.
  */
 
+import { GET as getProducts } from "@/app/api/products/route";
+import { GET as getCategories } from "@/app/api/categories/route";
+import { headers } from "next/headers";
+
 const SITE = "https://affhan.com";
 
 export async function generateMetadata({
@@ -71,6 +75,38 @@ export default async function ProductsPage({
   const categoryId = Array.isArray(raw) ? raw[0] : raw;
   const category = await getCategoryMeta(categoryId);
 
+  // Also prefetch for ProductsCatalogue
+  const q = params.q ? (Array.isArray(params.q) ? params.q[0] : params.q) : "";
+  const sortBy = params.sortBy ? (Array.isArray(params.sortBy) ? params.sortBy[0] : params.sortBy) : "alpha";
+  const pageStr = params.page ? (Array.isArray(params.page) ? params.page[0] : params.page) : "1";
+
+  const headersList = await headers();
+  const host = headersList.get("host") || "localhost";
+  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
+  const baseUrl = `${protocol}://${host}`;
+
+  const queryParams = new URLSearchParams();
+  if (q) queryParams.append("q", q);
+  if (categoryId) queryParams.append("categoryId", categoryId);
+  if (sortBy) queryParams.append("sortBy", sortBy);
+  queryParams.append("page", pageStr);
+  queryParams.append("limit", "96"); // PAGE_SIZE in catalogue
+  const isDefaultView = !q && !categoryId;
+  if (q || isDefaultView) queryParams.append("getChips", "true");
+
+  const [categoriesRes, productsRes] = await Promise.all([
+    getCategories(),
+    getProducts(new Request(`${baseUrl}/api/products?${queryParams.toString()}`))
+  ]);
+
+  const categoriesJson = await categoriesRes.json();
+  const productsJson = await productsRes.json();
+
+  const initialCategories = categoriesJson.data || [];
+  const initialProducts = productsJson.data || [];
+  const initialFacets = productsJson.facets || [];
+  const initialPagination = productsJson.pagination || { total: 0, totalPages: 1, totalCapped: false };
+
   // Mirrors the breadcrumb the page already draws above the grid, which is
   // what BreadcrumbList is for — markup that agrees with what the visitor
   // sees, not a second, invented hierarchy.
@@ -97,7 +133,12 @@ export default async function ProductsPage({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
         />
       )}
-      <ProductsCatalogue />
+      <ProductsCatalogue 
+         initialProducts={initialProducts} 
+         initialCategories={initialCategories}
+         initialFacets={initialFacets}
+         initialPagination={initialPagination}
+      />
     </>
   );
 }

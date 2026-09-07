@@ -165,19 +165,24 @@ function useUrlParams() {
   return new URLSearchParams(search);
 }
 
-export function ProductsCatalogue() {
+export function ProductsCatalogue({
+  initialProducts = [],
+  initialCategories = [],
+  initialFacets = [],
+  initialPagination = { total: 0, totalPages: 1, totalCapped: false }
+}: {
+  initialProducts?: ProductCardData[];
+  initialCategories?: CategoryRecord[];
+  initialFacets?: FacetChip[];
+  initialPagination?: { total: number; totalPages: number; totalCapped: boolean };
+}) {
   const router = useRouter();
-  // The opening scroll-hero is gated behind this. It stays false through the
-  // server render AND the first client render, so a fresh mount at
-  // /products?categoryId=X (navigating in from another page, or a reload) never
-  // paints the hero before the category view — which is exactly the "1 second
-  // hero flash". It also keeps SSR and hydration identical (no hero either side).
   const [mounted, setMounted] = useState(false);
-  const [products, setProducts] = useState<ProductCardData[]>([]);
-  const [categories, setCategories] = useState<CategoryRecord[]>([]);
-  const [facets, setFacets] = useState<FacetChip[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [totalCapped, setTotalCapped] = useState<boolean>(false);
+  const [products, setProducts] = useState<ProductCardData[]>(initialProducts);
+  const [categories, setCategories] = useState<CategoryRecord[]>(initialCategories);
+  const [facets, setFacets] = useState<FacetChip[]>(initialFacets);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [totalCapped, setTotalCapped] = useState<boolean>(initialPagination.totalCapped);
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -186,8 +191,8 @@ export function ProductsCatalogue() {
   const [sortBy, setSortBy] = useState("alpha");
 
   const [page, setPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [totalProductCount, setTotalProductCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(initialPagination.totalPages);
+  const [totalProductCount, setTotalProductCount] = useState<number>(initialPagination.total);
   const [error, setError] = useState<string | null>(null);
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
@@ -226,22 +231,7 @@ export function ProductsCatalogue() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [spString]);
 
-  // Fetch categories (one time) — used to expand a category to its
-  // descendant ids and to name the "Browsing Category" badge.
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch("/api/categories", { cache: "no-store" });
-        if (res.ok) {
-          const json = await res.json();
-          setCategories(json.data || []);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
-    fetchCategories();
-  }, []);
+  // Categories are now provided via initialCategories props from the server component.
 
   // Debounce search — skip the first run so a deep-linked ?q= isn't stomped.
   const isInitialRender = useRef(true);
@@ -404,7 +394,12 @@ export function ProductsCatalogue() {
     }
   };
 
+  const isInitialFetch = useRef(true);
   useEffect(() => {
+    if (isInitialFetch.current) {
+      isInitialFetch.current = false;
+      return;
+    }
     setPage(1);
     fetchProducts(debouncedQuery, activeCategoryIdsParam, sortBy, 1);
   }, [debouncedQuery, activeCategoryIdsParam, sortBy]);
@@ -480,7 +475,7 @@ export function ProductsCatalogue() {
                   &ldquo;{debouncedQuery}&rdquo;
                 </h1>
                 <p className="text-slate-500 mt-2 tabular-nums min-h-[3rem] sm:min-h-[1.5rem]">
-                  {totalCapped ? `${totalProductCount.toLocaleString()}+` : totalProductCount.toLocaleString()} matching products
+                  {totalCapped ? `${totalProductCount.toLocaleString("en-US")}+` : totalProductCount.toLocaleString("en-US")} matching products
                 </p>
               </>
             ) : (
@@ -492,7 +487,7 @@ export function ProductsCatalogue() {
                     following words still. min-h reserves the wrapped height so a
                     shorter count collapsing the line never drags the page up. */}
                 <p className="text-slate-500 mt-2 tabular-nums min-h-[3rem] sm:min-h-[1.5rem]">
-                  {totalProductCount.toLocaleString()} products from across our global sourcing network
+                  {totalProductCount.toLocaleString("en-US")} products from across our global sourcing network
                 </p>
               </>
             )}
@@ -545,7 +540,7 @@ export function ProductsCatalogue() {
                   >
                     <span>{f.name}</span>
                     <span className={`text-[11px] font-bold ${activeCategoryId === f.id ? "text-white/80" : "text-slate-400"}`}>
-                      {f.count.toLocaleString()}
+                      {f.count.toLocaleString("en-US")}
                     </span>
                   </button>
                 ))}
@@ -710,7 +705,7 @@ export function ProductsCatalogue() {
                     </span>
                   )}
                 </div>
-                <span className="text-xs font-medium text-slate-400">of {totalPages.toLocaleString()} pages</span>
+                <span className="text-xs font-medium text-slate-400">of {totalPages.toLocaleString("en-US")} pages</span>
               </div>
             )}
 

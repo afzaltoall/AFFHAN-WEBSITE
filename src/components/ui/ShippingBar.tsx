@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { motion } from "framer-motion";
+
 
 /**
  * The way through to the shipping side, sitting on the hero's badge line.
@@ -121,12 +121,9 @@ export function ShippingBar() {
           <span className="ship-wave ship-wave--front" />
         </span>
 
-        <motion.span
+        <span
           aria-hidden="true"
-          className="relative flex shrink-0 items-center"
-          // The same slow lift the mark had in the navbar.
-          animate={{ y: [0, -3, 0] }}
-          transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+          className="relative flex shrink-0 items-center animate-float-medium"
         >
           <Image
             src="/affhan-ship-nav.webp"
@@ -136,7 +133,7 @@ export function ShippingBar() {
             sizes="40px"
             className="block h-10 w-auto object-contain"
           />
-        </motion.span>
+        </span >
 
         {/* The name on its own. A one-line label sits on the pill's optical
             centre, which a stacked pair did not — so the type goes up a step

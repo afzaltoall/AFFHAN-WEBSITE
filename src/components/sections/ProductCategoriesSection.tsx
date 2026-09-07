@@ -39,27 +39,17 @@ function CategoryTile({ cat }: { cat: Cat }) {
           {cat.name}
         </h3>
         <p className="text-[11px] font-semibold text-slate-400 mt-1">
-          {cat.productCount.toLocaleString()} products
+          {cat.productCount.toLocaleString("en-US")} products
         </p>
       </div>
     </Link>
   );
 }
 
-export function ProductCategoriesSection() {
-  const [categories, setCategories] = useState<Cat[]>([]);
+export function ProductCategoriesSection({ initialCategories = [] }: { initialCategories?: Cat[] }) {
+  const [categories, setCategories] = useState<Cat[]>(initialCategories || []);
 
-  useEffect(() => {
-    fetch("/api/categories")
-      .then((res) => res.json())
-      .then((data) => {
-        const cats: Cat[] = (data.data || [])
-          .filter((c: Cat) => c.thumbnailUrl && c.productCount > 0)
-          .sort((a: Cat, b: Cat) => b.productCount - a.productCount);
-        setCategories(cats);
-      })
-      .catch((err) => console.error(err));
-  }, []);
+  // Initial categories are fetched server-side; we no longer fetch on mount.
 
   return (
     <section id="product-categories" className="w-full bg-white py-14 sm:py-20 px-4 sm:px-6 lg:px-8">

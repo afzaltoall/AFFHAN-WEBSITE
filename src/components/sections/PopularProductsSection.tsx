@@ -3,23 +3,18 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { ChevronRight, Flame } from "lucide-react";
-import { InquiryModal } from "@/components/ui/InquiryModal";
-import { TextMorph } from "@/components/ui/text-morph";
-import SocialCards, { type CardItem } from "@/components/ui/card-fan-carousel";
+import dynamic from 'next/dynamic';
+const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then(mod => mod.InquiryModal), { ssr: false });
+import { TextMorph } from "@/components/ui/text-morph-wrapper";
+const SocialCards = dynamic(() => import("@/components/ui/card-fan-carousel"), { ssr: true });
+import type { CardItem } from "@/components/ui/card-fan-carousel";
 import type { ProductCardData } from "@/components/ui/ProductCard";
 
-export function PopularProductsSection() {
-  const [products, setProducts] = useState<ProductCardData[]>([]);
+export function PopularProductsSection({ initialProducts = [] }: { initialProducts?: ProductCardData[] }) {
+  const [products, setProducts] = useState<ProductCardData[]>(initialProducts);
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
-  useEffect(() => {
-    fetch("/api/products?limit=140")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data?.data) setProducts(data.data);
-      })
-      .catch((err) => console.error(err));
-  }, []);
+  // Initial products are fetched server-side; we no longer fetch on mount.
 
   // Build fan cards from real catalog products. The homepage hero grid renders
   // the FIRST slice of this same feed, so Trending deliberately takes a LATER
