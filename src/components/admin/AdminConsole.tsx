@@ -575,35 +575,28 @@ export function AdminConsole({ data }: Props) {
   // trash list is the soft-deleted messages.
   const contactMatch = (c: ContactMessage, term: string) =>
     !term || `${c.fullName} ${c.companyName || ""} ${c.country} ${c.phone} ${c.email} ${c.message}`.toLowerCase().includes(term.toLowerCase());
-  const contactCompanies = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const c of contactItems) {
-      if (c.companyName && c.companyName.trim() !== "") {
-        counts.set(c.companyName, (counts.get(c.companyName) || 0) + 1);
-      }
-    }
-    return Array.from(counts.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+  
+  const contactHasCompanyCount = useMemo(() => {
+    return contactItems.filter(c => c.companyName && c.companyName.trim() !== "").length;
   }, [contactItems]);
 
   const contactActive = useMemo(
     () => contactItems.filter((c) =>
       (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) &&
-      (contactCompanyFilter === "all" || c.companyName === contactCompanyFilter) &&
+      (contactCompanyFilter === "all" || (contactCompanyFilter === "has_company" && c.companyName && c.companyName.trim() !== "")) &&
       contactMatch(c, contactQ)
     ),
     [contactItems, contactQ, contactStatusFilter, contactCompanyFilter]
   );
   const contactTrash = useMemo(
     () => contactDeleted.filter((c) =>
-      (contactCompanyFilter === "all" || c.companyName === contactCompanyFilter) &&
+      (contactCompanyFilter === "all" || (contactCompanyFilter === "has_company" && c.companyName && c.companyName.trim() !== "")) &&
       contactMatch(c, contactQ)
     ),
     [contactDeleted, contactQ, contactCompanyFilter]
   );
   const contactStatusCounts = useMemo(() => {
-    const matchingCompany = contactCompanyFilter === "all" ? contactItems : contactItems.filter(c => c.companyName === contactCompanyFilter);
+    const matchingCompany = contactCompanyFilter === "all" ? contactItems : contactItems.filter(c => c.companyName && c.companyName.trim() !== "");
     const c = { all: matchingCompany.length, new: 0, handled: 0, spam: 0 };
     matchingCompany.forEach((m) => { c[asStatus(m.status)]++; });
     return c;
@@ -659,7 +652,7 @@ export function AdminConsole({ data }: Props) {
   const newCareerCount = careerStatusCounts.new;
 
   // Export contacts to .xlsx (respects current tab, search, and any selection).
-  const exportContacts = async () => {
+  const exportContactsExcel = async () => {
     const XLSX = await import("xlsx");
     const base = contactList;
     const src = contactSelected.size > 0 ? base.filter((c) => contactSelected.has(c.id)) : base;
@@ -673,6 +666,58 @@ export function AdminConsole({ data }: Props) {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, file.slice(0, 31));
     XLSX.writeFile(wb, `${file}-${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
+  const exportContactsPDF = () => {
+    const base = contactList;
+    const src = contactSelected.size > 0 ? base.filter((c) => contactSelected.has(c.id)) : base;
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head>
+          <title>Contact Messages</title>
+          <style>
+            body { font-family: sans-serif; }
+            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+            th, td { border: 1px solid #ccc; padding: 8px; text-align: left; font-size: 12px; }
+            th { background: #f4f4f5; }
+            h2 { margin: 0 0 10px 0; font-size: 18px; }
+          </style>
+        </head>
+        <body>
+          <h2>Contact Messages</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Company</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${src.map(c => `
+                <tr>
+                  <td>${fmtDate(c.createdAt)}</td>
+                  <td>${c.fullName}</td>
+                  <td>${c.companyName || ""}</td>
+                  <td>${c.email}</td>
+                  <td>${c.phone}</td>
+                  <td>${c.message}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+          <script>
+            window.onload = () => { window.print(); window.close(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   // Split a stored phone ("+91 7810012345" or bare digits) into a separate
@@ -1043,17 +1088,23 @@ export function AdminConsole({ data }: Props) {
               setStatusFilter={setContactStatusFilter}
               companyFilter={contactCompanyFilter}
               setCompanyFilter={setContactCompanyFilter}
-              companies={contactCompanies}
+              hasCompanyCount={contactHasCompanyCount}
               allCompanyCount={contactItems.length}
               statusCounts={contactStatusCounts}
               list={contactList}
               selected={contactSelected}
-              toggleSelect={toggleContactSelect}
+              toggleSelect={(id) => {
+                const ns = new Set(contactSelected);
+                if (ns.has(id)) ns.delete(id);
+                else ns.add(id);
+                setContactSelected(ns);
+              }}
               allSelected={contactAllSelected}
               toggleSelectAll={toggleContactSelectAll}
               busy={contactBusy}
               onOpen={setActiveContact}
-              onExport={exportContacts}
+              onExportExcel={exportContactsExcel}
+              onExportPDF={exportContactsPDF}
               onSetStatus={setContactStatus}
               onDelete={deleteContact}
               onRestore={restoreContact}
@@ -2110,7 +2161,7 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
  */
 function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
-  companyFilter, setCompanyFilter, companies, allCompanyCount,
+  companyFilter, setCompanyFilter, hasCompanyCount, allCompanyCount,
   viewSection, extraActive = false, summarySuffix = "", onClear,
 }: {
   t: Theme;
@@ -2119,7 +2170,7 @@ function FilterMenu({
   statusCounts: { all: number; new: number; handled: number; spam: number };
   companyFilter?: string;
   setCompanyFilter?: (v: string) => void;
-  companies?: Array<{ name: string; count: number }>;
+  hasCompanyCount?: number;
   allCompanyCount?: number;
   /** Optional rows under a "View" heading — grouping, on the inquiries list. */
   viewSection?: React.ReactNode;
@@ -2185,11 +2236,11 @@ function FilterMenu({
             );
           })}
 
-          {companies && setCompanyFilter && companies.length > 0 && (
+          {hasCompanyCount !== undefined && setCompanyFilter && hasCompanyCount > 0 && (
             <>
               <div className={`my-1.5 border-t ${t.border}`} />
               <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Company</p>
-              <div className="max-h-52 overflow-y-auto space-y-0.5">
+              <div className="space-y-0.5">
                 <button
                   role="menuitemradio"
                   aria-checked={companyFilter === "all"}
@@ -2201,23 +2252,17 @@ function FilterMenu({
                   <span className={`text-[12px] font-bold tabular-nums ${companyFilter === "all" ? "text-brand-dark" : t.soft}`}>{allCompanyCount ?? 0}</span>
                   {companyFilter === "all" && <Check className="h-3.5 w-3.5 shrink-0" />}
                 </button>
-                {companies.map((c) => {
-                  const on = companyFilter === c.name;
-                  return (
-                    <button
-                      key={c.name}
-                      role="menuitemradio"
-                      aria-checked={on}
-                      onClick={() => { setCompanyFilter(on ? "all" : c.name); setOpen(false); }}
-                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                    >
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : "bg-transparent"}`} />
-                      <span className="flex-1 truncate">{c.name}</span>
-                      <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{c.count}</span>
-                      {on && <Check className="h-3.5 w-3.5 shrink-0" />}
-                    </button>
-                  );
-                })}
+                <button
+                  role="menuitemradio"
+                  aria-checked={companyFilter === "has_company"}
+                  onClick={() => { setCompanyFilter("has_company"); setOpen(false); }}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${companyFilter === "has_company" ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${companyFilter === "has_company" ? "bg-brand" : "bg-transparent"}`} />
+                  <span className="flex-1">Provided Company</span>
+                  <span className={`text-[12px] font-bold tabular-nums ${companyFilter === "has_company" ? "text-brand-dark" : t.soft}`}>{hasCompanyCount}</span>
+                  {companyFilter === "has_company" && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </button>
               </div>
             </>
           )}
@@ -2251,8 +2296,8 @@ function FilterMenu({
 // search / triage / soft-delete UX as inquiries, minus the product bits.
 function ContactsSection({
   t, tab, setTab, q, setQ, statusFilter, setStatusFilter, statusCounts, list,
-  companyFilter, setCompanyFilter, companies, allCompanyCount,
-  selected, toggleSelect, allSelected, toggleSelectAll, busy, onOpen, onExport,
+  companyFilter, setCompanyFilter, hasCompanyCount, allCompanyCount,
+  selected, toggleSelect, allSelected, toggleSelectAll, busy, onOpen, onExportExcel, onExportPDF,
   onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
   onRestoreSelected, onPurgeSelected,
 }: {
@@ -2260,11 +2305,11 @@ function ContactsSection({
   q: string; setQ: (v: string) => void;
   statusFilter: "all" | Status; setStatusFilter: (v: "all" | Status) => void;
   companyFilter: string; setCompanyFilter: (v: string) => void;
-  companies: Array<{ name: string; count: number }>; allCompanyCount: number;
+  hasCompanyCount: number; allCompanyCount: number;
   statusCounts: { all: number; new: number; handled: number; spam: number };
   list: ContactMessage[]; selected: Set<string>; toggleSelect: (id: string) => void;
   allSelected: boolean; toggleSelectAll: () => void; busy: boolean;
-  onOpen: (c: ContactMessage) => void; onExport: () => void;
+  onOpen: (c: ContactMessage) => void; onExportExcel: () => void; onExportPDF: () => void;
   onSetStatus: (id: string, s: Status) => void; onDelete: (id: string) => void;
   onRestore: (id: string) => void; onPurge: (id: string) => void;
   onStatusSelected: (s: Status) => void; onDeleteSelected: () => void;
@@ -2304,14 +2349,19 @@ function ContactsSection({
             statusCounts={statusCounts}
             companyFilter={companyFilter}
             setCompanyFilter={setCompanyFilter}
-            companies={companies}
+            hasCompanyCount={hasCompanyCount}
             allCompanyCount={allCompanyCount}
             onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); }}
           />
         )}
-        <button onClick={onExport} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export all"} className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black ${tab === "active" ? "" : "sm:ml-auto"}`}>
-          <Download size={15} /> Export{selected.size > 0 ? ` (${selected.size})` : ""}
-        </button>
+        <div className={`flex items-center gap-2 ${tab === "active" ? "" : "sm:ml-auto"}`}>
+          <button onClick={onExportExcel} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export all to Excel"} className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black`}>
+            <Download size={14} /> Excel
+          </button>
+          <button onClick={onExportPDF} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export all to PDF"} className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black`}>
+            <Download size={14} /> PDF
+          </button>
+        </div>
       </div>
 
       {/* Selection + bulk-action bar. */}
