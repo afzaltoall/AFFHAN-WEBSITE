@@ -48,9 +48,10 @@ export function CategoryTile({
           <Image
             src={getCdnUrl(thumbnailUrl, 100) as string}
             alt={name}
-            fill
+            width={100}
+            height={100}
             sizes="72px"
-            className="object-cover group-hover:scale-110 transition-transform duration-500"
+            className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
             onError={() => setFailed(true)}
           />
         ) : (

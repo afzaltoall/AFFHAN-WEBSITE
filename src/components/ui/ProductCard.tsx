@@ -61,11 +61,12 @@ export function ProductCard({ product, onClick, priority }: ProductCardProps) {
             <Image
               src={getCdnUrl(product.imageUrl, 400) as string}
               alt={product.name}
-              fill
+              width={400}
+              height={400}
               priority={priority}
               loading={priority ? undefined : "lazy"}
               sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, (max-width: 1536px) 20vw, 16vw"
-              className={`object-cover group-hover:scale-[1.07] transition-all duration-500 ease-out ${imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"}`}
+              className={`absolute inset-0 w-full h-full object-cover group-hover:scale-[1.07] transition-all duration-500 ease-out ${priority || imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"}`}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageFailed(true)}
             />

@@ -1,14 +1,19 @@
 export function getCdnUrl(url: string | null | undefined, width?: number): string | null {
   if (!url) return null;
 
+  let processedUrl = url;
+  if (processedUrl.startsWith("http://")) {
+    processedUrl = processedUrl.replace(/^http:\/\//i, "https://");
+  }
+
   const rawCdnDomain = process.env.NEXT_PUBLIC_CDN_URL;
   const imageHandlerDomain = process.env.NEXT_PUBLIC_IMAGE_HANDLER_URL;
   const s3Domain = "affan-product-images.s3.ap-south-1.amazonaws.com";
 
-  if (url.includes(s3Domain)) {
+  if (processedUrl.includes(s3Domain)) {
     // If a width is requested and the handler is configured, use Serverless Image Handler
     if (width && imageHandlerDomain) {
-      const s3Key = url.split(`${s3Domain}/`)[1];
+      const s3Key = processedUrl.split(`${s3Domain}/`)[1];
       const requestParams = {
         bucket: "affan-product-images",
         key: s3Key,
@@ -27,9 +32,19 @@ export function getCdnUrl(url: string | null | undefined, width?: number): strin
     // Fallback: Raw CloudFront URL
     if (rawCdnDomain) {
       const cleanCdnDomain = rawCdnDomain.replace(/\/$/, "");
-      return url.replace(`https://${s3Domain}`, cleanCdnDomain);
+      return processedUrl.replace(`https://${s3Domain}`, cleanCdnDomain);
+    }
+    
+    return processedUrl;
+  }
+
+  // Enforce scale sizing for external CJ Dropshipping / Alibaba OSS domains
+  if (width && (processedUrl.includes("cjdropshipping.com") || processedUrl.includes("aliyuncs.com"))) {
+    if (!processedUrl.includes("x-oss-process")) {
+      const separator = processedUrl.includes("?") ? "&" : "?";
+      processedUrl = `${processedUrl}${separator}x-oss-process=image/resize,w_${width}`;
     }
   }
 
-  return url;
+  return processedUrl;
 }

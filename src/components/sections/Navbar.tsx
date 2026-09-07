@@ -60,13 +60,12 @@ export function Navbar() {
   // Categories Data
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
-  const [categoriesFetched, setCategoriesFetched] = useState(false);
-
+  const categoriesFetched = useRef(false);
 
   // Fetch Categories for Mega Menu
   useEffect(() => {
-    if (!isCategoryMenuOpen && !categoriesFetched) return;
-    if (categoriesFetched) return;
+    if (!isCategoryMenuOpen || categoriesFetched.current) return;
+    categoriesFetched.current = true;
 
     let isMounted = true;
     const fetchCategories = async () => {
@@ -81,10 +80,9 @@ export function Navbar() {
         if (isMounted) setLoadingCategories(false);
       }
     };
-    setCategoriesFetched(true);
     fetchCategories();
     return () => { isMounted = false; };
-  }, [isCategoryMenuOpen, categoriesFetched]);
+  }, [isCategoryMenuOpen]);
 
   // Shared tree builder: prunes any branch (at any depth) with zero products
   // anywhere underneath it — same function the homepage sidebar and catalog
@@ -252,7 +250,7 @@ export function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center flex-shrink-0 z-10 mr-4">
               <div className="relative w-12 h-12 lg:w-14 lg:h-14">
-                <Image src="/logo.png" alt="Affhan Group Logo" fill priority fetchPriority="high" className="object-contain" />
+                <Image src="/logo.png" alt="Affhan Group Logo" width={140} height={140} priority fetchPriority="high" className="w-full h-full object-contain" />
               </div>
             </Link>
 
@@ -366,7 +364,7 @@ export function Navbar() {
                                 className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors cursor-pointer"
                               >
                                 <span className="relative w-9 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center">
-                                  {c.thumbnailUrl ? <Image src={getCdnUrl(c.thumbnailUrl, 50) as string} alt={c.name} fill sizes="36px" className="object-cover" /> : <Layers size={16} className="text-slate-400" />}
+                                  {c.thumbnailUrl ? <Image src={getCdnUrl(c.thumbnailUrl, 50) as string} alt={c.name} width={40} height={40} sizes="36px" className="w-full h-full object-cover" /> : <Layers size={16} className="text-slate-400" />}
                                 </span>
                                 <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 min-w-0">
                                   <Layers size={13} className="text-brand shrink-0" />
@@ -389,7 +387,7 @@ export function Navbar() {
                               >
                                 <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center">
                                   {product.imageUrl ? (
-                                    <Image src={getCdnUrl(product.imageUrl, 100) as string} alt={product.name} fill sizes="40px" className="object-cover" />
+                                    <Image src={getCdnUrl(product.imageUrl, 100) as string} alt={product.name} width={40} height={40} sizes="40px" className="w-full h-full object-cover" />
                                   ) : (
                                     <span className="text-[10px] text-slate-400">No Img</span>
                                   )}

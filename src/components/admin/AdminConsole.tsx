@@ -152,6 +152,7 @@ export function AdminConsole({ data }: Props) {
   const [view, setView] = useState<View>("all");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  const [inquiryCompanyFilter, setInquiryCompanyFilter] = useState<string>("all");
   /**
    * Which stage of the customer-facing lifecycle the list is narrowed to.
    *
@@ -189,7 +190,7 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
-  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, q]);
+  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, q, inquiryCompanyFilter]);
 
   // The drawer closes itself when a view is chosen, and Escape closes it too.
   useEffect(() => setMenuOpen(false), [view]);
@@ -502,9 +503,19 @@ export function AdminConsole({ data }: Props) {
         qty: "bg-brand/10 text-brand-dark", overlay: "bg-slate-900/50", modal: "bg-white text-[#1d1d1f] ring-black/[0.06]",
       };
 
+  const inquiryCompanies = useMemo(() => {
+    const counts = new Map<string, number>();
+    items.forEach(i => {
+      const cName = i.companyName?.trim();
+      if (cName) counts.set(cName, (counts.get(cName) || 0) + 1);
+    });
+    return Array.from(counts.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [items]);
+
   const inquiries = useMemo(
     () => items.filter((i) =>
       (statusFilter === "all" || asStatus(i.status) === statusFilter) &&
+      (inquiryCompanyFilter === "all" || i.companyName?.trim() === inquiryCompanyFilter) &&
       // Narrowed to one stage of the customer-facing lifecycle, when a chip in
       // the signed-in strip has been clicked. Anonymous rows are excluded
       // outright: they have no account, so they are in no stage at all.
@@ -512,7 +523,7 @@ export function AdminConsole({ data }: Props) {
         (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
       (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
     ),
-    [items, q, statusFilter, customerStageFilter]
+    [items, q, statusFilter, customerStageFilter, inquiryCompanyFilter]
   );
   const statusCounts = useMemo(() => {
     const c = { all: items.length, new: 0, handled: 0, spam: 0 };
@@ -576,29 +587,34 @@ export function AdminConsole({ data }: Props) {
   const contactMatch = (c: ContactMessage, term: string) =>
     !term || `${c.fullName} ${c.companyName || ""} ${c.country} ${c.phone} ${c.email} ${c.message}`.toLowerCase().includes(term.toLowerCase());
   
-  const contactHasCompanyCount = useMemo(() => {
-    return contactItems.filter(c => c.companyName && c.companyName.trim() !== "").length;
+  const contactCompanies = useMemo(() => {
+    const counts = new Map<string, number>();
+    contactItems.forEach(c => {
+      const cName = c.companyName?.trim();
+      if (cName) counts.set(cName, (counts.get(cName) || 0) + 1);
+    });
+    return Array.from(counts.entries()).map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
   }, [contactItems]);
 
   const contactActive = useMemo(
     () => contactItems.filter((c) =>
       (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) &&
-      (contactCompanyFilter === "all" || (contactCompanyFilter === "has_company" && c.companyName && c.companyName.trim() !== "")) &&
+      (contactCompanyFilter === "all" || c.companyName?.trim() === contactCompanyFilter) &&
       contactMatch(c, contactQ)
     ),
     [contactItems, contactQ, contactStatusFilter, contactCompanyFilter]
   );
   const contactTrash = useMemo(
     () => contactDeleted.filter((c) =>
-      (contactCompanyFilter === "all" || (contactCompanyFilter === "has_company" && c.companyName && c.companyName.trim() !== "")) &&
+      (contactCompanyFilter === "all" || c.companyName?.trim() === contactCompanyFilter) &&
       contactMatch(c, contactQ)
     ),
     [contactDeleted, contactQ, contactCompanyFilter]
   );
   const contactStatusCounts = useMemo(() => {
-    const matchingCompany = contactCompanyFilter === "all" ? contactItems : contactItems.filter(c => c.companyName && c.companyName.trim() !== "");
+    const matchingCompany = contactCompanyFilter === "all" ? contactItems : contactItems.filter(c => c.companyName?.trim() === contactCompanyFilter);
     const c = { all: matchingCompany.length, new: 0, handled: 0, spam: 0 };
-    matchingCompany.forEach((m) => { c[asStatus(m.status)]++; });
+    matchingCompany.forEach((cItem) => { c[asStatus(cItem.status)]++; });
     return c;
   }, [contactItems, contactCompanyFilter]);
   const contactList = contactTab === "trash" ? contactTrash : contactActive;
@@ -1088,8 +1104,7 @@ export function AdminConsole({ data }: Props) {
               setStatusFilter={setContactStatusFilter}
               companyFilter={contactCompanyFilter}
               setCompanyFilter={setContactCompanyFilter}
-              hasCompanyCount={contactHasCompanyCount}
-              allCompanyCount={contactItems.length}
+              companies={contactCompanies}
               statusCounts={contactStatusCounts}
               list={contactList}
               selected={contactSelected}
@@ -1209,9 +1224,12 @@ export function AdminConsole({ data }: Props) {
                     statusFilter={statusFilter}
                     setStatusFilter={setStatusFilter}
                     statusCounts={statusCounts}
+                    companyFilter={inquiryCompanyFilter}
+                    setCompanyFilter={setInquiryCompanyFilter}
+                    companies={inquiryCompanies}
                     extraActive={groupByCustomer}
                     summarySuffix={groupByCustomer ? " · grouped" : ""}
-                    onClear={() => { setStatusFilter("all"); setGroupByCustomer(false); }}
+                    onClear={() => { setStatusFilter("all"); setGroupByCustomer(false); setInquiryCompanyFilter("all"); }}
                     viewSection={
                       <button
                         role="menuitemcheckbox"
@@ -2161,7 +2179,7 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
  */
 function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
-  companyFilter, setCompanyFilter, hasCompanyCount, allCompanyCount,
+  companyFilter, setCompanyFilter, companies,
   viewSection, extraActive = false, summarySuffix = "", onClear,
 }: {
   t: Theme;
@@ -2170,8 +2188,7 @@ function FilterMenu({
   statusCounts: { all: number; new: number; handled: number; spam: number };
   companyFilter?: string;
   setCompanyFilter?: (v: string) => void;
-  hasCompanyCount?: number;
-  allCompanyCount?: number;
+  companies?: { name: string; count: number }[];
   /** Optional rows under a "View" heading — grouping, on the inquiries list. */
   viewSection?: React.ReactNode;
   /** Whether anything in `viewSection` is currently on. */
@@ -2236,11 +2253,11 @@ function FilterMenu({
             );
           })}
 
-          {hasCompanyCount !== undefined && setCompanyFilter && hasCompanyCount > 0 && (
+          {companies && companies.length > 0 && setCompanyFilter && (
             <>
               <div className={`my-1.5 border-t ${t.border}`} />
               <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Company</p>
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 max-h-48 overflow-y-auto overscroll-contain custom-scrollbar">
                 <button
                   role="menuitemradio"
                   aria-checked={companyFilter === "all"}
@@ -2249,20 +2266,22 @@ function FilterMenu({
                 >
                   <span className={`h-2 w-2 shrink-0 rounded-full ${companyFilter === "all" ? "bg-brand" : "bg-slate-300"}`} />
                   <span className="flex-1">All</span>
-                  <span className={`text-[12px] font-bold tabular-nums ${companyFilter === "all" ? "text-brand-dark" : t.soft}`}>{allCompanyCount ?? 0}</span>
                   {companyFilter === "all" && <Check className="h-3.5 w-3.5 shrink-0" />}
                 </button>
-                <button
-                  role="menuitemradio"
-                  aria-checked={companyFilter === "has_company"}
-                  onClick={() => { setCompanyFilter("has_company"); setOpen(false); }}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${companyFilter === "has_company" ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${companyFilter === "has_company" ? "bg-brand" : "bg-transparent"}`} />
-                  <span className="flex-1">Provided Company</span>
-                  <span className={`text-[12px] font-bold tabular-nums ${companyFilter === "has_company" ? "text-brand-dark" : t.soft}`}>{hasCompanyCount}</span>
-                  {companyFilter === "has_company" && <Check className="h-3.5 w-3.5 shrink-0" />}
-                </button>
+                {companies.map((c) => (
+                  <button
+                    key={c.name}
+                    role="menuitemradio"
+                    aria-checked={companyFilter === c.name}
+                    onClick={() => { setCompanyFilter(c.name); setOpen(false); }}
+                    className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${companyFilter === c.name ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${companyFilter === c.name ? "bg-brand" : "bg-transparent"}`} />
+                    <span className="flex-1 truncate" title={c.name}>{c.name}</span>
+                    <span className={`text-[12px] font-bold tabular-nums ${companyFilter === c.name ? "text-brand-dark" : t.soft}`}>{c.count}</span>
+                    {companyFilter === c.name && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  </button>
+                ))}
               </div>
             </>
           )}
@@ -2296,7 +2315,7 @@ function FilterMenu({
 // search / triage / soft-delete UX as inquiries, minus the product bits.
 function ContactsSection({
   t, tab, setTab, q, setQ, statusFilter, setStatusFilter, statusCounts, list,
-  companyFilter, setCompanyFilter, hasCompanyCount, allCompanyCount,
+  companyFilter, setCompanyFilter, companies,
   selected, toggleSelect, allSelected, toggleSelectAll, busy, onOpen, onExportExcel, onExportPDF,
   onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
   onRestoreSelected, onPurgeSelected,
@@ -2305,7 +2324,7 @@ function ContactsSection({
   q: string; setQ: (v: string) => void;
   statusFilter: "all" | Status; setStatusFilter: (v: "all" | Status) => void;
   companyFilter: string; setCompanyFilter: (v: string) => void;
-  hasCompanyCount: number; allCompanyCount: number;
+  companies: { name: string; count: number }[];
   statusCounts: { all: number; new: number; handled: number; spam: number };
   list: ContactMessage[]; selected: Set<string>; toggleSelect: (id: string) => void;
   allSelected: boolean; toggleSelectAll: () => void; busy: boolean;
@@ -2349,8 +2368,7 @@ function ContactsSection({
             statusCounts={statusCounts}
             companyFilter={companyFilter}
             setCompanyFilter={setCompanyFilter}
-            hasCompanyCount={hasCompanyCount}
-            allCompanyCount={allCompanyCount}
+            companies={companies}
             onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); }}
           />
         )}

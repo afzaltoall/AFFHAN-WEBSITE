@@ -4,32 +4,24 @@ import { MarketplaceHeroSection } from "@/components/sections/MarketplaceHeroSec
 import { PopularProductsSection } from "@/components/sections/PopularProductsSection";
 import { ProductCategoriesSection } from "@/components/sections/ProductCategoriesSection";
 import { ProductSpotlightSection } from "@/components/sections/ProductSpotlightSection";
-import { GET as getProducts } from "@/app/api/products/route";
 import { GET as getCategories } from "@/app/api/categories/route";
-import { headers } from "next/headers";
+import { getHeroFeed } from "@/lib/products";
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://affhan.com/" },
 };
 
-export default async function Home() {
-  // Using direct calls to route handlers to prevent loopback requests
-  // while utilizing their caching logic perfectly.
-  const headersList = await headers();
-  const host = headersList.get("host") || "localhost";
-  const protocol = process.env.NODE_ENV === "development" ? "http" : "https";
-  const baseUrl = `${protocol}://${host}`;
+export const revalidate = 3600;
 
-  const [categoriesRes, productsRes] = await Promise.all([
+export default async function Home() {
+  const [categoriesRes, productsResult] = await Promise.all([
     getCategories(),
-    getProducts(new Request(`${baseUrl}/api/products?limit=140`)),
+    getHeroFeed(140),
   ]);
 
   const categoriesJson = await categoriesRes.json();
-  const productsJson = await productsRes.json();
-
   const initialCategories = categoriesJson.data || [];
-  const initialProducts = productsJson.data || [];
+  const initialProducts = productsResult.products || [];
 
   const productCategories = initialCategories
     .filter((c: any) => c.thumbnailUrl && c.productCount > 0)
