@@ -89,6 +89,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.7,
     },
     {
+      // The freight side of the business has its own page and its own search
+      // demand ("freight forwarding chennai", "nvocc"). It was reachable and
+      // indexable, just missing from the map.
+      url: `${baseUrl}/shipping/`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
       url: `${baseUrl}/careers/`,
       lastModified: new Date(),
       changeFrequency: 'monthly',
@@ -108,6 +117,21 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: new Date(),
       changeFrequency: 'weekly',
       priority: 0.6,
+    },
+    // Linked from the footer of every page, so they are crawled regardless.
+    // Listed at a low priority because a sitemap that leaves out reachable,
+    // indexable pages is an incomplete map rather than a curated one.
+    {
+      url: `${baseUrl}/privacy-policy/`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.3,
+    },
+    {
+      url: `${baseUrl}/terms-conditions/`,
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.3,
     },
   ];
 }

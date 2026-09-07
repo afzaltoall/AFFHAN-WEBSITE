@@ -26,7 +26,11 @@ const geistSans = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://affhan.com"),
-  alternates: { canonical: "https://affhan.com/" },
+  // No canonical here. metadataBase-style inheritance meant every page that
+  // did not set its own — /login/, every /account/ section — emitted
+  // <link rel=canonical href="https://affhan.com/">, i.e. claimed to BE the
+  // homepage. The homepage sets its own in app/page.tsx; anything else either
+  // sets one or emits none, and none is far better than wrong.
   title: "AFFHAN - Global Sourcing, Shipping & China Import Export",
   description: "AFFHAN Group is a global B2B sourcing marketplace. Source 10 lakh+ products from China and 100+ countries with expert sourcing, shipping, supplier verification & freight forwarding.",
   keywords: "global b2b sourcing, china sourcing agent, product sourcing, import export company, freight forwarding, shipping company, sea freight, air freight, door to door shipping, nvocc, non-vessel operating common carrier, wholesale sourcing platform",

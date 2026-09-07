@@ -5,8 +5,11 @@ import { FooterSection } from "@/components/sections/FooterSection";
 import { ProductDetailView, type PDPProduct } from "@/components/ui/ProductDetailView";
 import { RecordProductView } from "@/components/ui/RecordProductView";
 import type { ProductCardData } from "@/components/ui/ProductCard";
+import { getCategoryMeta } from "@/lib/categoryMeta";
 
 export const dynamic = "force-dynamic";
+
+const SITE = "https://affhan.com";
 
 // Parse the JSON `allImages` (an array of CDN URL strings) defensively — some
 // rows have `[]` or null, in which case the view falls back to `imageUrl`.
@@ -28,7 +31,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { id } = await params;
   const product = await getProduct(id);
-  if (!product) return { title: "Product not found | Affhan Group" };
+  // notFound() here, not just in the page below. generateMetadata runs before
+  // the response starts streaming, so this is the last moment the status code
+  // can still be set: calling it in the component instead rendered the 404 UI
+  // inside a response whose head had already gone out as 200, which is a soft
+  // 404 — Google sees a successful page saying "not found" and indexes it.
+  if (!product) notFound();
   const desc =
     product.description?.slice(0, 155) ||
     `Source ${product.name} through Affhan — request a quote and our team handles sourcing, quality control, and global shipping.`;
@@ -98,8 +106,63 @@ export default async function ProductPage({
     categoryRef: pdpProduct.categoryName ? { name: pdpProduct.categoryName } : null,
   }));
 
+  // Product and BreadcrumbList markup.
+  //
+  // No offers, no price, no availability: this catalogue is a demonstrator of
+  // what we can source, not stock we hold, and the CJ figure in the `price`
+  // column is a supplier's dollar price rather than ours. Publishing it as an
+  // Offer would state a price we do not charge for goods we do not have.
+  // Without an Offer the page is not eligible for a price-carrying rich
+  // result, which is correct — an inquiry-only listing should not claim one.
+  //
+  // sku is our own AFF- reference, never product.sku: every SKU in this table
+  // is a CJ code, and publishing one names the supplier.
+  const category = await getCategoryMeta(product.categoryId);
+  const productSchema = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    sku: pdpProduct.reference,
+    url: `${SITE}/products/${product.id}/`,
+    ...(pdpProduct.images.length > 0 || product.imageUrl
+      ? { image: pdpProduct.images.length > 0 ? pdpProduct.images : [product.imageUrl as string] }
+      : {}),
+    ...(product.description ? { description: product.description.slice(0, 500) } : {}),
+    ...(pdpProduct.categoryName ? { category: pdpProduct.categoryName } : {}),
+    brand: { "@type": "Organization", name: "AFFHAN International Pvt Ltd" },
+  };
+
+  const breadcrumbSchema = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${SITE}/` },
+      { "@type": "ListItem", position: 2, name: "Products", item: `${SITE}/products/` },
+      ...(category?.path ?? []).map((step, i) => ({
+        "@type": "ListItem",
+        position: i + 3,
+        name: step.name,
+        item: `${SITE}/products/?categoryId=${step.id}`,
+      })),
+      {
+        "@type": "ListItem",
+        position: (category?.path.length ?? 0) + 3,
+        name: product.name,
+        item: `${SITE}/products/${product.id}/`,
+      },
+    ],
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       {/* Renders nothing; adds this product to the signed-in customer's own
           browsing history. Signed-out visitors record nothing at all. */}
       <RecordProductView productId={product.id} />
