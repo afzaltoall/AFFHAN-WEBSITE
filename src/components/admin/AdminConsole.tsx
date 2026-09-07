@@ -212,13 +212,14 @@ export function AdminConsole({ data }: Props) {
   const [contactDeleted, setContactDeleted] = useState<ContactMessage[]>(data.deletedContacts);
   const [contactQ, setContactQ] = useState("");
   const [contactStatusFilter, setContactStatusFilter] = useState<"all" | Status>("all");
+  const [contactCompanyFilter, setContactCompanyFilter] = useState<string>("all");
   const [contactTab, setContactTab] = useState<"active" | "trash">("active");
   const [contactSelected, setContactSelected] = useState<Set<string>>(new Set());
   const [contactBusy, setContactBusy] = useState(false);
   const [activeContact, setActiveContact] = useState<ContactMessage | null>(null);
   useEffect(() => setContactItems(data.contacts), [data.contacts]);
   useEffect(() => setContactDeleted(data.deletedContacts), [data.deletedContacts]);
-  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactQ, view]);
+  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactCompanyFilter, contactQ, view]);
 
   // --- Careers (job-alert subscriptions) -------------------------------------
   const [careerItems, setCareerItems] = useState<JobAlert[]>(data.jobAlerts);
@@ -574,21 +575,39 @@ export function AdminConsole({ data }: Props) {
   // trash list is the soft-deleted messages.
   const contactMatch = (c: ContactMessage, term: string) =>
     !term || `${c.fullName} ${c.companyName || ""} ${c.country} ${c.phone} ${c.email} ${c.message}`.toLowerCase().includes(term.toLowerCase());
+  const contactCompanies = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const c of contactItems) {
+      if (c.companyName && c.companyName.trim() !== "") {
+        counts.set(c.companyName, (counts.get(c.companyName) || 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [contactItems]);
+
   const contactActive = useMemo(
     () => contactItems.filter((c) =>
-      (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) && contactMatch(c, contactQ)
+      (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) &&
+      (contactCompanyFilter === "all" || c.companyName === contactCompanyFilter) &&
+      contactMatch(c, contactQ)
     ),
-    [contactItems, contactQ, contactStatusFilter]
+    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter]
   );
   const contactTrash = useMemo(
-    () => contactDeleted.filter((c) => contactMatch(c, contactQ)),
-    [contactDeleted, contactQ]
+    () => contactDeleted.filter((c) =>
+      (contactCompanyFilter === "all" || c.companyName === contactCompanyFilter) &&
+      contactMatch(c, contactQ)
+    ),
+    [contactDeleted, contactQ, contactCompanyFilter]
   );
   const contactStatusCounts = useMemo(() => {
-    const c = { all: contactItems.length, new: 0, handled: 0, spam: 0 };
-    contactItems.forEach((m) => { c[asStatus(m.status)]++; });
+    const matchingCompany = contactCompanyFilter === "all" ? contactItems : contactItems.filter(c => c.companyName === contactCompanyFilter);
+    const c = { all: matchingCompany.length, new: 0, handled: 0, spam: 0 };
+    matchingCompany.forEach((m) => { c[asStatus(m.status)]++; });
     return c;
-  }, [contactItems]);
+  }, [contactItems, contactCompanyFilter]);
   const contactList = contactTab === "trash" ? contactTrash : contactActive;
   const contactVisibleIds = contactList.map((c) => c.id);
   const contactAllSelected = contactVisibleIds.length > 0 && contactVisibleIds.every((id) => contactSelected.has(id));
@@ -1022,6 +1041,10 @@ export function AdminConsole({ data }: Props) {
               setQ={setContactQ}
               statusFilter={contactStatusFilter}
               setStatusFilter={setContactStatusFilter}
+              companyFilter={contactCompanyFilter}
+              setCompanyFilter={setContactCompanyFilter}
+              companies={contactCompanies}
+              allCompanyCount={contactItems.length}
               statusCounts={contactStatusCounts}
               list={contactList}
               selected={contactSelected}
@@ -2087,12 +2110,17 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
  */
 function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
+  companyFilter, setCompanyFilter, companies, allCompanyCount,
   viewSection, extraActive = false, summarySuffix = "", onClear,
 }: {
   t: Theme;
   statusFilter: "all" | Status;
   setStatusFilter: (v: "all" | Status) => void;
   statusCounts: { all: number; new: number; handled: number; spam: number };
+  companyFilter?: string;
+  setCompanyFilter?: (v: string) => void;
+  companies?: Array<{ name: string; count: number }>;
+  allCompanyCount?: number;
   /** Optional rows under a "View" heading — grouping, on the inquiries list. */
   viewSection?: React.ReactNode;
   /** Whether anything in `viewSection` is currently on. */
@@ -2102,7 +2130,7 @@ function FilterMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
-  const active = statusFilter !== "all" || extraActive;
+  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || extraActive;
 
   useEffect(() => {
     if (!open) return;
@@ -2157,6 +2185,43 @@ function FilterMenu({
             );
           })}
 
+          {companies && setCompanyFilter && companies.length > 0 && (
+            <>
+              <div className={`my-1.5 border-t ${t.border}`} />
+              <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Company</p>
+              <div className="max-h-52 overflow-y-auto space-y-0.5">
+                <button
+                  role="menuitemradio"
+                  aria-checked={companyFilter === "all"}
+                  onClick={() => { setCompanyFilter("all"); setOpen(false); }}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${companyFilter === "all" ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${companyFilter === "all" ? "bg-brand" : "bg-slate-300"}`} />
+                  <span className="flex-1">All</span>
+                  <span className={`text-[12px] font-bold tabular-nums ${companyFilter === "all" ? "text-brand-dark" : t.soft}`}>{allCompanyCount ?? 0}</span>
+                  {companyFilter === "all" && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </button>
+                {companies.map((c) => {
+                  const on = companyFilter === c.name;
+                  return (
+                    <button
+                      key={c.name}
+                      role="menuitemradio"
+                      aria-checked={on}
+                      onClick={() => { setCompanyFilter(on ? "all" : c.name); setOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                    >
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : "bg-transparent"}`} />
+                      <span className="flex-1 truncate">{c.name}</span>
+                      <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{c.count}</span>
+                      {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
           {viewSection && (
             <>
               <div className={`my-1.5 border-t ${t.border}`} />
@@ -2186,6 +2251,7 @@ function FilterMenu({
 // search / triage / soft-delete UX as inquiries, minus the product bits.
 function ContactsSection({
   t, tab, setTab, q, setQ, statusFilter, setStatusFilter, statusCounts, list,
+  companyFilter, setCompanyFilter, companies, allCompanyCount,
   selected, toggleSelect, allSelected, toggleSelectAll, busy, onOpen, onExport,
   onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
   onRestoreSelected, onPurgeSelected,
@@ -2193,6 +2259,8 @@ function ContactsSection({
   t: Theme; tab: "active" | "trash"; setTab: (v: "active" | "trash") => void;
   q: string; setQ: (v: string) => void;
   statusFilter: "all" | Status; setStatusFilter: (v: "all" | Status) => void;
+  companyFilter: string; setCompanyFilter: (v: string) => void;
+  companies: Array<{ name: string; count: number }>; allCompanyCount: number;
   statusCounts: { all: number; new: number; handled: number; spam: number };
   list: ContactMessage[]; selected: Set<string>; toggleSelect: (id: string) => void;
   allSelected: boolean; toggleSelectAll: () => void; busy: boolean;
@@ -2234,7 +2302,11 @@ function ContactsSection({
             statusFilter={statusFilter}
             setStatusFilter={setStatusFilter}
             statusCounts={statusCounts}
-            onClear={() => setStatusFilter("all")}
+            companyFilter={companyFilter}
+            setCompanyFilter={setCompanyFilter}
+            companies={companies}
+            allCompanyCount={allCompanyCount}
+            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); }}
           />
         )}
         <button onClick={onExport} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export all"} className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black ${tab === "active" ? "" : "sm:ml-auto"}`}>
