@@ -65,5 +65,11 @@ export const CATALOGUE_TAGS = [TAG_CATEGORIES, TAG_PRODUCTS] as const;
 // Cost: the origin is hit at most once a minute per edge region. The category
 // tree is ~180KB of JSON off an in-process cache that still holds for an hour,
 // so what actually repeats is the serialisation, not the query.
+//
+// max-age is set alongside s-maxage because s-maxage is ignored by browsers.
+// Without it this header gave the browser no freshness lifetime at all, so a
+// client re-fetched the whole payload every time it needed it. Same 60s bound,
+// so a moderation change still reaches a viewer within the minute; it only
+// stops the same bytes being pulled twice inside it.
 export const MODERATION_SENSITIVE_CACHE_CONTROL =
-  "public, s-maxage=60, must-revalidate";
+  "public, max-age=60, s-maxage=60, must-revalidate";

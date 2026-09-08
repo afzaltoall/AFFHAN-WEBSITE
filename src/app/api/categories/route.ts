@@ -30,9 +30,15 @@ const getCachedCategories = unstable_cache(
     const blocked = blockedCategoryIdSet(categories);
     const formattedCategories = categories
       .filter((cat: CategoryWithCount) => !blocked.has(cat.id))
-      .map((cat: CategoryWithCount) => ({
+      // `_count` is dropped rather than spread through. Prisma returns it as
+      // { products: n } and the line below already republishes that as
+      // productCount, which is the field every consumer actually reads — so
+      // spreading it shipped the same number twice under two names. On 671
+      // categories that was 16.8KB of a 241KB response, and this payload is
+      // fetched to open the mega-menu.
+      .map(({ _count, ...cat }: CategoryWithCount) => ({
         ...cat,
-        productCount: cat._count.products
+        productCount: _count.products
       }));
 
     return { data: formattedCategories, totalCount: totalProducts };

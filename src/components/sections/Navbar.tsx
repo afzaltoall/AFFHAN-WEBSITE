@@ -63,25 +63,68 @@ export function Navbar() {
   const categoriesFetched = useRef(false);
 
   // Fetch Categories for Mega Menu
+  //
+  // Warmed during idle rather than on the hover that opens the menu. The fetch
+  // is ~240KB and used to start only once the panel was already opening, so the
+  // first hover always showed skeleton rows for as long as the download and the
+  // tree build took. Requesting it while the browser is idle means the data is
+  // usually already in state by the time anyone reaches for the menu, and the
+  // hover just renders.
+  //
+  // Still fetched at most once per page load (categoriesFetched), and still
+  // triggered by opening the menu if the idle callback has not run yet — on a
+  // busy main thread idle time may never arrive, and the menu must not depend
+  // on it.
+  //
+  // `cache: "no-store"` is deliberately NOT set. It forced a full re-download
+  // every single time, bypassing the browser cache entirely; the route sends a
+  // 60s max-age, which is short enough that a moderation change still reaches a
+  // viewer inside a minute.
   useEffect(() => {
-    if (!isCategoryMenuOpen || categoriesFetched.current) return;
-    categoriesFetched.current = true;
+    if (categoriesFetched.current) return;
 
     let isMounted = true;
+    let idleHandle: number | null = null;
+
     const fetchCategories = async () => {
+      if (categoriesFetched.current) return;
+      categoriesFetched.current = true;
       try {
-        const res = await fetch("/api/categories", { cache: "no-store" });
+        const res = await fetch("/api/categories");
         if (!res.ok) throw new Error("Failed to fetch categories");
         const json = await res.json();
         if (isMounted) setCategories(json.data || []);
       } catch (err) {
         console.error(err);
+        // Let a later attempt retry rather than leaving the menu permanently
+        // empty because one request failed.
+        categoriesFetched.current = false;
       } finally {
         if (isMounted) setLoadingCategories(false);
       }
     };
-    fetchCategories();
-    return () => { isMounted = false; };
+
+    // Safari has no requestIdleCallback; a short timer is the stand-in.
+    const ric: typeof window.requestIdleCallback | undefined =
+      typeof window !== "undefined" ? window.requestIdleCallback : undefined;
+    let usedIdle = false;
+
+    if (isCategoryMenuOpen) {
+      fetchCategories();
+    } else if (ric) {
+      usedIdle = true;
+      idleHandle = ric(() => fetchCategories(), { timeout: 3000 });
+    } else {
+      idleHandle = window.setTimeout(fetchCategories, 1500) as unknown as number;
+    }
+
+    return () => {
+      isMounted = false;
+      if (idleHandle !== null) {
+        if (usedIdle) window.cancelIdleCallback(idleHandle);
+        else window.clearTimeout(idleHandle);
+      }
+    };
   }, [isCategoryMenuOpen]);
 
   // Shared tree builder: prunes any branch (at any depth) with zero products
