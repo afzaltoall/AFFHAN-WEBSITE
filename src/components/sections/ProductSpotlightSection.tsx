@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { shuffleArray, SPOTLIGHT_COUNT } from "@/lib/heroPool";
 import { Sparkles } from "lucide-react";
 import dynamic from 'next/dynamic';
 const CircularTestimonials = dynamic(() => import("@/components/ui/circular-testimonials").then(mod => mod.CircularTestimonials), { ssr: true });
@@ -23,13 +24,21 @@ export function ProductSpotlightSection({ initialProducts = [] }: { initialProdu
   );
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
-  // Initial products are fetched server-side; we no longer fetch on mount.
+  // Re-pick after hydration so the spotlight varies between visits. Effect, not
+  // render, or the first client pass would not match the server HTML.
+  useEffect(() => {
+    const withImage = initialProducts.filter((p: ProductCardData) => p.imageUrl);
+    if (!withImage.length) return;
+    setProducts(shuffleArray(withImage));
+  }, [initialProducts]);
 
-  // Take a LATER slice than the trending fan / orbit so the spotlight shows a
-  // different set of products.
+  // This section receives its own slice from src/app/page.tsx, disjoint from
+  // the hero grid's and the carousel's. It used to take slice(60, 65) of the
+  // shared feed, which sat inside the hero's first 61 and the carousel's
+  // 61..81 — the same product could appear twice on one screen.
   const spotlight = useMemo(
     () =>
-      products.slice(60, 65).map((p) => ({
+      products.slice(0, SPOTLIGHT_COUNT).map((p) => ({
         quote: sourcingBlurb(p.categoryRef?.name || p.category || "product"),
         name: p.name,
         designation: p.categoryRef?.name || p.category || "Global Sourcing",

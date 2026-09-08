@@ -12,32 +12,34 @@ import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph-wrapper";
 import { buildCategoryTree, getCategoryIcon, type CategoryRecord } from "@/lib/categoryTree";
+import { shuffleArray, HERO_GRID_COUNT } from "@/lib/heroPool";
 import { ShippingBar } from "@/components/ui/ShippingBar";
 import { AffhanBrandBar } from "@/components/ui/AffhanBrandBar";
-
-// The diverse-sample query can return overlapping products across paged
-// load-more calls; dedupe by id so a duplicate React key never reaches the
-// DOM.
-function dedupeById<T extends { id: number | string }>(items: T[]): T[] {
-  const seen = new Set<number | string>();
-  return items.filter(item => {
-    if (seen.has(item.id)) return false;
-    seen.add(item.id);
-    return true;
-  });
-}
 
 export function MarketplaceHeroSection({ initialProducts = [], initialCategories = [] }: { initialProducts?: ProductCardData[], initialCategories?: CategoryRecord[] }) {
   const router = useRouter();
   const [categories, setCategories] = useState<CategoryRecord[]>(initialCategories);
-  const [products, setProducts] = useState<ProductCardData[]>(initialProducts.slice(0, 61));
+  // The full grid, rendered in one go — no infinite scroll, no pagination.
+  // The server sends an over-sized slice; this takes the first HERO_GRID_COUNT
+  // for the initial HTML and re-picks them at random once hydrated.
+  const [products, setProducts] = useState<ProductCardData[]>(
+    initialProducts.slice(0, HERO_GRID_COUNT)
+  );
   const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const loadMoreLock = useRef(false);
-  const observerTarget = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const requestSeq = useRef(0);
+
+  // Re-pick after hydration, never during render.
+  //
+  // The server pass has to emit exactly what the server rendered or React
+  // reports a hydration mismatch, so the shuffle cannot run in useState or in
+  // the render body. Running it in an effect means the first paint shows the
+  // cached order and it is replaced a frame later — that swap is the price of
+  // keeping the page ISR-cached (revalidate = 3600) while still varying per
+  // visit, and it is why the same products used to appear on every refresh.
+  useEffect(() => {
+    if (!initialProducts.length) return;
+    setProducts(shuffleArray(initialProducts).slice(0, HERO_GRID_COUNT));
+  }, [initialProducts]);
 
   // Mega-panel: click-to-open (not hover), so hovering the sidebar never
   // dims/blurs the page. `megaInitialId` scrolls the panel to the clicked
@@ -69,57 +71,10 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
 
   const topLevelCategories = useMemo(() => buildCategoryTree(categories), [categories]);
 
-  // Infinite Scroll Handler
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      async (entries) => {
-        if (entries[0].isIntersecting && !loading && !loadingMore && hasMore && !loadMoreLock.current && products.length < 198 && !error) {
-          loadMoreLock.current = true;
-          setLoadingMore(true);
-          setError(null);
-          const seq = ++requestSeq.current;
-          try {
-            const excludeIds = products.map(p => p.id).join(',');
-            const res = await fetch(`/api/products?excludeIds=${excludeIds}`);
-            if (seq !== requestSeq.current) return;
-            if (res.ok) {
-              const json = await res.json();
-              const newProducts = json.data || [];
-              if (newProducts.length === 0) {
-                setHasMore(false);
-              } else {
-                setProducts(prev => {
-                  const combined = dedupeById([...prev, ...newProducts]);
-                  if (combined.length >= 198) {
-                    setHasMore(false);
-                    return combined.slice(0, 198);
-                  }
-                  return combined;
-                });
-              }
-            } else {
-              setError("Failed to load more products");
-              setHasMore(false);
-            }
-          } catch (err) {
-            console.error(err);
-            setError("Network error occurred");
-            setHasMore(false);
-          } finally {
-            if (seq === requestSeq.current) setLoadingMore(false);
-            loadMoreLock.current = false;
-          }
-        }
-      },
-      { threshold: 0.1, rootMargin: '100px' }
-    );
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) observer.observe(currentTarget);
-    return () => {
-      if (currentTarget) observer.unobserve(currentTarget);
-    };
-  }, [loading, loadingMore, hasMore, products, error]);
+  // The IntersectionObserver that used to sit here is gone. The grid is a
+  // fixed set of HERO_GRID_COUNT products delivered in one go, so there is
+  // nothing left to page in — it previously fetched /api/products on scroll
+  // and grew the grid to 198.
 
   // The desktop grid is 6 columns with the sidebar occupying col 1 of the
   // first row only, so 5 products sit beside it in row 1 and everything
@@ -490,23 +445,13 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
             ))
           )}
 
-          {loadingMore && (
-            <div className="col-span-full py-8 flex justify-center w-full">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
-            </div>
-          )}
 
-          {!loading && !hasMore && displayProducts.length > 0 && (
-            <div className="col-span-full py-6 text-center text-slate-400 text-sm font-medium">
-              You&apos;ve reached the end of recommendations
-            </div>
-          )}
 
           {error && (
             <div className="col-span-full py-8 flex flex-col items-center w-full">
               <p className="text-red-500 mb-4">{error}</p>
               <button
-                onClick={() => { setError(null); setHasMore(true); }}
+                onClick={() => setError(null)}
                 className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-semibold transition-colors"
               >
                 Retry Loading
@@ -515,7 +460,6 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
           )}
         </div>
 
-        <div ref={observerTarget} className="h-10 w-full" />
       </div>
 
       {/* Category mega-panel — centered modal, light dim, no blur. z-[70]

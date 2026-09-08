@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { shuffleArray, POPULAR_COUNT } from "@/lib/heroPool";
 import Link from "next/link";
 import { ChevronRight, Flame } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -14,19 +15,24 @@ export function PopularProductsSection({ initialProducts = [] }: { initialProduc
   const [products, setProducts] = useState<ProductCardData[]>(initialProducts);
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
-  // Initial products are fetched server-side; we no longer fetch on mount.
+  // Re-pick after hydration so the carousel varies between visits. Must be an
+  // effect, not useState or render: the first client pass has to match the
+  // server HTML exactly or React reports a hydration mismatch.
+  useEffect(() => {
+    if (!initialProducts.length) return;
+    setProducts(shuffleArray(initialProducts));
+  }, [initialProducts]);
 
-  // Build fan cards from real catalog products. The homepage hero grid renders
-  // the FIRST slice of this same feed, so Trending deliberately takes a LATER
-  // window (skipping what the hero already shows) — each product on the page is
-  // unique, no repeats between the grid and this carousel.
-  const HERO_COUNT = 61; // must match MarketplaceHeroSection's initial fetch
+  // This section now receives its OWN slice of the pool from src/app/page.tsx,
+  // already disjoint from the hero grid's and the spotlight's. The old approach
+  // — take the same array and skip the first 61, "must match
+  // MarketplaceHeroSection's initial fetch" — was a coupling that broke the
+  // moment either count changed, and the spotlight's slice(60, 65) overlapped
+  // it regardless.
   const cards = useMemo<CardItem[]>(() => {
     const withImg = products.filter((p) => p.imageUrl);
-    // Prefer the window right after the hero's set; fall back to the tail if the
-    // feed is short so the carousel is never empty.
-    const slice = withImg.length > HERO_COUNT + 4 ? withImg.slice(HERO_COUNT, HERO_COUNT + 20) : withImg.slice(-20);
-    return slice
+    return withImg
+      .slice(0, POPULAR_COUNT)
       .map((p) => ({
         imgUrl: p.imageUrl as string,
         alt: p.name,
