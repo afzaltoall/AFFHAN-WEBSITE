@@ -2,7 +2,35 @@ import { NextResponse } from "next/server";
 import type { Product } from "@prisma/client";
 import { prisma } from "../../../../lib/prisma";
 import { fetchCategories, fetchCjProducts, delay, type CjCategoryNode, type CjRawProduct } from "../../../../lib/cj";
-import { isCategoryBlocked } from "../../../../lib/moderation";
+import { isCategoryBlocked, REVIEW_NAME_TERMS, GENERIC_CATEGORY_NAMES } from "../../../../lib/moderation";
+
+/// Counts what a human still needs to look at, for the daily cron's response.
+///
+/// Two questions the automatic rules cannot answer on their own:
+///   - names that read as adult but are not certain enough to hide outright
+///   - products filed into a bucket whose name says nothing ("Others"), where
+///     the only real signal is the photograph
+async function scanForReview() {
+  const reviewRegex = `\\y(${REVIEW_NAME_TERMS.map((t) => t.replace(/[-\s]/g, "[- ]?")).join("|")})(?:e?s)?\\y`;
+
+  const [needingReview, genericBuckets] = await Promise.all([
+    prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count FROM "Product" WHERE "name" ~* ${reviewRegex}
+    `,
+    prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) AS count FROM "Product" p
+      JOIN "Category" c ON c.id = p."categoryId"
+      WHERE lower(btrim(c."name")) = ANY(${GENERIC_CATEGORY_NAMES})
+    `,
+  ]);
+
+  const review = Number(needingReview[0]?.count ?? 0);
+  const generic = Number(genericBuckets[0]?.count ?? 0);
+  if (review > 0) {
+    console.warn(`[Moderation] ${review} product(s) match review terms and need a human decision`);
+  }
+  return { needingReview: review, inGenericBuckets: generic };
+}
 import { uploadImageToS3 } from "../../../../lib/s3-upload";
 
 export const dynamic = "force-dynamic";
@@ -97,7 +125,14 @@ export async function GET(request: Request) {
     }
 
     if (!progress) {
-      return NextResponse.json({ success: true, message: "All categories completed." });
+      // The CJ sync is finished, so this is now the branch the daily cron takes
+      // every single day. The moderation scan has to run here too — putting it
+      // only on the "synced a category" path meant it never ran at all.
+      return NextResponse.json({
+        success: true,
+        message: "All categories completed.",
+        moderation: await scanForReview(),
+      });
     }
 
     console.log(`Resuming sync for category: ${progress.category.name} (${progress.categoryId})`);
@@ -353,13 +388,25 @@ export async function GET(request: Request) {
       console.error("Thumbnail backfill (non-fatal) failed:", thumbErr);
     }
 
+    // Recurring moderation scan. Runs on the daily cron rather than a weekly
+    // one because Vercel's Hobby tier allows a single cron job, and this is the
+    // one that already runs — a weekly cadence would also mean up to seven days
+    // between a supplier introducing something and anyone seeing it.
+    //
+    // Reports; it does not hide. The name and category rules already exclude
+    // what they are sure about at query time, and the ingest gate refuses
+    // review-tier names at write time. What is left for a human is the
+    // uncertain middle, plus whatever is sitting in an unreadable bucket.
+    const moderationScan = await scanForReview();
+
     return NextResponse.json({
       success: true,
       synced: totalSynced,
       category: progress.category.name,
       status: newStatus,
       lastPageFetched: lastPage,
-      totalPages
+      totalPages,
+      moderation: moderationScan,
     });
 
   } catch (error) {

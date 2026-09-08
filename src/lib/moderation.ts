@@ -141,6 +141,54 @@ export function isProductIdBlocked(id: number | null | undefined): boolean {
   return id != null && BLOCKED_PRODUCT_IDS.has(id);
 }
 
+// ---------------------------------------------------------------------------
+// Review tier — suspicious enough to stop at the door, not certain enough to
+// state as a fact about the catalogue.
+//
+// BLOCKED_NAME_KEYWORDS hides things that are already live. This list is used
+// earlier, by the ingest gate: a product whose name matches is never written at
+// all, so it cannot be visible even briefly while someone looks at it.
+//
+// Kept deliberately tight, and deliberately WITHOUT the terms reviewed and
+// cleared on 2026-09-08: "garter belt" (bridal and body jewellery), "vaginal
+// repair" (health and wellness), and "navel"/"umbilical" (ordinary crop tops).
+// Those were judged legitimate, and a review gate that keeps stopping known-good
+// products is one people learn to skip past.
+// Three more were tried and dropped, for the same reason the blocklist rejects
+// "babydoll": they read as adult but are not.
+//   "lace teddy" - "Lace Teddy Bear Dog Leash", a pet bed
+//   "pole dance" - a transparent acrylic wall clock
+//   "boudoir"    - a titanium bracelet
+export const REVIEW_NAME_TERMS = [
+  "sexy underwear", "sexy bra set", "erotic lingerie", "temptation lingerie",
+  "transparent lingerie", "see through lingerie", "sheer lingerie",
+  "teddy lingerie", "nipple tassel", "strip tease",
+  "fishnet bodysuit", "exposed bust", "bust exposed", "open back bra",
+];
+
+export function needsReview(name: string | null | undefined): boolean {
+  if (!name) return false;
+  const n = name.toLowerCase();
+  return REVIEW_NAME_TERMS.some((k) => n.includes(k));
+}
+
+/// Category names that carry no signal about what is filed under them.
+///
+/// These are where the "Fashion & Clothing > Others" items hid: a bucket whose
+/// name moderation cannot read, holding children's costumes and lingerie side
+/// by side. Products landing here are reported for human review rather than
+/// blocked — the bucket held 112 products and most were innocuous, so blocking
+/// it wholesale would be worse than the problem.
+export const GENERIC_CATEGORY_NAMES = [
+  "other", "others", "misc", "miscellaneous", "general",
+  "uncategorized", "uncategorised",
+];
+
+export function isGenericBucket(name: string | null | undefined): boolean {
+  if (!name) return false;
+  return GENERIC_CATEGORY_NAMES.includes(name.trim().toLowerCase());
+}
+
 /// The ids as a SQL-safe list for `p."id" NOT IN (...)`. Returns null when the
 /// set is empty so callers can skip the clause entirely.
 export function blockedProductIdList(): number[] | null {

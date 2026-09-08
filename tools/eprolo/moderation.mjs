@@ -41,6 +41,8 @@ function extractArray(src, name) {
 const src = fs.readFileSync(TS_PATH, 'utf8');
 export const BLOCKED_CATEGORY_PATTERNS = extractArray(src, 'BLOCKED_CATEGORY_PATTERNS');
 export const BLOCKED_NAME_KEYWORDS = extractArray(src, 'BLOCKED_NAME_KEYWORDS');
+export const REVIEW_NAME_TERMS = extractArray(src, 'REVIEW_NAME_TERMS');
+export const GENERIC_CATEGORY_NAMES = extractArray(src, 'GENERIC_CATEGORY_NAMES');
 
 /// True if a category name contains any blocked pattern.
 ///
@@ -67,4 +69,22 @@ export function isNameBlocked(name) {
 /// parent has to take its whole subtree with it.
 export function isBlockedDeep(name, parentName) {
   return isCategoryBlocked(name) || isCategoryBlocked(parentName);
+}
+
+/// Suspicious enough that the ingest refuses to write it. Unlike
+/// isNameBlocked, which hides something already stored, this runs before the
+/// row exists — so the product is never visible, not even for the minutes
+/// between the write and someone noticing.
+export function needsReview(name) {
+  if (!name) return false;
+  const n = String(name).toLowerCase();
+  return REVIEW_NAME_TERMS.some((k) => n.includes(k));
+}
+
+/// A category whose name tells moderation nothing. Products landing here are
+/// reported, never auto-blocked: "Fashion & Clothing > Others" held 112
+/// products and most were children's costumes and casual shirts.
+export function isGenericBucket(name) {
+  if (!name) return false;
+  return GENERIC_CATEGORY_NAMES.includes(String(name).trim().toLowerCase());
 }

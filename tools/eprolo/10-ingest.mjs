@@ -5,7 +5,7 @@ import sharp from 'sharp';
 import pLimit from 'p-limit';
 import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { isCategoryBlocked, isNameBlocked } from './moderation.mjs';
+import { isCategoryBlocked, isNameBlocked, needsReview, isGenericBucket } from './moderation.mjs';
 import { revalidateCatalogue } from './revalidate.mjs';
 
 // Ingests the cached catalogue feed: images to S3 as WebP, then Product and
@@ -99,15 +99,33 @@ async function storeProduct(p) {
   //
   // Skipped products are recorded and never written — no images uploaded, no
   // rows created. Nothing downstream has to remember to hide them.
-  if (isCategoryBlocked(l2?.name) || isCategoryBlocked(l1?.name) || isNameBlocked(p.title)) {
+  const blockedByCategory = isCategoryBlocked(l2?.name) || isCategoryBlocked(l1?.name);
+  const blockedByName = isNameBlocked(p.title);
+  // Review tier: not certainly adult, but not written either. Refusing the row
+  // is what makes "never visible, not even briefly" true — anything written
+  // first and hidden afterwards is live for however long it takes someone to
+  // notice, which is exactly how the "Others" items were found.
+  const flaggedForReview = needsReview(p.title);
+
+  if (blockedByCategory || blockedByName || flaggedForReview) {
     state.moderationSkipped ??= [];
     state.moderationSkipped.push({
       id: String(p.id),
       name: p.title,
       category: [l1?.name, l2?.name].filter(Boolean).join(' > ') || null,
-      reason: isNameBlocked(p.title) ? 'product-name' : 'category',
+      reason: blockedByName ? 'product-name'
+        : blockedByCategory ? 'category'
+        : 'needs-review',
     });
     return;
+  }
+
+  // Written, but recorded. A generic bucket cannot be judged from its name and
+  // its contents are usually legitimate, so this is a report, not a block —
+  // it is the list a human should look at after each run.
+  if (isGenericBucket(l2?.name)) {
+    state.genericBucket ??= [];
+    state.genericBucket.push({ id: String(p.id), name: p.title, category: l2?.name });
   }
 
   // Leaf where EPROLO's level-2 resolves, else the level-1 parent, so nothing
@@ -263,6 +281,7 @@ const cTotal = co.leaf + co.parentFallback + co.none;
 console.log(`category: leaf ${co.leaf}, parent-fallback ${co.parentFallback}, none ${co.none}` +
   (cTotal ? `  (unmapped ${((co.none / cTotal) * 100).toFixed(2)}%)` : ''));
 console.log(`moderation-skipped: ${state.moderationSkipped?.length ?? 0}`);
+console.log(`in generic buckets (review these): ${state.genericBucket?.length ?? 0}`);
 console.log(`failures         : ${state.failures.length}`);
 const byStage = {};
 for (const f of state.failures) byStage[f.stage] = (byStage[f.stage] ?? 0) + 1;
