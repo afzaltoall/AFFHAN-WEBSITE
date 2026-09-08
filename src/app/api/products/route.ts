@@ -3,7 +3,7 @@ import { Prisma } from ".prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { unstable_cache } from "next/cache";
 import { parseQuery, buildSearchWhere, buildSearchOrderBy, categoryNameMatches, buildFuzzyWhere, buildFuzzyOrderBy } from "@/lib/search";
-import { blockedCategoryIdSet, blockedNameRegex, isCategoryBlocked } from "@/lib/moderation";
+import { blockedCategoryIdSet, blockedNameRegex, isCategoryBlocked, blockedProductIdList } from "@/lib/moderation";
 import { MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
 
 import { HeroProduct, MappedProduct, CategoryLite, getCachedProductCount, getCachedCategoryProductCount, getCachedAllCategories, getCachedPreferredCategories, getCachedDefaultHeroPool, shuffle, getHeroFeed } from "@/lib/products";
@@ -101,6 +101,13 @@ export async function GET(request: Request) {
     }
     // Also drop adult-named products that slipped into other categories.
     moderationExclusion.push(Prisma.sql`p."name" !~* ${blockedNameRegex()}`);
+    // Last resort: individual products whose problem is the photograph, which
+    // neither the category name nor the product name can express. See
+    // BLOCKED_PRODUCT_IDS.
+    const blockedProductIds = blockedProductIdList();
+    if (blockedProductIds) {
+      moderationExclusion.push(Prisma.sql`p."id" NOT IN (${Prisma.join(blockedProductIds)})`);
+    }
 
     // Resolve which categories the text matches (name contains every word) —
     // fed to the core as categoryIds so a "bags" search returns every product
@@ -271,7 +278,13 @@ export async function GET(request: Request) {
                 browseCatIds!,
                 skip + limit,
                 [
-                  Prisma.sql`p."name" !~* ${blockedNameRegex()}`,
+                  // moderationExclusion, not a hand-copied subset of it. This
+                  // branch previously listed only the name regex, so a rule
+                  // added to moderationExclusion silently did not apply to
+                  // plain category browsing — which is the most common query
+                  // the catalogue serves. The blocked-product-id rule was
+                  // invisible here until this was fixed.
+                  ...moderationExclusion,
                   ...(anchorId ? [Prisma.sql`p."id" <= ${parseInt(anchorId, 10)}`] : []),
                 ],
                 sortBy !== "oldest",

@@ -80,6 +80,28 @@ export const BLOCKED_NAME_KEYWORDS = [
   // the euphemism is in the phrasing, not in "airplane bottle", which is
   // otherwise two bottle openers, nor in "men's trainer", which is shoes.
   "sex product", "sex pose",
+
+  // ---------------------------------------------------------------------
+  // Added after adult items were found live under "Fashion & Clothing >
+  // Others". Category-level blocking could not have caught them: "Others" is
+  // a generic bucket whose name carries no signal, so the product name is the
+  // only thing left to match on.
+  //
+  // Every term here survived a catalogue-wide triage against all 1,080,971
+  // products. The ones that did NOT survive are worth recording, because they
+  // look plausible and are not:
+  //   "babydoll"      - a blouse/dress cut ("Babydoll Corduroy Shirt")
+  //   "nipple pad"    - nursing pads, and an office-chair cushion
+  //   "open cup"      - vacuum flasks and cupboards
+  //   "garter belt"   - body-jewellery leg chains and bridal garters
+  //   "exposed navel" - ordinary crop tops, 25 of them
+  // Adding any of those would have hidden maternity and baby products.
+  "nipple cover", "nipple sticker", "nipple clamp", "breast sticker", "breast petal",
+  "sex pillow", "sex swing", "anal plug", "butt plug", "cock ring",
+  "vibrator", "masturbator", "clitoris", "g-spot", "orgasm",
+  "bdsm", "bondage", "aphrodisiac", "penis enlargement", "thong panties",
+  "vaginal tightening", "vaginal repair", "cupless", "peephole bra",
+  "sexy lingerie", "erotic lingerie", "open bust", "open-crotch panties",
 ];
 
 export function isNameBlocked(name: string | null | undefined): boolean {
@@ -88,10 +110,52 @@ export function isNameBlocked(name: string | null | undefined): boolean {
   return BLOCKED_NAME_KEYWORDS.some((k) => n.includes(k));
 }
 
+// ---------------------------------------------------------------------------
+// Individual products hidden by id.
+//
+// The third and last resort, after category name and product name. It exists
+// because neither of those can catch a product whose problem is its PHOTOGRAPH.
+// The item that prompted this is called "Suitable Boho Chiffon Womens Tops And
+// Blouses Kimono" — an unremarkable name on an image of a model wearing nipple
+// pasties. It sits in "Others", a generic bucket that also holds children's
+// Star Wars costumes and Christian apparel, so blocking the category would take
+// 112 mostly-innocent products with it.
+//
+// Keep this list short and cite each entry. A long list here means the keyword
+// or category rules should have been extended instead.
+// "bralette" is deliberately NOT a keyword: it appears in ordinary garments
+// ("Knitted Bodycon Mini Dress with Built-in Bralette"), so it would hide 15
+// products to catch two. Those two are listed here instead.
+export const BLOCKED_PRODUCT_IDS: ReadonlySet<number> = new Set([
+  // Reported live in Fashion & Clothing > Others. Model shown wearing nipple
+  // pasties; the name carries no signal at all.
+  1215583,
+  // Same category, bra-styled midriff top. "open umbilical" was rejected as a
+  // keyword because its other two matches are ordinary crop tops.
+  1214176,
+  // Same category, exposed-bust shapewear.
+  1211917,
+]);
+
+export function isProductIdBlocked(id: number | null | undefined): boolean {
+  return id != null && BLOCKED_PRODUCT_IDS.has(id);
+}
+
+/// The ids as a SQL-safe list for `p."id" NOT IN (...)`. Returns null when the
+/// set is empty so callers can skip the clause entirely.
+export function blockedProductIdList(): number[] | null {
+  return BLOCKED_PRODUCT_IDS.size ? [...BLOCKED_PRODUCT_IDS] : null;
+}
+
 // Postgres POSIX regex (case-insensitive) matching any blocked name keyword on
 // a word boundary — for use with the `!~*` (not-match) operator in SQL.
 export function blockedNameRegex(): string {
-  return `\\y(${BLOCKED_NAME_KEYWORDS.map((k) => k.replace(/[-\s]/g, "[- ]?")).join("|")})\\y`;
+  // The trailing `(?:e?s)?` matters more than it looks. With a bare \y on the
+  // end, "sex toy" did not match "Sex Toys" — the plural's trailing "s" is a
+  // word character, so the boundary never lands. That single gap left six
+  // "Sex Pillow Couples Sex Toys" products visible in Furniture while the
+  // keyword that should have caught them was already on the list.
+  return `\\y(${BLOCKED_NAME_KEYWORDS.map((k) => k.replace(/[-\s]/g, "[- ]?")).join("|")})(?:e?s)?\\y`;
 }
 
 // From a list of categories, the ids whose name is blocked.
