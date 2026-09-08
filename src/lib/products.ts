@@ -37,7 +37,7 @@ export const getCachedCategoryProductCount = unstable_cache(
     );
     return Number(rows[0]?.count ?? 0);
   },
-  ["category-product-count-v2"],
+  ["category-product-count-v3"],
   { revalidate: 3600 }
 );
 
@@ -50,7 +50,7 @@ export const getCachedAllCategories = unstable_cache(
     });
     return cats;
   },
-  ["all-categories-lite-v5"],
+  ["all-categories-lite-v6"],
   { revalidate: 3600 }
 );
 
@@ -89,7 +89,7 @@ export const getCachedPreferredCategories = unstable_cache(
     }
     return Array.from(sourceCatSet);
   },
-  ["preferred-category-ids-v7"],
+  ["preferred-category-ids-v8"],
   { revalidate: 3600 }
 );
 

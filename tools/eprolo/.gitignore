@@ -6,9 +6,10 @@
 feed-cache.jsonl
 
 # Resume checkpoints. Machine-local: they record which product ids this
-# particular run finished, and are meaningless on another checkout.
-ingest-state.json
-full-run-state.json
+# particular run finished, and are meaningless on another checkout. Wildcarded
+# rather than listed, so a new script's checkpoint file is ignored by default
+# instead of being committed by whoever next runs `git add tools/eprolo/`.
+*-state.json
 
 # Run output.
 *.log

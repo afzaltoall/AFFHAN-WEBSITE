@@ -1,0 +1,2040 @@
+[
+  {
+    "id": "EPROLO-L2-1176",
+    "name": " Jigsaw Puzzle",
+    "parent": "Home Deco",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1279",
+    "name": "Accessories",
+    "parent": "Customized-gift",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, 20135 deep)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, 4861 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1265",
+    "name": "Accessories",
+    "parent": "Personalized-gifts",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, 20135 deep)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, 4861 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-130",
+    "name": "Accessories",
+    "parent": null,
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, 20135 deep)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, 4861 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1277",
+    "name": "Apparel",
+    "parent": "Customized-gift",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Apparels [2410110338151629800] (under Pet Supplies, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1199",
+    "name": "Baby Onesies",
+    "parent": "Direct Print Clothes",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-146",
+    "name": "Badminton",
+    "parent": "Sports & Outdoors",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-92",
+    "name": "Bath & Shower",
+    "parent": "Beauty & Health",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1179",
+    "name": "Bedding",
+    "parent": "Home Set",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Bedding [2410110339121629200] (under Pet Supplies, sim 0.67)",
+      "Bedding Sets [496E6FFC-4BC4-4CA6-8225-5BC0D56E8E11] (under Home Textiles, sim 0.62)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1187",
+    "name": "Blanket",
+    "parent": "Home Set",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Blankets & Quilts [2410110358191601900] (under Pet Bedding, sim 0.42)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1254",
+    "name": "Bras & Panties",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1251",
+    "name": "Chest pack",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1259",
+    "name": "Clothing Accessories",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, sim 0.57)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, sim 0.57)",
+      "Bag Accessories [2502190501141602700] (under Women's Luggage & Bags, sim 0.48)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1178",
+    "name": "Coasters",
+    "parent": "Home Deco",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-156",
+    "name": "Customized-gift",
+    "parent": null,
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1206",
+    "name": "Direct Print Clothes",
+    "parent": "Made in USA(Free shipping)",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-131",
+    "name": "Direct Print Clothes",
+    "parent": null,
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1208",
+    "name": "Direct Print Clothes",
+    "parent": "Made in Australia",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1262",
+    "name": "Doormat",
+    "parent": "Made in USA(Free shipping)",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1177",
+    "name": "Doormat",
+    "parent": "Home Deco",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-42",
+    "name": "Electronic Cigarettes",
+    "parent": "Consumer Electronic",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1193",
+    "name": "Electronics",
+    "parent": "Accessories",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Car Electronics [AE1E932F-7832-4CE8-9DFE-885044383863] (under Automobiles & Motorcycles, sim 0.75)",
+      "Smart Electronics [6A03FBB1-F7D9-441F-B06D-EF45CA87B553] (under Consumer Electronics, sim 0.67)",
+      "Office Electronics [188CE695-A4AF-48A4-B855-6BE1C7F0A44F] (under Computer & Office, sim 0.63)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1192",
+    "name": "For Luggage",
+    "parent": "Accessories",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1184",
+    "name": "Handbags",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1266",
+    "name": "Home & Living",
+    "parent": "Personalized-gifts",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1278",
+    "name": "Home decor",
+    "parent": "Customized-gift",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1226",
+    "name": "Home Set",
+    "parent": "Men's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1219",
+    "name": "Hoodie & Jacket",
+    "parent": "Men's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1197",
+    "name": "Hoodies",
+    "parent": "Direct Print Clothes",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1247",
+    "name": "Hoodies & Jackets",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1267",
+    "name": "Jewelry",
+    "parent": "Personalized-gifts",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Fine Jewelry [3E53507E-2EDB-49F1-8D0D-AD01225DAD8A] (under Jewelry & Watches, sim 0.62)",
+      "Body Jewelry [633E1860-7C63-4006-AB35-3FC16BECFA62] (under Fashion Jewelry, sim 0.62)",
+      "Pearls Jewelry [84ED4B7F-D7C3-412F-AF18-04F25C91985C] (under Fine Jewelry, sim 0.53)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1174",
+    "name": "Laptop Handbags",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-132",
+    "name": "Logo & Tag",
+    "parent": null,
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1200",
+    "name": "Logo for Bags",
+    "parent": "Logo & Tag",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1203",
+    "name": "Logo for Beach Mats",
+    "parent": "Logo & Tag",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1204",
+    "name": "Logo for Clothing",
+    "parent": "Logo & Tag",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1202",
+    "name": "Logo for Curtain",
+    "parent": "Logo & Tag",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1201",
+    "name": "Logo for Rug",
+    "parent": "Logo & Tag",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1205",
+    "name": "Logo for Tableclothes",
+    "parent": "Logo & Tag",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1252",
+    "name": "Lunch Bag",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-134",
+    "name": "Made in Australia",
+    "parent": null,
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-133",
+    "name": "Made in USA(Free shipping)",
+    "parent": null,
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1175",
+    "name": "Messenger Bags",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1194",
+    "name": "Mousepads",
+    "parent": "Accessories",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1263",
+    "name": "Necklace & Badge",
+    "parent": "Accessories",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1276",
+    "name": "Ornament",
+    "parent": "Customized-gift",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1207",
+    "name": "Other",
+    "parent": "Made in USA(Free shipping)",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1212",
+    "name": "Other",
+    "parent": "Made in Australia",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-75",
+    "name": "Outdoor Lightings",
+    "parent": "Sports & Outdoors",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Outdoor Lighting [59AEBD05-0FDB-4392-BCF5-518C411A26E0] (under Home Improvement, 1833 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1229",
+    "name": "Pajamas",
+    "parent": "Men's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Pajamas [2410110349341618600] (under Pet Apparels, sim 0.73)",
+      "Pajama Sets [758FE9DE-16D9-4860-8472-46C5BA460FF7] (under Bottoms, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L1-152",
+    "name": "Personalized-gifts",
+    "parent": null,
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-147",
+    "name": "Ping Pong",
+    "parent": "Sports & Outdoors",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1239",
+    "name": "Plus Size",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1250",
+    "name": "Pocket",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pocket Watches [2601070547231620800] (under Fashion Jewelry, sim 0.47)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-98",
+    "name": "Pregnancy & Maternity",
+    "parent": "Mother & Kids",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Maternity [CBAB567C-28EA-4916-97C9-786EEA80A3B8] (under Baby & Mother, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1172",
+    "name": "Rug",
+    "parent": "Home Set",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1183",
+    "name": "Saddle Bags",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-149",
+    "name": "Safety Equipment",
+    "parent": "Mother & Kids",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1217",
+    "name": "Sandal",
+    "parent": "Shoes & Socks",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Man Sandals [D0E37ED0-65C8-43E3-8B84-C973040DCE9C] (under Men's Shoes, sim 0.46)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1248",
+    "name": "Shirt",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "T-Shirts [C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073] (under Men's Clothing, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1221",
+    "name": "Shirt",
+    "parent": "Men's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "T-Shirts [C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073] (under Men's Clothing, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1223",
+    "name": "Shorts & Briefs",
+    "parent": "Men's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Shorts [12A1288F-063D-427F-BF07-10F53784849B] (under Underwear & Loungewear, sim 0.50)",
+      "Briefs [1A3AF8F0-0549-4529-873A-5D109B301643] (under Underwear & Loungewear, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1182",
+    "name": "Sling Bags",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-162",
+    "name": "Smart Phone",
+    "parent": "Phones & Accessories",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1245",
+    "name": "Sports wear",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Sportswear [66C86053-159B-436E-B4A9-4A7CCB5CAC8A] (under Sports & Outdoors, sim 0.64)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1198",
+    "name": "Sweatshirt",
+    "parent": "Direct Print Clothes",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1238",
+    "name": "Swimming Cap & Beanie",
+    "parent": "Fully Printing  Hat",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Swimming [4B36F14A-6894-4047-8845-56CAFCF9A914] (under Sports & Outdoors, sim 0.45)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1240",
+    "name": "Swimsuit",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1242",
+    "name": "T-shirt",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "T-Shirts [C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073] (under Men's Clothing, 29114 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1220",
+    "name": "T-shirt",
+    "parent": "Men's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "T-Shirts [C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073] (under Men's Clothing, 29114 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1271",
+    "name": "T-shirts & Shirts",
+    "parent": "Made in USA(Free shipping)",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "T-Shirts [C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073] (under Men's Clothing, sim 1.00)",
+      "Boy T-Shirts [8DA1BB63-9FC2-4817-9271-3474CDBDDB30] (under Boys Clothing, sim 0.69)",
+      "Men's Shirts [2409230540121629100] (under Outerwear & Jackets, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1189",
+    "name": "Tablecloths",
+    "parent": "Home Deco",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-124",
+    "name": "Tablet & Mini PC",
+    "parent": "Consumer Electronic",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1256",
+    "name": "Tank Top",
+    "parent": "Men's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1260",
+    "name": "Tapestry & Blanket",
+    "parent": "Made in USA(Free shipping)",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-154",
+    "name": "Temporary tattoos",
+    "parent": null,
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1270",
+    "name": "Temporary tattoos",
+    "parent": "Temporary tattoos",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-143",
+    "name": "Tennis",
+    "parent": "Sports & Outdoors",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1230",
+    "name": "Tight trousers",
+    "parent": "Men's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1173",
+    "name": "Tote Bags",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1272",
+    "name": "Trousers",
+    "parent": "Made in USA(Free shipping)",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1243",
+    "name": "Trousers",
+    "parent": "Women's Clothing",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1249",
+    "name": "Wallet",
+    "parent": "Bags",
+    "direct": 0,
+    "deep": 0,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Wallet Cases [2CF32BF2-246D-4EC7-A060-6835C7EFD4AD] (under Cases & Covers, sim 0.54)",
+      "Man Wallets [F3F4B418-17DF-49A1-AD76-A436B7618FFC] (under Men's Luggage & Bags, sim 0.46)",
+      "Woman Wallets [0ADE366E-CDF4-47E7-8720-B480220E1BD4] (under Women's Luggage & Bags, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1215",
+    "name": "Canvas Shoes",
+    "parent": "Shoes & Socks",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Casual Shoes [F419006D-AE55-4691-93FC-52FEBB459DBA] (under Men's Shoes, sim 0.44)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-80",
+    "name": "Car Repair Tools",
+    "parent": "Cars & Motocycles",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1244",
+    "name": "Casual wear",
+    "parent": "Women's Clothing",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-61",
+    "name": "Coin Purses & Holders",
+    "parent": "Shoes & Bags",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-139",
+    "name": "Entertainment ",
+    "parent": "Sports & Outdoors",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-97",
+    "name": "Feeding",
+    "parent": "Mother & Kids",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Feeding Tools [2410110341451628800] (under Pet Drinking & Feeding, sim 0.44)",
+      "Pet Drinking & Feeding [2410110337031615300] (under Pet Supplies, sim 0.42)"
+    ]
+  },
+  {
+    "id": "EPROLO-L1-128",
+    "name": "Home Deco",
+    "parent": null,
+    "direct": 0,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-150",
+    "name": "Kids & Baby",
+    "parent": null,
+    "direct": 0,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Toys, Kids & Babies [A50A92FA-BCB3-4716-9BD9-BEC629BEE735] (under root, sim 0.42)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1257",
+    "name": "Kids Clothing",
+    "parent": "Kids & Baby",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Boys Clothing [54251EAE-F02B-4B6B-93D7-DE2BB387F60B] (under Toys, Kids & Babies, sim 0.47)",
+      "Baby Clothing [7A31FADF-137D-4C83-AD7B-BCF28CACDA94] (under Toys, Kids & Babies, sim 0.47)",
+      "Men's Clothing [B8302697-CF47-4211-9BD0-DFE8995AEB30] (under root, sim 0.45)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1188",
+    "name": "Outdoor",
+    "parent": "Home Set",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Outdoor Shorts [8E8CE199-A134-45B1-9EDE-0D4F122F4568] (under Sportswear, sim 0.53)",
+      "Outdoor Lighting [59AEBD05-0FDB-4392-BCF5-518C411A26E0] (under Home Improvement, sim 0.47)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1233",
+    "name": "Pet Clothes",
+    "parent": "Pet Supplies",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Clothings [2410110349471606300] (under Pet Apparels, sim 0.53)",
+      "Pet Clothing Sets [2410110350161600700] (under Pet Apparels, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1216",
+    "name": "Slip-on",
+    "parent": "Shoes & Socks",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1218",
+    "name": "Sports Shoes",
+    "parent": "Shoes & Socks",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Shorts [12A1288F-063D-427F-BF07-10F53784849B] (under Underwear & Loungewear, sim 0.46)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1171",
+    "name": "Wall Deco",
+    "parent": "Home Deco",
+    "direct": 1,
+    "deep": 1,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-150",
+    "name": "Baby Souvenirs",
+    "parent": "Mother & Kids",
+    "direct": 2,
+    "deep": 2,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1258",
+    "name": "Cup",
+    "parent": "Home Set",
+    "direct": 2,
+    "deep": 2,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1246",
+    "name": "Suit",
+    "parent": "Women's Clothing",
+    "direct": 2,
+    "deep": 2,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-138",
+    "name": "Wedding & Engagement",
+    "parent": "Jewelry & Accessories",
+    "direct": 2,
+    "deep": 2,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Wedding & Engagement [01114D8D-79BD-4AD9-85A0-72D1B050E3F8] (under Jewelry & Watches, 1342 deep)",
+      "Wedding & Engagement [FCF87613-7AF4-4053-B688-B415FDD242CE] (under Wedding & Engagement, 79 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-166",
+    "name": " Kids & Baby's Bags",
+    "parent": "Shoes & Bags",
+    "direct": 3,
+    "deep": 3,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-127",
+    "name": "Bags",
+    "parent": null,
+    "direct": 3,
+    "deep": 3,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Bags [2410110342571606700] (under Pet Outdoor Supplies, sim 0.56)",
+      "Pet Bags [2410110351121613900] (under Pet Apparels, sim 0.56)",
+      "Boys Bags [96C833A9-93EC-4D76-B093-3A3B945659C6] (under Women's Luggage & Bags, sim 0.56)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-90",
+    "name": "Beauty Essentials",
+    "parent": "Beauty & Health",
+    "direct": 3,
+    "deep": 3,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-148",
+    "name": "Fully Printing  Hat",
+    "parent": null,
+    "direct": 0,
+    "deep": 3,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-129",
+    "name": "Home Set",
+    "parent": null,
+    "direct": 0,
+    "deep": 3,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1237",
+    "name": "Visor Hat & Snapback Cap",
+    "parent": "Fully Printing  Hat",
+    "direct": 3,
+    "deep": 3,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-21",
+    "name": "Mother & Kids",
+    "parent": null,
+    "direct": 1,
+    "deep": 4,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-91",
+    "name": "Shaving & Hair Removal",
+    "parent": "Beauty & Health",
+    "direct": 4,
+    "deep": 4,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-65",
+    "name": "Shoe Accessories",
+    "parent": "Shoes & Bags",
+    "direct": 4,
+    "deep": 4,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, sim 0.71)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, sim 0.71)",
+      "Bag Accessories [2502190501141602700] (under Women's Luggage & Bags, sim 0.57)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-130",
+    "name": " Power Source ",
+    "parent": "Consumer Electronic",
+    "direct": 5,
+    "deep": 5,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-142",
+    "name": "Survival",
+    "parent": "Sports & Outdoors",
+    "direct": 5,
+    "deep": 5,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-57",
+    "name": "Unisex Wallets",
+    "parent": "Shoes & Bags",
+    "direct": 6,
+    "deep": 6,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Man Wallets [F3F4B418-17DF-49A1-AD76-A436B7618FFC] (under Men's Luggage & Bags, sim 0.42)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1234",
+    "name": "Accessories",
+    "parent": "Pet Supplies",
+    "direct": 7,
+    "deep": 7,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, 20135 deep)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, 4861 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-111",
+    "name": "Bathroom Fixtures",
+    "parent": "Home Improvement",
+    "direct": 7,
+    "deep": 7,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-69",
+    "name": "Fitness & Body Building",
+    "parent": "Sports & Outdoors",
+    "direct": 7,
+    "deep": 7,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Fitness & Bodybuilding [C20B25A2-348C-48C8-A2C8-FE33749A40DE] (under Other Sports Equipment, sim 0.83)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-56",
+    "name": "Men's Bags",
+    "parent": "Shoes & Bags",
+    "direct": 7,
+    "deep": 7,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Men's Luggage & Bags [D82A6AF3-78F1-4A33-8F44-A37F282B2209] (under Bags & Shoes, sim 0.58)",
+      "Men's Backpacks [CDCCB9B1-D5DD-4C20-AF32-101FE427B63C] (under Men's Luggage & Bags, sim 0.44)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-46",
+    "name": "Home Audio & Video",
+    "parent": "Consumer Electronic",
+    "direct": 8,
+    "deep": 8,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Home Audio & Video [4BFAF763-DD09-4DD3-A7E9-E03724D1D51B] (under Consumer Electronics, 1280 deep)",
+      "Home Audio & Video [D6C23AAE-B8EE-481C-9B61-34557971D45F] (under Home Audio & Video, 225 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-89",
+    "name": "Fragrances & Deodorants",
+    "parent": "Beauty & Health",
+    "direct": 10,
+    "deep": 10,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-70",
+    "name": "Sport Bags",
+    "parent": "Sports & Outdoors",
+    "direct": 10,
+    "deep": 10,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Sports Bags [937A06CE-ECCC-4C7D-A270-B216DE612AC0] (under Sportswear, 550 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-58",
+    "name": "Backpacks",
+    "parent": "Shoes & Bags",
+    "direct": 11,
+    "deep": 11,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Men's Backpacks [CDCCB9B1-D5DD-4C20-AF32-101FE427B63C] (under Men's Luggage & Bags, sim 0.60)",
+      "Fashion Backpacks [78BCE010-8E22-416F-82E2-6E5C6AE0CECE] (under Women's Luggage & Bags, sim 0.53)",
+      "Backpacks & Carriers [5C374126-AE88-4617-B732-011174077E00] (under Baby & Mother, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-131",
+    "name": "Beads & DIY Jewelry",
+    "parent": "Jewelry & Accessories",
+    "direct": 11,
+    "deep": 11,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1232",
+    "name": "Masks",
+    "parent": "Protective Masks",
+    "direct": 11,
+    "deep": 11,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Face Masks [1374953557614268416] (under Accessories, sim 0.55)",
+      "Face Masks [88AF62DE-5586-40E4-A287-864523D9AE50] (under Skin Care, sim 0.55)",
+      "Party Masks [9F52617D-F420-4FA7-8F25-53A9577A9111] (under Festive & Party Supplies, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L1-144",
+    "name": "Protective Masks",
+    "parent": null,
+    "direct": 0,
+    "deep": 11,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L1-13",
+    "name": "Consumer Electronic",
+    "parent": null,
+    "direct": 0,
+    "deep": 13,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Consumer Electronics [D9E66BF8-4E81-4CAB-A425-AEDEC5FBFBF2] (under root, 17238 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-62",
+    "name": "Functional Bags",
+    "parent": "Shoes & Bags",
+    "direct": 13,
+    "deep": 13,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-31",
+    "name": "Moblie Phone Accessories",
+    "parent": "Phones & Accessories",
+    "direct": 14,
+    "deep": 14,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Mobile Phone Accessories [912FD088-248B-4D58-84F7-1F10B888CF8A] (under Phones & Accessories, sim 0.72)",
+      "Phones & Accessories [E9FDC79A-8365-4CA6-AC23-64D971F08B8B] (under root, sim 0.65)",
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, sim 0.48)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-84",
+    "name": "Sex Product",
+    "parent": "Beauty & Health",
+    "direct": 14,
+    "deep": 14,
+    "hasThumb": false,
+    "blocked": true,
+    "exactMatch": [],
+    "nearMatch": [
+      "Seasonal products [1711658677159079936] (under Home Storage, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-159",
+    "name": "Socks & Leggings",
+    "parent": "Fashion & Clothing",
+    "direct": 14,
+    "deep": 14,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Leggings [396E962A-5632-49C2-B9BF-9529DE3B9141] (under Bottoms, sim 0.60)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1241",
+    "name": "Dresses",
+    "parent": "Women's Clothing",
+    "direct": 15,
+    "deep": 15,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Dresses [2410110348131619300] (under Pet Apparels, sim 0.67)",
+      "Prom Dresses [88E43313-84C6-4550-B2C7-83A415AFA2DD] (under Weddings & Events, sim 0.62)",
+      "Baby Dresses [B34957D5-3AF6-4BE7-AC9F-72BAB8433CB6] (under Baby Clothing, sim 0.62)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-148",
+    "name": "Home Textile",
+    "parent": "Home Improvement",
+    "direct": 15,
+    "deep": 15,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Home Textiles [1AD00A3C-465A-430A-9820-F2D097FDA53A] (under Home, Garden & Furniture, 11145 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1224",
+    "name": "Boots & High Top",
+    "parent": "Shoes & Socks",
+    "direct": 17,
+    "deep": 17,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-119",
+    "name": "Household Appliances",
+    "parent": "Home Improvement",
+    "direct": 17,
+    "deep": 17,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Home Appliances [85EF081C-819E-448F-BD5C-C5D3F4CFAADA] (under Home Improvement, sim 0.54)",
+      "Smart Home Appliances [36F73513-6A5A-445D-87F9-BF3D6629E649] (under Smart Electronics, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-112",
+    "name": "Kitchen Fixtures",
+    "parent": "Home Improvement",
+    "direct": 19,
+    "deep": 19,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-73",
+    "name": "Sport Accessories",
+    "parent": "Sports & Outdoors",
+    "direct": 19,
+    "deep": 19,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Sports Accessories [79F47CD1-F813-4B4D-8D21-2B35966FBA66] (under Sportswear, 19982 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-49",
+    "name": "Watches",
+    "parent": "Jewelry & Accessories",
+    "direct": 19,
+    "deep": 19,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Dress Watches [A044AC0D-BA3B-4967-8300-1BD57F00048E] (under Women's Watches, sim 0.57)",
+      "Smart Watches [C83EF2A0-8FA3-4713-9901-2FD6E4554D97] (under Smart Electronics, sim 0.57)",
+      "Men's Watches [603B4E08-4226-4BFC-A46E-FCCE92ED1C63] (under Jewelry & Watches, sim 0.57)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-79",
+    "name": "Car Wash & Maintenance",
+    "parent": "Cars & Motocycles",
+    "direct": 20,
+    "deep": 20,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Tools, Maintenance & Care [8D23F08A-3D9E-4A29-A184-EB6F8145E739] (under Automobiles & Motorcycles, sim 0.52)"
+    ]
+  },
+  {
+    "id": "EPROLO-L1-140",
+    "name": "Shoes & Socks",
+    "parent": null,
+    "direct": 0,
+    "deep": 20,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Shoes & Socks [2410110350451606900] (under Pet Apparels, sim 0.73)",
+      "Socks [1C592A63-6E0F-4F25-9496-8BDD82BF4281] (under Accessories, sim 0.55)",
+      "Soccer Shoes [9DA4624F-A8A2-4DC1-9088-81877A4944F2] (under Sneakers, sim 0.53)"
+    ]
+  },
+  {
+    "id": "EPROLO-L1-10",
+    "name": "Cars & Motocycles",
+    "parent": null,
+    "direct": 0,
+    "deep": 21,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-1214",
+    "name": "Clothes for pets",
+    "parent": "Home Improvement",
+    "direct": 21,
+    "deep": 21,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-36",
+    "name": "Phone Bags & Cases",
+    "parent": "Phones & Accessories",
+    "direct": 22,
+    "deep": 22,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Laptop Bags & Cases [74B144C9-321D-4E78-986C-757BA551DD8C] (under Tablet & Laptop Accessories, sim 0.46)",
+      "IPhone X Cases [65AC23D3-BA63-438B-B8FE-71E117D717AF] (under Cases & Covers, sim 0.45)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-117",
+    "name": "Cleaning Tools",
+    "parent": "Home Improvement",
+    "direct": 30,
+    "deep": 30,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Cooking Tools [E448A723-43DC-4BD8-A9AD-2FB9699338B4] (under Kitchen, Dining & Bar, sim 0.45)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-93",
+    "name": "Tools & Accessories",
+    "parent": "Beauty & Health",
+    "direct": 30,
+    "deep": 30,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Machine Tools & Accessories [964AB089-A154-4971-9A4F-DB9C57E06854] (under Tools, sim 0.69)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, sim 0.67)",
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, sim 0.67)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-134",
+    "name": " Garden Supplies ",
+    "parent": "Home Improvement",
+    "direct": 40,
+    "deep": 40,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Supplies [2409110611570657700] (under root, sim 0.45)",
+      "Bird Supplies [2410110337451628400] (under Pet Supplies, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-109",
+    "name": "Lights & Lighting",
+    "parent": "Home Improvement",
+    "direct": 40,
+    "deep": 40,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Lighting [11B12208-A434-467B-8AD3-DC65E32EC2E5] (under Motorcycle Accessories & Parts, sim 0.82)",
+      "LED Lighting [392D3DB2-1E98-474E-9E45-9F2FE95A7608] (under Home Improvement, sim 0.64)",
+      "String Lights [EDB5F43E-EAC0-489A-8355-5188EAB72D08] (under Outdoor Lighting, sim 0.56)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-86",
+    "name": "Hair Care & Styling",
+    "parent": "Beauty & Health",
+    "direct": 43,
+    "deep": 43,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Hair Styling [9A3105F2-AFFD-42FC-8A52-D0FB4ACDCB63] (under Hair Weaves, sim 0.72)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-51",
+    "name": "Jewelry Sets & More",
+    "parent": "Jewelry & Accessories",
+    "direct": 47,
+    "deep": 47,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Fine Jewelry Sets [E8B256EF-44F0-4FA0-847B-F104FD29E101] (under Fine Jewelry, sim 0.57)",
+      "Bridal Jewelry Sets [04B879BE-79E7-4CB9-B493-B03F628B5130] (under Wedding & Engagement, sim 0.52)",
+      "Fashion Jewelry Sets [89D165E3-EF5F-461D-9DC9-D1041CECEF09] (under Fashion Jewelry, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-66",
+    "name": "Sports Clothing",
+    "parent": "Sports & Outdoors",
+    "direct": 67,
+    "deep": 67,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Clothing Sets [2410110350161600700] (under Pet Apparels, sim 0.48)",
+      "Boy Clothing Sets [C938C806-CB88-46AB-B782-89ECD0B25E25] (under Boys Clothing, sim 0.48)",
+      "Men's Clothing [B8302697-CF47-4211-9BD0-DFE8995AEB30] (under root, sim 0.48)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-144",
+    "name": "Home Storage & Organization",
+    "parent": "Home Improvement",
+    "direct": 72,
+    "deep": 72,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Home Storage [ED8E61AA-2260-4E03-BA66-DEAE3DF02CDC] (under Home, Garden & Furniture, sim 0.50)",
+      "Home Office Storage [87CF251F-8D11-4DE0-A154-9694D9858EB3] (under Home Storage, sim 0.44)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-129",
+    "name": "Health Care",
+    "parent": "Beauty & Health",
+    "direct": 76,
+    "deep": 76,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Health Care Products [2409190611101616600] (under Food & Health, sim 0.57)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-55",
+    "name": "Women's Bags",
+    "parent": "Shoes & Bags",
+    "direct": 79,
+    "deep": 79,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Women's Luggage & Bags [EC2E9303-E704-43F3-834A-A15EA653232E] (under Bags & Shoes, sim 0.62)",
+      "Women's Crossbody Bags [2410301013451614000] (under Women's Luggage & Bags, sim 0.57)",
+      "Women's Shoes [E93B19EF-4E2C-4526-B2DF-BBFB6F2A80A7] (under Bags & Shoes, sim 0.44)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-127",
+    "name": "Kitchen & Bar",
+    "parent": "Home Improvement",
+    "direct": 85,
+    "deep": 85,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Kitchen, Dining & Bar [D5D120D0-1262-461A-97C5-74AC732625B5] (under Home, Garden & Furniture, sim 0.63)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-140",
+    "name": " Home Decor",
+    "parent": "Home Improvement",
+    "direct": 105,
+    "deep": 105,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-161",
+    "name": "Others",
+    "parent": "Fashion & Clothing",
+    "direct": 112,
+    "deep": 112,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-47",
+    "name": "Necklaces & Pendants",
+    "parent": "Jewelry & Accessories",
+    "direct": 117,
+    "deep": 117,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [
+      "Necklace & Pendants [95D9F317-1DB3-4E42-A031-02223215B9C5] (under Fashion Jewelry, 40544 deep)"
+    ],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-128",
+    "name": "Pet Products ",
+    "parent": "Home Improvement",
+    "direct": 127,
+    "deep": 127,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Shower Products [2410110355151622300] (under Pet Groomings, sim 0.63)",
+      "Seasonal products [1711658677159079936] (under Home Storage, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-1236",
+    "name": "Sex Product",
+    "parent": "Fashion & Clothing",
+    "direct": 151,
+    "deep": 151,
+    "hasThumb": false,
+    "blocked": true,
+    "exactMatch": [],
+    "nearMatch": [
+      "Seasonal products [1711658677159079936] (under Home Storage, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L1-19",
+    "name": "Beauty & Health",
+    "parent": null,
+    "direct": 0,
+    "deep": 180,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Health, Beauty & Hair [2C7D4A0B-1AB2-41EC-8F9E-13DC31B1C902] (under root, sim 0.78)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-160",
+    "name": "Unisex Accessories",
+    "parent": "Fashion & Clothing",
+    "direct": 181,
+    "deep": 181,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, sim 0.63)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, sim 0.63)",
+      "Bag Accessories [2502190501141602700] (under Women's Luggage & Bags, sim 0.52)"
+    ]
+  },
+  {
+    "id": "EPROLO-L1-11",
+    "name": "Jewelry & Accessories",
+    "parent": null,
+    "direct": 0,
+    "deep": 196,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Accessories [23DDAF61-8F6C-40F7-9F1F-DC9BB25450B6] (under Women's Clothing, sim 0.60)",
+      "Accessories [90619059-822F-469F-9231-D58761546093] (under Men's Clothing, sim 0.60)",
+      "Bag Accessories [2502190501141602700] (under Women's Luggage & Bags, sim 0.50)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-108",
+    "name": "Unisex Jeans",
+    "parent": "Fashion & Clothing",
+    "direct": 440,
+    "deep": 440,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  },
+  {
+    "id": "EPROLO-L2-158",
+    "name": "Suits & Sets",
+    "parent": "Fashion & Clothing",
+    "direct": 547,
+    "deep": 547,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Men's Suits [2502140305411618900] (under Outerwear & Jackets, sim 0.43)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-106",
+    "name": "Unisex Hoodies & Sweatshirts",
+    "parent": "Fashion & Clothing",
+    "direct": 675,
+    "deep": 675,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Sweatshirts & Hoodies [2410110348531624100] (under Pet Apparels, sim 0.65)",
+      "Man Hoodies & Sweatshirts [976399B4-534B-46F0-B18A-62075824A717] (under Outerwear & Jackets, sim 0.65)",
+      "Boy Hoodies & Sweatshirts [BB0B0BAD-326B-4328-B1BF-319C420DF782] (under Boys Clothing, sim 0.65)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-155",
+    "name": "Jackets & Coats",
+    "parent": "Fashion & Clothing",
+    "direct": 1176,
+    "deep": 1176,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Coats & Jackets [2410110349061619800] (under Pet Apparels, sim 0.76)",
+      "Down Jackets [F7CF2C2C-A7F5-488B-B457-646028917DF2] (under Outerwear & Jackets, sim 0.44)",
+      "Men's Jackets [2409230540351618000] (under Outerwear & Jackets, sim 0.42)"
+    ]
+  },
+  {
+    "id": "EPROLO-L2-104",
+    "name": "Unisex Dresses",
+    "parent": "Fashion & Clothing",
+    "direct": 1777,
+    "deep": 1777,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": [
+      "Pet Dresses [2410110348131619300] (under Pet Apparels, sim 0.42)"
+    ]
+  },
+  {
+    "id": "EPROLO-L1-24",
+    "name": "Fashion & Clothing",
+    "parent": null,
+    "direct": 1,
+    "deep": 5074,
+    "hasThumb": false,
+    "blocked": false,
+    "exactMatch": [],
+    "nearMatch": []
+  }
+]

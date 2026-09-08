@@ -1,0 +1,462 @@
+{
+  "at": "2026-09-08T10:35:39.840Z",
+  "REPARENT": [
+    [
+      "EPROLO-L1-13",
+      "D9E66BF8-4E81-4CAB-A425-AEDEC5FBFBF2",
+      "Consumer Electronic",
+      "Consumer Electronics"
+    ],
+    [
+      "EPROLO-L1-10",
+      "A2F799BE-FB59-428E-A953-296AA2673FCF",
+      "Cars & Motocycles",
+      "Automobiles & Motorcycles"
+    ],
+    [
+      "EPROLO-L1-19",
+      "2C7D4A0B-1AB2-41EC-8F9E-13DC31B1C902",
+      "Beauty & Health",
+      "Health, Beauty & Hair"
+    ],
+    [
+      "EPROLO-L1-11",
+      "2837816E-2FEA-4455-845C-6F40C6D70D1E",
+      "Jewelry & Accessories",
+      "Jewelry & Watches"
+    ],
+    [
+      "EPROLO-L1-127",
+      "2415A90C-5D7B-4CC7-BA8C-C0949F9FF5D8",
+      "Bags",
+      "Bags & Shoes"
+    ],
+    [
+      "EPROLO-L1-140",
+      "2415A90C-5D7B-4CC7-BA8C-C0949F9FF5D8",
+      "Shoes & Socks",
+      "Bags & Shoes"
+    ],
+    [
+      "EPROLO-L1-150",
+      "A50A92FA-BCB3-4716-9BD9-BEC629BEE735",
+      "Kids & Baby",
+      "Toys, Kids & Babies"
+    ],
+    [
+      "EPROLO-L1-128",
+      "52FC6CA5-669B-4D0B-B1AC-415675931399",
+      "Home Deco",
+      "Home, Garden & Furniture"
+    ],
+    [
+      "EPROLO-L1-129",
+      "52FC6CA5-669B-4D0B-B1AC-415675931399",
+      "Home Set",
+      "Home, Garden & Furniture"
+    ],
+    [
+      "EPROLO-L1-21",
+      "A50A92FA-BCB3-4716-9BD9-BEC629BEE735",
+      "Mother & Kids",
+      "Toys, Kids & Babies"
+    ]
+  ],
+  "PRODUCTS": [
+    [
+      "EPROLO-L2-47",
+      "95D9F317-1DB3-4E42-A031-02223215B9C5",
+      "Necklaces & Pendants",
+      "Necklace & Pendants"
+    ],
+    [
+      "EPROLO-L2-73",
+      "79F47CD1-F813-4B4D-8D21-2B35966FBA66",
+      "Sport Accessories",
+      "Sports Accessories"
+    ],
+    [
+      "EPROLO-L2-70",
+      "937A06CE-ECCC-4C7D-A270-B216DE612AC0",
+      "Sport Bags",
+      "Sports Bags"
+    ],
+    [
+      "EPROLO-L2-148",
+      "1AD00A3C-465A-430A-9820-F2D097FDA53A",
+      "Home Textile",
+      "Home Textiles"
+    ],
+    [
+      "EPROLO-L2-69",
+      "C20B25A2-348C-48C8-A2C8-FE33749A40DE",
+      "Fitness & Body Building",
+      "Fitness & Bodybuilding"
+    ],
+    [
+      "EPROLO-L2-31",
+      "912FD088-248B-4D58-84F7-1F10B888CF8A",
+      "Moblie Phone Accessories",
+      "Mobile Phone Accessories"
+    ],
+    [
+      "EPROLO-L2-46",
+      "4BFAF763-DD09-4DD3-A7E9-E03724D1D51B",
+      "Home Audio & Video",
+      "Home Audio & Video"
+    ],
+    [
+      "EPROLO-L2-119",
+      "85EF081C-819E-448F-BD5C-C5D3F4CFAADA",
+      "Household Appliances",
+      "Home Appliances"
+    ]
+  ],
+  "empties": [
+    "EPROLO-L1-134",
+    "EPROLO-L1-154",
+    "EPROLO-L2-1207",
+    "EPROLO-L2-1262",
+    "EPROLO-L2-1267",
+    "EPROLO-L2-1279",
+    "EPROLO-L2-1265",
+    "EPROLO-L2-1277",
+    "EPROLO-L2-1278",
+    "EPROLO-L2-1260",
+    "EPROLO-L2-1266",
+    "EPROLO-L2-1276",
+    "EPROLO-L2-1252",
+    "EPROLO-L2-1259",
+    "EPROLO-L2-1248",
+    "EPROLO-L2-1251",
+    "EPROLO-L2-1206",
+    "EPROLO-L2-1230",
+    "EPROLO-L2-1250",
+    "EPROLO-L2-1229",
+    "EPROLO-L2-1249",
+    "EPROLO-L2-1175",
+    "EPROLO-L2-1245",
+    "EPROLO-L2-1247",
+    "EPROLO-L2-1226",
+    "EPROLO-L2-1176",
+    "EPROLO-L2-1184",
+    "EPROLO-L2-1203",
+    "EPROLO-L2-1239",
+    "EPROLO-L2-1183",
+    "EPROLO-L2-1187",
+    "EPROLO-L2-1205",
+    "EPROLO-L2-1223",
+    "EPROLO-L1-133",
+    "EPROLO-L1-152",
+    "EPROLO-L1-156",
+    "EPROLO-L1-132",
+    "EPROLO-L1-130",
+    "EPROLO-L1-131",
+    "EPROLO-L2-1254",
+    "EPROLO-L2-1256",
+    "EPROLO-L2-1272",
+    "EPROLO-L2-1178",
+    "EPROLO-L2-1182",
+    "EPROLO-L2-1194",
+    "EPROLO-L2-1199",
+    "EPROLO-L2-1202",
+    "EPROLO-L2-1219",
+    "EPROLO-L2-1243",
+    "EPROLO-L2-1177",
+    "EPROLO-L2-1193",
+    "EPROLO-L2-1198",
+    "EPROLO-L2-1201",
+    "EPROLO-L2-1217",
+    "EPROLO-L2-1221",
+    "EPROLO-L2-1242",
+    "EPROLO-L2-1263",
+    "EPROLO-L2-1271",
+    "EPROLO-L2-1172",
+    "EPROLO-L2-1174",
+    "EPROLO-L2-1189",
+    "EPROLO-L2-1192",
+    "EPROLO-L2-1197",
+    "EPROLO-L2-1200",
+    "EPROLO-L2-1212",
+    "EPROLO-L2-1220",
+    "EPROLO-L2-42",
+    "EPROLO-L2-75",
+    "EPROLO-L2-92",
+    "EPROLO-L2-98",
+    "EPROLO-L2-124",
+    "EPROLO-L2-143",
+    "EPROLO-L2-146",
+    "EPROLO-L2-147",
+    "EPROLO-L2-149",
+    "EPROLO-L2-162",
+    "EPROLO-L2-1173",
+    "EPROLO-L2-1179",
+    "EPROLO-L2-1204",
+    "EPROLO-L2-1208",
+    "EPROLO-L2-1238",
+    "EPROLO-L2-1240",
+    "EPROLO-L2-1270"
+  ],
+  "kept": [
+    [
+      "EPROLO-L1-24",
+      "Fashion & Clothing"
+    ],
+    [
+      "EPROLO-L2-104",
+      "Unisex Dresses"
+    ],
+    [
+      "EPROLO-L2-155",
+      "Jackets & Coats"
+    ],
+    [
+      "EPROLO-L2-106",
+      "Unisex Hoodies & Sweatshirts"
+    ],
+    [
+      "EPROLO-L2-158",
+      "Suits & Sets"
+    ],
+    [
+      "EPROLO-L2-108",
+      "Unisex Jeans"
+    ],
+    [
+      "EPROLO-L2-160",
+      "Unisex Accessories"
+    ],
+    [
+      "EPROLO-L2-1236",
+      "Sex Product"
+    ],
+    [
+      "EPROLO-L2-128",
+      "Pet Products "
+    ],
+    [
+      "EPROLO-L2-161",
+      "Others"
+    ],
+    [
+      "EPROLO-L2-140",
+      " Home Decor"
+    ],
+    [
+      "EPROLO-L2-127",
+      "Kitchen & Bar"
+    ],
+    [
+      "EPROLO-L2-55",
+      "Women's Bags"
+    ],
+    [
+      "EPROLO-L2-129",
+      "Health Care"
+    ],
+    [
+      "EPROLO-L2-144",
+      "Home Storage & Organization"
+    ],
+    [
+      "EPROLO-L2-66",
+      "Sports Clothing"
+    ],
+    [
+      "EPROLO-L2-51",
+      "Jewelry Sets & More"
+    ],
+    [
+      "EPROLO-L2-86",
+      "Hair Care & Styling"
+    ],
+    [
+      "EPROLO-L2-109",
+      "Lights & Lighting"
+    ],
+    [
+      "EPROLO-L2-134",
+      " Garden Supplies "
+    ],
+    [
+      "EPROLO-L2-93",
+      "Tools & Accessories"
+    ],
+    [
+      "EPROLO-L2-117",
+      "Cleaning Tools"
+    ],
+    [
+      "EPROLO-L2-36",
+      "Phone Bags & Cases"
+    ],
+    [
+      "EPROLO-L2-1214",
+      "Clothes for pets"
+    ],
+    [
+      "EPROLO-L2-79",
+      "Car Wash & Maintenance"
+    ],
+    [
+      "EPROLO-L2-49",
+      "Watches"
+    ],
+    [
+      "EPROLO-L2-112",
+      "Kitchen Fixtures"
+    ],
+    [
+      "EPROLO-L2-1224",
+      "Boots & High Top"
+    ],
+    [
+      "EPROLO-L2-1241",
+      "Dresses"
+    ],
+    [
+      "EPROLO-L2-84",
+      "Sex Product"
+    ],
+    [
+      "EPROLO-L2-159",
+      "Socks & Leggings"
+    ],
+    [
+      "EPROLO-L2-62",
+      "Functional Bags"
+    ],
+    [
+      "EPROLO-L1-144",
+      "Protective Masks"
+    ],
+    [
+      "EPROLO-L2-58",
+      "Backpacks"
+    ],
+    [
+      "EPROLO-L2-131",
+      "Beads & DIY Jewelry"
+    ],
+    [
+      "EPROLO-L2-1232",
+      "Masks"
+    ],
+    [
+      "EPROLO-L2-89",
+      "Fragrances & Deodorants"
+    ],
+    [
+      "EPROLO-L2-1234",
+      "Accessories"
+    ],
+    [
+      "EPROLO-L2-56",
+      "Men's Bags"
+    ],
+    [
+      "EPROLO-L2-111",
+      "Bathroom Fixtures"
+    ],
+    [
+      "EPROLO-L2-57",
+      "Unisex Wallets"
+    ],
+    [
+      "EPROLO-L2-130",
+      " Power Source "
+    ],
+    [
+      "EPROLO-L2-142",
+      "Survival"
+    ],
+    [
+      "EPROLO-L2-65",
+      "Shoe Accessories"
+    ],
+    [
+      "EPROLO-L2-91",
+      "Shaving & Hair Removal"
+    ],
+    [
+      "EPROLO-L1-148",
+      "Fully Printing  Hat"
+    ],
+    [
+      "EPROLO-L2-90",
+      "Beauty Essentials"
+    ],
+    [
+      "EPROLO-L2-166",
+      " Kids & Baby's Bags"
+    ],
+    [
+      "EPROLO-L2-1237",
+      "Visor Hat & Snapback Cap"
+    ],
+    [
+      "EPROLO-L2-1246",
+      "Suit"
+    ],
+    [
+      "EPROLO-L2-1258",
+      "Cup"
+    ],
+    [
+      "EPROLO-L2-138",
+      "Wedding & Engagement"
+    ],
+    [
+      "EPROLO-L2-150",
+      "Baby Souvenirs"
+    ],
+    [
+      "EPROLO-L2-1188",
+      "Outdoor"
+    ],
+    [
+      "EPROLO-L2-1244",
+      "Casual wear"
+    ],
+    [
+      "EPROLO-L2-1218",
+      "Sports Shoes"
+    ],
+    [
+      "EPROLO-L2-1216",
+      "Slip-on"
+    ],
+    [
+      "EPROLO-L2-61",
+      "Coin Purses & Holders"
+    ],
+    [
+      "EPROLO-L2-80",
+      "Car Repair Tools"
+    ],
+    [
+      "EPROLO-L2-97",
+      "Feeding"
+    ],
+    [
+      "EPROLO-L2-139",
+      "Entertainment "
+    ],
+    [
+      "EPROLO-L2-1171",
+      "Wall Deco"
+    ],
+    [
+      "EPROLO-L2-1215",
+      "Canvas Shoes"
+    ],
+    [
+      "EPROLO-L2-1233",
+      "Pet Clothes"
+    ],
+    [
+      "EPROLO-L2-1257",
+      "Kids Clothing"
+    ]
+  ]
+}
