@@ -131,7 +131,17 @@ export default function RootLayout({
               who is signed in. Every product grid on the site reads this, so
               it belongs at the root rather than around one page. */}
           <FavouritesProvider>
-            <Suspense fallback={<div className="h-16" />}>
+            {/* Zero-height fallback, deliberately.
+                The Navbar renders a `fixed top-0` nav inside a `relative`
+                header, so it contributes nothing to document flow — pages pad
+                for it themselves with pt-24. The old fallback was
+                <div className="h-16" />, which DID occupy 64px, so the moment
+                Suspense resolved the whole page jumped up by that much.
+                That was the intermittent full-page layout shift: CLS 1.0000
+                with no attributable source in 2 of 5 production runs, and
+                MAIN-attributed shifts in the others. Intermittent because it
+                only scores when Suspense resolves after the first paint. */}
+            <Suspense fallback={null}>
               <Navbar />
             </Suspense>
             {children}

@@ -78,7 +78,11 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
             const n = s.node;
             return n ? (n.tagName + '.' + String(n.className || '').split(' ').slice(0,3).join('.')).slice(0,70) : '(detached)';
           });
-          window.__cls.top.push({ v: +e.value.toFixed(4), t: Math.round(e.startTime), srcs });
+          const rects = (e.sources || []).map(s => {
+            const a = s.previousRect, b = s.currentRect;
+            return a && b ? ('y ' + Math.round(a.y) + '->' + Math.round(b.y) + '  h ' + Math.round(a.height) + '->' + Math.round(b.height)) : '';
+          }).filter(Boolean);
+          window.__cls.top.push({ v: +e.value.toFixed(4), t: Math.round(e.startTime), srcs, rects });
         }
       }
     }).observe({ type: 'layout-shift', buffered: true });
@@ -116,7 +120,7 @@ console.log(`  DOM nodes        : ${v.domNodes}`);
 const top = (v.cls?.top ?? []).sort((a,b)=>b.v-a.v).slice(0,6);
 if (top.length) {
   console.log('  biggest layout shifts:');
-  for (const s of top) console.log(`    ${String(s.v).padStart(7)} at ${s.t}ms  <- ${s.srcs.join(' , ') || '(no node)'}`);
+  for (const s of top) { console.log(`    ${String(s.v).padStart(7)} at ${s.t}ms  <- ${s.srcs.join(' , ') || '(no node)'}`); if (s.rects?.length) console.log(`             moved: ${s.rects.join(' | ')}`); }
 }
 console.log(`  LCP element      : ${v.lcp?.element || '(none)'}`);
 console.log(`  LCP url          : ${(v.lcp?.url || '(none)').slice(-72)}`);
