@@ -89,7 +89,8 @@ export function TrustBadges() {
             aria-hidden
             className="absolute top-0 bottom-0 rounded-xl bg-brand/12 ring-1 ring-brand/25"
             initial={false}
-            animate={{ left: box.left - 8, width: box.width + 16 }}
+            animate={{ x: box.left - 8 }}
+            style={{ width: box.width + 16 }}
             transition={
               instant
                 ? { duration: 0 }

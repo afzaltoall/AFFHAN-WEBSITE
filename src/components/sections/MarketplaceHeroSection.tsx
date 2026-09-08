@@ -111,7 +111,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
           }
         }
       },
-      { threshold: 0.1, rootMargin: '400px' }
+      { threshold: 0.1, rootMargin: '100px' }
     );
 
     const currentTarget = observerTarget.current;
@@ -380,7 +380,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
           </h1>
           <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
             <span>Source</span>
-            <div className="flex justify-center min-w-[140px] sm:min-w-[180px] lg:min-w-[240px]">
+            <div className="flex justify-center w-[140px] sm:w-[180px] lg:w-[240px] shrink-0">
               <TextMorph
                 words={["Electronics", "Apparel", "Machinery", "Home & Living", "Beauty", "Auto Parts"]}
                 interval={2200}
