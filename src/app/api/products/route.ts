@@ -4,6 +4,7 @@ import { prisma } from "../../../lib/prisma";
 import { unstable_cache } from "next/cache";
 import { parseQuery, buildSearchWhere, buildSearchOrderBy, categoryNameMatches, buildFuzzyWhere, buildFuzzyOrderBy } from "@/lib/search";
 import { blockedCategoryIdSet, blockedNameRegex, isCategoryBlocked } from "@/lib/moderation";
+import { MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
 
 import { HeroProduct, MappedProduct, CategoryLite, getCachedProductCount, getCachedCategoryProductCount, getCachedAllCategories, getCachedPreferredCategories, getCachedDefaultHeroPool, shuffle, getHeroFeed } from "@/lib/products";
 
@@ -366,9 +367,12 @@ export async function GET(request: Request) {
       },
       {
         headers: {
+          // Moderation-sensitive: this response is filtered by the blocked
+          // category set and the blocked-name regex, so a stale edge copy is a
+          // blocked product still on the site. See the note on the constant.
           "Cache-Control": isRandomisedFeed
             ? "no-store"
-            : "public, s-maxage=600, stale-while-revalidate=86400",
+            : MODERATION_SENSITIVE_CACHE_CONTROL,
         },
       }
     );

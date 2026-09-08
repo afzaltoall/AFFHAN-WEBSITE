@@ -32,3 +32,38 @@ export const TAG_PRODUCTS = "catalogue:products";
 /// both the category tree and product names, so it invalidates both; it has its
 /// own name so the intent of a call site is readable.
 export const CATALOGUE_TAGS = [TAG_CATEGORIES, TAG_PRODUCTS] as const;
+
+// ---------------------------------------------------------------------------
+// CDN caching for routes whose output depends on the moderation blocklist.
+//
+// revalidateTag purges the ORIGIN's data cache. It does not purge Vercel's edge
+// cache for a route that sets its own Cache-Control header — that caching is
+// manual and opaque to Next, so the edge keeps serving whatever it holds until
+// the header says otherwise. Tag invalidation therefore fixes the origin in
+// seconds and leaves the CDN untouched.
+//
+// That gap used to be measured in hours. /api/categories sent
+// `s-maxage=3600, stale-while-revalidate=86400`, and stale-while-revalidate is
+// the larger half of it: past the hour, the edge is still allowed to serve the
+// stale copy for a further day while it refreshes in the background. Worst case
+// ~25 hours. /api/products was ~24. For a catalogue where "hide this category"
+// is a content-safety action — and it has been once already, when EPROLO's
+// "Sex Product" categories went live — that is the wrong bound to accept.
+//
+// 60 seconds, and no stale-while-revalidate: past the minute the edge must
+// revalidate before serving, so the worst case is the minute itself rather than
+// the minute plus a day.
+//
+// The alternative was to drop the manual header and let Next cache the route,
+// which on Vercel ties the edge entry to the tags and would purge both at once.
+// It is the better architecture and it is the wrong thing to reach for first
+// here: it cannot be verified from this environment, and its failure mode is an
+// edge that never purges at all — unbounded, and silent. A short header is
+// bounded whether or not anything else works, and the two can be combined later
+// once the tag-to-edge behaviour has been confirmed on a real deployment.
+//
+// Cost: the origin is hit at most once a minute per edge region. The category
+// tree is ~180KB of JSON off an in-process cache that still holds for an hour,
+// so what actually repeats is the serialisation, not the query.
+export const MODERATION_SENSITIVE_CACHE_CONTROL =
+  "public, s-maxage=60, must-revalidate";

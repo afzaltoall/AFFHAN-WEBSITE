@@ -3,7 +3,7 @@ import { prisma } from "../../../lib/prisma";
 import { unstable_cache } from "next/cache";
 import { Category } from ".prisma/client";
 import { blockedCategoryIdSet } from "@/lib/moderation";
-import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
+import { TAG_CATEGORIES, TAG_PRODUCTS, MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
 
 type CategoryWithCount = Category & {
   _count: { products: number };
@@ -49,9 +49,14 @@ export async function GET() {
       const cached = await getCachedCategories();
       // The unstable_cache above already spares Postgres, but with
       // force-dynamic the function still wakes and re-serialises ~180KB for
-      // every caller. CJ's taxonomy is fixed at 634 nodes and the cron sync
-      // only ever refreshes thumbnails, so let the edge serve it outright and
-      // keep serving a stale copy for a day while it refreshes.
+      // every caller, so the edge is still worth having in front of it.
+      //
+      // It used to hold for an hour and then serve stale for a further day.
+      // That was written when the taxonomy was CJ's 634 fixed nodes and the
+      // only thing that changed was thumbnails. Neither is true now: categories
+      // are merged and deleted here, and — the reason this is short rather than
+      // merely shorter — a category can need blocking on content-safety
+      // grounds, which has happened once already.
       return NextResponse.json(
         {
           success: true,
@@ -60,7 +65,7 @@ export async function GET() {
         },
         {
           headers: {
-            "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+            "Cache-Control": MODERATION_SENSITIVE_CACHE_CONTROL,
           },
         }
       );
