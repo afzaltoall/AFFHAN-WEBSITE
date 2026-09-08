@@ -71,7 +71,15 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
     new PerformanceObserver((list) => {
       for (const e of list.getEntries()) {
         // Shifts within 500ms of a user input are excluded from CLS by spec.
-        if (!e.hadRecentInput) { window.__cls.value += e.value; window.__cls.shifts++; }
+        if (!e.hadRecentInput) {
+          window.__cls.value += e.value; window.__cls.shifts++;
+          window.__cls.top = window.__cls.top || [];
+          const srcs = (e.sources || []).map(s => {
+            const n = s.node;
+            return n ? (n.tagName + '.' + String(n.className || '').split(' ').slice(0,3).join('.')).slice(0,70) : '(detached)';
+          });
+          window.__cls.top.push({ v: +e.value.toFixed(4), t: Math.round(e.startTime), srcs });
+        }
       }
     }).observe({ type: 'layout-shift', buffered: true });
   `,
@@ -105,6 +113,11 @@ console.log(`\n=== ${LABEL} ===`);
 console.log(`  LCP              : ${(v.lcp?.value / 1000).toFixed(2)}s`);
 console.log(`  CLS              : ${(v.cls?.value ?? 0).toFixed(4)} (${v.cls?.shifts ?? 0} shifts)`);
 console.log(`  DOM nodes        : ${v.domNodes}`);
+const top = (v.cls?.top ?? []).sort((a,b)=>b.v-a.v).slice(0,6);
+if (top.length) {
+  console.log('  biggest layout shifts:');
+  for (const s of top) console.log(`    ${String(s.v).padStart(7)} at ${s.t}ms  <- ${s.srcs.join(' , ') || '(no node)'}`);
+}
 console.log(`  LCP element      : ${v.lcp?.element || '(none)'}`);
 console.log(`  LCP url          : ${(v.lcp?.url || '(none)').slice(-72)}`);
 console.log(`  LCP candidates   : ${v.lcp?.changes} (how many times the LCP element changed)`);
