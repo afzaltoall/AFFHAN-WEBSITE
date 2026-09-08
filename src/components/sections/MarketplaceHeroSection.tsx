@@ -380,11 +380,13 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
           </h1>
           <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
             <span>Source</span>
-            <TextMorph
-              words={["Electronics", "Apparel", "Machinery", "Home & Living", "Beauty", "Auto Parts"]}
-              interval={2200}
-              className="text-brand"
-            />
+            <div className="flex justify-center min-w-[140px] sm:min-w-[180px] lg:min-w-[240px]">
+              <TextMorph
+                words={["Electronics", "Apparel", "Machinery", "Home & Living", "Beauty", "Auto Parts"]}
+                interval={2200}
+                className="text-brand"
+              />
+            </div>
             <span>from one trusted partner</span>
           </div>
         </div>
@@ -392,15 +394,20 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
         {/* Large Hero Search Section */}
         <HeroSearchSection categories={categories} />
 
-        {/* CSS Grid Auto-flow Container */}
-        <div className="hidden lg:grid lg:grid-cols-6 gap-4 xl:gap-5 pb-8 relative">
+        {/* Mobile Fallback Header */}
+        <div className="flex lg:hidden items-end pt-2 pb-4">
+          <h2 className="text-xl font-black text-slate-900">Explore the Latest Global Inventory</h2>
+        </div>
+
+        {/* Unified Responsive Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 xl:gap-5 pb-8 relative">
 
           {/* Sidebar — spans a single grid row so it's exactly one product
                 card tall (its background fills the cell with no leftover grey
                 gap), scrolling internally if the category list is longer.
                 Clicking a category opens the same full mega-panel the navbar
                 uses (centered modal); no hover means no page dim/blur. */}
-          <div className="col-span-1 relative">
+          <div className="hidden lg:flex col-span-1 relative">
             {/* Same liquid-glass-card the product cards beside it use, borders
                 included. It previously carried !border-none, which removed the
                 white top/left highlight and the darker bottom/right edge — the
@@ -473,7 +480,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
           )}
 
           {loadingMore && (
-            <div className="col-span-full py-8 flex justify-center">
+            <div className="col-span-full py-8 flex justify-center w-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
             </div>
           )}
@@ -483,44 +490,18 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
               You&apos;ve reached the end of recommendations
             </div>
           )}
-        </div>
 
-        {/* Mobile Fallback Grid */}
-        <div className="lg:hidden pb-8">
-          <div className="flex items-end pt-2 pb-4">
-            <h2 className="text-xl font-black text-slate-900">Explore the Latest Global Inventory</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {loading ? (
-              [...Array(12)].map((_, i) => (
-                <div key={i} className="h-[300px] bg-slate-200 animate-pulse rounded-xl w-full" />
-              ))
-            ) : (
-              displayProducts.map((product, idx) => (
-                <div key={product.id} className="col-span-1">
-                  <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} />
-                </div>
-              ))
-            )}
-
-            {loadingMore && (
-              <div className="col-span-full py-8 flex justify-center w-full">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand"></div>
-              </div>
-            )}
-
-            {error && (
-              <div className="col-span-full py-8 flex flex-col items-center w-full">
-                <p className="text-red-500 mb-4">{error}</p>
-                <button
-                  onClick={() => { setError(null); setHasMore(true); }}
-                  className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-semibold transition-colors"
-                >
-                  Retry Loading
-                </button>
-              </div>
-            )}
-          </div>
+          {error && (
+            <div className="col-span-full py-8 flex flex-col items-center w-full">
+              <p className="text-red-500 mb-4">{error}</p>
+              <button
+                onClick={() => { setError(null); setHasMore(true); }}
+                className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg font-semibold transition-colors"
+              >
+                Retry Loading
+              </button>
+            </div>
+          )}
         </div>
 
         <div ref={observerTarget} className="h-10 w-full" />

@@ -16,7 +16,7 @@ export const revalidate = 3600;
 export default async function Home() {
   const [categoriesRes, productsResult] = await Promise.all([
     getCategories(),
-    getHeroFeed(140),
+    getHeroFeed(100),
   ]);
 
   const categoriesJson = await categoriesRes.json();

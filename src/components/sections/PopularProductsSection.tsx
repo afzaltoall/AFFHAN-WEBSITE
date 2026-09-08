@@ -45,11 +45,13 @@ export function PopularProductsSection({ initialProducts = [] }: { initialProduc
           </span>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2.5">
             <span>Trending products ready for</span>
-            <TextMorph
-              words={["sourcing", "importing", "wholesale", "OEM supply"]}
-              interval={2600}
-              className="text-brand"
-            />
+            <div className="flex justify-start min-w-[110px] sm:min-w-[140px] lg:min-w-[180px]">
+              <TextMorph
+                words={["sourcing", "importing", "wholesale", "OEM supply"]}
+                interval={2600}
+                className="text-brand"
+              />
+            </div>
           </h2>
           <p className="text-slate-500 max-w-xl">
             High-demand listings across our top sourcing categories. Tap any product to request a quote.
