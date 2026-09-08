@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import pg from 'pg';
 import { isCategoryBlocked } from './moderation.mjs';
+import { revalidateCatalogue } from './revalidate.mjs';
 
 // Gives every thumbnail-less category a real product photo, which is what the
 // browse grid falls back from — a category with a null thumbnailUrl renders the
@@ -99,6 +100,9 @@ try {
   }
   await client.query('COMMIT');
   console.log(`\napplied: ${updates.length} thumbnails set`);
+  // Part of the operation, not a follow-up step. Tiles that just gained an
+  // image must stop rendering the generic box now, not in an hour.
+  await revalidateCatalogue('categories');
 } catch (e) {
   await client.query('ROLLBACK');
   console.error('\nROLLED BACK:', e.message);

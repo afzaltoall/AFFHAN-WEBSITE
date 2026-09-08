@@ -3,6 +3,7 @@ import { prisma } from "../../../lib/prisma";
 import { unstable_cache } from "next/cache";
 import { Category } from ".prisma/client";
 import { blockedCategoryIdSet } from "@/lib/moderation";
+import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
 
 type CategoryWithCount = Category & {
   _count: { products: number };
@@ -36,8 +37,8 @@ const getCachedCategories = unstable_cache(
 
     return { data: formattedCategories, totalCount: totalProducts };
   },
-  ["categories-api-data-v10"],
-  { revalidate: 3600 }
+  ["categories-api-data"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
 );
 
 export async function GET() {

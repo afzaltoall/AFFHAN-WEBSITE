@@ -2,6 +2,7 @@ import 'dotenv/config';
 import fs from 'fs';
 import pg from 'pg';
 import { isCategoryBlocked } from './moderation.mjs';
+import { revalidateCatalogue } from './revalidate.mjs';
 
 // Merges the EPROLO categories that duplicate an existing CJ one, deletes the
 // empties, and leaves the genuinely distinct ones alone.
@@ -175,6 +176,9 @@ try {
 
   await client.query('COMMIT');
   console.log(`\napplied: ${moved} products moved, ${reparented} categories reparented, ${deleted} categories deleted`);
+  // Part of the operation, not a follow-up step. Without this the grid keeps
+  // serving categories that no longer exist for up to an hour.
+  await revalidateCatalogue();
 } catch (e) {
   await client.query('ROLLBACK');
   console.error('\nROLLED BACK — nothing changed:', e.message);

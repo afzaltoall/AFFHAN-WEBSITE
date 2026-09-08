@@ -2,6 +2,7 @@ import { Prisma } from ".prisma/client";
 import { prisma } from "./prisma";
 import { unstable_cache } from "next/cache";
 import { blockedNameRegex, isCategoryBlocked } from "@/lib/moderation";
+import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
 
 export type HeroProduct = {
   id: number;
@@ -22,7 +23,7 @@ export type MappedProduct = {
 export const getCachedProductCount = unstable_cache(
   async (): Promise<number> => await prisma.product.count(),
   ["total-product-count"],
-  { revalidate: 3600 }
+  { revalidate: 3600, tags: [TAG_PRODUCTS] }
 );
 
 export const getCachedCategoryProductCount = unstable_cache(
@@ -37,8 +38,8 @@ export const getCachedCategoryProductCount = unstable_cache(
     );
     return Number(rows[0]?.count ?? 0);
   },
-  ["category-product-count-v3"],
-  { revalidate: 3600 }
+  ["category-product-count"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
 );
 
 export type CategoryLite = { id: string; name: string; parentId: string | null; parentName: string | null; thumbnailUrl: string | null };
@@ -50,8 +51,8 @@ export const getCachedAllCategories = unstable_cache(
     });
     return cats;
   },
-  ["all-categories-lite-v6"],
-  { revalidate: 3600 }
+  ["all-categories-lite"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES] }
 );
 
 export const getCachedPreferredCategories = unstable_cache(
@@ -89,8 +90,8 @@ export const getCachedPreferredCategories = unstable_cache(
     }
     return Array.from(sourceCatSet);
   },
-  ["preferred-category-ids-v8"],
-  { revalidate: 3600 }
+  ["preferred-category-ids"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES] }
 );
 
 export const getCachedDefaultHeroPool = unstable_cache(
@@ -111,8 +112,8 @@ export const getCachedDefaultHeroPool = unstable_cache(
       `
     );
   },
-  ["default-hero-pool-v1"],
-  { revalidate: 3600 }
+  ["default-hero-pool"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
 );
 
 export function shuffle<T>(arr: T[]): T[] {

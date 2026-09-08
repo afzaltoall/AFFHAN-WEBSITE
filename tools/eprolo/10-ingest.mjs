@@ -6,6 +6,7 @@ import pLimit from 'p-limit';
 import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { isCategoryBlocked, isNameBlocked } from './moderation.mjs';
+import { revalidateCatalogue } from './revalidate.mjs';
 
 // Ingests the cached catalogue feed: images to S3 as WebP, then Product and
 // ProductVariant rows. Makes no EPROLO API calls at all — 08-crawl-feed.mjs
@@ -266,5 +267,9 @@ console.log(`failures         : ${state.failures.length}`);
 const byStage = {};
 for (const f of state.failures) byStage[f.stage] = (byStage[f.stage] ?? 0) + 1;
 for (const [k, v] of Object.entries(byStage)) console.log(`   ${k}: ${v}`);
+
+// New products and new category membership: drop both caches as part of the
+// run rather than waiting out the hour.
+await revalidateCatalogue();
 
 await prisma.$disconnect();

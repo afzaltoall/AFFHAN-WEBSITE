@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { blockedCategoryIdSet } from "@/lib/moderation";
+import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
 
 /**
  * What a category page needs to describe itself to a search engine: its name,
@@ -28,8 +29,8 @@ export interface CategoryMeta {
 const loadTree = unstable_cache(
   async () =>
     prisma.category.findMany({ select: { id: true, name: true, parentId: true } }),
-  ["category-meta-tree-v3"],
-  { revalidate: 3600 }
+  ["category-meta-tree"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES] }
 );
 
 // Counted per category and cached for an hour. The catalogue is synced once a
@@ -37,8 +38,8 @@ const loadTree = unstable_cache(
 // and a crawler walking 509 categories does not re-run 509 aggregates.
 const countProducts = unstable_cache(
   async (ids: string[]) => prisma.product.count({ where: { categoryId: { in: ids } } }),
-  ["category-meta-count-v3"],
-  { revalidate: 3600 }
+  ["category-meta-count"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
 );
 
 export async function getCategoryMeta(categoryId: string | null | undefined): Promise<CategoryMeta | null> {
