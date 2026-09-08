@@ -69,6 +69,17 @@ export const BLOCKED_NAME_KEYWORDS = [
   "crotchless", "open crotch", "open-crotch", "bodystocking", "erotic",
   "masturbation", "dildo", "fetish", "pasties", "sex toy", "sex doll",
   "adult product", "negligee",
+  // Adult items CJ files into innocuous categories, where category-level
+  // blocking cannot reach them. Both are full phrases for the same reason the
+  // category patterns are: blockedNameRegex() wraps each in \y…\y word
+  // boundaries, and "unisex" has no boundary before "sex", so neither can
+  // touch the Unisex categories.
+  //
+  // "sex product" is also what catches the one whose title reads "Crystal
+  // Transparent Airplane Bottle Men's Trainer Comfortable And Sex Product" —
+  // the euphemism is in the phrasing, not in "airplane bottle", which is
+  // otherwise two bottle openers, nor in "men's trainer", which is shoes.
+  "sex product", "sex pose",
 ];
 
 export function isNameBlocked(name: string | null | undefined): boolean {

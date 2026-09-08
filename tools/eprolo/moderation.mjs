@@ -19,8 +19,21 @@ function extractArray(src, name) {
   const body = src.slice(start + `${name} = [`.length);
   const end = body.indexOf('];');
   if (end === -1) throw new Error(`moderation.ts: ${name} is not terminated — refusing to run`);
-  // String literals only; the // comments between entries are skipped by this.
-  const items = [...body.slice(0, end).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+
+  // Comments MUST be stripped before pulling string literals out, because the
+  // comments in moderation.ts quote example names — and a quoted word inside a
+  // comment is indistinguishable from an entry to a naive matcher.
+  //
+  // This is not hypothetical. An earlier version skipped this step and silently
+  // absorbed the words "unisex" and "airplane bottle" out of an explanatory
+  // comment, which blocked 342 Unisex products and two bottle openers. The
+  // TypeScript itself was correct throughout; only this parser was wrong.
+  const arrayBody = body
+    .slice(0, end)
+    .replace(/\/\*[\s\S]*?\*\//g, '')  // block comments
+    .replace(/\/\/[^\n]*/g, '');       // line comments
+
+  const items = [...arrayBody.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   if (!items.length) throw new Error(`moderation.ts: ${name} parsed empty — refusing to run`);
   return items;
 }
