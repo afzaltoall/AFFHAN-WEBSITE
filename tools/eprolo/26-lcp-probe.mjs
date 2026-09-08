@@ -76,7 +76,11 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
           window.__cls.top = window.__cls.top || [];
           const srcs = (e.sources || []).map(s => {
             const n = s.node;
-            return n ? (n.tagName + '.' + String(n.className || '').split(' ').slice(0,3).join('.')).slice(0,70) : '(detached)';
+            if (!n) return '(detached)';
+            const sec = n.closest && n.closest('section');
+            const secId = sec ? (sec.id || (sec.className||'').split(' ').slice(0,2).join('.')) : '?';
+            const txt = (n.textContent || '').trim().replace(/s+/g,' ').slice(0,38);
+            return ('[' + secId + '] ' + n.tagName + ' "' + txt + '"').slice(0,96);
           });
           const rects = (e.sources || []).map(s => {
             const a = s.previousRect, b = s.currentRect;
@@ -108,6 +112,7 @@ const r = await send('Runtime.evaluate', {
     imgsInDom: document.querySelectorAll('img').length,
     productLinks: document.querySelectorAll('a[aria-label]').length,
     categoryTiles: document.querySelectorAll('a[href*="categoryId="]').length,
+    glassCards: document.querySelectorAll('.liquid-glass-card').length,
   }))()`,
   returnByValue: true,
 });
@@ -128,6 +133,7 @@ console.log(`  LCP candidates   : ${v.lcp?.changes} (how many times the LCP elem
 console.log(`  <img> in DOM     : ${v.imgsInDom}`);
 console.log(`  product links    : ${v.productLinks}`);
 console.log(`  category tiles   : ${v.categoryTiles}`);
+console.log(`  liquid-glass-card: ${v.glassCards}`);
 console.log(`  image responses  : ${imageRequests}`);
 
 ws.close();

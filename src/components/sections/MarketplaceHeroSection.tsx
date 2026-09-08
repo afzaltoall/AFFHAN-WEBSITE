@@ -439,8 +439,20 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
               </div>
             ))
           ) : (
+            /* Keyed by POSITION, not by product id.
+               The grid always renders the same number of cards in the same
+               slots; only which product occupies a slot changes when the
+               post-hydration shuffle runs. Keying by product.id made React
+               treat that as 65 removals and 65 insertions, so every card was
+               a brand-new DOM node with no previous box — measured as shifts
+               of "h 0->369" and CLS up to 0.24 at 4.5-6.3s.
+               Keying by position lets React reuse the nodes and update their
+               contents in place, so nothing is inserted and nothing below
+               moves. useLayoutEffect alone could not fix this: on a throttled
+               CPU hydration itself finishes at 4.5-6.3s, so the effect runs
+               after the first paint no matter when it is scheduled. */
             displayProducts.map((product, idx) => (
-              <div key={product.id} className="col-span-1 flex items-start">
+              <div key={idx} className="col-span-1 flex items-start">
                 <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} />
               </div>
             ))
