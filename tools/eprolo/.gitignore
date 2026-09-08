@@ -1,0 +1,14 @@
+# Regenerable and machine-local run artifacts — not source.
+
+# The full catalogue feed, ~116MB. Over GitHub's 100MB per-file hard limit, so
+# committing it would fail the push outright. Rebuild with:
+#   node tools/eprolo/08-crawl-feed.mjs      (~29 min, 649 pages)
+feed-cache.jsonl
+
+# Resume checkpoints. Machine-local: they record which product ids this
+# particular run finished, and are meaningless on another checkout.
+ingest-state.json
+full-run-state.json
+
+# Run output.
+*.log

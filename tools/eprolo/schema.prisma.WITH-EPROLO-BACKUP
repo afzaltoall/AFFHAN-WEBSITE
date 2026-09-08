@@ -1,0 +1,651 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pg_trgm]
+}
+
+model Product {
+  id Int @id @default(autoincrement())
+
+  /// The supplier's own id for this product. Named for CJ because CJ was the
+  /// only source when the column was created; it now holds EPROLO's catalogue
+  /// product id on EPROLO rows too. Read it together with `supplierSource` —
+  /// the id space is per-supplier, not global. It stays unique in practice
+  /// because CJ pids are UUIDs and EPROLO's are short numeric strings.
+  cjPid String @unique
+
+  /// Which supplier this row came from: CJ | EPROLO.
+  ///
+  /// Defaults to CJ so the rows that predate EPROLO are labelled correctly
+  /// without a backfill pass over a million products.
+  supplierSource String @default("CJ")
+
+  name      String
+  sku       String?
+  imageUrl  String?
+  allImages Json?
+
+  /// Shipping weight in grams, when the supplier gives one. CJ's feed does
+  /// not, so this is null on every CJ row and populated only from EPROLO.
+  weightGrams Int?
+
+  categoryId  String?
+  categoryRef Category? @relation(fields: [categoryId], references: [id])
+  category    String? // legacy string for fallback, keeping it around just in case
+
+  description String?   @db.Text
+  lastSynced  DateTime? @default(now())
+
+  inquiries       Inquiry[]
+  mobileInquiries MobileInquiry[]
+  views           ProductView[]
+  favourites      ProductFavourite[]
+  variants        ProductVariant[]
+
+  @@index([supplierSource])
+  @@index([categoryId])
+  @@index([name])
+  // Newest-first within a category, for the API's LATERAL per-category scans.
+  // Recorded here so `prisma db push` does not drop it; it was created on the
+  // live database with CREATE INDEX CONCURRENTLY (66MB, ~5s).
+  @@index([categoryId, id(sort: Desc)], map: "Product_categoryId_id_desc_idx")
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_name_trgm_idx")
+  @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_desc_trgm_idx")
+}
+
+/// One purchasable variation of a Product — a size, a colour, or the single
+/// "default" row a product with no options still gets.
+///
+/// Added for EPROLO, which returns a `variantlist` per product. CJ's feed has
+/// no variant data at all (see the "no structured attributes" note in
+/// CLAUDE.md), so CJ products simply have none of these rows, and anything
+/// reading variants must cope with an empty list rather than assume one.
+///
+/// `cost` is the supplier's wholesale cost. It is stored because the sourcing
+/// team quotes against it and — like every other price in this project — it
+/// must never be rendered in the customer-facing UI. It is not our price.
+model ProductVariant {
+  id Int @id @default(autoincrement())
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  /// The supplier's variant id. Per-supplier like Product.cjPid, and read
+  /// alongside the parent's supplierSource.
+  supplierVariantId String @unique
+
+  sku     String?
+  title   String?
+  option1 String?
+  option2 String?
+  option3 String?
+
+  /// Supplier cost. Decimal, not Float: this is money and it gets compared.
+  cost Decimal? @db.Decimal(10, 2)
+
+  /// Grams, as EPROLO reports it.
+  weightGrams Int?
+
+  inventoryQuantity Int?
+
+  /// The variant's own image, already migrated to our CDN like every other
+  /// image here — never a supplier hotlink.
+  imageUrl String?
+
+  position Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+}
+
+model Category {
+  id           String  @id // CJ categoryId
+  name         String
+  parentId     String?
+  parentName   String?
+  thumbnailUrl String?
+
+  /// Show this category at the top of the menu, alongside CJ's own 14.
+  ///
+  /// Display only. parentId is untouched, so the real tree — and the sync that
+  /// writes it — is unaware this exists. CJ's taxonomy puts 14 nodes at the
+  /// top and buries "Furniture" three levels down under "Home Storage";
+  /// this lifts the ones customers actually shop by, without editing what CJ
+  /// says.
+  ///
+  /// Reversing the whole thing is one statement:
+  ///   UPDATE "Category" SET "displayAsTopLevel" = false;
+  displayAsTopLevel Boolean @default(false)
+
+  /// What to call it once promoted, when its own name will not do.
+  ///
+  /// Needed because names are only unique within a parent. "Outerwear &
+  /// Jackets", "Bottoms" and "Accessories" each exist twice — once under
+  /// Men's Clothing, once under Women's — and side by side at the top level
+  /// they would be indistinguishable. Null means the name is fine as it is.
+  displayLabel String?
+
+  products     Product[]
+  syncProgress SyncProgress?
+  videos       Video[]
+}
+
+model SyncProgress {
+  id              Int      @id @default(autoincrement())
+  categoryId      String   @unique
+  category        Category @relation(fields: [categoryId], references: [id])
+  lastPageFetched Int      @default(0)
+  totalPages      Int?
+  status          String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, FAILED, PARTIAL_LIMIT_REACHED
+  errorMessage    String?  @db.Text
+  updatedAt       DateTime @updatedAt
+}
+
+model Inquiry {
+  id           String   @id @default(uuid())
+  productId    Int?
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName  String
+  quantity     Int
+  customerName String
+  companyName  String?
+  email        String?
+  country      String
+  phone        String
+  message      String?  @db.Text
+
+  // Who raised it, when we know. Nullable and it must stay that way: "Inquire
+  // Now" does not require an account, and most visitors who use it do not have
+  // one. A null here means an anonymous submission, not missing data — the 223
+  // rows that predate this column were deliberately left null rather than
+  // guessed at by matching email addresses to accounts.
+  //
+  // SetNull, not Cascade: a deleted account must not take the sourcing team's
+  // record of the request with it.
+  userId String?
+  user   MobileUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  // Two different questions, deliberately two different columns.
+  //
+  // `status` is internal triage and always has been — new | handled | spam,
+  // plus `deleted` for the admin console's soft-delete. Nobody outside the
+  // office sees it, and "spam" is not a stage a customer moves through.
+  //
+  // `customerStatus` is the lifecycle the customer is shown. It uses the app's
+  // vocabulary rather than a new one so that a single describeStatus() and a
+  // single step-tracker render inquiries from both tables without a
+  // translation layer in between. String rather than a Prisma enum to match
+  // MobileInquiry and every other status column here.
+  status          String    @default("new")
+  customerStatus  String    @default("PENDING") // PENDING | CHECKED | IN_PROGRESS | CUSTOM
+  statusNote      String?   @db.Text
+  // Null until someone actually moves it. "Submitted and untouched" is not the
+  // same fact as "updated at the moment it was created", and the customer-facing
+  // "Updated 2 days ago" line must not claim the latter.
+  statusUpdatedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  statusEvents InquiryStatusEvent[]
+
+  @@index([userId])
+  @@index([customerStatus])
+  @@index([createdAt(sort: Desc)])
+}
+
+// Who moved an inquiry, when, and to what.
+//
+// Append-only and deliberately thin: enough to answer "why does this say
+// Quoted, and who said so" months later, without becoming a second source of
+// truth for the current status — that stays on Inquiry.customerStatus.
+model InquiryStatusEvent {
+  id        String  @id @default(uuid())
+  inquiryId String
+  inquiry   Inquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+
+  // Null on the row written at submission time, where there is no "from".
+  fromStatus String?
+  toStatus   String
+  note       String? @db.Text
+
+  // The admin's AdminUser id, and their name copied alongside it. The copy is
+  // what keeps the trail readable after staff turnover, when the id no longer
+  // resolves to anyone.
+  changedById   String?
+  changedByName String?
+
+  createdAt DateTime @default(now())
+
+  @@index([inquiryId, createdAt])
+}
+
+// "Contact Us" page submissions. Unlike Inquiry (tied to a product), these are
+// free-form messages from the public contact form: name, email, an optional
+// product they're asking about, and a message. Same triage/soft-delete pattern
+// as Inquiry so the admin console can manage them the same way.
+model ContactMessage {
+  id          String   @id @default(uuid())
+  fullName    String   @default("")
+  email       String
+  companyName String?
+  country     String   @default("")
+  phone       String   @default("")
+  message     String   @db.Text
+  status      String   @default("new") // new | handled | spam | deleted
+  createdAt   DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// "Job alerts" subscriptions from the Careers page. Just an email + triage
+// status, same soft-delete pattern as ContactMessage so the admin console can
+// manage them the same way (list / search / export / delete / restore).
+model JobAlert {
+  id        String   @id @default(uuid())
+  email     String
+  status    String   @default("new") // new | handled | spam | deleted
+  createdAt DateTime @default(now())
+
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Existing table created outside this schema (scraper output). Modelled here so
+// Prisma is aware of it and `db push` never proposes dropping it.
+model ScrapedProduct {
+  id        Int       @id @default(autoincrement())
+  source    String
+  sourceId  String
+  name      String?
+  sku       String?
+  price     String?
+  category  String?
+  sourceUrl String?
+  imageUrl  String?
+  allImages Json?     @default("[]")
+  rawData   Json?
+  createdAt DateTime? @default(now()) @db.Timestamp(6)
+
+  @@unique([source, sourceId])
+}
+
+model ModerationLog {
+  id             Int      @id @default(autoincrement())
+  cjPid          String
+  name           String
+  categoryName   String?
+  flaggedKeyword String?
+  timestamp      DateTime @default(now())
+}
+
+// Admin account, moved out of .env so email/password/photo can be changed from
+// the UI. The .env ADMIN_EMAIL/ADMIN_PASSWORD is only used to bootstrap the very
+// first record (see /api/auth/login). Passwords are stored as a bcrypt hash.
+// tokenVersion is bumped to invalidate every existing session ("sign out all
+// devices") — issued session tokens carry the version they were signed with.
+model AdminUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  image        String?  @db.Text
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// The WeChat supplier book — 845 rows the sourcing team accumulated in a
+// spreadsheet ("SUPPLIER DATA-1.xlsx"), one per factory or trader they have
+// actually talked to. Imported by scripts/import_suppliers.mjs.
+//
+// Every column is stored exactly as it was typed, including the messy ones:
+// CONTACT holds phone numbers, WeChat IDs and DingTalk IDs mixed together, and
+// 364 rows have no company name while 510 have no address. Parsing and
+// presentation happen in src/lib/suppliers.ts at read time rather than at
+// import, so improving the parser never requires re-importing, and the
+// original text is always there to fall back on.
+//
+// sourceRow is the spreadsheet row number and the stable identity for re-import
+// — serial (the sheet's own S.NO) is missing on one row and so cannot be it.
+model Supplier {
+  id          Int      @id @default(autoincrement())
+  sourceRow   Int      @unique
+  serial      Int?
+  personName  String?
+  companyName String?
+  productsRaw String?  @db.Text
+  address     String?  @db.Text
+  contactRaw  String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([serial])
+  @@index([companyName])
+  @@index([personName])
+}
+
+// Videos shown in the app's Play tab and managed from /admin/videos.
+//
+// videoUrl and thumbnailUrl are CloudFront URLs, not S3 keys: the files live
+// under a videos/ prefix in the same bucket the product images use, so the
+// existing distribution serves them and no new infrastructure is involved.
+//
+// The file itself never passes through the API. A Vercel function caps its
+// request body at 4.5MB, which is smaller than almost any real video, so the
+// browser PUTs straight to S3 with a presigned URL and only the resulting URL
+// is posted here.
+model Video {
+  id           String   @id @default(uuid())
+  title        String
+  description  String?  @db.Text
+  thumbnailUrl String
+  videoUrl     String
+  views        Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  // Optional, and SetNull rather than Cascade: deleting a category must not
+  // silently delete the videos filed under it.
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  // The Play tab lists newest-first, and the admin filters by category.
+  @@index([createdAt])
+  @@index([categoryId])
+}
+
+// -----------------------------------------------------------------------------
+// MOBILE APP AUTHENTICATION
+// -----------------------------------------------------------------------------
+// Dedicated authentication system exclusively for the Flutter mobile application.
+// Completely isolated from the AdminUser system.
+model MobileUser {
+  id            String  @id @default(uuid())
+  // The display name, kept populated for everything that already reads it —
+  // the navbar, the admin lists, the inquiry rows. Sign-up now collects the
+  // two halves separately, so they are stored as well rather than being
+  // reverse-engineered out of `name` later by splitting on a space, which gets
+  // "Van der Berg" and every mononym wrong.
+  name          String
+  firstName     String?
+  lastName      String?
+  // Nullable since phone sign-in: someone who only ever entered a number has
+  // no email to store. Postgres allows many NULLs under a unique index, so the
+  // constraint still holds for everyone who does have one. Code must treat a
+  // MobileUser as having an email OR a phone, never assume both.
+  email         String? @unique
+  phone         String? @unique // E.164, e.g. +919876543210
+  phoneVerified Boolean @default(false)
+  passwordHash  String? // Nullable for Google-only users
+  profileImage  String? @db.Text
+  authProvider  String // "EMAIL", "GOOGLE", "EMAIL_AND_GOOGLE", or "PHONE"
+  emailVerified Boolean @default(false)
+  googleId      String? @unique // Verified Google 'sub' claim
+
+  accountStatus String    @default("ACTIVE") // ACTIVE, SUSPENDED
+  loginCount    Int       @default(0)
+  lastLoginAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions     MobileSession[]
+  inquiries    MobileInquiry[]
+  // Quote requests raised on the website rather than in the app. Separate from
+  // `inquiries` because the two live in different tables — see the note on
+  // Inquiry.userId for why they were not merged.
+  webInquiries Inquiry[]
+  productViews ProductView[]
+  favourites   ProductFavourite[]
+  changes      AccountChange[]
+
+  @@index([email])
+  @@index([phone])
+}
+
+// One-time codes for phone sign-in.
+//
+// Only the hash is stored, for the same reason session tokens are hashed: a
+// database copy must not hand someone a working login. Rows are keyed by phone
+// rather than by user, because the first code someone receives is sent before
+// any account exists.
+model MobilePhoneOtp {
+  id       String  @id @default(uuid())
+  phone    String // E.164
+  // Null since the move to Twilio Verify, which generates, holds, expires and
+  // checks the code itself — we never see the digits. Rows are now a record
+  // that a send happened, used for the resend cooldown and to keep our own
+  // endpoint from being hammered into a Twilio bill. Kept nullable rather than
+  // dropped so rows written by the earlier self-issued implementation survive.
+  codeHash String?
+
+  // Guesses spent against this code. A short numeric code is trivially
+  // brute-forced without a ceiling.
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+}
+
+// Mobile sessions using cryptographically secure opaque tokens.
+// The raw token is NEVER stored in the database. 
+// tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex')
+model MobileSession {
+  id        String     @id @default(uuid())
+  tokenHash String     @unique
+  userId    String
+  user      MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Where this session was opened: APP (Bearer token in secure storage) or WEB
+  // (httpOnly cookie). The token and the table are the same either way — this
+  // only records which envelope it travels in, so "sign out everywhere else"
+  // and support questions can tell the two apart. Nullable because sessions
+  // predating the website had no such distinction to record.
+  platform  String?
+  expiresAt DateTime
+  createdAt DateTime   @default(now())
+
+  @@index([tokenHash])
+  @@index([userId])
+}
+
+// Inquiries raised from the mobile app.
+//
+// Deliberately NOT the Inquiry model above. That one is the website's guest
+// quote form: no account behind it, its own status vocabulary (new/handled/
+// spam), and the admin console, the CSV exports and two public POST routes all
+// read it. App inquiries belong to a MobileUser, carry a status the customer is
+// shown, and are worked in a separate admin screen — so they get their own
+// table, the same way MobileUser is kept apart from AdminUser.
+model MobileInquiry {
+  id     String     @id @default(uuid())
+  userId String
+  user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId    Int?
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  // Copied at submission time. The catalogue is re-synced from CJ daily and a
+  // product can vanish from it; an inquiry still has to render its own history.
+  productName  String
+  productImage String?  @db.Text
+
+  requestedMOQ Int
+
+  // PENDING | CHECKED | IN_PROGRESS | CUSTOM. With CUSTOM the admin's own
+  // wording in statusNote is what the customer sees; for the fixed three it is
+  // an optional note shown underneath.
+  status     String  @default("PENDING")
+  statusNote String? @db.Text
+
+  // Last time the customer changed the quantity. The full before/after trail
+  // lives in MobileInquiryMoqEdit — a single timestamp cannot answer "what did
+  // they change it from", which is the thing the sourcing team needs to see.
+  moqEditedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  moqHistory MobileInquiryMoqHistory[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+}
+
+// One row per customer (or admin) edit of the requested quantity.
+model MobileInquiryMoqHistory {
+  id              String        @id @default(uuid())
+  inquiryId       String
+  inquiry         MobileInquiry @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  oldMOQ          Int
+  newMOQ          Int
+  changedByUserId String? // ID of the user or admin who made the change
+  createdAt       DateTime      @default(now())
+
+  @@index([inquiryId])
+}
+
+// What a signed-in customer has looked at, for the account area's browsing
+// history.
+//
+// CLAUDE.md notes that this could not be built before, and the reason was real:
+// there were no accounts, so there was nobody to attribute a view to. There are
+// accounts now, so the history is per-customer and follows them between
+// devices — which is the whole point of it over a localStorage list.
+//
+// One row per customer per product, with the timestamp moved forward on a
+// revisit rather than a new row each time. History is "what have I looked at",
+// not "how many times did I open this", and an append-only log would fill the
+// list with the same product.
+/// What a customer changed about their own account, and when.
+///
+/// Exists because the admin console could show what an account looks like now
+/// and nothing about how it got there — "they say they changed their email"
+/// had no answer. Written at the point of each change, so it starts empty:
+/// accounts that existed before this table have no history, and showing none
+/// is the truth rather than a gap to apologise for.
+///
+/// Never stores a password, hashed or otherwise. A password change records
+/// that it happened and nothing about what it became — the row exists to
+/// answer "was it changed", which needs no secret to answer.
+/// A one-time code sent to an email address.
+///
+/// Separate from MobilePhoneOtp, which only records *when* a code was asked
+/// for — Twilio Verify holds the phone codes and checks them itself. Nobody
+/// holds an email code for us, so this table stores one, hashed the same way
+/// session tokens are: a copy of the table is not a set of working codes.
+///
+/// Rows are kept after use rather than deleted. `consumedAt` is what makes a
+/// code single-use, and the recent history is also what the per-address rate
+/// limit counts — a limit that deleted its own evidence would not be one.
+/// Failed password logins, counted so they can be throttled.
+///
+/// Per address rather than per IP, and in the database rather than in Redis,
+/// for the same reason the email-OTP limit is: the Upstash limiters in
+/// lib/rate-limit.ts fail open when they are not configured, and they are not.
+/// A limit that only exists when a service we have not set up is running is
+/// not a limit.
+///
+/// Only failures are recorded, and only the address — never the password, nor
+/// anything derived from it. A successful login clears the row set, so someone
+/// who mistypes four times and then gets in does not start the next session
+/// one mistake from being locked out.
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  /// Lower-cased. Not a foreign key: attempts are made against addresses that
+  /// may not have accounts, and that is exactly the case worth counting.
+  email     String
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt(sort: Desc)])
+}
+
+model EmailOtp {
+  id String @id @default(uuid())
+
+  /// Lower-cased. Not a foreign key: a code is requested by typing an address,
+  /// and whether it belongs to an account is decided when the code is issued,
+  /// not by the shape of this table.
+  email    String
+  /// SHA-256 of the code. The code itself is never stored and never logged.
+  codeHash String
+
+  /// What the code authorises. One value today (PASSWORD_RESET); named so a
+  /// second use cannot silently accept a code issued for the first.
+  purpose String
+
+  attempts   Int       @default(0)
+  /// When the code was accepted. Set by the verify step.
+  consumedAt DateTime?
+  /// When the token minted from this code was actually spent — set by the
+  /// reset step. The token is a stateless HMAC, so this row is the only thing
+  /// that can make it single-use: without it a token stayed good for its whole
+  /// ten minutes and could change the password again and again.
+  resetAt    DateTime?
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt(sort: Desc)])
+  @@index([expiresAt])
+}
+
+model AccountChange {
+  id     String     @id @default(uuid())
+  userId String
+  user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// name | email | phone | password | status
+  field     String
+  /// Null for password, and for a value being set for the first time.
+  fromValue String? @db.Text
+  toValue   String? @db.Text
+
+  /// WEB | APP | ADMIN — where the change was made from.
+  source String
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model ProductFavourite {
+  id     String     @id @default(uuid())
+  userId String
+  user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  // One heart per person per product: saving something twice is the same
+  // saved thing, and the toggle relies on this to know which way it is going.
+  @@unique([userId, productId])
+  // The only query this table serves: one customer's list, newest first.
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+model ProductView {
+  id     String     @id @default(uuid())
+  userId String
+  user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  productId Int
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, productId])
+  // The only query this table serves: one customer's list, newest first.
+  @@index([userId, viewedAt(sort: Desc)])
+}

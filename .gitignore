@@ -79,5 +79,11 @@ public/static/images/map*.png
 # promotion is applied and, more importantly, undone — it has to travel with
 # the code that reads the flags it sets.
 !scripts/promote_categories.mjs
+# The EPROLO pipeline, for the same reason: it is how the 12,746 EPROLO
+# products and their 135,024 variants were built and how they would be rebuilt,
+# and restore-schema.mjs is the repair for a schema drift that has already
+# happened twice. The bulky parts it generates stay ignored — see
+# tools/eprolo/.gitignore.
+!tools/eprolo/*.mjs
 *.csv
 flutter-patch-*.js

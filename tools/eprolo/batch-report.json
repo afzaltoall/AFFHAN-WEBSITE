@@ -1,0 +1,1268 @@
+{
+  "catalogueIds": [
+    "28680739",
+    "32636161",
+    "32636162",
+    "32636164",
+    "32636168",
+    "32636169",
+    "32636173",
+    "32636174",
+    "32636175",
+    "32636176",
+    "32636178",
+    "32636179",
+    "32636180",
+    "32636181",
+    "32636182",
+    "32636183",
+    "32636184",
+    "32636185",
+    "32636186",
+    "32636187"
+  ],
+  "importedIds": [
+    "32648112",
+    "32648232",
+    "32648233",
+    "32648234",
+    "32648235",
+    "32648236",
+    "32648237",
+    "32648238",
+    "32648239",
+    "32648240",
+    "32648241",
+    "32648242",
+    "32648243",
+    "32648244",
+    "32648245",
+    "32648246",
+    "32648247",
+    "32648248",
+    "32648249",
+    "32648250"
+  ],
+  "stored": 20,
+  "failures": [],
+  "imageStats": [
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202503/EEE876086C0E34C15F18C27A34FE8126.jpg",
+      "key": "products/eprolo/beauty-health/makeup/32648112-1.webp",
+      "beforeBytes": 614736,
+      "afterBytes": 94418,
+      "savedPct": 84.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202503/EABDB1BDA5E586DCA35B2C11AC5DCB99.jpg",
+      "key": "products/eprolo/beauty-health/makeup/32648112-3.webp",
+      "beforeBytes": 736625,
+      "afterBytes": 117298,
+      "savedPct": 84.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202503/45219B6C7477F0E02B66C984ECF1845C.jpg",
+      "key": "products/eprolo/beauty-health/makeup/32648112-4.webp",
+      "beforeBytes": 1375844,
+      "afterBytes": 268170,
+      "savedPct": 80.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202503/DB20DC2AD733853F0EAA3C8BF58F63A1.jpg",
+      "key": "products/eprolo/beauty-health/makeup/32648112-2.webp",
+      "beforeBytes": 2038173,
+      "afterBytes": 307910,
+      "savedPct": 84.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202503/8FD69805AA072BE58ADBCA9101D45728.jpg",
+      "key": "products/eprolo/beauty-health/makeup/32648112-5.webp",
+      "beforeBytes": 1667417,
+      "afterBytes": 279338,
+      "savedPct": 83.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202503/E9F85B597D5DB9A1F194E5EB0BB4E676.jpg",
+      "key": "products/eprolo/beauty-health/makeup/32648112-6.webp",
+      "beforeBytes": 1363662,
+      "afterBytes": 209480,
+      "savedPct": 84.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/5C5950CC5DD16D74EF4CA2B5C1F412C8.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-1.webp",
+      "beforeBytes": 124654,
+      "afterBytes": 31998,
+      "savedPct": 74.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/077A92DA11247BA2B4501904618DDB24.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-2.webp",
+      "beforeBytes": 115014,
+      "afterBytes": 25094,
+      "savedPct": 78.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/36ED73C9BCD9EAD7FB3CC8E297591CCD.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-3.webp",
+      "beforeBytes": 108374,
+      "afterBytes": 21666,
+      "savedPct": 80
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/742FD492AC9FB398971D45D011B48522.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-4.webp",
+      "beforeBytes": 119877,
+      "afterBytes": 27086,
+      "savedPct": 77.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/AF69BD5EA8F012D32AED25D174CBD3A9.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-5.webp",
+      "beforeBytes": 118906,
+      "afterBytes": 30896,
+      "savedPct": 74
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/C1C3AF77FE91923F155C20833AA2791A.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-7.webp",
+      "beforeBytes": 118906,
+      "afterBytes": 30896,
+      "savedPct": 74
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/93B30FFEE981ACB4BB230885CDE7523E.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-6.webp",
+      "beforeBytes": 64873,
+      "afterBytes": 25980,
+      "savedPct": 60
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/E90311BA84C91DC225F6F7E6B114D849.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-8.webp",
+      "beforeBytes": 108374,
+      "afterBytes": 21666,
+      "savedPct": 80
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/CD36E43CCE64BBC9FDC02F0C6CE73FBF.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-9.webp",
+      "beforeBytes": 115014,
+      "afterBytes": 25094,
+      "savedPct": 78.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/888F679BCED8BC9ACCCEB1D5A02B217E.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648232-10.webp",
+      "beforeBytes": 124654,
+      "afterBytes": 31998,
+      "savedPct": 74.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/531F055D3D8CF31ADC9655236E27C294.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648233-4.webp",
+      "beforeBytes": 278292,
+      "afterBytes": 65292,
+      "savedPct": 76.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/01DCE015D1EEDBA16B8060D33A5A1CEC.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648233-2.webp",
+      "beforeBytes": 285253,
+      "afterBytes": 68462,
+      "savedPct": 76
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/8410AF0371A9FD64AF70FC3444BB8C16.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648233-1.webp",
+      "beforeBytes": 285253,
+      "afterBytes": 68462,
+      "savedPct": 76
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/651B1FE59CD366DA4D01B1B9A2538673.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648233-3.webp",
+      "beforeBytes": 378120,
+      "afterBytes": 95066,
+      "savedPct": 74.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/D0E0DCBBEF7FE42296E742DA7EDE28B9.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648233-6.webp",
+      "beforeBytes": 378120,
+      "afterBytes": 95066,
+      "savedPct": 74.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/5D31703475E545CF93E6CEC895F42503.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648233-7.webp",
+      "beforeBytes": 174002,
+      "afterBytes": 22520,
+      "savedPct": 87.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/DD3417D70FF35B4BE194E131CAEB1F52.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648233-5.webp",
+      "beforeBytes": 243104,
+      "afterBytes": 35520,
+      "savedPct": 85.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/116631AAAFEB04D82F74D8BDDC93598C.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648233-8.webp",
+      "beforeBytes": 285253,
+      "afterBytes": 68462,
+      "savedPct": 76
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/0294D648BC6FD609F76E7499D0966D39.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648234-2.webp",
+      "beforeBytes": 459879,
+      "afterBytes": 137000,
+      "savedPct": 70.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/87BA05C965AE9DBA404174F66E63DEFD.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648234-1.webp",
+      "beforeBytes": 539966,
+      "afterBytes": 189828,
+      "savedPct": 64.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/47B3F7E2809B84312BF4A049E70DC6B9.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648234-4.webp",
+      "beforeBytes": 419354,
+      "afterBytes": 116660,
+      "savedPct": 72.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/5034F1DE6E9457FC897277BC53501434.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648234-3.webp",
+      "beforeBytes": 539966,
+      "afterBytes": 189828,
+      "savedPct": 64.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/1437A182BE4CB6AE7520BE8012A53214.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648234-5.webp",
+      "beforeBytes": 289007,
+      "afterBytes": 29696,
+      "savedPct": 89.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/98903B62C2E6A1AD4F19606D36F7FAC0.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648234-7.webp",
+      "beforeBytes": 249108,
+      "afterBytes": 23862,
+      "savedPct": 90.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/9434B2EF4BF28A874A69332C89F644CF.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648234-6.webp",
+      "beforeBytes": 459879,
+      "afterBytes": 137000,
+      "savedPct": 70.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/6BA824D4C5C5F0788B63750DB8C9BD82.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648234-8.webp",
+      "beforeBytes": 539966,
+      "afterBytes": 189828,
+      "savedPct": 64.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/7FB086C5C155FB1D4C950263E21FF36B.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648235-4.webp",
+      "beforeBytes": 204247,
+      "afterBytes": 129292,
+      "savedPct": 36.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/4CFAA5C283B84B71B6229345275AEE68.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648235-1.webp",
+      "beforeBytes": 186377,
+      "afterBytes": 92012,
+      "savedPct": 50.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/D36FDAD0747566CD70A653FF4AE41327.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648235-3.webp",
+      "beforeBytes": 186377,
+      "afterBytes": 92012,
+      "savedPct": 50.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/7F0BAD9A51B4D1CE1AE6103CD18E1DB1.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648235-5.webp",
+      "beforeBytes": 431817,
+      "afterBytes": 340500,
+      "savedPct": 21.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/A56906DF06C8E56F98A5B1BE0A2E52CB.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648235-2.webp",
+      "beforeBytes": 461047,
+      "afterBytes": 384548,
+      "savedPct": 16.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/39B37676AD9E1F851E7AB73737F1176D.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648235-6.webp",
+      "beforeBytes": 461047,
+      "afterBytes": 384548,
+      "savedPct": 16.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/6008ED15641AE6E52F539064EADC484E.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648235-7.webp",
+      "beforeBytes": 117954,
+      "afterBytes": 34074,
+      "savedPct": 71.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/E450ED8AD3E526556CC92EAD14B758D6.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648235-8.webp",
+      "beforeBytes": 186377,
+      "afterBytes": 92012,
+      "savedPct": 50.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/1DB7425F6B6B112B7896AAA18B7700DB.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-2.webp",
+      "beforeBytes": 112059,
+      "afterBytes": 33382,
+      "savedPct": 70.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/21393C12BFB0797335800E32FC569E80.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-3.webp",
+      "beforeBytes": 113468,
+      "afterBytes": 37044,
+      "savedPct": 67.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/8485214301424910DC8636E3D9C82B95.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-1.webp",
+      "beforeBytes": 98406,
+      "afterBytes": 31806,
+      "savedPct": 67.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/D717D86DEA4355E60A6792FC22875477.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-4.webp",
+      "beforeBytes": 110263,
+      "afterBytes": 36896,
+      "savedPct": 66.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/30631BD694B4CA26B358AA5E147094A5.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-6.webp",
+      "beforeBytes": 69310,
+      "afterBytes": 36414,
+      "savedPct": 47.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/825ABEEA39CB8D40FEFDD447E89B2349.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-7.webp",
+      "beforeBytes": 115388,
+      "afterBytes": 37220,
+      "savedPct": 67.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/20A135FC42EB4DEA989C34138BB49FCD.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-8.webp",
+      "beforeBytes": 110263,
+      "afterBytes": 36896,
+      "savedPct": 66.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/EB93C1690C70F44F87396F03CC02B9A3.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-10.webp",
+      "beforeBytes": 103543,
+      "afterBytes": 34106,
+      "savedPct": 67.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/FF2B0BBDA6FAA9F3AE370ABE8851BBCF.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-9.webp",
+      "beforeBytes": 103357,
+      "afterBytes": 29914,
+      "savedPct": 71.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/7CC667B8A32A5C55ABF3D473A6653108.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648236-5.webp",
+      "beforeBytes": 98406,
+      "afterBytes": 31806,
+      "savedPct": 67.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/73F3BEBE52AF2137C532FBB081FA75AA.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-4.webp",
+      "beforeBytes": 110175,
+      "afterBytes": 23862,
+      "savedPct": 78.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/7C203E4D5F7FC38998779C69016683EE.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-3.webp",
+      "beforeBytes": 115249,
+      "afterBytes": 31606,
+      "savedPct": 72.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/220965C271E9EB8CD8409431C482B958.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-2.webp",
+      "beforeBytes": 132646,
+      "afterBytes": 39804,
+      "savedPct": 70
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/5861F8055A4F83F31E2DE293CE603BC0.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-1.webp",
+      "beforeBytes": 115249,
+      "afterBytes": 31606,
+      "savedPct": 72.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/0A453BD1FA8D63D242C0ADA9FD81C468.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-5.webp",
+      "beforeBytes": 65365,
+      "afterBytes": 24914,
+      "savedPct": 61.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/F1BEEA6B960BF9A3DFB841535137DC14.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-7.webp",
+      "beforeBytes": 132646,
+      "afterBytes": 39804,
+      "savedPct": 70
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/B7DA24DBDA5DF83C26286B5062A93F72.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-8.webp",
+      "beforeBytes": 110644,
+      "afterBytes": 28784,
+      "savedPct": 74
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/9CA315810E0EEBBD87BD5CEBC6C8C0E7.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-6.webp",
+      "beforeBytes": 118491,
+      "afterBytes": 29760,
+      "savedPct": 74.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/42EFD4F1C1A79BCCA0983852CCBC47C4.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648237-9.webp",
+      "beforeBytes": 106741,
+      "afterBytes": 24538,
+      "savedPct": 77
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/AEEE19B30D67885283137AA590A2B30C.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648238-2.webp",
+      "beforeBytes": 258999,
+      "afterBytes": 159276,
+      "savedPct": 38.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/FF4A6E7B28E43B804591887EDD462A3F.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648238-4.webp",
+      "beforeBytes": 143027,
+      "afterBytes": 51706,
+      "savedPct": 63.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/901E6209326A158D4D251568E6B0085B.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648238-3.webp",
+      "beforeBytes": 298834,
+      "afterBytes": 89108,
+      "savedPct": 70.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/2C310FB9CD25DB4E7340B32B26A67A00.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648238-1.webp",
+      "beforeBytes": 258999,
+      "afterBytes": 159276,
+      "savedPct": 38.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/2735277E900C72E67E5BE50A159A5BDF.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648238-5.webp",
+      "beforeBytes": 258999,
+      "afterBytes": 159276,
+      "savedPct": 38.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/CBA8CE773D90FCD0A4508068D05B592C.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648238-6.webp",
+      "beforeBytes": 143027,
+      "afterBytes": 51706,
+      "savedPct": 63.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/9413C9692BFEED5C9A48C56E94B06BC2.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648238-7.webp",
+      "beforeBytes": 258999,
+      "afterBytes": 159276,
+      "savedPct": 38.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/C4F315EBF164639BBBA991E686985064.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-1.webp",
+      "beforeBytes": 104322,
+      "afterBytes": 30536,
+      "savedPct": 70.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/FD5E74E80D5DDCD7D700F37BAAF3855D.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-3.webp",
+      "beforeBytes": 104322,
+      "afterBytes": 30536,
+      "savedPct": 70.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/910BCFB1DE56BAF38D53B5207C5E488F.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-4.webp",
+      "beforeBytes": 107087,
+      "afterBytes": 29884,
+      "savedPct": 72.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/124F77C1C06258D6D0E0A0C2173E85F8.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-2.webp",
+      "beforeBytes": 100983,
+      "afterBytes": 26624,
+      "savedPct": 73.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/B572FE960D91D0261A4C232DCAAC9509.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-6.webp",
+      "beforeBytes": 76217,
+      "afterBytes": 17656,
+      "savedPct": 76.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/5C5738BFA7E2AB4EC92E22CB9E35A2B2.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-5.webp",
+      "beforeBytes": 68091,
+      "afterBytes": 27808,
+      "savedPct": 59.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/F6A2CD32AECCD7466637E21267AF8907.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-7.webp",
+      "beforeBytes": 104322,
+      "afterBytes": 30536,
+      "savedPct": 70.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/45F8D74055191D727734967B8E60BD57.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-8.webp",
+      "beforeBytes": 105145,
+      "afterBytes": 28796,
+      "savedPct": 72.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/C3C7510C570633FA5EFCD99AEA0BF44B.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648239-9.webp",
+      "beforeBytes": 100983,
+      "afterBytes": 26624,
+      "savedPct": 73.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/17FF34037BDC5BD53BC2AF0BE86952C5.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648240-2.webp",
+      "beforeBytes": 211518,
+      "afterBytes": 132846,
+      "savedPct": 37.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/E79E708D124B176635BCCC09D99E9CA6.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648240-1.webp",
+      "beforeBytes": 211518,
+      "afterBytes": 132846,
+      "savedPct": 37.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/B0E9C61753BA13B8D95DA7C2332E03F4.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648240-4.webp",
+      "beforeBytes": 187015,
+      "afterBytes": 111624,
+      "savedPct": 40.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/473CC4F3EF0419FCF1DE3D90B538E489.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648240-3.webp",
+      "beforeBytes": 331593,
+      "afterBytes": 237174,
+      "savedPct": 28.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/7718E6FE631A130247A87F525F45E965.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648240-5.webp",
+      "beforeBytes": 211017,
+      "afterBytes": 99220,
+      "savedPct": 53
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/85DCD186A07AD24756488C701A889ECF.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648240-7.webp",
+      "beforeBytes": 109352,
+      "afterBytes": 30064,
+      "savedPct": 72.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/60A6E07BFB61EA5DAF9418945D36B78E.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648240-8.webp",
+      "beforeBytes": 211518,
+      "afterBytes": 132846,
+      "savedPct": 37.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/9516001FA0AE47D5F44CA37EDFFB9D25.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648240-6.webp",
+      "beforeBytes": 331593,
+      "afterBytes": 237174,
+      "savedPct": 28.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/33ED21001ED0474F1836238DC0ABD840.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-2.webp",
+      "beforeBytes": 103403,
+      "afterBytes": 23754,
+      "savedPct": 77
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/9E7A23D204717F80931FF868D77FA063.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-3.webp",
+      "beforeBytes": 102082,
+      "afterBytes": 24042,
+      "savedPct": 76.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/884086BDE5DEA4E88DDD2D18DE8C2C8D.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-1.webp",
+      "beforeBytes": 102082,
+      "afterBytes": 24042,
+      "savedPct": 76.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/8B08BE86EE8E47C9DC9150555C302A56.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-4.webp",
+      "beforeBytes": 101908,
+      "afterBytes": 24862,
+      "savedPct": 75.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/4565BB07E6BC410ED93C1DFA96CDB5AF.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-6.webp",
+      "beforeBytes": 89078,
+      "afterBytes": 18314,
+      "savedPct": 79.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/443F697DE6D997A1533D9A4475C70E23.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-7.webp",
+      "beforeBytes": 102082,
+      "afterBytes": 24042,
+      "savedPct": 76.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/4FCD45DD98E58FAB0259615014D5A759.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-5.webp",
+      "beforeBytes": 58628,
+      "afterBytes": 24448,
+      "savedPct": 58.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/FA0F10E735F5B6C5C49898ADE2DA5FD1.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-8.webp",
+      "beforeBytes": 104569,
+      "afterBytes": 24968,
+      "savedPct": 76.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/509C582F7F99B7D904D67B58ECAF7966.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648241-9.webp",
+      "beforeBytes": 103403,
+      "afterBytes": 23754,
+      "savedPct": 77
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/5C10F47663043195B001BB0900298EB7.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-1.webp",
+      "beforeBytes": 99158,
+      "afterBytes": 18512,
+      "savedPct": 81.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/C1926E1B0F6EAD09EF003CE078977F56.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-2.webp",
+      "beforeBytes": 98577,
+      "afterBytes": 18140,
+      "savedPct": 81.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/B728466C1FA3C9678A1505C27024B47C.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-4.webp",
+      "beforeBytes": 104317,
+      "afterBytes": 20348,
+      "savedPct": 80.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/4A605337FA49373CCF40320DEF7F08C1.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-5.webp",
+      "beforeBytes": 58340,
+      "afterBytes": 20288,
+      "savedPct": 65.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/7FB25880786B5F076B18E3C3FAC7FFA1.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-6.webp",
+      "beforeBytes": 88886,
+      "afterBytes": 15674,
+      "savedPct": 82.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/3A7BD17871BAF844221759D998CF7D59.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-7.webp",
+      "beforeBytes": 99158,
+      "afterBytes": 18512,
+      "savedPct": 81.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/D24B17B11F64D29D442C28B8468E9D43.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-3.webp",
+      "beforeBytes": 99158,
+      "afterBytes": 18512,
+      "savedPct": 81.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/1DD4E3C7188FA16383E09715CF3C66FE.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-8.webp",
+      "beforeBytes": 98577,
+      "afterBytes": 18140,
+      "savedPct": 81.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/72C6D4212AD94E77AC06790129B0FEBF.jpg",
+      "key": "products/eprolo/fashion-clothing/jackets-coats/32648242-9.webp",
+      "beforeBytes": 104317,
+      "afterBytes": 20348,
+      "savedPct": 80.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/397CB7E1B588302F84746A565FB3AA2B.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648243-2.webp",
+      "beforeBytes": 271340,
+      "afterBytes": 165836,
+      "savedPct": 38.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/06853749EE7F81A7C4040D461818201B.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648243-1.webp",
+      "beforeBytes": 233161,
+      "afterBytes": 126206,
+      "savedPct": 45.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/C7CA1DF989DD5B0C013109EE24F85080.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648243-4.webp",
+      "beforeBytes": 180877,
+      "afterBytes": 92698,
+      "savedPct": 48.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/AD114E53EB8DB7BA4A3784A6EE14725B.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648243-3.webp",
+      "beforeBytes": 233161,
+      "afterBytes": 126206,
+      "savedPct": 45.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/D69356D35CC0444B384B32C209C21FB0.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648243-5.webp",
+      "beforeBytes": 221314,
+      "afterBytes": 118774,
+      "savedPct": 46.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/07DEED650B4589BD9FDE6AD6135B0314.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648243-7.webp",
+      "beforeBytes": 205407,
+      "afterBytes": 103424,
+      "savedPct": 49.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/A02C37C191E84E129613685A9E71E823.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648243-6.webp",
+      "beforeBytes": 271340,
+      "afterBytes": 165836,
+      "savedPct": 38.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/631FC9468344501C73C5B1345CEA0E33.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648243-8.webp",
+      "beforeBytes": 233161,
+      "afterBytes": 126206,
+      "savedPct": 45.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/9D0985F88257FADA36C42E8EA23C31FE.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648244-3.webp",
+      "beforeBytes": 231859,
+      "afterBytes": 125788,
+      "savedPct": 45.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/EF65FAD234A8158C23C430DAEFC8A2C3.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648244-1.webp",
+      "beforeBytes": 419849,
+      "afterBytes": 335078,
+      "savedPct": 20.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/F11F84988CC2F54F1970FE5DF9359A2A.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648244-4.webp",
+      "beforeBytes": 229466,
+      "afterBytes": 142296,
+      "savedPct": 38
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/006CCFB90490A5B2833FDD807B65D171.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648244-5.webp",
+      "beforeBytes": 186469,
+      "afterBytes": 82768,
+      "savedPct": 55.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/54F8890FF809D52E1A9E783BCA04404A.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648244-2.webp",
+      "beforeBytes": 419849,
+      "afterBytes": 335078,
+      "savedPct": 20.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/D1E5ED9451F9D08DFCE326D5C7431172.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648244-6.webp",
+      "beforeBytes": 231859,
+      "afterBytes": 125788,
+      "savedPct": 45.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/2143988BD502D785CCDB1EE897F83FAE.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648244-7.webp",
+      "beforeBytes": 378687,
+      "afterBytes": 292018,
+      "savedPct": 22.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/1F930CE03B7EA9856B1266B9666DD7F8.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648244-8.webp",
+      "beforeBytes": 419849,
+      "afterBytes": 335078,
+      "savedPct": 20.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/395C3B11C9677C6F37B59F1A3D4ABF39.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648245-3.webp",
+      "beforeBytes": 404635,
+      "afterBytes": 58858,
+      "savedPct": 85.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/593F4C472153980AF81DE289C4E96752.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648245-1.webp",
+      "beforeBytes": 462953,
+      "afterBytes": 86870,
+      "savedPct": 81.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/4DB9311CC2FD39B234491AFF7EAFD911.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648245-2.webp",
+      "beforeBytes": 462953,
+      "afterBytes": 86870,
+      "savedPct": 81.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/1A74115015A5D9E4308187856E422903.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648245-4.webp",
+      "beforeBytes": 377989,
+      "afterBytes": 75034,
+      "savedPct": 80.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/DBB6BDDFC2F61225711F8F68DA147F10.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648245-7.webp",
+      "beforeBytes": 337997,
+      "afterBytes": 47384,
+      "savedPct": 86
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/0EC698E1333E4986700CE34ECA92486F.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648245-6.webp",
+      "beforeBytes": 404635,
+      "afterBytes": 58858,
+      "savedPct": 85.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/CE2EC3CC565E474306D6384B340EB0A8.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648245-8.webp",
+      "beforeBytes": 462953,
+      "afterBytes": 86870,
+      "savedPct": 81.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/3982D8AC48D7DFE8E2C3C371C32F279C.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648245-5.webp",
+      "beforeBytes": 333431,
+      "afterBytes": 27772,
+      "savedPct": 91.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/4340A191456CA068B4D305595BAF36BE.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648246-1.webp",
+      "beforeBytes": 118878,
+      "afterBytes": 50296,
+      "savedPct": 57.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/8084F86EBEE404AD686B1E5422E315C9.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648246-3.webp",
+      "beforeBytes": 110229,
+      "afterBytes": 46590,
+      "savedPct": 57.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/30B122989C224809C7718622733132AF.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648246-2.webp",
+      "beforeBytes": 118878,
+      "afterBytes": 50296,
+      "savedPct": 57.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/39E43E4C5250E5E23F0619F7375A0394.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648246-4.webp",
+      "beforeBytes": 131598,
+      "afterBytes": 60516,
+      "savedPct": 54
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/5BBD015220CE55BB1D0E45E83996E5C0.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648246-5.webp",
+      "beforeBytes": 118432,
+      "afterBytes": 51530,
+      "savedPct": 56.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/9FBD771C21DA10ED9A293B430EBE6118.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648246-6.webp",
+      "beforeBytes": 108160,
+      "afterBytes": 44032,
+      "savedPct": 59.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/8979650CD0CE414F1E7C7CDEA09F6C26.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648246-7.webp",
+      "beforeBytes": 118878,
+      "afterBytes": 50296,
+      "savedPct": 57.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/5BABC0DDFEB87B3C1BBD2B646595C4A4.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648247-2.webp",
+      "beforeBytes": 497260,
+      "afterBytes": 126712,
+      "savedPct": 74.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/76B28EDCC03A8AC24E646E1BCCE4CEC7.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648247-1.webp",
+      "beforeBytes": 606090,
+      "afterBytes": 176052,
+      "savedPct": 71
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/54A9E2C74DC2185697DCDF840B6455B6.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648247-3.webp",
+      "beforeBytes": 606090,
+      "afterBytes": 176052,
+      "savedPct": 71
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/EB9F49FA111500BF0957A81516D8E47E.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648247-4.webp",
+      "beforeBytes": 642652,
+      "afterBytes": 197826,
+      "savedPct": 69.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/885D1557624460AD499361670A971EB2.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648247-5.webp",
+      "beforeBytes": 451311,
+      "afterBytes": 102694,
+      "savedPct": 77.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/A53BFD215999BF3233D157DF6D89298C.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648247-8.webp",
+      "beforeBytes": 606090,
+      "afterBytes": 176052,
+      "savedPct": 71
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/33897B3DCFF071518386163BE3423CFC.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648247-7.webp",
+      "beforeBytes": 560478,
+      "afterBytes": 158362,
+      "savedPct": 71.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/2DD3319D96EF5685F039CACD3B0CD426.jpg",
+      "key": "products/eprolo/fashion-clothing/hoodies-sweatshirts/32648247-6.webp",
+      "beforeBytes": 497260,
+      "afterBytes": 126712,
+      "savedPct": 74.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/F398F3CC361072E776A6837CD921FE5F.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-4.webp",
+      "beforeBytes": 125521,
+      "afterBytes": 34658,
+      "savedPct": 72.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/53E43AF4ACEE5EE01BFF6D3A021AD9BB.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-1.webp",
+      "beforeBytes": 54363,
+      "afterBytes": 23024,
+      "savedPct": 57.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/7B8332FE7FAD0311991ACA76EAB7AAFA.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-2.webp",
+      "beforeBytes": 102638,
+      "afterBytes": 29778,
+      "savedPct": 71
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/A3B2BDD1BE4721BB6C21AF07445A36F7.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-3.webp",
+      "beforeBytes": 102954,
+      "afterBytes": 31386,
+      "savedPct": 69.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/B08F8C0FDDCAA735563E3F1F4DE8FDCD.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-7.webp",
+      "beforeBytes": 112286,
+      "afterBytes": 30518,
+      "savedPct": 72.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/93C03CA58343A9F7BCBB07CB72E47DA7.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-5.webp",
+      "beforeBytes": 123083,
+      "afterBytes": 35984,
+      "savedPct": 70.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/CE5EB8D39BBA5469BB8CDE6AEFD4ADF6.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-8.webp",
+      "beforeBytes": 73676,
+      "afterBytes": 25994,
+      "savedPct": 64.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/B9593A7E7CADC8B96A8C49F3FE3839BA.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-6.webp",
+      "beforeBytes": 104040,
+      "afterBytes": 28120,
+      "savedPct": 73
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/D76CF8B4C78CA19C4434541069E7354C.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-9.webp",
+      "beforeBytes": 54363,
+      "afterBytes": 23024,
+      "savedPct": 57.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/F339BB251AF7B5D63C744A85CB74EE10.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-10.webp",
+      "beforeBytes": 81967,
+      "afterBytes": 27488,
+      "savedPct": 66.5
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/73B691559DBD35185C0D560570F00359.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-11.webp",
+      "beforeBytes": 89638,
+      "afterBytes": 31270,
+      "savedPct": 65.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/217D9C118E960C364CF8BB8BF8253512.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-12.webp",
+      "beforeBytes": 94157,
+      "afterBytes": 34068,
+      "savedPct": 63.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/1E47BCD47C5DB91838AB86DB991BE848.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648248-13.webp",
+      "beforeBytes": 98309,
+      "afterBytes": 39410,
+      "savedPct": 59.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/0E3DDB7226E5F1C1005868388F35F99C.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-3.webp",
+      "beforeBytes": 52368,
+      "afterBytes": 11564,
+      "savedPct": 77.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/E2FC3FD281580F494414641CA998A1C3.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-4.webp",
+      "beforeBytes": 48258,
+      "afterBytes": 13086,
+      "savedPct": 72.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/141284A2FD60DB220391905083620E1F.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-2.webp",
+      "beforeBytes": 47603,
+      "afterBytes": 11544,
+      "savedPct": 75.7
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/CAD0210724F36271C02DFF6D1175BD8A.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-5.webp",
+      "beforeBytes": 47325,
+      "afterBytes": 12892,
+      "savedPct": 72.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/80DB7B8C26E63A92C826B1EB23056911.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-7.webp",
+      "beforeBytes": 44335,
+      "afterBytes": 11720,
+      "savedPct": 73.6
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/AE84F666A2D6FFE0CA71C99DD885F534.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-1.webp",
+      "beforeBytes": 430465,
+      "afterBytes": 131680,
+      "savedPct": 69.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/F53DDB06FB24B86B200393CECC29AD71.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-6.webp",
+      "beforeBytes": 51324,
+      "afterBytes": 14736,
+      "savedPct": 71.3
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/1C0E5FB19C7003B743D29546BF6CA694.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-9.webp",
+      "beforeBytes": 43901,
+      "afterBytes": 12626,
+      "savedPct": 71.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/FCB97315D20499B480EC10DB797761D6.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-10.webp",
+      "beforeBytes": 48097,
+      "afterBytes": 13994,
+      "savedPct": 70.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/E4CDF41F7C9B95959FD41D587D0D1AC6.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-11.webp",
+      "beforeBytes": 52415,
+      "afterBytes": 16318,
+      "savedPct": 68.9
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/07CC174D7DBDC60E4B74E98A032394B9.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648249-8.webp",
+      "beforeBytes": 430465,
+      "afterBytes": 131680,
+      "savedPct": 69.4
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/3B7DBA3997F9C92A99D36613FFC5FEC5.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-1.webp",
+      "beforeBytes": 297328,
+      "afterBytes": 76956,
+      "savedPct": 74.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/F5066CA46E8D818F3E2D46DC893FE85D.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-2.webp",
+      "beforeBytes": 297328,
+      "afterBytes": 76956,
+      "savedPct": 74.1
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/62814E98AEF911A9C70C98E757521BBE.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-4.webp",
+      "beforeBytes": 276710,
+      "afterBytes": 78090,
+      "savedPct": 71.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/E00B5A837F5A65CA0EA7418BBCAED7D9.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-3.webp",
+      "beforeBytes": 380962,
+      "afterBytes": 134284,
+      "savedPct": 64.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/268AB5332959D19208CA79D88298E285.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-5.webp",
+      "beforeBytes": 420010,
+      "afterBytes": 163046,
+      "savedPct": 61.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/2B6A5D5BB0ACDE005C5B17B5F5B7F0E6.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-7.webp",
+      "beforeBytes": 276710,
+      "afterBytes": 78090,
+      "savedPct": 71.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/3B3BE373EE904A215F097715A211F89B.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-6.webp",
+      "beforeBytes": 276710,
+      "afterBytes": 78090,
+      "savedPct": 71.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/6199F1B93DC8654435B367A37FBD2F64.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-8.webp",
+      "beforeBytes": 420010,
+      "afterBytes": 163046,
+      "savedPct": 61.2
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/0E475CC0C95D4724DBE86B5B0AAE669C.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-9.webp",
+      "beforeBytes": 380962,
+      "afterBytes": 134284,
+      "savedPct": 64.8
+    },
+    {
+      "src": "https://shopifyfile.oss-accelerate.aliyuncs.com/attached/pingtai/202609/B9A56602DC3B6831499871FB2954A794.jpg",
+      "key": "products/eprolo/fashion-clothing/suits-sets/32648250-10.webp",
+      "beforeBytes": 297328,
+      "afterBytes": 76956,
+      "savedPct": 74.1
+    }
+  ]
+}

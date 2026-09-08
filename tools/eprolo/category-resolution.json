@@ -1,0 +1,2449 @@
+{
+  "generatedAt": "2026-09-08T04:35:58.856Z",
+  "level1": {
+    "9": {
+      "id": "E9FDC79A-8365-4CA6-AC23-64D971F08B8B",
+      "name": "Phones & Accessories"
+    },
+    "10": {
+      "id": "EPROLO-L1-10",
+      "name": "Cars & Motocycles"
+    },
+    "11": {
+      "id": "EPROLO-L1-11",
+      "name": "Jewelry & Accessories"
+    },
+    "13": {
+      "id": "EPROLO-L1-13",
+      "name": "Consumer Electronic"
+    },
+    "15": {
+      "id": "6A5D2EB4-13BD-462E-A627-78CFED11B2A2",
+      "name": "Home Improvement"
+    },
+    "19": {
+      "id": "EPROLO-L1-19",
+      "name": "Beauty & Health"
+    },
+    "20": {
+      "id": "0F88CF9B-C46C-491B-8933-115806ED8A13",
+      "name": "Shoes & Bags"
+    },
+    "21": {
+      "id": "EPROLO-L1-21",
+      "name": "Mother & Kids"
+    },
+    "24": {
+      "id": "EPROLO-L1-24",
+      "name": "Fashion & Clothing"
+    },
+    "26": {
+      "id": "4B397425-26C1-4D0E-B6D2-96B0B03689DB",
+      "name": "Sports & Outdoors"
+    },
+    "127": {
+      "id": "EPROLO-L1-127",
+      "name": "Bags"
+    },
+    "128": {
+      "id": "EPROLO-L1-128",
+      "name": "Home Deco"
+    },
+    "129": {
+      "id": "EPROLO-L1-129",
+      "name": "Home Set"
+    },
+    "130": {
+      "id": "EPROLO-L1-130",
+      "name": "Accessories"
+    },
+    "131": {
+      "id": "EPROLO-L1-131",
+      "name": "Direct Print Clothes"
+    },
+    "132": {
+      "id": "EPROLO-L1-132",
+      "name": "Logo & Tag"
+    },
+    "133": {
+      "id": "EPROLO-L1-133",
+      "name": "Made in USA(Free shipping)"
+    },
+    "134": {
+      "id": "EPROLO-L1-134",
+      "name": "Made in Australia"
+    },
+    "140": {
+      "id": "EPROLO-L1-140",
+      "name": "Shoes & Socks"
+    },
+    "143": {
+      "id": "B8302697-CF47-4211-9BD0-DFE8995AEB30",
+      "name": "Men's Clothing"
+    },
+    "144": {
+      "id": "EPROLO-L1-144",
+      "name": "Protective Masks"
+    },
+    "145": {
+      "id": "2409110611570657700",
+      "name": "Pet Supplies"
+    },
+    "148": {
+      "id": "EPROLO-L1-148",
+      "name": "Fully Printing  Hat"
+    },
+    "149": {
+      "id": "2FE8A083-5E7B-4179-896D-561EA116F730",
+      "name": "Women's Clothing"
+    },
+    "150": {
+      "id": "EPROLO-L1-150",
+      "name": "Kids & Baby"
+    },
+    "152": {
+      "id": "EPROLO-L1-152",
+      "name": "Personalized-gifts"
+    },
+    "154": {
+      "id": "EPROLO-L1-154",
+      "name": "Temporary tattoos"
+    },
+    "156": {
+      "id": "EPROLO-L1-156",
+      "name": "Customized-gift"
+    }
+  },
+  "level2": {
+    "31": {
+      "id": "EPROLO-L2-31",
+      "name": "Moblie Phone Accessories"
+    },
+    "32": {
+      "id": "3E53507E-2EDB-49F1-8D0D-AD01225DAD8A",
+      "name": "Fine Jewelry"
+    },
+    "33": {
+      "id": "56B4F8B6-8600-4A18-913E-53F2F693EC2C",
+      "name": "Rings"
+    },
+    "36": {
+      "id": "EPROLO-L2-36",
+      "name": "Phone Bags & Cases"
+    },
+    "37": {
+      "id": "C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073",
+      "name": "T-Shirts"
+    },
+    "38": {
+      "id": "491E5474-524C-4666-BDD7-4E35E38900EA",
+      "name": "Power Bank"
+    },
+    "39": {
+      "id": "85E0D3B7-C3C4-4F1B-98A6-958389A1BEBE",
+      "name": "Camera & Photo"
+    },
+    "40": {
+      "id": "C1AB7563-AED4-44D8-9F01-05BD91C65307",
+      "name": "Speakers"
+    },
+    "41": {
+      "id": "6A03FBB1-F7D9-441F-B06D-EF45CA87B553",
+      "name": "Smart Electronics"
+    },
+    "42": {
+      "id": "EPROLO-L2-42",
+      "name": "Electronic Cigarettes"
+    },
+    "43": {
+      "id": "11D33F89-9B90-4D1A-B977-DE229BAA7E86",
+      "name": "Wearable Devices"
+    },
+    "44": {
+      "id": "DAECCC3B-13D8-4978-86A8-61D3DF186134",
+      "name": "Earphones & Headphones"
+    },
+    "45": {
+      "id": "30063684-45E2-4929-BB85-441C1DF80DDE",
+      "name": "Accessories & Parts"
+    },
+    "46": {
+      "id": "EPROLO-L2-46",
+      "name": "Home Audio & Video"
+    },
+    "47": {
+      "id": "EPROLO-L2-47",
+      "name": "Necklaces & Pendants"
+    },
+    "48": {
+      "id": "D28405AE-66C6-42E6-BFF0-D6FDCB5C083C",
+      "name": "Earrings"
+    },
+    "49": {
+      "id": "EPROLO-L2-49",
+      "name": "Watches"
+    },
+    "50": {
+      "id": "0615F8DB-C10F-4BEF-892B-1C5B04268938",
+      "name": "Bracelets & Bangles"
+    },
+    "51": {
+      "id": "EPROLO-L2-51",
+      "name": "Jewelry Sets & More"
+    },
+    "55": {
+      "id": "EPROLO-L2-55",
+      "name": "Women's Bags"
+    },
+    "56": {
+      "id": "EPROLO-L2-56",
+      "name": "Men's Bags"
+    },
+    "57": {
+      "id": "EPROLO-L2-57",
+      "name": "Unisex Wallets"
+    },
+    "58": {
+      "id": "EPROLO-L2-58",
+      "name": "Backpacks"
+    },
+    "61": {
+      "id": "EPROLO-L2-61",
+      "name": "Coin Purses & Holders"
+    },
+    "62": {
+      "id": "EPROLO-L2-62",
+      "name": "Functional Bags"
+    },
+    "63": {
+      "id": "FE8AD446-B2BF-4C8C-B90B-49A6F2B3FF6A",
+      "name": "Men's Shoes"
+    },
+    "64": {
+      "id": "E93B19EF-4E2C-4526-B2DF-BBFB6F2A80A7",
+      "name": "Women's Shoes"
+    },
+    "65": {
+      "id": "EPROLO-L2-65",
+      "name": "Shoe Accessories"
+    },
+    "66": {
+      "id": "EPROLO-L2-66",
+      "name": "Sports Clothing"
+    },
+    "67": {
+      "id": "55A1D05D-A254-4242-A4BD-4BE88F0680B6",
+      "name": "Cycling"
+    },
+    "68": {
+      "id": "4B36F14A-6894-4047-8845-56CAFCF9A914",
+      "name": "Swimming"
+    },
+    "69": {
+      "id": "EPROLO-L2-69",
+      "name": "Fitness & Body Building"
+    },
+    "70": {
+      "id": "EPROLO-L2-70",
+      "name": "Sport Bags"
+    },
+    "71": {
+      "id": "CD4184EB-CD02-4789-8CFA-8FF3B4DEFC4E",
+      "name": "Fishing"
+    },
+    "72": {
+      "id": "EA851596-F20F-4AA5-8869-4BB5CA1968DC",
+      "name": "Camping & Hiking"
+    },
+    "73": {
+      "id": "EPROLO-L2-73",
+      "name": "Sport Accessories"
+    },
+    "74": {
+      "id": "2D818FE8-522E-4102-B659-F807564251ED",
+      "name": "Hunting"
+    },
+    "75": {
+      "id": "EPROLO-L2-75",
+      "name": "Outdoor Lightings"
+    },
+    "76": {
+      "id": "E987126C-FF3D-4BCF-B496-40990D39D2F8",
+      "name": "Car Lights"
+    },
+    "77": {
+      "id": "AE1E932F-7832-4CE8-9DFE-885044383863",
+      "name": "Car Electronics"
+    },
+    "78": {
+      "id": "D82400A8-94A4-410C-9155-0DCD4115DEA4",
+      "name": "Motorcycle Accessories & Parts"
+    },
+    "79": {
+      "id": "EPROLO-L2-79",
+      "name": "Car Wash & Maintenance"
+    },
+    "80": {
+      "id": "EPROLO-L2-80",
+      "name": "Car Repair Tools"
+    },
+    "82": {
+      "id": "575086BA-B96B-4557-85C9-004D3DF6A9AE",
+      "name": "Interior Accessories"
+    },
+    "83": {
+      "id": "1D5C8310-38DC-436D-B281-37660F7673B1",
+      "name": "Exterior Accessories"
+    },
+    "84": {
+      "id": "EPROLO-L2-84",
+      "name": "Sex Product"
+    },
+    "86": {
+      "id": "EPROLO-L2-86",
+      "name": "Hair Care & Styling"
+    },
+    "87": {
+      "id": "7EAF3E36-620B-4D78-818F-EE80955462A4",
+      "name": "Makeup"
+    },
+    "88": {
+      "id": "6289460B-5660-468A-AE43-3D619A05AAC2",
+      "name": "Skin Care"
+    },
+    "89": {
+      "id": "EPROLO-L2-89",
+      "name": "Fragrances & Deodorants"
+    },
+    "90": {
+      "id": "EPROLO-L2-90",
+      "name": "Beauty Essentials"
+    },
+    "91": {
+      "id": "EPROLO-L2-91",
+      "name": "Shaving & Hair Removal"
+    },
+    "92": {
+      "id": "EPROLO-L2-92",
+      "name": "Bath & Shower"
+    },
+    "93": {
+      "id": "EPROLO-L2-93",
+      "name": "Tools & Accessories"
+    },
+    "95": {
+      "id": "77A1D79C-B67E-42C0-850F-00005042548C",
+      "name": "Baby Care"
+    },
+    "97": {
+      "id": "EPROLO-L2-97",
+      "name": "Feeding"
+    },
+    "98": {
+      "id": "EPROLO-L2-98",
+      "name": "Pregnancy & Maternity"
+    },
+    "99": {
+      "id": "4065FFF7-4AAA-4CFA-B04B-639C93624469",
+      "name": "Activity & Gear"
+    },
+    "100": {
+      "id": "04D68B68-1048-4971-BAFA-18FA0A6DB95C",
+      "name": "Toys & Hobbies"
+    },
+    "104": {
+      "id": "EPROLO-L2-104",
+      "name": "Unisex Dresses"
+    },
+    "106": {
+      "id": "EPROLO-L2-106",
+      "name": "Unisex Hoodies & Sweatshirts"
+    },
+    "108": {
+      "id": "EPROLO-L2-108",
+      "name": "Unisex Jeans"
+    },
+    "109": {
+      "id": "EPROLO-L2-109",
+      "name": "Lights & Lighting"
+    },
+    "110": {
+      "id": "85EF081C-819E-448F-BD5C-C5D3F4CFAADA",
+      "name": "Home Appliances"
+    },
+    "111": {
+      "id": "EPROLO-L2-111",
+      "name": "Bathroom Fixtures"
+    },
+    "112": {
+      "id": "EPROLO-L2-112",
+      "name": "Kitchen Fixtures"
+    },
+    "115": {
+      "id": "A028998B-C8CF-4533-BBE4-E04FA244CDC6",
+      "name": "Kitchen Appliances"
+    },
+    "116": {
+      "id": "192C9D30-5FEA-4B67-B251-AF6E97678DFF",
+      "name": "Security & Protection"
+    },
+    "117": {
+      "id": "EPROLO-L2-117",
+      "name": "Cleaning Tools"
+    },
+    "119": {
+      "id": "EPROLO-L2-119",
+      "name": "Household Appliances"
+    },
+    "120": {
+      "id": "02EA33AA-4174-497D-86F4-D4FF9E525B81",
+      "name": "Personal Care Appliances"
+    },
+    "122": {
+      "id": "BAD75444-1463-4B4C-8AD2-BC9ABDD92E5B",
+      "name": "Mobile Phone Parts"
+    },
+    "124": {
+      "id": "EPROLO-L2-124",
+      "name": "Tablet & Mini PC"
+    },
+    "126": {
+      "id": "1126E280-CB7D-418A-90AB-7118E2D97CCC",
+      "name": "Computer & Office"
+    },
+    "127": {
+      "id": "EPROLO-L2-127",
+      "name": "Kitchen & Bar"
+    },
+    "128": {
+      "id": "EPROLO-L2-128",
+      "name": "Pet Products "
+    },
+    "129": {
+      "id": "EPROLO-L2-129",
+      "name": "Health Care"
+    },
+    "130": {
+      "id": "EPROLO-L2-130",
+      "name": " Power Source "
+    },
+    "131": {
+      "id": "EPROLO-L2-131",
+      "name": "Beads & DIY Jewelry"
+    },
+    "134": {
+      "id": "EPROLO-L2-134",
+      "name": " Garden Supplies "
+    },
+    "138": {
+      "id": "EPROLO-L2-138",
+      "name": "Wedding & Engagement"
+    },
+    "139": {
+      "id": "EPROLO-L2-139",
+      "name": "Entertainment "
+    },
+    "140": {
+      "id": "EPROLO-L2-140",
+      "name": " Home Decor"
+    },
+    "141": {
+      "id": "FD5E95E1-C8DC-4CBD-A203-8BCF3BA951B9",
+      "name": "Golf"
+    },
+    "142": {
+      "id": "EPROLO-L2-142",
+      "name": "Survival"
+    },
+    "143": {
+      "id": "EPROLO-L2-143",
+      "name": "Tennis"
+    },
+    "144": {
+      "id": "EPROLO-L2-144",
+      "name": "Home Storage & Organization"
+    },
+    "145": {
+      "id": "7D40D0BB-1466-4EEA-B275-0EB4CC0020D8",
+      "name": "Festive & Party Supplies"
+    },
+    "146": {
+      "id": "EPROLO-L2-146",
+      "name": "Badminton"
+    },
+    "147": {
+      "id": "EPROLO-L2-147",
+      "name": "Ping Pong"
+    },
+    "148": {
+      "id": "EPROLO-L2-148",
+      "name": "Home Textile"
+    },
+    "149": {
+      "id": "EPROLO-L2-149",
+      "name": "Safety Equipment"
+    },
+    "150": {
+      "id": "EPROLO-L2-150",
+      "name": "Baby Souvenirs"
+    },
+    "153": {
+      "id": "8B8C7FFB-6686-4994-B6DB-E5B8C1AAC9A6",
+      "name": "Skiing & Snowboarding"
+    },
+    "154": {
+      "id": "E89AC661-0B9E-4967-A0A3-7B0C6DEDDC7D",
+      "name": "Luggage & Travel Bags"
+    },
+    "155": {
+      "id": "EPROLO-L2-155",
+      "name": "Jackets & Coats"
+    },
+    "157": {
+      "id": "DE9C662C-3F48-4855-87E7-E18733EFF6D2",
+      "name": "Sweaters"
+    },
+    "158": {
+      "id": "EPROLO-L2-158",
+      "name": "Suits & Sets"
+    },
+    "159": {
+      "id": "EPROLO-L2-159",
+      "name": "Socks & Leggings"
+    },
+    "160": {
+      "id": "EPROLO-L2-160",
+      "name": "Unisex Accessories"
+    },
+    "161": {
+      "id": "EPROLO-L2-161",
+      "name": "Others"
+    },
+    "162": {
+      "id": "EPROLO-L2-162",
+      "name": "Smart Phone"
+    },
+    "163": {
+      "id": "2252588B-72E3-4397-8C92-7D9967161084",
+      "name": "Office & School Supplies"
+    },
+    "164": {
+      "id": "FE1DB733-120C-4506-B990-107EAC5E62E5",
+      "name": "Pants"
+    },
+    "165": {
+      "id": "7A31FADF-137D-4C83-AD7B-BCF28CACDA94",
+      "name": "Baby Clothing"
+    },
+    "166": {
+      "id": "EPROLO-L2-166",
+      "name": " Kids & Baby's Bags"
+    },
+    "1171": {
+      "id": "EPROLO-L2-1171",
+      "name": "Wall Deco"
+    },
+    "1172": {
+      "id": "EPROLO-L2-1172",
+      "name": "Rug"
+    },
+    "1173": {
+      "id": "EPROLO-L2-1173",
+      "name": "Tote Bags"
+    },
+    "1174": {
+      "id": "EPROLO-L2-1174",
+      "name": "Laptop Handbags"
+    },
+    "1175": {
+      "id": "EPROLO-L2-1175",
+      "name": "Messenger Bags"
+    },
+    "1176": {
+      "id": "EPROLO-L2-1176",
+      "name": " Jigsaw Puzzle"
+    },
+    "1177": {
+      "id": "EPROLO-L2-1177",
+      "name": "Doormat"
+    },
+    "1178": {
+      "id": "EPROLO-L2-1178",
+      "name": "Coasters"
+    },
+    "1179": {
+      "id": "EPROLO-L2-1179",
+      "name": "Bedding"
+    },
+    "1182": {
+      "id": "EPROLO-L2-1182",
+      "name": "Sling Bags"
+    },
+    "1183": {
+      "id": "EPROLO-L2-1183",
+      "name": "Saddle Bags"
+    },
+    "1184": {
+      "id": "EPROLO-L2-1184",
+      "name": "Handbags"
+    },
+    "1187": {
+      "id": "EPROLO-L2-1187",
+      "name": "Blanket"
+    },
+    "1188": {
+      "id": "EPROLO-L2-1188",
+      "name": "Outdoor"
+    },
+    "1189": {
+      "id": "EPROLO-L2-1189",
+      "name": "Tablecloths"
+    },
+    "1192": {
+      "id": "EPROLO-L2-1192",
+      "name": "For Luggage"
+    },
+    "1193": {
+      "id": "EPROLO-L2-1193",
+      "name": "Electronics"
+    },
+    "1194": {
+      "id": "EPROLO-L2-1194",
+      "name": "Mousepads"
+    },
+    "1196": {
+      "id": "C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073",
+      "name": "T-Shirts"
+    },
+    "1197": {
+      "id": "EPROLO-L2-1197",
+      "name": "Hoodies"
+    },
+    "1198": {
+      "id": "EPROLO-L2-1198",
+      "name": "Sweatshirt"
+    },
+    "1199": {
+      "id": "EPROLO-L2-1199",
+      "name": "Baby Onesies"
+    },
+    "1200": {
+      "id": "EPROLO-L2-1200",
+      "name": "Logo for Bags"
+    },
+    "1201": {
+      "id": "EPROLO-L2-1201",
+      "name": "Logo for Rug"
+    },
+    "1202": {
+      "id": "EPROLO-L2-1202",
+      "name": "Logo for Curtain"
+    },
+    "1203": {
+      "id": "EPROLO-L2-1203",
+      "name": "Logo for Beach Mats"
+    },
+    "1204": {
+      "id": "EPROLO-L2-1204",
+      "name": "Logo for Clothing"
+    },
+    "1205": {
+      "id": "EPROLO-L2-1205",
+      "name": "Logo for Tableclothes"
+    },
+    "1206": {
+      "id": "EPROLO-L2-1206",
+      "name": "Direct Print Clothes"
+    },
+    "1207": {
+      "id": "EPROLO-L2-1207",
+      "name": "Other"
+    },
+    "1208": {
+      "id": "EPROLO-L2-1208",
+      "name": "Direct Print Clothes"
+    },
+    "1212": {
+      "id": "EPROLO-L2-1212",
+      "name": "Other"
+    },
+    "1214": {
+      "id": "EPROLO-L2-1214",
+      "name": "Clothes for pets"
+    },
+    "1215": {
+      "id": "EPROLO-L2-1215",
+      "name": "Canvas Shoes"
+    },
+    "1216": {
+      "id": "EPROLO-L2-1216",
+      "name": "Slip-on"
+    },
+    "1217": {
+      "id": "EPROLO-L2-1217",
+      "name": "Sandal"
+    },
+    "1218": {
+      "id": "EPROLO-L2-1218",
+      "name": "Sports Shoes"
+    },
+    "1219": {
+      "id": "EPROLO-L2-1219",
+      "name": "Hoodie & Jacket"
+    },
+    "1220": {
+      "id": "EPROLO-L2-1220",
+      "name": "T-shirt"
+    },
+    "1221": {
+      "id": "EPROLO-L2-1221",
+      "name": "Shirt"
+    },
+    "1223": {
+      "id": "EPROLO-L2-1223",
+      "name": "Shorts & Briefs"
+    },
+    "1224": {
+      "id": "EPROLO-L2-1224",
+      "name": "Boots & High Top"
+    },
+    "1226": {
+      "id": "EPROLO-L2-1226",
+      "name": "Home Set"
+    },
+    "1229": {
+      "id": "EPROLO-L2-1229",
+      "name": "Pajamas"
+    },
+    "1230": {
+      "id": "EPROLO-L2-1230",
+      "name": "Tight trousers"
+    },
+    "1232": {
+      "id": "EPROLO-L2-1232",
+      "name": "Masks"
+    },
+    "1233": {
+      "id": "EPROLO-L2-1233",
+      "name": "Pet Clothes"
+    },
+    "1234": {
+      "id": "EPROLO-L2-1234",
+      "name": "Accessories"
+    },
+    "1236": {
+      "id": "EPROLO-L2-1236",
+      "name": "Sex Product"
+    },
+    "1237": {
+      "id": "EPROLO-L2-1237",
+      "name": "Visor Hat & Snapback Cap"
+    },
+    "1238": {
+      "id": "EPROLO-L2-1238",
+      "name": "Swimming Cap & Beanie"
+    },
+    "1239": {
+      "id": "EPROLO-L2-1239",
+      "name": "Plus Size"
+    },
+    "1240": {
+      "id": "EPROLO-L2-1240",
+      "name": "Swimsuit"
+    },
+    "1241": {
+      "id": "EPROLO-L2-1241",
+      "name": "Dresses"
+    },
+    "1242": {
+      "id": "EPROLO-L2-1242",
+      "name": "T-shirt"
+    },
+    "1243": {
+      "id": "EPROLO-L2-1243",
+      "name": "Trousers"
+    },
+    "1244": {
+      "id": "EPROLO-L2-1244",
+      "name": "Casual wear"
+    },
+    "1245": {
+      "id": "EPROLO-L2-1245",
+      "name": "Sports wear"
+    },
+    "1246": {
+      "id": "EPROLO-L2-1246",
+      "name": "Suit"
+    },
+    "1247": {
+      "id": "EPROLO-L2-1247",
+      "name": "Hoodies & Jackets"
+    },
+    "1248": {
+      "id": "EPROLO-L2-1248",
+      "name": "Shirt"
+    },
+    "1249": {
+      "id": "EPROLO-L2-1249",
+      "name": "Wallet"
+    },
+    "1250": {
+      "id": "EPROLO-L2-1250",
+      "name": "Pocket"
+    },
+    "1251": {
+      "id": "EPROLO-L2-1251",
+      "name": "Chest pack"
+    },
+    "1252": {
+      "id": "EPROLO-L2-1252",
+      "name": "Lunch Bag"
+    },
+    "1254": {
+      "id": "EPROLO-L2-1254",
+      "name": "Bras & Panties"
+    },
+    "1255": {
+      "id": "1C592A63-6E0F-4F25-9496-8BDD82BF4281",
+      "name": "Socks"
+    },
+    "1256": {
+      "id": "EPROLO-L2-1256",
+      "name": "Tank Top"
+    },
+    "1257": {
+      "id": "EPROLO-L2-1257",
+      "name": "Kids Clothing"
+    },
+    "1258": {
+      "id": "EPROLO-L2-1258",
+      "name": "Cup"
+    },
+    "1259": {
+      "id": "EPROLO-L2-1259",
+      "name": "Clothing Accessories"
+    },
+    "1260": {
+      "id": "EPROLO-L2-1260",
+      "name": "Tapestry & Blanket"
+    },
+    "1262": {
+      "id": "EPROLO-L2-1262",
+      "name": "Doormat"
+    },
+    "1263": {
+      "id": "EPROLO-L2-1263",
+      "name": "Necklace & Badge"
+    },
+    "1265": {
+      "id": "EPROLO-L2-1265",
+      "name": "Accessories"
+    },
+    "1266": {
+      "id": "EPROLO-L2-1266",
+      "name": "Home & Living"
+    },
+    "1267": {
+      "id": "EPROLO-L2-1267",
+      "name": "Jewelry"
+    },
+    "1270": {
+      "id": "EPROLO-L2-1270",
+      "name": "Temporary tattoos"
+    },
+    "1271": {
+      "id": "EPROLO-L2-1271",
+      "name": "T-shirts & Shirts"
+    },
+    "1272": {
+      "id": "EPROLO-L2-1272",
+      "name": "Trousers"
+    },
+    "1274": {
+      "id": "1C592A63-6E0F-4F25-9496-8BDD82BF4281",
+      "name": "Socks"
+    },
+    "1275": {
+      "id": "CF330457-0E5B-4FAF-9BAE-7D2C247BD8DE",
+      "name": "Drinkware"
+    },
+    "1276": {
+      "id": "EPROLO-L2-1276",
+      "name": "Ornament"
+    },
+    "1277": {
+      "id": "EPROLO-L2-1277",
+      "name": "Apparel"
+    },
+    "1278": {
+      "id": "EPROLO-L2-1278",
+      "name": "Home decor"
+    },
+    "1279": {
+      "id": "EPROLO-L2-1279",
+      "name": "Accessories"
+    },
+    "1280": {
+      "id": "CF330457-0E5B-4FAF-9BAE-7D2C247BD8DE",
+      "name": "Drinkware"
+    }
+  },
+  "actions": {
+    "reusedL1": [
+      {
+        "eproloId": 20,
+        "eproloName": "Shoes & Bags",
+        "ourId": "0F88CF9B-C46C-491B-8933-115806ED8A13",
+        "ourName": "Shoes & Bags"
+      },
+      {
+        "eproloId": 15,
+        "eproloName": "Home Improvement",
+        "ourId": "6A5D2EB4-13BD-462E-A627-78CFED11B2A2",
+        "ourName": "Home Improvement"
+      },
+      {
+        "eproloId": 9,
+        "eproloName": "Phones & Accessories",
+        "ourId": "E9FDC79A-8365-4CA6-AC23-64D971F08B8B",
+        "ourName": "Phones & Accessories"
+      },
+      {
+        "eproloId": 26,
+        "eproloName": "Sports & Outdoors",
+        "ourId": "4B397425-26C1-4D0E-B6D2-96B0B03689DB",
+        "ourName": "Sports & Outdoors"
+      },
+      {
+        "eproloId": 149,
+        "eproloName": "Women's Clothing",
+        "ourId": "2FE8A083-5E7B-4179-896D-561EA116F730",
+        "ourName": "Women's Clothing"
+      },
+      {
+        "eproloId": 143,
+        "eproloName": "Men's Clothing",
+        "ourId": "B8302697-CF47-4211-9BD0-DFE8995AEB30",
+        "ourName": "Men's Clothing"
+      },
+      {
+        "eproloId": 145,
+        "eproloName": "Pet Supplies",
+        "ourId": "2409110611570657700",
+        "ourName": "Pet Supplies"
+      }
+    ],
+    "createdL1": [
+      {
+        "eproloId": 24,
+        "name": "Fashion & Clothing",
+        "ourId": "EPROLO-L1-24",
+        "recovered": false
+      },
+      {
+        "eproloId": 19,
+        "name": "Beauty & Health",
+        "ourId": "EPROLO-L1-19",
+        "recovered": false
+      },
+      {
+        "eproloId": 11,
+        "name": "Jewelry & Accessories",
+        "ourId": "EPROLO-L1-11",
+        "recovered": false
+      },
+      {
+        "eproloId": 13,
+        "name": "Consumer Electronic",
+        "ourId": "EPROLO-L1-13",
+        "recovered": false
+      },
+      {
+        "eproloId": 21,
+        "name": "Mother & Kids",
+        "ourId": "EPROLO-L1-21",
+        "recovered": false
+      },
+      {
+        "eproloId": 10,
+        "name": "Cars & Motocycles",
+        "ourId": "EPROLO-L1-10",
+        "recovered": false
+      },
+      {
+        "eproloId": 133,
+        "name": "Made in USA(Free shipping)",
+        "ourId": "EPROLO-L1-133",
+        "recovered": true
+      },
+      {
+        "eproloId": 152,
+        "name": "Personalized-gifts",
+        "ourId": "EPROLO-L1-152",
+        "recovered": true
+      },
+      {
+        "eproloId": 156,
+        "name": "Customized-gift",
+        "ourId": "EPROLO-L1-156",
+        "recovered": true
+      },
+      {
+        "eproloId": 127,
+        "name": "Bags",
+        "ourId": "EPROLO-L1-127",
+        "recovered": true
+      },
+      {
+        "eproloId": 129,
+        "name": "Home Set",
+        "ourId": "EPROLO-L1-129",
+        "recovered": true
+      },
+      {
+        "eproloId": 128,
+        "name": "Home Deco",
+        "ourId": "EPROLO-L1-128",
+        "recovered": true
+      },
+      {
+        "eproloId": 132,
+        "name": "Logo & Tag",
+        "ourId": "EPROLO-L1-132",
+        "recovered": true
+      },
+      {
+        "eproloId": 140,
+        "name": "Shoes & Socks",
+        "ourId": "EPROLO-L1-140",
+        "recovered": true
+      },
+      {
+        "eproloId": 130,
+        "name": "Accessories",
+        "ourId": "EPROLO-L1-130",
+        "recovered": true
+      },
+      {
+        "eproloId": 131,
+        "name": "Direct Print Clothes",
+        "ourId": "EPROLO-L1-131",
+        "recovered": true
+      },
+      {
+        "eproloId": 134,
+        "name": "Made in Australia",
+        "ourId": "EPROLO-L1-134",
+        "recovered": true
+      },
+      {
+        "eproloId": 144,
+        "name": "Protective Masks",
+        "ourId": "EPROLO-L1-144",
+        "recovered": true
+      },
+      {
+        "eproloId": 148,
+        "name": "Fully Printing  Hat",
+        "ourId": "EPROLO-L1-148",
+        "recovered": true
+      },
+      {
+        "eproloId": 150,
+        "name": "Kids & Baby",
+        "ourId": "EPROLO-L1-150",
+        "recovered": true
+      },
+      {
+        "eproloId": 154,
+        "name": "Temporary tattoos",
+        "ourId": "EPROLO-L1-154",
+        "recovered": true
+      }
+    ],
+    "reusedL2": [
+      {
+        "eproloId": 1274,
+        "eproloName": "Socks",
+        "ourId": "1C592A63-6E0F-4F25-9496-8BDD82BF4281",
+        "ourName": "Socks"
+      },
+      {
+        "eproloId": 1275,
+        "eproloName": "Drinkware",
+        "ourId": "CF330457-0E5B-4FAF-9BAE-7D2C247BD8DE",
+        "ourName": "Drinkware"
+      },
+      {
+        "eproloId": 1255,
+        "eproloName": "Socks",
+        "ourId": "1C592A63-6E0F-4F25-9496-8BDD82BF4281",
+        "ourName": "Socks"
+      },
+      {
+        "eproloId": 1280,
+        "eproloName": "Drinkware",
+        "ourId": "CF330457-0E5B-4FAF-9BAE-7D2C247BD8DE",
+        "ourName": "Drinkware"
+      },
+      {
+        "eproloId": 32,
+        "eproloName": "Fine Jewelry",
+        "ourId": "3E53507E-2EDB-49F1-8D0D-AD01225DAD8A",
+        "ourName": "Fine Jewelry"
+      },
+      {
+        "eproloId": 33,
+        "eproloName": "Rings",
+        "ourId": "56B4F8B6-8600-4A18-913E-53F2F693EC2C",
+        "ourName": "Rings"
+      },
+      {
+        "eproloId": 37,
+        "eproloName": "T-Shirts",
+        "ourId": "C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073",
+        "ourName": "T-Shirts"
+      },
+      {
+        "eproloId": 38,
+        "eproloName": "Power Bank",
+        "ourId": "491E5474-524C-4666-BDD7-4E35E38900EA",
+        "ourName": "Power Bank"
+      },
+      {
+        "eproloId": 39,
+        "eproloName": "Camera & Photo",
+        "ourId": "85E0D3B7-C3C4-4F1B-98A6-958389A1BEBE",
+        "ourName": "Camera & Photo"
+      },
+      {
+        "eproloId": 40,
+        "eproloName": "Speakers",
+        "ourId": "C1AB7563-AED4-44D8-9F01-05BD91C65307",
+        "ourName": "Speakers"
+      },
+      {
+        "eproloId": 41,
+        "eproloName": "Smart Electronics",
+        "ourId": "6A03FBB1-F7D9-441F-B06D-EF45CA87B553",
+        "ourName": "Smart Electronics"
+      },
+      {
+        "eproloId": 43,
+        "eproloName": "Wearable Devices",
+        "ourId": "11D33F89-9B90-4D1A-B977-DE229BAA7E86",
+        "ourName": "Wearable Devices"
+      },
+      {
+        "eproloId": 44,
+        "eproloName": "Earphones & Headphones",
+        "ourId": "DAECCC3B-13D8-4978-86A8-61D3DF186134",
+        "ourName": "Earphones & Headphones"
+      },
+      {
+        "eproloId": 45,
+        "eproloName": "Accessories & Parts",
+        "ourId": "30063684-45E2-4929-BB85-441C1DF80DDE",
+        "ourName": "Accessories & Parts"
+      },
+      {
+        "eproloId": 48,
+        "eproloName": "Earrings",
+        "ourId": "D28405AE-66C6-42E6-BFF0-D6FDCB5C083C",
+        "ourName": "Earrings"
+      },
+      {
+        "eproloId": 50,
+        "eproloName": "Bracelets & Bangles",
+        "ourId": "0615F8DB-C10F-4BEF-892B-1C5B04268938",
+        "ourName": "Bracelets & Bangles"
+      },
+      {
+        "eproloId": 63,
+        "eproloName": "Men's Shoes",
+        "ourId": "FE8AD446-B2BF-4C8C-B90B-49A6F2B3FF6A",
+        "ourName": "Men's Shoes"
+      },
+      {
+        "eproloId": 64,
+        "eproloName": "Women's Shoes",
+        "ourId": "E93B19EF-4E2C-4526-B2DF-BBFB6F2A80A7",
+        "ourName": "Women's Shoes"
+      },
+      {
+        "eproloId": 67,
+        "eproloName": "Cycling",
+        "ourId": "55A1D05D-A254-4242-A4BD-4BE88F0680B6",
+        "ourName": "Cycling"
+      },
+      {
+        "eproloId": 68,
+        "eproloName": "Swimming",
+        "ourId": "4B36F14A-6894-4047-8845-56CAFCF9A914",
+        "ourName": "Swimming"
+      },
+      {
+        "eproloId": 71,
+        "eproloName": "Fishing",
+        "ourId": "CD4184EB-CD02-4789-8CFA-8FF3B4DEFC4E",
+        "ourName": "Fishing"
+      },
+      {
+        "eproloId": 72,
+        "eproloName": "Camping & Hiking",
+        "ourId": "EA851596-F20F-4AA5-8869-4BB5CA1968DC",
+        "ourName": "Camping & Hiking"
+      },
+      {
+        "eproloId": 74,
+        "eproloName": "Hunting",
+        "ourId": "2D818FE8-522E-4102-B659-F807564251ED",
+        "ourName": "Hunting"
+      },
+      {
+        "eproloId": 76,
+        "eproloName": "Car Lights",
+        "ourId": "E987126C-FF3D-4BCF-B496-40990D39D2F8",
+        "ourName": "Car Lights"
+      },
+      {
+        "eproloId": 77,
+        "eproloName": "Car Electronics",
+        "ourId": "AE1E932F-7832-4CE8-9DFE-885044383863",
+        "ourName": "Car Electronics"
+      },
+      {
+        "eproloId": 78,
+        "eproloName": "Motorcycle Accessories & Parts",
+        "ourId": "D82400A8-94A4-410C-9155-0DCD4115DEA4",
+        "ourName": "Motorcycle Accessories & Parts"
+      },
+      {
+        "eproloId": 82,
+        "eproloName": "Interior Accessories",
+        "ourId": "575086BA-B96B-4557-85C9-004D3DF6A9AE",
+        "ourName": "Interior Accessories"
+      },
+      {
+        "eproloId": 83,
+        "eproloName": "Exterior Accessories",
+        "ourId": "1D5C8310-38DC-436D-B281-37660F7673B1",
+        "ourName": "Exterior Accessories"
+      },
+      {
+        "eproloId": 87,
+        "eproloName": "Makeup",
+        "ourId": "7EAF3E36-620B-4D78-818F-EE80955462A4",
+        "ourName": "Makeup"
+      },
+      {
+        "eproloId": 88,
+        "eproloName": "Skin Care",
+        "ourId": "6289460B-5660-468A-AE43-3D619A05AAC2",
+        "ourName": "Skin Care"
+      },
+      {
+        "eproloId": 95,
+        "eproloName": "Baby Care",
+        "ourId": "77A1D79C-B67E-42C0-850F-00005042548C",
+        "ourName": "Baby Care"
+      },
+      {
+        "eproloId": 99,
+        "eproloName": "Activity & Gear",
+        "ourId": "4065FFF7-4AAA-4CFA-B04B-639C93624469",
+        "ourName": "Activity & Gear"
+      },
+      {
+        "eproloId": 100,
+        "eproloName": "Toys & Hobbies",
+        "ourId": "04D68B68-1048-4971-BAFA-18FA0A6DB95C",
+        "ourName": "Toys & Hobbies"
+      },
+      {
+        "eproloId": 110,
+        "eproloName": "Home Appliances",
+        "ourId": "85EF081C-819E-448F-BD5C-C5D3F4CFAADA",
+        "ourName": "Home Appliances"
+      },
+      {
+        "eproloId": 115,
+        "eproloName": "Kitchen Appliances",
+        "ourId": "A028998B-C8CF-4533-BBE4-E04FA244CDC6",
+        "ourName": "Kitchen Appliances"
+      },
+      {
+        "eproloId": 116,
+        "eproloName": "Security & Protection",
+        "ourId": "192C9D30-5FEA-4B67-B251-AF6E97678DFF",
+        "ourName": "Security & Protection"
+      },
+      {
+        "eproloId": 120,
+        "eproloName": "Personal Care Appliances",
+        "ourId": "02EA33AA-4174-497D-86F4-D4FF9E525B81",
+        "ourName": "Personal Care Appliances"
+      },
+      {
+        "eproloId": 122,
+        "eproloName": "Mobile Phone Parts",
+        "ourId": "BAD75444-1463-4B4C-8AD2-BC9ABDD92E5B",
+        "ourName": "Mobile Phone Parts"
+      },
+      {
+        "eproloId": 126,
+        "eproloName": "Computer & Office",
+        "ourId": "1126E280-CB7D-418A-90AB-7118E2D97CCC",
+        "ourName": "Computer & Office"
+      },
+      {
+        "eproloId": 141,
+        "eproloName": "Golf",
+        "ourId": "FD5E95E1-C8DC-4CBD-A203-8BCF3BA951B9",
+        "ourName": "Golf"
+      },
+      {
+        "eproloId": 145,
+        "eproloName": "Festive & Party Supplies ",
+        "ourId": "7D40D0BB-1466-4EEA-B275-0EB4CC0020D8",
+        "ourName": "Festive & Party Supplies"
+      },
+      {
+        "eproloId": 153,
+        "eproloName": " Skiing & Snowboarding",
+        "ourId": "8B8C7FFB-6686-4994-B6DB-E5B8C1AAC9A6",
+        "ourName": "Skiing & Snowboarding"
+      },
+      {
+        "eproloId": 154,
+        "eproloName": " Luggage & Travel Bags",
+        "ourId": "E89AC661-0B9E-4967-A0A3-7B0C6DEDDC7D",
+        "ourName": "Luggage & Travel Bags"
+      },
+      {
+        "eproloId": 157,
+        "eproloName": "Sweaters",
+        "ourId": "DE9C662C-3F48-4855-87E7-E18733EFF6D2",
+        "ourName": "Sweaters"
+      },
+      {
+        "eproloId": 163,
+        "eproloName": "Office & School Supplies",
+        "ourId": "2252588B-72E3-4397-8C92-7D9967161084",
+        "ourName": "Office & School Supplies"
+      },
+      {
+        "eproloId": 164,
+        "eproloName": "Pants",
+        "ourId": "FE1DB733-120C-4506-B990-107EAC5E62E5",
+        "ourName": "Pants"
+      },
+      {
+        "eproloId": 165,
+        "eproloName": "Baby Clothing",
+        "ourId": "7A31FADF-137D-4C83-AD7B-BCF28CACDA94",
+        "ourName": "Baby Clothing"
+      },
+      {
+        "eproloId": 1196,
+        "eproloName": "T-Shirts",
+        "ourId": "C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073",
+        "ourName": "T-Shirts"
+      }
+    ],
+    "createdL2": [
+      {
+        "eproloId": 1207,
+        "name": "Other",
+        "ourId": "EPROLO-L2-1207",
+        "parent": "Made in USA(Free shipping)",
+        "gendered": []
+      },
+      {
+        "eproloId": 1262,
+        "name": "Doormat",
+        "ourId": "EPROLO-L2-1262",
+        "parent": "Made in USA(Free shipping)",
+        "gendered": []
+      },
+      {
+        "eproloId": 1267,
+        "name": "Jewelry",
+        "ourId": "EPROLO-L2-1267",
+        "parent": "Personalized-gifts",
+        "gendered": []
+      },
+      {
+        "eproloId": 1279,
+        "name": "Accessories",
+        "ourId": "EPROLO-L2-1279",
+        "parent": "Customized-gift",
+        "gendered": []
+      },
+      {
+        "eproloId": 1265,
+        "name": "Accessories",
+        "ourId": "EPROLO-L2-1265",
+        "parent": "Personalized-gifts",
+        "gendered": []
+      },
+      {
+        "eproloId": 1277,
+        "name": "Apparel",
+        "ourId": "EPROLO-L2-1277",
+        "parent": "Customized-gift",
+        "gendered": []
+      },
+      {
+        "eproloId": 1278,
+        "name": "Home decor",
+        "ourId": "EPROLO-L2-1278",
+        "parent": "Customized-gift",
+        "gendered": []
+      },
+      {
+        "eproloId": 1260,
+        "name": "Tapestry & Blanket",
+        "ourId": "EPROLO-L2-1260",
+        "parent": "Made in USA(Free shipping)",
+        "gendered": []
+      },
+      {
+        "eproloId": 1266,
+        "name": "Home & Living",
+        "ourId": "EPROLO-L2-1266",
+        "parent": "Personalized-gifts",
+        "gendered": []
+      },
+      {
+        "eproloId": 1276,
+        "name": "Ornament",
+        "ourId": "EPROLO-L2-1276",
+        "parent": "Customized-gift",
+        "gendered": []
+      },
+      {
+        "eproloId": 1252,
+        "name": "Lunch Bag",
+        "ourId": "EPROLO-L2-1252",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1259,
+        "name": "Clothing Accessories",
+        "ourId": "EPROLO-L2-1259",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1248,
+        "name": "Shirt",
+        "ourId": "EPROLO-L2-1248",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1251,
+        "name": "Chest pack",
+        "ourId": "EPROLO-L2-1251",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1206,
+        "name": "Direct Print Clothes",
+        "ourId": "EPROLO-L2-1206",
+        "parent": "Made in USA(Free shipping)",
+        "gendered": []
+      },
+      {
+        "eproloId": 1230,
+        "name": "Tight trousers",
+        "ourId": "EPROLO-L2-1230",
+        "parent": "Men's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1246,
+        "name": "Suit",
+        "ourId": "EPROLO-L2-1246",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1250,
+        "name": "Pocket",
+        "ourId": "EPROLO-L2-1250",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1229,
+        "name": "Pajamas",
+        "ourId": "EPROLO-L2-1229",
+        "parent": "Men's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1249,
+        "name": "Wallet",
+        "ourId": "EPROLO-L2-1249",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1175,
+        "name": "Messenger Bags",
+        "ourId": "EPROLO-L2-1175",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1245,
+        "name": "Sports wear",
+        "ourId": "EPROLO-L2-1245",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1247,
+        "name": "Hoodies & Jackets",
+        "ourId": "EPROLO-L2-1247",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1188,
+        "name": "Outdoor",
+        "ourId": "EPROLO-L2-1188",
+        "parent": "Home Set",
+        "gendered": []
+      },
+      {
+        "eproloId": 1226,
+        "name": "Home Set",
+        "ourId": "EPROLO-L2-1226",
+        "parent": "Men's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1244,
+        "name": "Casual wear",
+        "ourId": "EPROLO-L2-1244",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1176,
+        "name": " Jigsaw Puzzle",
+        "ourId": "EPROLO-L2-1176",
+        "parent": "Home Deco",
+        "gendered": []
+      },
+      {
+        "eproloId": 1184,
+        "name": "Handbags",
+        "ourId": "EPROLO-L2-1184",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1203,
+        "name": "Logo for Beach Mats",
+        "ourId": "EPROLO-L2-1203",
+        "parent": "Logo & Tag",
+        "gendered": []
+      },
+      {
+        "eproloId": 1239,
+        "name": "Plus Size",
+        "ourId": "EPROLO-L2-1239",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1183,
+        "name": "Saddle Bags",
+        "ourId": "EPROLO-L2-1183",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1187,
+        "name": "Blanket",
+        "ourId": "EPROLO-L2-1187",
+        "parent": "Home Set",
+        "gendered": []
+      },
+      {
+        "eproloId": 1205,
+        "name": "Logo for Tableclothes",
+        "ourId": "EPROLO-L2-1205",
+        "parent": "Logo & Tag",
+        "gendered": []
+      },
+      {
+        "eproloId": 1223,
+        "name": "Shorts & Briefs",
+        "ourId": "EPROLO-L2-1223",
+        "parent": "Men's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1224,
+        "name": "Boots & High Top",
+        "ourId": "EPROLO-L2-1224",
+        "parent": "Shoes & Socks",
+        "gendered": []
+      },
+      {
+        "eproloId": 1254,
+        "name": "Bras & Panties",
+        "ourId": "EPROLO-L2-1254",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1256,
+        "name": "Tank Top",
+        "ourId": "EPROLO-L2-1256",
+        "parent": "Men's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1272,
+        "name": "Trousers",
+        "ourId": "EPROLO-L2-1272",
+        "parent": "Made in USA(Free shipping)",
+        "gendered": []
+      },
+      {
+        "eproloId": 1178,
+        "name": "Coasters",
+        "ourId": "EPROLO-L2-1178",
+        "parent": "Home Deco",
+        "gendered": []
+      },
+      {
+        "eproloId": 1182,
+        "name": "Sling Bags",
+        "ourId": "EPROLO-L2-1182",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1194,
+        "name": "Mousepads",
+        "ourId": "EPROLO-L2-1194",
+        "parent": "Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 1199,
+        "name": "Baby Onesies",
+        "ourId": "EPROLO-L2-1199",
+        "parent": "Direct Print Clothes",
+        "gendered": []
+      },
+      {
+        "eproloId": 1202,
+        "name": "Logo for Curtain",
+        "ourId": "EPROLO-L2-1202",
+        "parent": "Logo & Tag",
+        "gendered": []
+      },
+      {
+        "eproloId": 1218,
+        "name": "Sports Shoes",
+        "ourId": "EPROLO-L2-1218",
+        "parent": "Shoes & Socks",
+        "gendered": []
+      },
+      {
+        "eproloId": 1219,
+        "name": "Hoodie & Jacket",
+        "ourId": "EPROLO-L2-1219",
+        "parent": "Men's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1243,
+        "name": "Trousers",
+        "ourId": "EPROLO-L2-1243",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1258,
+        "name": "Cup",
+        "ourId": "EPROLO-L2-1258",
+        "parent": "Home Set",
+        "gendered": []
+      },
+      {
+        "eproloId": 1177,
+        "name": "Doormat",
+        "ourId": "EPROLO-L2-1177",
+        "parent": "Home Deco",
+        "gendered": []
+      },
+      {
+        "eproloId": 1193,
+        "name": "Electronics",
+        "ourId": "EPROLO-L2-1193",
+        "parent": "Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 1198,
+        "name": "Sweatshirt",
+        "ourId": "EPROLO-L2-1198",
+        "parent": "Direct Print Clothes",
+        "gendered": []
+      },
+      {
+        "eproloId": 1201,
+        "name": "Logo for Rug",
+        "ourId": "EPROLO-L2-1201",
+        "parent": "Logo & Tag",
+        "gendered": []
+      },
+      {
+        "eproloId": 1217,
+        "name": "Sandal",
+        "ourId": "EPROLO-L2-1217",
+        "parent": "Shoes & Socks",
+        "gendered": []
+      },
+      {
+        "eproloId": 1221,
+        "name": "Shirt",
+        "ourId": "EPROLO-L2-1221",
+        "parent": "Men's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1242,
+        "name": "T-shirt",
+        "ourId": "EPROLO-L2-1242",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1263,
+        "name": "Necklace & Badge",
+        "ourId": "EPROLO-L2-1263",
+        "parent": "Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 1271,
+        "name": "T-shirts & Shirts",
+        "ourId": "EPROLO-L2-1271",
+        "parent": "Made in USA(Free shipping)",
+        "gendered": []
+      },
+      {
+        "eproloId": 1172,
+        "name": "Rug",
+        "ourId": "EPROLO-L2-1172",
+        "parent": "Home Set",
+        "gendered": []
+      },
+      {
+        "eproloId": 1174,
+        "name": "Laptop Handbags",
+        "ourId": "EPROLO-L2-1174",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1189,
+        "name": "Tablecloths",
+        "ourId": "EPROLO-L2-1189",
+        "parent": "Home Deco",
+        "gendered": []
+      },
+      {
+        "eproloId": 1192,
+        "name": "For Luggage",
+        "ourId": "EPROLO-L2-1192",
+        "parent": "Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 1197,
+        "name": "Hoodies",
+        "ourId": "EPROLO-L2-1197",
+        "parent": "Direct Print Clothes",
+        "gendered": []
+      },
+      {
+        "eproloId": 1200,
+        "name": "Logo for Bags",
+        "ourId": "EPROLO-L2-1200",
+        "parent": "Logo & Tag",
+        "gendered": []
+      },
+      {
+        "eproloId": 1212,
+        "name": "Other",
+        "ourId": "EPROLO-L2-1212",
+        "parent": "Made in Australia",
+        "gendered": []
+      },
+      {
+        "eproloId": 1216,
+        "name": "Slip-on",
+        "ourId": "EPROLO-L2-1216",
+        "parent": "Shoes & Socks",
+        "gendered": []
+      },
+      {
+        "eproloId": 1220,
+        "name": "T-shirt",
+        "ourId": "EPROLO-L2-1220",
+        "parent": "Men's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1234,
+        "name": "Accessories",
+        "ourId": "EPROLO-L2-1234",
+        "parent": "Pet Supplies",
+        "gendered": []
+      },
+      {
+        "eproloId": 1241,
+        "name": "Dresses",
+        "ourId": "EPROLO-L2-1241",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 31,
+        "name": "Moblie Phone Accessories",
+        "ourId": "EPROLO-L2-31",
+        "parent": "Phones & Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 36,
+        "name": "Phone Bags & Cases",
+        "ourId": "EPROLO-L2-36",
+        "parent": "Phones & Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 42,
+        "name": "Electronic Cigarettes",
+        "ourId": "EPROLO-L2-42",
+        "parent": "Consumer Electronic",
+        "gendered": []
+      },
+      {
+        "eproloId": 46,
+        "name": "Home Audio & Video",
+        "ourId": "EPROLO-L2-46",
+        "parent": "Consumer Electronic",
+        "gendered": []
+      },
+      {
+        "eproloId": 47,
+        "name": "Necklaces & Pendants",
+        "ourId": "EPROLO-L2-47",
+        "parent": "Jewelry & Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 49,
+        "name": "Watches",
+        "ourId": "EPROLO-L2-49",
+        "parent": "Jewelry & Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 51,
+        "name": "Jewelry Sets & More",
+        "ourId": "EPROLO-L2-51",
+        "parent": "Jewelry & Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 55,
+        "name": "Women's Bags",
+        "ourId": "EPROLO-L2-55",
+        "parent": "Shoes & Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 56,
+        "name": "Men's Bags",
+        "ourId": "EPROLO-L2-56",
+        "parent": "Shoes & Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 57,
+        "name": "Unisex Wallets",
+        "ourId": "EPROLO-L2-57",
+        "parent": "Shoes & Bags",
+        "gendered": [
+          "Woman Wallets",
+          "Kids Wallets",
+          "Man Wallets"
+        ]
+      },
+      {
+        "eproloId": 58,
+        "name": "Backpacks",
+        "ourId": "EPROLO-L2-58",
+        "parent": "Shoes & Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 61,
+        "name": "Coin Purses & Holders",
+        "ourId": "EPROLO-L2-61",
+        "parent": "Shoes & Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 62,
+        "name": "Functional Bags",
+        "ourId": "EPROLO-L2-62",
+        "parent": "Shoes & Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 65,
+        "name": "Shoe Accessories",
+        "ourId": "EPROLO-L2-65",
+        "parent": "Shoes & Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 66,
+        "name": "Sports Clothing",
+        "ourId": "EPROLO-L2-66",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 69,
+        "name": "Fitness & Body Building",
+        "ourId": "EPROLO-L2-69",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 70,
+        "name": "Sport Bags",
+        "ourId": "EPROLO-L2-70",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 73,
+        "name": "Sport Accessories",
+        "ourId": "EPROLO-L2-73",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 75,
+        "name": "Outdoor Lightings",
+        "ourId": "EPROLO-L2-75",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 79,
+        "name": "Car Wash & Maintenance",
+        "ourId": "EPROLO-L2-79",
+        "parent": "Cars & Motocycles",
+        "gendered": []
+      },
+      {
+        "eproloId": 80,
+        "name": "Car Repair Tools",
+        "ourId": "EPROLO-L2-80",
+        "parent": "Cars & Motocycles",
+        "gendered": []
+      },
+      {
+        "eproloId": 84,
+        "name": "Sex Product",
+        "ourId": "EPROLO-L2-84",
+        "parent": "Beauty & Health",
+        "gendered": []
+      },
+      {
+        "eproloId": 86,
+        "name": "Hair Care & Styling",
+        "ourId": "EPROLO-L2-86",
+        "parent": "Beauty & Health",
+        "gendered": []
+      },
+      {
+        "eproloId": 89,
+        "name": "Fragrances & Deodorants",
+        "ourId": "EPROLO-L2-89",
+        "parent": "Beauty & Health",
+        "gendered": []
+      },
+      {
+        "eproloId": 90,
+        "name": "Beauty Essentials",
+        "ourId": "EPROLO-L2-90",
+        "parent": "Beauty & Health",
+        "gendered": []
+      },
+      {
+        "eproloId": 91,
+        "name": "Shaving & Hair Removal",
+        "ourId": "EPROLO-L2-91",
+        "parent": "Beauty & Health",
+        "gendered": []
+      },
+      {
+        "eproloId": 92,
+        "name": "Bath & Shower",
+        "ourId": "EPROLO-L2-92",
+        "parent": "Beauty & Health",
+        "gendered": []
+      },
+      {
+        "eproloId": 93,
+        "name": "Tools & Accessories",
+        "ourId": "EPROLO-L2-93",
+        "parent": "Beauty & Health",
+        "gendered": []
+      },
+      {
+        "eproloId": 97,
+        "name": "Feeding",
+        "ourId": "EPROLO-L2-97",
+        "parent": "Mother & Kids",
+        "gendered": []
+      },
+      {
+        "eproloId": 98,
+        "name": "Pregnancy & Maternity",
+        "ourId": "EPROLO-L2-98",
+        "parent": "Mother & Kids",
+        "gendered": []
+      },
+      {
+        "eproloId": 104,
+        "name": "Unisex Dresses",
+        "ourId": "EPROLO-L2-104",
+        "parent": "Fashion & Clothing",
+        "gendered": [
+          "Baby Dresses",
+          "Girl Dresses",
+          "Lady Dresses"
+        ]
+      },
+      {
+        "eproloId": 106,
+        "name": "Unisex Hoodies & Sweatshirts",
+        "ourId": "EPROLO-L2-106",
+        "parent": "Fashion & Clothing",
+        "gendered": [
+          "Woman Hoodies & Sweatshirts",
+          "Man Hoodies & Sweatshirts",
+          "Boy Hoodies & Sweatshirts"
+        ]
+      },
+      {
+        "eproloId": 108,
+        "name": "Unisex Jeans",
+        "ourId": "EPROLO-L2-108",
+        "parent": "Fashion & Clothing",
+        "gendered": [
+          "Woman Jeans",
+          "Man Jeans",
+          "Boy Jeans"
+        ]
+      },
+      {
+        "eproloId": 109,
+        "name": "Lights & Lighting",
+        "ourId": "EPROLO-L2-109",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 111,
+        "name": "Bathroom Fixtures",
+        "ourId": "EPROLO-L2-111",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 112,
+        "name": "Kitchen Fixtures",
+        "ourId": "EPROLO-L2-112",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 117,
+        "name": "Cleaning Tools",
+        "ourId": "EPROLO-L2-117",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 119,
+        "name": "Household Appliances",
+        "ourId": "EPROLO-L2-119",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 124,
+        "name": "Tablet & Mini PC",
+        "ourId": "EPROLO-L2-124",
+        "parent": "Consumer Electronic",
+        "gendered": []
+      },
+      {
+        "eproloId": 127,
+        "name": "Kitchen & Bar",
+        "ourId": "EPROLO-L2-127",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 128,
+        "name": "Pet Products ",
+        "ourId": "EPROLO-L2-128",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 129,
+        "name": "Health Care",
+        "ourId": "EPROLO-L2-129",
+        "parent": "Beauty & Health",
+        "gendered": []
+      },
+      {
+        "eproloId": 130,
+        "name": " Power Source ",
+        "ourId": "EPROLO-L2-130",
+        "parent": "Consumer Electronic",
+        "gendered": []
+      },
+      {
+        "eproloId": 131,
+        "name": "Beads & DIY Jewelry",
+        "ourId": "EPROLO-L2-131",
+        "parent": "Jewelry & Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 134,
+        "name": " Garden Supplies ",
+        "ourId": "EPROLO-L2-134",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 138,
+        "name": "Wedding & Engagement",
+        "ourId": "EPROLO-L2-138",
+        "parent": "Jewelry & Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 139,
+        "name": "Entertainment ",
+        "ourId": "EPROLO-L2-139",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 140,
+        "name": " Home Decor",
+        "ourId": "EPROLO-L2-140",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 142,
+        "name": "Survival",
+        "ourId": "EPROLO-L2-142",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 143,
+        "name": "Tennis",
+        "ourId": "EPROLO-L2-143",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 144,
+        "name": "Home Storage & Organization",
+        "ourId": "EPROLO-L2-144",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 146,
+        "name": "Badminton",
+        "ourId": "EPROLO-L2-146",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 147,
+        "name": "Ping Pong",
+        "ourId": "EPROLO-L2-147",
+        "parent": "Sports & Outdoors",
+        "gendered": []
+      },
+      {
+        "eproloId": 148,
+        "name": "Home Textile",
+        "ourId": "EPROLO-L2-148",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 149,
+        "name": "Safety Equipment",
+        "ourId": "EPROLO-L2-149",
+        "parent": "Mother & Kids",
+        "gendered": []
+      },
+      {
+        "eproloId": 150,
+        "name": "Baby Souvenirs",
+        "ourId": "EPROLO-L2-150",
+        "parent": "Mother & Kids",
+        "gendered": []
+      },
+      {
+        "eproloId": 155,
+        "name": "Jackets & Coats",
+        "ourId": "EPROLO-L2-155",
+        "parent": "Fashion & Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 158,
+        "name": "Suits & Sets",
+        "ourId": "EPROLO-L2-158",
+        "parent": "Fashion & Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 159,
+        "name": "Socks & Leggings",
+        "ourId": "EPROLO-L2-159",
+        "parent": "Fashion & Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 160,
+        "name": "Unisex Accessories",
+        "ourId": "EPROLO-L2-160",
+        "parent": "Fashion & Clothing",
+        "gendered": [
+          "Baby Accessories",
+          "Girl Accessories",
+          "Boy Accessories"
+        ]
+      },
+      {
+        "eproloId": 161,
+        "name": "Others",
+        "ourId": "EPROLO-L2-161",
+        "parent": "Fashion & Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 162,
+        "name": "Smart Phone",
+        "ourId": "EPROLO-L2-162",
+        "parent": "Phones & Accessories",
+        "gendered": []
+      },
+      {
+        "eproloId": 166,
+        "name": " Kids & Baby's Bags",
+        "ourId": "EPROLO-L2-166",
+        "parent": "Shoes & Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1171,
+        "name": "Wall Deco",
+        "ourId": "EPROLO-L2-1171",
+        "parent": "Home Deco",
+        "gendered": []
+      },
+      {
+        "eproloId": 1173,
+        "name": "Tote Bags",
+        "ourId": "EPROLO-L2-1173",
+        "parent": "Bags",
+        "gendered": []
+      },
+      {
+        "eproloId": 1179,
+        "name": "Bedding",
+        "ourId": "EPROLO-L2-1179",
+        "parent": "Home Set",
+        "gendered": []
+      },
+      {
+        "eproloId": 1204,
+        "name": "Logo for Clothing",
+        "ourId": "EPROLO-L2-1204",
+        "parent": "Logo & Tag",
+        "gendered": []
+      },
+      {
+        "eproloId": 1208,
+        "name": "Direct Print Clothes",
+        "ourId": "EPROLO-L2-1208",
+        "parent": "Made in Australia",
+        "gendered": []
+      },
+      {
+        "eproloId": 1214,
+        "name": "Clothes for pets",
+        "ourId": "EPROLO-L2-1214",
+        "parent": "Home Improvement",
+        "gendered": []
+      },
+      {
+        "eproloId": 1215,
+        "name": "Canvas Shoes",
+        "ourId": "EPROLO-L2-1215",
+        "parent": "Shoes & Socks",
+        "gendered": []
+      },
+      {
+        "eproloId": 1232,
+        "name": "Masks",
+        "ourId": "EPROLO-L2-1232",
+        "parent": "Protective Masks",
+        "gendered": []
+      },
+      {
+        "eproloId": 1233,
+        "name": "Pet Clothes",
+        "ourId": "EPROLO-L2-1233",
+        "parent": "Pet Supplies",
+        "gendered": []
+      },
+      {
+        "eproloId": 1236,
+        "name": "Sex Product",
+        "ourId": "EPROLO-L2-1236",
+        "parent": "Fashion & Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1237,
+        "name": "Visor Hat & Snapback Cap",
+        "ourId": "EPROLO-L2-1237",
+        "parent": "Fully Printing  Hat",
+        "gendered": []
+      },
+      {
+        "eproloId": 1238,
+        "name": "Swimming Cap & Beanie",
+        "ourId": "EPROLO-L2-1238",
+        "parent": "Fully Printing  Hat",
+        "gendered": []
+      },
+      {
+        "eproloId": 1240,
+        "name": "Swimsuit",
+        "ourId": "EPROLO-L2-1240",
+        "parent": "Women's Clothing",
+        "gendered": []
+      },
+      {
+        "eproloId": 1257,
+        "name": "Kids Clothing",
+        "ourId": "EPROLO-L2-1257",
+        "parent": "Kids & Baby",
+        "gendered": []
+      },
+      {
+        "eproloId": 1270,
+        "name": "Temporary tattoos",
+        "ourId": "EPROLO-L2-1270",
+        "parent": "Temporary tattoos",
+        "gendered": []
+      }
+    ],
+    "unisexL2": [
+      {
+        "eproloId": 57,
+        "name": "Unisex Wallets",
+        "ourId": "EPROLO-L2-57",
+        "parent": "Shoes & Bags",
+        "gendered": [
+          "Woman Wallets",
+          "Kids Wallets",
+          "Man Wallets"
+        ]
+      },
+      {
+        "eproloId": 104,
+        "name": "Unisex Dresses",
+        "ourId": "EPROLO-L2-104",
+        "parent": "Fashion & Clothing",
+        "gendered": [
+          "Baby Dresses",
+          "Girl Dresses",
+          "Lady Dresses"
+        ]
+      },
+      {
+        "eproloId": 106,
+        "name": "Unisex Hoodies & Sweatshirts",
+        "ourId": "EPROLO-L2-106",
+        "parent": "Fashion & Clothing",
+        "gendered": [
+          "Woman Hoodies & Sweatshirts",
+          "Man Hoodies & Sweatshirts",
+          "Boy Hoodies & Sweatshirts"
+        ]
+      },
+      {
+        "eproloId": 108,
+        "name": "Unisex Jeans",
+        "ourId": "EPROLO-L2-108",
+        "parent": "Fashion & Clothing",
+        "gendered": [
+          "Woman Jeans",
+          "Man Jeans",
+          "Boy Jeans"
+        ]
+      },
+      {
+        "eproloId": 160,
+        "name": "Unisex Accessories",
+        "ourId": "EPROLO-L2-160",
+        "parent": "Fashion & Clothing",
+        "gendered": [
+          "Baby Accessories",
+          "Girl Accessories",
+          "Boy Accessories"
+        ]
+      }
+    ]
+  }
+}
