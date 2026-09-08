@@ -13,3 +13,7 @@ feed-cache.jsonl
 
 # Run output.
 *.log
+
+# Per-run gate reports. Timestamped snapshots of a scan, regenerated every
+# time it runs — the script is the artefact worth keeping, not its output.
+moderation/gate-*.json

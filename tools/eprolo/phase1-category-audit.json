@@ -1,0 +1,256 @@
+{
+  "at": "2026-09-08T16:25:47.766Z",
+  "strict": [
+    {
+      "id": "EPROLO-L2-161",
+      "name": "Others",
+      "parentName": "Fashion & Clothing",
+      "products": 112,
+      "src": "EPROLO"
+    }
+  ],
+  "loose": [
+    {
+      "id": "CB255FA6-9B4C-4542-82CC-F774DE8F8C68",
+      "name": "Other Replacement Parts",
+      "parentName": "Auto Replacement Parts",
+      "products": 6885,
+      "src": "CJ"
+    },
+    {
+      "id": "D24CEB99-1ABB-4643-B0B6-33C60AF9B101",
+      "name": "Other Maintenance Products",
+      "parentName": "Tools, Maintenance & Care",
+      "products": 1252,
+      "src": "CJ"
+    },
+    {
+      "id": "628E44C8-73BF-4D4C-87C9-0B4F9A60D0C3",
+      "name": "Other Motorcycle Accessories",
+      "parentName": "Motorcycle Accessories & Parts",
+      "products": 940,
+      "src": "CJ"
+    },
+    {
+      "id": "ED1BECF0-0B39-41EE-968C-2948FED771C3",
+      "name": "Other Exterior Accessories",
+      "parentName": "Exterior Accessories",
+      "products": 750,
+      "src": "CJ"
+    },
+    {
+      "id": "36492F79-E7EB-42F0-8DCC-6129BD9D2AE1",
+      "name": "Other Sports Equipment",
+      "parentName": "Sports & Outdoors",
+      "products": 0,
+      "src": "CJ"
+    }
+  ],
+  "strictTotal": 112,
+  "looseTotal": 9827,
+  "parentFallback": [
+    {
+      "id": "C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073",
+      "name": "T-Shirts",
+      "parentName": "Men's Clothing",
+      "products": 2491,
+      "children": 6
+    },
+    {
+      "id": "7A31FADF-137D-4C83-AD7B-BCF28CACDA94",
+      "name": "Baby Clothing",
+      "parentName": "Toys, Kids & Babies",
+      "products": 893,
+      "children": 6
+    },
+    {
+      "id": "4B36F14A-6894-4047-8845-56CAFCF9A914",
+      "name": "Swimming",
+      "parentName": "Sports & Outdoors",
+      "products": 626,
+      "children": 7
+    },
+    {
+      "id": "7D40D0BB-1466-4EEA-B275-0EB4CC0020D8",
+      "name": "Festive & Party Supplies",
+      "parentName": "Home, Garden & Furniture",
+      "products": 174,
+      "children": 6
+    },
+    {
+      "id": "E93B19EF-4E2C-4526-B2DF-BBFB6F2A80A7",
+      "name": "Women's Shoes",
+      "parentName": "Bags & Shoes",
+      "products": 135,
+      "children": 7
+    },
+    {
+      "id": "6289460B-5660-468A-AE43-3D619A05AAC2",
+      "name": "Skin Care",
+      "parentName": "Health, Beauty & Hair",
+      "products": 121,
+      "children": 6
+    },
+    {
+      "id": "04D68B68-1048-4971-BAFA-18FA0A6DB95C",
+      "name": "Toys & Hobbies",
+      "parentName": "Toys, Kids & Babies",
+      "products": 94,
+      "children": 5
+    },
+    {
+      "id": "85EF081C-819E-448F-BD5C-C5D3F4CFAADA",
+      "name": "Home Appliances",
+      "parentName": "Home Improvement",
+      "products": 60,
+      "children": 5
+    },
+    {
+      "id": "7EAF3E36-620B-4D78-818F-EE80955462A4",
+      "name": "Makeup",
+      "parentName": "Health, Beauty & Hair",
+      "products": 58,
+      "children": 6
+    },
+    {
+      "id": "3E53507E-2EDB-49F1-8D0D-AD01225DAD8A",
+      "name": "Fine Jewelry",
+      "parentName": "Jewelry & Watches",
+      "products": 55,
+      "children": 7
+    },
+    {
+      "id": "FE8AD446-B2BF-4C8C-B90B-49A6F2B3FF6A",
+      "name": "Men's Shoes",
+      "parentName": "Bags & Shoes",
+      "products": 29,
+      "children": 7
+    },
+    {
+      "id": "30063684-45E2-4929-BB85-441C1DF80DDE",
+      "name": "Accessories & Parts",
+      "parentName": "Consumer Electronics",
+      "products": 28,
+      "children": 6
+    },
+    {
+      "id": "55A1D05D-A254-4242-A4BD-4BE88F0680B6",
+      "name": "Cycling",
+      "parentName": "Sports & Outdoors",
+      "products": 21,
+      "children": 8
+    },
+    {
+      "id": "1126E280-CB7D-418A-90AB-7118E2D97CCC",
+      "name": "Computer & Office",
+      "parentName": null,
+      "products": 16,
+      "children": 6
+    },
+    {
+      "id": "1AD00A3C-465A-430A-9820-F2D097FDA53A",
+      "name": "Home Textiles",
+      "parentName": "Home, Garden & Furniture",
+      "products": 15,
+      "children": 7
+    },
+    {
+      "id": "912FD088-248B-4D58-84F7-1F10B888CF8A",
+      "name": "Mobile Phone Accessories",
+      "parentName": "Phones & Accessories",
+      "products": 14,
+      "children": 6
+    },
+    {
+      "id": "6A03FBB1-F7D9-441F-B06D-EF45CA87B553",
+      "name": "Smart Electronics",
+      "parentName": "Consumer Electronics",
+      "products": 14,
+      "children": 6
+    },
+    {
+      "id": "575086BA-B96B-4557-85C9-004D3DF6A9AE",
+      "name": "Interior Accessories",
+      "parentName": "Automobiles & Motorcycles",
+      "products": 13,
+      "children": 7
+    },
+    {
+      "id": "85E0D3B7-C3C4-4F1B-98A6-958389A1BEBE",
+      "name": "Camera & Photo",
+      "parentName": "Consumer Electronics",
+      "products": 10,
+      "children": 6
+    },
+    {
+      "id": "CD4184EB-CD02-4789-8CFA-8FF3B4DEFC4E",
+      "name": "Fishing",
+      "parentName": "Sports & Outdoors",
+      "products": 8,
+      "children": 6
+    },
+    {
+      "id": "4BFAF763-DD09-4DD3-A7E9-E03724D1D51B",
+      "name": "Home Audio & Video",
+      "parentName": "Consumer Electronics",
+      "products": 8,
+      "children": 7
+    },
+    {
+      "id": "192C9D30-5FEA-4B67-B251-AF6E97678DFF",
+      "name": "Security & Protection",
+      "parentName": "Computer & Office",
+      "products": 5,
+      "children": 5
+    },
+    {
+      "id": "1D5C8310-38DC-436D-B281-37660F7673B1",
+      "name": "Exterior Accessories",
+      "parentName": "Automobiles & Motorcycles",
+      "products": 3,
+      "children": 3
+    },
+    {
+      "id": "2415A90C-5D7B-4CC7-BA8C-C0949F9FF5D8",
+      "name": "Bags & Shoes",
+      "parentName": null,
+      "products": 3,
+      "children": 8
+    },
+    {
+      "id": "D82400A8-94A4-410C-9155-0DCD4115DEA4",
+      "name": "Motorcycle Accessories & Parts",
+      "parentName": "Automobiles & Motorcycles",
+      "products": 3,
+      "children": 7
+    },
+    {
+      "id": "EPROLO-L1-24",
+      "name": "Fashion & Clothing",
+      "parentName": null,
+      "products": 1,
+      "children": 9
+    },
+    {
+      "id": "AE1E932F-7832-4CE8-9DFE-885044383863",
+      "name": "Car Electronics",
+      "parentName": "Automobiles & Motorcycles",
+      "products": 1,
+      "children": 10
+    },
+    {
+      "id": "A50A92FA-BCB3-4716-9BD9-BEC629BEE735",
+      "name": "Toys, Kids & Babies",
+      "parentName": null,
+      "products": 1,
+      "children": 9
+    },
+    {
+      "id": "0F88CF9B-C46C-491B-8933-115806ED8A13",
+      "name": "Shoes & Bags",
+      "parentName": "Toys, Kids & Babies",
+      "products": 1,
+      "children": 14
+    }
+  ]
+}
