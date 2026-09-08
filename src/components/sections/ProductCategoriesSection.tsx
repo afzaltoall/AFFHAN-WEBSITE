@@ -46,8 +46,13 @@ function CategoryTile({ cat }: { cat: Cat }) {
   );
 }
 
+/// Ten rows at the widest breakpoint (lg is 6 columns), so the grid still reads
+/// as "a lot of categories" without carrying all 596 in the DOM.
+const INITIAL_TILES = 60;
+
 export function ProductCategoriesSection({ initialCategories = [] }: { initialCategories?: Cat[] }) {
   const [categories, setCategories] = useState<Cat[]>(initialCategories || []);
+  const [showAll, setShowAll] = useState(false);
 
   // Initial categories are fetched server-side; we no longer fetch on mount.
 
@@ -85,17 +90,34 @@ export function ProductCategoriesSection({ initialCategories = [] }: { initialCa
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {/* Every category, not the first 24. The heading counts them all,
-                so cutting the grid at 24 made the page claim hundreds and then
-                show two rows of them.
-                Rendering the full set is affordable because next/image
-                lazy-loads by default: tiles below the fold are DOM nodes only,
-                and their images are not requested until scrolled to. */}
-            {categories.map((cat) => (
-              <CategoryTile key={cat.id} cat={cat} />
-            ))}
-          </div>
+          <>
+            {/* Capped, then expandable.
+                Rendering all 596 was measurably worse: 6,147 DOM nodes and 693
+                img elements on the homepage, with CLS at 1.06 on a throttled
+                mobile profile. next/image does lazy-load them, so the images
+                were not the cost — the DOM and the layout work were.
+                60 fills ten rows at the widest breakpoint, so the grid still
+                looks full, and the rest are one click away rather than a
+                navigation. */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {(showAll ? categories : categories.slice(0, INITIAL_TILES)).map((cat) => (
+                <CategoryTile key={cat.id} cat={cat} />
+              ))}
+            </div>
+
+            {!showAll && categories.length > INITIAL_TILES && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowAll(true)}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-brand-dark shadow-sm transition-all hover:border-brand/50 hover:gap-3"
+                >
+                  View all {categories.length.toLocaleString()} categories
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
     </section>

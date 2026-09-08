@@ -67,6 +67,13 @@ await send('Page.addScriptToEvaluateOnNewDocument', {
         window.__lcp.url = e.url || '';
       }
     }).observe({ type: 'largest-contentful-paint', buffered: true });
+    window.__cls = { value: 0, shifts: 0 };
+    new PerformanceObserver((list) => {
+      for (const e of list.getEntries()) {
+        // Shifts within 500ms of a user input are excluded from CLS by spec.
+        if (!e.hadRecentInput) { window.__cls.value += e.value; window.__cls.shifts++; }
+      }
+    }).observe({ type: 'layout-shift', buffered: true });
   `,
 });
 
@@ -84,6 +91,8 @@ await sleep(32000); // long enough to see a 30s LCP settle
 const r = await send('Runtime.evaluate', {
   expression: `(() => ({
     lcp: window.__lcp,
+    cls: window.__cls,
+    domNodes: document.getElementsByTagName("*").length,
     imgsInDom: document.querySelectorAll('img').length,
     productLinks: document.querySelectorAll('a[aria-label]').length,
     categoryTiles: document.querySelectorAll('a[href*="categoryId="]').length,
@@ -94,6 +103,8 @@ const v = r.result?.result?.value ?? {};
 
 console.log(`\n=== ${LABEL} ===`);
 console.log(`  LCP              : ${(v.lcp?.value / 1000).toFixed(2)}s`);
+console.log(`  CLS              : ${(v.cls?.value ?? 0).toFixed(4)} (${v.cls?.shifts ?? 0} shifts)`);
+console.log(`  DOM nodes        : ${v.domNodes}`);
 console.log(`  LCP element      : ${v.lcp?.element || '(none)'}`);
 console.log(`  LCP url          : ${(v.lcp?.url || '(none)').slice(-72)}`);
 console.log(`  LCP candidates   : ${v.lcp?.changes} (how many times the LCP element changed)`);
