@@ -7,6 +7,7 @@ import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { isCategoryBlocked, isNameBlocked, needsReview, isGenericBucket } from './moderation.mjs';
 import { revalidateCatalogue } from './revalidate.mjs';
+import { assertNeutralKey } from './whiteLabel.mjs';
 
 // Ingests the cached catalogue feed: images to S3 as WebP, then Product and
 // ProductVariant rows. Makes no EPROLO API calls at all — 08-crawl-feed.mjs
@@ -136,7 +137,17 @@ async function storeProduct(p) {
   else if (l1) state.categoryOutcome.parentFallback++;
   else state.categoryOutcome.none++;
 
-  const keyDir = `products/eprolo/${slug(l1?.name)}/${slug(l2?.name)}/${p.id}`;
+  // Supplier-neutral, and the same shape CJ already uses
+  // (products/<root>/<sub>/<leaf>/<file>). The old prefix was
+  // products/eprolo/... which put the supplier's name in every image URL the
+  // browser sees. Changed here FIRST, before the migration of existing objects,
+  // so a run that starts mid-migration cannot write more old-prefix keys.
+  //
+  // No collision with CJ at the same path: CJ files are <sku>.jpg, these are
+  // <numeric id>-<n>.webp.
+  const keyDir = assertNeutralKey(
+    `products/${slug(l1?.name)}/${slug(l2?.name)}/${p.id}`
+  );
 
   const ordered = (p.imagelist || []).slice()
     .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
