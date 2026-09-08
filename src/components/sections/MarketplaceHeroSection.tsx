@@ -335,18 +335,18 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
           </h1>
           <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
             <span>Source</span>
-            {/* Sized to the word being shown, not to the longest one.
-                A fixed w-[240px] — wide enough for "Home & Living" — left a
-                visible gap either side of every shorter word, and "Apparel" is
-                less than half that width, because the word was centred in a box
-                it could not fill.
-                The fixed width was there to stop the line reflowing as the
-                words cycle. Letting the box size to its content brings a small
-                re-centring back, which is the trade for having no gap; it is
-                deliberately not solved with a layout animation here, because
-                that would mean pulling framer-motion into this component's
-                bundle when TextMorph already loads it lazily. */}
-            <div className="flex justify-center shrink-0">
+            {/* Fixed width, and the gap either side of a short word is the
+                deliberate cost of it.
+                This was briefly changed to size to its content, which removed
+                the gap — and put a layout shift on every word change, forever.
+                Measured on production: four recurring shifts attributed to
+                `DIV.flex.justify-center.shrink-0 , SPAN` at 8.7s, 10.9s, 13.1s
+                and 15.3s, one per 2.2s rotation. Individually tiny, but they
+                never stop, and CLS is cumulative.
+                240px fits the longest word ("Home & Living"); anything shorter
+                is centred in it. A visible gap beats a metric that degrades for
+                as long as the tab is open. */}
+            <div className="flex justify-center w-[140px] sm:w-[180px] lg:w-[240px] shrink-0">
               <TextMorph
                 words={["Electronics", "Apparel", "Machinery", "Home & Living", "Beauty", "Auto Parts"]}
                 interval={2200}
