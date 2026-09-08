@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { shuffleArray, SPOTLIGHT_COUNT } from "@/lib/heroPool";
 import { Sparkles } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -26,7 +27,7 @@ export function ProductSpotlightSection({ initialProducts = [] }: { initialProdu
 
   // Re-pick after hydration so the spotlight varies between visits. Effect, not
   // render, or the first client pass would not match the server HTML.
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const withImage = initialProducts.filter((p: ProductCardData) => p.imageUrl);
     if (!withImage.length) return;
     setProducts(shuffleArray(withImage));

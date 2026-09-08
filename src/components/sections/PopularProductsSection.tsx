@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { shuffleArray, POPULAR_COUNT } from "@/lib/heroPool";
 import Link from "next/link";
 import { ChevronRight, Flame } from "lucide-react";
@@ -18,7 +19,7 @@ export function PopularProductsSection({ initialProducts = [] }: { initialProduc
   // Re-pick after hydration so the carousel varies between visits. Must be an
   // effect, not useState or render: the first client pass has to match the
   // server HTML exactly or React reports a hydration mismatch.
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!initialProducts.length) return;
     setProducts(shuffleArray(initialProducts));
   }, [initialProducts]);

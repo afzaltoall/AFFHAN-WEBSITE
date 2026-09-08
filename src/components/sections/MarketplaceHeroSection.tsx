@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
+import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Star, ChevronRight } from "lucide-react";
@@ -36,7 +37,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
   // cached order and it is replaced a frame later — that swap is the price of
   // keeping the page ISR-cached (revalidate = 3600) while still varying per
   // visit, and it is why the same products used to appear on every refresh.
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!initialProducts.length) return;
     setProducts(shuffleArray(initialProducts).slice(0, HERO_GRID_COUNT));
   }, [initialProducts]);
