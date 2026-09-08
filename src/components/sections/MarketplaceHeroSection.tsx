@@ -380,11 +380,22 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
           </h1>
           <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
             <span>Source</span>
-            <div className="flex justify-center w-[140px] sm:w-[180px] lg:w-[240px] shrink-0">
+            {/* Sized to the word being shown, not to the longest one.
+                A fixed w-[240px] — wide enough for "Home & Living" — left a
+                visible gap either side of every shorter word, and "Apparel" is
+                less than half that width, because the word was centred in a box
+                it could not fill.
+                The fixed width was there to stop the line reflowing as the
+                words cycle. Letting the box size to its content brings a small
+                re-centring back, which is the trade for having no gap; it is
+                deliberately not solved with a layout animation here, because
+                that would mean pulling framer-motion into this component's
+                bundle when TextMorph already loads it lazily. */}
+            <div className="flex justify-center shrink-0">
               <TextMorph
                 words={["Electronics", "Apparel", "Machinery", "Home & Living", "Beauty", "Auto Parts"]}
                 interval={2200}
-                className="text-brand"
+                className="text-brand whitespace-nowrap"
               />
             </div>
             <span>from one trusted partner</span>

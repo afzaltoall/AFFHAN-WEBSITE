@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { revalidateTag } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
 
 // Drops the catalogue caches on demand.
@@ -18,6 +18,9 @@ const TAGS: Record<string, string> = {
   categories: TAG_CATEGORIES,
   products: TAG_PRODUCTS,
 };
+
+// Server-rendered pages that read the catalogue and cache their own HTML.
+const PATHS = ["/", "/products"];
 
 export async function POST(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
@@ -52,8 +55,19 @@ export async function POST(request: NextRequest) {
   // actually drops it regardless of age.
   for (const t of requested) revalidateTag(TAGS[t], { expire: 0 });
 
+  // Tags cover the DATA caches. They do not cover a rendered page's own ISR
+  // entry: src/app/page.tsx sets `revalidate = 3600` and calls the categories
+  // route directly, so the homepage kept serving HTML built before a change for
+  // up to an hour after the tags were dropped — showing pre-merge category
+  // counts long after the database had moved on.
+  //
+  // These are the pages that render catalogue data server-side, so they are
+  // purged alongside it.
+  for (const path of PATHS) revalidatePath(path);
+
   return NextResponse.json({
     revalidated: requested.map((t) => TAGS[t]),
+    paths: PATHS,
     at: new Date().toISOString(),
   });
 }

@@ -86,7 +86,13 @@ export function ProductCategoriesSection({ initialCategories = [] }: { initialCa
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {categories.slice(0, 24).map((cat) => (
+            {/* Every category, not the first 24. The heading counts them all,
+                so cutting the grid at 24 made the page claim hundreds and then
+                show two rows of them.
+                Rendering the full set is affordable because next/image
+                lazy-loads by default: tiles below the fold are DOM nodes only,
+                and their images are not requested until scrolled to. */}
+            {categories.map((cat) => (
               <CategoryTile key={cat.id} cat={cat} />
             ))}
           </div>
