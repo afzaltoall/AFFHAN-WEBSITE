@@ -2,6 +2,7 @@ import 'dotenv/config';
 import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import { eproloCall } from './client.mjs';
+import { isBlockedDeep } from './moderation.mjs';
 
 // Fills the gaps EPROLO's taxonomy leaves in ours, so no EPROLO product has to
 // be stored uncategorised.
@@ -84,12 +85,19 @@ const GENDERED_PARENT = /\b(men|man|women|woman|womens|mens|boy|girl|kid|kids|ba
 const wantsUnisex = (parentName) =>
   !!parentName && APPAREL_PARENT.test(parentName) && !GENDERED_PARENT.test(parentName);
 
-const actions = { reusedL1: [], createdL1: [], reusedL2: [], createdL2: [], unisexL2: [] };
+const actions = { reusedL1: [], createdL1: [], reusedL2: [], createdL2: [], unisexL2: [], blocked: [] };
 const toCreate = [];
 
 // ---- level 1 ----
 const l1Resolved = new Map(); // eprolo level-1 id -> our category id + name
 for (const c of lvl1ById.values()) {
+  // Moderation gate. A blocked category is never created and never resolved,
+  // so 10-ingest.mjs finds no target for its products and skips them outright.
+  // This is the check whose absence let EPROLO's "Sex Product" through.
+  if (isBlockedDeep(c.name, null)) {
+    actions.blocked.push({ level: 1, eproloId: c.id, name: c.name });
+    continue;
+  }
   const match = resolve(c.name);
   if (match) {
     l1Resolved.set(c.id, { id: match.id, name: match.name });
@@ -106,6 +114,12 @@ for (const c of lvl1ById.values()) {
 const l2Resolved = new Map();
 for (const c of lvl2) {
   const parent = l1Resolved.get(c.waretypeid) ?? null;
+  // Blocked by its own name, or orphaned because its level-1 parent was
+  // blocked above — either way it is not created.
+  if (isBlockedDeep(c.name, c.typename) || (c.waretypeid != null && !l1Resolved.has(c.waretypeid))) {
+    actions.blocked.push({ level: 2, eproloId: c.id, name: c.name, parent: c.typename });
+    continue;
+  }
   const match = resolve(c.name);
   if (match) {
     l2Resolved.set(c.id, { id: match.id, name: match.name });
@@ -126,6 +140,11 @@ for (const c of lvl2) {
   if (gendered.length) actions.unisexL2.push(rec);
 }
 
+console.log(`BLOCKED by moderation (never created): ${actions.blocked.length}`);
+for (const b of actions.blocked) {
+  console.log(`  L${b.level} [${b.eproloId}] ${b.name}${b.parent ? `  (under ${b.parent})` : ''}`);
+}
+console.log();
 console.log(`level-1: ${actions.reusedL1.length} reuse ours, ${actions.createdL1.length} to create`);
 console.log(`level-2: ${actions.reusedL2.length} reuse ours, ${actions.createdL2.length} to create ` +
   `(${actions.unisexL2.length} of them as "Unisex ...")\n`);
@@ -155,6 +174,21 @@ if (DRY_RUN) {
 
 // The resolution table the catalogue run consumes, so mapping logic lives in
 // one place and the full run does not re-derive it per product.
+//
+// Never written on a dry run. It is an input to 10-ingest.mjs and the mapping
+// for products already stored, so overwriting it from a "what would happen"
+// pass silently rewrites history. A dry run did exactly that once and remapped
+// Unisex Dresses — 1,777 products — to a different category id.
+//
+// It is also not idempotent across runs: once the categories this script
+// creates exist, resolve() can match them by name and produce a different
+// table than the one that built the current rows. Regenerate deliberately, and
+// re-run the ingest afterwards, or not at all.
+if (DRY_RUN) {
+  console.log('\n[DRY RUN] category-resolution.json left untouched');
+  await prisma.$disconnect();
+  process.exit(0);
+}
 fs.writeFileSync(
   'tools/eprolo/category-resolution.json',
   JSON.stringify(

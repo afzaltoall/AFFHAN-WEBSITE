@@ -28,7 +28,7 @@ export interface CategoryMeta {
 const loadTree = unstable_cache(
   async () =>
     prisma.category.findMany({ select: { id: true, name: true, parentId: true } }),
-  ["category-meta-tree-v1"],
+  ["category-meta-tree-v2"],
   { revalidate: 3600 }
 );
 
@@ -37,7 +37,7 @@ const loadTree = unstable_cache(
 // and a crawler walking 509 categories does not re-run 509 aggregates.
 const countProducts = unstable_cache(
   async (ids: string[]) => prisma.product.count({ where: { categoryId: { in: ids } } }),
-  ["category-meta-count-v1"],
+  ["category-meta-count-v2"],
   { revalidate: 3600 }
 );
 

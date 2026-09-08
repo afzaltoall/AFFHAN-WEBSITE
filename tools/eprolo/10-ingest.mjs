@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import pLimit from 'p-limit';
 import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { isCategoryBlocked, isNameBlocked } from './moderation.mjs';
 
 // Ingests the cached catalogue feed: images to S3 as WebP, then Product and
 // ProductVariant rows. Makes no EPROLO API calls at all — 08-crawl-feed.mjs
@@ -88,6 +89,25 @@ async function migrateImage(srcUrl, key) {
 async function storeProduct(p) {
   const l1 = resolution.level1[parseTypeIds(p.wareTypeId)[0]];
   const l2 = resolution.level2[parseTypeIds(p.wareTypeTwoId)[0]];
+
+  // Moderation gate, second layer. 05-create-categories.mjs already refuses to
+  // create a blocked category, so a blocked product normally arrives here with
+  // nothing to resolve to. This catches the rest: a resolution table generated
+  // before the blocklist changed, and adult items mis-filed into a clean
+  // category, which category-level blocking cannot see.
+  //
+  // Skipped products are recorded and never written — no images uploaded, no
+  // rows created. Nothing downstream has to remember to hide them.
+  if (isCategoryBlocked(l2?.name) || isCategoryBlocked(l1?.name) || isNameBlocked(p.title)) {
+    state.moderationSkipped ??= [];
+    state.moderationSkipped.push({
+      id: String(p.id),
+      name: p.title,
+      category: [l1?.name, l2?.name].filter(Boolean).join(' > ') || null,
+      reason: isNameBlocked(p.title) ? 'product-name' : 'category',
+    });
+    return;
+  }
 
   // Leaf where EPROLO's level-2 resolves, else the level-1 parent, so nothing
   // is stored uncategorised. A product sitting on a level-1 category is itself
@@ -241,6 +261,7 @@ const co = state.categoryOutcome;
 const cTotal = co.leaf + co.parentFallback + co.none;
 console.log(`category: leaf ${co.leaf}, parent-fallback ${co.parentFallback}, none ${co.none}` +
   (cTotal ? `  (unmapped ${((co.none / cTotal) * 100).toFixed(2)}%)` : ''));
+console.log(`moderation-skipped: ${state.moderationSkipped?.length ?? 0}`);
 console.log(`failures         : ${state.failures.length}`);
 const byStage = {};
 for (const f of state.failures) byStage[f.stage] = (byStage[f.stage] ?? 0) + 1;

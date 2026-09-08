@@ -1,0 +1,4 @@
+id,name,parentName,productCount,confirmed,broader,displayAsTopLevel
+EPROLO-L2-1236,Sex Product,Fashion & Clothing,151,true,false,false
+EPROLO-L2-84,Sex Product,Beauty & Health,14,true,false,false
+1697200256204677120,Adult Wellness,Home Storage,0,false,true,false

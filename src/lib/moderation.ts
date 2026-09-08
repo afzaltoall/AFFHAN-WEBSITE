@@ -35,6 +35,14 @@ export const BLOCKED_CATEGORY_PATTERNS = [
   "pajama sets",
   "adult wellness",
   "adult product",
+  // EPROLO names its adult category "Sex Product" and files it under two
+  // different parents ("Beauty & Health" and, oddly, "Fashion & Clothing").
+  // CJ's equivalents are the "adult …" names above, so nothing here matched it
+  // and 165 products went live. Substring matching is what makes this safe to
+  // state so plainly: "sex product" cannot match "Unisex Dresses" or the other
+  // Unisex categories, which is why the pattern is the full phrase and never
+  // the bare word.
+  "sex product",
   "weddings & events", // whole subtree: evening/wedding/prom/cocktail/bridesmaid dresses
   "weddings and events",
   "belts & cummerbunds",

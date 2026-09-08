@@ -36,7 +36,7 @@ const getCachedCategories = unstable_cache(
 
     return { data: formattedCategories, totalCount: totalProducts };
   },
-  ["categories-api-data-v8"],
+  ["categories-api-data-v9"],
   { revalidate: 3600 }
 );
 

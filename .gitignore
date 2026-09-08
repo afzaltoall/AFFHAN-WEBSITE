@@ -86,4 +86,9 @@ public/static/images/map*.png
 # tools/eprolo/.gitignore.
 !tools/eprolo/*.mjs
 *.csv
+# …except the content-moderation audit. The blanket *.csv rule exists for bulk
+# data dumps (products_export.csv alone is 171MB); these are 55KB compliance
+# records of what was flagged, when, and why, and the whole point of an audit
+# log is that it survives in history rather than sitting on one laptop.
+!tools/eprolo/moderation/*.csv
 flutter-patch-*.js
