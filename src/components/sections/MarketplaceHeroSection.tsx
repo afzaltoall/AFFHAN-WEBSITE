@@ -376,7 +376,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
         </div>
 
         {/* Unified Responsive Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 xl:gap-5 pb-8 relative">
+        <div className="hero-product-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 xl:gap-5 pb-8 relative">
 
           {/* Sidebar — spans a single grid row so it's exactly one product
                 card tall (its background fills the cell with no leftover grey

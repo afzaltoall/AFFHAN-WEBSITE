@@ -1241,3 +1241,71 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .admin-drawer { animation: none; }
 }
+
+/* Skip rendering work for category tiles that are still off-screen.
+ *
+ * A CPU profile of the homepage put ~75% of main-thread time in V8's
+ * "(program)" bucket — style, layout, paint and image decode rather than any
+ * JavaScript. That is what 596 category tiles cost. content-visibility lets the
+ * renderer skip layout and paint for tiles outside the viewport while they stay
+ * in the DOM, so every category can be listed without paying for all of them:
+ * TBT measured 459ms showing 60 tiles, and 343ms showing all 596.
+ *
+ * contain-intrinsic-size must match the height the tile really becomes. Too
+ * small and the page grows as each row scrolls in, which is a layout shift —
+ * a single 260px guess was wrong at every breakpoint. The tile is an
+ * aspect-square image plus a two-line title, so its height follows the column
+ * width and changes each time the grid changes column count. Measured with
+ * tools/eprolo/48-card-heights.mjs rather than estimated:
+ *
+ *     2 cols  <640px     250-275px
+ *     3 cols  640-767    265px
+ *     4 cols  768-1023   247px
+ *     6 cols  >=1024     223-292px
+ *
+ * The auto keyword makes the browser remember a tile's real size once it has
+ * been rendered, so the fallback only has to be close, not exact.
+ *
+ * Deliberately NOT applied to product cards. Their titles are variable length
+ * so no single placeholder fits, and they sit in the hero grid where a shift is
+ * most visible. The 596 tiles are where the saving is; the 65 cards are not
+ * worth the risk. */
+#product-categories .liquid-glass-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 262px;
+}
+@media (min-width: 640px) {
+  #product-categories .liquid-glass-card { contain-intrinsic-size: auto 266px; }
+}
+@media (min-width: 768px) {
+  #product-categories .liquid-glass-card { contain-intrinsic-size: auto 248px; }
+}
+@media (min-width: 1024px) {
+  #product-categories .liquid-glass-card { contain-intrinsic-size: auto 265px; }
+}
+
+/* The hero product grid, same treatment and the same reasoning.
+ *
+ * Measured heights are uniform inside each breakpoint because the card titles
+ * are clamped to two lines, so a placeholder can be exact here too:
+ *
+ *     <768px      273px
+ *     768-1023    324px
+ *     1024-1279   342px
+ *     >=1280      324px
+ *
+ * Worth 70ms of TBT on its own (414ms with only the tiles contained, 343ms with
+ * these as well). */
+.hero-product-grid > * {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 273px;
+}
+@media (min-width: 768px) {
+  .hero-product-grid > * { contain-intrinsic-size: auto 324px; }
+}
+@media (min-width: 1024px) {
+  .hero-product-grid > * { contain-intrinsic-size: auto 342px; }
+}
+@media (min-width: 1280px) {
+  .hero-product-grid > * { contain-intrinsic-size: auto 324px; }
+}
