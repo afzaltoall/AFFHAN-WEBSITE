@@ -161,7 +161,6 @@ export function AdminConsole({ data }: Props) {
   const [view, setView] = useState<View>("all");
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
-  const [inquiryCompanyFilter, setInquiryCompanyFilter] = useState<CompanyFilter>("all");
   /**
    * Which stage of the customer-facing lifecycle the list is narrowed to.
    *
@@ -199,7 +198,7 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
-  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, q, inquiryCompanyFilter]);
+  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, q]);
 
   // The drawer closes itself when a view is chosen, and Escape closes it too.
   useEffect(() => setMenuOpen(false), [view]);
@@ -461,15 +460,9 @@ export function AdminConsole({ data }: Props) {
         qty: "bg-brand/10 text-brand-dark", overlay: "bg-slate-900/50", modal: "bg-white text-[#1d1d1f] ring-black/[0.06]",
       };
 
-  const inquiryWithCompany = useMemo(
-    () => items.filter((i) => i.companyName?.trim()).length,
-    [items],
-  );
-
   const inquiries = useMemo(
     () => items.filter((i) =>
       (statusFilter === "all" || asStatus(i.status) === statusFilter) &&
-      matchesCompany(i.companyName, inquiryCompanyFilter) &&
       // Narrowed to one stage of the customer-facing lifecycle, when a chip in
       // the signed-in strip has been clicked. Anonymous rows are excluded
       // outright: they have no account, so they are in no stage at all.
@@ -477,7 +470,7 @@ export function AdminConsole({ data }: Props) {
         (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
       (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
     ),
-    [items, q, statusFilter, customerStageFilter, inquiryCompanyFilter]
+    [items, q, statusFilter, customerStageFilter]
   );
   const statusCounts = useMemo(() => {
     const c = { all: items.length, new: 0, handled: 0, spam: 0 };
@@ -1080,12 +1073,9 @@ export function AdminConsole({ data }: Props) {
                     statusFilter={statusFilter}
                     setStatusFilter={setStatusFilter}
                     statusCounts={statusCounts}
-                    companyFilter={inquiryCompanyFilter}
-                    setCompanyFilter={setInquiryCompanyFilter}
-                    withCompanyCount={inquiryWithCompany}
                     extraActive={groupByCustomer}
                     summarySuffix={groupByCustomer ? " · grouped" : ""}
-                    onClear={() => { setStatusFilter("all"); setGroupByCustomer(false); setInquiryCompanyFilter("all"); }}
+                    onClear={() => { setStatusFilter("all"); setGroupByCustomer(false); }}
                     viewSection={
                       <button
                         role="menuitemcheckbox"
