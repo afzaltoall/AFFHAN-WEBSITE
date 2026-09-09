@@ -106,32 +106,19 @@ export default async function ProductPage({
     categoryRef: pdpProduct.categoryName ? { name: pdpProduct.categoryName } : null,
   }));
 
-  // Product and BreadcrumbList markup.
+  // BreadcrumbList markup only. There is deliberately no Product schema here.
   //
-  // No offers, no price, no availability: this catalogue is a demonstrator of
-  // what we can source, not stock we hold, and the CJ figure in the `price`
-  // column is a supplier's dollar price rather than ours. Publishing it as an
-  // Offer would state a price we do not charge for goods we do not have.
-  // Without an Offer the page is not eligible for a price-carrying rich
-  // result, which is correct — an inquiry-only listing should not claim one.
-  //
-  // sku is our own AFF- reference, never product.sku: every SKU in this table
-  // is a CJ code, and publishing one names the supplier.
+  // Google requires a Product to carry one of offers, review or
+  // aggregateRating, and we can honestly supply none of them. This catalogue
+  // is a demonstrator of what we can source, not stock we hold, and the
+  // supplier figure in the `price` column is not a price we charge — an
+  // inquiry-only listing must not publish it as an Offer. We hold no review or
+  // rating data of any kind, and inventing some to satisfy the validator would
+  // breach Google's structured-data policy. So the markup was removed rather
+  // than padded: Search Console's "Product snippets" warning is the correct
+  // outcome for a page that is not a product offer, and it affects rich-result
+  // eligibility only, never indexing or ranking.
   const category = await getCategoryMeta(product.categoryId);
-  const productSchema = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: product.name,
-    sku: pdpProduct.reference,
-    url: `${SITE}/products/${product.id}/`,
-    ...(pdpProduct.images.length > 0 || product.imageUrl
-      ? { image: pdpProduct.images.length > 0 ? pdpProduct.images : [product.imageUrl as string] }
-      : {}),
-    ...(product.description ? { description: product.description.slice(0, 500) } : {}),
-    ...(pdpProduct.categoryName ? { category: pdpProduct.categoryName } : {}),
-    brand: { "@type": "Organization", name: "AFFHAN International Pvt Ltd" },
-  };
-
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -155,10 +142,6 @@ export default async function ProductPage({
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
-      />
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
