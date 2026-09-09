@@ -39,10 +39,13 @@ export async function GET(req: Request) {
   const only = new URL(req.url).searchParams.get("only");
 
   try {
-    const [inquiries, contacts, jobAlerts] = await Promise.all([
+    // The Careers sheet is gone with the job-alerts feature: the sign-up form,
+    // its endpoints and the JobAlert table were all removed. The three
+    // addresses it had collected are archived at
+    // tools/eprolo/moderation/job-alert-subscribers-*.csv.
+    const [inquiries, contacts] = await Promise.all([
       prisma.inquiry.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" } }),
       prisma.contactMessage.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" } }),
-      prisma.jobAlert.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" } }),
     ]);
 
     const XLSX = await import("xlsx");
@@ -128,13 +131,6 @@ export async function GET(req: Request) {
     forceTextCols(conWs, conRows.length, [5, 6]); // Code, Phone → text
     conWs["!cols"] = conHeaders.map((h) => ({ wch: h === "Message" ? 50 : h === "Email" ? 26 : Math.max(12, h.length + 2) }));
     XLSX.utils.book_append_sheet(wb, conWs, "Contact Us");
-
-    // --- Careers (job alerts) ------------------------------------------------
-    const carHeaders = ["Date", "Email", "Status"];
-    const carRows: (string | number)[][] = jobAlerts.map((j) => [fmtDate(j.createdAt), j.email, j.status]);
-    const carWs = XLSX.utils.aoa_to_sheet([carHeaders, ...carRows]);
-    carWs["!cols"] = [{ wch: 16 }, { wch: 30 }, { wch: 12 }];
-    XLSX.utils.book_append_sheet(wb, carWs, "Careers");
 
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
     return new NextResponse(buf, {

@@ -468,7 +468,13 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                after the first paint no matter when it is scheduled. */
             displayProducts.map((product, idx) => (
               <div key={idx} className="col-span-1 flex items-start">
-                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx < LCP_STABLE_LEAD} />
+                {/* One priority image, not the whole leading row. Marking five
+                    made LCP worse, not better — 3.81-4.25s against 2.39-3.48s
+                    — because on a throttled connection five preloads compete
+                    for the same bandwidth and delay whichever one actually
+                    wins LCP. The stable-lead fix above is what mattered; this
+                    part was not. */}
+                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} />
               </div>
             ))
           )}

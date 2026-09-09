@@ -245,19 +245,6 @@ model ContactMessage {
   @@index([createdAt])
 }
 
-// "Job alerts" subscriptions from the Careers page. Just an email + triage
-// status, same soft-delete pattern as ContactMessage so the admin console can
-// manage them the same way (list / search / export / delete / restore).
-model JobAlert {
-  id        String   @id @default(uuid())
-  email     String
-  status    String   @default("new") // new | handled | spam | deleted
-  createdAt DateTime @default(now())
-
-  @@index([status])
-  @@index([createdAt])
-}
-
 // Existing table created outside this schema (scraper output). Modelled here so
 // Prisma is aware of it and `db push` never proposes dropping it.
 model ScrapedProduct {

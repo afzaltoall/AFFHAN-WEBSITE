@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { motion, useInView, useScroll, useMotionValueEvent, useReducedMotion } from "framer-motion";
-import { Check, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { Instrument_Serif } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ export function AsmeSections() {
 // SECTION 1: HERO
 // ==========================================
 /**
- * "Never miss a role" — the job-alerts sign-up.
+ * "Never miss a role" — the careers call to action.
  *
  * The autoplaying loop of career-3.mp4 and the dark gradient laid over it are
  * gone; the gradient only ever existed to hold white text on moving footage.
@@ -32,10 +32,11 @@ export function AsmeSections() {
  * The reveal is tied to scroll position rather than to a one-shot on-enter
  * animation, so it arrives with you as you come down the page.
  *
- * It is NOT a tall sticky track like the two sections above it. There is a
- * form here, and burying a text field three screens deep so it can be animated
- * on the way past would be an animation charged to the person trying to use
- * it. The section stays one screen tall and the reveal plays as it enters.
+ * It is NOT a tall sticky track like the two sections above it. It used to
+ * hold a form, and burying a text field three screens deep so it could be
+ * animated on the way past would have charged that animation to the person
+ * trying to use it. The form is gone, but the section still stays one screen
+ * tall and the reveal still plays as it enters.
  */
 const HEADLINE = ["Never", "miss", "a", "role."];
 
@@ -56,8 +57,8 @@ function Section1Hero() {
   });
   const p = reduced ? 1 : raw;
 
-  // Everything lands by 0.9 so the form is fully usable well before the
-  // section settles in the middle of the screen.
+  // Everything lands by 0.9, so the call to action is reachable well before
+  // the section settles in the middle of the screen.
   const at = (start: number, over = 0.16) => Math.min(1, Math.max(0, (p - start) / over));
   const reveal = (lit: number, shift = 18) => ({
     opacity: lit,
@@ -65,37 +66,9 @@ function Section1Hero() {
     transition: "opacity 0.4s ease-out, transform 0.7s cubic-bezier(0.16,1,0.3,1)",
   });
 
-  const [email, setEmail] = useState("");
-  const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
-  const [msg, setMsg] = useState("");
-
-  const subscribe = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (state === "loading" || state === "done") return;
-    const value = email.trim();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-      setState("error");
-      setMsg("Please enter a valid email address.");
-      return;
-    }
-    setState("loading");
-    setMsg("");
-    try {
-      const res = await fetch("/api/careers/subscribe/", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: value }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "Something went wrong.");
-      setState("done");
-      setMsg(data.message || "You're on the list — we'll be in touch.");
-      setEmail("");
-    } catch (err) {
-      setState("error");
-      setMsg(err instanceof Error ? err.message : "Something went wrong. Please try again.");
-    }
-  };
+  // The email/loading/error state and the subscribe() handler that posted to
+  // /api/careers/subscribe are gone with the form. Nothing on this page writes
+  // to JobAlert any more.
 
   return (
     <section ref={sectionRef} className="relative flex h-screen min-h-[640px] flex-col overflow-hidden bg-[#FAFAF7]">
@@ -142,62 +115,21 @@ function Section1Hero() {
           Get Affhan&apos;s newest openings and team stories delivered to your inbox. No spam &mdash; just opportunities to build a career without borders.
         </p>
 
-        <div className="mx-auto w-full max-w-xl" style={reveal(at(0.46))}>
-          {state === "done" ? (
-            // Confirmation replaces the input entirely — a calm glass pill with a
-            // check badge, so subscribing feels finished rather than "just a green line".
-            <div className="animate-in fade-in mx-auto flex w-full items-center gap-3 rounded-full border border-emerald-700/25 bg-white py-3 pl-3 pr-6 shadow-[0_1px_2px_rgba(8,34,46,0.05)]">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-white">
-                <Check className="w-5 h-5" strokeWidth={3} />
-              </span>
-              <div className="text-left min-w-0">
-                <p className="text-sm font-medium leading-tight text-[#08222e] sm:text-base">You&apos;re on the list.</p>
-                <p className="text-xs leading-tight text-[#5a6e77] sm:text-sm">We&apos;ll email you the moment a role opens up.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setState("idle"); setMsg(""); }}
-                className="ml-auto shrink-0 text-xs font-medium text-[#5a6e77] underline underline-offset-4 transition-colors hover:text-[#08222e]"
-              >
-                Add another
-              </button>
-            </div>
-          ) : (
-            // Submit is driven by the "Life at Affhan" button below — the pill
-            // is input-only (Enter still submits via the form's onSubmit).
-            <form
-              onSubmit={subscribe}
-              className="flex w-full items-center rounded-full border border-[#08222e]/15 bg-white px-6 py-3.5 shadow-[0_1px_2px_rgba(8,34,46,0.05)] transition-colors focus-within:border-[#176579]/45"
-            >
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); if (state === "error") setState("idle"); }}
-                placeholder="Enter your email for job alerts"
-                disabled={state === "loading"}
-                className="min-w-0 flex-1 bg-transparent text-sm text-[#08222e] placeholder:text-[#63757d] focus:outline-none disabled:opacity-60 sm:text-base"
-                required
-              />
-            </form>
-          )}
-          {state === "error" && msg && (
-            <p className="mt-3 text-sm font-medium text-red-700">{msg}</p>
-          )}
-        </div>
-
-        {/* "Life at Affhan" is the send action for the job-alerts form: clicking
-            it subscribes the email typed above (no separate arrow button). */}
-        {state !== "done" && (
-          <button
-            type="button"
-            onClick={subscribe}
-            disabled={state === "loading"}
-            style={reveal(at(0.56))}
-            className="mt-6 flex items-center gap-2 rounded-full bg-[#08222e] px-8 py-3 text-sm font-medium text-[#FAFAF7] transition-colors hover:bg-[#0d3243] disabled:opacity-70 sm:mt-8"
-          >
-            {state === "loading" ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</> : "Life at Affhan"}
-          </button>
-        )}
+        {/* The job-alerts email field used to sit here. It was a second
+            lead-capture path competing with Contact Us, so the section now just
+            makes its case and sends people to the one destination.
+            "Life at Affhan" is a plain link, not the form's submit action it
+            used to be — it no longer subscribes anything.
+            The JobAlert table, its API routes and its admin view were removed
+            with it; the three addresses collected are exported to
+            tools/eprolo/moderation/job-alert-subscribers-*.csv. */}
+        <Link
+          href="/contact/"
+          style={reveal(at(0.56))}
+          className="mt-6 flex items-center gap-2 rounded-full bg-[#08222e] px-8 py-3 text-sm font-medium text-[#FAFAF7] transition-colors hover:bg-[#0d3243] sm:mt-8"
+        >
+          Life at Affhan
+        </Link>
       </div>
 
       {/* Social Icons Footer — Affhan's official channels */}

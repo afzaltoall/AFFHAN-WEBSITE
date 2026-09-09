@@ -83,9 +83,6 @@ interface ContactMessage {
 }
 const contactName = (c: ContactMessage) => c.fullName.trim();
 
-interface JobAlert {
-  id: string; createdAt: string; email: string; status: string;
-}
 
 type Status = "new" | "handled" | "spam";
 const STATUS_META: Record<Status, { label: string; dot: string; text: string; chip: string }> = {
@@ -113,10 +110,9 @@ interface Theme {
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
-    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; jobAlerts: number; suppliers: number; videos: number };
+    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
-    jobAlerts: JobAlert[]; deletedJobAlerts: JobAlert[];
   };
 }
 
@@ -135,7 +131,7 @@ const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("en-US", { mon
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
 const sfFont = { fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif' } as const;
 
-type View = "all" | "inquiries" | "trash" | "contacts" | "careers";
+type View = "all" | "inquiries" | "trash" | "contacts";
 
 type ConfirmState = {
   title: string;
@@ -222,61 +218,10 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setContactDeleted(data.deletedContacts), [data.deletedContacts]);
   useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactCompanyFilter, contactQ, view]);
 
-  // --- Careers (job-alert subscriptions) -------------------------------------
-  const [careerItems, setCareerItems] = useState<JobAlert[]>(data.jobAlerts);
-  const [careerDeleted, setCareerDeleted] = useState<JobAlert[]>(data.deletedJobAlerts);
-  const [careerQ, setCareerQ] = useState("");
-  const [careerStatusFilter, setCareerStatusFilter] = useState<"all" | Status>("all");
-  const [careerTab, setCareerTab] = useState<"active" | "trash">("active");
-  const [careerSelected, setCareerSelected] = useState<Set<string>>(new Set());
-  const [careerBusy, setCareerBusy] = useState(false);
-  useEffect(() => setCareerItems(data.jobAlerts), [data.jobAlerts]);
-  useEffect(() => setCareerDeleted(data.deletedJobAlerts), [data.deletedJobAlerts]);
-  useEffect(() => setCareerSelected(new Set()), [careerTab, careerStatusFilter, careerQ, view]);
 
   // Whether the Inquiries list is collapsed to one row per customer (deduped by
   // phone) instead of one row per product.
   const [groupByCustomer, setGroupByCustomer] = useState(false);
-
-  const careerBulkAction = async (
-    ids: string[],
-    action: "delete" | "restore" | "purge" | "status",
-    newStatus?: Status,
-  ) => {
-    if (ids.length === 0) return;
-    const idset = new Set(ids);
-    const prevA = careerItems, prevD = careerDeleted;
-    if (action === "delete") {
-      const moving = careerItems.filter((x) => idset.has(x.id)).map((x) => ({ ...x, status: "deleted" }));
-      setCareerItems(careerItems.filter((x) => !idset.has(x.id)));
-      setCareerDeleted([...moving, ...careerDeleted]);
-    } else if (action === "restore") {
-      const moving = careerDeleted.filter((x) => idset.has(x.id)).map((x) => ({ ...x, status: "new" }));
-      setCareerDeleted(careerDeleted.filter((x) => !idset.has(x.id)));
-      setCareerItems([...moving, ...careerItems]);
-    } else if (action === "purge") {
-      setCareerDeleted(careerDeleted.filter((x) => !idset.has(x.id)));
-    } else if (action === "status" && newStatus) {
-      setCareerItems(careerItems.map((x) => (idset.has(x.id) ? { ...x, status: newStatus } : x)));
-    }
-    setCareerSelected(new Set());
-    setCareerBusy(true);
-    try {
-      await adminWrite(`/api/admin/careers/`, { ids, action, status: newStatus });
-    } catch (e) {
-      setCareerItems(prevA); setCareerDeleted(prevD);
-      window.alert(e instanceof Error ? e.message : "Action failed.");
-    } finally {
-      setCareerBusy(false);
-    }
-  };
-
-  const toggleCareerSelect = (id: string) =>
-    setCareerSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
 
   // Bulk contact action — same optimistic-with-rollback shape as bulkAction.
   const contactBulkAction = async (
@@ -624,25 +569,6 @@ export function AdminConsole({ data }: Props) {
     setContactSelected(contactAllSelected ? new Set() : new Set(contactVisibleIds));
   const newContactCount = contactStatusCounts.new;
 
-  // --- Derived careers lists -------------------------------------------------
-  const careerMatch = (j: JobAlert, term: string) => !term || j.email.toLowerCase().includes(term.toLowerCase());
-  const careerActive = useMemo(
-    () => careerItems.filter((j) =>
-      (careerStatusFilter === "all" || asStatus(j.status) === careerStatusFilter) && careerMatch(j, careerQ)
-    ),
-    [careerItems, careerQ, careerStatusFilter]
-  );
-  const careerTrash = useMemo(() => careerDeleted.filter((j) => careerMatch(j, careerQ)), [careerDeleted, careerQ]);
-  const careerStatusCounts = useMemo(() => {
-    const c = { all: careerItems.length, new: 0, handled: 0, spam: 0 };
-    careerItems.forEach((j) => { c[asStatus(j.status)]++; });
-    return c;
-  }, [careerItems]);
-  const careerList = careerTab === "trash" ? careerTrash : careerActive;
-  const careerVisibleIds = careerList.map((j) => j.id);
-  const careerAllSelected = careerVisibleIds.length > 0 && careerVisibleIds.every((id) => careerSelected.has(id));
-  const toggleCareerSelectAll = () =>
-    setCareerSelected(careerAllSelected ? new Set() : new Set(careerVisibleIds));
 
   // Deduplicated customers (by phone) from the currently-filtered inquiries —
   // powers the "Group by customer" view. Note this groups the loaded page; the
@@ -650,22 +576,6 @@ export function AdminConsole({ data }: Props) {
   const customerGroups = useMemo<CustomerGroup[]>(() => groupCustomers(inquiries), [inquiries]);
   // Every customer (unfiltered) — powers the "All" view checklist + selected export.
   const allCustomerGroups = useMemo<CustomerGroup[]>(() => groupCustomers(items), [items]);
-
-  // Export careers list to .xlsx (respects current tab, search, selection).
-  const exportCareers = async () => {
-    const XLSX = await import("xlsx");
-    const base = careerList;
-    const src = careerSelected.size > 0 ? base.filter((j) => careerSelected.has(j.id)) : base;
-    const headers = ["Date", "Email", "Status"];
-    const rows: (string | number)[][] = src.map((j) => [fmtDate(j.createdAt), j.email, asStatus(j.status)]);
-    const file = careerTab === "trash" ? "job-alerts-deleted" : "job-alerts";
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    ws["!cols"] = [{ wch: 16 }, { wch: 30 }, { wch: 12 }];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, file.slice(0, 31));
-    XLSX.writeFile(wb, `${file}-${new Date().toISOString().split("T")[0]}.xlsx`);
-  };
-  const newCareerCount = careerStatusCounts.new;
 
   // Export contacts to .xlsx (respects current tab, search, and any selection).
   const exportContactsExcel = async () => {
@@ -782,13 +692,12 @@ export function AdminConsole({ data }: Props) {
   // What the hamburger badges. With the nav collapsed behind a button, an
   // unread inquiry would otherwise be invisible until the menu was opened —
   // the count has to survive on the button itself.
-  const newTotal = statusCounts.new + newContactCount + newCareerCount;
+  const newTotal = statusCounts.new + newContactCount;
 
   const nav: { key: View; label: string; icon: LucideIcon; count?: number }[] = [
     { key: "all", label: "All", icon: LayoutList },
     { key: "inquiries", label: "Inquiries", icon: Inbox, count: statusCounts.new },
     { key: "contacts", label: "Contact Us", icon: MessageSquare, count: newContactCount },
-    { key: "careers", label: "Careers", icon: Briefcase, count: newCareerCount },
     { key: "trash", label: "Recently Deleted", icon: Trash2, count: deletedItems.length },
   ];
 
@@ -806,7 +715,6 @@ export function AdminConsole({ data }: Props) {
     },
     { label: "Inquiries", value: data.stats.inquiries, icon: Inbox, tint: "text-amber-500", bg: dark ? "bg-amber-500/15" : "bg-amber-50" },
     { label: "Messages", value: data.stats.contacts, icon: MessageSquare, tint: "text-emerald-500", bg: dark ? "bg-emerald-500/15" : "bg-emerald-50" },
-    { label: "Careers", value: data.stats.jobAlerts, icon: Briefcase, tint: "text-rose-500", bg: dark ? "bg-rose-500/15" : "bg-rose-50" },
     { label: "Suppliers", value: data.stats.suppliers, hint: "From the WeChat book", icon: Users, tint: "text-teal-500", bg: dark ? "bg-teal-500/15" : "bg-teal-50" },
     { label: "Videos", value: data.stats.videos, icon: PlayCircle, tint: "text-fuchsia-500", bg: dark ? "bg-fuchsia-500/15" : "bg-fuchsia-50" },
   ];
@@ -974,7 +882,7 @@ export function AdminConsole({ data }: Props) {
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {view === "all" ? "All" : view === "inquiries" ? "Inquiries" : view === "contacts" ? "Contact Us" : view === "careers" ? "Careers" : "Recently Deleted"}
+                {view === "all" ? "All" : view === "inquiries" ? "Inquiries" : view === "contacts" ? "Contact Us" : "Recently Deleted"}
               </h1>
               <p className={`mt-0.5 text-[13px] ${t.soft}`}>Welcome back, {data.adminName.split(" ")[0]}.</p>
             </div>
@@ -1021,7 +929,7 @@ export function AdminConsole({ data }: Props) {
             {statCards.map((s) => (
               <button
                 key={s.label}
-                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Careers") setView("careers"); else if (s.label === "Suppliers") router.push("/admin/suppliers/"); else if (s.label === "Videos") router.push("/admin/videos/"); }}
+                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Suppliers") router.push("/admin/suppliers/"); else if (s.label === "Videos") router.push("/admin/videos/"); }}
                 className={`rounded-2xl p-5 text-left shadow-sm ring-1 transition-all hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
               >
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${s.bg}`}>
@@ -1080,11 +988,10 @@ export function AdminConsole({ data }: Props) {
 
               <AllSection
                 t={t}
-                stats={{ inquiries: data.stats.inquiries, contacts: data.stats.contacts, jobAlerts: data.stats.jobAlerts, customers: allCustomerGroups.length }}
+                stats={{ inquiries: data.stats.inquiries, contacts: data.stats.contacts, customers: allCustomerGroups.length }}
                 groups={allCustomerGroups}
                 onGoInquiries={() => setView("inquiries")}
                 onGoContacts={() => setView("contacts")}
-                onGoCareers={() => setView("careers")}
                 // Looked up live rather than passed down, so the drawer shows
                 // the current row and not a copy frozen when the group was built.
                 onOpenInquiry={(id) => {
@@ -1144,62 +1051,6 @@ export function AdminConsole({ data }: Props) {
                   confirmLabel: "Delete forever",
                   danger: true,
                   onConfirm: () => contactBulkAction(ids, "purge"),
-                });
-              }}
-            />
-          ) : view === "careers" ? (
-            <CareersSection
-              t={t}
-              tab={careerTab}
-              setTab={setCareerTab}
-              q={careerQ}
-              setQ={setCareerQ}
-              statusFilter={careerStatusFilter}
-              setStatusFilter={setCareerStatusFilter}
-              statusCounts={careerStatusCounts}
-              list={careerList}
-              selected={careerSelected}
-              toggleSelect={toggleCareerSelect}
-              allSelected={careerAllSelected}
-              toggleSelectAll={toggleCareerSelectAll}
-              busy={careerBusy}
-              onExport={exportCareers}
-              onSetStatus={(id, s) => careerBulkAction([id], "status", s)}
-              onDelete={(id) => setConfirm({
-                title: "Move to Recently Deleted?",
-                message: "This subscriber will be moved to Recently Deleted. You can restore them any time.",
-                confirmLabel: "Delete",
-                danger: true,
-                onConfirm: () => careerBulkAction([id], "delete"),
-              })}
-              onRestore={(id) => careerBulkAction([id], "restore")}
-              onPurge={(id) => setConfirm({
-                title: "Permanently delete?",
-                message: "This cannot be undone. It will be erased forever.",
-                confirmLabel: "Delete forever",
-                danger: true,
-                onConfirm: () => careerBulkAction([id], "purge"),
-              })}
-              onStatusSelected={(s) => careerBulkAction([...careerSelected], "status", s)}
-              onDeleteSelected={() => {
-                const ids = [...careerSelected];
-                setConfirm({
-                  title: `Delete ${ids.length} ${ids.length === 1 ? "subscriber" : "subscribers"}?`,
-                  message: "They'll be moved to Recently Deleted, where you can restore them any time.",
-                  confirmLabel: `Delete ${ids.length}`,
-                  danger: true,
-                  onConfirm: () => careerBulkAction(ids, "delete"),
-                });
-              }}
-              onRestoreSelected={() => careerBulkAction([...careerSelected], "restore")}
-              onPurgeSelected={() => {
-                const ids = [...careerSelected];
-                setConfirm({
-                  title: `Permanently delete ${ids.length}?`,
-                  message: "This cannot be undone. These subscribers will be erased forever.",
-                  confirmLabel: "Delete forever",
-                  danger: true,
-                  onConfirm: () => careerBulkAction(ids, "purge"),
                 });
               }}
             />
@@ -2168,7 +2019,7 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
 /**
  * One control holding every "what should this list show?" choice.
  *
- * Inquiries, Contact Us and Careers each had the same four status pills laid
+ * Inquiries and Contact Us each had the same four status pills laid
  * across their toolbar, competing with Export for attention and pushing the
  * search box around at narrow widths. They are one question, so they get one
  * button, which states its own answer: the count for whatever is selected,
@@ -2701,12 +2552,12 @@ function CustomerGroupRow({
 // (deduped by phone, all products shown) that can be ticked and exported to a
 // clean .xlsx — same header-band structure as the master workbook.
 function AllSection({
-  t, stats, groups, onGoInquiries, onGoContacts, onGoCareers, onOpenInquiry,
+  t, stats, groups, onGoInquiries, onGoContacts, onOpenInquiry,
 }: {
   t: Theme;
-  stats: { inquiries: number; contacts: number; jobAlerts: number; customers: number };
+  stats: { inquiries: number; contacts: number; customers: number };
   groups: CustomerGroup[];
-  onGoInquiries: () => void; onGoContacts: () => void; onGoCareers: () => void;
+  onGoInquiries: () => void; onGoContacts: () => void;
   /** Opens the drawer for one of a customer's products. */
   onOpenInquiry?: (inquiryId: string) => void;
 }) {
@@ -2764,7 +2615,6 @@ function AllSection({
   const tiles = [
     { label: "Inquiries", value: stats.inquiries, hint: "Product quote requests", icon: Inbox, go: onGoInquiries },
     { label: "Contact Us", value: stats.contacts, hint: "Contact-form messages", icon: MessageSquare, go: onGoContacts },
-    { label: "Careers", value: stats.jobAlerts, hint: "Job-alert subscribers", icon: Briefcase, go: onGoCareers },
     { label: "Customers", value: stats.customers, hint: "Unique, deduped by phone", icon: Users, go: onGoInquiries },
   ];
 
@@ -2779,7 +2629,7 @@ function AllSection({
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold tracking-tight">Master Excel export</h2>
             <p className={`mt-0.5 text-sm ${t.soft}`}>
-              One workbook, four sheets: <span className="font-semibold">Customers</span> (deduped by phone, every product each customer asked for), <span className="font-semibold">Inquiries</span>, <span className="font-semibold">Contact Us</span>, and <span className="font-semibold">Careers</span> — over the whole database.
+              One workbook, three sheets: <span className="font-semibold">Customers</span> (deduped by phone, every product each customer asked for), <span className="font-semibold">Inquiries</span> and <span className="font-semibold">Contact Us</span> — over the whole database.
             </p>
           </div>
           <a href="/api/admin/export/all/" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700">
@@ -2921,155 +2771,3 @@ function AllSection({
   );
 }
 
-// Careers management: job-alert email subscribers from the Careers page. Same
-// search / triage / soft-delete UX as Contact Us, just a single email field.
-function CareersSection({
-  t, tab, setTab, q, setQ, statusFilter, setStatusFilter, statusCounts, list,
-  selected, toggleSelect, allSelected, toggleSelectAll, busy, onExport,
-  onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
-  onRestoreSelected, onPurgeSelected,
-}: {
-  t: Theme; tab: "active" | "trash"; setTab: (v: "active" | "trash") => void;
-  q: string; setQ: (v: string) => void;
-  statusFilter: "all" | Status; setStatusFilter: (v: "all" | Status) => void;
-  statusCounts: { all: number; new: number; handled: number; spam: number };
-  list: JobAlert[]; selected: Set<string>; toggleSelect: (id: string) => void;
-  allSelected: boolean; toggleSelectAll: () => void; busy: boolean;
-  onExport: () => void;
-  onSetStatus: (id: string, s: Status) => void; onDelete: (id: string) => void;
-  onRestore: (id: string) => void; onPurge: (id: string) => void;
-  onStatusSelected: (s: Status) => void; onDeleteSelected: () => void;
-  onRestoreSelected: () => void; onPurgeSelected: () => void;
-}) {
-  const showBulk = list.length > 0;
-  return (
-    <div className={`overflow-hidden rounded-2xl shadow-sm ring-1 ${t.card}`}>
-      <div className={`flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center ${t.border}`}>
-        <div className="relative flex-1 sm:max-w-xs">
-          <Search className={`absolute left-3 top-2.5 h-4 w-4 ${t.soft}`} />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder={`Search ${tab === "trash" ? "deleted emails" : "emails"}…`}
-            className={`h-10 w-full rounded-xl pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`}
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          {(["active", "trash"] as const).map((tabKey) => (
-            <button
-              key={tabKey}
-              onClick={() => setTab(tabKey)}
-              className={`rounded-full px-3 py-1.5 text-xs font-bold transition-colors ring-1 ${tab === tabKey ? "bg-[#1d1d1f] text-white ring-transparent" : t.pill}`}
-            >
-              {tabKey === "active" ? "Subscribers" : "Recently Deleted"}
-            </button>
-          ))}
-        </div>
-        {tab === "active" && (
-          <FilterMenu
-            t={t}
-            statusFilter={statusFilter}
-            setStatusFilter={setStatusFilter}
-            statusCounts={statusCounts}
-            onClear={() => setStatusFilter("all")}
-          />
-        )}
-        <button onClick={onExport} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export all"} className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black ${tab === "active" ? "" : "sm:ml-auto"}`}>
-          <Download size={15} /> Export{selected.size > 0 ? ` (${selected.size})` : ""}
-        </button>
-      </div>
-
-      {showBulk && (
-        <div className={`flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${t.border}`}>
-          <button onClick={toggleSelectAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
-            {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
-            {allSelected ? "Clear selection" : "Select all"}
-          </button>
-          {selected.size > 0 && (
-            <>
-              <span className={`text-[13px] font-semibold ${t.strong}`}>{selected.size} selected</span>
-              <div className="ml-auto flex flex-wrap items-center gap-2">
-                {tab === "active" ? (
-                  <>
-                    {(["new", "handled", "spam"] as Status[]).map((s) => (
-                      <button key={s} onClick={() => onStatusSelected(s)} disabled={busy}
-                        className={`inline-flex items-center rounded-full px-3 py-2 text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-60 ${STATUS_META[s].chip}`}>
-                        Mark {STATUS_META[s].label}
-                      </button>
-                    ))}
-                    <button onClick={onDeleteSelected} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60">
-                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Delete
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button onClick={onRestoreSelected} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 disabled:opacity-60">
-                      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Restore selected
-                    </button>
-                    <button onClick={onPurgeSelected} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60">
-                      <Trash2 className="h-3.5 w-3.5" /> Delete forever
-                    </button>
-                  </>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {list.length ? (
-        <ul className={`divide-y ${t.divide}`}>
-          {list.map((j) => {
-            const st = asStatus(j.status);
-            const sel = selected.has(j.id);
-            return (
-              <li key={j.id} className={`flex flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-center ${t.hover} ${sel ? "bg-brand/[0.05]" : st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
-                <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <button onClick={() => toggleSelect(j.id)} aria-label="Select subscriber" className={`shrink-0 transition-colors ${sel ? "text-brand" : `${t.soft} hover:text-brand`}`}>
-                    {sel ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
-                  </button>
-                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}>
-                    <Briefcase className="h-[18px] w-[18px]" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    {/* Same "dealt with" line as the other two inboxes. */}
-                    <p className={`line-clamp-1 text-[13.5px] font-semibold leading-snug ${
-                      st !== "new" ? `line-through ${t.soft}` : t.strong
-                    } ${tab === "trash" ? "opacity-70" : ""}`}>{j.email}</p>
-                    <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-                      <span className="inline-flex items-center gap-1.5"><Calendar className={`h-3 w-3 ${t.soft}`} /><span className="font-medium">{fmtDate(j.createdAt)}</span></span>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
-                  <a href={`mailto:${j.email}`} onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 rounded-full bg-brand/10 px-3 py-1.5 text-xs font-semibold text-brand transition-colors hover:bg-brand hover:text-white">
-                    <Mail className="h-3.5 w-3.5" /> Email
-                  </a>
-                  {tab === "active" ? (
-                    <>
-                      <StatusControl t={t} value={st} onChange={(s) => onSetStatus(j.id, s)} />
-                      <button onClick={() => onDelete(j.id)} aria-label="Delete subscriber" title="Delete subscriber" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => onRestore(j.id)} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white">
-                        <RotateCcw className="h-3.5 w-3.5" /> Restore
-                      </button>
-                      <button onClick={() => onPurge(j.id)} aria-label="Delete forever" title="Delete forever" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      ) : (
-        <Empty t={t} label={tab === "trash" ? "Nothing in Recently Deleted. Deleted subscribers land here and can be restored any time." : "No subscribers yet. Emails from the Careers page “job alerts” box appear here."} pad />
-      )}
-    </div>
-  );
-}

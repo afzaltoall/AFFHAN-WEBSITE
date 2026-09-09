@@ -28,11 +28,11 @@ export default async function AdminPage() {
   // so the surplus queued until they timed out. Every count is now one SQL
   // statement, and each active/deleted pair is one query split in JavaScript
   // rather than two round trips asking the same table opposite questions.
-  const [counts, allInquiries, allContacts, allJobAlerts] = await withDbRetry(() =>
+  const [counts, allInquiries, allContacts] = await withDbRetry(() =>
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
-        inquiries: bigint; contacts: bigint; jobAlerts: bigint; suppliers: bigint; videos: bigint;
+        inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint;
       }]>`
         SELECT
           (SELECT count(*) FROM "Product")                                        AS products,
@@ -44,7 +44,6 @@ export default async function AdminPage() {
           (SELECT count(*) FROM "Category")                                       AS "categoriesTotal",
           (SELECT count(*) FROM "Inquiry"        WHERE status <> 'deleted')        AS inquiries,
           (SELECT count(*) FROM "ContactMessage" WHERE status <> 'deleted')        AS contacts,
-          (SELECT count(*) FROM "JobAlert"       WHERE status <> 'deleted')        AS "jobAlerts",
           (SELECT count(*) FROM "Supplier")                                        AS suppliers,
           (SELECT count(*) FROM "Video")                                           AS videos
       `,
@@ -60,7 +59,6 @@ export default async function AdminPage() {
         include: { product: { select: { imageUrl: true } } },
       }),
       prisma.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 400 }),
-      prisma.jobAlert.findMany({ orderBy: { createdAt: "desc" }, take: 400 }),
     ])
   );
 
@@ -70,7 +68,6 @@ export default async function AdminPage() {
   const categoryTotal = n(counts[0].categoriesTotal);
   const inquiryCount = n(counts[0].inquiries);
   const contactCount = n(counts[0].contacts);
-  const jobAlertCount = n(counts[0].jobAlerts);
   const supplierCount = n(counts[0].suppliers);
   const videoCount = n(counts[0].videos);
 
@@ -78,8 +75,6 @@ export default async function AdminPage() {
   const deletedInquiries = allInquiries.filter((i) => i.status === "deleted");
   const contacts = allContacts.filter((c) => c.status !== "deleted");
   const deletedContacts = allContacts.filter((c) => c.status === "deleted");
-  const jobAlerts = allJobAlerts.filter((j) => j.status !== "deleted");
-  const deletedJobAlerts = allJobAlerts.filter((j) => j.status === "deleted");
 
   const mapInquiry = (i: (typeof inquiries)[number]) => ({
     id: i.id,
@@ -113,13 +108,6 @@ export default async function AdminPage() {
     status: c.status,
   });
 
-  const mapJobAlert = (j: (typeof jobAlerts)[number]) => ({
-    id: j.id,
-    createdAt: j.createdAt.toISOString(),
-    email: j.email,
-    status: j.status,
-  });
-
   const data = {
     adminName: admin.name || admin.email,
     adminEmail: admin.email,
@@ -130,7 +118,6 @@ export default async function AdminPage() {
       categoriesTotal: categoryTotal,
       inquiries: inquiryCount,
       contacts: contactCount,
-      jobAlerts: jobAlertCount,
       suppliers: supplierCount,
       videos: videoCount,
     },
@@ -138,8 +125,6 @@ export default async function AdminPage() {
     deletedInquiries: deletedInquiries.map(mapInquiry),
     contacts: contacts.map(mapContact),
     deletedContacts: deletedContacts.map(mapContact),
-    jobAlerts: jobAlerts.map(mapJobAlert),
-    deletedJobAlerts: deletedJobAlerts.map(mapJobAlert),
   };
 
   return <AdminConsole data={data} />;
