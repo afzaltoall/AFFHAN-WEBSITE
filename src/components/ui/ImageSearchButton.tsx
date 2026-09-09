@@ -1,12 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { Camera, Check, Loader2, Sparkles, Upload, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
-import { InquiryModal } from "@/components/ui/InquiryModal";
+// Loaded on demand, not with the page.
+//
+// This button lives in the hero search bar, so a static import here reaches
+// every homepage visit — and InquiryModal pulls in react-zoom-pan-pinch (52 KB)
+// for its lightbox. That quietly defeated the dynamic({ ssr: false }) imports
+// the three homepage sections already use for the same component: one static
+// import anywhere in the tree is enough to put it back in the initial bundle.
+const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((m) => m.InquiryModal), { ssr: false });
 import { lockBodyScroll } from "@/lib/scrollLock";
 import { useBackDismiss, overlayHandoff, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { capturePhoto, hasNativeCamera, CameraCancelled } from "@/lib/nativeCamera";
