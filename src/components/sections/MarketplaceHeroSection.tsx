@@ -13,7 +13,7 @@ import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph-wrapper";
 import { buildCategoryTree, getCategoryIcon, type CategoryRecord } from "@/lib/categoryTree";
-import { shuffleArray, HERO_GRID_COUNT, LCP_STABLE_LEAD } from "@/lib/heroPool";
+import { shuffleArray, HERO_GRID_COUNT } from "@/lib/heroPool";
 import { ShippingBar } from "@/components/ui/ShippingBar";
 import { AffhanBrandBar } from "@/components/ui/AffhanBrandBar";
 
@@ -39,13 +39,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
   // visit, and it is why the same products used to appear on every refresh.
   useIsomorphicLayoutEffect(() => {
     if (!initialProducts.length) return;
-    // The leading cards are left exactly as the server rendered them, so the
-    // image that wins LCP — already marked priority and preloaded — is never
-    // swapped for another one mid-load. Everything after them still rotates.
-    const lead = initialProducts.slice(0, LCP_STABLE_LEAD);
-    const rest = shuffleArray(initialProducts.slice(LCP_STABLE_LEAD))
-      .slice(0, HERO_GRID_COUNT - lead.length);
-    setProducts([...lead, ...rest]);
+    setProducts(shuffleArray(initialProducts).slice(0, HERO_GRID_COUNT));
   }, [initialProducts]);
 
   // Mega-panel: click-to-open (not hover), so hovering the sidebar never
@@ -468,12 +462,12 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                after the first paint no matter when it is scheduled. */
             displayProducts.map((product, idx) => (
               <div key={idx} className="col-span-1 flex items-start">
-                {/* One priority image, not the whole leading row. Marking five
-                    made LCP worse, not better — 3.81-4.25s against 2.39-3.48s
-                    — because on a throttled connection five preloads compete
-                    for the same bandwidth and delay whichever one actually
-                    wins LCP. The stable-lead fix above is what mattered; this
-                    part was not. */}
+                {/* One priority image. Marking the whole leading row instead
+                    was measured and was not better; neither was freezing the
+                    leading cards so the LCP image could not be swapped. Both
+                    were tried on production over 5-run samples and both landed
+                    inside the run-to-run variance, so the simpler code stands.
+                    See the note on LCP_STABLE_LEAD in lib/heroPool.ts. */}
                 <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} />
               </div>
             ))
