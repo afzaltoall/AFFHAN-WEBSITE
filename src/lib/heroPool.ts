@@ -31,6 +31,18 @@ export function shuffleArray<T>(input: readonly T[]): T[] {
 
 /// How many items each section finally renders.
 export const HERO_GRID_COUNT = 65;      // 5 beside the sidebar + 10 rows of 6
+
+/// The first few hero cards are NOT shuffled.
+///
+/// LCP is whichever above-the-fold image is largest, and the shuffle used to
+/// replace it: the browser fetched the server's image, then the effect swapped
+/// the src and it had to fetch and paint another one, so LCP was re-measured
+/// later. Samples ranged 2.39-3.48s against Google's 2.5s threshold.
+///
+/// Freezing the leading cards means the image the server rendered — and marked
+/// priority, so it is preloaded — is the one that stays. The other 60 still
+/// rotate, which is where the variety was always visible anyway.
+export const LCP_STABLE_LEAD = 5;
 export const POPULAR_COUNT = 20;
 export const SPOTLIGHT_COUNT = 5;
 

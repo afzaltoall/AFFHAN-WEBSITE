@@ -13,7 +13,7 @@ import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph-wrapper";
 import { buildCategoryTree, getCategoryIcon, type CategoryRecord } from "@/lib/categoryTree";
-import { shuffleArray, HERO_GRID_COUNT } from "@/lib/heroPool";
+import { shuffleArray, HERO_GRID_COUNT, LCP_STABLE_LEAD } from "@/lib/heroPool";
 import { ShippingBar } from "@/components/ui/ShippingBar";
 import { AffhanBrandBar } from "@/components/ui/AffhanBrandBar";
 
@@ -39,7 +39,13 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
   // visit, and it is why the same products used to appear on every refresh.
   useIsomorphicLayoutEffect(() => {
     if (!initialProducts.length) return;
-    setProducts(shuffleArray(initialProducts).slice(0, HERO_GRID_COUNT));
+    // The leading cards are left exactly as the server rendered them, so the
+    // image that wins LCP — already marked priority and preloaded — is never
+    // swapped for another one mid-load. Everything after them still rotates.
+    const lead = initialProducts.slice(0, LCP_STABLE_LEAD);
+    const rest = shuffleArray(initialProducts.slice(LCP_STABLE_LEAD))
+      .slice(0, HERO_GRID_COUNT - lead.length);
+    setProducts([...lead, ...rest]);
   }, [initialProducts]);
 
   // Mega-panel: click-to-open (not hover), so hovering the sidebar never
@@ -347,9 +353,18 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                 240px fits the longest word ("Home & Living"); anything shorter
                 is centred in it. A visible gap beats a metric that degrades for
                 as long as the tab is open. */}
-            <div className="flex justify-center w-[140px] sm:w-[180px] lg:w-[240px] shrink-0">
+            {/* The gap and the layout shift are the same problem seen from two
+                sides: a centred line cannot hold a variable-width word without
+                something moving. Sizing the box to its content removed the gap
+                and added a shift on every rotation; a box sized for the longest
+                word removes the shift and leaves a gap beside the short ones.
+                So the fix is to stop the words varying so much. These are all
+                8-11 characters, against 6 ("Beauty") to 13 ("Home & Living")
+                before, which lets the box be 190px instead of 240px. Worst-case
+                gap drops from roughly 130px to under 30px, and CLS stays at 0. */}
+            <div className="flex justify-center w-[120px] sm:w-[150px] lg:w-[190px] shrink-0">
               <TextMorph
-                words={["Electronics", "Apparel", "Machinery", "Home & Living", "Beauty", "Auto Parts"]}
+                words={["Electronics", "Machinery", "Auto Parts", "Furniture", "Textiles", "Packaging"]}
                 interval={2200}
                 className="text-brand whitespace-nowrap"
               />
@@ -453,7 +468,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                after the first paint no matter when it is scheduled. */
             displayProducts.map((product, idx) => (
               <div key={idx} className="col-span-1 flex items-start">
-                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} />
+                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx < LCP_STABLE_LEAD} />
               </div>
             ))
           )}
