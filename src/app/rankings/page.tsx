@@ -39,7 +39,7 @@ function RankTile({ product, onClick }: { product: RankProduct; onClick: () => v
         </span>
         {show ? (
           <Image
-            src={getCdnUrl(product.imageUrl) as string}
+            src={getCdnUrl(product.imageUrl, 300) as string}
             alt={product.name}
             fill
             loading="lazy"

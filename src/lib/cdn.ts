@@ -18,7 +18,13 @@ export function getCdnUrl(url: string | null | undefined, width?: number): strin
         bucket: "affan-product-images",
         key: s3Key,
         edits: {
-          resize: { width, fit: "cover" },
+          // withoutEnlargement, or a small original costs us more than not
+          // resizing it at all. Sharp enlarges by default, so a 600px supplier
+          // photo asked for at 1024 was being upscaled and re-encoded into a
+          // *larger* file with no extra detail — a product page measured 299 KB
+          // before this and 307 KB after the width arguments were added, purely
+          // from upscaling. Now the source's own size is the ceiling.
+          resize: { width, fit: "cover", withoutEnlargement: true },
           toFormat: "webp" // Auto WebP conversion!
         }
       };

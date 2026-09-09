@@ -188,7 +188,7 @@ export function MobileInquiriesConsole() {
                   </tr>
                 ) : (
                   rows.map((r) => {
-                    const img = getCdnUrl(r.productImage);
+                    const img = getCdnUrl(r.productImage, 96);
                     return (
                       <tr
                         key={r.id}
@@ -353,7 +353,7 @@ function InquiryDetailPanel({
     }
   };
 
-  const img = getCdnUrl(data?.productImage);
+  const img = getCdnUrl(data?.productImage, 192);
 
   return (
     <div

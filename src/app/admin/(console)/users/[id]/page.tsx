@@ -342,7 +342,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
                       {i.productImage && (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
-                          src={getCdnUrl(i.productImage) ?? i.productImage}
+                          src={getCdnUrl(i.productImage, 96) ?? i.productImage}
                           alt=""
                           className="h-full w-full object-cover"
                         />

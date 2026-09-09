@@ -59,7 +59,7 @@ function ScatterItem({
       className="absolute left-1/2 top-1/2 h-[8.5vw] w-[8.5vw] max-h-[150px] max-w-[150px] -translate-x-1/2 -translate-y-1/2 overflow-visible drop-shadow-2xl will-change-transform"
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={getCdnUrl(img) as string} alt="" className="h-full w-full object-contain" />
+      <img src={getCdnUrl(img, 300) as string} alt="" className="h-full w-full object-contain" />
     </motion.div>
   );
 }

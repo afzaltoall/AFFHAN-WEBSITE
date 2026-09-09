@@ -82,7 +82,7 @@ export function ProductDetailView({ product, similar }: Props) {
       categoryRef: { name: product.categoryName },
     });
 
-  const mainSrc = gallery[active] ? (getCdnUrl(gallery[active]) as string) : null;
+  const mainSrc = gallery[active] ? (getCdnUrl(gallery[active], 1024) as string) : null;
 
   return (
     <main className="min-h-screen bg-slate-50 pt-24 pb-16">
@@ -130,7 +130,7 @@ export function ProductDetailView({ product, similar }: Props) {
                       i === active ? "border-[#27a8c4] ring-2 ring-[#27a8c4]/25" : "border-slate-200 hover:border-slate-300"
                     }`}
                   >
-                    <Image src={getCdnUrl(img) as string} alt="" fill sizes="64px" className="object-contain p-1" />
+                    <Image src={getCdnUrl(img, 128) as string} alt="" fill sizes="64px" className="object-contain p-1" />
                   </button>
                 ))}
               </div>

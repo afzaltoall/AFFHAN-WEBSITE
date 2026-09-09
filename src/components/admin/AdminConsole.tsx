@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -1678,7 +1680,8 @@ function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNull
 // Opens the ordered product's image + full details inside the admin, so staff
 // never have to leave the console to see what a customer requested.
 function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCustomerStatus, t }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; onSetCustomerStatus: (s: CustomerStatus, note: string) => void; t: Theme }) {
-  const img = inquiry.productImage ? (getCdnUrl(inquiry.productImage) as string) : null;
+  const img = inquiry.productImage ? (getCdnUrl(inquiry.productImage, 256) as string) : null;
+  const zoomImg = inquiry.productImage ? (getCdnUrl(inquiry.productImage, 1600) as string) : null;
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
@@ -1720,7 +1723,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
           <div className="flex items-start gap-4">
             {img ? (
               <button
-                onClick={() => onZoom(img)}
+                onClick={() => onZoom(zoomImg ?? img)}
                 title="Click to enlarge"
                 className={`group relative block h-28 w-28 shrink-0 overflow-hidden rounded-2xl sm:h-32 sm:w-32 ${t.thumb}`}
               >
@@ -1964,7 +1967,7 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
           </thead>
           <tbody>
             {rows.map((i, idx) => {
-              const src = i.productImage ? getCdnUrl(i.productImage) : null;
+              const src = i.productImage ? getCdnUrl(i.productImage, 96) : null;
               return (
                 <tr key={i.id} className="border-b border-black/[0.08] align-top">
                   <td className="py-1.5 pr-1 tabular-nums text-[#6e6e73]">{idx + 1}</td>
@@ -2049,12 +2052,63 @@ function FilterMenu({
 }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || extraActive;
+
+  // The panel is rendered into document.body rather than beside the button.
+  //
+  // Both places this menu is used sit inside a card carrying
+  // `overflow-hidden rounded-2xl` (for the table's corners), and that clips an
+  // absolutely-positioned child — the panel was being cut off at the card's
+  // right edge. Escaping to a portal removes the clip; position: fixed then
+  // lets the panel be clamped against the viewport instead, so it also stops
+  // running off-screen on a narrow window, and flips above the button when
+  // there is more room up there.
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
+
+  useIsomorphicLayoutEffect(() => {
+    if (!open) { setPos(null); return; }
+
+    const place = () => {
+      const b = btnRef.current?.getBoundingClientRect();
+      if (!b) return;
+      const M = 8;                                        // breathing room at every edge
+      const vw = document.documentElement.clientWidth;    // excludes the scrollbar
+      const vh = window.innerHeight;
+
+      const width = Math.min(256, vw - M * 2);            // w-64, or the window if it is narrower
+      // Right-align to the button, then pull back inside the viewport.
+      const left = Math.max(M, Math.min(b.right - width, vw - width - M));
+
+      const below = vh - b.bottom - M * 2;
+      const above = b.top - M * 2;
+      // Only flip up when below is genuinely cramped and up is roomier.
+      const flip = below < 240 && above > below;
+
+      setPos(flip
+        ? { left, width, bottom: vh - b.top + M, maxHeight: above }
+        : { left, width, top: b.bottom + M, maxHeight: below });
+    };
+
+    place();
+    // `true` so scrolls inside the card's own scroll containers are caught too.
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      // The panel is portalled out of `ref`, so it needs checking separately or
+      // every click inside the menu would close it before the item fired.
+      if (ref.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onDown);
@@ -2068,6 +2122,7 @@ function FilterMenu({
   return (
     <div className="relative sm:ml-auto" ref={ref}>
       <button
+        ref={btnRef}
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -2082,8 +2137,23 @@ function FilterMenu({
         <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
-      {open && (
-        <div role="menu" className={`absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}>
+      {open && pos && createPortal(
+        <div
+          ref={panelRef}
+          role="menu"
+          style={{
+            position: "fixed",
+            left: pos.left,
+            top: pos.top,
+            bottom: pos.bottom,
+            width: pos.width,
+            maxHeight: pos.maxHeight,
+            // Beats the Tailwind overflow-hidden below, which is only wanted on
+            // the x axis so the rounded corners still clip the rows.
+            overflowY: "auto",
+          }}
+          className={`z-[200] overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}
+        >
           <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Status</p>
           {(["all", "new", "handled", "spam"] as const).map((s) => {
             const on = statusFilter === s;
@@ -2156,7 +2226,8 @@ function FilterMenu({
               </button>
             </>
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -2454,7 +2525,7 @@ function Thumb({ src, alt, big, t }: { src: string | null; alt: string; big?: bo
   if (!src) return <div className={`${s} flex shrink-0 items-center justify-center rounded-xl text-[10px] ${t.thumb} ${t.soft}`}>No img</div>;
   return (
     <div className={`${s} relative shrink-0 overflow-hidden rounded-xl ${t.thumb}`}>
-      <Image src={getCdnUrl(src) as string} alt={alt} fill sizes="56px" className="object-cover" />
+      <Image src={getCdnUrl(src, 128) as string} alt={alt} fill sizes="56px" className="object-cover" />
     </div>
   );
 }

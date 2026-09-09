@@ -143,7 +143,7 @@ export default function HistoryPage() {
                     <div className="relative aspect-square bg-slate-100">
                       {row.imageUrl ? (
                         <Image
-                          src={getCdnUrl(row.imageUrl) ?? row.imageUrl}
+                          src={getCdnUrl(row.imageUrl, 440) ?? row.imageUrl}
                           alt=""
                           fill
                           sizes="(max-width: 640px) 50vw, 220px"

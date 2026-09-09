@@ -341,7 +341,7 @@ export default function InquiriesPage() {
                 <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-slate-100">
                   {row.productImage ? (
                     <Image
-                      src={getCdnUrl(row.productImage) ?? row.productImage}
+                      src={getCdnUrl(row.productImage, 160) ?? row.productImage}
                       alt=""
                       fill
                       sizes="80px"

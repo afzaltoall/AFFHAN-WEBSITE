@@ -213,7 +213,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
                 >
                   {images.length > 0 ? (
                     <Image 
-                      src={getCdnUrl(images[0]) as string} 
+                      src={getCdnUrl(images[0], 640) as string} 
                       alt={product.name} 
                       fill 
                       sizes="(max-width: 768px) 100vw, 320px" 
@@ -513,7 +513,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
                             onClick={() => { setActiveImageIndex(idx); resetTransform(); }}
                             className={`relative w-12 h-12 rounded-md overflow-hidden cursor-pointer border-2 transition-all ${idx === activeImageIndex ? 'border-[#336888] scale-110' : 'border-transparent opacity-60 hover:opacity-100 hover:scale-105'}`}
                           >
-                            <Image src={getCdnUrl(img) as string} alt="" fill className="object-cover" />
+                            <Image src={getCdnUrl(img, 96) as string} alt="" fill className="object-cover" />
                           </button>
                       ))}
                     </div>
@@ -522,7 +522,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
 
                 <TransformComponent wrapperStyle={{ width: "100%", height: "100vh" }} contentStyle={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <div className="relative w-full h-full max-w-6xl max-h-[85vh]">
-                      <Image src={getCdnUrl(images[activeImageIndex]) as string} alt={product.name} fill className="object-contain" sizes="100vw" priority />
+                      <Image src={getCdnUrl(images[activeImageIndex], 1600) as string} alt={product.name} fill className="object-contain" sizes="100vw" priority />
                     </div>
                 </TransformComponent>
               </>
