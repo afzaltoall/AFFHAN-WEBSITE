@@ -1360,4 +1360,30 @@ html {
   [class*="shadow-"] {
     box-shadow: none !important;
   }
+
+  /* The ambient bead field behind the hero. 721 spans, each a 1px sky-blue
+     translucent ring, sitting in a pointer-events-none layer — atmosphere, and
+     nothing else. Recoloured to the system foreground they become 721 hard dots
+     scattered over the content. Measured with tools/audit/53-fc-border-audit.mjs,
+     which is how they were found at all: the first pass at this fixed the card
+     and missed both the beads and the button inside it. */
+  /* Prefix match, not `.b2b-bead`. The field is three separate classes —
+     b2b-bead, b2b-bead-lg and b2b-bead-ripple — and only the first carries the
+     base name, so the exact selector hid 6 of 42 and left the rest painting.
+     Caught by re-running the audit after the "fix" rather than assuming it
+     worked. */
+  [class*="b2b-bead"] {
+    display: none !important;
+  }
+
+  /* Borders drawn in white or near-white. These are bevels and glass edges —
+     invisible by design against a light surface, and the single biggest source
+     of unexpected boxes once the system palette replaces the colour. The
+     "Inquire Now" button is 65 of them on the homepage alone.
+     border-style rather than border-color: recolouring keeps the box, and the
+     box is the problem. Structural borders (border-slate-*, border-brand/*) are
+     untouched — those are meant to be seen. */
+  [class*="border-white"] {
+    border-style: none !important;
+  }
 }
