@@ -1309,3 +1309,55 @@ html {
 @media (min-width: 1280px) {
   .hero-product-grid > * { contain-intrinsic-size: auto 324px; }
 }
+
+/* ---------------------------------------------------------------------------
+   Windows High Contrast / forced-colors.
+   ---------------------------------------------------------------------------
+   In this mode the browser throws away author colours and repaints with the
+   system palette. Nothing here was broken by that — but the "liquid glass"
+   look is built from borders that are DELIBERATELY invisible: .liquid-glass-card
+   carries a 2px near-white border on its top and left to fake a lit bevel, and
+   a translucent slate border on the other two for the shadowed edge. Against a
+   white card those read as a soft 3D lip. Substitute the system foreground for
+   "near-white" and every card on the page gains a hard black box, which is what
+   a user reported seeing.
+
+   So the bevel is dropped rather than recoloured. What replaces it is a single
+   thin border in the system's own colour: a card still needs an edge to be a
+   card, and one hairline reads as a container where four heavy sides read as a
+   cage.
+
+   The blur, the inset highlights and the sheen sweep are removed outright.
+   backdrop-filter and layered white box-shadows describe light falling on
+   glass; in a two-colour palette they either do nothing or muddy the contrast
+   the mode exists to guarantee.
+
+   Not touched: the circular category tiles and the form controls. Their borders
+   are structural — they say where the control is — and forced-colors recolouring
+   them is exactly the behaviour that should happen. */
+@media (forced-colors: active) {
+  .liquid-glass-card,
+  .liquid-glass-card:hover,
+  .liquid-glass-card:active {
+    border: 1px solid CanvasText !important;
+    border-radius: 12px !important;
+    background: Canvas !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* The animated highlight that sweeps across a call to action. It is a moving
+     white gradient, so in a forced palette it is either invisible or a bar
+     travelling over the label. */
+  .cta-sheen::after {
+    display: none !important;
+  }
+
+  /* Decorative depth anywhere else. Focus rings are deliberately left alone —
+     they are the one shadow-like affordance that must survive, and they are
+     drawn with outline rather than box-shadow. */
+  [class*="shadow-"] {
+    box-shadow: none !important;
+  }
+}
