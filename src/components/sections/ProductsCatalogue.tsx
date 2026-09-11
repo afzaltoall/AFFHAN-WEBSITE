@@ -12,7 +12,7 @@ import { QuickLinkPill } from "@/components/ui/QuickLinkPill";
 import { Pagination } from "@/components/ui/Pagination";
 import { CatalogueScrollHero } from "@/components/sections/CatalogueScrollHero";
 import { CatalogueDock } from "@/components/sections/CatalogueDock";
-import { buildCategoryTree, flattenLeaves, type CategoryRecord, type CategoryTreeNode } from "@/lib/categoryTree";
+import { buildCategoryTree, flattenLeaves, isGridEligibleRoot, type CategoryRecord, type CategoryTreeNode } from "@/lib/categoryTree";
 import { prepCatalogueNav } from "@/lib/scroll";
 import type { ProductCardData } from "@/components/ui/ProductCard";
 
@@ -32,6 +32,8 @@ interface CategoryChip {
   name: string;
   count: number;
   thumbnailUrl: string | null;
+  /** Set on a promoted tile only: the category it really lives under. */
+  parentLabel?: string | null;
 }
 
 // Locate a node anywhere in the tree by id. Pure structural lookup (no
@@ -269,10 +271,15 @@ export function ProductsCatalogue({
     name: c.name,
     count: c.recursiveProductCount as number,
     thumbnailUrl: (c.displayThumbnail ?? null) as string | null,
+    parentLabel: c.promotedCopy ? (c.promotedParentName ?? null) : null,
   });
 
+  // Tiny roots are left off the grid — see MIN_ROOT_TILE_PRODUCTS. It is only
+  // the tile that goes: the category page still loads, and its products stay in
+  // the catalogue, the search index and every facet, reachable by drilling or
+  // searching exactly as before.
   const rootChips = useMemo(
-    () => categoryTree.map(toChip).sort((a, b) => a.name.localeCompare(b.name)),
+    () => categoryTree.filter(isGridEligibleRoot).map(toChip).sort((a, b) => a.name.localeCompare(b.name)),
     [categoryTree]
   );
 
@@ -291,6 +298,7 @@ export function ProductsCatalogue({
       .sort((a, b) => (b.recursiveProductCount - a.recursiveProductCount) || a.name.localeCompare(b.name))
       .slice(0, 48)
       .map(toChip);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryTree]);
 
   // The category row shown under the breadcrumb. Rules:
@@ -306,7 +314,12 @@ export function ProductsCatalogue({
     const active = findTreeNode(categoryTree, activeCategoryId);
     if (!active) return { label: "Browse by Category", items: rootChips, activeId: null as string | null };
     if (active.children?.length) {
-      return { label: "Refine within this category", items: [...active.children].sort(byCount).map(toChip), activeId: null as string | null };
+      // activeId is passed even here, where the open category is the PARENT of
+      // everything listed and so cannot match. Keeping it uniform means the
+      // selected-tile styling is driven by one rule in every branch rather than
+      // by which branch happened to set it, and a tile that does appear in its
+      // own list still marks itself.
+      return { label: "Refine within this category", items: [...active.children].sort(byCount).map(toChip), activeId: activeCategoryId };
     }
     const parent = active.parentId ? findTreeNode(categoryTree, active.parentId) : null;
     const items = (parent ? [...parent.children].sort(byCount) : [active]).map(toChip);
@@ -620,6 +633,7 @@ export function ProductsCatalogue({
                           key={chip.id}
                           name={chip.name}
                           thumbnailUrl={chip.thumbnailUrl}
+                          parentLabel={chip.parentLabel}
                           count={chip.count}
                           active={chip.id === levelOptions.activeId}
                           onClick={() => goToCategory(chip.id)}
@@ -640,6 +654,7 @@ export function ProductsCatalogue({
                           key={`pop-${chip.id}`}
                           name={chip.name}
                           thumbnailUrl={chip.thumbnailUrl}
+                          parentLabel={chip.parentLabel}
                           count={chip.count}
                           onClick={() => goToCategory(chip.id)}
                           className="w-full"
@@ -648,6 +663,7 @@ export function ProductsCatalogue({
                     </div>
                   </div>
                 )}
+
               </div>
             </div>
           )}

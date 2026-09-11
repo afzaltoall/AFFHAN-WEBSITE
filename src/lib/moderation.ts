@@ -33,6 +33,42 @@ export const BLOCKED_CATEGORY_PATTERNS = [
   "underwear & loungewear", // whole subtree: boxers, briefs, sleep & lounge, etc.
   "underwear and loungewear",
   "pajama sets",
+
+  // The children's equivalents, which none of the above reached (2026-09-11).
+  //
+  // The list blocked adult underwear, adult sleepwear and women's swimwear
+  // (bikini, one-piece, two-piece) from the beginning, and every one of those
+  // is a category of photographs of adults. The same three categories of
+  // photographs of CHILDREN were live the whole time, under names the patterns
+  // could not match:
+  //
+  //   Girls Underwear       33 products   under Girls Clothing
+  //   Children's Swimwear  156 products   under Swimming
+  //   Sleepwear & Robes    200 products   under Girls Clothing
+  //
+  // Nothing about the products is illicit — they are cotton briefs, pyjamas and
+  // swimsuits. The imagery is the point: a B2B sourcing catalogue has no reason
+  // to publish photographs of children modelling underwear or swimwear, and the
+  // policy that already removed the adult versions applies more strongly here,
+  // not less.
+  "girls underwear",
+  "boys underwear",
+  "children's underwear",
+  "childrens underwear",
+  "kids underwear",
+  "children's swimwear",
+  "childrens swimwear",
+  "kids swimwear",
+  "girls swimwear",
+  "boys swimwear",
+  "sleepwear & robes",
+  "sleepwear and robes",
+
+  // Men's swimwear, for the same reason "bikini" and "one-piece suits" are
+  // here: the women's equivalents were blocked on day one and this was simply
+  // never listed alongside them.
+  "men's swimwear",
+  "mens swimwear",
   "adult wellness",
   "adult product",
   // EPROLO names its adult category "Sex Product" and files it under two
@@ -140,6 +176,49 @@ export const BLOCKED_PRODUCT_IDS: ReadonlySet<number> = new Set([
 export function isProductIdBlocked(id: number | null | undefined): boolean {
   return id != null && BLOCKED_PRODUCT_IDS.has(id);
 }
+
+// ---------------------------------------------------------------------------
+// What this file cannot do, established 2026-09-10 — read before extending it.
+//
+// Two reports of "18+ items showing" were both about PHOTOGRAPHS of products
+// with entirely innocuous names, and nothing in this file can reach them:
+//
+//   "High Waist Leopard-print Shorts Fitness Yoga Shorts"   (620545)
+//   "European And American Seamless Knitted Thread ... Yoga" (620605)
+//
+// Both are close-crops of a model's backside filling the frame. The garment is
+// ordinary activewear, the category ("Pants") is ordinary, and the name says
+// nothing. The offence is the framing of the picture.
+//
+// Three approaches were tried against the live catalogue and rejected on
+// measurement, not taste:
+//
+//   1. Skin-tone scoring of the image. Ranked 620605 923rd out of 974 products
+//      in its own category, because opaque leggings fill the frame and there is
+//      no exposed skin to detect. It also scored a plain beige jumper (0.590)
+//      above a sheer mesh bodysuit with the body visible (0.232). See the
+//      write-up in tools/audit/skin.mjs.
+//   2. Name terms for the same cluster — "hip lift", "hip-showing", "buttock",
+//      "peach hip", "booty". Present in only 11 of 38 confirmed cases (29%),
+//      while matching ~600 products catalogue-wide that were never checked.
+//      A rule that misses 71% of the problem and hides hundreds of unverified
+//      products is worse than none.
+//   3. Blocking the categories outright. "Pants" holds 974 products and the
+//      great majority are ordinary trousers and joggers.
+//
+// So the items found this way are removed individually, by id, after being
+// looked at — and ModerationLog is what makes that stick: the cron sync skips
+// any cjPid recorded there (see api/cron/sync/route.ts). Before that check
+// existed the table was write-only and the next nightly run re-created
+// everything removed for its photograph, since name and category still passed.
+//
+// BLOCKED_PRODUCT_IDS above is now the weaker of the two mechanisms — its three
+// entries have since been moved into ModerationLog and deleted from Product. It
+// is kept as a fast in-query guard for anything spotted between sync runs.
+//
+// A real fix needs a model that reads pose, framing and garment opacity. Do not
+// re-derive the colour-histogram version.
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Review tier — suspicious enough to stop at the door, not certain enough to

@@ -6,6 +6,8 @@ import { ProductDetailView, type PDPProduct } from "@/components/ui/ProductDetai
 import { RecordProductView } from "@/components/ui/RecordProductView";
 import type { ProductCardData } from "@/components/ui/ProductCard";
 import { getCategoryMeta } from "@/lib/categoryMeta";
+import { parseDescription } from "@/lib/productDescription";
+import { isProductHidden, filterHidden } from "@/lib/productVisibility";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +23,12 @@ function parseImages(allImages: unknown): string[] {
 async function getProduct(idParam: string) {
   const id = parseInt(idParam, 10);
   if (Number.isNaN(id)) return null;
-  return prisma.product.findUnique({ where: { id }, include: { categoryRef: true } });
+  const product = await prisma.product.findUnique({ where: { id }, include: { categoryRef: true } });
+  if (!product) return null;
+  // A moderated product has no page. Without this the grid hid it and the URL
+  // still served it in full — see src/lib/productVisibility.ts.
+  if (await isProductHidden(product)) return null;
+  return product;
 }
 
 export async function generateMetadata({
@@ -37,8 +44,16 @@ export async function generateMetadata({
   // inside a response whose head had already gone out as 200, which is a soft
   // 404 — Google sees a successful page saying "not found" and indexes it.
   if (!product) notFound();
+  // Read the description, never slice the raw string: an EPROLO description is
+  // HTML, so `.slice(0, 155)` put `<p><table style="border-collapse: co` into
+  // the meta description and the OpenGraph card of every EPROLO product.
+  const parsed = parseDescription(product.description);
+  const summary = [
+    ...parsed.paragraphs,
+    ...parsed.specs.map((s) => `${s.label}: ${s.value}`),
+  ].join(" · ");
   const desc =
-    product.description?.slice(0, 155) ||
+    summary.slice(0, 155) ||
     `Source ${product.name} through Affhan — request a quote and our team handles sourcing, quality control, and global shipping.`;
   return {
     title: `${product.name} | Affhan Sourcing`,
@@ -71,20 +86,29 @@ export default async function ProductPage({
             id: { not: product.id },
             imageUrl: { not: null },
           },
-          take: 10,
+          // Over-fetch: the moderation filter below removes some of these, and
+          // asking for exactly 10 would leave the rail short whenever it did.
+          take: 24,
           // No orderBy: sorting a large category by lastSynced forced a full scan
           // of the category and was the main source of PDP latency. An arbitrary
-          // 10 served straight off the categoryId index is plenty for "similar",
-          // and `select` avoids the categoryRef join entirely.
-          select: { id: true, name: true, imageUrl: true },
+          // handful served straight off the categoryId index is plenty for
+          // "similar", and `select` avoids the categoryRef join entirely.
+          select: { id: true, name: true, imageUrl: true, categoryId: true },
         }),
         prisma.product.count({ where: { categoryId: product.categoryId } }),
       ])
     : [[], 0];
 
+  // Fetched once and used twice: the visible breadcrumb below and the
+  // BreadcrumbList JSON-LD further down. They disagreed before — the schema had
+  // the full trail, the page showed only the leaf — because the view was never
+  // given this.
+  const category = await getCategoryMeta(product.categoryId);
+
   const pdpProduct: PDPProduct = {
     id: product.id,
     name: product.name,
+    categoryPath: category?.path ?? [],
     imageUrl: product.imageUrl,
     images: parseImages(product.allImages),
     description: product.description,
@@ -99,12 +123,18 @@ export default async function ProductPage({
 
   // Every "similar" product shares this category, so reuse the parent's
   // category name for their card labels instead of joining categoryRef per row.
-  const similar: ProductCardData[] = similarRows.map((p) => ({
-    id: p.id,
-    name: p.name,
-    imageUrl: p.imageUrl,
-    categoryRef: pdpProduct.categoryName ? { name: pdpProduct.categoryName } : null,
-  }));
+  //
+  // Filtered first: this rail is a product list like any other, and a category
+  // query with no moderation clause is exactly how a blocked item ends up shown
+  // beside an innocuous one.
+  const similar: ProductCardData[] = (await filterHidden(similarRows))
+    .slice(0, 10)
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      imageUrl: p.imageUrl,
+      categoryRef: pdpProduct.categoryName ? { name: pdpProduct.categoryName } : null,
+    }));
 
   // BreadcrumbList markup only. There is deliberately no Product schema here.
   //
@@ -118,13 +148,15 @@ export default async function ProductPage({
   // than padded: Search Console's "Product snippets" warning is the correct
   // outcome for a page that is not a product offer, and it affects rich-result
   // eligibility only, never indexing or ranking.
-  const category = await getCategoryMeta(product.categoryId);
   const breadcrumbSchema = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
     itemListElement: [
       { "@type": "ListItem", position: 1, name: "Home", item: `${SITE}/` },
-      { "@type": "ListItem", position: 2, name: "Products", item: `${SITE}/products/` },
+      // "All Categories", not "Products". The catalogue root is called that on
+      // /products and now on this page's own breadcrumb too; the schema saying
+      // something third was the last place the three disagreed.
+      { "@type": "ListItem", position: 2, name: "All Categories", item: `${SITE}/products/` },
       ...(category?.path ?? []).map((step, i) => ({
         "@type": "ListItem",
         position: i + 3,

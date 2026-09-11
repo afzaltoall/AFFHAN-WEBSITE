@@ -85,6 +85,19 @@ public/static/images/map*.png
 # happened twice. The bulky parts it generates stay ignored — see
 # tools/eprolo/.gitignore.
 !tools/eprolo/*.mjs
+# The two scripts that own category thumbnails. CLAUDE.md names them as the
+# only supported way to assign or lock a category's picture, and a documented
+# script that is not in the repository is a instruction pointing at nothing.
+!scripts/assign_category_thumbnails.mjs
+!scripts/lock_category_thumbnail.mjs
+# The moderation audit toolchain — how the contact sheets, the decisions and
+# the moves were made, and how the next pass resumes. REPORT.md alongside it is
+# the record of what was removed and why.
+!tools/audit/*.mjs
+# …but never what it generates. tools/audit/out is 65MB of contact sheets,
+# inlined-image review pages and JSON snapshots, all reproducible from the
+# scripts above.
+tools/audit/out/
 *.csv
 # …except the content-moderation audit. The blanket *.csv rule exists for bulk
 # data dumps (products_export.csv alone is 171MB); these are 55KB compliance

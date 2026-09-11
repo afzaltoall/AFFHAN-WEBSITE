@@ -1,3 +1,20 @@
+// ---------------------------------------------------------------------------
+// SUPERSEDED 2026-09-10 — do not run. Use:
+//     node scripts/assign_category_thumbnails.mjs --apply
+//
+// This script assigned a category the first product image it found, with no
+// check that another category already used it. Between this and the cron
+// backfill, 13 images were shared by 26 categories, and on the top-level grid
+// five parent tiles showed the same photo as their own promoted child sitting
+// next to them — Men's Clothing = T-Shirts, Jewelry & Watches = Fine Jewelry,
+// and so on. Women's Clothing (89,067 products) displayed the picture of
+// "Suit", a 2-product subcategory, because the descendant walk visited
+// children in database row order rather than by size.
+//
+// The replacement assigns bottom-up and claims each image exclusively, so no
+// two categories can share one. Running this file again would reintroduce
+// duplicates it cannot detect.
+// ---------------------------------------------------------------------------
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();

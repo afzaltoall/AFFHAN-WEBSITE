@@ -1,90 +1,32 @@
-import fs from 'fs';
-
-// Moderation blocklist for the EPROLO pipeline, read from the real source:
-// src/lib/moderation.ts.
+// Re-export of the live moderation rules in src/lib/moderation.ts.
 //
-// scripts/moderate_categories.mjs keeps its own literal copy of these patterns
-// "so the script has no dependency on the TS build". That was fine for one
-// script; a third copy is how blocklists drift, and a moderation list that
-// silently disagrees with itself is worse than no list. So this parses the TS
-// instead — no build step, still one source of truth — and throws loudly if the
-// shape it expects is gone, because a moderation gate that quietly degrades to
-// "allow everything" is the exact failure that put 165 adult products live.
+// This used to be a hand-maintained COPY of that file, and it had drifted: it
+// carried no BLOCKED_PRODUCT_IDS at all, so every tool built on it — including
+// 23-moderation-gate.mjs, whose whole job is to prove nothing leaks — was
+// checking the site against a rule set the site does not use.
+//
+// Nothing is duplicated here now. tools/audit/rules.mjs reads the TypeScript
+// source directly, so there is one definition and it is the one that ships.
+import { isCategoryBlocked } from '../audit/rules.mjs';
 
-const TS_PATH = new URL('../../src/lib/moderation.ts', import.meta.url);
+export {
+  BLOCKED_CATEGORY_PATTERNS,
+  BLOCKED_NAME_KEYWORDS,
+  BLOCKED_PRODUCT_IDS,
+  GENERIC_CATEGORY_NAMES,
+  REVIEW_NAME_TERMS,
+  isCategoryBlocked,
+  isNameBlocked,
+  isProductIdBlocked,
+  isGenericBucket,
+  needsReview,
+} from '../audit/rules.mjs';
 
-function extractArray(src, name) {
-  const start = src.indexOf(`${name} = [`);
-  if (start === -1) throw new Error(`moderation.ts: ${name} not found — refusing to run without a blocklist`);
-  const body = src.slice(start + `${name} = [`.length);
-  const end = body.indexOf('];');
-  if (end === -1) throw new Error(`moderation.ts: ${name} is not terminated — refusing to run`);
-
-  // Comments MUST be stripped before pulling string literals out, because the
-  // comments in moderation.ts quote example names — and a quoted word inside a
-  // comment is indistinguishable from an entry to a naive matcher.
-  //
-  // This is not hypothetical. An earlier version skipped this step and silently
-  // absorbed the words "unisex" and "airplane bottle" out of an explanatory
-  // comment, which blocked 342 Unisex products and two bottle openers. The
-  // TypeScript itself was correct throughout; only this parser was wrong.
-  const arrayBody = body
-    .slice(0, end)
-    .replace(/\/\*[\s\S]*?\*\//g, '')  // block comments
-    .replace(/\/\/[^\n]*/g, '');       // line comments
-
-  const items = [...arrayBody.matchAll(/"([^"]+)"/g)].map((m) => m[1]);
-  if (!items.length) throw new Error(`moderation.ts: ${name} parsed empty — refusing to run`);
-  return items;
-}
-
-const src = fs.readFileSync(TS_PATH, 'utf8');
-export const BLOCKED_CATEGORY_PATTERNS = extractArray(src, 'BLOCKED_CATEGORY_PATTERNS');
-export const BLOCKED_NAME_KEYWORDS = extractArray(src, 'BLOCKED_NAME_KEYWORDS');
-export const REVIEW_NAME_TERMS = extractArray(src, 'REVIEW_NAME_TERMS');
-export const GENERIC_CATEGORY_NAMES = extractArray(src, 'GENERIC_CATEGORY_NAMES');
-
-/// True if a category name contains any blocked pattern.
+/// A category is blocked if its own name matches, or its parent's does.
 ///
-/// Substring matching, exactly as isCategoryBlocked() does it. This is why the
-/// patterns are full phrases ("sex product") and never bare words: "sex" alone
-/// would swallow "Unisex Dresses", "Unisex Jeans" and every other Unisex
-/// category — 3,079 entirely legitimate products.
-export function isCategoryBlocked(name) {
-  if (!name) return false;
-  const n = String(name).trim().toLowerCase();
-  return BLOCKED_CATEGORY_PATTERNS.some((p) => n.includes(p));
-}
-
-/// True if a product name carries an adult keyword, for items mis-filed into
-/// an otherwise clean category.
-export function isNameBlocked(name) {
-  if (!name) return false;
-  const n = String(name).toLowerCase();
-  return BLOCKED_NAME_KEYWORDS.some((k) => n.includes(k));
-}
-
-/// Blocked if the category's own name matches, or any ancestor's does.
-/// Mirrors blockedCategoryIdSet(): products hang off leaves, so blocking a
-/// parent has to take its whole subtree with it.
+/// Signature unchanged from the mirror this replaced — 05-create-categories.mjs
+/// calls it as isBlockedDeep(name, parentName), working on EPROLO's raw feed
+/// where there is no id tree to walk yet.
 export function isBlockedDeep(name, parentName) {
   return isCategoryBlocked(name) || isCategoryBlocked(parentName);
-}
-
-/// Suspicious enough that the ingest refuses to write it. Unlike
-/// isNameBlocked, which hides something already stored, this runs before the
-/// row exists — so the product is never visible, not even for the minutes
-/// between the write and someone noticing.
-export function needsReview(name) {
-  if (!name) return false;
-  const n = String(name).toLowerCase();
-  return REVIEW_NAME_TERMS.some((k) => n.includes(k));
-}
-
-/// A category whose name tells moderation nothing. Products landing here are
-/// reported, never auto-blocked: "Fashion & Clothing > Others" held 112
-/// products and most were children's costumes and casual shirts.
-export function isGenericBucket(name) {
-  if (!name) return false;
-  return GENERIC_CATEGORY_NAMES.includes(String(name).trim().toLowerCase());
 }

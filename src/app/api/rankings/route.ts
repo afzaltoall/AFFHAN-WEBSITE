@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from ".prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { unstable_cache } from "next/cache";
-import { isCategoryBlocked } from "@/lib/moderation";
+import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList } from "@/lib/moderation";
 
 // ---------------------------------------------------------------------------
 // Top Ranking API.
@@ -99,8 +99,14 @@ export async function GET(request: Request) {
 
     // All categories in scope, biggest first. Windowed by offset/limit so the
     // page can "load more" through every category rather than a fixed 12.
+    // blockedCategoryIdSet, not isCategoryBlocked on the leaf's own name.
+    // Products hang off leaves, and a leaf is usually named something like
+    // "Boxers" or "Sleep & Lounge" — the adult signal is on the PARENT
+    // ("Underwear & Loungewear"), which a name-only test never reads. Every
+    // other surface uses the descendant-aware set; this one did not.
+    const blockedCats = blockedCategoryIdSet(allCats);
     const scopedIds = leafCounts
-      .filter((lc) => inScope(lc.categoryId) && catById.has(lc.categoryId) && !isCategoryBlocked(catById.get(lc.categoryId)!.name))
+      .filter((lc) => inScope(lc.categoryId) && catById.has(lc.categoryId) && !blockedCats.has(lc.categoryId))
       .map((lc) => lc.categoryId);
     const groupIds = scopedIds.slice(offset, offset + limit);
     const hasMore = offset + limit < scopedIds.length;
@@ -108,6 +114,13 @@ export async function GET(request: Request) {
     if (groupIds.length === 0) {
       return NextResponse.json({ scopeName, groups: [], hasMore: false });
     }
+
+    // Empty when nothing is blocked by id, so the clause disappears entirely
+    // rather than becoming `NOT IN ()`, which is a syntax error in Postgres.
+    const blockedIds = blockedProductIdList();
+    const blockedIdsClause = blockedIds
+      ? Prisma.sql`AND "id" NOT IN (${Prisma.join(blockedIds)})`
+      : Prisma.empty;
 
     // One windowed query: the top PRODUCTS_PER_GROUP products for every card,
     // interleaved. `hot` shows newest listings, `popular` shows the earliest
@@ -123,6 +136,13 @@ export async function GET(request: Request) {
             ROW_NUMBER() OVER (PARTITION BY "categoryId" ${orderInPartition}) AS rn
           FROM "Product"
           WHERE "categoryId" IN (${Prisma.join(groupIds)})
+            -- The category filter above is not the whole rule. A product can
+            -- be adult by NAME while sitting in a perfectly ordinary category
+            -- — that is the entire reason blockedNameRegex exists — and this
+            -- query applied neither it nor the blocked-id list, so the
+            -- rankings page could feature a product no other surface shows.
+            AND "name" !~* ${blockedNameRegex()}
+            ${blockedIdsClause}
         ) ranked
         WHERE rn <= ${PRODUCTS_PER_GROUP}
       `

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { isProductHidden } from "@/lib/productVisibility";
 
 /**
  * Does this product exist? Asked here, in the layout, because this is the last
@@ -30,11 +31,17 @@ export default async function ProductLayout({
   const numericId = Number.parseInt(id, 10);
   if (Number.isNaN(numericId)) notFound();
 
-  const exists = await prisma.product.findUnique({
+  // Moderation is applied here too, not only in page.tsx. A blocked product
+  // that reaches the page 404s from inside the Suspense boundary this file
+  // exists to stay outside of — which is the soft 404 described above, just
+  // reached by a different route. "Does this product exist" and "may we show
+  // it" have to be answered in the same place, while the status is still open.
+  const product = await prisma.product.findUnique({
     where: { id: numericId },
-    select: { id: true },
+    select: { id: true, name: true, categoryId: true },
   });
-  if (!exists) notFound();
+  if (!product) notFound();
+  if (await isProductHidden(product)) notFound();
 
   return children;
 }

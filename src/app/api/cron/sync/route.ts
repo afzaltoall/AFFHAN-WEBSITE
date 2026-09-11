@@ -155,6 +155,14 @@ export async function GET(request: Request) {
       : null;
     const rootCategory = parentCatRecord?.parentName || 'uncategorized';
 
+    // Every product ever moderated, read once per cron run and consulted for
+    // each incoming product below. A set of short strings — ~66k of them at the
+    // time of writing — rather than a query per product, or the same query
+    // repeated on each of the five pages this run fetches.
+    const moderatedPids = new Set(
+      (await prisma.moderationLog.findMany({ select: { cjPid: true } })).map((r) => r.cjPid)
+    );
+
     // Fetch up to 5 pages per cron run
     for (let i = 0; i < 5; i++) {
       const pageNum = lastPage + 1;
@@ -187,6 +195,16 @@ export async function GET(request: Request) {
           const batchPromises = batch.map(async (cp: CjRawProduct) => {
             const cjPid = cp.pid || cp.productId || String(cp.id);
             if (!cjPid) return null;
+
+            // Already moderated once: never re-add it.
+            //
+            // Without this the whole table was write-only. The rules below can
+            // only read a product's NAME and its CATEGORY, so anything removed
+            // for what its PHOTOGRAPH shows — cropped shots of a model's
+            // backside, sheer fabric with the body visible — has an innocuous
+            // name, passes every check, and is re-created by the next nightly
+            // run. A moderation pass that the cron silently undoes is not one.
+            if (moderatedPids.has(String(cjPid))) return null;
 
             const parseName = (nameStr: unknown) => {
               if (!nameStr) return null;
@@ -372,16 +390,39 @@ export async function GET(request: Request) {
         select: { thumbnailUrl: true }
       });
       if (cat && !cat.thumbnailUrl) {
-        const withImg = await prisma.product.findFirst({
+        // Lowest id, and never an image another category already shows.
+        //
+        // Two rules, both matching scripts/assign_category_thumbnails.mjs, which
+        // owns this decision. `id: "desc"` used to be the order, so the picture
+        // changed every time the supplier added a newer product — and nothing
+        // checked whether the image was already in use, which is how a parent
+        // and its own promoted child came to display the same photo on five of
+        // the fifty-three top-level tiles.
+        //
+        // This only ever fills a null. Reassigning the whole tree is the
+        // script's job; doing it here, five pages at a time, could not keep the
+        // no-duplicates invariant across categories it is not currently syncing.
+        const candidates = await prisma.product.findMany({
           where: { categoryId: progress.categoryId, imageUrl: { not: null } },
-          orderBy: { id: "desc" },
+          orderBy: { id: "asc" },
+          take: 25,
           select: { imageUrl: true }
         });
-        if (withImg?.imageUrl) {
-          await prisma.category.update({
-            where: { id: progress.categoryId },
-            data: { thumbnailUrl: withImg.imageUrl }
-          });
+        const urls = candidates.map((c) => c.imageUrl!).filter(Boolean);
+        if (urls.length) {
+          const taken = new Set(
+            (await prisma.category.findMany({
+              where: { thumbnailUrl: { in: urls } },
+              select: { thumbnailUrl: true }
+            })).map((c) => c.thumbnailUrl)
+          );
+          const pick = urls.find((u) => !taken.has(u));
+          if (pick) {
+            await prisma.category.update({
+              where: { id: progress.categoryId },
+              data: { thumbnailUrl: pick }
+            });
+          }
         }
       }
     } catch (thumbErr) {

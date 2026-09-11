@@ -15,6 +15,7 @@ import {
   Ship,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
+import { parseDescription } from "@/lib/productDescription";
 import { ProductCard, type ProductCardData } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { SaveProductButton } from "@/components/ui/SaveProductButton";
@@ -42,16 +43,32 @@ export interface PDPProduct {
   /** How many products sit in this category, for the "one of N" line. 0 when
    *  the product has no category. */
   categoryCount: number;
+  /**
+   * Root first, this product's own category last — the full trail.
+   *
+   * The breadcrumb used to render "Home › Earrings › <product>" from
+   * `categoryName` alone, skipping every level above the leaf, while the
+   * JSON-LD BreadcrumbList on the same page published the complete path. The
+   * page was telling Google one thing and the reader another, and the data to
+   * fix it was already being fetched for the schema block. Empty when the
+   * product has no category, or its category is moderation-blocked.
+   */
+  categoryPath: { id: string; name: string }[];
 }
 
 /**
  * What actually happens after the button is pressed.
  *
- * This exists because the description field is empty for all 1,068,225 rows —
- * CJ's list endpoint does not return one — so the column had a title, a notice
- * and a button and nothing else. These four steps are the real process rather
- * than filler, and being static they are true of every product, which no
- * scraped copy would be.
+ * This exists because the description field is empty for every CJ row — CJ's
+ * list endpoint does not return one — so for those products the column had a
+ * title, a notice and a button and nothing else. These four steps are the real
+ * process rather than filler, and being static they are true of every product,
+ * which no scraped copy would be.
+ *
+ * It is NOT true that the column is empty catalogue-wide. All 12,746 EPROLO
+ * rows carry a description, and reading "empty for all 1,068,225 rows" as
+ * "empty always" is what left those pages rendering raw HTML tags as visible
+ * text. CJ is 1,068,225 of 1,080,971 rows — not all of them.
  */
 const STEPS = [
   { Icon: FileText, title: "You send the request", body: "Quantity, the spec you need, and where it ships to." },
@@ -70,6 +87,8 @@ type ModalProduct = any;
 
 export function ProductDetailView({ product, similar }: Props) {
   const gallery = product.images.length ? product.images : product.imageUrl ? [product.imageUrl] : [];
+  // Supplier HTML, read rather than printed. See src/lib/productDescription.ts.
+  const parsed = parseDescription(product.description);
   const [active, setActive] = useState(0);
   const [inquiry, setInquiry] = useState<ModalProduct | null>(null);
 
@@ -88,15 +107,29 @@ export function ProductDetailView({ product, similar }: Props) {
     <main className="min-h-screen bg-slate-50 pt-24 pb-16">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
+        {/* The full trail, matching the JSON-LD on this page and the crumb strip
+            on /products — which both start at "All Categories". A product three
+            levels deep now reads
+            All Categories › Jewelry & Watches › Fashion Jewelry › Earrings › <product>
+            instead of collapsing the middle two away. */}
         <nav className="mb-5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-          <Link href="/" className="hover:text-[#176579]">Home</Link>
-          <ChevronRight className="h-3.5 w-3.5" />
-          <Link
-            href={product.categoryId ? `/products/?categoryId=${encodeURIComponent(product.categoryId)}` : "/products"}
-            className="hover:text-[#176579]"
-          >
-            {product.categoryName || "Catalog"}
-          </Link>
+          <Link href="/products" className="hover:text-[#176579]">All Categories</Link>
+          {(product.categoryPath.length
+            ? product.categoryPath
+            : product.categoryId && product.categoryName
+              ? [{ id: product.categoryId, name: product.categoryName }]
+              : []
+          ).map((step) => (
+            <span key={step.id} className="flex items-center gap-1.5">
+              <ChevronRight className="h-3.5 w-3.5" />
+              <Link
+                href={`/products/?categoryId=${encodeURIComponent(step.id)}`}
+                className="hover:text-[#176579]"
+              >
+                {step.name}
+              </Link>
+            </span>
+          ))}
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="max-w-[60vw] truncate font-medium text-slate-700 sm:max-w-none">{product.name}</span>
         </nav>
@@ -154,10 +187,28 @@ export function ProductDetailView({ product, similar }: Props) {
               <span className="font-semibold tracking-wide text-slate-700">{product.reference}</span>
             </p>
 
-            {product.description ? (
-              <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-slate-600 sm:text-base">
-                {product.description}
-              </p>
+            {parsed && (parsed.specs.length > 0 || parsed.paragraphs.length > 0) ? (
+              <>
+                {parsed.paragraphs.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {parsed.paragraphs.slice(0, 4).map((text) => (
+                      <p key={text} className="text-sm leading-relaxed text-slate-600 sm:text-base">
+                        {text}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {parsed.specs.length > 0 && (
+                  <dl className="mt-4 grid gap-x-6 gap-y-2 sm:grid-cols-2">
+                    {parsed.specs.slice(0, 12).map((s) => (
+                      <div key={s.label} className="flex gap-2 border-b border-slate-100 py-1.5 text-sm">
+                        <dt className="min-w-0 shrink-0 basis-[42%] font-medium text-slate-500">{s.label}</dt>
+                        <dd className="min-w-0 flex-1 text-slate-800">{s.value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </>
             ) : (
               /* No description exists for any product in the catalogue, so this
                  is the normal path rather than the exception. Saying plainly
@@ -213,6 +264,45 @@ export function ProductDetailView({ product, similar }: Props) {
               Minimum order quantity is set by the factory and confirmed with your quote. Tell us
               your target quantity and we will come back with options.
             </p>
+
+            {/* The supplier's size chart, when the description carried one.
+                Scrolls inside its own box: these tables run to a dozen columns
+                and must never widen the page. */}
+            {parsed?.sizeChart && parsed.sizeChart.rows.length > 0 && (
+              <div className="mt-6 border-t border-slate-200 pt-5">
+                <h2 className="mb-3 text-xs font-bold uppercase tracking-wider text-slate-500">
+                  Size chart
+                </h2>
+                <div className="overflow-x-auto rounded-xl border border-slate-200">
+                  <table className="w-full border-collapse text-left text-xs sm:text-[13px]">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {parsed.sizeChart.headers.map((h, i) => (
+                          <th key={i} className="whitespace-nowrap px-3 py-2 font-semibold text-slate-600">
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsed.sizeChart.rows.map((row, i) => (
+                        <tr key={i} className="border-t border-slate-100">
+                          {row.map((c, j) => (
+                            <td key={j} className="whitespace-nowrap px-3 py-2 text-slate-700">
+                              {c}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  Measurements as supplied by the factory. Final specification is confirmed with
+                  your quote.
+                </p>
+              </div>
+            )}
 
             {/* What happens next */}
             <div className="mt-6 border-t border-slate-200 pt-5">

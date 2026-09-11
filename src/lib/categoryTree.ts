@@ -162,6 +162,40 @@ export function getCategoryIcon(name: string): CategoryIcon {
   return Box;
 }
 
+/**
+ * Fewest products a top-level category needs before it earns its own tile on
+ * the "Browse by Category" grid.
+ *
+ * A threshold, not a list of two names, so it self-corrects: a category that
+ * grows past it appears on its own, and one that shrinks below it leaves.
+ *
+ * 25 rather than 10, and the gap is why. The two categories this exists for are
+ * EPROLO leftovers — "Fully Printing  Hat" (3 products) and "Protective Masks"
+ * (11) — sitting at the same level as Home, Garden & Furniture's 286,918. The
+ * next smallest real root is Fashion & Clothing at 4,852, so every threshold
+ * between 12 and 4,852 behaves identically; 10 would have been the one value in
+ * that region that quietly kept Protective Masks on the grid, and 12 would flip
+ * it back the moment a single product was added.
+ *
+ * This governs the GRID ONLY. The categories still exist, their pages still
+ * load, their products stay in the catalogue, in search, and in every facet —
+ * this decides whether a circle is drawn, nothing more.
+ */
+export const MIN_ROOT_TILE_PRODUCTS = 25;
+
+/**
+ * Does this root-level node earn a tile?
+ *
+ * Promoted shortcuts are exempt. They are lifted to the top precisely because
+ * someone decided they should be prominent, and the smallest of them holds
+ * 5,402 products — the threshold has never applied to one and should not start
+ * silently overruling that decision if it ever could.
+ */
+export function isGridEligibleRoot(node: CategoryTreeNode): boolean {
+  if (node.promotedCopy) return true;
+  return node.recursiveProductCount >= MIN_ROOT_TILE_PRODUCTS;
+}
+
 export interface CategoryRecord {
   id: string;
   name: string;
@@ -178,6 +212,21 @@ export interface CategoryRecord {
 export interface CategoryTreeNode extends CategoryRecord {
   children: CategoryTreeNode[];
   recursiveProductCount: number;
+  /** True on the copy standing at the root, false/absent on the real node. */
+  promotedCopy?: boolean;
+  /**
+   * The real parent's name, on a promoted copy only.
+   *
+   * 31 of the 53 top-level tiles are promoted children whose parent is also a
+   * tile — "Men's Clothing" sits beside "T-Shirts", "Men's Bottoms" and "Men's
+   * Outerwear & Jackets". Read cold that looks like the grid repeating itself.
+   * Naming the parent on the promoted tile says what the relationship actually
+   * is, which is cheaper than hiding either one: dropping the promoted tiles
+   * would undo the whole point of displayAsTopLevel, and dropping them from
+   * their parent's child list would delete a subcategory from the one place a
+   * shopper goes looking for it.
+   */
+  promotedParentName?: string | null;
   // A representative image for the node: its own thumbnail, or (for parent
   // nodes that have none, since products only attach to leaves) the thumbnail
   // of its biggest-subtree descendant. Lets every category — top-level ones
@@ -223,7 +272,7 @@ export function buildCategoryTree(categories: CategoryRecord[]): CategoryTreeNod
     // Already at the top in CJ's own tree: the flag is redundant, not a
     // reason to draw it twice.
     if (!original.parentId || !nodeById.has(original.parentId)) continue;
-    roots.push(cloneForRoot(original));
+    roots.push(cloneForRoot(original, nodeById.get(original.parentId)!.name));
   }
 
   // Bottom-up: compute each node's recursive product count, drop any node
@@ -261,14 +310,20 @@ export function buildCategoryTree(categories: CategoryRecord[]): CategoryTreeNod
  * output. The id is kept as-is — the promoted tile links to the same category
  * page as the nested one, which is the point.
  */
-function cloneForRoot(node: CategoryTreeNode): CategoryTreeNode {
+function cloneForRoot(node: CategoryTreeNode, parentName: string): CategoryTreeNode {
   return {
     ...node,
     name: node.displayLabel || node.name,
-    children: node.children.map(cloneForRoot),
-    // Marks this as the promoted copy, so a UI that wants to tell them apart
-    // can. Nothing needs it today.
+    // Only the promoted node itself is labelled. Its descendants are shown by
+    // drilling in, where the header already says which category you are inside,
+    // so repeating "in Men's Clothing" down the subtree would be noise.
+    children: node.children.map((child) => cloneForRoot(child, parentName)).map((child) => ({
+      ...child,
+      promotedCopy: false,
+      promotedParentName: null,
+    })),
     promotedCopy: true,
+    promotedParentName: parentName,
   };
 }
 

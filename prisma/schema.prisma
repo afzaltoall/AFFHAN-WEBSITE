@@ -112,6 +112,19 @@ model Category {
   parentName   String?
   thumbnailUrl String?
 
+  /// Hand-picked image: the assignment script must not overwrite it.
+  ///
+  /// scripts/assign_category_thumbnails.mjs reassigns every category's picture
+  /// from scratch on each run, which is what makes it repairable rather than
+  /// write-once. That is right for the 650-odd categories nobody will ever
+  /// curate, and wrong for the handful a customer sees first — a chosen image
+  /// for "Women's Clothing" must not be replaced by whatever the rule picks
+  /// next time.
+  ///
+  /// Set it together with thumbnailUrl. The script treats a locked category's
+  /// image as taken, so nothing beneath it claims the same picture.
+  thumbnailLocked Boolean @default(false)
+
   /// Show this category at the top of the menu, alongside CJ's own 14.
   ///
   /// Display only. parentId is untouched, so the real tree — and the sync that
