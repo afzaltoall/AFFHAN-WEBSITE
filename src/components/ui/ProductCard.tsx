@@ -1,10 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { getCdnUrl } from "@/lib/cdn";
 import { FavouriteButton } from "@/components/ui/FavouriteButton";
+
+/**
+ * Candidate widths for a product card, measured rather than guessed: the card
+ * renders at 178 CSS px on a 412 phone, 225 on a 768 tablet, 206 on a 1440
+ * laptop and 235 on a 1920 screen.
+ *
+ * Capped at 400 on purpose, even though a 2x phone would "want" 412 and a 3x
+ * phone 534. A first attempt included 540 and the browser duly chose it on
+ * every retina device — sharper, and more bytes than the single fixed 400 this
+ * replaced, which is the wrong direction when the whole exercise is LCP. With
+ * the cap, every phone and tablet keeps exactly the 400 it already had and
+ * only 1x desktops move, down to 260. Nothing can get slower than it was.
+ *
+ * Kept short for a second reason: each entry is a separate resize for the
+ * Serverless Image Handler and a separate CloudFront object, so more
+ * candidates mean more cold misses across the audience, not just a better fit.
+ */
+const PRODUCT_IMAGE_WIDTHS = [200, 260, 340, 400];
+
+/**
+ * What the card really occupies, as measured above — not what the grid's
+ * column count implies. The old value claimed 50vw on a phone (206 px at 412)
+ * when the card is 178, and 20vw on a laptop (288) when it is 206. Overstating
+ * here makes the browser pick a larger candidate than it needs. The last entry
+ * is in px because the grid container stops growing at 1600.
+ */
+const PRODUCT_IMAGE_SIZES =
+  "(max-width: 767px) 44vw, (max-width: 1023px) 30vw, (max-width: 1600px) 15vw, 240px";
 
 export interface ProductCardData {
   id: number | string;
@@ -58,14 +85,39 @@ export function ProductCard({ product, onClick, priority }: ProductCardProps) {
             how many grid columns fit. */}
         <div className="relative w-full h-40 sm:h-48 shrink-0 bg-slate-50/40 overflow-hidden">
           {showImage ? (
-            <Image
+            /* A plain <img>, not next/image, so this can carry a srcSet.
+               next/image assigns srcSet itself after spreading the caller's
+               props, and with images.unoptimized it assigns undefined — so a
+               srcSet passed in is silently dropped. Everything else it was
+               giving this element (lazy loading, async decoding, the intrinsic
+               size that reserves the box) is spelled out below.
+
+               Why it needs one: every card asked for 400px regardless of how
+               big it actually renders. Measured across viewports, the card is
+               206 CSS px on a 1440 laptop and 178 on a phone, so a 1x laptop
+               was downloading 45 kB where 20 kB would do — while a 3x phone,
+               which genuinely wants 534px, was getting an upscaled 400. One
+               fixed width cannot serve both; the browser picks correctly from
+               a srcSet using the same `sizes` the old element already had. */
+            /* no-img-element is disabled below because it has the tradeoff
+               backwards here: it assumes next/image would optimise this, and
+               it cannot — images.unoptimized is on deliberately, so next/image
+               emits no srcSet at all. This element lowers bandwidth rather
+               than raising it. */
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
               src={getCdnUrl(product.imageUrl, 400) as string}
+              srcSet={PRODUCT_IMAGE_WIDTHS
+                .map((w) => `${getCdnUrl(product.imageUrl, w)} ${w}w`)
+                .join(", ")}
+              sizes={PRODUCT_IMAGE_SIZES}
               alt={product.name}
               width={400}
               height={400}
-              priority={priority}
-              loading={priority ? undefined : "lazy"}
-              sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, (max-width: 1536px) 20vw, 16vw"
+              loading={priority ? "eager" : "lazy"}
+              // The one priority card is the LCP candidate on most screens.
+              fetchPriority={priority ? "high" : undefined}
+              decoding="async"
               className={`absolute inset-0 w-full h-full object-cover group-hover:scale-[1.07] transition-all duration-500 ease-out ${priority || imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"}`}
               onLoad={() => setImageLoaded(true)}
               onError={() => setImageFailed(true)}
