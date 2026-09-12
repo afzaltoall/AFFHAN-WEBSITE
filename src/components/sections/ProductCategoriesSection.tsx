@@ -46,16 +46,42 @@ function CategoryTile({ cat }: { cat: Cat }) {
   );
 }
 
-/// Every category is rendered, with no cap.
+/// How many tiles the homepage sends is decided in src/app/page.tsx, not here.
 ///
-/// The cap that used to live here (60, behind a "View all" button) existed
-/// because all 596 tiles meant 6,147 DOM nodes and CLS of 1.06 on a throttled
-/// mobile profile. The cost was layout and paint, not the images — and
-/// content-visibility in globals.css removes exactly that: off-screen tiles
-/// stay in the DOM but the renderer skips them until they scroll into view.
+/// It briefly lived here and was imported by the page. That does not work: this
+/// is a "use client" module, so a server component importing a value out of it
+/// receives a client reference rather than the number. `slice(0, reference)`
+/// evaluated to `slice(0, 0)`, the grid rendered zero categories, and the
+/// section fell through to its loading skeleton — on a build that otherwise
+/// looked correct.
 
-export function ProductCategoriesSection({ initialCategories = [] }: { initialCategories?: Cat[] }) {
+/// Capped again, and this time the rest are a page away rather than a click.
+///
+/// The cap was removed on the argument that content-visibility makes the tiles
+/// free: off-screen subtrees stay in the DOM but skip layout and paint. That is
+/// true of layout and paint, and it is not true of everything else. Uncapped,
+/// the homepage shipped 662 cards, 688 images and 6,144 DOM nodes in 1.45MB of
+/// HTML, against 157 images and 716KB with the cap — and GTmetrix stopped being
+/// able to score the page at all, failing with "No CPU idle period". The
+/// document still has to be parsed, hydrated and kept in memory whether or not
+/// the renderer draws it.
+///
+/// The old version expanded in place, which put all of them back in the DOM on
+/// one click and recreated the problem for anyone who pressed it. The button
+/// now links to /products/, where the full list already lives behind its own
+/// pagination.
+
+export function ProductCategoriesSection({
+  initialCategories = [],
+  totalCount,
+}: {
+  /** Already sliced by the page — see the note on HOMEPAGE_CATEGORY_TILES. */
+  initialCategories?: Cat[];
+  /** How many categories exist in total, for the copy and the button. */
+  totalCount?: number;
+}) {
   const [categories, setCategories] = useState<Cat[]>(initialCategories || []);
+  const total = totalCount ?? categories.length;
 
   // Initial categories are fetched server-side; we no longer fetch on mount.
 
@@ -69,7 +95,7 @@ export function ProductCategoriesSection({ initialCategories = [] }: { initialCa
               Explore our sourcing categories
             </h2>
             <p className="mt-2 text-slate-500 max-w-2xl">
-              Browse across {categories.length.toLocaleString()} verified categories — every product we can source for you. Whether you&rsquo;re working with our <Link href="/sourcing-company-chennai/" className="text-brand hover:underline font-medium">sourcing company in Chennai</Link> or our <Link href="/sourcing-company-dubai/" className="text-brand hover:underline font-medium">sourcing company in Dubai</Link>, we handle end-to-end procurement, quality checks, and freight.
+              Browse across {total.toLocaleString()} verified categories — every product we can source for you. Whether you&rsquo;re working with our <Link href="/sourcing-company-chennai/" className="text-brand hover:underline font-medium">sourcing company in Chennai</Link> or our <Link href="/sourcing-company-dubai/" className="text-brand hover:underline font-medium">sourcing company in Dubai</Link>, we handle end-to-end procurement, quality checks, and freight.
             </p>
           </div>
           <Link
@@ -100,6 +126,17 @@ export function ProductCategoriesSection({ initialCategories = [] }: { initialCa
               ))}
             </div>
 
+            {total > categories.length && (
+              <div className="mt-8 flex justify-center">
+                <Link
+                  href="/products/"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-brand-dark shadow-sm transition-all hover:border-brand/50 hover:gap-3"
+                >
+                  Explore More Categories
+                  <ArrowRight size={16} />
+                </Link>
+              </div>
+            )}
           </>
         )}
       </div>

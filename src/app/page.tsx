@@ -8,6 +8,12 @@ import { GET as getCategories } from "@/app/api/categories/route";
 import { getHeroFeed } from "@/lib/products";
 import { splitHeroPool } from "@/lib/heroPool";
 
+// Ten rows at the widest breakpoint (lg is 6 columns), so the grid still reads
+// as "a lot of categories" without carrying all ~593 in the document. Defined
+// here, on the server: it cannot be imported from the section, which is a
+// client module.
+const HOMEPAGE_CATEGORY_TILES = 60;
+
 export const metadata: Metadata = {
   alternates: { canonical: "https://affhan.com/" },
 };
@@ -42,7 +48,14 @@ export default async function Home() {
     <main className="w-full overflow-x-hidden scroll-smooth bg-slate-50">
       <MarketplaceHeroSection initialProducts={heroPool.hero} initialCategories={initialCategories} />
       <PopularProductsSection initialProducts={heroPool.popular} />
-      <ProductCategoriesSection initialCategories={productCategories} />
+      {/* Sliced here, not in the component. Handing it all ~600 and rendering
+          60 still serialises all ~600 into the RSC payload, which is most of
+          what took the homepage from 716KB to 1.45MB. The true count travels
+          separately so the copy can still say how many there are. */}
+      <ProductCategoriesSection
+        initialCategories={productCategories.slice(0, HOMEPAGE_CATEGORY_TILES)}
+        totalCount={productCategories.length}
+      />
       <ProductSpotlightSection initialProducts={heroPool.spotlight} />
       <FooterSection />
     </main>
