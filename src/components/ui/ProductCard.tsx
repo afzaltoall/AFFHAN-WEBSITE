@@ -6,6 +6,37 @@ import Link from "next/link";
 import { getCdnUrl } from "@/lib/cdn";
 import { FavouriteButton } from "@/components/ui/FavouriteButton";
 
+/**
+ * Candidate widths for a product card, measured rather than guessed: the card
+ * renders at 178 CSS px on a 412 phone, 225 on a 768 tablet, 206 on a 1440
+ * laptop and 235 on a 1920 screen.
+ *
+ * Capped at 400 on purpose, even though a 2x phone would "want" 412 and a 3x
+ * phone 534. A first attempt included 540 and the browser duly chose it on
+ * every retina device — sharper, and MORE bytes than the single fixed 400 this
+ * replaces, which is the wrong direction when the point is page weight. With
+ * the cap, every phone and tablet keeps exactly the 400 it already had and
+ * only 1x desktops move, down to 260. Nothing can get slower than it was.
+ *
+ * Kept short for a second reason: each entry is a separate resize for the
+ * Serverless Image Handler and a separate CloudFront object, so more
+ * candidates mean more cold misses across the audience, not just a better fit.
+ */
+const PRODUCT_IMAGE_WIDTHS = [200, 260, 340, 400];
+
+/**
+ * What the card really occupies, as measured above — not what the grid's
+ * column count implies. The old value claimed 50vw on a phone (206 px at 412)
+ * for a card that is 178, and 20vw on a laptop (288) for one that is 206;
+ * overstating it makes the browser pick a larger candidate than it needs. The
+ * last entry is in px because the grid container stops growing at 1600.
+ */
+const PRODUCT_IMAGE_SIZES =
+  "(max-width: 767px) 44vw, (max-width: 1023px) 30vw, (max-width: 1600px) 15vw, 240px";
+
+const PRODUCT_IMAGE_CLASS =
+  "absolute inset-0 w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-out";
+
 export interface ProductCardData {
   id: number | string;
   name: string;
@@ -139,30 +170,53 @@ export function ProductCard({ product, onClick, priority, eager }: ProductCardPr
         {/* Fixed image height so cards stay a consistent height regardless of
             how many grid columns fit. */}
         <div className="relative w-full h-40 sm:h-48 shrink-0 bg-slate-50/40 overflow-hidden">
-          {showImage ? (
+          {/* No fade-in on either branch. The image used to start at opacity-0
+              and transition to opacity-100 once onLoad fired, and that is what
+              made "images are not showing": on a reload the card ended up with
+              the opacity-100 class applied and a computed opacity of 0, a
+              transition that had started and never finished, over an image
+              that was fully downloaded the whole time. A decorative 500ms fade
+              is not worth a failure mode that hides the product catalogue. */}
+          {!showImage ? (
+            <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">No Image</div>
+          ) : priority ? (
+            /* The LCP candidate stays on next/image, deliberately.
+               next/image emits the <link rel="preload"> that gets this one
+               image requested before the parser reaches it, and that matters
+               now that first paint is no longer the bottleneck: the LCP image
+               is the last thing the page waits for. A srcSet would buy this
+               card ~20 kB on a 1x desktop and cost it that preload, which is
+               the wrong trade for the one image LCP is measured against. */
             <Image
               ref={onImageRef}
               src={getCdnUrl(product.imageUrl, 400) as string}
               alt={product.name}
               width={400}
               height={400}
-              priority={priority}
-              loading={priority || eager ? "eager" : "lazy"}
-              sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, (max-width: 1536px) 20vw, 16vw"
-              // No fade-in. The image used to start at opacity-0 and
-              // transition to opacity-100 once onLoad fired, and that is what
-              // made "images are not showing": on a reload the card ended up
-              // with the opacity-100 class applied and a computed opacity of 0,
-              // a transition that had started and never finished. The image was
-              // fully downloaded the whole time.
-              //
-              // A decorative 500ms fade is not worth a failure mode that hides
-              // the product catalogue, so the image is simply visible.
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-out"
+              priority
+              sizes={PRODUCT_IMAGE_SIZES}
+              className={PRODUCT_IMAGE_CLASS}
               onError={() => setImageFailed(true)}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-slate-300 text-sm">No Image</div>
+            /* Every other card is a hand-written <img> so it can carry a
+               srcSet. next/image assigns srcSet itself after spreading the
+               caller's props, and assigns undefined under images.unoptimized,
+               so one passed in is silently dropped. */
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              ref={onImageRef}
+              src={getCdnUrl(product.imageUrl, 400) as string}
+              srcSet={PRODUCT_IMAGE_WIDTHS.map((w) => `${getCdnUrl(product.imageUrl, w)} ${w}w`).join(", ")}
+              sizes={PRODUCT_IMAGE_SIZES}
+              alt={product.name}
+              width={400}
+              height={400}
+              loading={eager ? "eager" : "lazy"}
+              decoding="async"
+              className={PRODUCT_IMAGE_CLASS}
+              onError={() => setImageFailed(true)}
+            />
           )}
           {/* Category chip floating on the image */}
           <span className="absolute top-2.5 left-2.5 text-[10px] font-bold uppercase tracking-wide text-slate-700 bg-white/85 backdrop-blur-sm px-2.5 py-1 rounded-full shadow-sm max-w-[85%] truncate">
