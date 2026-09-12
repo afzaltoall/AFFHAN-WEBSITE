@@ -19,7 +19,19 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://affhan.com/" },
 };
 
-export const revalidate = 3600;
+// One minute, not an hour.
+//
+// The homepage's products are rotated on the server: getHeroFeed shuffles a
+// 600-row cached pool and the result is baked into the ISR page, so the set
+// only changes when this expires. At 3600 that meant the hero grid, the
+// carousel and the spotlight showed the identical 90 products for a whole
+// hour no matter how often the page was refreshed, which reads as broken
+// rather than as caching.
+//
+// 60 keeps the page cached — the overwhelming majority of requests are still
+// served from the edge without touching the database — while making the
+// catalogue visibly alive. The cost is at most one regeneration a minute.
+export const revalidate = 60;
 
 export default async function Home() {
   const [categoriesRes, productsResult] = await Promise.all([

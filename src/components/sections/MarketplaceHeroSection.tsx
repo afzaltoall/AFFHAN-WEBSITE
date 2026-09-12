@@ -590,7 +590,7 @@ export function MarketplaceHeroSection({
                     were tried on production over 5-run samples and both landed
                     inside the run-to-run variance, so the simpler code stands.
                     See the note on LCP_STABLE_LEAD in lib/heroPool.ts. */}
-                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} />
+                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} eager={idx < 12} />
               </div>
             ))
           )}

@@ -1296,8 +1296,24 @@ html {
  *
  * Worth 70ms of TBT on its own (414ms with only the tiles contained, 343ms with
  * these as well). */
+/* content-visibility is NOT set here any more, and must not be put back
+ * without solving this first.
+ *
+ * A contained subtree is invisible to intersection observation. Measured: an
+ * IntersectionObserver given six of these cards' images fired zero callbacks.
+ * Native lazy loading is built on the same machinery, so on a reload — where
+ * the stylesheet is already cached and containment applies from the first
+ * layout, rather than arriving two seconds in — Chrome never requested the
+ * images at all. 45 image requests on a first load, 9 on the reload, and a
+ * grid of blank cards with complete === false and an empty currentSrc.
+ *
+ * It looked like an image problem and was not: setting loading="eager" on the
+ * same elements loaded all of them instantly. An IntersectionObserver-based
+ * rescue could not fix it either, for exactly the reason above.
+ *
+ * contain-intrinsic-size stays. On its own it reserves the card's height for
+ * the skeleton and costs nothing. */
 .hero-product-grid > * {
-  content-visibility: auto;
   contain-intrinsic-size: auto 273px;
 }
 @media (min-width: 768px) {

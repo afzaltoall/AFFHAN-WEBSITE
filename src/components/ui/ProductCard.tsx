@@ -1,37 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { getCdnUrl } from "@/lib/cdn";
 import { FavouriteButton } from "@/components/ui/FavouriteButton";
-
-/**
- * Candidate widths for a product card, measured rather than guessed: the card
- * renders at 178 CSS px on a 412 phone, 225 on a 768 tablet, 206 on a 1440
- * laptop and 235 on a 1920 screen.
- *
- * Capped at 400 on purpose, even though a 2x phone would "want" 412 and a 3x
- * phone 534. A first attempt included 540 and the browser duly chose it on
- * every retina device — sharper, and more bytes than the single fixed 400 this
- * replaced, which is the wrong direction when the whole exercise is LCP. With
- * the cap, every phone and tablet keeps exactly the 400 it already had and
- * only 1x desktops move, down to 260. Nothing can get slower than it was.
- *
- * Kept short for a second reason: each entry is a separate resize for the
- * Serverless Image Handler and a separate CloudFront object, so more
- * candidates mean more cold misses across the audience, not just a better fit.
- */
-const PRODUCT_IMAGE_WIDTHS = [200, 260, 340, 400];
-
-/**
- * What the card really occupies, as measured above — not what the grid's
- * column count implies. The old value claimed 50vw on a phone (206 px at 412)
- * when the card is 178, and 20vw on a laptop (288) when it is 206. Overstating
- * here makes the browser pick a larger candidate than it needs. The last entry
- * is in px because the grid container stops growing at 1600.
- */
-const PRODUCT_IMAGE_SIZES =
-  "(max-width: 767px) 44vw, (max-width: 1023px) 30vw, (max-width: 1600px) 15vw, 240px";
 
 export interface ProductCardData {
   id: number | string;
@@ -45,6 +18,59 @@ interface ProductCardProps {
   product: ProductCardData;
   onClick: () => void;
   priority?: boolean;
+  /**
+   * Load this card's image immediately instead of lazily.
+   *
+   * For cards that start on screen. Native lazy loading does not reliably
+   * request an in-viewport image on a reload — measured repeatedly on the
+   * homepage: 45 image requests on a first load, 9 on the reload, and the only
+   * card that ever appeared was the one already loading eagerly. Every attempt
+   * to rescue the lazy ones failed (an IntersectionObserver over them fires no
+   * callbacks at all), while eager worked in every single test.
+   *
+   * So above-the-fold cards opt out of lazy loading. Below-the-fold ones keep
+   * it: they are the reason it exists.
+   */
+  eager?: boolean;
+}
+
+/**
+ * Rescues images that native lazy-loading decides not to load.
+ *
+ * On a reload — not a first visit, a reload — Chrome leaves `loading="lazy"`
+ * images sitting in the viewport with `complete === false` and an empty
+ * `currentSrc`, having never requested them. Measured on the homepage at
+ * 1440x900: 11 product images in view, 45 image requests on the first load
+ * and 9 on the reload, with only the one `eager` card ever appearing. The
+ * cards were not invisible, they were empty. Scrolling did not shake them
+ * loose; setting `loading = "eager"` loaded all 11 at once, which is what
+ * this does.
+ *
+ * One observer for every card rather than one each: 65 of them on the
+ * homepage, and IntersectionObserver is used instead of reading rects on
+ * mount precisely so this cannot force a synchronous layout of all 65.
+ *
+ * Cards unobserve themselves once handled, so this costs nothing after the
+ * first screen settles, and nothing at all on a first visit, where lazy
+ * loading behaves.
+ */
+let lazyRescue: IntersectionObserver | null = null;
+function rescueWhenVisible(img: HTMLImageElement | null) {
+  if (!img || typeof IntersectionObserver === "undefined") return;
+  if (!lazyRescue) {
+    lazyRescue = new IntersectionObserver((entries, observer) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const el = entry.target as HTMLImageElement;
+        // Already loading or loaded: nothing to rescue, just stop watching.
+        if (!el.complete && el.loading === "lazy") el.loading = "eager";
+        observer.unobserve(el);
+      }
+    // Match the intent of lazy loading rather than defeating it: only images
+    // actually approaching the viewport are forced.
+    }, { rootMargin: "200px" });
+  }
+  lazyRescue.observe(img);
 }
 
 // Shared product card used by every product grid (homepage desktop/mobile
@@ -56,17 +82,46 @@ interface ProductCardProps {
 // page (/products/[id]) — shareable + crawlable — while "Inquire Now" opens the
 // quick quote modal (onClick) without leaving the page. The whole card shares
 // one `group` so the hover visuals fire from anywhere on it.
-export function ProductCard({ product, onClick, priority }: ProductCardProps) {
+export function ProductCard({ product, onClick, priority, eager }: ProductCardProps) {
   const categoryLabel = product.categoryRef?.name || product.category || "Product";
   // CJ's hotlinked CDN images occasionally go dead — next/image renders
   // nothing visible when a remote image 404s/errors, which looked like a
   // blank, borderless hole in the grid. Track load failure and fall back
   // to the same placeholder used for a missing imageUrl.
   const [imageFailed, setImageFailed] = useState(false);
-  // Fade the hotlinked CJ image in once it decodes, so late-arriving images
-  // ease in over the neutral placeholder instead of popping in abruptly.
-  const [imageLoaded, setImageLoaded] = useState(false);
   const showImage = product.imageUrl && !imageFailed;
+
+  /**
+   * Catches a dead image so the "No Image" placeholder can take over.
+   *
+   * The onError prop alone is not enough: it is a React synthetic handler
+   * attached during commit, and an image that fails before that — from cache,
+   * on a reload — never reaches it. Checking at ref-attach time and adding a
+   * native listener covers both.
+   *
+   * `complete` is deliberately not trusted on its own. It is also true for an
+   * <img> that has no src yet, which is exactly what this ref sees during
+   * hydration; an earlier version keyed off it, returned here, and skipped the
+   * lazy-load rescue below entirely.
+   */
+  const onImageRef = useCallback((img: HTMLImageElement | null) => {
+    if (!img) return;
+
+    const checkFailed = () => {
+      // `complete` is true for a failed image too; naturalWidth separates them.
+      if (img.naturalWidth === 0) setImageFailed(true);
+    };
+
+    if (img.currentSrc && img.complete) {
+      checkFailed();
+      return;
+    }
+
+    img.addEventListener("load", checkFailed, { once: true });
+    img.addEventListener("error", () => setImageFailed(true), { once: true });
+    rescueWhenVisible(img);
+  }, []);
+
   const href = `/products/${product.id}`;
 
   return (
@@ -85,41 +140,25 @@ export function ProductCard({ product, onClick, priority }: ProductCardProps) {
             how many grid columns fit. */}
         <div className="relative w-full h-40 sm:h-48 shrink-0 bg-slate-50/40 overflow-hidden">
           {showImage ? (
-            /* A plain <img>, not next/image, so this can carry a srcSet.
-               next/image assigns srcSet itself after spreading the caller's
-               props, and with images.unoptimized it assigns undefined — so a
-               srcSet passed in is silently dropped. Everything else it was
-               giving this element (lazy loading, async decoding, the intrinsic
-               size that reserves the box) is spelled out below.
-
-               Why it needs one: every card asked for 400px regardless of how
-               big it actually renders. Measured across viewports, the card is
-               206 CSS px on a 1440 laptop and 178 on a phone, so a 1x laptop
-               was downloading 45 kB where 20 kB would do — while a 3x phone,
-               which genuinely wants 534px, was getting an upscaled 400. One
-               fixed width cannot serve both; the browser picks correctly from
-               a srcSet using the same `sizes` the old element already had. */
-            /* no-img-element is disabled below because it has the tradeoff
-               backwards here: it assumes next/image would optimise this, and
-               it cannot — images.unoptimized is on deliberately, so next/image
-               emits no srcSet at all. This element lowers bandwidth rather
-               than raising it. */
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <Image
+              ref={onImageRef}
               src={getCdnUrl(product.imageUrl, 400) as string}
-              srcSet={PRODUCT_IMAGE_WIDTHS
-                .map((w) => `${getCdnUrl(product.imageUrl, w)} ${w}w`)
-                .join(", ")}
-              sizes={PRODUCT_IMAGE_SIZES}
               alt={product.name}
               width={400}
               height={400}
-              loading={priority ? "eager" : "lazy"}
-              // The one priority card is the LCP candidate on most screens.
-              fetchPriority={priority ? "high" : undefined}
-              decoding="async"
-              className={`absolute inset-0 w-full h-full object-cover group-hover:scale-[1.07] transition-all duration-500 ease-out ${priority || imageLoaded ? "opacity-100 scale-100" : "opacity-0 scale-105"}`}
-              onLoad={() => setImageLoaded(true)}
+              priority={priority}
+              loading={priority || eager ? "eager" : "lazy"}
+              sizes="(max-width: 768px) 50vw, (max-width: 1280px) 25vw, (max-width: 1536px) 20vw, 16vw"
+              // No fade-in. The image used to start at opacity-0 and
+              // transition to opacity-100 once onLoad fired, and that is what
+              // made "images are not showing": on a reload the card ended up
+              // with the opacity-100 class applied and a computed opacity of 0,
+              // a transition that had started and never finished. The image was
+              // fully downloaded the whole time.
+              //
+              // A decorative 500ms fade is not worth a failure mode that hides
+              // the product catalogue, so the image is simply visible.
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-[1.07] transition-transform duration-500 ease-out"
               onError={() => setImageFailed(true)}
             />
           ) : (
