@@ -99,10 +99,28 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
             <ShippingBar />
             <style dangerouslySetInnerHTML={{
               __html: `
-              @keyframes b2bFlow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+              /* One tile's worth of travel, as a transform. background-position
+                 cannot be composited, so the old version repainted the pill
+                 every frame for the life of the page. The sweep now lives on a
+                 ::before that is two tiles wide and slides exactly one tile,
+                 which loops seamlessly because the gradient repeats. */
+              @keyframes b2bFlow { from { transform: translateX(0); } to { transform: translateX(-50%); } }
               @keyframes b2bShine { 0% { transform: translateX(-160%) skewX(-18deg); } 100% { transform: translateX(260%) skewX(-18deg); } }
               @keyframes b2bRipple { 0% { transform: scale(0); opacity: 0.45; } 100% { transform: scale(2.8); opacity: 0; } }
-              .b2b-badge { background: linear-gradient(115deg, #ffffff 0%, #eaf9fc 22%, #cdeef7 42%, #ffffff 66%, #eaf9fc 100%); background-size: 220% 100%; animation: b2bFlow 8s linear infinite; }
+              /* isolation, so the z-index:-1 sweep below stays inside the pill
+                 rather than sliding behind the section. The pill keeps a solid
+                 base colour because the gradient has moved off it. */
+              .b2b-badge { background: #ffffff; isolation: isolate; }
+              .b2b-badge::before {
+                content: ""; position: absolute; top: 0; left: 0; height: 100%;
+                width: 440%; z-index: -1; pointer-events: none;
+                /* Two tiles of the original 220% gradient, side by side, so a
+                   50% slide lands exactly on the next tile and the loop has no
+                   seam. */
+                background: linear-gradient(115deg, #ffffff 0%, #eaf9fc 22%, #cdeef7 42%, #ffffff 66%, #eaf9fc 100%) 0 0 / 50% 100% repeat-x;
+                animation: b2bFlow 8s linear infinite;
+                will-change: transform;
+              }
               .b2b-sheen { position:absolute; inset:0; background: linear-gradient(to bottom, rgba(255,255,255,0.7), rgba(255,255,255,0) 50%); }
               .b2b-shine { position:absolute; top:0; bottom:0; left:0; width:45%; transform: translateX(-160%) skewX(-18deg);
                 background: linear-gradient(100deg, transparent, rgba(255,255,255,0.9), transparent); }
@@ -158,21 +176,31 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                   opacity: 0; 
                 }
               }
+              /* transform and opacity only. border-width used to animate here
+                 (2px -> 0.5px) and it is a LAYOUT property: 36 ripples each
+                 re-running layout and paint every frame, forever, is why
+                 Lighthouse could never find a CPU idle window and GTmetrix
+                 failed the page outright.
+
+                 The border is a fixed 1px now and the thinning is gone. It was
+                 never visible anyway: apparent thickness is border-width x
+                 scale, so the old animation ran 0.2px -> 0.75px and the new one
+                 runs 0.1px -> 1.5px, crossing at ~0.8px through the middle of
+                 the 80%-88% window where the ripple is actually on screen. A
+                 sub-pixel difference on a 24x8px decoration, in exchange for
+                 the whole thing moving to the compositor. */
               @keyframes waterRipple {
                 0%, 79% {
                   opacity: 0;
                   transform: translate(-50%, 310px) scale(0.1);
-                  border-width: 2px;
                 }
                 80% {
                   opacity: 1;
                   transform: translate(-50%, 310px) scale(0.1);
-                  border-width: 2px;
                 }
                 88% {
                   opacity: 0;
                   transform: translate(-50%, 310px) scale(1.5);
-                  border-width: 0.5px;
                 }
                 100% {
                   opacity: 0;
@@ -214,14 +242,15 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                 will-change: transform, opacity;
               }
               .b2b-bead-ripple {
-                position: absolute; top: 80%; left: 50%; width: 24px; height: 8px; border-radius: 50%; background: transparent; 
-                border: 2px solid rgba(14,165,233,0.8);
+                position: absolute; top: 80%; left: 50%; width: 24px; height: 8px; border-radius: 50%; background: transparent;
+                border: 1px solid rgba(14,165,233,0.8);
                 box-shadow: 0 0 6px rgba(14,165,233,0.6), inset 0 0 4px rgba(14,165,233,0.4);
                 transform: translate(-50%, 210px) scale(0.1);
                 opacity: 0;
                 animation: waterRipple var(--dur, 4s) ease-out infinite;
                 animation-delay: var(--d, 0s);
                 animation-play-state: paused;
+                will-change: transform, opacity;
               }
               .b2b-bead-rebound {
                 position: absolute; top: 15%; left: 22%; width: 28%; height: 24%; border-radius: 50%; background: rgba(255,255,255,0.95);
@@ -285,7 +314,11 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                 .group:hover .b2b-beads { opacity: 1; }
                 .group:hover .b2b-bead { animation-duration: 2s; }
               }
-              @media (prefers-reduced-motion: reduce) { .b2b-badge, .b2b-bead { animation: none; } .b2b-beads { opacity: 0; } }
+              /* .b2b-badge::before is named explicitly: the sweep moved off the
+                 pill onto the pseudo-element, so stopping ".b2b-badge" alone
+                 would have quietly left it running for exactly the people who
+                 asked for no motion. */
+              @media (prefers-reduced-motion: reduce) { .b2b-badge, .b2b-badge::before, .b2b-bead { animation: none; } .b2b-beads { opacity: 0; } }
             ` }} />
             <span className="group b2b-badge peer relative inline-flex items-center gap-2 overflow-hidden rounded-full border border-brand/30 px-4 py-1.5 shadow-[0_8px_24px_-10px_rgba(23,101,121,0.5)] backdrop-blur-sm transition-all duration-300 hover:shadow-[0_12px_30px_-8px_rgba(39,168,196,0.6)] hover:-translate-y-0.5">
               {/* Liquid-glass layers: a soft top sheen, a light shine that sweeps
