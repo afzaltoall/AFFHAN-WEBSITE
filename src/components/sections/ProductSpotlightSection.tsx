@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
-import { shuffleArray, SPOTLIGHT_COUNT } from "@/lib/heroPool";
+import { useMemo, useState } from "react";
+import { SPOTLIGHT_COUNT } from "@/lib/heroPool";
 import { Sparkles } from "lucide-react";
 import dynamic from 'next/dynamic';
 const CircularTestimonials = dynamic(() => import("@/components/ui/circular-testimonials").then(mod => mod.CircularTestimonials), { ssr: true });
@@ -20,18 +19,12 @@ function sourcingBlurb(categoryName: string) {
  * modal.
  */
 export function ProductSpotlightSection({ initialProducts = [] }: { initialProducts?: ProductCardData[] }) {
-  const [products, setProducts] = useState<ProductCardData[]>(() => 
-    initialProducts.filter((p: ProductCardData) => p.imageUrl)
-  );
+  const products = initialProducts;
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
-  // Re-pick after hydration so the spotlight varies between visits. Effect, not
-  // render, or the first client pass would not match the server HTML.
-  useIsomorphicLayoutEffect(() => {
-    const withImage = initialProducts.filter((p: ProductCardData) => p.imageUrl);
-    if (!withImage.length) return;
-    setProducts(shuffleArray(withImage));
-  }, [initialProducts]);
+  // Variety comes from the server now, once per ISR cycle. The imageUrl
+  // filter went with the reshuffle: the hero pool query already requires
+  // imageUrl IS NOT NULL, so there was never anything to filter out.
 
   // This section receives its own slice from src/app/page.tsx, disjoint from
   // the hero grid's and the carousel's. It used to take slice(60, 65) of the

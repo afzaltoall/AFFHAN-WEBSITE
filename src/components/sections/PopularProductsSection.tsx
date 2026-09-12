@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
-import { shuffleArray, POPULAR_COUNT } from "@/lib/heroPool";
+import { useState, useMemo } from "react";
+import { POPULAR_COUNT } from "@/lib/heroPool";
 import Link from "next/link";
 import { ChevronRight, Flame } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -13,16 +12,12 @@ import type { CardItem } from "@/components/ui/card-fan-carousel";
 import type { ProductCardData } from "@/components/ui/ProductCard";
 
 export function PopularProductsSection({ initialProducts = [] }: { initialProducts?: ProductCardData[] }) {
-  const [products, setProducts] = useState<ProductCardData[]>(initialProducts);
+  const products = initialProducts;
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
 
-  // Re-pick after hydration so the carousel varies between visits. Must be an
-  // effect, not useState or render: the first client pass has to match the
-  // server HTML exactly or React reports a hydration mismatch.
-  useIsomorphicLayoutEffect(() => {
-    if (!initialProducts.length) return;
-    setProducts(shuffleArray(initialProducts));
-  }, [initialProducts]);
+  // Variety comes from the server now, once per ISR cycle, so the
+  // post-hydration reshuffle that used to sit here is gone along with the
+  // 80 spare products it needed in the payload.
 
   // This section now receives its OWN slice of the pool from src/app/page.tsx,
   // already disjoint from the hero grid's and the spotlight's. The old approach

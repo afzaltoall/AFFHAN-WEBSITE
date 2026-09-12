@@ -27,6 +27,7 @@ const NavAuthButton = dynamic(
   { ssr: false, loading: () => <AuthButtonPlaceholder /> }
 );
 import { prepCatalogueNav } from "@/lib/scroll";
+import { loadAllCategories } from "@/lib/categoriesClient";
 
 interface SuggestCategory { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
 interface SuggestProduct { id: number; name: string; imageUrl: string | null; category?: string | null; categoryRef?: { name: string | null } | null }
@@ -90,10 +91,15 @@ export function Navbar() {
       if (categoriesFetched.current) return;
       categoriesFetched.current = true;
       try {
-        const res = await fetch("/api/categories");
-        if (!res.ok) throw new Error("Failed to fetch categories");
-        const json = await res.json();
-        if (isMounted) setCategories(json.data || []);
+        // Shared with the hero's mega-panel, which wants the same list. Going
+        // through loadAllCategories means whichever of the two idle-prefetches
+        // runs first pays for it and the other awaits the same promise —
+        // previously this page downloaded and parsed the 252KB list twice.
+        // It also keeps the trailing slash, without which trailingSlash: true
+        // answers 308 and every call costs two round trips.
+        const data = await loadAllCategories();
+        if (!data.length) throw new Error("Failed to fetch categories");
+        if (isMounted) setCategories(data);
       } catch (err) {
         console.error(err);
         // Let a later attempt retry rather than leaving the menu permanently

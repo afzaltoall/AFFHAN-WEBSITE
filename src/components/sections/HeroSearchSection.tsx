@@ -12,9 +12,21 @@ import { ImageSearchButton } from "@/components/ui/ImageSearchButton";
 interface CatMatch { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
 interface ProdMatch { id: number; name: string; imageUrl: string | null; category: string | null }
 
-import { type CategoryRecord } from "@/lib/categoryTree";
+/**
+ * Only the fields the shortcut row reads.
+ *
+ * This used to take the homepage's whole CategoryRecord[] — all 668 of them —
+ * and pick eight. The page now does that picking on the server, so what
+ * arrives here is already the eight, and a narrower type says so.
+ */
+export interface SearchShortcutCategory {
+  id: string;
+  name: string;
+  thumbnailUrl: string | null;
+  productCount: number;
+}
 
-export function HeroSearchSection({ categories = [] }: { categories?: CategoryRecord[] }) {
+export function HeroSearchSection({ categories = [] }: { categories?: SearchShortcutCategory[] }) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);

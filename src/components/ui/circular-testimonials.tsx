@@ -166,9 +166,23 @@ export const CircularTestimonials = ({
   };
 
   return (
-    <div className="testimonial-container">
-      <div className="testimonial-grid">
-        <div className="image-container" ref={imageContainerRef}>
+    <div className="testimonial-container w-full max-w-4xl p-4">
+      <div className="testimonial-grid grid gap-12 md:grid-cols-2">
+        {/* Layout (size + absolute stacking) is in Tailwind, not in the
+            styled-jsx block below, and that is deliberate.
+
+            This component is loaded through next/dynamic, so its styled-jsx
+            CSS ships with its own chunk rather than the document. Until that
+            chunk arrives the five images are unstyled and sit in normal flow
+            at their intrinsic 600x400 — about 346px tall each — and when the
+            CSS lands they collapse into one 16rem box. That shortened the
+            document by 842px in one frame and scored CLS 0.33 on its own.
+
+            Tailwind's stylesheet is render-blocking in <head>, so h-64/md:h-80
+            and the absolute positioning apply on the very first paint. The
+            styled-jsx rules that remain are purely cosmetic (shadow,
+            perspective) and cost nothing if they arrive late. */}
+        <div className="image-container relative w-full h-64 md:h-80" ref={imageContainerRef}>
           {testimonials.map((testimonial, index) => (
             <Image
               key={testimonial.src + index}
@@ -178,7 +192,7 @@ export const CircularTestimonials = ({
               height={400}
               sizes="(max-width: 768px) 300px, 400px"
               priority={index === 0}
-              className="testimonial-image"
+              className="testimonial-image absolute inset-0 w-full h-full object-cover rounded-3xl"
               style={getImageStyle(index)}
             />
           ))}
@@ -239,27 +253,15 @@ export const CircularTestimonials = ({
         </div>
       </div>
       <style jsx>{`
-        .testimonial-container {
-          width: 100%;
-          max-width: 56rem;
-          padding: 1rem;
-        }
-        .testimonial-grid {
-          display: grid;
-          gap: 3rem;
-        }
+        /* Everything that decides layout — container width, grid columns,
+           image box size, absolute stacking — is a Tailwind class on the
+           element instead of a rule here. This component arrives through
+           next/dynamic, so these styles ship with its own chunk; only the
+           cosmetics below are safe to apply late. See .image-container. */
         .image-container {
-          position: relative;
-          width: 100%;
-          height: 16rem;
           perspective: 1000px;
         }
         :global(.testimonial-image) {
-          position: absolute;
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: 1.5rem;
           box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
         .testimonial-content {
@@ -294,12 +296,8 @@ export const CircularTestimonials = ({
           border: none;
         }
         @media (min-width: 768px) {
-          .testimonial-grid {
-            grid-template-columns: 1fr 1fr;
-          }
-          .image-container {
-            height: 20rem;
-          }
+          /* columns are Tailwind's md:grid-cols-2 now */
+          /* height is Tailwind's md:h-80 now */
           .arrow-buttons {
             padding-top: 0;
           }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useRef } from "react";
-import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
+import { useCallback, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Star, ChevronRight } from "lucide-react";
@@ -12,35 +11,61 @@ import { CategoryMegaPanel } from "@/components/ui/CategoryMegaPanel";
 import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph-wrapper";
-import { buildCategoryTree, getCategoryIcon, type CategoryRecord } from "@/lib/categoryTree";
-import { shuffleArray, HERO_GRID_COUNT } from "@/lib/heroPool";
+import { buildCategoryTree, getCategoryIcon, type CategoryTreeNode } from "@/lib/categoryTree";
 import { ShippingBar } from "@/components/ui/ShippingBar";
 import { AffhanBrandBar } from "@/components/ui/AffhanBrandBar";
+import { loadAllCategories } from "@/lib/categoriesClient";
 
-export function MarketplaceHeroSection({ initialProducts = [], initialCategories = [] }: { initialProducts?: ProductCardData[], initialCategories?: CategoryRecord[] }) {
+/** The two small slices the first screen needs, in place of all 668 rows. */
+export interface SidebarCategory { id: string; name: string; }
+export interface SearchCategory {
+  id: string;
+  name: string;
+  thumbnailUrl: string | null;
+  productCount: number;
+}
+
+export function MarketplaceHeroSection({
+  initialProducts = [],
+  sidebarCategories = [],
+  searchCategories = [],
+}: {
+  initialProducts?: ProductCardData[];
+  /** Top-level names for the sidebar rail. */
+  sidebarCategories?: SidebarCategory[];
+  /** The eight biggest categories, as search shortcuts. */
+  searchCategories?: SearchCategory[];
+}) {
   const router = useRouter();
-  const [categories, setCategories] = useState<CategoryRecord[]>(initialCategories);
   // The full grid, rendered in one go — no infinite scroll, no pagination.
-  // The server sends an over-sized slice; this takes the first HERO_GRID_COUNT
-  // for the initial HTML and re-picks them at random once hydrated.
-  const [products, setProducts] = useState<ProductCardData[]>(
-    initialProducts.slice(0, HERO_GRID_COUNT)
-  );
+  // The server sends exactly HERO_GRID_COUNT products, already rotated for
+  // this ISR cycle, so this renders what it is given.
+  const products = initialProducts;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Re-pick after hydration, never during render.
+  // The post-hydration reshuffle that used to sit here is gone.
   //
-  // The server pass has to emit exactly what the server rendered or React
-  // reports a hydration mismatch, so the shuffle cannot run in useState or in
-  // the render body. Running it in an effect means the first paint shows the
-  // cached order and it is replaced a frame later — that swap is the price of
-  // keeping the page ISR-cached (revalidate = 3600) while still varying per
-  // visit, and it is why the same products used to appear on every refresh.
-  useIsomorphicLayoutEffect(() => {
-    if (!initialProducts.length) return;
-    setProducts(shuffleArray(initialProducts).slice(0, HERO_GRID_COUNT));
-  }, [initialProducts]);
+  // It re-picked 65 products out of an over-sized 240 so that every refresh
+  // looked different, and it cost a second full render of the grid one frame
+  // after the first — plus the 175 extra products in the payload that existed
+  // only to be shuffled out of it. Rotation happens on the server now, once
+  // per ISR cycle; see splitHeroPool in lib/heroPool.ts.
+
+  // Does this device have a pointer that can hover? See the droplet field
+  // below for why it matters. Deliberately starts false: rendering nothing on
+  // the server and nothing on the first client render is what keeps hydration
+  // agreeing with itself, and the field is invisible until hover regardless.
+  const [hoverCapable, setHoverCapable] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine)");
+    setHoverCapable(mq.matches);
+    // A laptop with a touchscreen can switch between the two, and a phone
+    // plugged into a mouse changes on the fly.
+    const onChange = (e: MediaQueryListEvent) => setHoverCapable(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
 
   // Mega-panel: click-to-open (not hover), so hovering the sidebar never
   // dims/blurs the page. `megaInitialId` scrolls the panel to the clicked
@@ -51,9 +76,50 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
   useBackDismiss(isMegaOpen, () => setIsMegaOpen(false));
   const [megaInitialId, setMegaInitialId] = useState<string | null>(null);
 
+  // The mega-panel's tree, fetched rather than shipped.
+  //
+  // The whole 668-row category list is ~252KB of RSC payload and was being
+  // sent to every visitor so that a panel behind a click could render. It now
+  // arrives from /api/categories, which is already cached at the edge and is
+  // the same endpoint the navbar's panel uses, so it is usually a warm hit.
+  //
+  // The request itself lives in loadAllCategories, at module scope, because
+  // the navbar's category menu wants the same 252KB list and was already
+  // prefetching it separately. Sharing one promise means one download and one
+  // JSON parse per visit no matter which of them asks first.
+  const [megaTree, setMegaTree] = useState<CategoryTreeNode[] | null>(null);
+  const loadCategories = useCallback(() => loadAllCategories(), []);
+
+  // Warm it while the browser has nothing else to do, so the panel opens
+  // instantly without the list being on the critical path. buildCategoryTree
+  // is deliberately NOT run here — that is the expensive half, and it waits
+  // until the panel is actually opened.
+  useEffect(() => {
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+      cancelIdleCallback?: (h: number) => void;
+    };
+    if (typeof w.requestIdleCallback === "function") {
+      const h = w.requestIdleCallback(() => { void loadCategories(); }, { timeout: 5000 });
+      return () => w.cancelIdleCallback?.(h);
+    }
+    // Safari has no requestIdleCallback; a plain delay is close enough for a
+    // prefetch whose only job is to not compete with hydration.
+    const t = window.setTimeout(() => { void loadCategories(); }, 3000);
+    return () => window.clearTimeout(t);
+  }, [loadCategories]);
+
   const openMega = (categoryId: string | null) => {
     setMegaInitialId(categoryId);
     setIsMegaOpen(true);
+    // Open first, resolve the tree after. The idle prefetch has usually
+    // finished by the time anyone clicks, in which case this settles in the
+    // same tick and the panel never shows its loading state.
+    if (!megaTree) {
+      void loadCategories().then((cats) => {
+        if (cats.length) setMegaTree(buildCategoryTree(cats));
+      });
+    }
   };
 
   // The hero search bar sits at a high z-index so its suggestions float over
@@ -67,10 +133,6 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
   // Modal state
   const [selectedProduct, setSelectedProduct] = useState<ProductCardData | null>(null);
 
-  // Initial data is provided via props from the server component.
-  // We no longer fetch categories or initial products on mount.
-
-  const topLevelCategories = useMemo(() => buildCategoryTree(categories), [categories]);
 
   // The IntersectionObserver that used to sit here is gone. The grid is a
   // fixed set of HERO_GRID_COUNT products delivered in one go, so there is
@@ -239,7 +301,6 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                 animation: b2bBeadLarge var(--dur, 4s) linear infinite;
                 animation-delay: var(--d, 0s);
                 animation-play-state: paused;
-                will-change: transform, opacity;
               }
               .b2b-bead-ripple {
                 position: absolute; top: 80%; left: 50%; width: 24px; height: 8px; border-radius: 50%; background: transparent;
@@ -250,7 +311,6 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                 animation: waterRipple var(--dur, 4s) ease-out infinite;
                 animation-delay: var(--d, 0s);
                 animation-play-state: paused;
-                will-change: transform, opacity;
               }
               .b2b-bead-rebound {
                 position: absolute; top: 15%; left: 22%; width: 28%; height: 24%; border-radius: 50%; background: rgba(255,255,255,0.95);
@@ -260,11 +320,21 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                 animation-delay: var(--d, 0s);
                 animation-play-state: paused;
               }
+              /* will-change lives here, with animation-play-state, and not on
+                 the rules above. It promotes an element to its own compositor
+                 layer the moment it is declared, whether or not anything is
+                 animating — and these droplets are paused inside an
+                 opacity:0 container until the badge is hovered. That was 36
+                 permanent layers for an effect that plays only on hover and,
+                 on a touch device, can never play at all. Tying the hint to
+                 the same selector that starts the animation means the layers
+                 exist exactly while they earn their keep. */
               @media (hover: hover) and (pointer: fine) {
                 .peer:hover ~ .water-droplets-area .b2b-bead-lg,
                 .peer:hover ~ .water-droplets-area .b2b-bead-ripple,
                 .peer:hover ~ .water-droplets-area .b2b-bead-rebound {
                   animation-play-state: running;
+                  will-change: transform, opacity;
                 }
               }
               .bead-l1 { left: 10%; width: 10px; height: 13px; --dur: 3.5s; --d: 0.2s; }
@@ -352,7 +422,25 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
               </span>
             </span>
 
-            {/* The realistic water droplets covering the whole title area */}
+            {/* The realistic water droplets covering the whole title area.
+
+                Rendered only where they can actually run. Every animation in
+                this field is animation-play-state: paused inside an opacity:0
+                container until `.peer:hover ~ .water-droplets-area` matches,
+                and that selector sits inside
+                @media (hover: hover) and (pointer: fine) — so on a touch
+                device it can never match and the field can never play. It was
+                still being sent to every phone: 54 spans, 18 more pseudo
+                elements, and ~42KB of the HTML document, for an effect no
+                phone can trigger.
+
+                Gating on the media query in JS rather than CSS because CSS can
+                hide these but cannot stop them being parsed into DOM. The flag
+                starts false so the server and the first client render agree;
+                the field appears a tick after hydration on hover-capable
+                devices, which is invisible because it is transparent until the
+                badge is hovered anyway. */}
+            {hoverCapable && (
             <div className="water-droplets-area" aria-hidden="true">
               {[...Array(18)].map((_, i) => (
                 <span key={`bead-l${i + 1}`} className={`b2b-bead-wrapper bead-l${i + 1}`}>
@@ -362,6 +450,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                 </span>
               ))}
             </div>
+            )}
           </div>
           {/* SEO Static H1 (Visually hidden) */}
           <h1 className="sr-only">
@@ -401,7 +490,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
         </div>
 
         {/* Large Hero Search Section */}
-        <HeroSearchSection categories={categories} />
+        <HeroSearchSection categories={searchCategories} />
 
         {/* Mobile Fallback Header */}
         <div className="flex lg:hidden items-end pt-2 pb-4">
@@ -434,7 +523,7 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
                 <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-brand transition-colors" />
               </button>
               <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar">
-                {topLevelCategories.map(cat => {
+                {sidebarCategories.map(cat => {
                   const Icon = getCategoryIcon(cat.name);
                   return (
                     // Straight to the listing. Opening the mega panel scrolled
@@ -532,17 +621,40 @@ export function MarketplaceHeroSection({ initialProducts = [], initialCategories
             onClick={() => setIsMegaOpen(false)}
           />
           <div className="relative z-10">
-            <CategoryMegaPanel
-              tree={topLevelCategories}
-              initialActiveId={megaInitialId}
-              onNavigate={(categoryId) => {
-                // Signal before closing: the close pops this overlay's history
-                // entry, and that pop cancels the router.push below.
-                overlayWillNavigate();
-                setIsMegaOpen(false);
-                router.push(`/products/?categoryId=${categoryId}`);
-              }}
-            />
+            {/* The tree is fetched, not shipped, so it can be a moment behind
+                the click. In practice the idle prefetch has already finished
+                and this branch never renders; it exists for a cold click on a
+                slow connection, where an empty panel would read as broken. */}
+            {megaTree === null ? (
+              <div
+                role="status"
+                aria-label="Loading categories"
+                className="w-[min(92vw,1100px)] h-[min(70vh,560px)] rounded-2xl bg-white shadow-xl flex overflow-hidden"
+              >
+                <div className="w-56 shrink-0 border-r border-slate-100 p-3 space-y-2">
+                  {[...Array(10)].map((_, i) => (
+                    <div key={i} className="h-7 rounded bg-slate-100 animate-pulse" />
+                  ))}
+                </div>
+                <div className="flex-1 p-5 grid grid-cols-2 sm:grid-cols-3 gap-3 content-start">
+                  {[...Array(12)].map((_, i) => (
+                    <div key={i} className="h-16 rounded-lg bg-slate-100 animate-pulse" />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <CategoryMegaPanel
+                tree={megaTree}
+                initialActiveId={megaInitialId}
+                onNavigate={(categoryId) => {
+                  // Signal before closing: the close pops this overlay's history
+                  // entry, and that pop cancels the router.push below.
+                  overlayWillNavigate();
+                  setIsMegaOpen(false);
+                  router.push(`/products/?categoryId=${categoryId}`);
+                }}
+              />
+            )}
           </div>
         </div>
       )}
