@@ -390,7 +390,7 @@ export function ProductsCatalogue({
       params.append("page", pageNum.toString());
       params.append("limit", String(PAGE_SIZE));
 
-      const res = await fetch(`/api/products?${params.toString()}`);
+      const res = await fetch(`/api/products/?${params.toString()}`);
       if (!res.ok) throw new Error("Failed to fetch products");
       const json = await res.json();
       if (seq !== requestSeq.current) return;

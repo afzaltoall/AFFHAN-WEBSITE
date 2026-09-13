@@ -76,7 +76,7 @@ export function VideoManagement({ categories }: Props) {
   const fetchVideos = async (p: number, overwrite = false) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/videos?page=${p}&limit=20`);
+      const res = await fetch(`/api/videos/?page=${p}&limit=20`);
       const json = await res.json();
       if (json.success) {
         if (overwrite) setVideos(json.data);

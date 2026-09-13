@@ -56,7 +56,7 @@ export function CategoryLeafPreview({
 
     const load = async () => {
       try {
-        const res = await fetch(`/api/products?categoryId=${encodeURIComponent(categoryId)}&limit=${count}`);
+        const res = await fetch(`/api/products/?categoryId=${encodeURIComponent(categoryId)}&limit=${count}`);
         const json = await res.json();
         if (!cancelled) setProducts(Array.isArray(json?.data) ? json.data : []);
       } catch {
