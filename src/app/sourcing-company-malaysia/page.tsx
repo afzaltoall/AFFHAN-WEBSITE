@@ -71,6 +71,16 @@ const faqs = [
     answer:
       `Because certification, origin documents and inspection all happen in China, and none of them can be fixed from Melaka once the container has sailed. Our buyers are in Guangzhou and visit before your deposit moves. AFFHAN has traded since ${FOUNDED_YEAR}, and the Malaysian office handles the arrival end.`,
   },
+  {
+    question: "Do you arrange Port Klang freight forwarding, or only the sourcing?",
+    answer:
+      "Both sit on the same file. We are an import export company in Malaysia as well as a China sourcing agent, so one quotation covers the factory, consolidation in South China, the ocean leg into Port Klang, customs clearance and delivery inland. The reason we do not split it: a Form E or a SIRIM test report is prepared by the sourcing side but produced by the freight side at clearance, and that handover is where separately appointed firms lose things.",
+  },
+  {
+    question: "Can you supply a wholesale range rather than one product?",
+    answer:
+      "Regularly — wholesale supplier sourcing across several Chinese factories is the usual shape of a Malaysian order rather than the exception. A range of thirty or forty lines is run as one procurement programme: benchmarked together, inspected together, consolidated into one container and cleared under one declaration. It is cheaper per unit than buying line by line, and it means one set of halal and SIRIM paperwork rather than a dozen.",
+  },
 ];
 
 const schema = {
@@ -256,6 +266,45 @@ export default async function SourcingCompanyMalaysiaPage() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Fourth unique section: the two halves of the job. Buyers searching for
+          a sourcing company in Malaysia and buyers searching for Port Klang
+          freight forwarding are usually the same importer a month apart, and
+          nothing on the page said the two were one file. */}
+      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+            Sourcing and shipping are the same file here
+          </h2>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            Malaysian importers usually approach this from one of two directions: looking for a sourcing company that can find a factory in China and vouch for what comes out of it, or looking for a freight forwarding company that can move a container into Port Klang and clear it. Appointing two firms is normal and it is where most of the avoidable cost appears. A Form E is applied for in China by whoever bought the goods; it is presented at clearance by whoever moved them. If those are different companies, the document either arrives late or describes something slightly different from the invoice, and the preferential rate is lost on a technicality.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+            Running it as one job means the decisions that bind at the border are taken months earlier, in Guangzhou:
+          </p>
+          <ul className="space-y-3.5 mb-6">
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Supplier search and price benchmarking across the South China clusters, by our own buyers rather than a directory
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Halal certification checked against a body Malaysia recognises, for the actual production line, before the order is placed
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              SIRIM test reports confirmed as obtainable from the factory, not assumed, for anything electrical
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Form E raised at export against the shipment as invoiced, and the HS code fixed before the vessel sails
+            </li>
+          </ul>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+            Then the logistics side is comparatively dull, which is how it should be: a week to ten days from South China, a declaration that matches the cartons, sales tax calculated as a real cost rather than a reclaimable one, and a delivery inland. The Melaka office answers in Malaysian hours; the people who chose the factory are eight time zones away and already know the file.
+          </p>
         </div>
       </section>
 

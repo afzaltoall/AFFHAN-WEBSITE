@@ -79,6 +79,16 @@ const faqs = [
     answer:
       `A listing tells you what a supplier says about itself. Our buyers are in Guangzhou and visit the factory before your deposit moves, inspect the goods before they sail, and consolidate multiple suppliers into one shipment. AFFHAN has traded since ${FOUNDED_YEAR} and the UK office gives you someone in your own time zone when a shipment needs a decision.`,
   },
+  {
+    question: "Are you a freight forwarder as well, or do I need one separately?",
+    answer:
+      "As well. We are a UK import export company as much as a China buying agent, so one quotation covers the factory, consolidation in Guangzhou, the ocean leg into Felixstowe or Southampton, the CDS declaration and delivery inland. Splitting it is the usual arrangement and the usual problem: commodity codes are decided by whoever buys the goods and used by whoever clears them, and when those are different firms the code tends to be guessed at the border.",
+  },
+  {
+    question: "Can you handle procurement for a full product range rather than one line?",
+    answer:
+      "That is most of our UK work. A range of twenty or thirty lines across several Chinese factories runs as one procurement programme — benchmarked together, inspected together, consolidated into one container and cleared on one declaration. On a 30 to 40 day route that matters more than it does on a short one: buying line by line means paying for the long leg several times over, and reconciling several arrivals against several VAT events.",
+  },
 ];
 
 // Address and phone taken from the Google Business Profile rather than the
@@ -389,6 +399,45 @@ export default async function SourcingCompanyUkPage() {
           </ul>
           <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
             On price, an FOB quotation from a factory and a delivered price into your warehouse are not comparable numbers, and on a UK route the gap is wider than most: the sea leg is long, and duty and VAT land on top. We price the whole movement, factory gate to your door, so there is a single number to set against a UK supplier.
+          </p>
+        </div>
+      </section>
+
+      {/* The long corridor is what makes the UK page different from the ASEAN
+          ones: five weeks of water turns every small sourcing error into a
+          five-week error, which is the argument for one company holding both
+          ends of the file. */}
+      <section className="py-16 lg:py-24 bg-slate-50 border-t border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+            Why the long route rewards getting China right
+          </h2>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            A buyer in Singapore who receives the wrong specification has lost about a week. A buyer in Britain has lost five, plus the cost of the container that carried it. That single fact shapes how we work this corridor, and it is why searching separately for a sourcing company in London and for freight forwarding into Felixstowe tends to produce a worse outcome than it looks like it should. The forwarder cannot inspect what it did not buy, and the sourcing agent cannot clear what it did not ship.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+            Held as one job, the checks that matter happen while the goods are still in Guangdong and still fixable:
+          </p>
+          <ul className="space-y-3.5 mb-6">
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              The factory is visited and the samples approved before the deposit leaves a UK account
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Commodity codes are agreed with you at quotation, so the CDS entry is not a guess made in week six
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              UKCA marking and labelling are checked at pre-shipment inspection, while a rework still costs days rather than a return leg
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Several suppliers are consolidated into one box, so the long ocean leg is paid for once
+            </li>
+          </ul>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+            None of that is exotic. It is the ordinary work of a China import agent who also owns the shipping, and on a route this long it is most of the difference between a landed cost you predicted and one you discovered.
           </p>
         </div>
       </section>

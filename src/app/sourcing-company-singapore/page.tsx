@@ -72,6 +72,16 @@ const faqs = [
     answer:
       `Because the risk sits in China, not in the shipping. Our buyers are in Guangzhou and see the factory before your deposit moves; the Singapore office at Sim Lim Tower handles the permit, the freight and the questions in your own working hours. AFFHAN has been trading on this corridor since ${FOUNDED_YEAR}.`,
   },
+  {
+    question: "Do you handle freight forwarding as well, or only the sourcing?",
+    answer:
+      "Both, and they are quoted as one number. We are an import export company in Singapore as much as a China sourcing agent: the same file covers the factory, the booking, PSA terminal handling and the TradeNet permit. Buyers who appoint a sourcing agent at one end and a separate Singapore freight forwarding company at the other usually find the gap at the port, where nobody owns the mismatch between the packing list and the declaration.",
+  },
+  {
+    question: "Can you act as an ASEAN sourcing partner for a whole range, not a single order?",
+    answer:
+      "That is most of what this office does. A wholesale sourcing brief of twenty or thirty lines across several Chinese factories is run as one procurement programme — consolidated into one container, one permit, one arrival, then split for onward distribution. Buying line by line from separate suppliers means separate shipments, separate GST events and separate problems to chase.",
+  },
 ];
 
 const schema = {
@@ -260,6 +270,46 @@ export default async function SourcingCompanySingaporePage() {
           </ul>
           <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
             All four are decided in Guangzhou, weeks before anything reaches the water. That is the argument for having the sourcing team and the freight team inside one company.
+          </p>
+        </div>
+      </section>
+
+      {/* Third unique section: what the two halves of the job actually are.
+          Buyers searching "import export company singapore" and buyers
+          searching "china sourcing agent singapore" are usually the same
+          person at different stages, and the page had not said anywhere that
+          both are the same file. */}
+      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+            One file, from the factory floor to Pasir Panjang
+          </h2>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
+            Most buyers arrive looking for one of two things. Either a sourcing company in Singapore that can find the supplier and check the goods, or a freight forwarding and logistics company that can get a container off the water and through customs. Splitting those across two firms is the common arrangement and the common source of trouble: the sourcing side agrees a specification, the shipping side quotes against a different description, and the discrepancy surfaces on a TradeNet permit at the worst possible moment.
+          </p>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+            We do both halves because they are the same job seen from either end. In practice one enquiry moves through:
+          </p>
+          <ul className="space-y-3.5 mb-6">
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Supplier search and price benchmarking across the South China clusters, done by our own buyers rather than a directory listing
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Factory audit and pre-shipment inspection before the balance payment leaves your account
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Consolidation, booking and ocean or air freight into PSA, with the HS classification set before the vessel sails
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.6]">
+              <CheckCircle2 className="w-5 h-5 shrink-0 text-[#1d7e93] mt-0.5" />
+              Permit filing, GST accounting and delivery — or a Free Trade Zone position if the cargo is leaving again
+            </li>
+          </ul>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+            Singapore is an unusually forgiving place to import into. The tariff schedule is nearly empty, clearance is electronic and fast, and the schedules from South China are the densest on any route we run. What it punishes is vagueness — a description that does not match the carton, an origin certificate nobody asked the factory for. That part is won in Guangzhou, not at the terminal.
           </p>
         </div>
       </section>
