@@ -5,16 +5,16 @@ import { MetadataRoute } from 'next';
 // the trailing-slash version, which is a wasted crawl + a weaker signal than
 // listing the final URL directly.
 //
-// Individual product pages (/products/[id]/, ~200k+ rows) are deliberately
-// NOT enumerated here: dumping every product id into one sitemap would (a)
-// blow past the 50,000-URL-per-sitemap limit many times over, and (b) risks
-// a thin-content signal given these are catalog/demonstrator listings, not
-// unique inventory (see CLAUDE.md — "the listed products are not our
-// inventory"). If we later decide individual product pages should be
-// indexed, build a dynamic, paginated sitemap instead: a sitemap index
-// (src/app/sitemap-index.xml or Next's multi-sitemap support via
-// generateSitemaps()) pointing to multiple chunked sitemaps, each capped at
-// 50,000 URLs, generated from the DB rather than hardcoded here.
+// Static routes only. Product pages now have their own map — see
+// src/app/products/sitemap.ts — and robots.txt lists both.
+//
+// That file submits roughly 12,000 of 1,079,241 products, which is the
+// decision this comment used to defend in full. The short version, now that
+// it has been measured: a product page is 69% boilerplate, leaving ~87 words
+// that are actually about the product, and for a CJ listing those 87 are the
+// name and the category path. CJ sends no descriptions at all — 1,067,069
+// rows, zero. Only EPROLO's 12,172 rows carry real content. The reasoning and
+// the exclusions live next to the query that applies them.
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://affhan.com';
 
