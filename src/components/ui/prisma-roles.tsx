@@ -7,6 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { Almarai } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { WordsPullUpMultiStyle } from "./words-pull-up";
+import { ROLES, roleLocationLabel } from "@/lib/careerRoles";
 
 // latin only — the page renders no Arabic text, and the arabic subset is a
 // large glyph set that would be downloaded and never drawn.
@@ -16,59 +17,16 @@ import { WordsPullUpMultiStyle } from "./words-pull-up";
 // 300 and 800 as well just preloaded two files nothing ever renders.
 const almarai = Almarai({ weight: ["400", "700"], subsets: ["latin"] });
 
-// Affhan open positions across our global sourcing network.
-const ROLES: {
-  id: string;
-  title: string;
-  location: string;
-  Icon: LucideIcon;
-  features: string[];
-}[] = [
-  {
-    id: "01",
-    title: "Sourcing Specialist",
-    location: "Guangzhou / Chennai",
-    Icon: Package,
-    features: [
-      "Build and manage Chinese supplier relationships",
-      "Negotiate pricing, MOQs and lead times",
-      "Source products to match client requirements",
-    ],
-  },
-  {
-    id: "02",
-    title: "Quality Control Inspector",
-    location: "Guangzhou",
-    Icon: ShieldCheck,
-    features: [
-      "Conduct on-site factory inspections and audits",
-      "Enforce international compliance standards",
-      "Document defects and drive corrective action",
-    ],
-  },
-  {
-    id: "03",
-    title: "Logistics & Freight Coordinator",
-    location: "Chennai / Dubai",
-    Icon: Ship,
-    features: [
-      "Oversee end-to-end freight and forwarding",
-      "Optimise sea, air and multimodal routing",
-      "Handle customs clearance and documentation",
-    ],
-  },
-  {
-    id: "04",
-    title: "B2B Account Manager",
-    location: "London / Singapore",
-    Icon: Handshake,
-    features: [
-      "Own client relationships from inquiry to delivery",
-      "Turn quote requests into sourced orders",
-      "Grow accounts across global markets",
-    ],
-  },
-];
+// The roles themselves now live in src/lib/careerRoles.ts, because the careers
+// layout has to read the same list to emit JobPosting markup and this file is
+// a client component. Only the icon per role stays here — it is presentation,
+// and a lucide component has no business in a data module the server imports.
+const ROLE_ICONS: Record<string, LucideIcon> = {
+  "01": Package,
+  "02": ShieldCheck,
+  "03": Ship,
+  "04": Handshake,
+};
 
 export function PrismaRoles() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -118,6 +76,7 @@ export function PrismaRoles() {
           {ROLES.map((role, idx) => (
             <motion.div
               key={role.id}
+              id={`role-${role.id}`}
               className="liquid-glass-card flex flex-col justify-between p-6 lg:p-7 h-[400px] lg:h-full"
               initial={{ opacity: 0, scale: 0.95 }}
               animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
@@ -126,12 +85,15 @@ export function PrismaRoles() {
               <div>
                 <div className="flex justify-between items-start mb-8">
                   <div className="flex h-11 w-11 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-[#176579]/10 ring-1 ring-[#176579]/15">
-                    <role.Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#176579]" strokeWidth={1.5} />
+                    {(() => {
+                      const Icon = ROLE_ICONS[role.id] ?? Package;
+                      return <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-[#176579]" strokeWidth={1.5} />;
+                    })()}
                   </div>
                   <span className="text-slate-400 text-xs font-semibold">{role.id}</span>
                 </div>
                 <h3 className="text-slate-900 text-lg sm:text-xl mb-1 font-semibold tracking-tight">{role.title}</h3>
-                <p className="text-slate-500 text-xs mb-6">{role.location}</p>
+                <p className="text-slate-500 text-xs mb-6">{roleLocationLabel(role)}</p>
 
                 <ul className="space-y-4">
                   {role.features.map((feature, fIdx) => (

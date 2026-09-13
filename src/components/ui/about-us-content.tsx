@@ -8,6 +8,11 @@ import { SocialBeams } from "@/components/ui/social-beams";
 
 type Service = { title: string; desc: string; img: string };
 
+// Derived, not written down, so the figure cannot go stale — same treatment as
+// the Chennai landing page, which is where this constant already lives once.
+const FOUNDED_YEAR = 2000;
+const yearsTrading = new Date().getFullYear() - FOUNDED_YEAR;
+
 // Each service card owns its own scroll-driven motion values. Extracted into a
 // component (rather than calling hooks inside a .map callback) so the Rules of
 // Hooks are satisfied — servicesList is a fixed-length array, so the number of
@@ -120,11 +125,17 @@ export default function AboutUsContent() {
   const servicesList = [
     {
       title: "Manufacturing, Sourcing & Supply",
+      // "7 countries", not 6. The office records list China, India,
+      // Singapore, Malaysia, the UAE, the United Kingdom and France, the
+      // Global Reach section below says "7 Global Offices", and the China
+      // page names all seven — this blurb was the only place on the site
+      // that said six, and it sat two screens above a seven.
+      //
       // "500+ categories", matching every other page and the catalogue itself:
       // 509 categories currently hold products. "40+" was true but understated
       // it by thirteen times, and it was the one figure on the site that
       // disagreed with the rest.
-      desc: "Backed by strong production capabilities and global partnerships, we manufacture, source, stock and supply high-quality products across 500+ categories seamlessly serving over 190+ markets in 6 countries worldwide.",
+      desc: "Backed by strong production capabilities and global partnerships, we manufacture, source, stock and supply high-quality products across 500+ categories seamlessly serving over 190+ markets in 7 countries worldwide.",
       img: "/services/img_1.webp"
     },
     {
@@ -333,6 +344,124 @@ export default function AboutUsContent() {
               <motion.span style={{ opacity: reachText3, color: "#d4a373" }}>United Kingdom, France, China, UAE.</motion.span>
               <motion.span style={{ opacity: reachText4, color: "#d4a373" }}>Singapore, Malaysia, India.</motion.span>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4.5 Our story — the only body copy on the page.
+          Everything above is scroll-driven taglines: four sentences in the
+          opening sequence, a founder quote, six service blurbs and four
+          statistics. That was 430 words for a page whose entire job is to
+          answer "who are these people and are they real", and it carried no
+          <h1> at all. Registered entities, addresses, dates, named officers
+          and the review profile are the trust signals it was missing, so they
+          are written out in plain prose rather than animated.
+
+          Deliberately static: no framer-motion, nothing parked at opacity 0.
+          And deliberately story-shaped — the generic "sourcing company"
+          keyword belongs to the homepage, this page owns the company's
+          history, so the two stop competing for the same query. */}
+      <section id="our-story" className="relative bg-white text-black px-6 md:px-12 lg:px-24 py-24 md:py-32 border-t border-black/10">
+        <div className="mx-auto max-w-3xl">
+          <p className="text-[11px] font-bold uppercase tracking-[0.3em] text-black/50">Our Story</p>
+          <h2 className="mt-4 text-3xl md:text-5xl font-bold tracking-tight text-balance">
+            Since 2000, in the business of getting things made and moved
+          </h2>
+          <div className="mt-6 h-1 w-12 bg-[#d4a373]" />
+
+          <div className="mt-10 space-y-6 text-base md:text-lg leading-relaxed text-black/80">
+            <p>
+              AFFHAN International Pvt Ltd was registered in July 2000 and has traded every
+              year since &mdash; {yearsTrading}{" "}of them. The group&apos;s head office is in
+              Appavoo Tower on West Madha Church Road, Royapuram, a few hundred metres from
+              Harbour Gate 3 in Chennai. It is the address on our invoices, on our Google
+              Business Profile, and on the import documents that clear through Chennai Port.
+            </p>
+
+            <h3 className="pt-6 text-xl md:text-2xl font-bold tracking-tight text-black">
+              How the group is put together
+            </h3>
+            <p>
+              AFFHAN is not one company with agents abroad. Each country we work in has its own
+              registered entity and its own staff: AFFHAN INTERNATIONAL PVT LTD in Chennai,
+              GUANGZHOU AFFHAN INTERNATIONAL CO., LTD in Guangdong, AFFHAN INTERNATIONAL PTE.
+              LTD. in Singapore, AFFHAN INTERNATIONAL SDN. BHD. in Melaka, AFFHAN SHIPPING LLC
+              in Dubai, and AFFHAN INTERNATIONAL LTD in London and Paris. Seven offices in
+              seven countries, which is why the factory floor in Guangdong and the customs
+              queue in Chennai are both covered by our own people rather than by a broker we
+              have never met.
+            </p>
+
+            <h3 className="pt-6 text-xl md:text-2xl font-bold tracking-tight text-black">
+              What we actually do
+            </h3>
+            <p>
+              Three things, in order. We find the product &mdash; from a catalogue of more than
+              10 lakh items across 500+ categories, or from a photograph and a specification if
+              it is not listed. We check it: supplier verification, factory visits and
+              pre-shipment inspection. Then we move it &mdash; sea and air freight, LCL and FCL,
+              NVOCC consolidation, customs clearance and door-to-door delivery, with warehousing
+              at either end when a shipment needs it.
+            </p>
+            <p>
+              There are no prices anywhere on this website, and that is deliberate. Everything
+              here is sourced to order, so quantity, specification, material and destination all
+              move the number. Send an inquiry on any product and the quotation comes back from
+              a person who has priced that lane before.
+            </p>
+
+            <h3 className="pt-6 text-xl md:text-2xl font-bold tracking-tight text-black">
+              Who you will be dealing with
+            </h3>
+            <p>
+              Afzal Khan founded AFFHAN and still runs it as Founder and CEO. Mohamed Yacoob is
+              Chief Operating Officer, Jamil Ahamed Chief Marketing Officer, Iliyas Ahmed Chief
+              Financial Officer and Jafeer Ahamed Chief Technology Officer. Operations overseas
+              are run by people who live there: Nandhinee in the UAE, Anis Dawood in the United
+              Kingdom, Muhammad Kassim in Malaysia, and Chen Yuchao looking after customer
+              experience from China. The wider team is on our{" "}
+              <a href="/careers/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">
+                careers page
+              </a>
+              .
+            </p>
+
+            <h3 className="pt-6 text-xl md:text-2xl font-bold tracking-tight text-black">
+              Why buyers stay
+            </h3>
+            <p>
+              AFFHAN Group holds a 4.8 out of 5 rating across 144 Google reviews, on a profile
+              registered to the Chennai head office. That is the least interesting reason. The
+              better one is that an import has roughly forty ways to go wrong between a drawing
+              and a delivered container, and most of them are dull &mdash; a missing
+              certificate, a carton size that wastes a third of the pallet, an HS code that
+              invites a query. {yearsTrading}{" "}years is mostly a long list of those, already
+              made.
+            </p>
+
+            <h3 className="pt-6 text-xl md:text-2xl font-bold tracking-tight text-black">
+              Where we ship
+            </h3>
+            <p>
+              Goods leave our suppliers for more than 190 markets, but the corridors we run most
+              are the ones our offices sit on. If you import on one of them, the local pages go
+              into detail:{" "}
+              <a href="/sourcing-company-chennai/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">Chennai</a>,{" "}
+              <a href="/sourcing-company-dubai/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">Dubai</a>,{" "}
+              <a href="/sourcing-company-singapore/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">Singapore</a>,{" "}
+              <a href="/sourcing-company-malaysia/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">Malaysia</a>{" "}
+              and{" "}
+              <a href="/sourcing-company-uk/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">the United Kingdom</a>.
+              The buying end is covered by our{" "}
+              <a href="/china-sourcing-office-guangzhou/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">Guangzhou office</a>{" "}
+              and set out step by step in our guide to{" "}
+              <a href="/sourcing-from-china/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">sourcing from China</a>.
+            </p>
+            <p>
+              Anything not answered here, ask us directly &mdash;{" "}
+              <a href="/contact/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">contact the Chennai office</a>{" "}
+              on +91 90920 09044, or email info@affhan.com.
+            </p>
           </div>
         </div>
       </section>

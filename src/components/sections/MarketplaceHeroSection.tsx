@@ -454,7 +454,7 @@ export function MarketplaceHeroSection({
           </div>
           {/* SEO Static H1 (Visually hidden) */}
           <h1 className="sr-only">
-            AFFHAN - Global Sourcing, Shipping & China Import Export
+            Global B2B Sourcing Company, Sourcing Agent and Freight Forwarder
           </h1>
           <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
             <span>Source</span>

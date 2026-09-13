@@ -8,12 +8,43 @@ import { GET as getCategories } from "@/app/api/categories/route";
 import { getHeroFeed } from "@/lib/products";
 import { splitHeroPool, HOMEPAGE_PRODUCT_COUNT } from "@/lib/heroPool";
 import { buildCategoryTree, type CategoryTreeNode } from "@/lib/categoryTree";
+import { ORG_ID, SITE_URL } from "@/lib/brand";
 
 // Ten rows at the widest breakpoint (lg is 6 columns), so the grid still reads
 // as "a lot of categories" without carrying all ~593 in the document. Defined
 // here, on the server: it cannot be imported from the section, which is a
 // client module.
 const HOMEPAGE_CATEGORY_TILES = 60;
+
+// WebSite, and it belongs here rather than in the root layout.
+//
+// The layout already publishes the Organization — who the company is. This is
+// the other half Google looks for: what the site is, and how to search it. The
+// SearchAction is what makes a sitelinks search box possible on a brand query,
+// and it has to name a URL that actually works: the navbar search pushes to
+// /products/?q=<term>, so that is the template.
+//
+// Homepage only, deliberately. WebSite describes the site as a whole, so one
+// copy on the site's root URL is the whole point — repeating it on every page
+// says nothing new and gives four hundred thousand URLs a claim to be the site.
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": `${SITE_URL}/#website`,
+  url: `${SITE_URL}/`,
+  name: "AFFHAN Group",
+  alternateName: "AFFHAN International Pvt Ltd",
+  inLanguage: "en",
+  publisher: { "@id": ORG_ID },
+  potentialAction: {
+    "@type": "SearchAction",
+    target: {
+      "@type": "EntryPoint",
+      urlTemplate: `${SITE_URL}/products/?q={search_term_string}`,
+    },
+    "query-input": "required name=search_term_string",
+  },
+};
 
 export const metadata: Metadata = {
   alternates: { canonical: "https://affhan.com/" },
@@ -90,6 +121,10 @@ export default async function Home() {
 
   return (
     <main className="w-full overflow-x-hidden scroll-smooth bg-slate-50">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+      />
       <MarketplaceHeroSection
         initialProducts={heroPool.hero}
         sidebarCategories={sidebarCategories}
