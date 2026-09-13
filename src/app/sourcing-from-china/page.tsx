@@ -71,6 +71,21 @@ const faqs = [
     answer:
       `A factory sells you what it makes. An agent works out what should be made, by whom, and checks it. Our buyers are in Guangzhou and visit before deposits move; the offices in Chennai, Dubai, London, Singapore and Melaka handle arrival. AFFHAN has worked this corridor since ${FOUNDED_YEAR}, ${yearsTrading} years now.`,
   },
+  {
+    question: "Is a sourcing agent better than buying on Alibaba myself?",
+    answer:
+      "For a first order, usually — but not for the reason people assume. Alibaba is a good directory and costs nothing to search; the difficulty is not finding suppliers, it is telling a factory from a trading company reselling that factory's goods, and telling a real certificate from a scan of someone else's. Those are answered by standing in the building, which is the part a platform cannot do from anywhere. If you already know your supplier, have bought from them repeatedly and have someone who can inspect, buying direct is perfectly reasonable and we will say so.",
+  },
+  {
+    question: "What does a China sourcing agent cost?",
+    answer:
+      "Arrangements differ and it is worth asking directly, because the structure matters more than the headline rate. A commission agent earning a percentage of what you spend has an interest in you spending more. A buying office on salary does not. We quote a landed price — goods, freight, duty and handling as one figure — so what you compare is the delivered cost against your alternative, rather than a fee you then have to add things to. Whatever the model, ask who pays the person inspecting your goods, and be wary of any arrangement that will not name the manufacturer.",
+  },
+  {
+    question: "How do I check a Chinese supplier is real before paying?",
+    answer:
+      "Start with the business licence, which gives the registered name, scope and capital, and check that the scope actually covers manufacturing the product rather than trading it. Ask for the factory address and look at it on a map. Ask how many production lines and how many workers, then ask for photographs with the machinery visible. Every one of those can be faked, which is why the last step is someone physically visiting — and why we do not place a deposit on a supplier none of our buyers has walked through.",
+  },
 ];
 
 const schema = {

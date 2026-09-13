@@ -72,6 +72,16 @@ const faqs = [
     answer:
       `Every AFFHAN client, wherever they are. The buying, auditing, inspecting and consolidating happen here; the offices in Chennai, Dubai, London, Singapore and Melaka handle the arrival end. The company has worked this way since ${FOUNDED_YEAR}.`,
   },
+  {
+    question: "Is a buying office different from a sourcing agent?",
+    answer:
+      "In practice, yes, though the words get used interchangeably. A sourcing agent is often an individual or a small firm that introduces you to factories and takes a commission on what you buy — their income rises with the price you pay. A buying office is staff on your side of the table: ours are AFFHAN employees on salary in Guangzhou, so the person auditing the factory has no stake in you choosing it. That distinction matters most on the things nobody can verify from abroad, like whether a quality system exists outside the email describing it.",
+  },
+  {
+    question: "Does the Guangzhou office arrange shipping, or only sourcing?",
+    answer:
+      "It prepares everything the shipping depends on. Consolidation, export documentation, certificates of origin and the HS classification are all settled here before a container is booked, and the freight forwarding and customs clearance are then handled by whichever AFFHAN office sits at the arrival end. One company, one file — which is why a question about a carton in Guangzhou can be answered by the same people handling the declaration in Port Klang or Felixstowe.",
+  },
 ];
 
 const schema = {
@@ -273,6 +283,46 @@ export default async function ChinaSourcingOfficeGuangzhouPage() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* This page described the office without ever saying what engaging it
+          costs a buyer or how the relationship works, which is what someone
+          searching for a Guangzhou sourcing agent is actually trying to find
+          out. It read as an internal profile rather than a service. */}
+      <section className="py-16 lg:py-24 bg-white border-t border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+            What engaging the Guangzhou office looks like
+          </h2>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+            Buyers usually find this office by searching for a sourcing agent in Guangzhou or a factory sourcing agent in China, and what they want to know first is how it works in practice rather than where we sit. It runs in the same order every time:
+          </p>
+          <ol className="space-y-4 mb-6 list-none">
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.65]">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-[#1d7e93] text-white text-xs font-bold flex items-center justify-center mt-0.5">1</span>
+              <span>You send a specification, a target price and a quantity. A photograph and a rough description are enough to start; we will tell you what else is needed.</span>
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.65]">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-[#1d7e93] text-white text-xs font-bold flex items-center justify-center mt-0.5">2</span>
+              <span>Our buyers identify candidate factories in the right cluster and price them against each other — not one quotation, several, from plants that actually make the thing.</span>
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.65]">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-[#1d7e93] text-white text-xs font-bold flex items-center justify-center mt-0.5">3</span>
+              <span>Someone visits. Samples come back to you before any deposit moves, and the audit says whether the capacity claimed is capacity that exists.</span>
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.65]">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-[#1d7e93] text-white text-xs font-bold flex items-center justify-center mt-0.5">4</span>
+              <span>Production is monitored, goods are inspected before shipment, and anything wrong is reworked while it is still the supplier&rsquo;s problem.</span>
+            </li>
+            <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.65]">
+              <span className="shrink-0 w-6 h-6 rounded-full bg-[#1d7e93] text-white text-xs font-bold flex items-center justify-center mt-0.5">5</span>
+              <span>Consolidation, export papers and origin certificates are prepared here; the AFFHAN office at your end books the freight and clears it.</span>
+            </li>
+          </ol>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+            Two things this office is not. It is not a commission agent paid a percentage of what you spend — our buyers are salaried, so nobody here earns more when you pay more. And it is not a trading company reselling goods with a margin buried in the price: you see the factory quotation. What we charge for is the work, which is the only arrangement under which an inspection report means anything.
+          </p>
         </div>
       </section>
 

@@ -521,6 +521,60 @@ export default async function ChinaSourcingCompanyPage() {
         </div>
       </section>
 
+      {/* Added because the page described what we do without ever naming the
+          shapes buyers arrive in. A first-time importer searching "china
+          purchasing agent for small business" and a distributor searching
+          "wholesale sourcing agent china" want different answers to the same
+          question, and the page gave neither of them a paragraph to recognise
+          themselves in. */}
+      <section className="py-16 lg:py-24 bg-white border-b border-slate-200">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-6">
+            Who actually uses a China buying office
+          </h2>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-6">
+            The work looks different depending on who is asking. Four patterns cover most of it:
+          </p>
+          <div className="space-y-6 mb-6">
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] text-slate-900 mb-1.5">
+                The small business placing a first order
+              </h3>
+              <p className="text-slate-600 text-[15px] sm:text-base leading-[1.7] tracking-[-0.003em] text-pretty">
+                Usually one product, a modest quantity, and a reasonable fear of losing the deposit. What a purchasing agent is worth here is not the price negotiation — it is someone standing in the factory before the money moves, and telling you honestly when the minimum order quantity makes the whole idea uneconomic. We say that fairly often.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] text-slate-900 mb-1.5">
+                The wholesaler or distributor buying a range
+              </h3>
+              <p className="text-slate-600 text-[15px] sm:text-base leading-[1.7] tracking-[-0.003em] text-pretty">
+                Thirty or forty lines, several factories, one container. The value is consolidation and a single set of documents: one shipment, one declaration, one arrival to reconcile. Wholesale sourcing done as separate purchases pays the freight several times and multiplies the paperwork by the number of suppliers.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] text-slate-900 mb-1.5">
+                The established importer replacing an agent
+              </h3>
+              <p className="text-slate-600 text-[15px] sm:text-base leading-[1.7] tracking-[-0.003em] text-pretty">
+                Often arrives after a quality problem nobody would own. The question is rarely price; it is whether the people inspecting the goods work for the buyer or for the seller. Ours are our staff in Guangzhou, which is a different arrangement from a commission agent introducing you to a factory.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-base sm:text-lg font-semibold tracking-[-0.016em] text-slate-900 mb-1.5">
+                The buyer who wants the whole corridor handled
+              </h3>
+              <p className="text-slate-600 text-[15px] sm:text-base leading-[1.7] tracking-[-0.003em] text-pretty">
+                Sourcing, inspection, consolidation, freight forwarding and customs clearance as one instruction and one landed price. This is the most common brief we take, and the reason the group runs an import export company at the arrival end as well as a buying office at the supply end.
+              </p>
+            </div>
+          </div>
+          <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
+            What none of them is: a directory. If the requirement is a list of factories to contact yourself, Alibaba does that for nothing and does it well. What it does not do is walk the line, hold the samples against the specification, or answer for the shipment when it is wrong.
+          </p>
+        </div>
+      </section>
+
       <GoogleRating
         heading="Our Record on Google"
         rating={4.8}
