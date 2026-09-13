@@ -16,11 +16,11 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 export const revalidate = 3600;
 
 // 62 chars — inside Google's ~65 char truncation point.
-const PAGE_TITLE = "China Sourcing Company | Import Export Partner in China – AFFHAN";
+const PAGE_TITLE = "China Sourcing Company & Import Export Agent | AFFHAN";
 
 // 154 chars. Carries both target phrases without reading like a keyword list.
 const PAGE_DESCRIPTION =
-  "AFFHAN is a China sourcing company and import export company with its own buying office in Guangzhou. Factory sourcing, inspection and freight since 2000.";
+  "China sourcing company and import export agent with our own buying office in Guangzhou: supplier sourcing, factory audits, freight and logistics.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -264,7 +264,7 @@ export default async function ChinaSourcingCompanyPage() {
               {/* hero-rise-1 is transform-only — this is the LCP element and
                   must not fade in from opacity 0. */}
               <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-                China Sourcing Company — Your Import Export Partner in{" "}
+                China Sourcing Company &amp; Import Export Agent — Sourcing, Shipping and Logistics from{" "}
                 <span className="text-[#1d7e93]">China</span>
               </h1>
               <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">

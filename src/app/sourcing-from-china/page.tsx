@@ -14,10 +14,10 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 
 export const revalidate = 3600;
 
-const PAGE_TITLE = "China Sourcing Agent | Costs, Lead Times & Risks | AFFHAN";
+const PAGE_TITLE = "Sourcing From China: Costs, Lead Times & Supplier Risks";
 
 const PAGE_DESCRIPTION =
-  "What sourcing from China actually involves: Chinese New Year timing, minimum order quantities, tooling ownership and when China is the wrong answer.";
+  "What importing from China really involves: MOQs, Chinese New Year timing, tooling ownership, supplier vetting, freight costs and when to look elsewhere.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -122,7 +122,7 @@ export default async function SourcingFromChinaPage() {
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-4xl mx-auto">
               <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-                Sourcing From China — <span className="text-[#1d7e93]">What Buyers Should Know First</span>
+                Sourcing From China — <span className="text-[#1d7e93]">Costs, Lead Times, Suppliers and Shipping</span>
               </h1>
               <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
                 Most first orders go wrong for reasons that have nothing to do with the supplier being dishonest. A holiday nobody planned around, a minimum nobody checked, a mould nobody wrote down who owned. This page is the short version of what {yearsTrading} years on this corridor has taught us, before you place anything.

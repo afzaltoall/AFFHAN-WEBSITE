@@ -15,10 +15,10 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 
 export const revalidate = 3600;
 
-const PAGE_TITLE = "Our China Sourcing Office in Guangzhou | AFFHAN Group";
+const PAGE_TITLE = "Guangzhou Sourcing Agent & China Buying Office | AFFHAN";
 
 const PAGE_DESCRIPTION =
-  "Inside AFFHAN's Guangzhou sourcing office: the factory clusters we buy from, how inspection works, Canton Fair sourcing and container consolidation.";
+  "Our Guangzhou sourcing agent and China buying office: supplier sourcing, factory audits, Canton Fair sourcing, container consolidation and freight.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -162,7 +162,7 @@ export default async function ChinaSourcingOfficeGuangzhouPage() {
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-4xl mx-auto">
               <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-                Our China Sourcing Office in Guangzhou — <span className="text-[#1d7e93]">AFFHAN Group</span>
+                Guangzhou Sourcing Agent & China Buying Office — <span className="text-[#1d7e93]">AFFHAN Group</span>
               </h1>
               <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
                 Every other AFFHAN office deals with goods arriving. This one deals with them being made. The buying, the factory visits, the inspections and the loading all happen here, in Guangdong, weeks before a container reaches anybody&apos;s port. This page is what that actually looks like.

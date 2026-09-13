@@ -15,10 +15,10 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 
 export const revalidate = 3600;
 
-const PAGE_TITLE = "China Sourcing Agent in Malaysia | Import | AFFHAN Group";
+const PAGE_TITLE = "Sourcing Company in Malaysia | China Sourcing Agent";
 
 const PAGE_DESCRIPTION =
-  "China sourcing agent in Malaysia. Factory sourcing, halal and SIRIM compliance, Form E preferential duty, Port Klang freight and SST-ready clearance.";
+  "Sourcing company and import agent in Malaysia: factory sourcing, halal and SIRIM compliance, Form E duty savings, Port Klang freight and logistics.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -135,7 +135,7 @@ export default async function SourcingCompanyMalaysiaPage() {
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-4xl mx-auto">
               <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-                China Sourcing Agent in Malaysia — <span className="text-[#1d7e93]">AFFHAN Group</span>
+                Sourcing Company & China Sourcing Agent in Malaysia — <span className="text-[#1d7e93]">AFFHAN Group</span>
               </h1>
               <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
                 Two things decide a Malaysian import and neither is the freight: whether the goods carry the certification they need to be sold here, and whether the origin paperwork was issued correctly in China. A <strong className="text-slate-800">China sourcing agent in Malaysia</strong> is worth having for both. Our office is in Melaka; the buyers are in Guangzhou.

@@ -15,10 +15,10 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 
 export const revalidate = 3600;
 
-const PAGE_TITLE = "China Sourcing Agent in Singapore | AFFHAN Group";
+const PAGE_TITLE = "Sourcing Company in Singapore | China Sourcing Agent";
 
 const PAGE_DESCRIPTION =
-  "China sourcing agent in Singapore for import and re-export. Factory sourcing, inspection, PSA freight, GST and TradeNet permits, ASEAN distribution.";
+  "Sourcing company and China sourcing agent in Singapore: factory sourcing, inspection, PSA freight, TradeNet permits and ASEAN re-export logistics.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -138,7 +138,7 @@ export default async function SourcingCompanySingaporePage() {
           <div className="w-full max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-4xl mx-auto">
               <h1 className="hero-rise hero-rise-1 text-3xl sm:text-4xl lg:text-5xl font-bold tracking-[-0.022em] leading-[1.1] text-balance text-slate-900 mb-5 sm:mb-6">
-                China Sourcing Agent in Singapore — <span className="text-[#1d7e93]">AFFHAN Group</span>
+                Sourcing Company & China Sourcing Agent in Singapore — <span className="text-[#1d7e93]">AFFHAN Group</span>
               </h1>
               <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
                 Five to ten days from a South China port, almost nothing dutiable, and a Free Trade Zone at the quayside. A <strong className="text-slate-800">China sourcing agent in Singapore</strong> earns its place upstream of all that — at the factory, before the container is sealed. Our buyers work out of Guangzhou; the office is at Sim Lim Tower.
