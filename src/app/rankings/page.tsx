@@ -13,6 +13,7 @@ import { QuickLinkPill } from "@/components/ui/QuickLinkPill";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import { getCdnUrl } from "@/lib/cdn";
 import type { ProductCardData } from "@/components/ui/ProductCard";
+import { loadAllCategories } from "@/lib/categoriesClient";
 
 type RankProduct = { id: number; name: string; imageUrl: string | null; rank: number };
 type RankGroup = { id: string; name: string; parentName: string | null; products: RankProduct[] };
@@ -120,15 +121,26 @@ export default function RankingsPage() {
   const [allLoading, setAllLoading] = useState(false);
 
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
-  const reqSeq = useRef(0);
+  // One counter per fetch flow, not one shared between them.
+  //
+  // Both the ranking groups and the "All" tab's product grid used a single
+  // reqSeq, and every handler — including the .finally that clears `loading` —
+  // bails when `seq !== reqSeq.current`. So a request starting in one flow
+  // could strand the other's loading flag at true permanently, leaving the
+  // page on skeletons with nothing in flight and no error to show for it.
+  // Separate counters make that unreachable rather than unlikely.
+  const groupSeq = useRef(0);
+  const allSeq = useRef(0);
   const scopeScrollRef = useRef<HTMLDivElement>(null);
   const loadMoreLock = useRef(false);
 
   useEffect(() => {
-    fetch("/api/categories", { cache: "no-store" })
-      .then((r) => r.json())
-      .then((j) => setCategories(j.data || []))
-      .catch(() => {});
+    // Shared with the navbar and the homepage's mega-panel rather than a
+    // second copy. This page was fetching the ~250KB category list itself,
+    // with cache: "no-store" forcing a full re-download, and on a path without
+    // the trailing slash so trailingSlash: true answered 308 first — two round
+    // trips for a list another component had already loaded.
+    loadAllCategories().then(setCategories).catch(() => {});
   }, []);
 
   const topCategories = useMemo(() => buildCategoryTree(categories), [categories]);
@@ -138,20 +150,20 @@ export default function RankingsPage() {
   );
 
   const fetchGroups = useCallback((offset: number, append: boolean) => {
-    const seq = ++reqSeq.current;
+    const seq = ++groupSeq.current;
     if (append) setLoadingMore(true); else setLoading(true);
     const params = new URLSearchParams({ tab, offset: String(offset), limit: String(GROUP_PAGE) });
     if (scope) params.set("parentId", scope);
     fetch(`/api/rankings?${params.toString()}`)
       .then((r) => r.json())
       .then((j) => {
-        if (seq !== reqSeq.current) return;
+        if (seq !== groupSeq.current) return;
         setGroups((prev) => (append ? [...prev, ...(j.groups || [])] : j.groups || []));
         setHasMore(Boolean(j.hasMore));
         setGroupOffset(offset + GROUP_PAGE);
       })
-      .catch(() => { if (seq === reqSeq.current && !append) setGroups([]); })
-      .finally(() => { if (seq === reqSeq.current) { setLoading(false); setLoadingMore(false); loadMoreLock.current = false; } });
+      .catch(() => { if (seq === groupSeq.current && !append) setGroups([]); })
+      .finally(() => { if (seq === groupSeq.current) { setLoading(false); setLoadingMore(false); loadMoreLock.current = false; } });
   }, [tab, scope]);
 
   // Reset & load first page when scope or tab changes.
@@ -203,19 +215,19 @@ export default function RankingsPage() {
   // "All" tab product grid.
   useEffect(() => {
     if (tab !== "all") return;
-    const seq = ++reqSeq.current;
+    const seq = ++allSeq.current;
     setAllLoading(true);
     const params = new URLSearchParams({ page: String(allPage), limit: String(ALL_PAGE_SIZE) });
     if (scope) params.set("categoryId", scope);
     fetch(`/api/products?${params.toString()}`)
       .then((r) => r.json())
       .then((j) => {
-        if (seq !== reqSeq.current) return;
+        if (seq !== allSeq.current) return;
         setAllProducts(j.data || []);
         setAllTotalPages(j.pagination?.totalPages || 1);
       })
-      .catch(() => { if (seq === reqSeq.current) setAllProducts([]); })
-      .finally(() => { if (seq === reqSeq.current) setAllLoading(false); });
+      .catch(() => { if (seq === allSeq.current) setAllProducts([]); })
+      .finally(() => { if (seq === allSeq.current) setAllLoading(false); });
   }, [tab, scope, allPage]);
 
   useEffect(() => { setAllPage(1); }, [scope, tab]);

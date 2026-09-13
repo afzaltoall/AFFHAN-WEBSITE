@@ -3,6 +3,7 @@ import { Prisma } from ".prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { unstable_cache } from "next/cache";
 import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList } from "@/lib/moderation";
+import { TAG_CATEGORIES, TAG_PRODUCTS, MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
 
 // ---------------------------------------------------------------------------
 // Top Ranking API.
@@ -59,14 +60,29 @@ const getCachedLeafCounts = unstable_cache(
 const DEFAULT_GROUP_LIMIT = 15; // ranking cards per page (load-more adds more)
 const PRODUCTS_PER_GROUP = 3; // ranked products per card (#1..#3)
 
-export async function GET(request: Request) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const parentId = searchParams.get("parentId"); // selected top-level category (optional)
-    const tab = searchParams.get("tab") === "popular" ? "popular" : "hot";
-    const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10) || 0);
-    const limit = Math.min(30, Math.max(1, parseInt(searchParams.get("limit") || String(DEFAULT_GROUP_LIMIT), 10) || DEFAULT_GROUP_LIMIT));
+type RankingsPayload = {
+  scopeName: string;
+  tab?: string;
+  groups: Array<{ id: string; name: string; parentName: string | null; products: unknown[] }>;
+  hasMore: boolean;
+};
 
+/**
+ * The whole response, cached — not just the category helpers.
+ *
+ * Only getCachedAllCategories and getCachedLeafCounts were cached before, and
+ * they were never the cost: the route answers in 0.35s when the product query
+ * is skipped and 4-9s when it runs. So every single visitor to /rankings/ paid
+ * for that query, and while it was in flight the page showed nothing but
+ * skeletons — which is exactly what "the page never loads" turned out to be.
+ *
+ * unstable_cache keys on the arguments, so each tab/scope/page is cached
+ * separately. 60s matches the categories route: short enough that a
+ * moderation removal reaches viewers inside a minute, which matters because
+ * these are product listings.
+ */
+const getCachedRankings = unstable_cache(
+  async (tab: string, offset: number, limit: number, parentId: string | null): Promise<RankingsPayload> => {
     const [allCats, leafCounts] = await Promise.all([
       getCachedAllCategories(),
       getCachedLeafCounts(),
@@ -112,7 +128,7 @@ export async function GET(request: Request) {
     const hasMore = offset + limit < scopedIds.length;
 
     if (groupIds.length === 0) {
-      return NextResponse.json({ scopeName, groups: [], hasMore: false });
+      return { scopeName, groups: [], hasMore: false };
     }
 
     // Empty when nothing is blocked by id, so the clause disappears entirely
@@ -122,29 +138,65 @@ export async function GET(request: Request) {
       ? Prisma.sql`AND "id" NOT IN (${Prisma.join(blockedIds)})`
       : Prisma.empty;
 
-    // One windowed query: the top PRODUCTS_PER_GROUP products for every card,
-    // interleaved. `hot` shows newest listings, `popular` shows the earliest
-    // (established) ones — two honest, deterministic orderings.
-    const orderInPartition = tab === "popular"
+    // The top PRODUCTS_PER_GROUP products for every card. `hot` shows newest
+    // listings, `popular` the earliest (established) ones — two honest,
+    // deterministic orderings.
+    //
+    // A LATERAL join per category, NOT a window function, and the difference
+    // is the whole reason /rankings/ used to sit on empty skeletons.
+    //
+    // This was ROW_NUMBER() OVER (PARTITION BY "categoryId"), filtered to
+    // rn <= 3 outside the subquery. Postgres cannot push that limit into a
+    // window, so it ranked every row in every partition first: the fifteen
+    // biggest categories hold 486,897 products between them, and the query
+    // sorted all of them to return 45. Roughly 10,800 rows read per row
+    // returned. Worse, the un-indexable `name !~*` regex (650 characters, 47
+    // keywords) was evaluated on each of those rows.
+    //
+    // Measured with EXPLAIN ANALYZE over the same fifteen categories:
+    //
+    //     window + regex (as it was)    4.82s
+    //     window, no regex              0.67s
+    //     regex, no window              9.30s
+    //     this LATERAL form             0.00s
+    //
+    // LATERAL lets each category be answered independently by
+    // Product_categoryId_id_desc_idx, which already existed: walk that one
+    // category in id order and stop at three. The regex still runs — the
+    // moderation rule is not negotiable — but on a handful of rows per
+    // category rather than half a million.
+    // The rank is computed OUTSIDE the LATERAL, over the handful of rows that
+    // survive it. Putting ROW_NUMBER() inside would have quietly undone the
+    // whole fix: Postgres evaluates window functions after WHERE but before
+    // LIMIT, so the inner query would have ranked every product in the
+    // category before taking three — which is the original problem wearing a
+    // different shape. Out here the window sees 45 rows.
+    const innerOrder = tab === "popular"
       ? Prisma.sql`ORDER BY "id" ASC`
       : Prisma.sql`ORDER BY "id" DESC`;
+    const outerOrder = tab === "popular"
+      ? Prisma.sql`ORDER BY p."id" ASC`
+      : Prisma.sql`ORDER BY p."id" DESC`;
 
     const rows = await prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; categoryId: string; rn: number }>>(
       Prisma.sql`
-        SELECT "id", "name", "imageUrl", "categoryId", rn FROM (
-          SELECT "id", "name", "imageUrl", "categoryId",
-            ROW_NUMBER() OVER (PARTITION BY "categoryId" ${orderInPartition}) AS rn
+        SELECT p."id", p."name", p."imageUrl", c."categoryId",
+               ROW_NUMBER() OVER (PARTITION BY c."categoryId" ${outerOrder}) AS rn
+        FROM unnest(ARRAY[${Prisma.join(groupIds)}]::text[]) AS c("categoryId")
+        CROSS JOIN LATERAL (
+          SELECT "id", "name", "imageUrl"
           FROM "Product"
-          WHERE "categoryId" IN (${Prisma.join(groupIds)})
-            -- The category filter above is not the whole rule. A product can
-            -- be adult by NAME while sitting in a perfectly ordinary category
-            -- — that is the entire reason blockedNameRegex exists — and this
-            -- query applied neither it nor the blocked-id list, so the
+          WHERE "categoryId" = c."categoryId"
+            -- The category filter is not the whole rule. A product can be
+            -- adult by NAME while sitting in a perfectly ordinary category —
+            -- that is the entire reason blockedNameRegex exists — and this
+            -- query once applied neither it nor the blocked-id list, so the
             -- rankings page could feature a product no other surface shows.
             AND "name" !~* ${blockedNameRegex()}
             ${blockedIdsClause}
-        ) ranked
-        WHERE rn <= ${PRODUCTS_PER_GROUP}
+          ${innerOrder}
+          LIMIT ${PRODUCTS_PER_GROUP}
+        ) p
       `
     );
 
@@ -163,7 +215,30 @@ export async function GET(request: Request) {
       })
       .filter((g) => g.products.length > 0);
 
-    return NextResponse.json({ scopeName, tab, groups, hasMore });
+    return { scopeName, tab, groups, hasMore };
+  },
+  ["rankings-payload"],
+  { revalidate: 60, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
+);
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const parentId = searchParams.get("parentId"); // selected top-level category (optional)
+    const tab = searchParams.get("tab") === "popular" ? "popular" : "hot";
+    const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10) || 0);
+    const limit = Math.min(
+      30,
+      Math.max(1, parseInt(searchParams.get("limit") || String(DEFAULT_GROUP_LIMIT), 10) || DEFAULT_GROUP_LIMIT)
+    );
+
+    const payload = await getCachedRankings(tab, offset, limit, parentId);
+    // The edge cache in front of unstable_cache, for the same reason the
+    // categories route has one: force-dynamic still wakes the function and
+    // re-serialises the body for every caller.
+    return NextResponse.json(payload, {
+      headers: { "Cache-Control": MODERATION_SENSITIVE_CACHE_CONTROL },
+    });
   } catch (error) {
     console.error("Failed to build rankings:", error);
     return NextResponse.json(
