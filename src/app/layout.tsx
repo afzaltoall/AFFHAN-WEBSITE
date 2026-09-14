@@ -31,11 +31,11 @@ export const metadata: Metadata = {
   // <link rel=canonical href="https://affhan.com/">, i.e. claimed to BE the
   // homepage. The homepage sets its own in app/page.tsx; anything else either
   // sets one or emits none, and none is far better than wrong.
-  title: "AFFHAN Group | B2B Sourcing Company & Import Export India",
+  title: "AFFHAN | B2B Sourcing Company & Import Export India",
   description: "AFFHAN Group is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
   keywords: "global b2b sourcing, china sourcing agent, product sourcing, import export company, freight forwarding, shipping company, sea freight, air freight, door to door shipping, nvocc, non-vessel operating common carrier, wholesale sourcing platform",
   openGraph: {
-    title: "AFFHAN Group | B2B Sourcing Company & Import Export India",
+    title: "AFFHAN | B2B Sourcing Company & Import Export India",
     description: "AFFHAN Group is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
     url: "https://affhan.com",
     siteName: "AFFHAN Group",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AFFHAN Group | B2B Sourcing Company & Import Export India",
+    title: "AFFHAN | B2B Sourcing Company & Import Export India",
     description: "AFFHAN Group is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
   },
 };
