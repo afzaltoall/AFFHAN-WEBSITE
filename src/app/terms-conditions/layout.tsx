@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Terms & Conditions | Affhan Group",
+  title: "Terms & Conditions | AFFHAN",
   description:
     "The terms governing your use of Affhan International's sourcing marketplace and quote-request services.",
   alternates: { canonical: "https://affhan.com/terms-conditions/" },

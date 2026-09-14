@@ -11,7 +11,7 @@ import { AccountNavShell } from "@/components/account/AccountNavShell";
  * these URLs was the homepage.
  */
 export const metadata: Metadata = {
-  title: "My Account | Affhan Group",
+  title: "My Account | AFFHAN",
   robots: { index: false, follow: false },
   alternates: { canonical: "https://affhan.com/account/" },
 };

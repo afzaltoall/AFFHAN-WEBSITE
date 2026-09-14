@@ -11,7 +11,7 @@ import { OfficeLocations } from "@/components/sections/OfficeLocations";
 // nowhere in the snippet. They are the first thing in it now.
 const PAGE_TITLE = "Contact AFFHAN | Chennai Office, Phone & Email";
 const PAGE_DESCRIPTION =
-  "Call AFFHAN Group on +91 90920 09044 or email info@affhan.com. Head office in Royapuram, Chennai, with offices in Guangzhou, Dubai, London and Singapore.";
+  "Call AFFHAN on +91 90920 09044 or email info@affhan.com. Head office in Royapuram, Chennai, with offices in Guangzhou, Dubai, London and Singapore.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,

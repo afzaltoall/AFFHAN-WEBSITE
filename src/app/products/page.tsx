@@ -38,7 +38,7 @@ export async function generateMetadata({
   // own worth indexing separately.
   if (!category) {
     return {
-      title: "Product Catalog | Affhan Group",
+      title: "Product Catalog | AFFHAN",
       description:
         "Browse Affhan's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
       alternates: { canonical: `${SITE}/products/` },
