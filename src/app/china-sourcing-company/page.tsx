@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/china-sourcing-company/",
     type: "website",
-    siteName: "AFFHAN Group",
+    siteName: "AFFHAN",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: { card: "summary_large_image", title: PAGE_TITLE, description: PAGE_DESCRIPTION },

@@ -40,7 +40,7 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/sourcing-company-dubai/",
     type: "website",
-    siteName: "AFFHAN Group",
+    siteName: "AFFHAN",
     images: [
       {
         url: "/images/logo.png",

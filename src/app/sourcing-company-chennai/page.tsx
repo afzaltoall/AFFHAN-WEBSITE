@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     // 308s, so a share pointed one hop away from the page's own canonical.
     url: "https://affhan.com/sourcing-company-chennai/",
     type: "website",
-    siteName: "AFFHAN Group",
+    siteName: "AFFHAN",
     images: [
       {
         url: "/images/logo.png",

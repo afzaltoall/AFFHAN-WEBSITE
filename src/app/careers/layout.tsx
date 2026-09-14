@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/careers/",
-    siteName: "AFFHAN Group",
+    siteName: "AFFHAN",
     type: "website",
   },
   twitter: {

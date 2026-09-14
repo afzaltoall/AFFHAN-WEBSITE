@@ -53,7 +53,7 @@ export async function generateMetadata({
       title: role.metaTitle,
       description: role.metaDescription,
       url,
-      siteName: "AFFHAN Group",
+      siteName: "AFFHAN",
       type: "website",
     },
     twitter: {

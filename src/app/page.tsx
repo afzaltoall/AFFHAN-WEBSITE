@@ -32,7 +32,15 @@ const websiteSchema = {
   "@type": "WebSite",
   "@id": `${SITE_URL}/#website`,
   url: `${SITE_URL}/`,
-  name: "AFFHAN Group",
+  // WebSite.name and og:site_name are the SAME signal to Google — both feed
+  // the site name shown above a result — so they cannot be allowed to
+  // disagree, or Google picks between them on its own. og:site_name now says
+  // "AFFHAN" on all thirteen pages that set one, so this does too.
+  //
+  // This is the one schema value that moved. Organization.name in the root
+  // layout still reads AFFHAN International Pvt Ltd, and alternateName below
+  // keeps the registered name attached to the site itself.
+  name: "AFFHAN",
   alternateName: "AFFHAN International Pvt Ltd",
   inLanguage: "en",
   publisher: { "@id": ORG_ID },
