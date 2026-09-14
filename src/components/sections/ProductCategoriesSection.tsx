@@ -94,8 +94,17 @@ export function ProductCategoriesSection({
             <h2 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900">
               Explore our sourcing categories
             </h2>
+            {/* All eight location pages are linked from here, not two.
+
+                This paragraph is the homepage's only contextual link into the
+                location pages, and it used to reach Chennai and Dubai alone —
+                the other six were left to the footer, which is boilerplate on
+                every URL and carries far less weight than a body link that
+                describes where it goes. Split along the way the business
+                actually works, buying end then delivery end, so eight links
+                read as two sentences rather than as a list of cities. */}
             <p className="mt-2 text-slate-500 max-w-2xl">
-              Browse across {total.toLocaleString()} verified categories — every product we can source for you. Whether you&rsquo;re working with our <Link href="/sourcing-company-chennai/" className="text-brand hover:underline font-medium">sourcing company in Chennai</Link> or our <Link href="/sourcing-company-dubai/" className="text-brand hover:underline font-medium">sourcing company in Dubai</Link>, we handle end-to-end procurement, quality checks, and freight.
+              Browse across {total.toLocaleString()} verified categories — every product we can source for you. The buying happens in China: our <Link href="/china-sourcing-company/" className="text-brand hover:underline font-medium">China sourcing company</Link> works out of the <Link href="/china-sourcing-office-guangzhou/" className="text-brand hover:underline font-medium">Guangzhou office</Link>, and our guide to <Link href="/sourcing-from-china/" className="text-brand hover:underline font-medium">sourcing from China</Link> sets out how an order moves from quote to container. Wherever you are, the sourcing company in <Link href="/sourcing-company-chennai/" className="text-brand hover:underline font-medium">Chennai</Link>, <Link href="/sourcing-company-dubai/" className="text-brand hover:underline font-medium">Dubai</Link>, <Link href="/sourcing-company-singapore/" className="text-brand hover:underline font-medium">Singapore</Link>, <Link href="/sourcing-company-malaysia/" className="text-brand hover:underline font-medium">Malaysia</Link> or the <Link href="/sourcing-company-uk/" className="text-brand hover:underline font-medium">UK</Link> handles procurement, quality checks and freight end to end.
             </p>
           </div>
           <Link
