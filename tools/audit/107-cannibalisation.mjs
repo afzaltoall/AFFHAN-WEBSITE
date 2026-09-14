@@ -16,14 +16,21 @@ const LOCATIONS = ['chennai', 'dubai', 'singapore', 'malaysia', 'london', 'guang
 
 const dec = (x) => (x || '').replace(/&amp;/g, '&').replace(/&#[0-9a-fA-Fx]+;/g, ' ').replace(/\s+/g, ' ').trim();
 
+// Inline elements introduce no word boundary; block elements do. Replacing
+// every tag with a space invented spacing that is not on the page — see the
+// longer note in 106-core-pages.mjs, where it cost a near-miss "fix".
+const INLINE_TAG =
+  /^<\/?(?:a|abbr|b|bdi|bdo|cite|code|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var|wbr)\b[^>]*>$/i;
+const stripTags = (html) => (html || '').replace(/<[^>]+>/g, (tag) => (INLINE_TAG.test(tag) ? '' : ' '));
+
 const pages = [];
 for (const [slug, label] of CORE) {
   const html = await (await fetch(`${origin}/${slug}${slug ? '/' : ''}`)).text();
   const title = dec((/<title>([^<]*)<\/title>/.exec(html) || [])[1]);
   const desc = dec((/<meta name="description" content="([^"]*)"/.exec(html) || [])[1]);
-  const h1 = dec(((/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html) || [])[1] || '').replace(/<[^>]+>/g, ' '));
+  const h1 = dec(stripTags((/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html) || [])[1]));
   const body = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ');
-  const text = body.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ').replace(/\s+/g, ' ');
+  const text = stripTags(body).replace(/&[a-z#0-9]+;/g, ' ').replace(/\s+/g, ' ');
   pages.push({ label, title, desc, h1, text, meta: [title, desc, h1].join(' ') });
 }
 

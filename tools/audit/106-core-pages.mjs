@@ -77,6 +77,18 @@ const dec = (x) =>
     .replace(/\s+/g, ' ')
     .trim();
 
+// Strip tags the way a browser lays them out, not the way a regex wants to.
+//
+// Replacing EVERY tag with a space is wrong for inline elements. The careers
+// <h1> is authored as `Grow <em>without limits</em>, with <em>Affhan</em>.`,
+// which a browser renders as "Grow without limits, with Affhan." — but the
+// naive strip reported "without limits , with Affhan .", and that phantom
+// spacing was very nearly "fixed" in the page itself. Inline elements
+// introduce no word boundary; block elements do.
+const INLINE_TAG =
+  /^<\/?(?:a|abbr|b|bdi|bdo|cite|code|data|dfn|em|i|kbd|mark|q|s|samp|small|span|strong|sub|sup|time|u|var|wbr)\b[^>]*>$/i;
+const stripTags = (html) => (html || '').replace(/<[^>]+>/g, (tag) => (INLINE_TAG.test(tag) ? '' : ' '));
+
 const rows = [];
 for (const [slug, label, srcPath] of PAGES) {
   const url = `${origin}/${slug}${slug ? '/' : ''}`;
@@ -87,11 +99,11 @@ for (const [slug, label, srcPath] of PAGES) {
 
   const title = dec((/<title>([^<]*)<\/title>/.exec(html) || [])[1]);
   const desc = dec((/<meta name="description" content="([^"]*)"/.exec(html) || [])[1]);
-  const h1s = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map((m) => dec(m[1].replace(/<[^>]+>/g, ' ')));
+  const h1s = [...html.matchAll(/<h1[^>]*>([\s\S]*?)<\/h1>/g)].map((m) => dec(stripTags(m[1])));
   const canonical = (/<link rel="canonical" href="([^"]*)"/.exec(html) || [])[1] ?? null;
 
   const body = html.replace(/<script[\s\S]*?<\/script>/g, ' ').replace(/<style[\s\S]*?<\/style>/g, ' ');
-  const text = body.replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = stripTags(body).replace(/&[a-z#0-9]+;/g, ' ').replace(/\s+/g, ' ').trim();
 
   const schemaTypes = [...html.matchAll(/"@type"\s*:\s*"([A-Za-z]+)"/g)].map((m) => m[1]);
   const counted = schemaTypes.reduce((a, t) => ((a[t] = (a[t] || 0) + 1), a), {});
