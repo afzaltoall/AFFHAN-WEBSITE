@@ -9,7 +9,7 @@ import { FooterSection } from "@/components/sections/FooterSection";
 // the homepage and the location pages — three of our own URLs competing for
 // one result. The homepage now owns "sourcing company"; this page owns who we
 // are, since when, and who signs the paperwork.
-const PAGE_TITLE = "About AFFHAN Group | Our Story, Team and Offices";
+const PAGE_TITLE = "About AFFHAN | Our Story, Team and Offices";
 const PAGE_DESCRIPTION =
   "AFFHAN International Pvt Ltd has traded since 2000. Meet founder Afzal Khan, the leadership team and the seven registered offices behind the group.";
 

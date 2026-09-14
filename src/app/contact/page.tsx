@@ -9,7 +9,7 @@ import { OfficeLocations } from "@/components/sections/OfficeLocations";
 // all of them on a list of countries, so the phone number, the email address
 // and the city someone searching "affhan contact number" actually wants were
 // nowhere in the snippet. They are the first thing in it now.
-const PAGE_TITLE = "Contact AFFHAN Group | Chennai Office, Phone & Email";
+const PAGE_TITLE = "Contact AFFHAN | Chennai Office, Phone & Email";
 const PAGE_DESCRIPTION =
   "Call AFFHAN Group on +91 90920 09044 or email info@affhan.com. Head office in Royapuram, Chennai, with offices in Guangzhou, Dubai, London and Singapore.";
 
