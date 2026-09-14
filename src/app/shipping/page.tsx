@@ -5,7 +5,7 @@ import { FooterSection } from "@/components/sections/FooterSection";
 export const metadata: Metadata = {
   title: "Shipping & Freight Forwarding | AFFHAN",
   description:
-    "Sea and air freight, NVOCC, customs clearance and door-to-door delivery from Affhan Group, with offices in Chennai, Guangzhou, Dubai, Singapore, Malaysia and the UK.",
+    "Sea and air freight, NVOCC, customs clearance and door-to-door delivery from AFFHAN. Offices in Chennai, Guangzhou, Dubai, Singapore, Malaysia and the UK.",
   alternates: { canonical: "https://affhan.com/shipping/" },
 };
 
