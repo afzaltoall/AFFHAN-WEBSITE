@@ -7,7 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import { Almarai } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { WordsPullUpMultiStyle } from "./words-pull-up";
-import { ROLES, roleLocationLabel } from "@/lib/careerRoles";
+import { ROLES, rolePath, roleLocationLabel } from "@/lib/careerRoles";
 
 // latin only — the page renders no Arabic text, and the arabic subset is a
 // large glyph set that would be downloaded and never drawn.
@@ -105,8 +105,8 @@ export function PrismaRoles() {
                 </ul>
               </div>
 
-              <a href="/contact/" className="inline-flex items-center gap-2 group cursor-pointer w-max mt-8">
-                <span className="text-[#176579] text-xs sm:text-sm font-semibold">Learn more</span>
+              <a href={rolePath(role)} className="inline-flex items-center gap-2 group cursor-pointer w-max mt-8">
+                <span className="text-[#176579] text-xs sm:text-sm font-semibold">View role &amp; apply</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[#176579] transition-transform duration-300 group-hover:translate-x-1 -rotate-45" />
               </a>
             </motion.div>

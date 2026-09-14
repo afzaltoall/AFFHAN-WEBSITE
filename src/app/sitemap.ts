@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import { ROLES, rolePath } from '@/lib/careerRoles';
 
 // Static route sitemap only. next.config.ts has trailingSlash: true, so every
 // URL here must end in a slash — otherwise Google fetches a URL that 308s to
@@ -103,6 +104,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.7,
     },
+    // One URL per open role. They carry the JobPosting markup now, so they
+    // are the pages Google has to reach; /careers/ above is the overview.
+    ...ROLES.map((role) => ({
+      url: `${baseUrl}${rolePath(role)}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.5,
+    })),
     {
       url: `${baseUrl}/products/`,
       lastModified: new Date(),
