@@ -572,7 +572,7 @@ export function Navbar() {
                 >
                   <Mail size={16} /> Request a Quote
                 </button>
-                <p className="mt-3 text-center text-[11px] text-slate-400">Affhan International Pvt Ltd</p>
+                <p className="mt-3 text-center text-[11px] text-slate-400">AFFHAN International Pvt Ltd</p>
               </div>
             </motion.aside>
           </motion.div>

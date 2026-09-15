@@ -500,7 +500,7 @@ export default function AboutUsContent() {
         </div>
 
         <div className="absolute bottom-6 right-8 text-gray-400 text-xs">
-          ©2026 AFFHAN International Pvt Ltd
+          ©{new Date().getFullYear()}{" "}AFFHAN International Pvt Ltd
         </div>
       </section>
 

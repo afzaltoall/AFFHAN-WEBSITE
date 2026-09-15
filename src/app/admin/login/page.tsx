@@ -93,7 +93,7 @@ function LoginContent() {
             </motion.div>
           </AnimatePresence>
         </div>
-        <p className="relative z-10 text-slate-400 text-sm">© {new Date().getFullYear()} Affhan International Pvt Ltd</p>
+        <p className="relative z-10 text-slate-400 text-sm">© {new Date().getFullYear()} AFFHAN International Pvt Ltd</p>
       </div>
 
       {/* Right form panel */}

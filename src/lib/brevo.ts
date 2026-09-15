@@ -70,6 +70,6 @@ export function otpEmailHtml(otp: string): string {
       password will not be changed.
     </p>
     <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
-    <p style="margin:0;color:#94a3b8;font-size:12px">© ${new Date().getFullYear()} Affhan International Pvt Ltd</p>
+    <p style="margin:0;color:#94a3b8;font-size:12px">© ${new Date().getFullYear()} AFFHAN International Pvt Ltd</p>
   </div>`;
 }
