@@ -26,8 +26,13 @@ interface QuoteGateValue {
    * Google runs in a popup (ux_mode: "popup"), so React state survives the
    * whole round trip. That is why there is no sessionStorage key here and no
    * `?resume=` in the URL.
+   *
+   * `onCancel` fires when the dialog is dismissed without signing in. Without
+   * it the caller is left silent: someone who pressed Submit, thought better
+   * of making an account and closed the box would be looking at a form that
+   * appeared to do nothing when they pressed the button.
    */
-  requireLogin: (resume: Resume, reason?: string) => void;
+  requireLogin: (resume: Resume, reason?: string, onCancel?: () => void) => void;
 }
 
 const QuoteGateContext = createContext<QuoteGateValue | null>(null);
@@ -45,22 +50,30 @@ const DEFAULT_REASON = "Sign in to request a quote";
  * It holds the login modal rather than the inquiry modal on purpose. Seven
  * different components open an inquiry, several of them with their own portal,
  * back-button handling and lazy import; hoisting all that into one provider
- * would have meant rewriting each of them. Instead every call site keeps the
- * inquiry modal it already had and wraps the *opening* of it:
+ * would have meant rewriting each of them.
  *
- *     onClick={() => requireLogin(() => setInquiryProduct(p))}
+ * There is exactly ONE caller now, and it is not any of those seven: the quote
+ * form's own submit handler. The gate used to sit on the button that opened
+ * the form, which meant nobody could see what they were filling in before
+ * being asked for an account. It sits on the send instead — fill it freely,
+ * sign in to send it:
  *
- * so the gate is one line per site and the resume path is the component's own
- * existing state setter.
+ *     requireLogin(() => void send(), reason, onCancel)
+ *
+ * The login modal is portalled above the quote form rather than replacing it,
+ * so the form stays mounted throughout and `send()` closes over the values
+ * that were already typed. Nothing is serialised to survive the round trip
+ * because nothing has to be.
  */
 export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
   const { user, loading, refreshSession } = useAuth();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState<string>(DEFAULT_REASON);
   const resumeRef = useRef<Resume | null>(null);
+  const cancelRef = useRef<Resume | null>(null);
 
   const requireLogin = useCallback(
-    (resume: Resume, why?: string) => {
+    (resume: Resume, why?: string, onCancel?: Resume) => {
       void (async () => {
         // `user` is null for the first moment of every visit, until /me
         // answers — gating on that would show the login modal to people who
@@ -74,6 +87,7 @@ export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
         }
 
         resumeRef.current = resume;
+        cancelRef.current = onCancel ?? null;
         setReason(why ?? DEFAULT_REASON);
         setOpen(true);
       })();
@@ -89,6 +103,7 @@ export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
     setOpen(false);
     const resume = resumeRef.current;
     resumeRef.current = null;
+    cancelRef.current = null;
     resume?.();
   }, []);
 
@@ -97,6 +112,9 @@ export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
   const handleClose = useCallback(() => {
     setOpen(false);
     resumeRef.current = null;
+    const cancel = cancelRef.current;
+    cancelRef.current = null;
+    cancel?.();
   }, []);
 
   const value = useMemo(() => ({ requireLogin }), [requireLogin]);

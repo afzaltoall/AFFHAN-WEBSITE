@@ -87,6 +87,11 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
 
   const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Shown in the form rather than thrown at the window. Every failure path
+  // here used to call alert(): a native dialog over a styled modal, which
+  // stops the page, cannot be styled, and on the sign-in path was telling
+  // people to "try again" when trying again could not possibly help.
+  const [submitNote, setSubmitNote] = useState<string | null>(null);
   const [isMoqDropdownOpen, setIsMoqDropdownOpen] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -137,9 +142,16 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
    */
   const handleInquirySubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitNote(null);
     // Passes straight through when a session already exists, and waits for
     // /me when the answer is not known yet.
-    requireLogin(() => void send(), "Sign in to send your quote request");
+    requireLogin(
+      () => void send(),
+      "Sign in to send your quote request",
+      // Closed the dialog instead of signing in. Say so, because the button
+      // otherwise looks like it did nothing.
+      () => setSubmitNote("Sign in to send this request — everything you typed is still here."),
+    );
   };
 
   const send = async () => {
@@ -175,13 +187,17 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
         // cookie for but the server has since expired. Not something retrying
         // fixes, so reopen the gate and send again once it is real — the form
         // is still mounted, so nothing typed is lost.
-        requireLogin(() => void send(), "Your session expired — sign in to send it");
+        requireLogin(
+          () => void send(),
+          "Your session expired — sign in to send it",
+          () => setSubmitNote("Sign in to send this request — everything you typed is still here."),
+        );
       } else {
-        alert("Failed to submit inquiry. Please try again.");
+        setSubmitNote("We could not send that just now. Please try again in a moment.");
       }
     } catch (error) {
       console.error("Submission error:", error);
-      alert("Error submitting inquiry.");
+      setSubmitNote("Could not reach the server. Check your connection and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -459,6 +475,14 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
                       </div>
 
                       <div className="pt-4 flex flex-col items-center">
+                        {submitNote && (
+                          <p
+                            role="status"
+                            className="mb-3 w-full rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-[13px] font-medium text-amber-800"
+                          >
+                            {submitNote}
+                          </p>
+                        )}
                         <button
                           type="submit"
                           disabled={!isFormValid || isSubmitting}
