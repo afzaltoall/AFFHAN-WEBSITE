@@ -482,7 +482,7 @@ export default function AboutUsContent() {
             className="flex flex-col items-center text-center"
           >
             <span className="text-brand text-sm font-semibold uppercase tracking-[0.2em] mb-3">Partner With Us</span>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-gray-800">Affhan International pvt ltd</h2>
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-gray-800">AFFHAN International Pvt Ltd</h2>
           </motion.div>
 
           {/* Center Affhan logo with animated social "wires" flowing in */}
@@ -500,7 +500,7 @@ export default function AboutUsContent() {
         </div>
 
         <div className="absolute bottom-6 right-8 text-gray-400 text-xs">
-          ©2026 Affhan International pvt ltd
+          ©2026 AFFHAN International Pvt Ltd
         </div>
       </section>
 
