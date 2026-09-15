@@ -60,7 +60,7 @@ export const ROLES: CareerRole[] = [
     ],
     metaTitle: "Sourcing Specialist Job | Affhan Guangzhou & Chennai",
     metaDescription:
-      "Sourcing Specialist role at AFFHAN International in Guangzhou or Chennai. Find factories, negotiate pricing and MOQs, and source to client specification.",
+      "Sourcing Specialist role at Affhan International in Guangzhou or Chennai. Find factories, negotiate pricing and MOQs, and source to client specification.",
   },
   {
     id: "02",
@@ -78,7 +78,7 @@ export const ROLES: CareerRole[] = [
     ],
     metaTitle: "Quality Control Inspector Job in Guangzhou | Affhan",
     metaDescription:
-      "QC Inspector role at AFFHAN International in Guangzhou, China. Run on-site factory inspections and audits, enforce compliance and drive corrective action.",
+      "QC Inspector role at Affhan International in Guangzhou, China. Run on-site factory inspections and audits, enforce compliance and drive corrective action.",
   },
   {
     id: "03",
@@ -96,7 +96,7 @@ export const ROLES: CareerRole[] = [
     ],
     metaTitle: "Freight & Logistics Coordinator Job | Chennai, Dubai",
     metaDescription:
-      "Logistics & Freight Coordinator role at AFFHAN International in Chennai or Dubai. Sea and air routing, LCL and FCL, customs clearance and documentation.",
+      "Logistics & Freight Coordinator role at Affhan International in Chennai or Dubai. Sea and air routing, LCL and FCL, customs clearance and documentation.",
   },
   {
     id: "04",
@@ -114,7 +114,7 @@ export const ROLES: CareerRole[] = [
     ],
     metaTitle: "B2B Account Manager Job | Affhan London & Singapore",
     metaDescription:
-      "B2B Account Manager role at AFFHAN International in London or Singapore. Own client accounts from the first quote request to the delivered container.",
+      "B2B Account Manager role at Affhan International in London or Singapore. Own client accounts from the first quote request to the delivered container.",
   },
 ];
 

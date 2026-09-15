@@ -82,7 +82,7 @@ function jobPostingSchema(role: CareerRole) {
       `<p>What you will do:</p><ul>`,
       role.features.map((f) => `<li>${f}</li>`).join(""),
       `</ul>`,
-      `<p>AFFHAN International has sourced, inspected and shipped goods out of China since 2000, from seven offices across Asia, the Middle East and Europe.</p>`,
+      `<p>Affhan International has sourced, inspected and shipped goods out of China since 2000, from seven offices across Asia, the Middle East and Europe.</p>`,
     ].join(""),
     datePosted: ROLES_CONFIRMED_ON,
     hiringOrganization: {
@@ -159,7 +159,7 @@ export default async function RolePage({
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-slate-400">Team</dt>
-              <dd className="mt-1 font-semibold text-slate-800">AFFHAN International</dd>
+              <dd className="mt-1 font-semibold text-slate-800">Affhan International</dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-slate-400">Listed</dt>

@@ -9,7 +9,7 @@ import type { Metadata } from "next";
 // roles come first now, and the cities sit in their own sentence.
 const PAGE_TITLE = "Careers at Affhan | Sourcing, QC and Freight Jobs";
 const PAGE_DESCRIPTION =
-  "Jobs at AFFHAN International. Open roles in sourcing, quality control, freight and account management. Hiring in Chennai, Guangzhou, London and Dubai.";
+  "Jobs at Affhan International. Open roles in sourcing, quality control, freight and account management. Hiring in Chennai, Guangzhou, London and Dubai.";
 
 // Applies to /careers/ and is inherited by /careers/<role>/, which is why each
 // role page sets its own title, description, canonical and OG card in full.
