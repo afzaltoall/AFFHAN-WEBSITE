@@ -40,7 +40,7 @@ export default function AboutPage() {
           inside a scroll-driven sticky sequence, which is not a page title and
           cannot become one without breaking the animation. Visually hidden, so
           the opening sequence is untouched; same approach as the homepage. */}
-      <h1 className="sr-only">About AFFHAN International — our story since 2000</h1>
+      <h1 className="sr-only">About Affhan International — our story since 2000</h1>
       <AboutUsContent />
       <FooterSection />
     </>
