@@ -19,6 +19,7 @@ import { getCategoryMeta } from "@/lib/categoryMeta";
 import { GET as getProducts } from "@/app/api/products/route";
 import { GET as getCategories } from "@/app/api/categories/route";
 import { headers } from "next/headers";
+import { CATALOGUE_HERO_IMAGES } from "@/lib/catalogueHeroImages";
 
 const SITE = "https://affhan.com";
 
@@ -127,6 +128,29 @@ export default async function ProductsPage({
 
   return (
     <>
+      {/* The opening hero's four cards, fetched before React asks for them.
+          They are rendered by a client component behind a `mounted` gate, so
+          they reach the DOM only after hydration — measured at 3,174ms on a
+          4 Mbps connection, spent purely waiting to be discovered. React
+          hoists these to the TOP of <head>, ahead of the 209 KB inlined
+          stylesheet, where the HTML preload scanner finds them in the first
+          few hundred bytes of the document.
+
+          Rendered as <link>, not ReactDOM.preload(). preload() called in a
+          server component emits only an RSC flight hint, which React acts on
+          during hydration — the exact moment this is meant to beat. Measured:
+          preload() produced zero <link> tags in the HTML.
+
+          React does hoist a copy and leave the original, so the tag appears
+          twice in <head> (~370 bytes). The browser fetches once. Not worth
+          trading the early placement to avoid.
+
+          The cost is 49 KB fetched on a deep link into a category, where the
+          hero never renders. That is the trade: 49 KB against a three-second
+          delay on the default view, which is the common one. */}
+      {CATALOGUE_HERO_IMAGES.map((src) => (
+        <link key={src} rel="preload" as="image" href={src} fetchPriority="high" />
+      ))}
       {breadcrumb && (
         <script
           type="application/ld+json"

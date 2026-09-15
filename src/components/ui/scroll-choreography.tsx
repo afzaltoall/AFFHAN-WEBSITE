@@ -4,6 +4,7 @@ import { motion, useScroll, useTransform, type MotionValue } from "framer-motion
 import { useRef } from "react";
 import { cn } from "@/lib/utils";
 import { getCdnUrl } from "@/lib/cdn";
+import { CATALOGUE_HERO_SIZE } from "@/lib/catalogueHeroImages";
 
 interface ScrollChoreographyProps {
   className?: string;
@@ -104,7 +105,7 @@ export function ScrollChoreography({ className, images, scatter }: ScrollChoreog
   const underImagesOpacity = useTransform(smoothProgress, [0.75, 0.85], [1, 0]);
 
   const baseImageClasses =
-    "absolute left-1/2 top-1/2 w-[36vw] h-[24vh] overflow-hidden -translate-x-1/2 -translate-y-1/2 bg-muted shadow-2xl will-change-transform rounded-2xl";
+    "absolute left-1/2 top-1/2 w-[36vw] h-[24vh] overflow-hidden -translate-x-1/2 -translate-y-1/2 bg-slate-200 shadow-2xl will-change-transform rounded-2xl";
 
   const scatterImages = (scatter ?? []).slice(0, SCATTER_POS.length);
 
@@ -114,17 +115,17 @@ export function ScrollChoreography({ className, images, scatter }: ScrollChoreog
         <div className="absolute inset-0 flex items-center justify-center">
           <motion.div style={{ x: tlX, y: tlY, opacity: underImagesOpacity }} className={cn(baseImageClasses, "z-10")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={images.topLeft} alt="" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
+            <img src={images.topLeft} alt="" width={CATALOGUE_HERO_SIZE.width} height={CATALOGUE_HERO_SIZE.height} fetchPriority="high" decoding="async" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
           </motion.div>
 
           <motion.div style={{ x: brX, y: brY, opacity: underImagesOpacity }} className={cn(baseImageClasses, "z-20")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={images.bottomRight} alt="" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
+            <img src={images.bottomRight} alt="" width={CATALOGUE_HERO_SIZE.width} height={CATALOGUE_HERO_SIZE.height} fetchPriority="high" decoding="async" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
           </motion.div>
 
           <motion.div style={{ x: blX, y: blY, opacity: underImagesOpacity }} className={cn(baseImageClasses, "z-30")}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={images.bottomLeft} alt="" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
+            <img src={images.bottomLeft} alt="" width={CATALOGUE_HERO_SIZE.width} height={CATALOGUE_HERO_SIZE.height} fetchPriority="high" decoding="async" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
           </motion.div>
 
           <motion.div
@@ -132,7 +133,7 @@ export function ScrollChoreography({ className, images, scatter }: ScrollChoreog
             className={cn(baseImageClasses, "z-40 origin-center")}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={images.topRight} alt="" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
+            <img src={images.topRight} alt="" width={CATALOGUE_HERO_SIZE.width} height={CATALOGUE_HERO_SIZE.height} fetchPriority="high" decoding="async" className="h-full w-full object-cover transition-transform duration-500 hover:scale-110 cursor-pointer" />
           </motion.div>
         </div>
 

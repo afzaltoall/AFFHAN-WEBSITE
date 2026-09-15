@@ -1,6 +1,7 @@
 "use client";
 
 import { ScrollChoreography } from "@/components/ui/scroll-choreography";
+import { CATALOGUE_HERO_IMAGES } from "@/lib/catalogueHeroImages";
 
 /**
  * Opening scroll-choreography for the catalogue. Four real product images
@@ -9,12 +10,8 @@ import { ScrollChoreography } from "@/components/ui/scroll-choreography";
  * to nothing there), so mobile users drop straight into the catalogue.
  */
 export function CatalogueScrollHero({ scatterImages = [] }: { scatterImages?: string[] }) {
-  const imgs = [
-    "/full catalogue/discover.png",
-    "/full catalogue/verify.png",
-    "/full catalogue/customize.png",
-    "/full catalogue/Deliver.png",
-  ];
+  // Shared with the preload in app/products/page.tsx — see the note there.
+  const imgs = CATALOGUE_HERO_IMAGES;
 
   const deliveryIcons = [
     "/Delivery/icon-1.png",
