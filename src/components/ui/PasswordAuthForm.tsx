@@ -4,6 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import {
+  authStack,
+  authLabel,
+  authInput,
+  authPrimaryButton,
+  authSwitchRow,
+  authSwitchLink,
+  authFormError,
+} from "@/components/ui/authFieldStyles";
 
 /**
  * Email and password — the way most returning customers now sign in.
@@ -66,9 +75,9 @@ export function PasswordAuthForm({
   const ready = email.trim() !== "" && password !== "";
 
   return (
-    <div className="space-y-4">
+    <div className={authStack}>
       <label className="block">
-        <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">Email</span>
+        <span className={authLabel}>Email</span>
         <input
           autoFocus={autoFocus}
           type="email"
@@ -82,7 +91,7 @@ export function PasswordAuthForm({
       </label>
 
       <label className="block">
-        <span className="mb-1.5 block text-[13px] font-semibold text-slate-700">Password</span>
+        <span className={authLabel}>Password</span>
         <span className="relative block">
           <input
             type={show ? "text" : "password"}
@@ -118,7 +127,7 @@ export function PasswordAuthForm({
       <button
         onClick={() => void submit()}
         disabled={busy || !ready}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        className={authPrimaryButton}
       >
         {busy && <Loader2 size={15} className="animate-spin" />}
         Sign in
@@ -127,19 +136,19 @@ export function PasswordAuthForm({
       {/* The one way off this screen that is not signing in: making an
           account. Without it the only route to signing up would be guesswork,
           which is how account creation ends up invisible. */}
-      <p className="pt-1 text-center text-[13px] text-slate-500">
+      <p className={authSwitchRow}>
         New to Affhan?{" "}
         <button
           type="button"
           onClick={onCreateAccount}
-          className="font-semibold text-brand underline-offset-2 transition-colors hover:text-brand-dark hover:underline cursor-pointer"
+          className={authSwitchLink}
         >
           Create an account
         </button>
       </p>
 
       {error && (
-        <p role="alert" className="rounded-xl bg-red-50 px-4 py-2.5 text-[13px] text-red-700">
+        <p role="alert" className={authFormError}>
           {error}
         </p>
       )}
@@ -147,5 +156,4 @@ export function PasswordAuthForm({
   );
 }
 
-const inputClass =
-  "w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20";
+const inputClass = authInput;

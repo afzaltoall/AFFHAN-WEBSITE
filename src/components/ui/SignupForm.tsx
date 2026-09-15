@@ -3,6 +3,16 @@
 import { useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import {
+  authStack,
+  authLabel,
+  authInput,
+  authPrimaryButton,
+  authSwitchRow,
+  authSwitchLink,
+  authFieldError,
+  authFormError,
+} from "@/components/ui/authFieldStyles";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { COUNTRIES, type Country } from "@/lib/countries";
 import { checkPasswordStrength } from "@/lib/password-rules";
@@ -144,9 +154,9 @@ export function SignupForm({
   };
 
   return (
-    <div className="space-y-2.5">
+    <div className={authStack}>
       <label className="block">
-        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">Full name</span>
+        <span className={authLabel}>Full name</span>
         <input
           autoFocus={autoFocus}
           type="text"
@@ -161,7 +171,7 @@ export function SignupForm({
       </label>
 
       <label className="block">
-        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">Email</span>
+        <span className={authLabel}>Email</span>
         <input
           type="email"
           autoComplete="email"
@@ -173,14 +183,14 @@ export function SignupForm({
           className={inputClass}
         />
         {emailBad && (
-          <span className="mt-1 block text-[12px] text-red-600">
+          <span className={authFieldError}>
             Enter a valid email address.
           </span>
         )}
       </label>
 
       <div className="block">
-        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">Mobile number</span>
+        <span className={authLabel}>Mobile number</span>
         <div className="flex items-stretch gap-2">
           {/* The same searchable dial picker the quote modal and the old phone
               form use — one list of countries, one set of flags. */}
@@ -190,7 +200,7 @@ export function SignupForm({
               align="left"
               selected={country}
               onSelect={setCountry}
-              buttonClassName="!h-[38px] !rounded-xl !bg-white !border-slate-200"
+              buttonClassName="!h-[46px] sm:!h-[42px] !rounded-xl !bg-white !border-slate-200"
               menuClassName="!w-[15.5rem] [&_ul]:!max-h-56"
             />
           </div>
@@ -210,14 +220,14 @@ export function SignupForm({
           />
         </div>
         {phoneBad && (
-          <span className="mt-1 block text-[12px] text-red-600">
+          <span className={authFieldError}>
             Enter a valid mobile number for {country.name}.
           </span>
         )}
       </div>
 
       <label className="block">
-        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">Password</span>
+        <span className={authLabel}>Password</span>
         <span className="relative block">
           <input
             type={show ? "text" : "password"}
@@ -241,14 +251,12 @@ export function SignupForm({
         {/* Only once they have started typing: a rule stated under an empty
             box reads as an error before anything is wrong. */}
         {password !== "" && !strength.ok && (
-          <span className="mt-1 block text-[12px] text-amber-600">{strength.error}</span>
+          <span className="mt-1.5 block text-[12px] font-medium text-amber-600">{strength.error}</span>
         )}
       </label>
 
       <label className="block">
-        <span className="mb-0.5 block text-[12px] font-semibold text-slate-600">
-          Confirm password
-        </span>
+        <span className={authLabel}>Confirm password</span>
         <input
           type={show ? "text" : "password"}
           autoComplete="new-password"
@@ -260,7 +268,7 @@ export function SignupForm({
           className={inputClass}
         />
         {mismatch && (
-          <span className="mt-1 block text-[12px] text-red-600">
+          <span className={authFieldError}>
             Both passwords must match.
           </span>
         )}
@@ -269,25 +277,25 @@ export function SignupForm({
       <button
         onClick={() => void submit()}
         disabled={busy || !ready || mismatch || !strength.ok}
-        className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-2.5 mt-0.5 text-sm font-semibold text-white transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+        className={authPrimaryButton}
       >
         {busy && <Loader2 size={15} className="animate-spin" />}
         Create account
       </button>
 
-      <p className="text-center text-[13px] text-slate-500">
+      <p className={authSwitchRow}>
         Already have an account?{" "}
         <button
           type="button"
           onClick={onHaveAccount}
-          className="font-semibold text-brand underline-offset-2 transition-colors hover:text-brand-dark hover:underline cursor-pointer"
+          className={authSwitchLink}
         >
           Sign in
         </button>
       </p>
 
       {error && (
-        <p role="alert" className="rounded-xl bg-red-50 px-4 py-2.5 text-[13px] text-red-700">
+        <p role="alert" className={authFormError}>
           {error}
         </p>
       )}
@@ -295,5 +303,4 @@ export function SignupForm({
   );
 }
 
-const inputClass =
-  "w-full rounded-xl border border-slate-200 px-3.5 py-2 text-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20";
+const inputClass = authInput;
