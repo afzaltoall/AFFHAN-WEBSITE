@@ -7,7 +7,6 @@ import dynamic from 'next/dynamic';
 const CircularTestimonials = dynamic(() => import("@/components/ui/circular-testimonials").then(mod => mod.CircularTestimonials), { ssr: true });
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then(mod => mod.InquiryModal), { ssr: false });
 import type { ProductCardData } from "@/components/ui/ProductCard";
-import { useQuoteGate } from "@/context/QuoteGateContext";
 
 function sourcingBlurb(categoryName: string) {
   return `Sourced from vetted ${categoryName.toLowerCase()} suppliers across China — quality-checked, freighted, and delivered to your door. Share your target quantity and we’ll come back with a quote.`;
@@ -22,7 +21,6 @@ function sourcingBlurb(categoryName: string) {
 export function ProductSpotlightSection({ initialProducts = [] }: { initialProducts?: ProductCardData[] }) {
   const products = initialProducts;
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
-  const { requireLogin } = useQuoteGate();
 
   // Variety comes from the server now, once per ISR cycle. The imageUrl
   // filter went with the reshuffle: the hero pool query already requires
@@ -75,7 +73,7 @@ export function ProductSpotlightSection({ initialProducts = [] }: { initialProdu
             />
             <div className="text-center mt-6">
               <button
-                onClick={() => spotlight[0] && requireLogin(() => setInquiryProduct(spotlight[0]._product))}
+                onClick={() => spotlight[0] && setInquiryProduct(spotlight[0]._product)}
                 className="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-dark text-white font-bold text-sm px-6 py-3 transition-colors"
               >
                 Request a quote

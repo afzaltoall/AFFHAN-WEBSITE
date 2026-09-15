@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
@@ -52,9 +53,16 @@ export function LoginModal({
 }) {
   // Two screens, matching /login: signing in, and creating an account.
   const [method, setMethod] = useState<"password" | "signup">("password");
+  // Portalled, so this cannot be trapped inside whatever stacking context its
+  // caller happens to sit in. It opens ON TOP of the quote form — which is
+  // z-300 and rendered inline by seven different components — and a z-index
+  // only wins against a sibling.
+  const [mounted, setMounted] = useState(false);
   // Remounts the forms on each open, so a reopened dialog never resumes a
   // stranger's half-finished attempt on a shared machine.
   const [instance, setInstance] = useState(0);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (open) {
@@ -81,11 +89,13 @@ export function LoginModal({
       ? { heading: "Sign in", subheading: "Use the email and password on your account." }
       : { heading: "Create your account", subheading: "One screen, and you are in — no code to wait for." };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[130] flex items-center justify-center p-3 sm:p-4"
+          className="fixed inset-0 z-[400] flex items-center justify-center p-3 sm:p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -186,6 +196,7 @@ export function LoginModal({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }

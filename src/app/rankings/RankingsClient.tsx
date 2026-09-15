@@ -19,7 +19,6 @@ import { loadAllCategories } from "@/lib/categoriesClient";
 // server page and this component must not drift apart on the type of the very
 // data one hands the other.
 import type { RankProduct, RankGroup } from "@/lib/rankings";
-import { useQuoteGate } from "@/context/QuoteGateContext";
 type Tab = "hot" | "popular" | "all";
 
 const ALL_PAGE_SIZE = 60;
@@ -143,7 +142,6 @@ export function RankingsClient({
   const [allLoading, setAllLoading] = useState(false);
 
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
-  const { requireLogin } = useQuoteGate();
   // One counter per fetch flow, not one shared between them.
   //
   // Both the ranking groups and the "All" tab's product grid used a single
@@ -341,7 +339,7 @@ export function RankingsClient({
                 <p className="text-sm text-slate-500 mb-4">Showing products in <span className="font-semibold text-slate-800">{scopeName}</span></p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
                   {allProducts.map((p, idx) => (
-                    <ProductCard key={p.id} product={p} onClick={() => requireLogin(() => setInquiryProduct(p))} priority={idx < 12} />
+                    <ProductCard key={p.id} product={p} onClick={() => setInquiryProduct(p)} priority={idx < 12} />
                   ))}
                 </div>
                 {allProducts.length === 0 && (
@@ -360,7 +358,7 @@ export function RankingsClient({
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {groups.map((g, i) => (
-                  <RankingCard key={g.id} group={g} seed={i + 1} onSelect={(p) => requireLogin(() => setInquiryProduct(p))} onViewAll={() => goToCategory(g.id)} />
+                  <RankingCard key={g.id} group={g} seed={i + 1} onSelect={setInquiryProduct} onViewAll={() => goToCategory(g.id)} />
                 ))}
               </div>
               {/* Infinite scroll auto-loads more as you near the bottom (no button) */}

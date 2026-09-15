@@ -10,12 +10,10 @@ import { TextMorph } from "@/components/ui/text-morph-wrapper";
 const SocialCards = dynamic(() => import("@/components/ui/card-fan-carousel"), { ssr: true });
 import type { CardItem } from "@/components/ui/card-fan-carousel";
 import type { ProductCardData } from "@/components/ui/ProductCard";
-import { useQuoteGate } from "@/context/QuoteGateContext";
 
 export function PopularProductsSection({ initialProducts = [] }: { initialProducts?: ProductCardData[] }) {
   const products = initialProducts;
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
-  const { requireLogin } = useQuoteGate();
 
   // Variety comes from the server now, once per ISR cycle, so the
   // post-hydration reshuffle that used to sit here is gone along with the
@@ -36,7 +34,7 @@ export function PopularProductsSection({ initialProducts = [] }: { initialProduc
         alt: p.name,
         tag: p.categoryRef?.name || p.category || "Product",
         title: p.name,
-        onSelect: () => requireLogin(() => setInquiryProduct(p)),
+        onSelect: () => setInquiryProduct(p),
       }));
   }, [products]);
 

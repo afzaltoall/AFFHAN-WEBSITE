@@ -15,7 +15,6 @@ import { buildCategoryTree, getCategoryIcon, type CategoryTreeNode } from "@/lib
 import { ShippingBar } from "@/components/ui/ShippingBar";
 import { AffhanBrandBar } from "@/components/ui/AffhanBrandBar";
 import { loadAllCategories } from "@/lib/categoriesClient";
-import { useQuoteGate } from "@/context/QuoteGateContext";
 
 /** The two small slices the first screen needs, in place of all 668 rows. */
 export interface SidebarCategory { id: string; name: string; }
@@ -133,7 +132,6 @@ export function MarketplaceHeroSection({
 
   // Modal state
   const [selectedProduct, setSelectedProduct] = useState<ProductCardData | null>(null);
-  const { requireLogin } = useQuoteGate();
 
 
   // The IntersectionObserver that used to sit here is gone. The grid is a
@@ -592,7 +590,7 @@ export function MarketplaceHeroSection({
                     were tried on production over 5-run samples and both landed
                     inside the run-to-run variance, so the simpler code stands.
                     See the note on LCP_STABLE_LEAD in lib/heroPool.ts. */}
-                <ProductCard product={product} onClick={() => requireLogin(() => setSelectedProduct(product))} priority={idx === 0} eager={idx < 12} />
+                <ProductCard product={product} onClick={() => setSelectedProduct(product)} priority={idx === 0} eager={idx < 12} />
               </div>
             ))
           )}

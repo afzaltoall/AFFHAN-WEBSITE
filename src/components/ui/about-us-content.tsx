@@ -125,21 +125,22 @@ export default function AboutUsContent() {
   const servicesList = [
     {
       title: "Manufacturing, Sourcing & Supply",
-      // "6 countries". This briefly read 7, to agree with the "7 Global
-      // Offices" line further down the page. It is back to 6 on instruction:
-      // France exists as an office record and its card on /contact/ is
-      // correct, but it is not a location we promote in prose yet, so the
-      // written copy on this page counts the six that are.
+      // "7 countries", and this figure has now been round-tripped twice, so
+      // it is worth pinning down: the offices are China, India, Singapore,
+      // Malaysia, the UAE, the United Kingdom and France. Seven. France is a
+      // confirmed address (14 Rue de Dunkerque, 75010 Paris) with its own
+      // card on /contact/, which is what settles it.
       //
-      // The pre-existing "7 Global Offices" line in Global Reach below, and
-      // "7 key international hubs" on /contact/, still say seven. Neither was
-      // written here and neither has been touched.
+      // Everything on the site that counts offices says seven: the Global
+      // Reach section below, the story prose further down, the hero on
+      // /contact/, and the China page. Keep them together — this blurb was
+      // the one that disagreed, in both directions.
       //
       // "500+ categories", matching every other page and the catalogue itself:
       // 509 categories currently hold products. "40+" was true but understated
       // it by thirteen times, and it was the one figure on the site that
       // disagreed with the rest.
-      desc: "Backed by strong production capabilities and global partnerships, we manufacture, source, stock and supply high-quality products across 500+ categories seamlessly serving over 190+ markets in 6 countries worldwide.",
+      desc: "Backed by strong production capabilities and global partnerships, we manufacture, source, stock and supply high-quality products across 500+ categories seamlessly serving over 190+ markets in 7 countries worldwide.",
       img: "/services/img_1.webp"
     },
     {
@@ -390,9 +391,10 @@ export default function AboutUsContent() {
               registered entity and its own staff: AFFHAN INTERNATIONAL PVT LTD in Chennai,
               GUANGZHOU AFFHAN INTERNATIONAL CO., LTD in Guangdong, AFFHAN INTERNATIONAL PTE.
               LTD. in Singapore, AFFHAN INTERNATIONAL SDN. BHD. in Melaka, AFFHAN SHIPPING LLC
-              in Dubai, and AFFHAN INTERNATIONAL LTD in London. Six offices in six countries,
-              which is why the factory floor in Guangdong and the customs queue in Chennai are
-              both covered by our own people rather than by a broker we have never met.
+              in Dubai, and AFFHAN INTERNATIONAL LTD in London and Paris. Seven offices in
+              seven countries, which is why the factory floor in Guangdong and the customs
+              queue in Chennai are both covered by our own people rather than by a broker we
+              have never met.
             </p>
 
             <h3 className="pt-6 text-xl md:text-2xl font-bold tracking-tight text-black">

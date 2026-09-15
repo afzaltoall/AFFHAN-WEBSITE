@@ -118,10 +118,33 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
   // closes the enlarged image first and leaves the form standing.
   useBackDismiss(Boolean(product && isLightboxOpen), () => setIsLightboxOpen(false));
 
-  const handleInquirySubmit = async (e: React.FormEvent) => {
+  /**
+   * The sign-in gate sits HERE, on submit — not on the button that opened this
+   * form.
+   *
+   * Filling the form is open to everyone: someone can browse, pick a quantity,
+   * describe what they need and see exactly what they are asking for before
+   * anything is required of them. The account is only needed at the moment the
+   * request is actually sent, which is the same shape as a cart being open and
+   * checkout needing an account.
+   *
+   * Nothing is stashed anywhere to survive the login. This component stays
+   * mounted while the login modal opens on top of it — that is why the login
+   * modal is portalled above this one rather than replacing it — so every field
+   * is still in React state, untouched, and `send()` closes over the same
+   * values it would have used a second earlier. After a successful sign-in the
+   * gate calls `send()` itself, so the request goes without a second click.
+   */
+  const handleInquirySubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Passes straight through when a session already exists, and waits for
+    // /me when the answer is not known yet.
+    requireLogin(() => void send(), "Sign in to send your quote request");
+  };
+
+  const send = async () => {
     setIsSubmitting(true);
-    
+
     // Combine phone code and number (dial already includes the leading "+").
     const selectedPhoneCountry = COUNTRIES.find(c => c.iso === inquiryForm.phoneCountryCode);
     const fullPhoneNumber = `${selectedPhoneCountry?.dial ?? ""} ${inquiryForm.phoneNumber}`.trim();
@@ -130,9 +153,8 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
       const response = await fetch('/api/inquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Explicit, because the session cookie is what lets the server attach
-        // this inquiry to the customer's account. Anonymous submission is
-        // unaffected — there is simply no cookie to send.
+        // Explicit, and now load-bearing: /api/inquiry answers 401 without a
+        // session, so this cookie is what makes the request succeed at all.
         credentials: 'include',
         body: JSON.stringify({
           productId: product?.id,
@@ -149,10 +171,11 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
       if (response.ok) {
         setSubmitted(true);
       } else if (response.status === 401) {
-        // Not a failure to retry: the quote form is behind sign-in, and this
-        // session is gone. Reopen the gate; the form keeps everything typed.
-        alert("Your session has expired. Please sign in again to send this quote request.");
-        requireLogin(() => {}, "Sign in to send this quote request");
+        // The gate let this through on a session the browser still held a
+        // cookie for but the server has since expired. Not something retrying
+        // fixes, so reopen the gate and send again once it is real — the form
+        // is still mounted, so nothing typed is lost.
+        requireLogin(() => void send(), "Your session expired — sign in to send it");
       } else {
         alert("Failed to submit inquiry. Please try again.");
       }

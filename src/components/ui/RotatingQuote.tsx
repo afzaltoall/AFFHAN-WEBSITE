@@ -29,7 +29,7 @@ const QUOTES: Quote[] = [
     lead: "Global B2B sourcing and",
     accent: "freight forwarding",
     sub: "Source from China and 100+ countries, and move it with the same team.",
-    facts: ["6 offices worldwide", "Since 2000", "Sea & air freight"],
+    facts: ["7 offices worldwide", "Since 2000", "Sea & air freight"],
   },
   {
     lead: "One team, from the factory floor to",
@@ -38,9 +38,9 @@ const QUOTES: Quote[] = [
     facts: ["Sourcing & QC", "Customs clearance", "Door to door"],
   },
   {
-    lead: "Six offices. One",
+    lead: "Seven offices. One",
     accent: "point of contact",
-    sub: "Chennai, Guangzhou, Dubai, Singapore, Malaysia and London — ours, not agents.",
+    sub: "Chennai, Guangzhou, Dubai, Singapore, Malaysia, London and Paris — ours, not agents.",
     facts: ["Chennai HQ", "Guangzhou desk", "London · Dubai · Singapore"],
   },
   {

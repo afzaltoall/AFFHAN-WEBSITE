@@ -15,7 +15,6 @@ import { CatalogueDock } from "@/components/sections/CatalogueDock";
 import { buildCategoryTree, flattenLeaves, isGridEligibleRoot, type CategoryRecord, type CategoryTreeNode } from "@/lib/categoryTree";
 import { prepCatalogueNav } from "@/lib/scroll";
 import type { ProductCardData } from "@/components/ui/ProductCard";
-import { useQuoteGate } from "@/context/QuoteGateContext";
 
 interface FacetChip {
   id: string;
@@ -198,7 +197,6 @@ export function ProductsCatalogue({
   const [totalProductCount, setTotalProductCount] = useState<number>(initialPagination.total);
   const [error, setError] = useState<string | null>(null);
   const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
-  const { requireLogin } = useQuoteGate();
 
   // Guards against out-of-order responses (initial unfiltered fetch racing
   // the deep-linked ?q=/?categoryId= fetch that immediately follows).
@@ -741,7 +739,7 @@ export function ProductsCatalogue({
             >
               {products.map((product, idx) => (
                 <div key={product.id} className="w-full">
-                  <ProductCard product={product} onClick={() => requireLogin(() => setInquiryProduct(product))} priority={idx < 12} />
+                  <ProductCard product={product} onClick={() => setInquiryProduct(product)} priority={idx < 12} />
                 </div>
               ))}
             </motion.div>
