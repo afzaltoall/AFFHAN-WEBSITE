@@ -111,7 +111,7 @@ export function LoginModal({
             role="dialog"
             aria-modal="true"
             aria-labelledby="login-modal-title"
-            className="relative max-h-[92vh] w-full max-w-[26rem] overflow-y-auto rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/5"
+            className="relative max-h-[92vh] w-full max-w-[28rem] overflow-y-auto rounded-2xl bg-white shadow-2xl ring-1 ring-slate-900/5"
             initial={{ opacity: 0, y: 24, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16, scale: 0.98 }}

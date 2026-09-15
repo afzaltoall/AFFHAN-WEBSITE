@@ -56,7 +56,14 @@ export function SignupForm({
     COUNTRIES.find((c) => c.iso === "in") ?? COUNTRIES[0]
   );
   const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
+  // No "confirm password" field.
+  //
+  // It exists to catch a typo you cannot see, and you CAN see this one — the
+  // eye toggle below reveals the password in place. The second box costs a
+  // label, an input and a gap on the one screen standing between a visitor
+  // and a quote request, and the failure it guards against already has a
+  // recovery path: /forgot-password/ with its send, verify and reset routes.
+  // GitHub, Stripe and Vercel all dropped theirs for the same reasons.
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +71,6 @@ export function SignupForm({
   // Checked here as well as on the server. The server is what decides; this is
   // so the answer arrives before a round trip rather than after one.
   const strength = checkPasswordStrength(password);
-  const mismatch = confirm !== "" && password !== confirm;
 
   // The same check the quote form makes, out of the same helper: a real MOBILE
   // number for the selected country, judged by libphonenumber's full metadata
@@ -88,14 +94,9 @@ export function SignupForm({
     name.trim() !== "" &&
     emailValid &&
     phoneValid &&
-    password !== "" &&
-    confirm !== "";
+    password !== "";
 
   const submit = async () => {
-    if (mismatch) {
-      setError("Both passwords must match.");
-      return;
-    }
     if (!strength.ok) {
       setError(strength.error);
       return;
@@ -155,6 +156,7 @@ export function SignupForm({
 
   return (
     <div className={authStack}>
+      <div className="grid gap-3 sm:grid-cols-2">
       <label className="block">
         <span className={authLabel}>Full name</span>
         <input
@@ -188,6 +190,7 @@ export function SignupForm({
           </span>
         )}
       </label>
+      </div>
 
       <div className="block">
         <span className={authLabel}>Mobile number</span>
@@ -255,28 +258,9 @@ export function SignupForm({
         )}
       </label>
 
-      <label className="block">
-        <span className={authLabel}>Confirm password</span>
-        <input
-          type={show ? "text" : "password"}
-          autoComplete="new-password"
-          placeholder="Type it again"
-          {...focusProps("secret")}
-          value={confirm}
-          onChange={(e) => setConfirm(e.target.value)}
-          onKeyDown={onEnter}
-          className={inputClass}
-        />
-        {mismatch && (
-          <span className={authFieldError}>
-            Both passwords must match.
-          </span>
-        )}
-      </label>
-
       <button
         onClick={() => void submit()}
-        disabled={busy || !ready || mismatch || !strength.ok}
+        disabled={busy || !ready || !strength.ok}
         className={authPrimaryButton}
       >
         {busy && <Loader2 size={15} className="animate-spin" />}
