@@ -35,12 +35,14 @@ const websiteSchema = {
   // WebSite.name and og:site_name are the SAME signal to Google — both feed
   // the site name shown above a result — so they cannot be allowed to
   // disagree, or Google picks between them on its own. og:site_name now says
-  // "AFFHAN" on all thirteen pages that set one, so this does too.
+  // "Affhan" on all thirteen pages that set one, so this does too. Title
+  // case rather than all-caps is a brand-style decision taken on 2026-09-15;
+  // the legal entity keeps its capitals, here and in the Organization node.
   //
   // This is the one schema value that moved. Organization.name in the root
   // layout still reads AFFHAN International Pvt Ltd, and alternateName below
   // keeps the registered name attached to the site itself.
-  name: "AFFHAN",
+  name: "Affhan",
   alternateName: "AFFHAN International Pvt Ltd",
   inLanguage: "en",
   publisher: { "@id": ORG_ID },

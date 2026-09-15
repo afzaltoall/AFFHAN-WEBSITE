@@ -19,7 +19,7 @@ import { getCachedRankings, DEFAULT_GROUP_LIMIT } from "@/lib/rankings";
 // Everything past the first page still goes through the API from the client.
 
 export const metadata: Metadata = {
-  title: "Top Ranking | AFFHAN",
+  title: "Top Ranking | Affhan",
   description:
     "The most-stocked categories in Affhan's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
   alternates: { canonical: "https://affhan.com/rankings/" },

@@ -32,14 +32,14 @@ export const metadata: Metadata = {
   // <link rel=canonical href="https://affhan.com/">, i.e. claimed to BE the
   // homepage. The homepage sets its own in app/page.tsx; anything else either
   // sets one or emits none, and none is far better than wrong.
-  title: "AFFHAN | B2B Sourcing Company & Import Export India",
-  description: "AFFHAN is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
+  title: "Affhan | B2B Sourcing Company & Import Export India",
+  description: "Affhan is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
   keywords: "global b2b sourcing, china sourcing agent, product sourcing, import export company, freight forwarding, shipping company, sea freight, air freight, door to door shipping, nvocc, non-vessel operating common carrier, wholesale sourcing platform",
   openGraph: {
-    title: "AFFHAN | B2B Sourcing Company & Import Export India",
-    description: "AFFHAN is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
+    title: "Affhan | B2B Sourcing Company & Import Export India",
+    description: "Affhan is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
     url: "https://affhan.com",
-    siteName: "AFFHAN",
+    siteName: "Affhan",
     type: "website",
     images: [
       {
@@ -51,8 +51,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "AFFHAN | B2B Sourcing Company & Import Export India",
-    description: "AFFHAN is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
+    title: "Affhan | B2B Sourcing Company & Import Export India",
+    description: "Affhan is a B2B sourcing company and import export agent. Source 10 lakh+ products from China and 100+ countries. Freight and logistics handled.",
   },
 };
 

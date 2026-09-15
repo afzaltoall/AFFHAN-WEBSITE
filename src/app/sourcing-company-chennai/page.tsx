@@ -24,7 +24,7 @@ export const revalidate = 3600;
 // lost its tail — "— China Import" was being cut anyway, and it was the least
 // valuable part. Both phrases this page targets, "sourcing agent in Chennai"
 // and "sourcing company in Chennai", now survive the truncation intact.
-const PAGE_TITLE = "Sourcing Agent & Sourcing Company in Chennai, India | AFFHAN";
+const PAGE_TITLE = "Sourcing Agent & Sourcing Company in Chennai, India | Affhan";
 
 // 149 chars, down from 182. Google shows roughly 155, so the old "Get a quote
 // today" call to action was being clipped off the end where it did no work.
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     // 308s, so a share pointed one hop away from the page's own canonical.
     url: "https://affhan.com/sourcing-company-chennai/",
     type: "website",
-    siteName: "AFFHAN",
+    siteName: "Affhan",
     images: [
       {
         url: "/images/logo.png",

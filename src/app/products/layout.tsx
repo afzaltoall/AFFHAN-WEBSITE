@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Product Catalog | AFFHAN",
+  title: "Product Catalog | Affhan",
   description:
     "Browse Affhan's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
   alternates: { canonical: "https://affhan.com/products/" },

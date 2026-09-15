@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/sourcing-company-singapore/",
     type: "website",
-    siteName: "AFFHAN",
+    siteName: "Affhan",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: { card: "summary_large_image", title: PAGE_TITLE, description: PAGE_DESCRIPTION },

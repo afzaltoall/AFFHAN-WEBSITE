@@ -9,9 +9,9 @@ import { OfficeLocations } from "@/components/sections/OfficeLocations";
 // all of them on a list of countries, so the phone number, the email address
 // and the city someone searching "affhan contact number" actually wants were
 // nowhere in the snippet. They are the first thing in it now.
-const PAGE_TITLE = "Contact AFFHAN | Chennai Office, Phone & Email";
+const PAGE_TITLE = "Contact Affhan | Chennai Office, Phone & Email";
 const PAGE_DESCRIPTION =
-  "Call AFFHAN on +91 90920 09044 or email info@affhan.com. Head office in Royapuram, Chennai, with offices in Guangzhou, Dubai, London and Singapore.";
+  "Call Affhan on +91 90920 09044 or email info@affhan.com. Head office in Royapuram, Chennai, with offices in Guangzhou, Dubai, London and Singapore.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/contact/",
-    siteName: "AFFHAN",
+    siteName: "Affhan",
     type: "website",
   },
   twitter: {
@@ -38,7 +38,7 @@ export default function ContactPage() {
           The <h1> read "Contact Us" — two words, no brand, no city, on the one
           page people reach by searching the company name plus "contact". */}
       <Contact2
-        title="Contact AFFHAN"
+        title="Contact Affhan"
         description="Head office in Royapuram, Chennai, with sourcing and freight teams in Guangzhou, Dubai, London, Singapore, Melaka and Paris. Reach us for inquiries, quotations or support."
         phone="+91 90920 09044 / +91 44 4743 2777"
         email="info@affhan.com"

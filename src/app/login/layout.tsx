@@ -6,7 +6,7 @@ import type { Metadata } from "next";
  * the homepage and told Google /login/ and / were the same page.
  */
 export const metadata: Metadata = {
-  title: "Sign in | AFFHAN",
+  title: "Sign in | Affhan",
   robots: { index: false, follow: true },
   alternates: { canonical: "https://affhan.com/login/" },
 };

@@ -31,7 +31,7 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/sourcing-company-uk/",
     type: "website",
-    siteName: "AFFHAN",
+    siteName: "Affhan",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: {

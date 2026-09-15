@@ -15,7 +15,7 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 
 export const revalidate = 3600;
 
-const PAGE_TITLE = "Guangzhou Sourcing Agent & China Buying Office | AFFHAN";
+const PAGE_TITLE = "Guangzhou Sourcing Agent & China Buying Office | Affhan";
 
 const PAGE_DESCRIPTION =
   "Our Guangzhou sourcing agent and China buying office: supplier sourcing, factory audits, Canton Fair sourcing, container consolidation and freight.";
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/china-sourcing-office-guangzhou/",
     type: "website",
-    siteName: "AFFHAN",
+    siteName: "Affhan",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: { card: "summary_large_image", title: PAGE_TITLE, description: PAGE_DESCRIPTION },

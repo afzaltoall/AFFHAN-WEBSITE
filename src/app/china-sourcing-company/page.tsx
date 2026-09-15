@@ -16,7 +16,7 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 export const revalidate = 3600;
 
 // 62 chars — inside Google's ~65 char truncation point.
-const PAGE_TITLE = "China Sourcing Company & Import Export Agent | AFFHAN";
+const PAGE_TITLE = "China Sourcing Company & Import Export Agent | Affhan";
 
 // 154 chars. Carries both target phrases without reading like a keyword list.
 const PAGE_DESCRIPTION =
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/china-sourcing-company/",
     type: "website",
-    siteName: "AFFHAN",
+    siteName: "Affhan",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: { card: "summary_large_image", title: PAGE_TITLE, description: PAGE_DESCRIPTION },
