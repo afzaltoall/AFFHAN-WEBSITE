@@ -389,7 +389,7 @@ export default function RadialOrbitalTimeline({
               <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(39,168,196,0.2)_0%,rgba(39,168,196,0)_68%)] pointer-events-none" />
 
               <div className={`relative flex items-center justify-center transition-all duration-500 ${activeItem ? "opacity-0 scale-75 pointer-events-none h-0 w-0 overflow-hidden" : "opacity-100 scale-100 h-full w-full"}`}>
-                <Image alt="AFFHAN" className="relative z-10 h-28 w-28 object-contain" height={112} width={112} src="/images/logo.png" />
+                <Image alt="Affhan" className="relative z-10 h-28 w-28 object-contain" height={112} width={112} src="/images/logo.png" />
               </div>
 
               {activeItem && (

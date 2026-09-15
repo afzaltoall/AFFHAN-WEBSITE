@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 /**
- * The AFFHAN sail mark, in the gap on the right of the navbar — now the way in
+ * The Affhan sail mark, in the gap on the right of the navbar — now the way in
  * to the shipping side of the business.
  *
  * It began decorative and aria-hidden. As a link it cannot stay that way: a

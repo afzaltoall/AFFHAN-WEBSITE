@@ -387,7 +387,7 @@ export default function AboutUsContent() {
               How the group is put together
             </h3>
             <p>
-              AFFHAN is not one company with agents abroad. Each country we work in has its own
+              Affhan is not one company with agents abroad. Each country we work in has its own
               registered entity and its own staff: AFFHAN INTERNATIONAL PVT LTD in Chennai,
               GUANGZHOU AFFHAN INTERNATIONAL CO., LTD in Guangdong, AFFHAN INTERNATIONAL PTE.
               LTD. in Singapore, AFFHAN INTERNATIONAL SDN. BHD. in Melaka, AFFHAN SHIPPING LLC
@@ -419,7 +419,7 @@ export default function AboutUsContent() {
               Who you will be dealing with
             </h3>
             <p>
-              Afzal Khan founded AFFHAN and still runs it as Founder and CEO. Mohamed Yacoob is
+              Afzal Khan founded Affhan and still runs it as Founder and CEO. Mohamed Yacoob is
               Chief Operating Officer, Jamil Ahamed Chief Marketing Officer, Iliyas Ahmed Chief
               Financial Officer and Jafeer Ahamed Chief Technology Officer. Operations overseas
               are run by people who live there: Nandhinee in the UAE, Anis Dawood in the United

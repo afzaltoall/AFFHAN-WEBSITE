@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// White-labelling: the catalogue is AFFHAN's, and nothing customer-facing may
+// White-labelling: the catalogue is Affhan's, and nothing customer-facing may
 // name the supplier it came from.
 //
 // This is the single source of truth for "what counts as a supplier name", used

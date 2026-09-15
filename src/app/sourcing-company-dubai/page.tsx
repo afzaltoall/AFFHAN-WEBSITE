@@ -61,7 +61,7 @@ const yearsTrading = new Date().getFullYear() - FOUNDED_YEAR;
 
 const faqs = [
   {
-    question: "How does AFFHAN help Dubai importers source from China?",
+    question: "How does Affhan help Dubai importers source from China?",
     answer:
       `With over ${yearsTrading} years of global trade experience, our on-the-ground team in China connects Dubai businesses directly to verified manufacturers, eliminating middlemen and streamlining the entire procurement process.`,
   },
@@ -78,7 +78,7 @@ const faqs = [
   {
     question: "Why use a China sourcing agent in Dubai instead of Alibaba?",
     answer:
-      "Using AFFHAN gives you local accountability in Dubai combined with physical factory audits in China. We negotiate better prices, inspect goods before they ship, and consolidate freight, protecting you from scams and quality defects.",
+      "Using Affhan gives you local accountability in Dubai combined with physical factory audits in China. We negotiate better prices, inspect goods before they ship, and consolidate freight, protecting you from scams and quality defects.",
   },
   {
     question: "Can you help businesses in DMCC or other UAE Free Zones?",
@@ -121,7 +121,7 @@ const schema = {
       logo: LOGO_URL,
       image: LOGO_URL,
       description:
-        "AFFHAN is a premier sourcing company in Dubai for China imports, product sourcing & freight forwarding to the UAE and GCC.",
+        "Affhan is a premier sourcing company in Dubai for China imports, product sourcing & freight forwarding to the UAE and GCC.",
       telephone: OFFICES.dubai.telephone,
       email: "info@affhan.com",
       // Wording follows the Google Business Profile, which reads "White Crown
@@ -219,7 +219,7 @@ const dubaiTeamBlocks = [
     id: "office",
     heading: "The office on Sheikh Zayed Road",
     src: "/dubai-team/dubai-office-reception.webp",
-    alt: "Reception desk carrying the AFFHAN logo at the company's Dubai sourcing office",
+    alt: "Reception desk carrying the Affhan logo at the company's Dubai sourcing office",
     aspect: "aspect-[4/5]",
     body: [
       "The UAE side of the business runs from an office on Sheikh Zayed Road, and it is a working office rather than a mailing address. Visitors are welcome, and a good deal of what we do still gets settled across a desk rather than over email.",
@@ -230,7 +230,7 @@ const dubaiTeamBlocks = [
     id: "desk",
     heading: "The desk that owns your order",
     src: "/dubai-team/dubai-team-desks.webp",
-    alt: "AFFHAN Dubai coordinators at their desks managing China to UAE sourcing orders",
+    alt: "Affhan Dubai coordinators at their desks managing China to UAE sourcing orders",
     aspect: "aspect-[4/5]",
     body: [
       "Every order is assigned to one coordinator here, and that person stays with it from the first quotation through to the day it is delivered. Nobody is handed between a sales contact, an operations contact and an accounts contact, and you never have to explain the order twice.",
@@ -241,7 +241,7 @@ const dubaiTeamBlocks = [
     id: "corridor",
     heading: "One team at both ends of the corridor",
     src: "/dubai-team/dubai-team-group.webp",
-    alt: "The six-person AFFHAN Dubai team in branded uniform at the company's UAE office",
+    alt: "The six-person Affhan Dubai team in branded uniform at the company's UAE office",
     aspect: "aspect-[3/2]",
     body: [
       "The people in this photograph and the buyers walking factory floors in Guangzhou work for the same company. That sounds like a small distinction and it is not — most sourcing offers in the region are a local desk that forwards your enquiry to an unrelated agent in China and adds a margin to whatever comes back.",
@@ -251,7 +251,7 @@ const dubaiTeamBlocks = [
   // Slot for the office nameplates. Held back rather than dropped on the design:
   // the plaques name two L.L.C entities, and nobody has confirmed both are
   // current. Naming a legal entity on a page is a claim about it, so this stays
-  // empty until that is checked. If it is, crop to the two AFFHAN plaques only —
+  // empty until that is checked. If it is, crop to the two Affhan plaques only —
   // the third belongs to a separate company.
   // {
   //   id: "nameplates",
@@ -306,7 +306,7 @@ export default async function SourcingCompanyDubaiPage() {
           </h1>
           
           <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
-            Most cargo moving from China into the Gulf comes through Jebel Ali, and the buyers who do well there are the ones who fixed quality before the container sailed. That is the work of a <strong className="text-slate-800">China sourcing agent in Dubai</strong>: factory checks in Guangzhou first, then an <strong className="text-slate-800">import export company in the UAE</strong> to book, consolidate and clear the shipment. AFFHAN has run this corridor since {FOUNDED_YEAR} as a <strong className="text-slate-800">product sourcing agent</strong> for traders supplying the UAE and the wider GCC.
+            Most cargo moving from China into the Gulf comes through Jebel Ali, and the buyers who do well there are the ones who fixed quality before the container sailed. That is the work of a <strong className="text-slate-800">China sourcing agent in Dubai</strong>: factory checks in Guangzhou first, then an <strong className="text-slate-800">import export company in the UAE</strong> to book, consolidate and clear the shipment. Affhan has run this corridor since {FOUNDED_YEAR} as a <strong className="text-slate-800">product sourcing agent</strong> for traders supplying the UAE and the wider GCC.
           </p>
           
           <div className="hero-rise hero-rise-3 flex justify-center">
@@ -314,7 +314,7 @@ export default async function SourcingCompanyDubaiPage() {
               href="/"
               className="cta-sheen group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-300 ease-out hover:border-brand/45 hover:bg-white hover:text-[#176579] hover:shadow-[0_2px_10px_rgba(15,23,42,0.07),0_10px_30px_-10px_rgba(39,168,196,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
             >
-              Visit AFFHAN Website
+              Visit Affhan Website
               <span aria-hidden="true" className="transition-transform duration-300 ease-out motion-safe:group-hover:translate-x-1">
                 →
               </span>
@@ -342,7 +342,7 @@ export default async function SourcingCompanyDubaiPage() {
                 <Image
                   src="/Landing-dubai-services/china-factory-sourcing.webp"
                   unoptimized={false}
-                  alt="AFFHAN-branded shipping container being loaded at a Chinese factory for a Dubai buyer"
+                  alt="Affhan-branded shipping container being loaded at a Chinese factory for a Dubai buyer"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="object-cover"
@@ -361,7 +361,7 @@ export default async function SourcingCompanyDubaiPage() {
                 <Image
                   src="/Landing-dubai-services/supplier-audit.webp"
                   unoptimized={false}
-                  alt="AFFHAN inspector working through an audit checklist on a factory production line in China"
+                  alt="Affhan inspector working through an audit checklist on a factory production line in China"
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className="object-cover"

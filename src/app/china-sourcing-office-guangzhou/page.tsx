@@ -70,17 +70,17 @@ const faqs = [
   {
     question: "Who is this office for?",
     answer:
-      `Every AFFHAN client, wherever they are. The buying, auditing, inspecting and consolidating happen here; the offices in Chennai, Dubai, London, Singapore and Melaka handle the arrival end. The company has worked this way since ${FOUNDED_YEAR}.`,
+      `Every Affhan client, wherever they are. The buying, auditing, inspecting and consolidating happen here; the offices in Chennai, Dubai, London, Singapore and Melaka handle the arrival end. The company has worked this way since ${FOUNDED_YEAR}.`,
   },
   {
     question: "Is a buying office different from a sourcing agent?",
     answer:
-      "In practice, yes, though the words get used interchangeably. A sourcing agent is often an individual or a small firm that introduces you to factories and takes a commission on what you buy — their income rises with the price you pay. A buying office is staff on your side of the table: ours are AFFHAN employees on salary in Guangzhou, so the person auditing the factory has no stake in you choosing it. That distinction matters most on the things nobody can verify from abroad, like whether a quality system exists outside the email describing it.",
+      "In practice, yes, though the words get used interchangeably. A sourcing agent is often an individual or a small firm that introduces you to factories and takes a commission on what you buy — their income rises with the price you pay. A buying office is staff on your side of the table: ours are Affhan employees on salary in Guangzhou, so the person auditing the factory has no stake in you choosing it. That distinction matters most on the things nobody can verify from abroad, like whether a quality system exists outside the email describing it.",
   },
   {
     question: "Does the Guangzhou office arrange shipping, or only sourcing?",
     answer:
-      "It prepares everything the shipping depends on. Consolidation, export documentation, certificates of origin and the HS classification are all settled here before a container is booked, and the freight forwarding and customs clearance are then handled by whichever AFFHAN office sits at the arrival end. One company, one file — which is why a question about a carton in Guangzhou can be answered by the same people handling the declaration in Port Klang or Felixstowe.",
+      "It prepares everything the shipping depends on. Consolidation, export documentation, certificates of origin and the HS classification are all settled here before a container is booked, and the freight forwarding and customs clearance are then handled by whichever Affhan office sits at the arrival end. One company, one file — which is why a question about a carton in Guangzhou can be answered by the same people handling the declaration in Port Klang or Felixstowe.",
   },
 ];
 
@@ -99,7 +99,7 @@ const schema = {
       logo: LOGO_URL,
       image: LOGO_URL,
       description:
-        "AFFHAN's Guangzhou office handles factory sourcing, supplier audits, quality inspection and container consolidation for buyers worldwide.",
+        "Affhan's Guangzhou office handles factory sourcing, supplier audits, quality inspection and container consolidation for buyers worldwide.",
       telephone: OFFICES.guangzhou.telephone,
       email: "info@affhan.com",
       address: postalAddress(OFFICES.guangzhou),
@@ -175,14 +175,14 @@ export default async function ChinaSourcingOfficeGuangzhouPage() {
                 Guangzhou Sourcing Agent & China Buying Office — <span className="text-[#1d7e93]">AFFHAN Group</span>
               </h1>
               <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
-                Every other AFFHAN office deals with goods arriving. This one deals with them being made. The buying, the factory visits, the inspections and the loading all happen here, in Guangdong, weeks before a container reaches anybody&apos;s port. This page is what that actually looks like.
+                Every other Affhan office deals with goods arriving. This one deals with them being made. The buying, the factory visits, the inspections and the loading all happen here, in Guangdong, weeks before a container reaches anybody&apos;s port. This page is what that actually looks like.
               </p>
               <div className="hero-rise hero-rise-3 flex justify-center">
                 <Link
                   href="/"
                   className="cta-sheen group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-300 ease-out hover:border-brand/45 hover:bg-white hover:text-[#176579] hover:shadow-[0_2px_10px_rgba(15,23,42,0.07),0_10px_30px_-10px_rgba(39,168,196,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
                 >
-                  Visit AFFHAN Website
+                  Visit Affhan Website
                   <span aria-hidden="true" className="transition-transform duration-300 ease-out motion-safe:group-hover:translate-x-1">→</span>
                 </Link>
               </div>
@@ -317,7 +317,7 @@ export default async function ChinaSourcingOfficeGuangzhouPage() {
             </li>
             <li className="flex items-start gap-3 text-slate-700 text-[15px] sm:text-base leading-[1.65]">
               <span className="shrink-0 w-6 h-6 rounded-full bg-[#1d7e93] text-white text-xs font-bold flex items-center justify-center mt-0.5">5</span>
-              <span>Consolidation, export papers and origin certificates are prepared here; the AFFHAN office at your end books the freight and clears it.</span>
+              <span>Consolidation, export papers and origin certificates are prepared here; the Affhan office at your end books the freight and clears it.</span>
             </li>
           </ol>
           <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">

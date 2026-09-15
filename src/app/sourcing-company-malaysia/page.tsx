@@ -69,7 +69,7 @@ const faqs = [
   {
     question: "Why work with an agent rather than buying direct from a supplier?",
     answer:
-      `Because certification, origin documents and inspection all happen in China, and none of them can be fixed from Melaka once the container has sailed. Our buyers are in Guangzhou and visit before your deposit moves. AFFHAN has traded since ${FOUNDED_YEAR}, and the Malaysian office handles the arrival end.`,
+      `Because certification, origin documents and inspection all happen in China, and none of them can be fixed from Melaka once the container has sailed. Our buyers are in Guangzhou and visit before your deposit moves. Affhan has traded since ${FOUNDED_YEAR}, and the Malaysian office handles the arrival end.`,
   },
   {
     question: "Do you arrange Port Klang freight forwarding, or only the sourcing?",
@@ -96,7 +96,7 @@ const schema = {
       logo: LOGO_URL,
       image: LOGO_URL,
       description:
-        "AFFHAN is a China sourcing agent in Malaysia handling factory sourcing, halal and SIRIM compliance, inspection, freight and customs clearance.",
+        "Affhan is a China sourcing agent in Malaysia handling factory sourcing, halal and SIRIM compliance, inspection, freight and customs clearance.",
       telephone: OFFICES.malaysia.telephone,
       email: "info@affhan.com",
       address: postalAddress(OFFICES.malaysia),
@@ -155,7 +155,7 @@ export default async function SourcingCompanyMalaysiaPage() {
                   href="/"
                   className="cta-sheen group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-300 ease-out hover:border-brand/45 hover:bg-white hover:text-[#176579] hover:shadow-[0_2px_10px_rgba(15,23,42,0.07),0_10px_30px_-10px_rgba(39,168,196,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
                 >
-                  Visit AFFHAN Website
+                  Visit Affhan Website
                   <span aria-hidden="true" className="transition-transform duration-300 ease-out motion-safe:group-hover:translate-x-1">→</span>
                 </Link>
               </div>

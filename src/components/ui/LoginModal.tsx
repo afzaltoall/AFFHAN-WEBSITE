@@ -123,7 +123,7 @@ export function LoginModal({
             <div className="border-b border-slate-100 px-5 pb-3.5 pt-4 sm:px-6">
               <div className="flex items-start justify-between gap-4">
                 <div className="relative h-9 w-28 shrink-0">
-                  <Image src="/logo.png" alt="AFFHAN" fill className="object-contain object-left" priority />
+                  <Image src="/logo.png" alt="Affhan" fill className="object-contain object-left" priority />
                 </div>
                 <button
                   onClick={onClose}

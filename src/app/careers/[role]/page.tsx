@@ -238,7 +238,7 @@ export default async function RolePage({
         </section>
 
         <section className="mt-12">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">About AFFHAN</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">About Affhan</h2>
           <p className="mt-4 text-base leading-relaxed text-slate-700">
             AFFHAN International Pvt Ltd has traded since 2000 from a head office in Royapuram,
             Chennai, with its own registered company and staff in China, Singapore, Malaysia, the
@@ -290,7 +290,7 @@ export default async function RolePage({
             href="/careers/"
             className="mt-6 inline-block text-sm font-semibold text-brand hover:text-brand-dark"
           >
-            ← All careers at AFFHAN
+            ← All careers at Affhan
           </Link>
         </section>
       </div>

@@ -50,9 +50,9 @@ export const ROLES: CareerRole[] = [
     title: "Sourcing Specialist",
     offices: ["guangzhou", "chennai"],
     blurb:
-      "Find the factory, agree the price, and hold the supplier to it — the buying end of every order AFFHAN ships.",
+      "Find the factory, agree the price, and hold the supplier to it — the buying end of every order Affhan ships.",
     context:
-      "AFFHAN's catalogue runs to more than 10 lakh items across 500+ categories, but nothing on the site carries a price, because nothing on it is stock. Every job starts as an inquiry: a photograph, a specification, a quantity and a destination. Turning that into a named factory and a landed cost is this role.",
+      "Affhan's catalogue runs to more than 10 lakh items across 500+ categories, but nothing on the site carries a price, because nothing on it is stock. Every job starts as an inquiry: a photograph, a specification, a quantity and a destination. Turning that into a named factory and a landed cost is this role.",
     features: [
       "Build and manage Chinese supplier relationships",
       "Negotiate pricing, MOQs and lead times",
@@ -70,7 +70,7 @@ export const ROLES: CareerRole[] = [
     blurb:
       "Stand in the factory before the container is sealed, and say whether it ships.",
     context:
-      "Most of what AFFHAN moves is made to a customer's specification rather than pulled off a shelf, and the customer is usually several thousand miles from the line it is made on. The inspection in Guangdong is the only point at which a problem is still cheap to fix.",
+      "Most of what Affhan moves is made to a customer's specification rather than pulled off a shelf, and the customer is usually several thousand miles from the line it is made on. The inspection in Guangdong is the only point at which a problem is still cheap to fix.",
     features: [
       "Conduct on-site factory inspections and audits",
       "Enforce international compliance standards",
@@ -88,7 +88,7 @@ export const ROLES: CareerRole[] = [
     blurb:
       "Route it, book it, clear it, and know where it is when someone asks.",
     context:
-      "AFFHAN is an NVOCC as well as a forwarder, so the choice between LCL and FCL, sea and air, and one routing and another is made in-house rather than handed to a carrier. Customs paperwork is handled at both ends, which is why this role sits in Chennai and Dubai rather than at a single desk.",
+      "Affhan is an NVOCC as well as a forwarder, so the choice between LCL and FCL, sea and air, and one routing and another is made in-house rather than handed to a carrier. Customs paperwork is handled at both ends, which is why this role sits in Chennai and Dubai rather than at a single desk.",
     features: [
       "Oversee end-to-end freight and forwarding",
       "Optimise sea, air and multimodal routing",

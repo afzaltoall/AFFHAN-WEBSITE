@@ -40,7 +40,7 @@ export function OtherLocations({
     <section className={cn("py-10 lg:py-12 bg-slate-50 border-t border-slate-200", className)}>
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
         <h2 className="text-base sm:text-lg font-semibold tracking-[-0.016em] text-slate-900 mb-4">
-          AFFHAN sourcing offices worldwide
+          Affhan sourcing offices worldwide
         </h2>
         <ul className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
           {others.map((l) => (
