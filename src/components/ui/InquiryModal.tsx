@@ -8,6 +8,7 @@ import { FlagSelect } from '@/components/ui/FlagSelect';
 import { COUNTRIES } from '@/lib/countries';
 import { isValidMobile } from '@/lib/phone';
 import { lockBodyScroll } from '@/lib/scrollLock';
+import { useQuoteGate } from '@/context/QuoteGateContext';
 import { useBackDismiss } from "@/lib/useBackDismiss";
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize, X, ChevronLeft, ChevronRight, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
@@ -41,6 +42,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
   // Only to save a signed-in customer retyping what we already know. The form
   // stays fully usable signed out — `user` is simply null then.
   const { user } = useAuth();
+  const { requireLogin } = useQuoteGate();
 
   // Reset visibility and submission state when the modal is opened for a new product
   useEffect(() => {
@@ -146,6 +148,11 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
       });
       if (response.ok) {
         setSubmitted(true);
+      } else if (response.status === 401) {
+        // Not a failure to retry: the quote form is behind sign-in, and this
+        // session is gone. Reopen the gate; the form keeps everything typed.
+        alert("Your session has expired. Please sign in again to send this quote request.");
+        requireLogin(() => {}, "Sign in to send this quote request");
       } else {
         alert("Failed to submit inquiry. Please try again.");
       }

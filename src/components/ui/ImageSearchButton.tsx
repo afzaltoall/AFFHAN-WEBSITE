@@ -19,6 +19,7 @@ import { lockBodyScroll } from "@/lib/scrollLock";
 import { useBackDismiss, overlayHandoff, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { capturePhoto, hasNativeCamera, CameraCancelled } from "@/lib/nativeCamera";
 import { cn } from "@/lib/utils";
+import { useQuoteGate } from "@/context/QuoteGateContext";
 
 type Result = {
   id: number;
@@ -285,6 +286,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<Response | null>(null);
   const [inquiry, setInquiry] = useState<Result | null>(null);
+  const { requireLogin } = useQuoteGate();
 
   /* Whether a real camera can be opened, which is true only inside the Android
      app. Resolved in an effect rather than during render because the Capacitor
@@ -787,7 +789,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
                   )}
                 >
                   {products.map((p) => (
-                    <ProductCard key={p.id} product={p} onClick={() => setInquiry(p)} />
+                    <ProductCard key={p.id} product={p} onClick={() => requireLogin(() => setInquiry(p))} />
                   ))}
                 </div>
               ) : null}

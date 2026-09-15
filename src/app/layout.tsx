@@ -6,6 +6,7 @@ import { WhatsAppButton } from "@/components/ui/WhatsAppButton";
 import { Navbar } from "@/components/sections/Navbar";
 import { AuthProvider } from "@/context/AuthContext";
 import { FavouritesProvider } from "@/context/FavouritesContext";
+import { QuoteGateProvider } from "@/context/QuoteGateContext";
 import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SITE_URL, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 
 // Premium, modern sans used site-wide. Plus Jakarta Sans reads far more
@@ -131,6 +132,11 @@ export default function RootLayout({
               who is signed in. Every product grid on the site reads this, so
               it belongs at the root rather than around one page. */}
           <FavouritesProvider>
+            {/* Inside AuthProvider, because the gate's whole job is to ask
+                whether anyone is signed in before a quote form opens. It
+                renders the login modal once for the entire site; the inquiry
+                modals stay where they are. */}
+            <QuoteGateProvider>
             {/* Zero-height fallback, deliberately.
                 The Navbar renders a `fixed top-0` nav inside a `relative`
                 header, so it contributes nothing to document flow — pages pad
@@ -145,6 +151,7 @@ export default function RootLayout({
               <Navbar />
             </Suspense>
             {children}
+            </QuoteGateProvider>
           </FavouritesProvider>
         </AuthProvider>
         <WhatsAppButton />

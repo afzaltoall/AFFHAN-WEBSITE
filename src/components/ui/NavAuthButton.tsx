@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
@@ -49,6 +50,7 @@ const MENU = [
 
 export function NavAuthButton() {
   const { user, loading, logout } = useAuth();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,7 +102,10 @@ export function NavAuthButton() {
   if (!user) {
     return (
       <Link
-        href="/login/"
+        // Carries the current page, the same way Save and Favourite do.
+        // Signing in from the navbar used to land everyone on the homepage,
+        // whatever they had been reading.
+        href={`/login/?redirect=${encodeURIComponent(pathname || "/")}`}
         className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
       >
         Login

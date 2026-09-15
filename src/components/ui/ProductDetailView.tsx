@@ -18,6 +18,7 @@ import { getCdnUrl } from "@/lib/cdn";
 import { parseDescription } from "@/lib/productDescription";
 import { ProductCard, type ProductCardData } from "@/components/ui/ProductCard";
 import { InquiryModal } from "@/components/ui/InquiryModal";
+import { useQuoteGate } from "@/context/QuoteGateContext";
 import { SaveProductButton } from "@/components/ui/SaveProductButton";
 
 export interface PDPProduct {
@@ -91,15 +92,18 @@ export function ProductDetailView({ product, similar }: Props) {
   const parsed = parseDescription(product.description);
   const [active, setActive] = useState(0);
   const [inquiry, setInquiry] = useState<ModalProduct | null>(null);
+  const { requireLogin } = useQuoteGate();
 
   const openMainInquiry = () =>
-    setInquiry({
-      id: product.id,
-      name: product.name,
-      imageUrl: product.imageUrl,
-      images: gallery,
-      categoryRef: { name: product.categoryName },
-    });
+    requireLogin(() =>
+      setInquiry({
+        id: product.id,
+        name: product.name,
+        imageUrl: product.imageUrl,
+        images: gallery,
+        categoryRef: { name: product.categoryName },
+      })
+    );
 
   const mainSrc = gallery[active] ? (getCdnUrl(gallery[active], 1024) as string) : null;
 
@@ -366,7 +370,7 @@ export function ProductDetailView({ product, similar }: Props) {
                 <ProductCard
                   key={p.id}
                   product={p}
-                  onClick={() => setInquiry({ ...p, images: p.imageUrl ? [p.imageUrl] : [] })}
+                  onClick={() => requireLogin(() => setInquiry({ ...p, images: p.imageUrl ? [p.imageUrl] : [] }))}
                 />
               ))}
             </div>
