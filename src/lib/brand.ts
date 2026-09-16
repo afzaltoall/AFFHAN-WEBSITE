@@ -50,11 +50,11 @@ export interface OfficeNap {
   /**
    * E.164, the only form that is unambiguous across countries.
    *
-   * Optional, because Paris has no published number. Every office that has
-   * one still carries it, and the seven places that read a specific office's
-   * telephone all read offices that have one — this only admits the case where
-   * there genuinely is nothing to print, rather than inviting an empty string
-   * into a tel: link or a schema.org node.
+   * Optional. It was made optional because Paris had no published number;
+   * Paris has had one since 2026-09-16, so every office currently carries a
+   * telephone and the guards around it are all satisfied. The field stays
+   * optional anyway: the next office opened will not have a number on day one
+   * either, and an empty string in a tel: link is worse than no link.
    */
   telephone?: string;
   /** Extra numbers the profile lists, in the order it lists them. */
@@ -192,8 +192,10 @@ export const OFFICES = {
    * not from a verified Google profile, and no listing has been reconciled
    * against this address yet.
    *
-   * No landing page — France is deliberately not a location page yet, pending
-   * its own content — and no office photos or reviews.
+   * Landing page added 2026-09-16: /sourcing-company-france/, the ninth. Until
+   * then France was deliberately left without one, pending its own content.
+   * Still no office photos and no reviews of its own — the page says so rather
+   * than borrowing the Chennai profile's standing without attribution.
    */
   france: {
     profileConfirmed: false,

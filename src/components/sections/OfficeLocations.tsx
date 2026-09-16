@@ -168,6 +168,7 @@ const offices: Office[] = [
     // hyphens, because the tel: href below is built by stripping whitespace
     // only — a hyphen would survive into the dialled number.
     phone: "+33 695 144 606",
+    localPage: { href: "/sourcing-company-france/", label: "Our China sourcing service in France" },
   },
 ];
 

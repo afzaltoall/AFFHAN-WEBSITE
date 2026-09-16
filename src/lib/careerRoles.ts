@@ -165,4 +165,5 @@ export const OFFICE_LANDING_PAGE: Partial<Record<keyof typeof OFFICES, { href: s
   singapore: { href: "/sourcing-company-singapore/", label: "our Singapore office" },
   malaysia: { href: "/sourcing-company-malaysia/", label: "our Malaysia office" },
   guangzhou: { href: "/china-sourcing-office-guangzhou/", label: "our Guangzhou office" },
+  france: { href: "/sourcing-company-france/", label: "our Paris office" },
 };
