@@ -481,7 +481,7 @@ export default function AboutUsContent() {
             viewport={{ once: true, amount: 0.5 }}
             className="flex flex-col items-center text-center"
           >
-            <span className="text-brand text-sm font-semibold uppercase tracking-[0.2em] mb-3">Partner With Us</span>
+            <span className="text-brand-dark text-sm font-semibold uppercase tracking-[0.2em] mb-3">Partner With Us</span>
             {/* slate-900, not gray-800. The font here was never the problem —
                 this heading rasterises Plus Jakarta Sans like every other one
                 (checked with getPlatformFontsForNode, no fallback), and

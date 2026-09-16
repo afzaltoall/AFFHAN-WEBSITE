@@ -90,7 +90,7 @@ export function ProductCategoriesSection({
       <div className="max-w-[1600px] mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
           <div>
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand">Product Categories</span>
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-dark">Product Categories</span>
             <h2 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900">
               Explore our sourcing categories
             </h2>

@@ -32,7 +32,7 @@ export default function CareersPage() {
       <div className="relative z-10 bg-white">
         <section className="px-4 sm:px-6 lg:px-8 pt-20 sm:pt-28 pb-24 sm:pb-32">
           <div className="mx-auto max-w-[1200px] text-center">
-            <span className="text-xs font-bold uppercase tracking-[0.25em] text-brand">Why Affhan</span>
+            <span className="text-xs font-bold uppercase tracking-[0.25em] text-brand-dark">Why Affhan</span>
             <h2 className="mt-3 text-3xl sm:text-4xl font-black tracking-tight">A career without borders</h2>
             <p className="mx-auto mt-3 max-w-2xl text-slate-600">
               We source anything, anywhere — and we&apos;re always looking for people who love solving global trade problems.
