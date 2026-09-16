@@ -38,7 +38,13 @@ export function AffhanBrandBar() {
             <span className="text-[25px] font-black tracking-[-0.03em] text-slate-900 transition-colors duration-200 group-hover:text-brand-dark">
               Affhan
             </span>
-            <span className="text-[25px] font-black tracking-[-0.03em] text-brand ml-[1px]">
+            {/* brand-dark, even though this is display type and display type
+                normally keeps the identity blue. At 25px/900 the large-text
+                bar is 3:1 and brand only reaches 2.68:1 against the slate-50
+                it sits on — so the one place the exemption was supposed to
+                help, it does not. The wordmark is the site's name; it is the
+                last thing that should be the one failing element. */}
+            <span className="text-[25px] font-black tracking-[-0.03em] text-brand-dark ml-[1px]">
               .com
             </span>
           </div>
