@@ -1001,17 +1001,36 @@ html {
    H1 deliberately gets the shortest one.
 
    Transform + opacity only, so nothing reflows and there is no CLS. */
+/* The hero entrance: a rise, and deliberately no fade.
+
+   Chrome will not record LCP for an element that starts at opacity 0, because
+   it is not painted yet. Anything in this hero can end up being the largest
+   contentful element, so an opacity fade anywhere in it is a hidden LCP delay
+   waiting for Chrome to pick that element.
+
+   That is not theoretical. Three throttled runs of
+   /sourcing-company-chennai/ on 2026-09-16, when only the h1 was exempt:
+
+     run 1   LCP  9,712ms   element: P.hero-rise-2
+     run 2   LCP    452ms   element: H1.hero-rise-1
+     run 3   LCP    492ms   element: H1.hero-rise-1
+
+   Same page, same build, no code change between runs — Chrome simply chose a
+   different element, and the one it chose had to wait out a 620ms fade. After
+   exempting -2, five runs on that build gave 436/444/448/448/900ms with the
+   PARAGRAPH as the LCP element every time: it did not stop being chosen, it
+   stopped being expensive.
+
+   So all three tiers rise without fading. -3 (the button row) had never been
+   observed as the LCP element, but it is the same class of risk, for a fade
+   the rise reads perfectly well without.
+
+   There is no longer a fading `heroRise` keyframe. Every element carrying
+   `hero-rise` also carries -1, -2 or -3, so with all three on heroRiseLcp a
+   fading variant is unreachable — and unreachable CSS reads as if it were
+   live to whoever comes next. */
 .hero-rise {
-  animation: heroRise 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.hero-rise-1 {
-  animation-delay: 0s;
-  /* The h1 is the LCP element on both location pages and the homepage, and
-     Chrome will not record LCP for an element that starts at opacity 0 — it is
-     not painted yet. `heroRise` fades from 0 over 620ms, which pushes the
-     measurement out by roughly that much for no visual gain: the rise reads
-     the same without the fade. */
-  animation-name: heroRiseLcp;
+  animation: heroRiseLcp 0.62s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes heroRiseLcp {
@@ -1019,35 +1038,9 @@ html {
   to   { transform: translate3d(0, 0, 0); }
 }
 
-/* -2 gets the same treatment, and the note above used to say it did not need
-   it — "neither is the LCP element". That was an assumption, and measuring it
-   disproved it.
-
-   Three throttled runs of /sourcing-company-chennai/ on 2026-09-16:
-
-     run 1   LCP  9,712ms   element: P.hero-rise-2
-     run 2   LCP    452ms   element: H1.hero-rise-1
-     run 3   LCP    492ms   element: H1.hero-rise-1
-
-   Chrome picks whichever element is largest, and on some loads that is the
-   lead paragraph rather than the heading. When it lands on -2, LCP is not
-   recorded until the opacity fade finishes, and the number goes bad — an
-   intermittent ~10s LCP on eight location and service pages, from a fade the
-   comment above already judged to be worth nothing visually.
-
-   -3 is the button row: small, and never observed as the LCP element. It
-   keeps its fade. If a 10s LCP ever reappears here, that is the next place
-   to look. */
-.hero-rise-2 {
-  animation-delay: 0.11s;
-  animation-name: heroRiseLcp;
-}
+.hero-rise-1 { animation-delay: 0s; }
+.hero-rise-2 { animation-delay: 0.11s; }
 .hero-rise-3 { animation-delay: 0.22s; }
-
-@keyframes heroRise {
-  from { opacity: 0; transform: translate3d(0, 18px, 0); }
-  to   { opacity: 1; transform: translate3d(0, 0, 0); }
-}
 
 /* Reduced motion, handled in CSS rather than via a JS hook so it applies at
    SSR time with no first-frame flash. `!important` is what lets it win over
