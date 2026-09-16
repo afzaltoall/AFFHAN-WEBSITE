@@ -1010,8 +1010,7 @@ html {
      Chrome will not record LCP for an element that starts at opacity 0 — it is
      not painted yet. `heroRise` fades from 0 over 620ms, which pushes the
      measurement out by roughly that much for no visual gain: the rise reads
-     the same without the fade. -2 and -3 keep theirs; neither is the LCP
-     element. */
+     the same without the fade. */
   animation-name: heroRiseLcp;
 }
 
@@ -1019,7 +1018,30 @@ html {
   from { transform: translate3d(0, 18px, 0); }
   to   { transform: translate3d(0, 0, 0); }
 }
-.hero-rise-2 { animation-delay: 0.11s; }
+
+/* -2 gets the same treatment, and the note above used to say it did not need
+   it — "neither is the LCP element". That was an assumption, and measuring it
+   disproved it.
+
+   Three throttled runs of /sourcing-company-chennai/ on 2026-09-16:
+
+     run 1   LCP  9,712ms   element: P.hero-rise-2
+     run 2   LCP    452ms   element: H1.hero-rise-1
+     run 3   LCP    492ms   element: H1.hero-rise-1
+
+   Chrome picks whichever element is largest, and on some loads that is the
+   lead paragraph rather than the heading. When it lands on -2, LCP is not
+   recorded until the opacity fade finishes, and the number goes bad — an
+   intermittent ~10s LCP on eight location and service pages, from a fade the
+   comment above already judged to be worth nothing visually.
+
+   -3 is the button row: small, and never observed as the LCP element. It
+   keeps its fade. If a 10s LCP ever reappears here, that is the next place
+   to look. */
+.hero-rise-2 {
+  animation-delay: 0.11s;
+  animation-name: heroRiseLcp;
+}
 .hero-rise-3 { animation-delay: 0.22s; }
 
 @keyframes heroRise {
