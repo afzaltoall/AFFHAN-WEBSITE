@@ -47,8 +47,16 @@ export interface OfficeNap {
    * this address has not yet been reconciled against a listing.
    */
   profileConfirmed: boolean;
-  /** E.164, the only form that is unambiguous across countries. */
-  telephone: string;
+  /**
+   * E.164, the only form that is unambiguous across countries.
+   *
+   * Optional, because Paris has no published number. Every office that has
+   * one still carries it, and the seven places that read a specific office's
+   * telephone all read offices that have one — this only admits the case where
+   * there genuinely is nothing to print, rather than inviting an empty string
+   * into a tel: link or a schema.org node.
+   */
+  telephone?: string;
   /** Extra numbers the profile lists, in the order it lists them. */
   altTelephones?: string[];
   /** wa.me link where the profile publishes one as its chat channel. */
@@ -168,6 +176,28 @@ export const OFFICES = {
       addressLocality: "Singapore",
       postalCode: "208787",
       addressCountry: "SG",
+    },
+  },
+  /**
+   * Paris. The seventh office, and the one this record was missing.
+   *
+   * Its absence here is why /shipping/ published "6 offices" while every other
+   * page on the site said seven — that page counts this object, and France
+   * lived only in the office cards on /contact/ (which has its own separate
+   * list, still the case; deduplicating the two is a job of its own).
+   *
+   * No telephone: none is published for it anywhere, and an empty string in a
+   * tel: link is worse than no link. No landing page either — France is
+   * deliberately not a location page yet, pending its own content.
+   */
+  france: {
+    profileConfirmed: false,
+    legalName: "AFFHAN INTERNATIONAL LTD",
+    address: {
+      streetAddress: "14 Rue de Dunkerque",
+      addressLocality: "Paris",
+      postalCode: "75010",
+      addressCountry: "FR",
     },
   },
 } as const satisfies Record<string, OfficeNap>;

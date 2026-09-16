@@ -58,17 +58,26 @@ const SERVICES = [
   },
 ];
 
+// Melaka, not Johor Bahru. This card printed "Johor Bahru, Malaysia" as its
+// heading while rendering the Melaka street address directly underneath it —
+// both city names visible in the same card. The address in brand.ts is the one
+// that matches the registered entity, so the heading follows it.
 const OFFICE_LABELS: Record<keyof typeof OFFICES, string> = {
   chennai: "Chennai, India",
   guangzhou: "Guangzhou, China",
   dubai: "Dubai, UAE",
   singapore: "Singapore",
-  malaysia: "Johor Bahru, Malaysia",
+  malaysia: "Melaka, Malaysia",
   uk: "London, United Kingdom",
+  france: "Paris, France",
 };
 
 // Head office first, then the China desk the sourcing side runs through, then
 // the rest — the order someone tracing a shipment would care about.
+//
+// Seven, not six. Paris was missing, so this page advertised "6 offices" while
+// every other page on the site said seven — OFFICE_COUNT below is this array's
+// length, so the omission propagated into the copy.
 const OFFICE_ORDER: Array<keyof typeof OFFICES> = [
   "chennai",
   "guangzhou",
@@ -76,6 +85,7 @@ const OFFICE_ORDER: Array<keyof typeof OFFICES> = [
   "singapore",
   "malaysia",
   "uk",
+  "france",
 ];
 
 const FOUNDED_YEAR = 2000;
@@ -211,12 +221,17 @@ export function ShippingContent() {
                         neither. Read whichever is present. */}
                     {postcodeOf(office.address) ? ` ${postcodeOf(office.address)}` : ""}
                   </p>
-                  <a
-                    href={`tel:${office.telephone.replace(/[^+\d]/g, "")}`}
-                    className="mt-3 inline-block text-[13px] font-semibold text-brand-dark hover:underline"
-                  >
-                    {office.telephone}
-                  </a>
+                  {/* Paris publishes no number. A tel: link built from an
+                      empty string is a link to nothing, so it simply is not
+                      drawn for offices that have none. */}
+                  {"telephone" in office && office.telephone ? (
+                    <a
+                      href={`tel:${office.telephone.replace(/[^+\d]/g, "")}`}
+                      className="mt-3 inline-block text-[13px] font-semibold text-brand-dark hover:underline"
+                    >
+                      {office.telephone}
+                    </a>
+                  ) : null}
                 </Reveal>
               );
             })}
