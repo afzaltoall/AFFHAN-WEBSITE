@@ -73,7 +73,12 @@ function RankingCard({ group, onSelect, onViewAll, seed }: { group: RankGroup; o
       className="!bg-white !border-slate-200/70 !p-4 sm:!p-5 shadow-sm hover:shadow-lg transition-shadow"
     >
       <div className="flex items-center justify-between mb-4 gap-2">
-        <h3 className="font-extrabold text-slate-900 text-[15px] sm:text-base truncate tracking-tight">{group.name}</h3>
+        {/* h2, not h3: each group card is a section directly under the page
+            h1, and with no h2 anywhere the document jumped h1 -> h3. Tailwind's
+            preflight resets heading size and weight to inherit, and the size
+            here is set by the classes, so this is a semantic change only —
+            nothing moves. */}
+        <h2 className="font-extrabold text-slate-900 text-[15px] sm:text-base truncate tracking-tight">{group.name}</h2>
         <button onClick={onViewAll} className="shrink-0 inline-flex items-center gap-0.5 text-xs font-semibold text-brand-dark hover:gap-1.5 transition-all">
           View all <ChevronRight className="w-3.5 h-3.5" />
         </button>
@@ -268,6 +273,24 @@ export function RankingsClient({
   return (
     <div className="min-h-screen bg-slate-50 font-sans pt-20">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12 pt-4">
+        {/* This page had no h1 at all. Its headings started at h3, on the
+            product cards — a URL in the sitemap, canonical to itself, with a
+            title and a description and no heading on the page.
+
+            Above the sticky bar rather than inside it, so it scrolls away and
+            does not eat vertical space on a phone once you start browsing.
+            This component is server-rendered for the initial HTML like the
+            rest of the page, so the heading is in the document a crawler
+            receives rather than appearing after hydration. */}
+        <header className="pb-4">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-[-0.02em] text-slate-900">
+            Top Ranking — the categories we source most
+          </h1>
+          <p className="mt-1.5 max-w-2xl text-sm sm:text-[15px] leading-relaxed text-slate-600">
+            The best-stocked categories in our sourcing catalogue, ranked, with a sample of what each one holds. Nothing here carries a price — it is a guide to what we can source, so ask us to quote on anything you see.
+          </p>
+        </header>
+
         {/* Sticky control bar */}
         <div className="sticky top-[var(--nav-shift,5rem)] transition-[top] duration-300 z-30 bg-slate-50/95 backdrop-blur-sm -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-3 border-b border-slate-100">
           {/* Scope row — horizontal scroll with subtle edge arrows overlaid
