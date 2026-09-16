@@ -211,7 +211,7 @@ export default function AccountPage() {
                 <button
                   type="button"
                   onClick={() => setAddPhoneOpen(true)}
-                  className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-semibold text-brand ring-1 ring-brand/20 transition-colors hover:bg-brand/5 cursor-pointer"
+                  className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-semibold text-brand-dark ring-1 ring-brand/20 transition-colors hover:bg-brand/5 cursor-pointer"
                 >
                   {user.phone ? "Change" : <><Plus size={12} /> Add number</>}
                 </button>
@@ -234,7 +234,7 @@ export default function AccountPage() {
             <button
               onClick={() => void save()}
               disabled={busy || !firstName.trim()}
-              className="flex items-center justify-center gap-2 rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              className="flex items-center justify-center gap-2 rounded-xl bg-brand-dark px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             >
               {busy && <Loader2 size={15} className="animate-spin" />}
               {saved && !busy && <Check size={15} />}

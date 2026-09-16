@@ -140,7 +140,7 @@ export default async function RolePage({
       <header className="border-b border-slate-200 bg-gradient-to-b from-slate-50 to-white pt-28 pb-14">
         <div className="mx-auto max-w-3xl px-6 sm:px-8">
           <nav aria-label="Breadcrumb" className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            <Link href="/careers/" className="hover:text-brand">
+            <Link href="/careers/" className="hover:text-brand-dark">
               Careers
             </Link>
             <span className="mx-2 text-slate-300">/</span>
@@ -177,7 +177,7 @@ export default async function RolePage({
 
           <a
             href="/contact/"
-            className="mt-8 inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark"
+            className="mt-8 inline-flex items-center gap-2 rounded-full bg-brand-dark px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-deep"
           >
             Apply for this role
           </a>
@@ -226,7 +226,7 @@ export default async function RolePage({
                   {landing && (
                     <Link
                       href={landing.href}
-                      className="mt-3 inline-block text-sm font-semibold text-brand hover:text-brand-dark"
+                      className="mt-3 inline-block text-sm font-semibold text-brand-dark hover:text-brand-deep"
                     >
                       More about {landing.label} →
                     </Link>
@@ -244,7 +244,7 @@ export default async function RolePage({
             Chennai, with its own registered company and staff in China, Singapore, Malaysia, the
             UAE, the United Kingdom and France. We source products from Chinese factories, inspect
             them before they ship, and move them by sea and air with customs cleared at both ends.{" "}
-            <Link href="/about/" className="font-semibold text-brand hover:text-brand-dark">
+            <Link href="/about/" className="font-semibold text-brand-dark hover:text-brand-deep">
               More about the company
             </Link>
             .
@@ -256,14 +256,14 @@ export default async function RolePage({
           <p className="mt-3 text-base leading-relaxed text-slate-700">
             Send us your CV and a line about why this role, either through the contact form or by
             email to{" "}
-            <a href="mailto:info@affhan.com" className="font-semibold text-brand hover:text-brand-dark">
+            <a href="mailto:info@affhan.com" className="font-semibold text-brand-dark hover:text-brand-deep">
               info@affhan.com
             </a>
             . Mention <strong>{role.title}</strong> so it reaches the right office.
           </p>
           <a
             href="/contact/"
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-dark"
+            className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand-dark px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-brand-deep"
           >
             Apply for this role
           </a>
@@ -278,7 +278,7 @@ export default async function RolePage({
                   href={rolePath(other)}
                   className="group flex items-baseline justify-between gap-4 py-3"
                 >
-                  <span className="font-semibold text-slate-800 group-hover:text-brand">
+                  <span className="font-semibold text-slate-800 group-hover:text-brand-dark">
                     {other.title}
                   </span>
                   <span className="shrink-0 text-sm text-slate-500">{roleLocationLabel(other)}</span>
@@ -288,7 +288,7 @@ export default async function RolePage({
           </ul>
           <Link
             href="/careers/"
-            className="mt-6 inline-block text-sm font-semibold text-brand hover:text-brand-dark"
+            className="mt-6 inline-block text-sm font-semibold text-brand-dark hover:text-brand-deep"
           >
             ← All careers at Affhan
           </Link>

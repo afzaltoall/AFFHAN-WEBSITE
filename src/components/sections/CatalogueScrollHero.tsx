@@ -48,7 +48,7 @@ export function CatalogueScrollHero({ scatterImages = [] }: { scatterImages?: st
   return (
     <div className="hidden lg:block relative">
       <div className="pointer-events-none absolute top-10 left-1/2 -translate-x-1/2 z-50 text-center">
-        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.25em] text-brand">
+        <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.25em] text-brand-dark">
           Global Sourcing
         </span>
         <h2 className="mt-2 text-3xl xl:text-4xl font-black tracking-tight text-slate-900">

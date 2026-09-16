@@ -729,7 +729,7 @@ export function AdminConsole({ data }: Props) {
      and a dot on the icon when it is closed. The office reads those numbers
      at a glance — how many new inquiries, how many unread messages — so they
      survive the collapse instead of leaving with the text. */
-  const sideDot = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${sideOpen ? "opacity-0" : "opacity-100"}`;
+  const sideDot = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand-dark px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${sideOpen ? "opacity-0" : "opacity-100"}`;
   const sidePill = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[11px] font-semibold leading-5 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${sideOpen ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
 
   return (
@@ -899,7 +899,7 @@ export function AdminConsole({ data }: Props) {
                 <Menu size={16} />
                 Menu
                 {newTotal > 0 && (
-                  <span className="ml-0.5 rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-white">{fmtNum(newTotal)}</span>
+                  <span className="ml-0.5 rounded-full bg-brand-dark px-1.5 py-0.5 text-[10px] font-bold text-white">{fmtNum(newTotal)}</span>
                 )}
               </button>
               {/* Dark toggle lives in the sidebar on desktop — only expose it in
@@ -959,7 +959,7 @@ export function AdminConsole({ data }: Props) {
                   <button key={i.id} onClick={() => setActiveInquiry(i)} className="flex w-full items-center gap-3 py-3 text-left">
                     <Thumb t={t} src={i.productImage} alt={i.productName} />
                     <div className="min-w-0 flex-1">
-                      <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand ${asStatus(i.status) !== "new" ? "line-through opacity-60" : ""}`}>{i.productName}</p>
+                      <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand-dark ${asStatus(i.status) !== "new" ? "line-through opacity-60" : ""}`}>{i.productName}</p>
                       <p className={`text-[12px] font-medium ${t.mid}`}>{i.customerName} · {i.country}</p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(i.status)].chip}`}>{STATUS_META[asStatus(i.status)].label}</span>
@@ -974,7 +974,7 @@ export function AdminConsole({ data }: Props) {
                       <MessageSquare className="h-4 w-4" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand ${asStatus(c.status) !== "new" ? "opacity-60" : ""}`}>{c.fullName} <span className="font-normal text-slate-500 ml-1">{c.companyName ? `(${c.companyName})` : ""}</span></p>
+                      <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand-dark ${asStatus(c.status) !== "new" ? "opacity-60" : ""}`}>{c.fullName} <span className="font-normal text-slate-500 ml-1">{c.companyName ? `(${c.companyName})` : ""}</span></p>
                       <p className={`line-clamp-1 text-[12px] font-medium ${t.mid}`}>{c.country} · {c.phone} · {c.message}</p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(c.status)].chip}`}>{STATUS_META[asStatus(c.status)].label}</span>
@@ -1182,7 +1182,7 @@ export function AdminConsole({ data }: Props) {
                   Recently Deleted: restore / delete forever. */}
               {(view === "inquiries" || view === "trash") && visibleIds.length > 0 && !(view === "inquiries" && groupByCustomer) && (
                 <div className={`flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${t.border}`}>
-                  <button onClick={toggleSelectAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
+                  <button onClick={toggleSelectAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand-dark" : `${t.soft} hover:text-brand-deep`}`}>
                     {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                     {allSelected ? "Clear selection" : "Select all"}
                   </button>
@@ -1258,7 +1258,7 @@ export function AdminConsole({ data }: Props) {
                           <button onClick={() => setActiveInquiry(i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                             <Thumb t={t} src={i.productImage} alt={i.productName} big />
                             <div className="min-w-0 flex-1">
-                              <p className={`line-clamp-2 text-[14px] font-semibold leading-snug hover:text-brand sm:text-[13.5px] ${st !== "new" ? `line-through ${t.soft}` : t.strong}`}>{i.productName}</p>
+                              <p className={`line-clamp-2 text-[14px] font-semibold leading-snug hover:text-brand-dark sm:text-[13.5px] ${st !== "new" ? `line-through ${t.soft}` : t.strong}`}>{i.productName}</p>
                               {/* 12px at `mid`, with the icons left soft. The
                                   icon is decoration and can stay quiet; the
                                   name, number and address are what the row is
@@ -1299,7 +1299,7 @@ export function AdminConsole({ data }: Props) {
                           <button onClick={() => setActiveInquiry(i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                             <Thumb t={t} src={i.productImage} alt={i.productName} big />
                             <div className="min-w-0 flex-1">
-                              <p className="line-clamp-2 text-[13px] font-semibold leading-snug opacity-70 hover:text-brand">{i.productName}</p>
+                              <p className="line-clamp-2 text-[13px] font-semibold leading-snug opacity-70 hover:text-brand-dark">{i.productName}</p>
                               <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Users className="h-3 w-3 shrink-0" /><span className="truncate">{i.customerName}</span></span>
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{i.phone}</span></span>
@@ -1501,7 +1501,7 @@ function EmailDialog({ currentEmail, onClose, t }: { currentEmail: string; onClo
       <div onClick={(e) => e.stopPropagation()} className={`relative z-10 w-full max-w-sm overflow-hidden rounded-3xl shadow-2xl ring-1 ${t.modal}`}>
         <div className="flex items-center justify-between px-6 pt-6">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-brand"><Mail className="h-4.5 w-4.5" /></span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-brand-dark"><Mail className="h-4.5 w-4.5" /></span>
             <h3 className="text-lg font-semibold">Change email</h3>
           </div>
           <button onClick={onClose} className={`rounded-lg p-1 transition-opacity ${t.soft} hover:opacity-70`}><X className="h-5 w-5" /></button>
@@ -1512,7 +1512,7 @@ function EmailDialog({ currentEmail, onClose, t }: { currentEmail: string; onClo
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500"><CheckSquare className="h-6 w-6" /></span>
             <p className="text-sm font-medium">Email changed successfully.</p>
             <p className={`text-xs ${t.soft}`}>Use your new email to sign in next time.</p>
-            <button onClick={() => window.location.reload()} className="mt-2 rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark">Done</button>
+            <button onClick={() => window.location.reload()} className="mt-2 rounded-xl bg-brand-dark px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep">Done</button>
           </div>
         ) : (
           <>
@@ -1540,7 +1540,7 @@ function EmailDialog({ currentEmail, onClose, t }: { currentEmail: string; onClo
             </div>
             <div className="mt-5 flex gap-2 p-4">
               <button onClick={onClose} className={`flex-1 rounded-xl py-2.5 text-sm font-semibold ring-1 transition-colors ${t.pill}`}>Cancel</button>
-              <button onClick={submit} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60">
+              <button onClick={submit} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-dark py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep disabled:opacity-60">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Update
               </button>
             </div>
@@ -1597,7 +1597,7 @@ function PasswordDialog({ onClose, t }: { onClose: () => void; t: Theme }) {
       <div onClick={(e) => e.stopPropagation()} className={`relative z-10 w-full max-w-sm overflow-hidden rounded-3xl shadow-2xl ring-1 ${t.modal}`}>
         <div className="flex items-center justify-between px-6 pt-6">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-brand"><KeyRound className="h-4.5 w-4.5" /></span>
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand/10 text-brand-dark"><KeyRound className="h-4.5 w-4.5" /></span>
             <h3 className="text-lg font-semibold">Change password</h3>
           </div>
           <button onClick={onClose} className={`rounded-lg p-1 transition-opacity ${t.soft} hover:opacity-70`}><X className="h-5 w-5" /></button>
@@ -1607,7 +1607,7 @@ function PasswordDialog({ onClose, t }: { onClose: () => void; t: Theme }) {
           <div className="flex flex-col items-center gap-3 px-6 py-8 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500"><CheckSquare className="h-6 w-6" /></span>
             <p className="text-sm font-medium">Password changed successfully.</p>
-            <button onClick={onClose} className="mt-2 rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark">Done</button>
+            <button onClick={onClose} className="mt-2 rounded-xl bg-brand-dark px-6 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep">Done</button>
           </div>
         ) : (
           <>
@@ -1628,7 +1628,7 @@ function PasswordDialog({ onClose, t }: { onClose: () => void; t: Theme }) {
             </div>
             <div className="mt-5 flex gap-2 p-4">
               <button onClick={onClose} className={`flex-1 rounded-xl py-2.5 text-sm font-semibold ring-1 transition-colors ${t.pill}`}>Cancel</button>
-              <button onClick={submit} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-60">
+              <button onClick={submit} disabled={busy} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-dark py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep disabled:opacity-60">
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Update
               </button>
             </div>
@@ -1659,7 +1659,7 @@ function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNull
           <button
             onClick={onConfirm}
             disabled={busy}
-            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${state.danger ? "bg-red-500 hover:bg-red-600" : "bg-brand hover:bg-brand-dark"}`}
+            className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-60 ${state.danger ? "bg-red-500 hover:bg-red-600" : "bg-brand-dark hover:bg-brand-deep"}`}
           >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             {state.confirmLabel}
@@ -1681,7 +1681,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
       <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88dvh] ${t.modal}`}>
         <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
           <p className="text-sm font-semibold">Ordered product</p>
-          <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand`}>
+          <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand-dark`}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -1783,7 +1783,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
                 close it out on their own rule — full width, nothing beside them
                 to leave a gap. */}
             <div className={`mt-5 flex flex-wrap items-center gap-2 border-t pt-4 ${t.border}`}>
-              <a href={`tel:${inquiry.phone.replace(/\s/g, "")}`} className="inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"><PhoneCall className="h-3.5 w-3.5" /> Call</a>
+              <a href={`tel:${inquiry.phone.replace(/\s/g, "")}`} className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-brand-deep"><PhoneCall className="h-3.5 w-3.5" /> Call</a>
               <a href={waLink(inquiry.phone)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-5 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-emerald-600"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
               <button onClick={onDelete} className="ml-auto inline-flex items-center gap-2 rounded-full bg-red-500/10 px-4 py-2.5 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500 hover:text-white">
                 <Trash2 className="h-3.5 w-3.5" /> Delete
@@ -1879,7 +1879,7 @@ function CustomerStatusControl({
         <button
           onClick={() => onChange(choice, note)}
           disabled={!dirty}
-          className="rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
+          className="rounded-full bg-brand-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
         >
           Update customer
         </button>
@@ -2120,7 +2120,7 @@ function FilterMenu({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${active ? "bg-brand text-white ring-transparent" : t.pill}`}
+        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${active ? "bg-brand-dark text-white ring-transparent" : t.pill}`}
       >
         <SlidersHorizontal size={15} />
         Filter
@@ -2301,7 +2301,7 @@ function ContactsSection({
       {/* Selection + bulk-action bar. */}
       {showBulk && (
         <div className={`flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${t.border}`}>
-          <button onClick={toggleSelectAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
+          <button onClick={toggleSelectAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand-dark" : `${t.soft} hover:text-brand-deep`}`}>
             {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
             {allSelected ? "Clear selection" : "Select all"}
           </button>
@@ -2358,7 +2358,7 @@ function ContactsSection({
                           only question is "which of these have I dealt with" —
                           a small green chip on the far right answers it far
                           more slowly than the line through the name does. */}
-                      <p className={`line-clamp-1 text-[13.5px] font-semibold leading-snug hover:text-brand ${
+                      <p className={`line-clamp-1 text-[13.5px] font-semibold leading-snug hover:text-brand-dark ${
                         st !== "new" ? `line-through ${t.soft}` : t.strong
                       } ${tab === "trash" ? "opacity-70" : ""}`}>
                         {contactName(c)}{c.companyName ? <span className={`font-normal ${t.soft}`}> · {c.companyName}</span> : null}
@@ -2411,7 +2411,7 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
       <div onClick={(e) => e.stopPropagation()} className={`relative z-10 flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88dvh] ${t.modal}`}>
         <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
           <p className="text-sm font-semibold">Contact message</p>
-          <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand`}>
+          <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand-dark`}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -2450,7 +2450,7 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
           )}
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <a href={`mailto:${contact.email}`} className="inline-flex items-center gap-2 rounded-full bg-brand px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-dark"><Mail className="h-3.5 w-3.5" /> Reply by email</a>
+            <a href={`mailto:${contact.email}`} className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep"><Mail className="h-3.5 w-3.5" /> Reply by email</a>
             {deleted ? (
               <button onClick={onRestore} className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white">
                 <RotateCcw className="h-3.5 w-3.5" /> Restore
@@ -2511,7 +2511,7 @@ function Avatar({ name, image, size }: { name: string; image: string | null; siz
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={image} alt="" className="rounded-full object-cover" style={{ width: size, height: size }} />;
   }
-  return <span className="flex items-center justify-center rounded-full bg-brand font-semibold uppercase text-white" style={{ width: size, height: size, fontSize: size * 0.42 }}>{name[0]}</span>;
+  return <span className="flex items-center justify-center rounded-full bg-brand-dark font-semibold uppercase text-white" style={{ width: size, height: size, fontSize: size * 0.42 }}>{name[0]}</span>;
 }
 
 function Thumb({ src, alt, big, t }: { src: string | null; alt: string; big?: boolean; t: Theme }) {
@@ -2529,7 +2529,7 @@ function Panel({ title, onView, children, t }: { title: string; onView: () => vo
     <div className={`rounded-2xl shadow-sm ring-1 ${t.card}`}>
       <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
         <h3 className="text-sm font-semibold">{title}</h3>
-        <button onClick={onView} className="inline-flex items-center gap-1 text-xs font-semibold text-brand hover:opacity-80">View all <ChevronRight size={14} /></button>
+        <button onClick={onView} className="inline-flex items-center gap-1 text-xs font-semibold text-brand-dark hover:opacity-80">View all <ChevronRight size={14} /></button>
       </div>
       <div className={`divide-y px-5 ${t.divide}`}>{children}</div>
     </div>
@@ -2747,7 +2747,7 @@ function AllSection({
 
         {/* Select-all bar */}
         <div className={`flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${t.border}`}>
-          <button onClick={toggleAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
+          <button onClick={toggleAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand-dark" : `${t.soft} hover:text-brand-deep`}`}>
             {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
             {allSelected ? "Clear selection" : "Select all"}
           </button>

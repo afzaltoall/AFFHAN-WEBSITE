@@ -153,7 +153,7 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
             {/* Search by photo. Sits inside the pill so it reads as part of
                 the search control rather than a separate feature. */}
             <ImageSearchButton className="mr-2" />
-            <button type="submit" className="h-[calc(100%-8px)] px-5 md:px-6 mr-1 bg-brand hover:bg-brand-dark text-white rounded-full font-bold text-sm transition-colors">
+            <button type="submit" className="h-[calc(100%-8px)] px-5 md:px-6 mr-1 bg-brand-dark hover:bg-brand-deep text-white rounded-full font-bold text-sm transition-colors">
               Search
             </button>
           </form>
@@ -226,7 +226,7 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
                   )}
 
                   <div>
-                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-2 px-1"><TrendingUp size={16} className="text-brand" /> Popular Categories</h3>
+                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 mb-2 px-1"><TrendingUp size={16} className="text-brand-dark" /> Popular Categories</h3>
                     <div className="flex flex-wrap gap-2">
                       {popularCats.map(c => (
                         <button key={c.id} onClick={() => goCategory(c.id)} className="bg-slate-50 hover:bg-brand/5 border border-slate-100 hover:border-brand/30 text-slate-600 hover:text-brand-dark rounded-lg px-3.5 py-2 text-sm font-medium transition-colors">

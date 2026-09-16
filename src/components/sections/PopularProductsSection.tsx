@@ -42,7 +42,7 @@ export function PopularProductsSection({ initialProducts = [] }: { initialProduc
     <section id="popular-products" className="w-full bg-slate-50 py-10 sm:py-14 px-4 sm:px-6 lg:px-8 overflow-hidden">
       <div className="max-w-[1600px] mx-auto">
         <div className="flex flex-col items-center text-center gap-2 sm:gap-3 mb-2 sm:mb-4">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-brand">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-dark">
             <Flame size={14} /> Popular Products
           </span>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2.5">

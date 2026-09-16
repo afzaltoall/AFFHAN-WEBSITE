@@ -48,7 +48,7 @@ export function ProductSpotlightSection({ initialProducts = [] }: { initialProdu
     <section className="bg-slate-50 px-4 sm:px-6 lg:px-8 py-10 sm:py-12 border-t border-slate-200">
       <div className="mx-auto max-w-[1200px]">
         <div className="text-center mb-6 sm:mb-8">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-brand">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-dark">
             <Sparkles size={14} /> Product Spotlight
           </span>
           <h2 className="mt-2 text-2xl sm:text-4xl font-black tracking-tight text-slate-900">
@@ -74,7 +74,7 @@ export function ProductSpotlightSection({ initialProducts = [] }: { initialProdu
             <div className="text-center mt-6">
               <button
                 onClick={() => spotlight[0] && setInquiryProduct(spotlight[0]._product)}
-                className="inline-flex items-center gap-2 rounded-full bg-brand hover:bg-brand-dark text-white font-bold text-sm px-6 py-3 transition-colors"
+                className="inline-flex items-center gap-2 rounded-full bg-brand-dark hover:bg-brand-deep text-white font-bold text-sm px-6 py-3 transition-colors"
               >
                 Request a quote
               </button>

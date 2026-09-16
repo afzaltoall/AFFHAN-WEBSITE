@@ -74,7 +74,7 @@ export default function FavouritesPage() {
             action={
               <Link
                 href="/products/"
-                className="inline-block rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
+                className="inline-block rounded-xl bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
               >
                 Browse products
               </Link>
@@ -120,7 +120,7 @@ export default function FavouritesPage() {
                     )}
                   </div>
                   <div className="p-3">
-                    <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-800 group-hover:text-brand">
+                    <p className="line-clamp-2 text-[13px] font-medium leading-snug text-slate-800 group-hover:text-brand-dark">
                       {row.name}
                     </p>
                     {row.category && (

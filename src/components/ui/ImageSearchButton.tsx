@@ -830,10 +830,16 @@ export function ImageSearchButton({ className }: { className?: string }) {
 
   return (
     <>
+      {/* The visible camera button below is labelled, but this input is a
+          separate focusable control and needs its own name: a screen reader
+          lands on it and would otherwise announce only "file upload button".
+          Named here rather than with a <label for>, because the input is
+          sr-only and the thing a sighted user clicks is the button. */}
       <input
         ref={inputRef}
         type="file"
         accept={ACCEPT}
+        aria-label="Search by image — upload a product photo"
         className="sr-only"
         onChange={(e) => {
           const f = e.target.files?.[0];

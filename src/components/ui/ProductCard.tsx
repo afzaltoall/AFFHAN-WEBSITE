@@ -166,7 +166,16 @@ export function ProductCard({ product, onClick, priority, eager }: ProductCardPr
         className="absolute right-2.5 top-2.5 z-20"
       />
 
-      <Link href={href} aria-label={product.name} className="flex flex-1 flex-col text-left w-full">
+      {/* prefetch={false} means "not on sight", NOT "never": Next still
+          prefetches this on hover, so a click is as fast as it ever was.
+
+          What it stops is the grid prefetching every card the moment it
+          scrolls into view. /products/ renders 96 of these and the homepage
+          about 20, and a visitor opens one or two — so on the catalogue page
+          that was 96 speculative RSC renders on the origin, per page view, to
+          save a round trip on at most two of them. Measured on the homepage:
+          64 RSC requests for ~20 routes before this. */}
+      <Link href={href} prefetch={false} aria-label={product.name} className="flex flex-1 flex-col text-left w-full">
         {/* Fixed image height so cards stay a consistent height regardless of
             how many grid columns fit. */}
         <div className="relative w-full h-40 sm:h-48 shrink-0 bg-slate-50/40 overflow-hidden">

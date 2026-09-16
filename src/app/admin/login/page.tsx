@@ -166,7 +166,7 @@ function LoginContent() {
             <button
               type="submit"
               disabled={loading || !turnstileToken}
-              className="w-full py-3 rounded-xl bg-white hover:bg-slate-50 text-brand font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-70 shadow-sm"
+              className="w-full py-3 rounded-xl bg-white hover:bg-slate-50 text-brand-dark font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-70 shadow-sm"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Sign In

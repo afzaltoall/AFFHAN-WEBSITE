@@ -105,7 +105,7 @@ export default function SocialPage() {
                   className="text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-brand"
                 />
               </span>
-              <span className="mt-0.5 block truncate text-[12px] font-medium text-brand">
+              <span className="mt-0.5 block truncate text-[12px] font-medium text-brand-dark">
                 {handle}
               </span>
               <span className="mt-1.5 block text-[12px] leading-relaxed text-slate-500">

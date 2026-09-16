@@ -418,7 +418,7 @@ export function MarketplaceHeroSection({
                 aria-hidden="true" 
               />
               <span className="relative z-10 text-[10px] font-extrabold uppercase tracking-[0.2em] text-brand-dark sm:text-[11px]">
-                Global <span className="text-brand">B2B</span> Sourcing Marketplace
+                Global <span className="text-brand-dark">B2B</span> Sourcing Marketplace
               </span>
             </span>
 

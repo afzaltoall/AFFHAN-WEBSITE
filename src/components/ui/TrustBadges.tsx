@@ -118,7 +118,13 @@ export function TrustBadges() {
                 />
                 <span>{b.value}</span>
               </div>
-              <span className="text-center text-[9px] sm:text-[10px] text-slate-500 whitespace-nowrap uppercase tracking-wider">
+              {/* slate-600, not slate-500. The sliding highlight passes behind
+                  each label in turn, and bg-brand/12 over white is #e5f5f8 —
+                  enough to drop slate-500 from 4.76:1 to 4.25:1, under AA, for
+                  a third of the cycle. Softening the highlight does not fix it
+                  (bg-brand/8 only reaches 4.41:1); darkening the label does:
+                  slate-600 is 7.58:1 on white and 6.77:1 under the highlight. */}
+              <span className="text-center text-[9px] sm:text-[10px] text-slate-600 whitespace-nowrap uppercase tracking-wider">
                 {b.label}
               </span>
             </div>

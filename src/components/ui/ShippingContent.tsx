@@ -113,7 +113,7 @@ export function ShippingContent() {
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <Reveal>
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-dark">
               What we move
             </span>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -130,7 +130,7 @@ export function ShippingContent() {
                 delay={Math.min(i, 2) * 90}
                 className="group rounded-2xl border border-slate-200 bg-white p-6 transition-all hover:border-brand hover:shadow-md"
               >
-                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand/10 text-brand transition-colors group-hover:bg-brand group-hover:text-white">
+                <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand/10 text-brand-dark transition-colors group-hover:bg-brand-dark group-hover:text-white">
                   <Icon size={22} />
                 </span>
                 <h3 className="mt-4 text-base font-bold text-slate-900">{title}</h3>
@@ -146,7 +146,7 @@ export function ShippingContent() {
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
             <Reveal>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-dark">
                 Why Affhan
               </span>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -194,7 +194,7 @@ export function ShippingContent() {
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
             <Reveal>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-dark">
                 Costing
               </span>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -218,7 +218,7 @@ export function ShippingContent() {
             </Reveal>
 
             <Reveal delay={80}>
-              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-dark">
                 Sea or air
               </span>
               <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -279,7 +279,7 @@ export function ShippingContent() {
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-3xl px-5 sm:px-8">
           <Reveal>
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-dark">
               Questions
             </span>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
@@ -298,7 +298,7 @@ export function ShippingContent() {
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
           <Reveal>
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-dark">
               Where we are
             </span>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">

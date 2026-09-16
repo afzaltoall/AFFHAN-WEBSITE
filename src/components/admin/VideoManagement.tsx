@@ -270,7 +270,7 @@ export function VideoManagement({ categories }: Props) {
           </div>
           <button
             onClick={() => setShowModal(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-xl bg-brand-dark px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           >
             <Plus size={15} /> Upload Video
           </button>
@@ -401,8 +401,8 @@ export function VideoManagement({ categories }: Props) {
                       onClick={() => uploadState === "idle" || uploadState === "error" ? videoInputRef.current?.click() : null}
                       className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 transition-colors ${videoFile ? 'border-brand bg-brand/5' : `${t.border} ${t.hover}`} ${uploadState !== "idle" && uploadState !== "error" ? 'pointer-events-none opacity-60' : ''}`}
                     >
-                      <Film size={24} className={videoFile ? "text-brand" : t.soft} />
-                      <p className={`mt-2 text-center text-[11px] font-medium ${videoFile ? "text-brand" : t.soft}`}>
+                      <Film size={24} className={videoFile ? "text-brand-dark" : t.soft} />
+                      <p className={`mt-2 text-center text-[11px] font-medium ${videoFile ? "text-brand-dark" : t.soft}`}>
                         {videoFile ? videoFile.name : "Select Video"}
                       </p>
                       <input 
@@ -429,7 +429,7 @@ export function VideoManagement({ categories }: Props) {
                       className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-4 transition-colors ${thumbFile ? 'border-brand bg-brand/5' : `${t.border} ${t.hover}`} ${uploadState !== "idle" && uploadState !== "error" ? 'pointer-events-none opacity-60' : ''}`}
                     >
                       <ImageIcon size={24} className={thumbFile ? "text-brand" : t.soft} />
-                      <p className={`mt-2 text-center text-[11px] font-medium ${thumbFile ? "text-brand" : t.soft}`}>
+                      <p className={`mt-2 text-center text-[11px] font-medium ${thumbFile ? "text-brand-dark" : t.soft}`}>
                         {thumbFile ? thumbFile.name : "Select Image"}
                       </p>
                       <input 
@@ -497,7 +497,7 @@ export function VideoManagement({ categories }: Props) {
                 <button
                   type="submit"
                   disabled={uploadState !== "idle" && uploadState !== "error"}
-                  className="inline-flex items-center gap-2 rounded-xl bg-brand px-5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-brand-dark disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-xl bg-brand-dark px-5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-brand-deep disabled:opacity-50"
                 >
                   <UploadCloud size={16} />
                   Start Upload

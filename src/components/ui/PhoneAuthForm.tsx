@@ -317,7 +317,7 @@ export function PhoneAuthForm({
                   if (onUsePassword) onUsePassword();
                   else setIntent("signin");
                 }}
-                className="font-semibold text-brand underline-offset-2 transition-colors hover:text-brand-dark hover:underline cursor-pointer"
+                className="font-semibold text-brand-dark underline-offset-2 transition-colors hover:text-brand-deep hover:underline cursor-pointer"
               >
                 Sign in
               </button>
@@ -332,7 +332,7 @@ export function PhoneAuthForm({
                     setError(null);
                     setIntent("signup");
                   }}
-                  className="font-semibold text-brand underline-offset-2 transition-colors hover:text-brand-dark hover:underline cursor-pointer"
+                  className="font-semibold text-brand-dark underline-offset-2 transition-colors hover:text-brand-deep hover:underline cursor-pointer"
                 >
                   Create an account
                 </button>
@@ -540,7 +540,7 @@ function Primary({
     <button
       onClick={() => void onClick()}
       disabled={busy || disabled}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+      className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-dark px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
     >
       {busy && <Loader2 size={15} className="animate-spin" />}
       {children}

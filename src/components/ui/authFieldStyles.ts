@@ -27,7 +27,7 @@ export const authInput =
 
 /** The one action that submits the form. */
 export const authPrimaryButton =
-  "flex w-full items-center justify-center gap-2 rounded-xl bg-brand px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-dark hover:shadow active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:bg-brand cursor-pointer";
+  "flex w-full items-center justify-center gap-2 rounded-xl bg-brand-dark px-6 py-2.5 text-sm font-bold text-white shadow-sm transition-all hover:bg-brand-deep hover:shadow active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none disabled:hover:bg-brand-deep cursor-pointer";
 
 /** "New to Affhan? Create an account" — the way off this screen. */
 export const authSwitchRow = "text-center text-[13px] text-slate-500";

@@ -482,7 +482,15 @@ export default function AboutUsContent() {
             className="flex flex-col items-center text-center"
           >
             <span className="text-brand text-sm font-semibold uppercase tracking-[0.2em] mb-3">Partner With Us</span>
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-gray-800">AFFHAN International Pvt Ltd</h2>
+            {/* slate-900, not gray-800. The font here was never the problem —
+                this heading rasterises Plus Jakarta Sans like every other one
+                (checked with getPlatformFontsForNode, no fallback), and
+                font-bold tracking-tight is what the rest of this file uses.
+                The colour was the outlier: text-gray-800 (#1f2937) appeared
+                exactly once in the codebase against 79 uses of text-slate-900
+                (#0f172a) on headings this size. Lighter, and a different hue
+                family — which at 48px reads as a different, weaker typeface. */}
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900">AFFHAN International Pvt Ltd</h2>
           </motion.div>
 
           {/* Center Affhan logo with animated social "wires" flowing in */}

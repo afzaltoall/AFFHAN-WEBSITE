@@ -116,7 +116,7 @@ function Tracker({
                     done
                       ? "bg-emerald-500 text-white"
                       : active
-                        ? "bg-brand text-white ring-4 ring-brand/15"
+                        ? "bg-brand-dark text-white ring-4 ring-brand/15"
                         : "bg-slate-200 text-slate-400"
                   }`}
                 >
@@ -166,7 +166,7 @@ function Tracker({
         className={`ml-auto flex shrink-0 items-center gap-1.5 self-center rounded-full px-3.5 py-2 text-[12px] font-semibold ring-1 transition-colors disabled:cursor-not-allowed ${
           justChecked
             ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-            : "bg-white text-brand ring-brand/25 hover:bg-brand/5"
+            : "bg-white text-brand-dark ring-brand/25 hover:bg-brand/5"
         } cursor-pointer`}
       >
         {tracking ? (
@@ -308,7 +308,7 @@ export default function InquiriesPage() {
             action={
               <button
                 onClick={() => void load()}
-                className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark cursor-pointer"
+                className="rounded-xl bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep cursor-pointer"
               >
                 Try again
               </button>
@@ -324,7 +324,7 @@ export default function InquiriesPage() {
             action={
               <Link
                 href="/products/"
-                className="inline-block rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
+                className="inline-block rounded-xl bg-brand-dark px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
               >
                 Browse products
               </Link>
@@ -362,7 +362,7 @@ export default function InquiriesPage() {
                     {row.productId ? (
                       <Link
                         href={`/products/${row.productId}/`}
-                        className="line-clamp-2 text-sm font-semibold text-slate-900 hover:text-brand"
+                        className="line-clamp-2 text-sm font-semibold text-slate-900 hover:text-brand-dark"
                       >
                         {row.productName}
                       </Link>

@@ -94,7 +94,7 @@ export function PasswordSection({
             setError(null);
             setOpen((o) => !o);
           }}
-          className="shrink-0 rounded-xl bg-white px-4 py-2 text-[13px] font-semibold text-brand ring-1 ring-brand/20 transition-colors hover:bg-brand/5 cursor-pointer"
+          className="shrink-0 rounded-xl bg-white px-4 py-2 text-[13px] font-semibold text-brand-dark ring-1 ring-brand/20 transition-colors hover:bg-brand/5 cursor-pointer"
         >
           {open ? "Cancel" : hasPassword ? "Change" : "Set password"}
         </button>
@@ -169,7 +169,7 @@ export function PasswordSection({
             <button
               onClick={() => void save()}
               disabled={busy || !ready}
-              className="flex items-center gap-2 rounded-xl bg-brand px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-dark disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              className="flex items-center gap-2 rounded-xl bg-brand-dark px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
             >
               {busy && <Loader2 size={15} className="animate-spin" />}
               {hasPassword ? "Change password" : "Save password"}

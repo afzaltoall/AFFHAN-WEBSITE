@@ -83,7 +83,7 @@ export function CategoryTile({
         {active && (
           <span
             aria-hidden="true"
-            className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white shadow ring-2 ring-white"
+            className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-brand-dark text-white shadow ring-2 ring-white"
           >
             <Check className="h-3 w-3" strokeWidth={3} />
           </span>

@@ -1,8 +1,27 @@
 @import "tailwindcss";
 
+/* Three brand blues, and which one to reach for is a contrast decision, not a
+   taste one.
+
+   --color-brand is the identity blue, and it is 2.81:1 against white. That is
+   under WCAG AA for normal text (4.5:1) and under even the large-text bar
+   (3:1), in both directions — brand text on white AND white text on a brand
+   fill. So it is for FILLS, DECORATION, ICONS and DISPLAY TYPE, and it must
+   not carry small text or sit behind white small text.
+
+   --color-brand-dark is the same hue at 6.62:1 against white. It is the one
+   for TEXT: links, eyebrows, labels, and the background of any button whose
+   label is white.
+
+   --color-brand-deep exists only so those buttons have somewhere to go on
+   hover, now that their resting state is brand-dark. 8.99:1 on white.
+
+   Measured 2026-09-16 against the live site: 13 of the 47 AA failures across
+   nine pages were this one colour used as text. */
 @theme {
   --color-brand: #27a8c4;
   --color-brand-dark: #176579;
+  --color-brand-deep: #10505f;
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, sans-serif;
 }

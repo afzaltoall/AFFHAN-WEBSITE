@@ -547,7 +547,7 @@ export function ProductsCatalogue({
                     onClick={() => goToCategory(f.id)}
                     className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${
                       activeCategoryId === f.id
-                        ? "bg-brand text-white border-brand"
+                        ? "bg-brand-dark text-white border-brand"
                         : "bg-slate-50 text-slate-700 border-slate-200 hover:border-brand/40 hover:text-brand-dark"
                     }`}
                   >

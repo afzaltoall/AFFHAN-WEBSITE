@@ -164,7 +164,10 @@ const offices: Office[] = [
     badge: "France",
     name: "AFFHAN INTERNATIONAL LTD",
     address: "14 Rue de dunkerque 75010 PARIS",
-    phone: "",
+    // Confirmed by the company on 2026-09-16 as "0033 695144606". Spaces, not
+    // hyphens, because the tel: href below is built by stripping whitespace
+    // only — a hyphen would survive into the dialled number.
+    phone: "+33 695 144 606",
   },
 ];
 

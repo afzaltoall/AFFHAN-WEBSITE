@@ -106,7 +106,7 @@ export function NavAuthButton() {
         // Signing in from the navbar used to land everyone on the homepage,
         // whatever they had been reading.
         href={`/login/?redirect=${encodeURIComponent(pathname || "/")}`}
-        className="rounded-full bg-brand px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-dark"
+        className="rounded-full bg-brand-dark px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-deep"
       >
         Login
       </Link>
@@ -242,7 +242,7 @@ function Avatar({
     return (
       <span
         style={{ width: size, height: size }}
-        className="flex shrink-0 items-center justify-center rounded-full bg-brand text-[13px] font-bold text-white"
+        className="flex shrink-0 items-center justify-center rounded-full bg-brand-dark text-[13px] font-bold text-white"
       >
         {initial}
       </span>

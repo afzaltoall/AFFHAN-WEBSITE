@@ -127,7 +127,7 @@ export function AccountNavShell({ children }: { children: React.ReactNode }) {
                 className="h-11 w-11 shrink-0 rounded-full object-cover"
               />
             ) : (
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand/10 text-base font-bold text-brand">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand/10 text-base font-bold text-brand-dark">
                 {initial}
               </span>
             )}
@@ -223,7 +223,7 @@ export function AccountNavShell({ children }: { children: React.ReactNode }) {
               aria-current={isActive(href) ? "page" : undefined}
               className={`flex shrink-0 items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-medium transition-colors ${
                 isActive(href)
-                  ? "bg-brand text-white"
+                  ? "bg-brand-dark text-white"
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200"
               }`}
             >

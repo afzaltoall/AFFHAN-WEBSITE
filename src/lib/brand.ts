@@ -186,13 +186,19 @@ export const OFFICES = {
    * lived only in the office cards on /contact/ (which has its own separate
    * list, still the case; deduplicating the two is a job of its own).
    *
-   * No telephone: none is published for it anywhere, and an empty string in a
-   * tel: link is worse than no link. No landing page either — France is
-   * deliberately not a location page yet, pending its own content.
+   * Telephone confirmed by the company on 2026-09-16, given as
+   * "0033 695144606" — a French mobile, 06 95 14 46 06 in domestic form.
+   * Still `profileConfirmed: false`: the number came from company records,
+   * not from a verified Google profile, and no listing has been reconciled
+   * against this address yet.
+   *
+   * No landing page — France is deliberately not a location page yet, pending
+   * its own content — and no office photos or reviews.
    */
   france: {
     profileConfirmed: false,
     legalName: "AFFHAN INTERNATIONAL LTD",
+    telephone: "+33-695-144-606",
     address: {
       streetAddress: "14 Rue de Dunkerque",
       addressLocality: "Paris",
