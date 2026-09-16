@@ -13,6 +13,11 @@ import {
 import { OFFICES } from "@/lib/brand";
 import { Reveal, RevealNoScriptFallback } from "@/components/ui/Reveal";
 import { ShippingHero } from "@/components/ui/ShippingHero";
+import { ShippingJourney } from "@/components/ui/ShippingJourney";
+import { WaveDivider } from "@/components/ui/WaveDivider";
+import { FaqAccordion } from "@/components/sections/FaqAccordion";
+import { SHIPPING_FAQS } from "@/lib/shippingFaqs";
+import { LANES } from "@/lib/shippingJourney";
 
 /**
  * The shipping half of the business, which the homepage cannot lead with
@@ -98,6 +103,12 @@ export function ShippingContent() {
 
       <ShippingHero officeCount={OFFICE_COUNT} />
 
+      {/* White above, near-black below: the wave is cut out of the section
+          that precedes it, so the colours are the two real backgrounds. */}
+      <WaveDivider from="#ffffff" to="#020617" />
+      <ShippingJourney />
+      <WaveDivider from="#020617" to="#ffffff" />
+
       {/* Services */}
       <section className="bg-white py-16 lg:py-24">
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
@@ -174,6 +185,111 @@ export function ShippingContent() {
                 <Stat value="NVOCC" label="Own bills of lading" />
               </Reveal>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* What the bill is made of — the part customers compare wrongly. */}
+      <section className="bg-white py-16 lg:py-24">
+        <div className="mx-auto max-w-6xl px-5 sm:px-8">
+          <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
+            <Reveal>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+                Costing
+              </span>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                What actually determines your freight bill
+              </h2>
+              <p className="mt-4 text-[15px] leading-relaxed text-slate-600">
+                Four things, in roughly this order. <strong className="font-semibold text-slate-800">Volume</strong>,
+                because you are charged for the space whether or not you fill it — which is why
+                carton dimensions are worth an argument before production, not after.{" "}
+                <strong className="font-semibold text-slate-800">Mode</strong>, because air is a
+                multiple of sea and worth it only when the stock is earning more than it costs to fly.
+              </p>
+              <p className="mt-3 text-[15px] leading-relaxed text-slate-600">
+                <strong className="font-semibold text-slate-800">Lane</strong>, because the same box
+                to Chennai, Jebel Ali and Felixstowe is three different prices with three different
+                customs regimes behind it. And{" "}
+                <strong className="font-semibold text-slate-800">how much of the job is in the quote</strong>:
+                a freight-to-port number and a door-to-door number are not comparable, and the gap
+                between them is the part that arrives as a surprise.
+              </p>
+            </Reveal>
+
+            <Reveal delay={80}>
+              <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+                Sea or air
+              </span>
+              <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+                When air is the cheaper decision
+              </h2>
+              <p className="mt-4 text-[15px] leading-relaxed text-slate-600">
+                Air freight looks indefensible next to a sea quote until you price the stock. A
+                container on the water is capital you cannot sell for the length of the sailing,
+                plus whatever a stockout costs in orders you could not fill.
+              </p>
+              <p className="mt-3 text-[15px] leading-relaxed text-slate-600">
+                For high-value, low-volume goods, or a first production run you need in market
+                before committing to a full container, the freight premium is often smaller than
+                the cost of waiting. For heavy, low-margin goods it almost never is. We will tell
+                you which one you are looking at.
+              </p>
+
+              <dl className="mt-6 grid grid-cols-3 gap-3 border-t border-slate-200 pt-5">
+                {LANES.map((lane) => (
+                  <div key={lane.port}>
+                    <dt className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                      {lane.from} → {lane.to}
+                    </dt>
+                    <dd className="mt-1 text-lg font-black tracking-tight text-slate-900">
+                      ~{lane.days} days
+                    </dd>
+                    <dd className="text-[11px] text-slate-400">{lane.port}</dd>
+                  </div>
+                ))}
+              </dl>
+            </Reveal>
+          </div>
+        </div>
+      </section>
+
+      <WaveDivider from="#ffffff" to="#f8fafc" />
+
+      {/* Proof. Prose only — deliberately no aggregateRating in the schema
+          graph, which is a site-wide decision under Google's review-snippet
+          policy and must not be reintroduced here. */}
+      <section className="bg-slate-50 py-14 lg:py-16">
+        <div className="mx-auto max-w-4xl px-5 text-center sm:px-8">
+          <Reveal>
+            <p className="text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
+              4.8 out of 5, across 144 Google reviews
+            </p>
+            <p className="mx-auto mt-4 max-w-2xl text-[15px] leading-relaxed text-slate-600">
+              The profile is held at our Chennai head office, trading since {FOUNDED_YEAR}. Seven
+              offices — Chennai, Guangzhou, Dubai, Singapore, Melaka, London and Paris — each a
+              registered company with its own staff, not an agent on a commission.
+            </p>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* FAQ. Same array the FAQPage node is built from, so the visible text
+          and the structured data cannot disagree. */}
+      <section className="bg-white py-16 lg:py-24">
+        <div className="mx-auto max-w-3xl px-5 sm:px-8">
+          <Reveal>
+            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand">
+              Questions
+            </span>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">
+              Freight, answered
+            </h2>
+          </Reveal>
+          <div className="mt-8">
+            {/* AccordionHeader renders an h3, so each question keeps its place
+                in the outline. */}
+            <FaqAccordion faqs={SHIPPING_FAQS} />
           </div>
         </div>
       </section>
