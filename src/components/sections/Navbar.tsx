@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -61,7 +61,24 @@ export function Navbar() {
   // Categories Data
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(true);
+  /** The load settled with nothing. Drives the retry row in place of the menu. */
+  const [categoriesFailed, setCategoriesFailed] = useState(false);
   const categoriesFetched = useRef(false);
+  /**
+   * Whether the COMPONENT is still mounted — deliberately not the same
+   * question as "is this effect run still current".
+   *
+   * The fetch used to be gated on an `isMounted` flag owned by the effect run
+   * that started it. Opening the menu changes isCategoryMenuOpen, which tears
+   * that run down and sets its flag false while the request is still in the
+   * air. The response then arrived into a closure that had been told to shut
+   * up, so neither setCategories nor setLoadingCategories(false) ran — and the
+   * re-run bailed at the `categoriesFetched.current` guard, so nothing
+   * retried. loadingCategories stayed true for the life of the page and the
+   * menu showed skeleton bars forever. This ref outlives effect runs, so a
+   * response can always land.
+   */
+  const mountedRef = useRef(true);
 
   // Fetch Categories for Mega Menu
   //
@@ -82,33 +99,54 @@ export function Navbar() {
   // 60s max-age, which is short enough that a moderation change still reaches a
   // viewer inside a minute.
   useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  /**
+   * Lives outside the effect on purpose.
+   *
+   * Defined inside, its closure belonged to one effect run and died with it.
+   * Here it belongs to the component, so a response always reaches the state
+   * setters no matter how many times the menu has been toggled since.
+   *
+   * Idempotent: the guard makes extra calls free, which is what lets the idle
+   * callback, the menu-open path and the safety net below all call it freely.
+   */
+  const fetchCategories = useCallback(async () => {
+    if (categoriesFetched.current) return;
+    categoriesFetched.current = true;
+    try {
+      // Shared with the hero's mega-panel, which wants the same list. Going
+      // through loadAllCategories means whichever of the two idle-prefetches
+      // runs first pays for it and the other awaits the same promise —
+      // previously this page downloaded and parsed the 252KB list twice.
+      // It also keeps the trailing slash, without which trailingSlash: true
+      // answers 308 and every call costs two round trips.
+      const data = await loadAllCategories();
+      if (!mountedRef.current) return;
+      if (data.length) {
+        setCategories(data);
+        setCategoriesFailed(false);
+      } else {
+        // loadAllCategories has already cleared its own memo, so releasing
+        // this guard means the next call genuinely re-requests.
+        categoriesFetched.current = false;
+        setCategoriesFailed(true);
+      }
+    } finally {
+      // Unconditional apart from unmount. Whatever happened, the skeleton
+      // stops — this is the line whose absence produced the stuck menu.
+      if (mountedRef.current) setLoadingCategories(false);
+    }
+  }, []);
+
+  useEffect(() => {
     if (categoriesFetched.current) return;
 
-    let isMounted = true;
     let idleHandle: number | null = null;
-
-    const fetchCategories = async () => {
-      if (categoriesFetched.current) return;
-      categoriesFetched.current = true;
-      try {
-        // Shared with the hero's mega-panel, which wants the same list. Going
-        // through loadAllCategories means whichever of the two idle-prefetches
-        // runs first pays for it and the other awaits the same promise —
-        // previously this page downloaded and parsed the 252KB list twice.
-        // It also keeps the trailing slash, without which trailingSlash: true
-        // answers 308 and every call costs two round trips.
-        const data = await loadAllCategories();
-        if (!data.length) throw new Error("Failed to fetch categories");
-        if (isMounted) setCategories(data);
-      } catch (err) {
-        console.error(err);
-        // Let a later attempt retry rather than leaving the menu permanently
-        // empty because one request failed.
-        categoriesFetched.current = false;
-      } finally {
-        if (isMounted) setLoadingCategories(false);
-      }
-    };
 
     // Safari has no requestIdleCallback; a short timer is the stand-in.
     const ric: typeof window.requestIdleCallback | undefined =
@@ -116,22 +154,37 @@ export function Navbar() {
     let usedIdle = false;
 
     if (isCategoryMenuOpen) {
-      fetchCategories();
+      void fetchCategories();
     } else if (ric) {
       usedIdle = true;
-      idleHandle = ric(() => fetchCategories(), { timeout: 3000 });
+      idleHandle = ric(() => void fetchCategories(), { timeout: 3000 });
     } else {
-      idleHandle = window.setTimeout(fetchCategories, 1500) as unknown as number;
+      idleHandle = window.setTimeout(() => void fetchCategories(), 1500) as unknown as number;
     }
 
+    // Cancels the SCHEDULING only. It no longer invalidates a request that is
+    // already in flight, which is the whole of the bug.
     return () => {
-      isMounted = false;
       if (idleHandle !== null) {
         if (usedIdle) window.cancelIdleCallback(idleHandle);
         else window.clearTimeout(idleHandle);
       }
     };
-  }, [isCategoryMenuOpen]);
+  }, [isCategoryMenuOpen, fetchCategories]);
+
+  /**
+   * Safety net: the skeleton can never outlive this.
+   *
+   * Mount-scoped, so toggling the menu cannot cancel it the way it cancels the
+   * idle callback above. Even if every scheduled attempt were torn down before
+   * firing — a fast open/close, a main thread that never goes idle — this
+   * fires once and settles the loading state. fetchCategories is idempotent,
+   * so when the normal path already ran this costs nothing.
+   */
+  useEffect(() => {
+    const net = window.setTimeout(() => void fetchCategories(), 4000);
+    return () => window.clearTimeout(net);
+  }, [fetchCategories]);
 
   // Shared tree builder: prunes any branch (at any depth) with zero products
   // anywhere underneath it — same function the homepage sidebar and catalog
@@ -348,6 +401,28 @@ export function Navbar() {
                       {loadingCategories ? (
                         <div className="w-[900px] bg-white rounded-2xl shadow-xl border border-slate-200/70 p-4 space-y-3">
                           {[...Array(8)].map((_, i) => <div key={i} className="h-6 bg-slate-200 rounded animate-pulse" />)}
+                        </div>
+                      ) : categoriesFailed ? (
+                        /* A load that settled with nothing used to fall through
+                           to the panel below and render an empty white box with
+                           no explanation and no way out. Say so, and give the
+                           person the retry the code is now actually capable of
+                           performing. */
+                        <div className="w-[420px] rounded-2xl border border-slate-200/70 bg-white p-6 text-center shadow-xl">
+                          <p className="text-sm font-semibold text-slate-800">Categories didn&apos;t load</p>
+                          <p className="mt-1 text-[13px] text-slate-500">
+                            The connection dropped on the way. Everything else on the site still works.
+                          </p>
+                          <button
+                            onClick={() => {
+                              setLoadingCategories(true);
+                              setCategoriesFailed(false);
+                              void fetchCategories();
+                            }}
+                            className="mt-4 inline-flex items-center rounded-full bg-brand-dark px-5 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-deep"
+                          >
+                            Try again
+                          </button>
                         </div>
                       ) : (
                         <CategoryMegaPanel

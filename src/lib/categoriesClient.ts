@@ -22,17 +22,45 @@ import type { CategoryRecord } from "@/lib/categoryTree";
  */
 let inFlight: Promise<CategoryRecord[]> | null = null;
 
+/**
+ * A failed load must not be remembered as an empty catalogue.
+ *
+ * The previous version cleared the memo in `.catch`, which only runs when the
+ * promise REJECTS — a network failure. A non-ok HTTP response does not reject:
+ * `fetch` resolves normally with `ok: false`, took the `{ data: [] }` branch,
+ * and the memo kept that successful-looking empty result for the life of the
+ * page. Every later caller, including the navbar's deliberate retry, got []
+ * back instantly, so the retry path was dead code in precisely the case it
+ * was written for.
+ *
+ * That is not hypothetical here: /api/categories/ answers 403 whenever
+ * Vercel's automatic mitigation challenges the visitor, which is exactly the
+ * intermittency behind the stuck menu.
+ *
+ * So both failure modes now go through one path — throw, clear the memo, hand
+ * the caller an empty list — and the next call starts a fresh request.
+ */
 export function loadAllCategories(): Promise<CategoryRecord[]> {
   if (!inFlight) {
-    inFlight = fetch("/api/categories/")
-      .then((r) => (r.ok ? r.json() : { data: [] }))
-      .then((j) => (j.data as CategoryRecord[]) || [])
-      .catch(() => {
-        // Clear the memo so a retry is possible. Leaving a rejected promise
-        // cached would make one failed prefetch permanently empty the menu.
-        inFlight = null;
-        return [];
+    const attempt = fetch("/api/categories/")
+      .then((r) => {
+        if (!r.ok) throw new Error(`categories ${r.status}`);
+        return r.json();
+      })
+      .then((j) => {
+        const data = (j?.data as CategoryRecord[]) || [];
+        // An empty list is also a failure. The catalogue is never empty, so
+        // [] means something went wrong upstream, and caching it would blank
+        // the menu until a full page load.
+        if (!data.length) throw new Error("categories empty");
+        return data;
+      })
+      .catch((err) => {
+        if (inFlight === attempt) inFlight = null;
+        console.error("[categories] load failed:", err);
+        return [] as CategoryRecord[];
       });
+    inFlight = attempt;
   }
   return inFlight;
 }
