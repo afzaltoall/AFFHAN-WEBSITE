@@ -26,12 +26,36 @@ const usefulLinks = [
   { label: "Contact Us", href: "/contact/" },
   { label: "Privacy Policy", href: "/privacy-policy/" },
   { label: "Terms & Conditions", href: "/terms-conditions/" },
+];
+
+/**
+ * The location pages, split out of Quick Links into their own column.
+ *
+ * Nothing here is new and no destination changed — these six were the tail of
+ * the thirteen-item Quick Links list, which is what made that column run to
+ * roughly twice the height of Services beside it. Given a column of their own
+ * they also read as what they are: the offices, not site furniture.
+ *
+ * All nine location pages, which is the whole set in the sitemap. The footer
+ * carried six: France was missing because this list predates that page, and
+ * Guangzhou and the sourcing-from-China guide had never been added. A location
+ * page the footer does not link is reachable only from its siblings' cross-link
+ * block, which is the thinnest internal linking on the site — and the footer is
+ * the one place every page links from.
+ *
+ * Ordered offices first, then the two China pages, so the column reads as
+ * places before topics. Every href is checked against the live route.
+ */
+const locationLinks = [
   { label: "Sourcing in Chennai", href: "/sourcing-company-chennai/" },
   { label: "Sourcing in Dubai", href: "/sourcing-company-dubai/" },
   { label: "Sourcing in UK", href: "/sourcing-company-uk/" },
   { label: "Sourcing in Singapore", href: "/sourcing-company-singapore/" },
   { label: "Sourcing in Malaysia", href: "/sourcing-company-malaysia/" },
+  { label: "Sourcing in France", href: "/sourcing-company-france/" },
   { label: "China Sourcing", href: "/china-sourcing-company/" },
+  { label: "Guangzhou Office", href: "/china-sourcing-office-guangzhou/" },
+  { label: "Sourcing from China", href: "/sourcing-from-china/" },
 ];
 
 const socialLinks = [
@@ -62,6 +86,8 @@ export function FooterSection() {
         usefulLinks={usefulLinks}
         socialTitle="SERVICES"
         socialLinks={socialLinks}
+        locationsTitle="OUR LOCATIONS"
+        locations={locationLinks}
         contactTitle="AFFHAN INTERNATIONAL PVT LTD"
               contactLines={
                 <>
@@ -82,69 +108,70 @@ export function FooterSection() {
               }
               onSubscribe={handleNewsletterSubscribe}
               className="border-t border-white/10"
-            />
-
-      <div className="border-t border-white/10 bg-[#19414e]">
-        <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-6 py-4 text-xs text-slate-200/80 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-14">
-          <p>Copyright &copy; 2026 Affhan. All rights reserved.</p>
-          <div className="flex items-center gap-4">
-            <a
-              href="https://www.facebook.com/affhaninternational"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Facebook"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
-            >
-              <FacebookIcon />
-            </a>
-            <a
-              href="https://www.instagram.com/affhanglobal"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Instagram"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
-            >
-              <InstagramIcon />
-            </a>
-            <a
-              href="https://www.tiktok.com/@affhan_global"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="TikTok"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
-            >
-              <TiktokIcon />
-            </a>
-            <a
-              href="https://www.youtube.com/@affhan_global"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="YouTube"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
-            >
-              <YouTubeIcon />
-            </a>
-            <a
-              href="https://www.linkedin.com/company/affhanglobal/"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="LinkedIn"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
-            >
-              <LinkedinIcon />
-            </a>
-            <a
-              href="https://x.com/affhan_shipping"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Twitter/X"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
-            >
-              <TwitterXIcon />
-            </a>
+              bottomBar={
+          <div className="border-t border-white/10 bg-[#19414e]">
+            <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-6 py-4 text-xs text-slate-200/80 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-14">
+              <p>Copyright &copy; 2026 Affhan. All rights reserved.</p>
+              <div className="flex items-center gap-4">
+                <a
+                  href="https://www.facebook.com/affhaninternational"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
+                >
+                  <FacebookIcon />
+                </a>
+                <a
+                  href="https://www.instagram.com/affhanglobal"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
+                >
+                  <InstagramIcon />
+                </a>
+                <a
+                  href="https://www.tiktok.com/@affhan_global"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="TikTok"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
+                >
+                  <TiktokIcon />
+                </a>
+                <a
+                  href="https://www.youtube.com/@affhan_global"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="YouTube"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
+                >
+                  <YouTubeIcon />
+                </a>
+                <a
+                  href="https://www.linkedin.com/company/affhanglobal/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
+                >
+                  <LinkedinIcon />
+                </a>
+                <a
+                  href="https://x.com/affhan_shipping"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Twitter/X"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-[#176579] shadow-md ring-1 ring-black/5 transition-all duration-300 hover:-translate-y-0.5 hover:scale-110 hover:bg-[#27a8c4] hover:text-white hover:shadow-lg"
+                >
+                  <TwitterXIcon />
+                </a>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+              }
+            />
     </section>
   );
 }
