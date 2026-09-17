@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 
@@ -80,7 +80,7 @@ export function ProductCategoriesSection({
   /** How many categories exist in total, for the copy and the button. */
   totalCount?: number;
 }) {
-  const [categories, setCategories] = useState<Cat[]>(initialCategories || []);
+  const [categories] = useState<Cat[]>(initialCategories || []);
   const total = totalCount ?? categories.length;
 
   // Initial categories are fetched server-side; we no longer fetch on mount.

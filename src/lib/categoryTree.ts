@@ -1,7 +1,7 @@
 import {
   Armchair, Baby, Backpack, Bed, Box, Cable, Camera, Car, Circle, Cog,
   Diamond, Dog, Droplet, Dumbbell, Factory, Flower, Footprints, Gem,
-  Glasses, Hammer, Handbag, Headphones, Heart, Lamp, Laptop, Lightbulb, Orbit, Palette,
+  Glasses, Hammer, Handbag, Headphones, Heart, Lamp, Laptop, Lightbulb, Palette,
   Paintbrush, PartyPopper, PawPrint, PersonStanding, Pill, Puzzle, Ribbon, Rocket, Ruler,
   Layers, Scissors, Shield, Shirt, ShoppingBag, Smartphone, Snowflake, Sofa, Sparkle,
   SportShoe, SwatchBook, Toolbox, ToyBrick, Trophy, Tv, Umbrella, Utensils, Venus,

@@ -10,7 +10,7 @@ import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, Briefcase, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal,
+  MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -351,12 +351,6 @@ export function AdminConsole({ data }: Props) {
     }
   };
 
-  const toggleContactSelect = (id: string) =>
-    setContactSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
   const setContactStatus = (id: string, status: Status) => contactBulkAction([id], "status", status);
   const deleteContact = (id: string) =>
     setConfirm({

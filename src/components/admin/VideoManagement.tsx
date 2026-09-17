@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowLeft, Plus, Trash2, Sun, Moon, Search, PlayCircle, Loader2,
+  ArrowLeft, Plus, Trash2, Sun, Moon, PlayCircle, Loader2,
   AlertTriangle, UploadCloud, X, Film, Image as ImageIcon,
 } from "lucide-react";
 
