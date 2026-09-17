@@ -155,6 +155,7 @@ export async function getHeroFeed(limit: number, excludeIds: number[] = []) {
   };
 }
 
+
 /** One card in the "Similar products" rail: the same shape the grid needs. */
 export type SimilarProduct = {
   id: number;
@@ -164,40 +165,76 @@ export type SimilarProduct = {
 };
 
 /**
- * How many rows to ask the database for, against how many the rail shows.
+ * How many cards the rail shows, and how many rows the query asks for.
  *
- * The gap is the moderation filter: filterHidden() drops rows after the query,
- * so asking for exactly SIMILAR_SHOWN would leave the rail short on any
- * category holding blocked items. Three times over is generous, and costs
- * nothing worth measuring — the query is served straight off the categoryId
- * index and selects four columns.
+ * 30 is six full rows of the five-column grid. The gap between the two is the
+ * moderation filter: filterHidden() drops rows after the query, so asking for
+ * exactly SIMILAR_SHOWN would leave the rail short on any category holding
+ * blocked items.
  */
-export const SIMILAR_SHOWN = 20;
+export const SIMILAR_SHOWN = 30;
 const SIMILAR_FETCH = SIMILAR_SHOWN * 3;
 
+const SIMILAR_SELECT = { id: true, name: true, imageUrl: true, categoryId: true } as const;
+
 /**
- * Products from the same category, for the rail at the bottom of a PDP.
+ * Products to show beneath a product, in two tiers.
  *
- * Cached like every other catalogue read here — same hour, same tags — so the
- * larger take does not turn into a larger per-request cost. The catalogue is
- * synced once a day, so an hour-old "similar" list is never meaningfully
- * stale, and a sync revalidates TAG_PRODUCTS anyway.
+ * TIER 1 is the product's own category, which is all this ever did — and why
+ * the rail sometimes came up nearly empty. Measured on the live catalogue:
+ * 16 categories hold a single product, so those 16 pages rendered the heading
+ * and no cards at all; 112 pages can show fewer than five, and 677 fewer than
+ * twenty. Small against 1,079,241 pages, but those are precisely the pages
+ * with the least to link to and the most to gain from links.
  *
- * Deliberately no orderBy: sorting a large category by lastSynced forced a full
- * scan of the category and was the main source of PDP latency. An arbitrary
- * handful off the index is plenty for "similar".
+ * TIER 2 fills the rest from sibling categories under the same parent, and
+ * only when tier 1 came up short — so a large category is one query exactly as
+ * before, and nothing about those pages changes. "Ladies Short Sleeve" holds
+ * five products and sits under a parent holding 29,560; "Bird Accessories"
+ * goes from 2 to 303.
  *
- * Returns UNFILTERED rows on purpose. Moderation is applied by the caller on
- * every request, so a product blocked after this entry was cached still
- * disappears immediately rather than lingering for the rest of the hour.
+ * Sibling category ids are read from the Category table first (699 rows, and
+ * cached) so the product query stays an indexed `categoryId IN (...)` rather
+ * than a join through the relation.
+ *
+ * Deliberately no orderBy: sorting a large category by lastSynced forced a
+ * full scan and was the main source of PDP latency. An arbitrary handful off
+ * the index is what "similar" needs.
+ *
+ * Returns UNFILTERED rows on purpose. Moderation runs on the caller every
+ * request, so a product blocked after this entry was cached still disappears
+ * at once rather than lingering for the rest of the hour.
  */
 export const getCachedSimilarProducts = unstable_cache(
-  async (categoryId: string, excludeId: number): Promise<SimilarProduct[]> =>
-    prisma.product.findMany({
+  async (
+    categoryId: string,
+    excludeId: number,
+    parentId: string | null,
+  ): Promise<SimilarProduct[]> => {
+    const own = await prisma.product.findMany({
       where: { categoryId, id: { not: excludeId }, imageUrl: { not: null } },
       take: SIMILAR_FETCH,
-      select: { id: true, name: true, imageUrl: true, categoryId: true },
-    }),
+      select: SIMILAR_SELECT,
+    });
+    if (own.length >= SIMILAR_FETCH || !parentId) return own;
+
+    const siblings = await prisma.category.findMany({
+      where: { parentId, id: { not: categoryId } },
+      select: { id: true },
+    });
+    if (siblings.length === 0) return own;
+
+    const extra = await prisma.product.findMany({
+      where: {
+        categoryId: { in: siblings.map((c) => c.id) },
+        id: { not: excludeId },
+        imageUrl: { not: null },
+      },
+      take: SIMILAR_FETCH - own.length,
+      select: SIMILAR_SELECT,
+    });
+    return [...own, ...extra];
+  },
   ["pdp-similar-products"],
   { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
 );

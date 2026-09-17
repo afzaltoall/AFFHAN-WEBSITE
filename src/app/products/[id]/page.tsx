@@ -79,22 +79,32 @@ export default async function ProductPage({
 
   // Similar products, and how many the category holds, fetched together so the
   // count costs no extra round trip. Both are served off the categoryId index.
-  // The rail's rows now come from getCachedSimilarProducts — same query, moved
-  // into lib/products.ts and wrapped in unstable_cache like every other
-  // catalogue read. It over-fetches for the moderation filter below; see
+  // Fetched once and used three times now: the visible breadcrumb below, the
+  // BreadcrumbList JSON-LD further down, and the parent id the similar-products
+  // query widens into. They disagreed before — the schema had the full trail,
+  // the page showed only the leaf — because the view was never given this.
+  //
+  // Read before the pair below rather than alongside them, because the parent
+  // is an input to one of them. It is an unstable_cache hit, not a round trip.
+  const category = await getCategoryMeta(product.categoryId);
+
+  // path is root-first with this category last, so the parent is the one
+  // before it. Null for a top-level category, which then has no siblings to
+  // widen into and stays a single-tier query.
+  const parentCategoryId =
+    category && category.path.length > 1 ? category.path[category.path.length - 2].id : null;
+
+  // The rail's rows come from getCachedSimilarProducts — the query moved into
+  // lib/products.ts, wrapped in unstable_cache like every other catalogue read,
+  // and widened to sibling categories when the product's own is too small to
+  // fill the rail. It over-fetches for the moderation filter below; see
   // SIMILAR_SHOWN / SIMILAR_FETCH there.
   const [similarRows, categoryCount] = product.categoryId
     ? await Promise.all([
-        getCachedSimilarProducts(product.categoryId, product.id),
+        getCachedSimilarProducts(product.categoryId, product.id, parentCategoryId),
         prisma.product.count({ where: { categoryId: product.categoryId } }),
       ])
     : [[], 0];
-
-  // Fetched once and used twice: the visible breadcrumb below and the
-  // BreadcrumbList JSON-LD further down. They disagreed before — the schema had
-  // the full trail, the page showed only the leaf — because the view was never
-  // given this.
-  const category = await getCategoryMeta(product.categoryId);
 
   const pdpProduct: PDPProduct = {
     id: product.id,
