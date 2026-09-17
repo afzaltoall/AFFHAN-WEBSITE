@@ -241,7 +241,15 @@ export function Navbar() {
   // shopfront bar — categories, "What are you sourcing today?", About/Careers —
   // is not navigation an admin can use, and it cost 64px at the top of every
   // console screen. Previously only the login page opted out.
-  const isAdminArea = normalizedPath === "/admin" || normalizedPath.startsWith("/admin/");
+  // The console and the staff workspace each carry their own header. The
+  // customer navbar over either one is a second, contradictory set of
+  // navigation — and on /employee/ it offers a "Login" that means a different
+  // account from the one the reader is already signed into.
+  const isStaffArea =
+    normalizedPath === "/admin" ||
+    normalizedPath.startsWith("/admin/") ||
+    normalizedPath === "/employee" ||
+    normalizedPath.startsWith("/employee/");
   const disableAutoHide = normalizedPath === "/rankings" || normalizedPath === "/sourcing-company-chennai" || normalizedPath === "/sourcing-company-dubai";
 
   useEffect(() => {
@@ -276,14 +284,14 @@ export function Navbar() {
   // anything anchored to this variable would otherwise float 64px down the page
   // with nothing above it.
   useEffect(() => {
-    const shift = isAdminArea || hidden ? "0px" : "4rem";
+    const shift = isStaffArea || hidden ? "0px" : "4rem";
     document.documentElement.style.setProperty("--nav-shift", shift);
     return () => {
       document.documentElement.style.setProperty("--nav-shift", "4rem");
     };
-  }, [hidden, isAdminArea]);
+  }, [hidden, isStaffArea]);
 
-  if (isAdminArea) return null;
+  if (isStaffArea) return null;
 
   return (
     <header className="relative">

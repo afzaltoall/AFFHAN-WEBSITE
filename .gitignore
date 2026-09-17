@@ -90,6 +90,10 @@ public/static/images/map*.png
 # script that is not in the repository is a instruction pointing at nothing.
 !scripts/assign_category_thumbnails.mjs
 !scripts/lock_category_thumbnail.mjs
+# Staff accounts. Until the admin screens exist (phase 3) this script is the
+# only way to create one or reset one, and it is what the employee auth work
+# points the next person at.
+!scripts/create_employee.mjs
 # The moderation audit toolchain — how the contact sheets, the decisions and
 # the moves were made, and how the next pass resumes. REPORT.md alongside it is
 # the record of what was removed and why.

@@ -20,8 +20,10 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: Request) {
   try {
+    // Role, not merely "a session": /employee/* holders carry the same cookie
+    // shape, and this is the customer directory.
     const admin = await getCurrentUser();
-    if (!admin) {
+    if (!admin || admin.role !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
