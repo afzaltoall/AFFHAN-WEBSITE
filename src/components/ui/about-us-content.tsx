@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform, useSpring, type MotionValue } from "framer-motion";
 import Image from "next/image";
+import Link from "next/link";
 
 import { SocialBeams } from "@/components/ui/social-beams";
 
@@ -425,9 +426,14 @@ export default function AboutUsContent() {
               are run by people who live there: Nandhinee in the UAE, Anis Dawood in the United
               Kingdom, Muhammad Kassim in Malaysia, and Chen Yuchao looking after customer
               experience from China. The wider team is on our{" "}
-              <a href="/careers/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">
+              {/* next/link, not a bare <a>: this is an internal route, and an
+                  <a> makes it the one link on the page that throws away the
+                  loaded app and reloads from scratch. Caught by
+                  @next/next/no-html-link-for-pages, which is the rule existing
+                  to stop exactly that. */}
+              <Link href="/careers/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">
                 careers page
-              </a>
+              </Link>
               .
             </p>
 

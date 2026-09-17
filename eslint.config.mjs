@@ -22,6 +22,12 @@ const eslintConfig = defineConfig([
     "check_*.js",
     "check_*.mjs",
     "_*.mjs",
+    // Patch scripts for the sibling AFFHAN-FLUTTER app, which live here only
+    // because they were written from this repo. They are plain CommonJS and
+    // every one of them trips @typescript-eslint/no-require-imports — 16 of
+    // the 17 errors the deploy lint check was reporting, none of them in code
+    // this project ships.
+    "flutter-patch-*.js",
     "run-full-sync.mjs",
     "generate_subcategories.mjs",
     "fetch_cj.js",
