@@ -206,10 +206,20 @@ model Inquiry {
 
   createdAt DateTime @default(now())
 
+  /// Which rep owns this lead. Null until an admin assigns it.
+  ///
+  /// SetNull, never Cascade: removing an employee must not take the sourcing
+  /// team's record of the request with it — the same rule as userId above.
+  assignedToId String?
+  assignedTo   Employee? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  salesUpdates StatusUpdate[]
+
   statusEvents InquiryStatusEvent[]
 
   @@index([userId])
   @@index([customerStatus])
+  @@index([assignedToId])
   @@index([createdAt(sort: Desc)])
 }
 
@@ -254,8 +264,16 @@ model ContactMessage {
   status      String   @default("new") // new | handled | spam | deleted
   createdAt   DateTime @default(now())
 
+  /// Which rep owns this lead. Null until an admin assigns it. SetNull for the
+  /// same reason as Inquiry.assignedToId — the message outlives the employee.
+  assignedToId String?
+  assignedTo   Employee? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  salesUpdates StatusUpdate[]
+
   @@index([status])
   @@index([createdAt])
+  @@index([assignedToId])
 }
 
 // Existing table created outside this schema (scraper output). Modelled here so
@@ -648,4 +666,92 @@ model ProductView {
   @@unique([userId, productId])
   // The only query this table serves: one customer's list, newest first.
   @@index([userId, viewedAt(sort: Desc)])
+}
+
+// ---------------------------------------------------------------------------
+// Sales team: who works a lead, and what happened to it.
+// ---------------------------------------------------------------------------
+
+/// A member of the sales team, with their own login.
+///
+/// Separate from AdminUser rather than a `role` column on it. The two are not
+/// the same kind of account: an AdminUser administers the catalogue and the
+/// console, an Employee is assigned leads and can only ever see their own. One
+/// table with a role flag would mean every existing `role === "admin"` check —
+/// there are ten — silently starts admitting employees the day the column is
+/// added. Two tables cannot make that mistake.
+///
+/// `role` here is ADMIN | EMPLOYEE *within the sales team* — a team lead who can
+/// see everyone's leads versus a rep who cannot. It is not the console's admin
+/// role. String rather than a Prisma enum, matching Inquiry.status,
+/// ContactMessage.status and every other status column in this schema.
+model Employee {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  /// Profile photo. S3, via the same presigned-post route the videos use.
+  image        String?   @db.Text
+  /// ADMIN | EMPLOYEE
+  role         String    @default("EMPLOYEE")
+  /// Free-text territory, e.g. "Dubai". Optional: not every rep has one.
+  region       String?
+  /// Soft disable. Deactivating must not delete the person, because their name
+  /// is on the audit trail of every lead they ever touched.
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  /// Bumped to invalidate signed cookies already in the wild — the same
+  /// mechanism AdminUser uses, and what makes "deactivate" take effect at once
+  /// rather than whenever the cookie happens to expire.
+  tokenVersion Int       @default(0)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignedInquiries Inquiry[]
+  assignedContacts  ContactMessage[]
+  statusUpdates     StatusUpdate[]
+
+  @@index([isActive])
+}
+
+/// One entry in a lead's history — append-only.
+///
+/// `createdAt`, not `updatedAt`. A row here is a thing that happened at a
+/// moment, never edited afterwards; "latest status" is the newest row, and the
+/// point of the table is that the earlier ones survive. A mutable updatedAt
+/// would make the trail rewritable, which is the opposite of an audit trail.
+///
+/// Exactly one of inquiryId / contactId is set. Two nullable columns rather
+/// than a polymorphic (type, id) pair so the database keeps the foreign keys
+/// and the cascade, which a string-typed pointer cannot.
+///
+/// The employee's name is NOT copied here — unlike InquiryStatusEvent, which
+/// copies changedByName for readability after staff turnover. Employees are
+/// never hard-deleted (isActive above), so the relation always resolves.
+model StatusUpdate {
+  id         String          @id @default(uuid())
+
+  inquiryId  String?
+  inquiry    Inquiry?        @relation(fields: [inquiryId], references: [id], onDelete: Cascade)
+  contactId  String?
+  contact    ContactMessage? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  employeeId String
+  employee   Employee        @relation(fields: [employeeId], references: [id])
+
+  /// CONVERTED | NOT_CONVERTED | IN_PROGRESS | FOLLOW_UP
+  ///
+  /// A THIRD status vocabulary on these rows, and deliberately its own column
+  /// rather than a reuse of either existing one. Inquiry.status is internal
+  /// triage (new | handled | spam), Inquiry.customerStatus is what the
+  /// customer is shown (PENDING | CHECKED | ...). This is the sales outcome,
+  /// which answers a different question from both and must not overwrite them.
+  status     String
+  note       String?         @db.Text
+  createdAt  DateTime        @default(now())
+
+  @@index([inquiryId, createdAt(sort: Desc)])
+  @@index([contactId, createdAt(sort: Desc)])
+  @@index([employeeId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }
