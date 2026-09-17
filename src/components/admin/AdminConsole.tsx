@@ -14,6 +14,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
+import { countryFlagUrl } from "@/lib/countryFlag";
 import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
 
 interface Inquiry {
@@ -96,6 +97,66 @@ const asStatus = (s: string): Status => (s === "handled" || s === "spam" ? s : "
 
 /** Everything, or only the people who named a company on the form. */
 type CompanyFilter = "all" | "with";
+
+/** One row of the Country filter: the stored name, and how many rows carry it. */
+type CountryOption = { country: string; count: number };
+
+/**
+ * "The same country has N entries on the other list" — the point being to spot
+ * one company that both requested a quote and wrote in, which is invisible
+ * while the two lists are read separately.
+ *
+ * A button rather than a link: both lists are views of this one component at
+ * /admin/, so crossing over is a state change, not a navigation. Renders
+ * nothing when there is no country selected or nothing to cross to, so it
+ * never occupies space saying "0".
+ */
+function CrossListBadge({
+  t, country, count, targetLabel, onJump,
+}: {
+  t: Theme;
+  country: string | null;
+  count: number;
+  /** Where the jump lands — "Contact Us" or "Inquiries". */
+  targetLabel: string;
+  onJump: () => void;
+}) {
+  if (!country || count <= 0) return null;
+  const flag = countryFlagUrl(country);
+  return (
+    <button
+      onClick={onJump}
+      className={`inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-[12.5px] font-semibold ring-1 transition-colors ${t.pill}`}
+      title={`Show ${targetLabel} filtered to ${country}`}
+    >
+      {flag && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={flag} alt="" aria-hidden="true" width={16} height={12} className="h-3 w-4 shrink-0 rounded-[2px] object-cover ring-1 ring-black/10" />
+      )}
+      <span>
+        View <span className="tabular-nums">{count}</span> matching {count === 1 ? "entry" : "entries"} in {targetLabel}
+      </span>
+      <ChevronRight size={14} className="shrink-0" />
+    </button>
+  );
+}
+
+/**
+ * Country is filtered client-side, like every other filter on this console.
+ *
+ * Worth stating because the obvious alternative is a `?country=` round trip.
+ * This page is one server component that loads both lists once and hands them
+ * to this component; status, company, search and customer-stage are all
+ * useMemo passes over those arrays. Routing Country through the server instead
+ * would make it the only filter that costs a reload, and it would have to
+ * re-run the stats query and the Recently Deleted tabs with it.
+ *
+ * Trimmed and case-insensitive: the same country reaches these tables from a
+ * picker and from hand-typed legacy rows, and " India" must not be a second
+ * India.
+ */
+const matchesCountry = (value: string | null | undefined, selected: string | null) =>
+  !selected || (value ?? "").trim().toLowerCase() === selected.trim().toLowerCase();
 /**
  * The Company filter used to be one row per company, scrolling inside the
  * dropdown. With a few dozen companies that turned the panel into a list nobody
@@ -126,6 +187,14 @@ interface Props {
     stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
+    /**
+     * Distinct countries per table with their row counts, computed by a
+     * groupBy on the server. Not derived from the arrays above, because those
+     * are capped (take:5500 / take:400) and these are not — so the dropdown
+     * lists every country that exists and the cross-reference badge counts
+     * every row, including any past the cap.
+     */
+    inquiryCountries: CountryOption[]; contactCountries: CountryOption[];
   };
 }
 
@@ -168,6 +237,8 @@ export function AdminConsole({ data }: Props) {
    * which until now stated four numbers and gave no way to see who they were.
    */
   const [customerStageFilter, setCustomerStageFilter] = useState<CustomerStatus | null>(null);
+  /** Country the inquiries list is narrowed to, or null for all. */
+  const [countryFilter, setCountryFilter] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dark, setDark] = useState(false);
   const [activeInquiry, setActiveInquiry] = useState<Inquiry | null>(null);
@@ -198,7 +269,7 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
-  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, q]);
+  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, countryFilter, q]);
 
   // The drawer closes itself when a view is chosen, and Escape closes it too.
   useEffect(() => setMenuOpen(false), [view]);
@@ -222,13 +293,15 @@ export function AdminConsole({ data }: Props) {
   const [contactQ, setContactQ] = useState("");
   const [contactStatusFilter, setContactStatusFilter] = useState<"all" | Status>("all");
   const [contactCompanyFilter, setContactCompanyFilter] = useState<CompanyFilter>("all");
+  /** Country the Contact Us list is narrowed to, or null for all. */
+  const [contactCountryFilter, setContactCountryFilter] = useState<string | null>(null);
   const [contactTab, setContactTab] = useState<"active" | "trash">("active");
   const [contactSelected, setContactSelected] = useState<Set<string>>(new Set());
   const [contactBusy, setContactBusy] = useState(false);
   const [activeContact, setActiveContact] = useState<ContactMessage | null>(null);
   useEffect(() => setContactItems(data.contacts), [data.contacts]);
   useEffect(() => setContactDeleted(data.deletedContacts), [data.deletedContacts]);
-  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactCompanyFilter, contactQ, view]);
+  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactQ, view]);
 
 
   // Whether the Inquiries list is collapsed to one row per customer (deduped by
@@ -468,15 +541,43 @@ export function AdminConsole({ data }: Props) {
       // outright: they have no account, so they are in no stage at all.
       (customerStageFilter === null ||
         (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
+      matchesCountry(i.country, countryFilter) &&
       (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
     ),
-    [items, q, statusFilter, customerStageFilter]
+    [items, q, statusFilter, customerStageFilter, countryFilter]
+  );
+  /**
+   * Narrowed by country, like contactStatusCounts is by company: these numbers
+   * sit next to the status rows inside the Filter panel, and if they counted
+   * the whole table while the list showed one country they would describe a
+   * list nobody is looking at.
+   */
+  const countryScopedItems = useMemo(
+    () => items.filter((i) => matchesCountry(i.country, countryFilter)),
+    [items, countryFilter],
+  );
+
+  /**
+   * Row counts per country on the OTHER list, keyed lowercase.
+   *
+   * Built from the server's groupBy rather than the loaded arrays so the
+   * cross-reference badge counts the whole table — the same reason those
+   * queries exist. Lowercase keys because the two tables are populated by
+   * different forms and " india" must find "India".
+   */
+  const contactCountByCountry = useMemo(
+    () => new Map(data.contactCountries.map((c) => [c.country.trim().toLowerCase(), c.count])),
+    [data.contactCountries],
+  );
+  const inquiryCountByCountry = useMemo(
+    () => new Map(data.inquiryCountries.map((c) => [c.country.trim().toLowerCase(), c.count])),
+    [data.inquiryCountries],
   );
   const statusCounts = useMemo(() => {
-    const c = { all: items.length, new: 0, handled: 0, spam: 0 };
-    items.forEach((i) => { c[asStatus(i.status)]++; });
+    const c = { all: countryScopedItems.length, new: 0, handled: 0, spam: 0 };
+    countryScopedItems.forEach((i) => { c[asStatus(i.status)]++; });
     return c;
-  }, [items]);
+  }, [countryScopedItems]);
 
   /**
    * The lifecycle backlog: how many signed-in customers are currently being
@@ -504,24 +605,30 @@ export function AdminConsole({ data }: Props) {
     const parts: string[] = [];
     parts.push(statusFilter === "all" ? "All inquiries" : `Status: ${statusFilter}`);
     if (customerStageFilter) parts.push(`signed-in · ${CUSTOMER_STATUS_META[customerStageFilter].label}`);
+    // The printed sheet has to say it is one country's rows, or it reads as
+    // the whole book with most of it missing.
+    if (countryFilter) parts.push(`country: ${countryFilter}`);
     if (q.trim()) parts.push(`search: “${q.trim()}”`);
     return parts.join("  ·  ");
-  }, [statusFilter, customerStageFilter, q, selected]);
+  }, [statusFilter, customerStageFilter, countryFilter, q, selected]);
 
+  // Counts the country-scoped rows, so the "N of M can see a status" strip
+  // describes the list on screen rather than the whole table.
   const customerStatusCounts = useMemo(() => {
-    const c = { linked: 0, PENDING: 0, CHECKED: 0, IN_PROGRESS: 0, CUSTOM: 0 };
-    items.forEach((i) => {
+    const c = { linked: 0, PENDING: 0, CHECKED: 0, IN_PROGRESS: 0, CUSTOM: 0, total: countryScopedItems.length };
+    countryScopedItems.forEach((i) => {
       if (!i.userId) return;
       c.linked++;
       c[asCustomerStatus(i.customerStatus)]++;
     });
     return c;
-  }, [items]);
+  }, [countryScopedItems]);
   const trashList = useMemo(
     () => deletedItems.filter((i) =>
-      !q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase())
+      matchesCountry(i.country, countryFilter) &&
+      (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
     ),
-    [deletedItems, q]
+    [deletedItems, q, countryFilter]
   );
   // Ids visible in the current view, for the select-all control.
   const visibleIds = (view === "trash" ? trashList : inquiries).map((i) => i.id);
@@ -543,23 +650,27 @@ export function AdminConsole({ data }: Props) {
     () => contactItems.filter((c) =>
       (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) &&
       matchesCompany(c.companyName, contactCompanyFilter) &&
+      matchesCountry(c.country, contactCountryFilter) &&
       contactMatch(c, contactQ)
     ),
-    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter]
+    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter]
   );
   const contactTrash = useMemo(
     () => contactDeleted.filter((c) =>
       matchesCompany(c.companyName, contactCompanyFilter) &&
+      matchesCountry(c.country, contactCountryFilter) &&
       contactMatch(c, contactQ)
     ),
-    [contactDeleted, contactQ, contactCompanyFilter]
+    [contactDeleted, contactQ, contactCompanyFilter, contactCountryFilter]
   );
   const contactStatusCounts = useMemo(() => {
-    const matchingCompany = contactItems.filter((c) => matchesCompany(c.companyName, contactCompanyFilter));
-    const c = { all: matchingCompany.length, new: 0, handled: 0, spam: 0 };
-    matchingCompany.forEach((cItem) => { c[asStatus(cItem.status)]++; });
+    const scoped = contactItems.filter(
+      (c) => matchesCompany(c.companyName, contactCompanyFilter) && matchesCountry(c.country, contactCountryFilter),
+    );
+    const c = { all: scoped.length, new: 0, handled: 0, spam: 0 };
+    scoped.forEach((cItem) => { c[asStatus(cItem.status)]++; });
     return c;
-  }, [contactItems, contactCompanyFilter]);
+  }, [contactItems, contactCompanyFilter, contactCountryFilter]);
   const contactList = contactTab === "trash" ? contactTrash : contactActive;
   const contactVisibleIds = contactList.map((c) => c.id);
   const contactAllSelected = contactVisibleIds.length > 0 && contactVisibleIds.every((id) => contactSelected.has(id));
@@ -1010,6 +1121,11 @@ export function AdminConsole({ data }: Props) {
               companyFilter={contactCompanyFilter}
               setCompanyFilter={setContactCompanyFilter}
               withCompanyCount={contactWithCompany}
+              countryFilter={contactCountryFilter}
+              setCountryFilter={setContactCountryFilter}
+              countryOptions={data.contactCountries}
+              crossCount={contactCountryFilter ? (inquiryCountByCountry.get(contactCountryFilter.trim().toLowerCase()) ?? 0) : 0}
+              onCrossJump={() => { setCountryFilter(contactCountryFilter); setView("inquiries"); }}
               statusCounts={contactStatusCounts}
               list={contactList}
               selected={contactSelected}
@@ -1073,9 +1189,12 @@ export function AdminConsole({ data }: Props) {
                     statusFilter={statusFilter}
                     setStatusFilter={setStatusFilter}
                     statusCounts={statusCounts}
+                    countryFilter={countryFilter}
+                    setCountryFilter={setCountryFilter}
+                    countryOptions={data.inquiryCountries}
                     extraActive={groupByCustomer}
                     summarySuffix={groupByCustomer ? " · grouped" : ""}
-                    onClear={() => { setStatusFilter("all"); setGroupByCustomer(false); }}
+                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setGroupByCustomer(false); }}
                     viewSection={
                       <button
                         role="menuitemcheckbox"
@@ -1124,6 +1243,33 @@ export function AdminConsole({ data }: Props) {
               {/* Lifecycle backlog, for the inquiries that have a customer
                   account behind them. Read-only on purpose: moving someone
                   along is a per-customer decision, made in their drawer. */}
+              {/* Its own strip rather than a corner of the signed-in row,
+                  which only renders when a signed-in customer exists — a
+                  country can have plenty of anonymous inquiries and none of
+                  those, and the cross-reference is just as useful there. */}
+              {(view === "inquiries" || view === "trash") && countryFilter && (
+                <div className={`flex flex-wrap items-center gap-2 border-b px-4 py-2.5 ${t.border}`}>
+                  <span className={`text-[12px] font-medium ${t.mid}`}>
+                    Showing <span className="font-bold">{countryFilter}</span> only
+                  </span>
+                  <button
+                    onClick={() => setCountryFilter(null)}
+                    className={`rounded-lg px-2 py-1 text-[12px] font-semibold text-red-500 transition-colors ${t.hover}`}
+                  >
+                    Clear country
+                  </button>
+                  <span className="ml-auto">
+                    <CrossListBadge
+                      t={t}
+                      country={countryFilter}
+                      count={contactCountByCountry.get(countryFilter.trim().toLowerCase()) ?? 0}
+                      targetLabel="Contact Us"
+                      onJump={() => { setContactCountryFilter(countryFilter); setView("contacts"); }}
+                    />
+                  </span>
+                </div>
+              )}
+
               {view === "inquiries" && customerStatusCounts.linked > 0 && (
                 /* Four counts on a flat line all weighed the same, so nothing
                    led and the strip read as a caption. Each stage is now a
@@ -1172,7 +1318,10 @@ export function AdminConsole({ data }: Props) {
                     </button>
                   ) : (
                     <span className={`ml-auto text-[12px] font-medium ${t.mid}`}>
-                      <span className="font-bold">{customerStatusCounts.linked}</span> of {items.length} can see a status
+                      {/* `total` is the country-scoped row count, not
+                          items.length — while the list is narrowed to one
+                          country this must not quote the whole table. */}
+                      <span className="font-bold">{customerStatusCounts.linked}</span> of {customerStatusCounts.total} can see a status
                     </span>
                   )}
                 </div>
@@ -2027,6 +2176,7 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
 function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
   companyFilter, setCompanyFilter, withCompanyCount = 0,
+  countryFilter = null, setCountryFilter, countryOptions = [],
   viewSection, extraActive = false, summarySuffix = "", onClear,
 }: {
   t: Theme;
@@ -2037,6 +2187,11 @@ function FilterMenu({
   setCompanyFilter?: (v: CompanyFilter) => void;
   /** How many rows named a company. Omitted or 0 hides the section. */
   withCompanyCount?: number;
+  /** Selected country name, or null for all. */
+  countryFilter?: string | null;
+  setCountryFilter?: (v: string | null) => void;
+  /** Distinct countries with row counts. Empty hides the section. */
+  countryOptions?: CountryOption[];
   /** Optional rows under a "View" heading — grouping, on the inquiries list. */
   viewSection?: React.ReactNode;
   /** Whether anything in `viewSection` is currently on. */
@@ -2048,7 +2203,17 @@ function FilterMenu({
   const ref = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || extraActive;
+  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || extraActive;
+
+  // The country search box. Local to the panel and cleared when it closes, so
+  // reopening always shows the whole list rather than yesterday's query.
+  const [countryQuery, setCountryQuery] = useState("");
+  useEffect(() => { if (!open) setCountryQuery(""); }, [open]);
+  const shownCountries = useMemo(() => {
+    const term = countryQuery.trim().toLowerCase();
+    if (!term) return countryOptions;
+    return countryOptions.filter((c) => c.country.toLowerCase().includes(term));
+  }, [countryOptions, countryQuery]);
 
   // The panel is rendered into document.body rather than beside the button.
   //
@@ -2124,6 +2289,17 @@ function FilterMenu({
       >
         <SlidersHorizontal size={15} />
         Filter
+        {/* The selected country rides on the trigger so the list is never
+            narrowed by something you have to open a panel to discover. */}
+        {countryFilter && (
+          <span className="inline-flex max-w-[7.5rem] items-center gap-1.5">
+            {countryFlagUrl(countryFilter) && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={countryFlagUrl(countryFilter) as string} alt="" aria-hidden="true" width={16} height={12} className="h-3 w-4 shrink-0 rounded-[2px] object-cover ring-1 ring-black/10" />
+            )}
+            <span className="truncate">{countryFilter}</span>
+          </span>
+        )}
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${active ? "bg-white/25" : t.chip}`}>
           {statusFilter === "all" ? statusCounts.all : statusCounts[statusFilter]}
           {summarySuffix}
@@ -2201,6 +2377,77 @@ function FilterMenu({
             </>
           )}
 
+          {countryOptions.length > 0 && setCountryFilter && (
+            <>
+              <div className={`my-1.5 border-t ${t.border}`} />
+              <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Country</p>
+
+              {/* Searchable rather than a plain list: this is fed by a groupBy
+                  over the live table, so it is however many countries have
+                  actually written in — already past twenty and climbing. */}
+              <div className="px-1 pb-1">
+                <div className="relative">
+                  <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${t.soft}`} />
+                  <input
+                    value={countryQuery}
+                    onChange={(e) => setCountryQuery(e.target.value)}
+                    placeholder="Search countries…"
+                    aria-label="Search countries"
+                    className={`w-full rounded-xl py-1.5 pl-8 pr-2.5 text-[13px] font-medium outline-none ring-1 ring-transparent focus:ring-brand/40 ${t.input}`}
+                  />
+                </div>
+              </div>
+
+              <div className="max-h-52 overflow-y-auto">
+                <button
+                  role="menuitemradio"
+                  aria-checked={!countryFilter}
+                  onClick={() => { setCountryFilter(null); setOpen(false); }}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${!countryFilter ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${!countryFilter ? "bg-brand" : "bg-slate-300"}`} />
+                  <span className="flex-1">All countries</span>
+                  {!countryFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </button>
+
+                {shownCountries.map(({ country, count }) => {
+                  const on = countryFilter === country;
+                  const flag = countryFlagUrl(country);
+                  return (
+                    <button
+                      key={country}
+                      role="menuitemradio"
+                      aria-checked={on}
+                      onClick={() => { setCountryFilter(on ? null : country); setOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                    >
+                      {/* Real SVG rather than a flag emoji: Windows ships no
+                          flag glyphs and would print "IN" here. Same call, and
+                          the same reason, as FlagSelect on the public forms.
+                          Plain <img> like FlagSelect's — an external SVG that
+                          does not want Next's optimizer. Falls back to the dot
+                          the other filter rows use when the name does not map
+                          to an ISO code. */}
+                      {flag ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={flag} alt="" aria-hidden="true" width={18} height={13} className="h-[13px] w-[18px] shrink-0 rounded-[2px] object-cover ring-1 ring-black/10" />
+                      ) : (
+                        <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : "bg-slate-300"}`} />
+                      )}
+                      <span className="flex-1 truncate">{country}</span>
+                      <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{count}</span>
+                      {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    </button>
+                  );
+                })}
+
+                {shownCountries.length === 0 && (
+                  <p className={`px-2.5 py-3 text-center text-[12.5px] font-medium ${t.soft}`}>No country matches “{countryQuery.trim()}”</p>
+                )}
+              </div>
+            </>
+          )}
+
           {viewSection && (
             <>
               <div className={`my-1.5 border-t ${t.border}`} />
@@ -2232,6 +2479,7 @@ function FilterMenu({
 function ContactsSection({
   t, tab, setTab, q, setQ, statusFilter, setStatusFilter, statusCounts, list,
   companyFilter, setCompanyFilter, withCompanyCount,
+  countryFilter, setCountryFilter, countryOptions, crossCount, onCrossJump,
   selected, toggleSelect, allSelected, toggleSelectAll, busy, onOpen, onExportExcel, onExportPDF,
   onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
   onRestoreSelected, onPurgeSelected,
@@ -2241,6 +2489,10 @@ function ContactsSection({
   statusFilter: "all" | Status; setStatusFilter: (v: "all" | Status) => void;
   companyFilter: CompanyFilter; setCompanyFilter: (v: CompanyFilter) => void;
   withCompanyCount: number;
+  countryFilter: string | null; setCountryFilter: (v: string | null) => void;
+  countryOptions: CountryOption[];
+  /** Inquiries carrying the selected country — powers the cross-reference. */
+  crossCount: number; onCrossJump: () => void;
   statusCounts: { all: number; new: number; handled: number; spam: number };
   list: ContactMessage[]; selected: Set<string>; toggleSelect: (id: string) => void;
   allSelected: boolean; toggleSelectAll: () => void; busy: boolean;
@@ -2285,7 +2537,10 @@ function ContactsSection({
             companyFilter={companyFilter}
             setCompanyFilter={setCompanyFilter}
             withCompanyCount={withCompanyCount}
-            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); }}
+            countryFilter={countryFilter}
+            setCountryFilter={setCountryFilter}
+            countryOptions={countryOptions}
+            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); }}
           />
         )}
         <div className={`flex items-center gap-2 ${tab === "active" ? "" : "sm:ml-auto"}`}>
@@ -2297,6 +2552,25 @@ function ContactsSection({
           </button>
         </div>
       </div>
+
+      {/* Mirrors the strip on the inquiries list: what the list is narrowed
+          to, a way out, and the count on the other list. */}
+      {countryFilter && (
+        <div className={`flex flex-wrap items-center gap-2 border-b px-4 py-2.5 ${t.border}`}>
+          <span className={`text-[12px] font-medium ${t.mid}`}>
+            Showing <span className="font-bold">{countryFilter}</span> only
+          </span>
+          <button
+            onClick={() => setCountryFilter(null)}
+            className={`rounded-lg px-2 py-1 text-[12px] font-semibold text-red-500 transition-colors ${t.hover}`}
+          >
+            Clear country
+          </button>
+          <span className="ml-auto">
+            <CrossListBadge t={t} country={countryFilter} count={crossCount} targetLabel="Inquiries" onJump={onCrossJump} />
+          </span>
+        </div>
+      )}
 
       {/* Selection + bulk-action bar. */}
       {showBulk && (

@@ -28,7 +28,7 @@ export default async function AdminPage() {
   // so the surplus queued until they timed out. Every count is now one SQL
   // statement, and each active/deleted pair is one query split in JavaScript
   // rather than two round trips asking the same table opposite questions.
-  const [counts, allInquiries, allContacts] = await withDbRetry(() =>
+  const [counts, allInquiries, allContacts, inquiryCountryRows, contactCountryRows] = await withDbRetry(() =>
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
@@ -59,6 +59,23 @@ export default async function AdminPage() {
         include: { product: { select: { imageUrl: true } } },
       }),
       prisma.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 400 }),
+      // The country filter's option list, and the counts behind the
+      // cross-reference badge. groupBy rather than a distinct select for two
+      // reasons: it answers "which countries exist" and "how many rows each"
+      // in one statement, and it counts the WHOLE table rather than the
+      // take:5500 / take:400 slices above — so a country with rows past the
+      // cap still appears in the dropdown, and the "N matching entries" badge
+      // never understates. Two more statements on a four-round-trip page.
+      prisma.inquiry.groupBy({
+        by: ["country"],
+        where: { status: { not: "deleted" } },
+        _count: { _all: true },
+      }),
+      prisma.contactMessage.groupBy({
+        by: ["country"],
+        where: { status: { not: "deleted" } },
+        _count: { _all: true },
+      }),
     ])
   );
 
@@ -108,6 +125,16 @@ export default async function AdminPage() {
     status: c.status,
   });
 
+  // ContactMessage.country is `String @default("")`, so blanks are real and
+  // must not become an empty row in the dropdown. Sorted by volume: the
+  // countries worth filtering to are the ones with rows behind them, and an
+  // alphabetical list would bury India under Afghanistan.
+  const toCountryOptions = (rows: { country: string; _count: { _all: number } }[]) =>
+    rows
+      .filter((r) => r.country.trim() !== "")
+      .map((r) => ({ country: r.country, count: r._count._all }))
+      .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country));
+
   const data = {
     adminName: admin.name || admin.email,
     adminEmail: admin.email,
@@ -125,6 +152,8 @@ export default async function AdminPage() {
     deletedInquiries: deletedInquiries.map(mapInquiry),
     contacts: contacts.map(mapContact),
     deletedContacts: deletedContacts.map(mapContact),
+    inquiryCountries: toCountryOptions(inquiryCountryRows),
+    contactCountries: toCountryOptions(contactCountryRows),
   };
 
   return <AdminConsole data={data} />;
