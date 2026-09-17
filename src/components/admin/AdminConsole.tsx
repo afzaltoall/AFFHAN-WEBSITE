@@ -2477,6 +2477,52 @@ function AssigneePicker({
   );
 }
 
+/** One value in a filter row that is short enough to lay out flat. */
+function FilterPill({
+  t, on, dot, count, onClick, children,
+}: {
+  t: Theme; on: boolean; dot?: string; count?: number; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      role="menuitemradio"
+      aria-checked={on}
+      onClick={onClick}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[12.5px] font-semibold ring-1 transition-colors ${
+        on ? "bg-brand-dark text-white ring-transparent" : t.pill
+      }`}
+    >
+      {dot && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${on ? "bg-white/70" : dot}`} />}
+      <span>{children}</span>
+      {count !== undefined && (
+        <span className={`tabular-nums ${on ? "text-white/70" : t.soft}`}>{count}</span>
+      )}
+    </button>
+  );
+}
+
+/**
+ * A filter whose options are too many to lay out flat: the row shows what is
+ * currently chosen, and opens the list in place when you want to change it.
+ */
+function FilterRow({
+  t, label, value, active, open, onToggle,
+}: {
+  t: Theme; label: string; value: string; active: boolean; open: boolean; onToggle: () => void;
+}) {
+  return (
+    <button
+      onClick={onToggle}
+      aria-expanded={open}
+      className={`flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${t.hover}`}
+    >
+      <span className={`flex-1 ${t.mid}`}>{label}</span>
+      <span className={`max-w-[8.5rem] truncate text-[12.5px] ${active ? "text-brand-dark" : t.soft}`}>{value}</span>
+      <ChevronDown className={`h-3.5 w-3.5 shrink-0 ${t.soft} transition-transform ${open ? "rotate-180" : ""}`} />
+    </button>
+  );
+}
+
 function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
   companyFilter, setCompanyFilter, withCompanyCount = 0,
@@ -2518,7 +2564,14 @@ function FilterMenu({
   // The country search box. Local to the panel and cleared when it closes, so
   // reopening always shows the whole list rather than yesterday's query.
   const [countryQuery, setCountryQuery] = useState("");
-  useEffect(() => { if (!open) setCountryQuery(""); }, [open]);
+  /**
+   * Which of the two long filters is open, if either.
+   *
+   * One at a time, deliberately: both open at once is how the panel ended up
+   * taller than the screen, with a scroll area nested inside another one.
+   */
+  const [section, setSection] = useState<null | "assignee" | "country">(null);
+  useEffect(() => { if (!open) { setCountryQuery(""); setSection(null); } }, [open]);
   const shownCountries = useMemo(() => {
     const term = countryQuery.trim().toLowerCase();
     if (!term) return countryOptions;
@@ -2546,7 +2599,7 @@ function FilterMenu({
       const vw = document.documentElement.clientWidth;    // excludes the scrollbar
       const vh = window.innerHeight;
 
-      const width = Math.min(256, vw - M * 2);            // w-64, or the window if it is narrower
+      const width = Math.min(304, vw - M * 2);            // room for a row of pills, or the window if it is narrower
       // Right-align to the button, then pull back inside the viewport.
       const left = Math.max(M, Math.min(b.right - width, vw - width - M));
 
@@ -2587,6 +2640,11 @@ function FilterMenu({
       document.removeEventListener("keydown", onKey);
     };
   }, [open]);
+
+  // What is left for an open list once the pills, the rows and the padding
+  // have taken their share — so a short window shrinks the list rather than
+  // giving the panel a second scrollbar.
+  const listMax = Math.max(132, Math.min(232, (pos?.maxHeight ?? 320) - 330));
 
   return (
     <div className="relative sm:ml-auto" ref={ref}>
@@ -2634,188 +2692,188 @@ function FilterMenu({
           }}
           className={`z-[200] overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}
         >
-          <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Status</p>
-          {(["all", "new", "handled", "spam"] as const).map((s) => {
-            const on = statusFilter === s;
-            const n = s === "all" ? statusCounts.all : statusCounts[s as Status];
-            return (
-              <button
-                key={s}
-                role="menuitemradio"
-                aria-checked={on}
-                onClick={() => { setStatusFilter(s); setOpen(false); }}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold capitalize transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-              >
-                <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : s === "all" ? "bg-slate-300" : STATUS_META[s as Status].dot}`} />
-                <span className="flex-1">{s}</span>
-                <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{n}</span>
-                {on && <Check className="h-3.5 w-3.5 shrink-0" />}
-              </button>
-            );
-          })}
+          {/* Status and Company are four values and two. As stacked lists they
+              cost six rows of height for information that fits on two lines. */}
+          <div className="px-1 pb-1 pt-1">
+            <p className={`px-1.5 pb-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Status</p>
+            <div className="flex flex-wrap gap-1.5 px-0.5">
+              {(["all", "new", "handled", "spam"] as const).map((sKey) => (
+                <FilterPill
+                  key={sKey}
+                  t={t}
+                  on={statusFilter === sKey}
+                  dot={sKey === "all" ? "bg-slate-300" : STATUS_META[sKey as Status].dot}
+                  count={sKey === "all" ? statusCounts.all : statusCounts[sKey as Status]}
+                  onClick={() => { setStatusFilter(sKey); setOpen(false); }}
+                >
+                  {sKey === "all" ? "All" : STATUS_META[sKey as Status].label}
+                </FilterPill>
+              ))}
+            </div>
+          </div>
 
           {withCompanyCount > 0 && setCompanyFilter && (
-            <>
-              <div className={`my-1.5 border-t ${t.border}`} />
-              <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Company</p>
-              {/* No count on "All": statusCounts is itself narrowed by the
-                  company filter, so showing it here would print a number that
-                  changes depending on which of these two rows is selected.
-                  withCompanyCount is counted off the unfiltered list. */}
-              {([
-                ["all", "All", null],
-                ["with", "Has a company name", withCompanyCount],
-              ] as const).map(([value, label, count]) => {
-                const on = (companyFilter ?? "all") === value;
-                return (
-                  <button
-                    key={value}
-                    role="menuitemradio"
-                    aria-checked={on}
-                    onClick={() => { setCompanyFilter(value); setOpen(false); }}
-                    className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                  >
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : value === "all" ? "bg-slate-300" : "bg-indigo-400"}`} />
-                    <span className="flex-1">{label}</span>
-                    {count !== null && (
-                      <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{count}</span>
-                    )}
-                    {on && <Check className="h-3.5 w-3.5 shrink-0" />}
-                  </button>
-                );
-              })}
-            </>
+            <div className="px-1 pb-1">
+              <p className={`px-1.5 pb-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Company</p>
+              <div className="flex flex-wrap gap-1.5 px-0.5">
+                <FilterPill t={t} on={companyFilter === "all"} dot="bg-slate-300" onClick={() => { setCompanyFilter("all"); setOpen(false); }}>
+                  Any
+                </FilterPill>
+                <FilterPill t={t} on={companyFilter === "with"} dot="bg-violet-500" count={withCompanyCount} onClick={() => { setCompanyFilter("with"); setOpen(false); }}>
+                  Has a company
+                </FilterPill>
+              </div>
+            </div>
           )}
+
+          {/* The two that grow. Each opens in place, and opening one closes the
+              other, so the panel's height stays put however many people are on
+              the team or countries have written in. */}
+          {(assigneeOptions && setAssigneeFilter) || (countryOptions.length > 0 && setCountryFilter) ? (
+            <div className={`my-1 border-t ${t.border}`} />
+          ) : null}
 
           {assigneeOptions && setAssigneeFilter && (
             <>
-              <div className={`my-1.5 border-t ${t.border}`} />
-              <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Assigned to</p>
-              <div className="max-h-52 overflow-y-auto">
-                <button
-                  role="menuitemradio"
-                  aria-checked={!assigneeFilter}
-                  onClick={() => { setAssigneeFilter(null); setOpen(false); }}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${!assigneeFilter ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${!assigneeFilter ? "bg-brand" : "bg-slate-300"}`} />
-                  <span className="flex-1">Anyone</span>
-                  {!assigneeFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
-                </button>
-                {/* The queue that matters most on a Monday: what nobody owns. */}
-                <button
-                  role="menuitemradio"
-                  aria-checked={assigneeFilter === UNASSIGNED}
-                  onClick={() => { setAssigneeFilter(assigneeFilter === UNASSIGNED ? null : UNASSIGNED); setOpen(false); }}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${assigneeFilter === UNASSIGNED ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${assigneeFilter === UNASSIGNED ? "bg-brand" : "bg-slate-300"}`} />
-                  <span className="flex-1">Unassigned</span>
-                  <span className={`text-[12px] font-bold tabular-nums ${assigneeFilter === UNASSIGNED ? "text-brand-dark" : t.soft}`}>{assigneeOptions.unassigned}</span>
-                  {assigneeFilter === UNASSIGNED && <Check className="h-3.5 w-3.5 shrink-0" />}
-                </button>
-                {assigneeOptions.rows.map((e) => {
-                  const on = assigneeFilter === e.id;
-                  return (
-                    <button
-                      key={e.id}
-                      role="menuitemradio"
-                      aria-checked={on}
-                      onClick={() => { setAssigneeFilter(on ? null : e.id); setOpen(false); }}
-                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                    >
-                      <Avatar name={e.name} image={e.image} size={20} />
-                      <span className="flex-1 truncate">
-                        {e.name}
-                        {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
-                      </span>
-                      <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{e.count}</span>
-                      {on && <Check className="h-3.5 w-3.5 shrink-0" />}
-                    </button>
-                  );
-                })}
-                {assigneeOptions.rows.length === 0 && (
-                  <p className={`px-2.5 py-2 text-[12.5px] ${t.soft}`}>No active staff yet.</p>
-                )}
-              </div>
+              <FilterRow
+                t={t}
+                label="Assigned to"
+                value={
+                  !assigneeFilter
+                    ? "Anyone"
+                    : assigneeFilter === UNASSIGNED
+                      ? `Unassigned · ${assigneeOptions.unassigned}`
+                      : assigneeOptions.rows.find((e) => e.id === assigneeFilter)?.name ?? "Someone"
+                }
+                active={Boolean(assigneeFilter)}
+                open={section === "assignee"}
+                onToggle={() => setSection((cur) => (cur === "assignee" ? null : "assignee"))}
+              />
+              {section === "assignee" && (
+                <div className="overflow-y-auto pb-1" style={{ maxHeight: listMax }}>
+                  <button
+                    role="menuitemradio"
+                    aria-checked={!assigneeFilter}
+                    onClick={() => { setAssigneeFilter(null); setOpen(false); }}
+                    className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${!assigneeFilter ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${!assigneeFilter ? "bg-brand" : "bg-slate-300"}`} />
+                    <span className="flex-1">Anyone</span>
+                    {!assigneeFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  </button>
+                  {/* The Monday-morning question: what has nobody picked up. */}
+                  <button
+                    role="menuitemradio"
+                    aria-checked={assigneeFilter === UNASSIGNED}
+                    onClick={() => { setAssigneeFilter(assigneeFilter === UNASSIGNED ? null : UNASSIGNED); setOpen(false); }}
+                    className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${assigneeFilter === UNASSIGNED ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${assigneeFilter === UNASSIGNED ? "bg-brand" : "bg-slate-300"}`} />
+                    <span className="flex-1">Unassigned</span>
+                    <span className={`text-[12px] font-bold tabular-nums ${assigneeFilter === UNASSIGNED ? "text-brand-dark" : t.soft}`}>{assigneeOptions.unassigned}</span>
+                    {assigneeFilter === UNASSIGNED && <Check className="h-3.5 w-3.5 shrink-0" />}
+                  </button>
+                  {assigneeOptions.rows.map((e) => {
+                    const on = assigneeFilter === e.id;
+                    return (
+                      <button
+                        key={e.id}
+                        role="menuitemradio"
+                        aria-checked={on}
+                        onClick={() => { setAssigneeFilter(on ? null : e.id); setOpen(false); }}
+                        className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                      >
+                        <Avatar name={e.name} image={e.image} size={20} />
+                        <span className="flex-1 truncate">
+                          {e.name}
+                          {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
+                        </span>
+                        <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{e.count}</span>
+                        {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                      </button>
+                    );
+                  })}
+                  {assigneeOptions.rows.length === 0 && (
+                    <p className={`px-2.5 py-2 text-[12.5px] ${t.soft}`}>No active staff yet.</p>
+                  )}
+                </div>
+              )}
             </>
           )}
 
           {countryOptions.length > 0 && setCountryFilter && (
             <>
-              <div className={`my-1.5 border-t ${t.border}`} />
-              <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Country</p>
-
-              {/* Searchable rather than a plain list: this is fed by a groupBy
-                  over the live table, so it is however many countries have
-                  actually written in — already past twenty and climbing. */}
-              <div className="px-1 pb-1">
-                <div className="relative">
-                  <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${t.soft}`} />
-                  <input
-                    value={countryQuery}
-                    onChange={(e) => setCountryQuery(e.target.value)}
-                    placeholder="Search countries…"
-                    aria-label="Search countries"
-                    className={`w-full rounded-xl py-1.5 pl-8 pr-2.5 text-[13px] font-medium outline-none ring-1 ring-transparent focus:ring-brand/40 ${t.input}`}
-                  />
-                </div>
-              </div>
-
-              <div className="max-h-52 overflow-y-auto">
-                <button
-                  role="menuitemradio"
-                  aria-checked={!countryFilter}
-                  onClick={() => { setCountryFilter(null); setOpen(false); }}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${!countryFilter ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                >
-                  <span className={`h-2 w-2 shrink-0 rounded-full ${!countryFilter ? "bg-brand" : "bg-slate-300"}`} />
-                  <span className="flex-1">All countries</span>
-                  {!countryFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
-                </button>
-
-                {shownCountries.map(({ country, count }) => {
-                  const on = countryFilter === country;
-                  const flag = countryFlagUrl(country);
-                  return (
+              <FilterRow
+                t={t}
+                label="Country"
+                value={countryFilter ?? "Everywhere"}
+                active={Boolean(countryFilter)}
+                open={section === "country"}
+                onToggle={() => setSection((cur) => (cur === "country" ? null : "country"))}
+              />
+              {section === "country" && (
+                <div className="pb-1">
+                  <div className="px-1 pb-1">
+                    <div className="relative">
+                      <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${t.soft}`} />
+                      <input
+                        value={countryQuery}
+                        onChange={(e) => setCountryQuery(e.target.value)}
+                        placeholder="Search countries…"
+                        aria-label="Search countries"
+                        autoFocus
+                        className={`w-full rounded-xl py-1.5 pl-8 pr-2.5 text-[13px] font-medium outline-none ring-1 ring-transparent focus:ring-brand/40 ${t.input}`}
+                      />
+                    </div>
+                  </div>
+                  <div className="overflow-y-auto" style={{ maxHeight: listMax }}>
                     <button
-                      key={country}
                       role="menuitemradio"
-                      aria-checked={on}
-                      onClick={() => { setCountryFilter(on ? null : country); setOpen(false); }}
-                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                      aria-checked={!countryFilter}
+                      onClick={() => { setCountryFilter(null); setOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${!countryFilter ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
                     >
-                      {/* Real SVG rather than a flag emoji: Windows ships no
-                          flag glyphs and would print "IN" here. Same call, and
-                          the same reason, as FlagSelect on the public forms.
-                          Plain <img> like FlagSelect's — an external SVG that
-                          does not want Next's optimizer. Falls back to the dot
-                          the other filter rows use when the name does not map
-                          to an ISO code. */}
-                      {flag ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={flag} alt="" aria-hidden="true" width={18} height={13} className="h-[13px] w-[18px] shrink-0 rounded-[2px] object-cover ring-1 ring-black/10" />
-                      ) : (
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : "bg-slate-300"}`} />
-                      )}
-                      <span className="flex-1 truncate">{country}</span>
-                      <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{count}</span>
-                      {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${!countryFilter ? "bg-brand" : "bg-slate-300"}`} />
+                      <span className="flex-1">All countries</span>
+                      {!countryFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
                     </button>
-                  );
-                })}
-
-                {shownCountries.length === 0 && (
-                  <p className={`px-2.5 py-3 text-center text-[12.5px] font-medium ${t.soft}`}>No country matches “{countryQuery.trim()}”</p>
-                )}
-              </div>
+                    {shownCountries.map(({ country, count }) => {
+                      const on = countryFilter === country;
+                      const flag = countryFlagUrl(country);
+                      return (
+                        <button
+                          key={country}
+                          role="menuitemradio"
+                          aria-checked={on}
+                          onClick={() => { setCountryFilter(on ? null : country); setOpen(false); }}
+                          className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                        >
+                          {/* Real SVG rather than a flag emoji: Windows ships no
+                              flag glyphs and would print "IN" here. */}
+                          {flag ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={flag} alt="" aria-hidden="true" width={18} height={13} className="h-[13px] w-[18px] shrink-0 rounded-[2px] object-cover ring-1 ring-black/10" />
+                          ) : (
+                            <span className={`h-2 w-2 shrink-0 rounded-full ${on ? "bg-brand" : "bg-slate-300"}`} />
+                          )}
+                          <span className="flex-1 truncate">{country}</span>
+                          <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{count}</span>
+                          {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                    {shownCountries.length === 0 && (
+                      <p className={`px-2.5 py-2 text-[12.5px] ${t.soft}`}>Nothing matches that.</p>
+                    )}
+                  </div>
+                </div>
+              )}
             </>
           )}
 
           {viewSection && (
             <>
-              <div className={`my-1.5 border-t ${t.border}`} />
-              <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>View</p>
+              <div className={`my-1 border-t ${t.border}`} />
               {viewSection}
             </>
           )}
