@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import { Prisma } from ".prisma/client";
 import { prisma } from "../../../lib/prisma";
-import { unstable_cache } from "next/cache";
 import { parseQuery, buildSearchWhere, buildSearchOrderBy, categoryNameMatches, buildFuzzyWhere, buildFuzzyOrderBy } from "@/lib/search";
-import { blockedCategoryIdSet, blockedNameRegex, isCategoryBlocked, blockedProductIdList } from "@/lib/moderation";
+import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList } from "@/lib/moderation";
 import { MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
 
-import { HeroProduct, MappedProduct, CategoryLite, getCachedProductCount, getCachedCategoryProductCount, getCachedAllCategories, getCachedPreferredCategories, getCachedDefaultHeroPool, shuffle, getHeroFeed } from "@/lib/products";
+import { HeroProduct, MappedProduct, CategoryLite, getCachedProductCount, getCachedCategoryProductCount, getCachedAllCategories, getHeroFeed } from "@/lib/products";
 
 // Newest-first rows for a set of category ids, one index scan per category.
 //

@@ -77,6 +77,9 @@ export interface SmsResult {
  *
  * To go live, set SMS_PROVIDER and its credentials and add the branch here.
  */
+// phone and code are unused until a provider is wired in below — the
+// signature is the contract every caller already codes against, so it stays.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function sendOtpSms(phone: string, code: string): Promise<SmsResult> {
   const provider = process.env.SMS_PROVIDER;
 

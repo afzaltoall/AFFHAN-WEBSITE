@@ -181,7 +181,7 @@ export function ProductsCatalogue({
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [products, setProducts] = useState<ProductCardData[]>(initialProducts);
-  const [categories, setCategories] = useState<CategoryRecord[]>(initialCategories);
+  const [categories] = useState<CategoryRecord[]>(initialCategories);
   const [facets, setFacets] = useState<FacetChip[]>(initialFacets);
   const [loading, setLoading] = useState<boolean>(false);
   const [totalCapped, setTotalCapped] = useState<boolean>(initialPagination.totalCapped);
@@ -298,7 +298,6 @@ export function ProductsCatalogue({
       .sort((a, b) => (b.recursiveProductCount - a.recursiveProductCount) || a.name.localeCompare(b.name))
       .slice(0, 48)
       .map(toChip);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryTree]);
 
   // The category row shown under the breadcrumb. Rules:

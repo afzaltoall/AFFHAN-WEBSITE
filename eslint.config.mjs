@@ -28,6 +28,17 @@ const eslintConfig = defineConfig([
     // the 17 errors the deploy lint check was reporting, none of them in code
     // this project ships.
     "flutter-patch-*.js",
+    // Diagnostic probe scripts — CDP browser drivers, trace parsers, one-off
+    // audits. They are run by hand from the terminal, never imported by the
+    // app and never bundled, and they account for 135 of the 165 warnings the
+    // deploy lint check reported (129 in tools/audit alone) — all of them
+    // unused-variable noise from scripts that log rather than export.
+    //
+    // Ignored rather than tidied: editing a hundred throwaway scripts to
+    // satisfy a linter that will never run on the code they produce is churn,
+    // and the same reasoning already exempts test_*.js and check_*.mjs above.
+    "tools/**",
+    "setup-cors.mjs",
     "run-full-sync.mjs",
     "generate_subcategories.mjs",
     "fetch_cj.js",

@@ -108,7 +108,7 @@ export async function POST(req: Request) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + SESSION_DAYS);
 
-    const session = await prisma.mobileSession.create({
+    await prisma.mobileSession.create({
       data: {
         // Stamped so the admin lists can tell an app session from a
         // browser one without inferring it from a missing value.

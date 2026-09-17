@@ -41,7 +41,7 @@ export function MarketplaceHeroSection({
   // The server sends exactly HERO_GRID_COUNT products, already rotated for
   // this ISR cycle, so this renders what it is given.
   const products = initialProducts;
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // The post-hydration reshuffle that used to sit here is gone.
