@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
+import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { EmployeeForm, type EmployeeRow } from "@/components/admin/EmployeeForm";
 
 const sfFont = {
@@ -21,21 +22,14 @@ export interface StatusUpdateRow {
   contact: { id: string; fullName: string; email: string } | null;
 }
 
-const STATUS_TONE: Record<string, string> = {
-  CONVERTED: "bg-emerald-500/10 text-emerald-700",
-  NOT_CONVERTED: "bg-red-500/10 text-red-700",
-  IN_PROGRESS: "bg-sky-500/10 text-sky-700",
-  FOLLOW_UP: "bg-amber-500/10 text-amber-700",
-};
-
 /**
  * One member of staff: who they are, what is assigned to them, and everything
  * they have recorded against a lead.
  *
  * The history is the point of the page. It is append-only by design (see the
- * StatusUpdate model), so this is a record rather than a view of current
- * state — and it stays empty until phases 4 and 5 give the sales team a way to
- * write to it.
+ * StatusUpdate model), so this is a record of what was said when, rather than a
+ * view of current state: the newest row is the current outcome and the earlier
+ * ones stay exactly as they were written.
  */
 export function EmployeeDetail({
   employee,
@@ -167,8 +161,8 @@ export function EmployeeDetail({
                 {updates.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="py-12 text-center text-[#86868b]">
-                      Nothing recorded yet. Status updates start once the sales workspace can write
-                      them.
+                      Nothing recorded yet. Outcomes appear here as this person records them
+                      against the leads assigned to them.
                     </td>
                   </tr>
                 ) : (
@@ -181,16 +175,26 @@ export function EmployeeDetail({
                           {timeAgo(u.createdAt)}
                         </td>
                         <td className="px-5 py-3">
-                          <span className="block font-semibold">{who}</span>
-                          <span className="block text-xs text-[#86868b]">{what}</span>
+                          {/* Back to the row itself — it lives in the console's
+                              list, not on a page of its own. */}
+                          {u.inquiry || u.contact ? (
+                            <Link
+                              href={u.inquiry ? `/admin/?inquiry=${u.inquiry.id}` : `/admin/?contact=${u.contact!.id}`}
+                              className="block"
+                            >
+                              <span className="block font-semibold hover:underline">{who}</span>
+                              <span className="block text-xs text-[#86868b]">{what}</span>
+                            </Link>
+                          ) : (
+                            <>
+                              <span className="block font-semibold">{who}</span>
+                              <span className="block text-xs text-[#86868b]">{what}</span>
+                            </>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-5 py-3">
-                          <span
-                            className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${
-                              STATUS_TONE[u.status] ?? "bg-black/[0.05] text-[#86868b]"
-                            }`}
-                          >
-                            {u.status.replace(/_/g, " ").toLowerCase()}
+                          <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${leadStatusChip(u.status)}`}>
+                            {leadStatusLabel(u.status)}
                           </span>
                         </td>
                         <td className="px-5 py-3 text-[#515154]">{u.note || "—"}</td>
