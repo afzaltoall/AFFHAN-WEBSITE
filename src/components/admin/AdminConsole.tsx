@@ -10,7 +10,7 @@ import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal,
+  MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal, UserCog,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -941,6 +941,14 @@ export function AdminConsole({ data }: Props) {
                   <MessageSquare size={17} className={t.soft} />
                 </span>
                 <span className={`flex-1 ${sideLabel}`}>App Inquiries</span>
+              </Link>
+              {/* The sales team's own accounts — who can sign in at
+                  /employee/login, and what each of them has been assigned. */}
+              <Link href="/admin/employees/" title="Staff" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <UserCog size={17} className={t.soft} />
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>Staff</span>
               </Link>
             </nav>
             <div className={`border-t p-2 ${t.border}`}>
