@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import Lenis from "lenis";
 
 // Affhan's expansion story — each node a new office / capability, rising to
 // express growth. The desktop view is a scroll-scrubbed "wired" flow chart:
@@ -43,15 +42,29 @@ export function GrowthFlow() {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    // Lenis lives here now (moved from the old mountain parallax): smooth
-    // scroll site-wide on this page + exposes the instance so the in-page
-    // anchor buttons can scroll through it. See src/lib/scroll.ts.
-    const lenis = new Lenis();
-    (window as unknown as { lenis?: Lenis }).lenis = lenis;
-    lenis.on("scroll", ScrollTrigger.update);
-    const tick = (time: number) => lenis.raf(time * 1000);
-    gsap.ticker.add(tick);
-    gsap.ticker.lagSmoothing(0);
+    // No Lenis, and no ticker pump.
+    //
+    // This component used to construct a Lenis instance and drive it from
+    // gsap.ticker, which made every scroll on /careers/ a main-thread
+    // animation instead of a compositor one: Lenis cancels the native scroll
+    // and re-applies it each frame, so any work on the main thread — and this
+    // page runs two ScrollTrigger instances, one of them scrubbing a pinned
+    // stage — shows up as visible stutter. That is the "stuck" scrolling.
+    //
+    // `gsap.ticker.lagSmoothing(0)` went with it. It exists to stop GSAP
+    // clamping the delta after a dropped frame, which a Lenis pump needs and
+    // nothing here does; left on, every recovered frame jumps instead of
+    // catching up smoothly. Removing it restores GSAP's default recovery.
+    //
+    // It was a leftover. The comment said Lenis had been "moved from the old
+    // mountain parallax" — that parallax is gone (parallax-scrolling.tsx is
+    // no longer rendered by any page), and its smooth-scroll dependency was
+    // simply never removed with it.
+    //
+    // Nothing else needs it: GrowthFlow is only rendered by /careers/, and
+    // src/lib/scroll.ts already falls back to native smooth scrollIntoView
+    // whenever window.lenis is absent, so the in-page anchor buttons still
+    // work. ScrollTrigger listens to native scroll on its own.
 
     // Scroll-scrubbed reveal — desktop only (mobile uses a plain timeline).
     const mm = gsap.matchMedia();
@@ -89,9 +102,6 @@ export function GrowthFlow() {
     return () => {
       clearTimeout(refresh);
       mm.revert();
-      gsap.ticker.remove(tick);
-      delete (window as unknown as { lenis?: Lenis }).lenis;
-      lenis.destroy();
     };
   }, []);
 
