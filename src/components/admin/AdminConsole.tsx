@@ -10,12 +10,14 @@ import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal, UserCog,
+  MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal, UserCog, Activity,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { countryFlagUrl } from "@/lib/countryFlag";
 import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
+import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { timeAgo } from "@/lib/relative-time";
 
 interface Inquiry {
   id: string; createdAt: string; customerName: string; companyName: string | null;
@@ -30,7 +32,18 @@ interface Inquiry {
   /** The employee working this lead, or null. Set from the console; read by
    *  the staff workspace at /employee/dashboard. */
   assignedToId: string | null;
+  /** The newest sales outcome recorded against it, if anybody has. */
+  lastStatus: LeadOutcome | null;
 }
+
+/**
+ * What the assigned employee last said happened.
+ *
+ * Deliberately separate from `status` (new | handled | spam), which is the
+ * office's own triage: one says "have we dealt with this", the other says
+ * "what came of it". A row can be Handled and Not converted at once.
+ */
+interface LeadOutcome { status: string; by: string; note: string | null; at: string }
 
 /** An active member of staff a lead can be handed to. */
 interface EmployeeOption { id: string; name: string; region: string | null; image: string | null }
@@ -94,6 +107,7 @@ interface ContactMessage {
   id: string; createdAt: string; fullName: string; companyName: string | null;
   email: string; country: string; phone: string; message: string; status: string;
   assignedToId: string | null;
+  lastStatus: LeadOutcome | null;
 }
 const contactName = (c: ContactMessage) => c.fullName.trim();
 
@@ -328,6 +342,40 @@ export function AdminConsole({ data }: Props) {
   // Whether the Inquiries list is collapsed to one row per customer (deduped by
   // phone) instead of one row per product.
   const [groupByCustomer, setGroupByCustomer] = useState(false);
+
+  /**
+   * Open the lead a link named: /admin/?inquiry=<id> or ?contact=<id>.
+   *
+   * The activity feed and an employee's own history point at rows that live
+   * inside this console rather than on pages of their own, so "which lead was
+   * that" has to survive the journey. The query is read once and then wiped
+   * from the address bar, so a reload is not a second jump into a modal the
+   * reader has already closed.
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const inquiryId = params.get("inquiry");
+    const contactId = params.get("contact");
+    if (!inquiryId && !contactId) return;
+
+    if (inquiryId) {
+      const row = [...data.inquiries, ...data.deletedInquiries].find((i) => i.id === inquiryId);
+      if (row) {
+        setView(row.status === "deleted" ? "trash" : "inquiries");
+        setActiveInquiry(row);
+      }
+    } else if (contactId) {
+      const row = [...data.contacts, ...data.deletedContacts].find((c) => c.id === contactId);
+      if (row) {
+        setView("contacts");
+        setContactTab(row.status === "deleted" ? "trash" : "active");
+        setActiveContact(row);
+      }
+    }
+    window.history.replaceState(null, "", window.location.pathname);
+    // Once, on arrival: this is a deep link, not a subscription.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** The contact list's half of assignment. Same shape as assignInquiries. */
   const assignContacts = async (ids: string[], assignedToId: string | null) => {
@@ -1041,6 +1089,13 @@ export function AdminConsole({ data }: Props) {
                 </span>
                 <span className={`flex-1 ${sideLabel}`}>App Inquiries</span>
               </Link>
+              {/* What the sales team has recorded, across everybody. */}
+              <Link href="/admin/activity/" title="Activity" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <Activity size={17} className={t.soft} />
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>Activity</span>
+              </Link>
               {/* The sales team's own accounts — who can sign in at
                   /employee/login, and what each of them has been assigned. */}
               <Link href="/admin/employees/" title="Staff" className={`${sideRow} ${t.navIdle}`}>
@@ -1544,6 +1599,7 @@ export function AdminConsole({ data }: Props) {
                         </div>
                         <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[92px] sm:pl-0">
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {i.quantity}</span>
+                          <OutcomeChip value={i.lastStatus} />
                           <AssigneePicker
                             t={t}
                             employees={data.employees}
@@ -2477,6 +2533,22 @@ function AssigneePicker({
   );
 }
 
+/** The newest outcome, beside the triage control rather than replacing it. */
+function OutcomeChip({ value }: { value: LeadOutcome | null }) {
+  if (!value) return null;
+  const who = value.by.split(" ")[0];
+  return (
+    <span
+      title={`${leadStatusLabel(value.status)} — ${value.by}, ${new Date(value.at).toLocaleString("en-GB")}${value.note ? `\n\n${value.note}` : ""}`}
+      className={`inline-flex max-w-[13rem] items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${leadStatusChip(value.status)}`}
+    >
+      <span className="truncate">{leadStatusLabel(value.status)}</span>
+      <span className={`truncate font-semibold opacity-75`}>{who}</span>
+      <span className="shrink-0 font-medium opacity-60">{timeAgo(value.at)}</span>
+    </span>
+  );
+}
+
 /** One value in a filter row that is short enough to lay out flat. */
 function FilterPill({
   t, on, dot, count, onClick, children,
@@ -3090,6 +3162,7 @@ function ContactsSection({
                 <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
                   {tab === "active" ? (
                     <>
+                      <OutcomeChip value={c.lastStatus} />
                       <AssigneePicker
                         t={t}
                         employees={employees}

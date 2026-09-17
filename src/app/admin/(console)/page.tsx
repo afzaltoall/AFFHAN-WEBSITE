@@ -28,7 +28,7 @@ export default async function AdminPage() {
   // so the surplus queued until they timed out. Every count is now one SQL
   // statement, and each active/deleted pair is one query split in JavaScript
   // rather than two round trips asking the same table opposite questions.
-  const [counts, allInquiries, allContacts, inquiryCountryRows, contactCountryRows, employees, inquiryAssigneeRows, contactAssigneeRows] = await withDbRetry(() =>
+  const [counts, allInquiries, allContacts, inquiryCountryRows, contactCountryRows, employees, inquiryAssigneeRows, contactAssigneeRows, latestOutcomes] = await withDbRetry(() =>
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
@@ -98,7 +98,38 @@ export default async function AdminPage() {
         where: { status: { not: "deleted" } },
         _count: { _all: true },
       }),
+      // The newest sales outcome per lead, both tables in one statement.
+      //
+      // DISTINCT ON is the whole reason this is raw SQL: "the latest row per
+      // lead" is one index scan that way (StatusUpdate is indexed on
+      // inquiryId/contactId + createdAt desc), where Prisma would want either
+      // every row back to reduce in JavaScript or one query per lead. Two
+      // halves rather than two queries, so the page keeps its round-trip
+      // budget — see the note at the top.
+      prisma.$queryRaw<{ kind: string; leadId: string; status: string; note: string | null; createdAt: Date; byName: string }[]>`
+        (SELECT DISTINCT ON (su."inquiryId")
+                'inquiry' AS kind, su."inquiryId" AS "leadId", su.status, su.note, su."createdAt", e.name AS "byName"
+           FROM "StatusUpdate" su
+           JOIN "Employee" e ON e.id = su."employeeId"
+          WHERE su."inquiryId" IS NOT NULL
+          ORDER BY su."inquiryId", su."createdAt" DESC)
+        UNION ALL
+        (SELECT DISTINCT ON (su."contactId")
+                'contact' AS kind, su."contactId" AS "leadId", su.status, su.note, su."createdAt", e.name AS "byName"
+           FROM "StatusUpdate" su
+           JOIN "Employee" e ON e.id = su."employeeId"
+          WHERE su."contactId" IS NOT NULL
+          ORDER BY su."contactId", su."createdAt" DESC)
+      `,
     ])
+  );
+
+  // Keyed for the two mappers below.
+  const outcomeByLead = new Map(
+    latestOutcomes.map((o) => [
+      `${o.kind}:${o.leadId}`,
+      { status: o.status, by: o.byName, note: o.note, at: o.createdAt.toISOString() },
+    ]),
   );
 
   const n = (v: bigint) => Number(v);
@@ -131,6 +162,7 @@ export default async function AdminPage() {
     status: i.status,
     userId: i.userId,
     assignedToId: i.assignedToId,
+    lastStatus: outcomeByLead.get(`inquiry:${i.id}`) ?? null,
     customerStatus: i.customerStatus,
     statusNote: i.statusNote,
     statusUpdatedAt: i.statusUpdatedAt?.toISOString() ?? null,
@@ -147,6 +179,7 @@ export default async function AdminPage() {
     message: c.message,
     status: c.status,
     assignedToId: c.assignedToId,
+    lastStatus: outcomeByLead.get(`contact:${c.id}`) ?? null,
   });
 
   // ContactMessage.country is `String @default("")`, so blanks are real and
