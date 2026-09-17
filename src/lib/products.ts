@@ -154,3 +154,50 @@ export async function getHeroFeed(limit: number, excludeIds: number[] = []) {
     total
   };
 }
+
+/** One card in the "Similar products" rail: the same shape the grid needs. */
+export type SimilarProduct = {
+  id: number;
+  name: string;
+  imageUrl: string | null;
+  categoryId: string | null;
+};
+
+/**
+ * How many rows to ask the database for, against how many the rail shows.
+ *
+ * The gap is the moderation filter: filterHidden() drops rows after the query,
+ * so asking for exactly SIMILAR_SHOWN would leave the rail short on any
+ * category holding blocked items. Three times over is generous, and costs
+ * nothing worth measuring — the query is served straight off the categoryId
+ * index and selects four columns.
+ */
+export const SIMILAR_SHOWN = 20;
+const SIMILAR_FETCH = SIMILAR_SHOWN * 3;
+
+/**
+ * Products from the same category, for the rail at the bottom of a PDP.
+ *
+ * Cached like every other catalogue read here — same hour, same tags — so the
+ * larger take does not turn into a larger per-request cost. The catalogue is
+ * synced once a day, so an hour-old "similar" list is never meaningfully
+ * stale, and a sync revalidates TAG_PRODUCTS anyway.
+ *
+ * Deliberately no orderBy: sorting a large category by lastSynced forced a full
+ * scan of the category and was the main source of PDP latency. An arbitrary
+ * handful off the index is plenty for "similar".
+ *
+ * Returns UNFILTERED rows on purpose. Moderation is applied by the caller on
+ * every request, so a product blocked after this entry was cached still
+ * disappears immediately rather than lingering for the rest of the hour.
+ */
+export const getCachedSimilarProducts = unstable_cache(
+  async (categoryId: string, excludeId: number): Promise<SimilarProduct[]> =>
+    prisma.product.findMany({
+      where: { categoryId, id: { not: excludeId }, imageUrl: { not: null } },
+      take: SIMILAR_FETCH,
+      select: { id: true, name: true, imageUrl: true, categoryId: true },
+    }),
+  ["pdp-similar-products"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
+);

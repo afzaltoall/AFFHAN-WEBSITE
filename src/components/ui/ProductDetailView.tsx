@@ -105,7 +105,21 @@ export function ProductDetailView({ product, similar }: Props) {
 
   return (
     <main className="min-h-screen bg-slate-50 pt-24 pb-16">
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      {/* 1400px, not max-w-6xl (1152px).
+
+          The catalogue you arrive from runs to max-w-[1600px], so the product
+          page visibly narrowed on every click through — roughly 450px of the
+          viewport going to margin on a wide screen.
+
+          Not the full 1600px, though. The right-hand column here is prose, and
+          this grid is lg:grid-cols-2: at 1600px each column is ~744px, which
+          puts the description past 100 characters a line. 1400px lands them at
+          ~644px, wide enough to close the gap with the catalogue and short
+          enough to still read. Only the outer width changed — the gallery's
+          aspect-square and the info panel's spacing are untouched, and every
+          breakpoint below lg is unaffected because the grid is single-column
+          there and this container was never the constraint. */}
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         {/* The full trail, matching the JSON-LD on this page and the crumb strip
             on /products — which both start at "All Categories". A product three

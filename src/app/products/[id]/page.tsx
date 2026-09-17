@@ -8,6 +8,7 @@ import type { ProductCardData } from "@/components/ui/ProductCard";
 import { getCategoryMeta } from "@/lib/categoryMeta";
 import { parseDescription } from "@/lib/productDescription";
 import { isProductHidden, filterHidden } from "@/lib/productVisibility";
+import { getCachedSimilarProducts, SIMILAR_SHOWN } from "@/lib/products";
 
 export const dynamic = "force-dynamic";
 
@@ -78,23 +79,13 @@ export default async function ProductPage({
 
   // Similar products, and how many the category holds, fetched together so the
   // count costs no extra round trip. Both are served off the categoryId index.
+  // The rail's rows now come from getCachedSimilarProducts — same query, moved
+  // into lib/products.ts and wrapped in unstable_cache like every other
+  // catalogue read. It over-fetches for the moderation filter below; see
+  // SIMILAR_SHOWN / SIMILAR_FETCH there.
   const [similarRows, categoryCount] = product.categoryId
     ? await Promise.all([
-        prisma.product.findMany({
-          where: {
-            categoryId: product.categoryId,
-            id: { not: product.id },
-            imageUrl: { not: null },
-          },
-          // Over-fetch: the moderation filter below removes some of these, and
-          // asking for exactly 10 would leave the rail short whenever it did.
-          take: 24,
-          // No orderBy: sorting a large category by lastSynced forced a full scan
-          // of the category and was the main source of PDP latency. An arbitrary
-          // handful served straight off the categoryId index is plenty for
-          // "similar", and `select` avoids the categoryRef join entirely.
-          select: { id: true, name: true, imageUrl: true, categoryId: true },
-        }),
+        getCachedSimilarProducts(product.categoryId, product.id),
         prisma.product.count({ where: { categoryId: product.categoryId } }),
       ])
     : [[], 0];
@@ -128,7 +119,7 @@ export default async function ProductPage({
   // query with no moderation clause is exactly how a blocked item ends up shown
   // beside an innocuous one.
   const similar: ProductCardData[] = (await filterHidden(similarRows))
-    .slice(0, 10)
+    .slice(0, SIMILAR_SHOWN)
     .map((p) => ({
       id: p.id,
       name: p.name,
