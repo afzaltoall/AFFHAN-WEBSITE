@@ -627,6 +627,13 @@ html {
   scroll-behavior: smooth;
 }
 
+/* /careers/ opts out; see careers-smooth-scroll.tsx. !important because
+   ScrollTrigger writes an inline `scroll-behavior: smooth` back after each
+   refresh, and an inline style would otherwise win. */
+html.scroll-behavior-auto {
+  scroll-behavior: auto !important;
+}
+
 @keyframes subtle-bounce {
   0%, 100% {
     transform: translateY(0);
