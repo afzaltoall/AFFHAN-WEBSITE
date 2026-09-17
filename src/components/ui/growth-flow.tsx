@@ -42,29 +42,9 @@ export function GrowthFlow() {
   useEffect(() => {
     gsap.registerPlugin(ScrollTrigger);
 
-    // No Lenis, and no ticker pump.
-    //
-    // This component used to construct a Lenis instance and drive it from
-    // gsap.ticker, which made every scroll on /careers/ a main-thread
-    // animation instead of a compositor one: Lenis cancels the native scroll
-    // and re-applies it each frame, so any work on the main thread — and this
-    // page runs two ScrollTrigger instances, one of them scrubbing a pinned
-    // stage — shows up as visible stutter. That is the "stuck" scrolling.
-    //
-    // `gsap.ticker.lagSmoothing(0)` went with it. It exists to stop GSAP
-    // clamping the delta after a dropped frame, which a Lenis pump needs and
-    // nothing here does; left on, every recovered frame jumps instead of
-    // catching up smoothly. Removing it restores GSAP's default recovery.
-    //
-    // It was a leftover. The comment said Lenis had been "moved from the old
-    // mountain parallax" — that parallax is gone (parallax-scrolling.tsx is
-    // no longer rendered by any page), and its smooth-scroll dependency was
-    // simply never removed with it.
-    //
-    // Nothing else needs it: GrowthFlow is only rendered by /careers/, and
-    // src/lib/scroll.ts already falls back to native smooth scrollIntoView
-    // whenever window.lenis is absent, so the in-page anchor buttons still
-    // work. ScrollTrigger listens to native scroll on its own.
+    // Smooth scrolling on /careers/ comes from CareersSmoothScroll, which the
+    // page mounts. This component only builds the scrub; ScrollTrigger follows
+    // the window's scroll position whichever way it is driven.
 
     // Scroll-scrubbed reveal — desktop only (mobile uses a plain timeline).
     const mm = gsap.matchMedia();
@@ -96,6 +76,14 @@ export function GrowthFlow() {
         tl.to(p, { strokeDashoffset: 0, duration: 1 }, 0.5 + i * 1);
         tl.to(nodes[i + 1], { opacity: 1, scale: 1, y: 0, duration: 0.5 }, 0.5 + i * 1 + 0.6);
       });
+
+      // Finish at 75% of the pin, then hold the completed chart for the last
+      // quarter. The timeline used to end exactly where the stage releases, and
+      // scrub: 0.6 trails the scroll, so the stage always left with the story
+      // unfinished: 79–94% drawn at release, measured with real wheel input.
+      // With the hold the finished chart is on screen before release at every
+      // pace tested, and for a full second at reading pace.
+      tl.to({}, { duration: tl.duration() / 3 });
     });
 
     const refresh = setTimeout(() => ScrollTrigger.refresh(), 400);

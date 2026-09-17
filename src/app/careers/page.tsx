@@ -7,6 +7,7 @@ import { PrismaRoles } from "../../components/ui/prisma-roles";
 import { AsmeSections } from "../../components/ui/asme-sections";
 import { GrowthFlow } from "@/components/ui/growth-flow";
 import { ScrollPortraitWall, type Speaker } from "@/components/ui/scroll-portrait-wall";
+import { CareersSmoothScroll } from "@/components/ui/careers-smooth-scroll";
 
 const TEAMS: Speaker[] = [
   { name: "MOHAMED YACOOB", role: "COO", hoverRole: "Chief Operation Officer", src: "/our teams/MOHAMED YACOOB.webp", imageClassName: "object-[center_20%]" },
@@ -25,6 +26,7 @@ export default function CareersPage() {
 
   return (
     <div className="bg-white text-slate-900">
+      <CareersSmoothScroll />
       <CareersVideoHero />
 
       {/* Career content — one opaque layer over the fixed WebGL canvas so the
@@ -60,8 +62,8 @@ export default function CareersPage() {
       </div>
 
       {/* Scroll-scrubbed growth flow chart ("Global Reach" → Affhan's
-          expansion story). Owns the page's Lenis smooth-scroll and flows
-          straight into the dark footer for a seamless finish. */}
+          expansion story). Flows straight into the dark footer for a
+          seamless finish. */}
       <div className="relative z-10">
         <GrowthFlow />
       </div>

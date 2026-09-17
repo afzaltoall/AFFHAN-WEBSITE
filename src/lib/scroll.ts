@@ -18,11 +18,12 @@ export function prepCatalogueNav() {
 
 // Smooth-scroll to an element by id.
 //
-// The careers page mounts a global Lenis smooth-scroll instance (see
-// parallax-scrolling.tsx), which hijacks the wheel and overrides native
-// window scrolling — so plain el.scrollIntoView() gets snapped back and
-// appears to do nothing. When Lenis is running we route through its own
-// scrollTo(); otherwise we fall back to native smooth scroll.
+// The careers page runs Lenis while it is mounted (see
+// careers-smooth-scroll.tsx), and Lenis owns the window's scroll position
+// there — a native el.scrollIntoView() would race its animation. When Lenis
+// is running we route through its own scrollTo(), which also honours the
+// offset; otherwise (every other page, and reduced-motion visitors on
+// careers) we fall back to native smooth scroll.
 export function scrollToId(id: string, offset = -90) {
   if (typeof window === "undefined") return;
   const el = document.getElementById(id);
