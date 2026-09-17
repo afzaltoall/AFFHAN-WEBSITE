@@ -11,6 +11,8 @@ import {
   roleBySlug,
   roleLocationLabel,
   roleLocationSentence,
+  roleValidThrough,
+  roleEmploymentType,
   type CareerRole,
 } from "@/lib/careerRoles";
 
@@ -85,6 +87,12 @@ function jobPostingSchema(role: CareerRole) {
       `<p>Affhan International has sourced, inspected and shipped goods out of China since 2000, from seven offices across Asia, the Middle East and Europe.</p>`,
     ].join(""),
     datePosted: ROLES_CONFIRMED_ON,
+    // Both added after Search Console flagged them as missing optional fields
+    // on all four postings. Derived per role rather than written here, so a
+    // role that is not full-time or closes on its own date says so once in
+    // careerRoles.ts and every consumer follows.
+    validThrough: roleValidThrough(role),
+    employmentType: roleEmploymentType(role),
     hiringOrganization: {
       "@type": "Organization",
       "@id": ORG_ID,

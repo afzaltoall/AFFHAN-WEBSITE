@@ -13,6 +13,21 @@ import { OFFICES } from "@/lib/brand";
  * location and the address in its schema can never drift apart. The visible
  * card label is derived from them.
  */
+/**
+ * schema.org's employmentType vocabulary, as Google documents it for
+ * JobPosting. A free string would let a typo through silently — Google drops
+ * a value it does not recognise rather than reporting it.
+ */
+export type EmploymentType =
+  | "FULL_TIME"
+  | "PART_TIME"
+  | "CONTRACTOR"
+  | "TEMPORARY"
+  | "INTERN"
+  | "VOLUNTEER"
+  | "PER_DIEM"
+  | "OTHER";
+
 export type CareerRole = {
   /** Also the DOM id on the overview grid (`role-01`). */
   id: string;
@@ -21,6 +36,18 @@ export type CareerRole = {
   title: string;
   /** Keys of OFFICES. First one is the primary location. */
   offices: (keyof typeof OFFICES)[];
+  /**
+   * Overrides DEFAULT_EMPLOYMENT_TYPE for this role. Set it the moment a role
+   * is anything other than full-time staff — an internship published as
+   * FULL_TIME is a worse error than no employmentType at all.
+   */
+  employmentType?: EmploymentType;
+  /**
+   * ISO date (YYYY-MM-DD) this posting closes. Overrides the derived default
+   * from roleValidThrough(); this is the field HR extends to keep a role live
+   * past its ninety days.
+   */
+  validThrough?: string;
   /** One line, used on the role page under the H1 and in its description. */
   blurb: string;
   /** Why this role exists here, in terms of how the company actually runs. */
@@ -34,14 +61,76 @@ export type CareerRole = {
  * The day this list was last confirmed accurate — NOT a decorative constant.
  *
  * Google reads it as `datePosted` and treats stale postings as a quality
- * problem, so it has to be moved whenever the roles below change. There is
- * deliberately no `validThrough`: these are standing roles with no closing
- * date, and Google's guidance is to omit the property rather than invent one.
+ * problem, so it has to be moved whenever the roles below change.
  *
- * Nothing here states a salary or an employment type either. Nobody has given
- * us either figure, and a guess published as structured data is still a guess.
+ * It is now load-bearing twice over: `validThrough` is derived from it, so
+ * moving this date forward also extends every posting's life. See
+ * VALID_THROUGH_DAYS.
+ *
+ * Still nothing here states a salary. Nobody has given us that figure, and a
+ * guess published as structured data is still a guess.
  */
 export const ROLES_CONFIRMED_ON = "2026-09-13";
+
+/**
+ * How long a posting stays live when it does not name its own closing date.
+ *
+ * These are standing roles with no real closing date, which is why the file
+ * previously omitted `validThrough` entirely. Google Search Console flags the
+ * absence, and an absent validThrough is read as "indefinite", which Google
+ * ages down over time — so a date that is honest-ish and maintained beats no
+ * date at all. Ninety days is the window; extending it is a one-line edit to
+ * ROLES_CONFIRMED_ON, or per-role via `validThrough`.
+ *
+ * THE TRADE THIS MAKES: a posting whose validThrough has passed is dropped
+ * from Google Jobs outright, which is worse than the warning it fixes. On the
+ * current ROLES_CONFIRMED_ON these expire on 2026-12-12. roleValidThrough()
+ * warns on the server as that date approaches.
+ */
+export const VALID_THROUGH_DAYS = 90;
+
+/**
+ * What a role is assumed to be when it does not say.
+ *
+ * FULL_TIME because all four current roles are permanent staff positions in
+ * company offices — but that is read off the shape of the roles, not off an
+ * HR record, because no employment type has ever been recorded for them.
+ * Anything that is not full-time MUST set `employmentType` explicitly.
+ */
+export const DEFAULT_EMPLOYMENT_TYPE: EmploymentType = "FULL_TIME";
+
+/** The posting's employment type, per-role override or the default. */
+export const roleEmploymentType = (role: CareerRole): EmploymentType =>
+  role.employmentType ?? DEFAULT_EMPLOYMENT_TYPE;
+
+/**
+ * The posting's closing date: the role's own, or datePosted + ninety days.
+ *
+ * UTC throughout. Parsing "2026-09-13" gives UTC midnight and setUTCDate keeps
+ * it there; going through local time would shift the date by one either side
+ * of midnight depending on where the build ran.
+ */
+export function roleValidThrough(role: CareerRole, today = new Date()): string {
+  if (role.validThrough) return role.validThrough;
+
+  const d = new Date(`${ROLES_CONFIRMED_ON}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + VALID_THROUGH_DAYS);
+  const iso = d.toISOString().slice(0, 10);
+
+  // A silently expired posting looks exactly like a working one in the code
+  // and is invisible in Google Jobs, so say something while it can still be
+  // fixed. Server-side only — these pages are statically generated and
+  // revalidated daily, so this is at most one line a day in the build logs.
+  const daysLeft = Math.floor((d.getTime() - today.getTime()) / 86_400_000);
+  if (typeof window === "undefined" && daysLeft <= 14) {
+    console.warn(
+      daysLeft < 0
+        ? `[careers] JobPosting for "${role.slug}" EXPIRED on ${iso} — Google will not show it. Move ROLES_CONFIRMED_ON in src/lib/careerRoles.ts.`
+        : `[careers] JobPosting for "${role.slug}" expires in ${daysLeft} day(s), on ${iso}. Move ROLES_CONFIRMED_ON in src/lib/careerRoles.ts.`,
+    );
+  }
+  return iso;
+}
 
 export const ROLES: CareerRole[] = [
   {
