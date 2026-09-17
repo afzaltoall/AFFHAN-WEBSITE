@@ -28,7 +28,7 @@ export default async function AdminPage() {
   // so the surplus queued until they timed out. Every count is now one SQL
   // statement, and each active/deleted pair is one query split in JavaScript
   // rather than two round trips asking the same table opposite questions.
-  const [counts, allInquiries, allContacts, inquiryCountryRows, contactCountryRows] = await withDbRetry(() =>
+  const [counts, allInquiries, allContacts, inquiryCountryRows, contactCountryRows, employees, inquiryAssigneeRows, contactAssigneeRows] = await withDbRetry(() =>
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
@@ -76,6 +76,28 @@ export default async function AdminPage() {
         where: { status: { not: "deleted" } },
         _count: { _all: true },
       }),
+      // Who a lead can be handed to. Active only: a deactivated colleague
+      // cannot sign in, so offering them in the picker would park work where
+      // nobody will see it. Existing assignments to somebody since deactivated
+      // still resolve, because the rows below are keyed by id.
+      prisma.employee.findMany({
+        where: { isActive: true },
+        orderBy: [{ name: "asc" }],
+        select: { id: true, name: true, region: true, image: true },
+      }),
+      // The counts beside each name in the filter, and the "Unassigned" count
+      // — the null group. groupBy for the same reason the country options use
+      // it: it counts the whole table rather than the take-capped slices.
+      prisma.inquiry.groupBy({
+        by: ["assignedToId"],
+        where: { status: { not: "deleted" } },
+        _count: { _all: true },
+      }),
+      prisma.contactMessage.groupBy({
+        by: ["assignedToId"],
+        where: { status: { not: "deleted" } },
+        _count: { _all: true },
+      }),
     ])
   );
 
@@ -108,6 +130,7 @@ export default async function AdminPage() {
     message: i.message,
     status: i.status,
     userId: i.userId,
+    assignedToId: i.assignedToId,
     customerStatus: i.customerStatus,
     statusNote: i.statusNote,
     statusUpdatedAt: i.statusUpdatedAt?.toISOString() ?? null,
@@ -123,6 +146,7 @@ export default async function AdminPage() {
     phone: c.phone,
     message: c.message,
     status: c.status,
+    assignedToId: c.assignedToId,
   });
 
   // ContactMessage.country is `String @default("")`, so blanks are real and
@@ -134,6 +158,10 @@ export default async function AdminPage() {
       .filter((r) => r.country.trim() !== "")
       .map((r) => ({ country: r.country, count: r._count._all }))
       .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country));
+
+  /** groupBy rows to { employeeId | null, count } — null is "unassigned". */
+  const toAssigneeCounts = (rows: { assignedToId: string | null; _count: { _all: number } }[]) =>
+    rows.map((r) => ({ employeeId: r.assignedToId, count: r._count._all }));
 
   const data = {
     adminName: admin.name || admin.email,
@@ -154,6 +182,9 @@ export default async function AdminPage() {
     deletedContacts: deletedContacts.map(mapContact),
     inquiryCountries: toCountryOptions(inquiryCountryRows),
     contactCountries: toCountryOptions(contactCountryRows),
+    employees: employees.map((e) => ({ id: e.id, name: e.name, region: e.region, image: e.image })),
+    inquiryAssignees: toAssigneeCounts(inquiryAssigneeRows),
+    contactAssignees: toAssigneeCounts(contactAssigneeRows),
   };
 
   return <AdminConsole data={data} />;

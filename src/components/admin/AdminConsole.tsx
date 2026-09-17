@@ -27,7 +27,17 @@ interface Inquiry {
   // The lifecycle the CUSTOMER sees, distinct from `status` above, which is
   // internal triage. See the note on the Inquiry model in schema.prisma.
   customerStatus: string; statusNote: string | null; statusUpdatedAt: string | null;
+  /** The employee working this lead, or null. Set from the console; read by
+   *  the staff workspace at /employee/dashboard. */
+  assignedToId: string | null;
 }
+
+/** An active member of staff a lead can be handed to. */
+interface EmployeeOption { id: string; name: string; region: string | null; image: string | null }
+/** Rows per employee across the whole table; employeeId null is "unassigned". */
+interface AssigneeCount { employeeId: string | null; count: number }
+/** The filter's value: null is "everyone", UNASSIGNED is "nobody yet". */
+const UNASSIGNED = "__unassigned__";
 
 // Kept in step with lib/inquiry-status.ts. Not imported from it because that
 // module is server-shaped; this is only the wording for the console's own
@@ -83,6 +93,7 @@ const asCustomerStatus = (s: string): CustomerStatus =>
 interface ContactMessage {
   id: string; createdAt: string; fullName: string; companyName: string | null;
   email: string; country: string; phone: string; message: string; status: string;
+  assignedToId: string | null;
 }
 const contactName = (c: ContactMessage) => c.fullName.trim();
 
@@ -165,6 +176,9 @@ const matchesCountry = (value: string | null | undefined, selected: string | nul
  */
 const matchesCompany = (name: string | null | undefined, f: CompanyFilter) =>
   f === "all" || Boolean(name?.trim());
+/** null selects everyone, UNASSIGNED selects the rows nobody is working. */
+const matchesAssignee = (assignedToId: string | null, selected: string | null) =>
+  !selected || (selected === UNASSIGNED ? assignedToId === null : assignedToId === selected);
 
 // Light/dark class-name bundle threaded through every panel/dialog below —
 // built once from the `dark` toggle (see the `t` definition further down).
@@ -195,6 +209,10 @@ interface Props {
      * every row, including any past the cap.
      */
     inquiryCountries: CountryOption[]; contactCountries: CountryOption[];
+    /** Active staff, for the assignment pickers. */
+    employees: EmployeeOption[];
+    /** Whole-table assignment counts, for the filter panel. */
+    inquiryAssignees: AssigneeCount[]; contactAssignees: AssigneeCount[];
   };
 }
 
@@ -249,6 +267,8 @@ export function AdminConsole({ data }: Props) {
   const [deletedItems, setDeletedItems] = useState<Inquiry[]>(data.deletedInquiries);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  /** null = everyone, UNASSIGNED = nobody yet, otherwise an employee id. */
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [showPwd, setShowPwd] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
@@ -269,7 +289,7 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
-  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, countryFilter, q]);
+  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, countryFilter, assigneeFilter, q]);
 
   // The drawer closes itself when a view is chosen, and Escape closes it too.
   useEffect(() => setMenuOpen(false), [view]);
@@ -297,16 +317,37 @@ export function AdminConsole({ data }: Props) {
   const [contactCountryFilter, setContactCountryFilter] = useState<string | null>(null);
   const [contactTab, setContactTab] = useState<"active" | "trash">("active");
   const [contactSelected, setContactSelected] = useState<Set<string>>(new Set());
+  const [contactAssigneeFilter, setContactAssigneeFilter] = useState<string | null>(null);
   const [contactBusy, setContactBusy] = useState(false);
   const [activeContact, setActiveContact] = useState<ContactMessage | null>(null);
   useEffect(() => setContactItems(data.contacts), [data.contacts]);
   useEffect(() => setContactDeleted(data.deletedContacts), [data.deletedContacts]);
-  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactQ, view]);
+  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactQ, view]);
 
 
   // Whether the Inquiries list is collapsed to one row per customer (deduped by
   // phone) instead of one row per product.
   const [groupByCustomer, setGroupByCustomer] = useState(false);
+
+  /** The contact list's half of assignment. Same shape as assignInquiries. */
+  const assignContacts = async (ids: string[], assignedToId: string | null) => {
+    if (ids.length === 0) return;
+    const idset = new Set(ids);
+    const prevA = contactItems, prevD = contactDeleted;
+    setContactItems((cur) => cur.map((x) => (idset.has(x.id) ? { ...x, assignedToId } : x)));
+    setContactDeleted((cur) => cur.map((x) => (idset.has(x.id) ? { ...x, assignedToId } : x)));
+    setActiveContact((cur) => (cur && idset.has(cur.id) ? { ...cur, assignedToId } : cur));
+    setContactSelected(new Set());
+    setContactBusy(true);
+    try {
+      await adminWrite("/api/admin/contact/", { ids, action: "assign", assignedToId });
+    } catch (e) {
+      setContactItems(prevA); setContactDeleted(prevD);
+      window.alert(e instanceof Error ? e.message : "Could not assign.");
+    } finally {
+      setContactBusy(false);
+    }
+  };
 
   // Bulk contact action — same optimistic-with-rollback shape as bulkAction.
   const contactBulkAction = async (
@@ -409,6 +450,33 @@ export function AdminConsole({ data }: Props) {
     } catch (e) {
       setItems(prevA); setDeletedItems(prevD);
       window.alert(e instanceof Error ? e.message : "Action failed.");
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  /**
+   * Hand inquiries to somebody, or take them back with null.
+   *
+   * Optimistic like every other write here: the row shows the new name at
+   * once, and the whole list is put back if the server refuses — which it
+   * does for a deactivated employee, so a lead cannot be parked where nobody
+   * will see it.
+   */
+  const assignInquiries = async (ids: string[], assignedToId: string | null) => {
+    if (ids.length === 0) return;
+    const idset = new Set(ids);
+    const prevA = items, prevD = deletedItems;
+    setItems((cur) => cur.map((x) => (idset.has(x.id) ? { ...x, assignedToId } : x)));
+    setDeletedItems((cur) => cur.map((x) => (idset.has(x.id) ? { ...x, assignedToId } : x)));
+    setActiveInquiry((cur) => (cur && idset.has(cur.id) ? { ...cur, assignedToId } : cur));
+    setSelected(new Set());
+    setBulkBusy(true);
+    try {
+      await adminWrite(`/api/admin/inquiry/`, { ids, action: "assign", assignedToId });
+    } catch (e) {
+      setItems(prevA); setDeletedItems(prevD);
+      window.alert(e instanceof Error ? e.message : "Could not assign.");
     } finally {
       setBulkBusy(false);
     }
@@ -536,9 +604,10 @@ export function AdminConsole({ data }: Props) {
       (customerStageFilter === null ||
         (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
       matchesCountry(i.country, countryFilter) &&
+      matchesAssignee(i.assignedToId, assigneeFilter) &&
       (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
     ),
-    [items, q, statusFilter, customerStageFilter, countryFilter]
+    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter]
   );
   /**
    * Narrowed by country, like contactStatusCounts is by company: these numbers
@@ -567,6 +636,33 @@ export function AdminConsole({ data }: Props) {
     () => new Map(data.inquiryCountries.map((c) => [c.country.trim().toLowerCase(), c.count])),
     [data.inquiryCountries],
   );
+  /**
+   * The names in the filter panel, each with how many rows it holds.
+   *
+   * Counts come from the server's groupBy — the whole table, not the
+   * take-capped arrays — for the same reason the country counts do. An
+   * employee deactivated while still holding leads is not in this list, since
+   * the picker only offers people who can work them; their rows still read
+   * "Assigned" on the row itself.
+   */
+  const buildAssigneeOptions = (counts: AssigneeCount[]) => {
+    const byId = new Map(counts.map((c) => [c.employeeId, c.count]));
+    return {
+      unassigned: byId.get(null) ?? 0,
+      rows: data.employees.map((e) => ({ ...e, count: byId.get(e.id) ?? 0 })),
+    };
+  };
+  const inquiryAssigneeOptions = useMemo(
+    () => buildAssigneeOptions(data.inquiryAssignees),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.inquiryAssignees, data.employees],
+  );
+  const contactAssigneeOptions = useMemo(
+    () => buildAssigneeOptions(data.contactAssignees),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [data.contactAssignees, data.employees],
+  );
+
   const statusCounts = useMemo(() => {
     const c = { all: countryScopedItems.length, new: 0, handled: 0, spam: 0 };
     countryScopedItems.forEach((i) => { c[asStatus(i.status)]++; });
@@ -620,9 +716,10 @@ export function AdminConsole({ data }: Props) {
   const trashList = useMemo(
     () => deletedItems.filter((i) =>
       matchesCountry(i.country, countryFilter) &&
+      matchesAssignee(i.assignedToId, assigneeFilter) &&
       (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
     ),
-    [deletedItems, q, countryFilter]
+    [deletedItems, q, countryFilter, assigneeFilter]
   );
   // Ids visible in the current view, for the select-all control.
   const visibleIds = (view === "trash" ? trashList : inquiries).map((i) => i.id);
@@ -645,17 +742,19 @@ export function AdminConsole({ data }: Props) {
       (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) &&
       matchesCompany(c.companyName, contactCompanyFilter) &&
       matchesCountry(c.country, contactCountryFilter) &&
+      matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
       contactMatch(c, contactQ)
     ),
-    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter]
+    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter]
   );
   const contactTrash = useMemo(
     () => contactDeleted.filter((c) =>
       matchesCompany(c.companyName, contactCompanyFilter) &&
       matchesCountry(c.country, contactCountryFilter) &&
+      matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
       contactMatch(c, contactQ)
     ),
-    [contactDeleted, contactQ, contactCompanyFilter, contactCountryFilter]
+    [contactDeleted, contactQ, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter]
   );
   const contactStatusCounts = useMemo(() => {
     const scoped = contactItems.filter(
@@ -1128,6 +1227,12 @@ export function AdminConsole({ data }: Props) {
               countryOptions={data.contactCountries}
               crossCount={contactCountryFilter ? (inquiryCountByCountry.get(contactCountryFilter.trim().toLowerCase()) ?? 0) : 0}
               onCrossJump={() => { setCountryFilter(contactCountryFilter); setView("inquiries"); }}
+              employees={data.employees}
+              assigneeFilter={contactAssigneeFilter}
+              setAssigneeFilter={setContactAssigneeFilter}
+              assigneeOptions={contactAssigneeOptions}
+              onAssign={(id, employeeId) => void assignContacts([id], employeeId)}
+              onAssignSelected={(employeeId) => void assignContacts([...contactSelected], employeeId)}
               statusCounts={contactStatusCounts}
               list={contactList}
               selected={contactSelected}
@@ -1194,9 +1299,12 @@ export function AdminConsole({ data }: Props) {
                     countryFilter={countryFilter}
                     setCountryFilter={setCountryFilter}
                     countryOptions={data.inquiryCountries}
+                    assigneeFilter={assigneeFilter}
+                    setAssigneeFilter={setAssigneeFilter}
+                    assigneeOptions={inquiryAssigneeOptions}
                     extraActive={groupByCustomer}
                     summarySuffix={groupByCustomer ? " · grouped" : ""}
-                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setGroupByCustomer(false); }}
+                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setGroupByCustomer(false); }}
                     viewSection={
                       <button
                         role="menuitemcheckbox"
@@ -1343,6 +1451,17 @@ export function AdminConsole({ data }: Props) {
                       <div className="ml-auto flex flex-wrap items-center gap-2">
                         {view === "inquiries" ? (
                           <>
+                            {/* Assignment sits first: handing work over is the
+                                reason a row gets ticked more often than triage
+                                is, now that there is somebody to hand it to. */}
+                            <AssigneePicker
+                              t={t}
+                              employees={data.employees}
+                              value={null}
+                              onChange={(employeeId) => void assignInquiries([...selected], employeeId)}
+                              busy={bulkBusy}
+                              label={`Assign ${selected.size} selected`}
+                            />
                             {(["new", "handled", "spam"] as Status[]).map((s) => (
                               <button key={s} onClick={() => statusSelected(s)} disabled={bulkBusy}
                                 className={`inline-flex items-center rounded-full px-3 py-2 text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-60 ${STATUS_META[s].chip}`}>
@@ -1425,6 +1544,13 @@ export function AdminConsole({ data }: Props) {
                         </div>
                         <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[92px] sm:pl-0">
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {i.quantity}</span>
+                          <AssigneePicker
+                            t={t}
+                            employees={data.employees}
+                            value={i.assignedToId}
+                            onChange={(employeeId) => void assignInquiries([i.id], employeeId)}
+                            busy={bulkBusy}
+                          />
                           <StatusControl t={t} value={st} onChange={(s) => setStatus(i.id, s)} />
                           <button onClick={() => deleteInquiry(i.id)} aria-label="Delete inquiry" title="Delete inquiry" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                             <Trash2 className="h-4 w-4" />
@@ -2175,10 +2301,187 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
  * Owns its own open state — three instances exist and none of them needs to
  * know about the others.
  */
+/**
+ * Hand one lead, or a selection of them, to a member of staff.
+ *
+ * A portal for the same reason FilterMenu is one: both lists sit inside a card
+ * with `overflow-hidden rounded-2xl` for its corners, which clips an
+ * absolutely-positioned child — the panel was being cut off at the card's edge.
+ *
+ * Searchable because the office is not a fixed size, and a first name alone is
+ * not always enough to pick between two people; the region rides along with it,
+ * so a row reads "Karan — Dubai", the way the team refers to each other.
+ */
+function AssigneePicker({
+  t, employees, value, onChange, busy = false, label,
+}: {
+  t: Theme;
+  employees: EmployeeOption[];
+  /** The employee id currently on the row, or null. */
+  value: string | null;
+  onChange: (employeeId: string | null) => void;
+  busy?: boolean;
+  /** Overrides the trigger's text — the bulk bar says "Assign N selected". */
+  label?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
+
+  useEffect(() => { if (!open) setQuery(""); }, [open]);
+
+  useIsomorphicLayoutEffect(() => {
+    if (!open) { setPos(null); return; }
+    const place = () => {
+      const b = btnRef.current?.getBoundingClientRect();
+      if (!b) return;
+      const M = 8;
+      const vw = document.documentElement.clientWidth;
+      const vh = window.innerHeight;
+      const width = Math.min(260, vw - M * 2);
+      const left = Math.max(M, Math.min(b.right - width, vw - width - M));
+      const below = vh - b.bottom - M * 2;
+      const above = b.top - M * 2;
+      const flip = below < 240 && above > below;
+      setPos(flip
+        ? { left, width, bottom: vh - b.top + M, maxHeight: above }
+        : { left, width, top: b.bottom + M, maxHeight: below });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const current = employees.find((e) => e.id === value) ?? null;
+  const shown = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return employees;
+    return employees.filter((e) => `${e.name} ${e.region ?? ""}`.toLowerCase().includes(term));
+  }, [employees, query]);
+
+  // A lead assigned to somebody since deactivated still has to read as
+  // assigned, rather than silently showing "Unassigned" and inviting a second
+  // person to pick it up.
+  const assignedElsewhere = value !== null && !current;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen((o) => !o)}
+        disabled={busy}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title={current ? `Assigned to ${current.name}` : value ? "Assigned to a deactivated employee" : "Not assigned to anyone"}
+        className={`inline-flex max-w-[13rem] items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
+          value ? "bg-brand/10 text-brand-dark hover:bg-brand/20" : `${t.chip} hover:opacity-80`
+        }`}
+      >
+        <UserCog className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">
+          {label ?? (current ? `Assigned: ${current.name}` : assignedElsewhere ? "Assigned: (inactive)" : "Unassigned")}
+        </span>
+        <ChevronDown className={`h-3 w-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && pos && createPortal(
+        <div
+          ref={panelRef}
+          role="menu"
+          style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight, overflowY: "auto" }}
+          className={`z-[200] overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}
+        >
+          <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Assign to</p>
+
+          {employees.length > 6 && (
+            <div className="px-1 pb-1">
+              <div className="relative">
+                <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${t.soft}`} />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search staff…"
+                  aria-label="Search staff"
+                  className={`w-full rounded-xl py-1.5 pl-8 pr-2.5 text-[13px] font-medium outline-none ring-1 ring-transparent focus:ring-brand/40 ${t.input}`}
+                />
+              </div>
+            </div>
+          )}
+
+          <button
+            role="menuitemradio"
+            aria-checked={value === null}
+            onClick={() => { onChange(null); setOpen(false); }}
+            className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${value === null ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+          >
+            <span className={`h-2 w-2 shrink-0 rounded-full ${value === null ? "bg-brand" : "bg-slate-300"}`} />
+            <span className="flex-1">Unassigned</span>
+            {value === null && <Check className="h-3.5 w-3.5 shrink-0" />}
+          </button>
+
+          {shown.map((e) => {
+            const on = value === e.id;
+            return (
+              <button
+                key={e.id}
+                role="menuitemradio"
+                aria-checked={on}
+                onClick={() => { onChange(on ? null : e.id); setOpen(false); }}
+                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+              >
+                <Avatar name={e.name} image={e.image} size={20} />
+                <span className="flex-1 truncate">
+                  {e.name}
+                  {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
+                </span>
+                {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            );
+          })}
+
+          {employees.length === 0 && (
+            <p className={`px-2.5 py-3 text-[12.5px] ${t.soft}`}>
+              No active staff yet. Add somebody under Staff first.
+            </p>
+          )}
+          {employees.length > 0 && shown.length === 0 && (
+            <p className={`px-2.5 py-3 text-[12.5px] ${t.soft}`}>Nobody matches that.</p>
+          )}
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}
+
 function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
   companyFilter, setCompanyFilter, withCompanyCount = 0,
   countryFilter = null, setCountryFilter, countryOptions = [],
+  assigneeFilter = null, setAssigneeFilter, assigneeOptions,
   viewSection, extraActive = false, summarySuffix = "", onClear,
 }: {
   t: Theme;
@@ -2194,6 +2497,11 @@ function FilterMenu({
   setCountryFilter?: (v: string | null) => void;
   /** Distinct countries with row counts. Empty hides the section. */
   countryOptions?: CountryOption[];
+  /** null is everyone, UNASSIGNED is nobody yet, otherwise an employee id. */
+  assigneeFilter?: string | null;
+  setAssigneeFilter?: (v: string | null) => void;
+  /** Staff with their row counts, plus how many rows nobody holds. */
+  assigneeOptions?: { unassigned: number; rows: (EmployeeOption & { count: number })[] };
   /** Optional rows under a "View" heading — grouping, on the inquiries list. */
   viewSection?: React.ReactNode;
   /** Whether anything in `viewSection` is currently on. */
@@ -2205,7 +2513,7 @@ function FilterMenu({
   const ref = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || extraActive;
+  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || Boolean(assigneeFilter) || extraActive;
 
   // The country search box. Local to the panel and cleared when it closes, so
   // reopening always shows the whole list rather than yesterday's query.
@@ -2379,6 +2687,60 @@ function FilterMenu({
             </>
           )}
 
+          {assigneeOptions && setAssigneeFilter && (
+            <>
+              <div className={`my-1.5 border-t ${t.border}`} />
+              <p className={`px-2.5 pb-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Assigned to</p>
+              <div className="max-h-52 overflow-y-auto">
+                <button
+                  role="menuitemradio"
+                  aria-checked={!assigneeFilter}
+                  onClick={() => { setAssigneeFilter(null); setOpen(false); }}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${!assigneeFilter ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${!assigneeFilter ? "bg-brand" : "bg-slate-300"}`} />
+                  <span className="flex-1">Anyone</span>
+                  {!assigneeFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </button>
+                {/* The queue that matters most on a Monday: what nobody owns. */}
+                <button
+                  role="menuitemradio"
+                  aria-checked={assigneeFilter === UNASSIGNED}
+                  onClick={() => { setAssigneeFilter(assigneeFilter === UNASSIGNED ? null : UNASSIGNED); setOpen(false); }}
+                  className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${assigneeFilter === UNASSIGNED ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                >
+                  <span className={`h-2 w-2 shrink-0 rounded-full ${assigneeFilter === UNASSIGNED ? "bg-brand" : "bg-slate-300"}`} />
+                  <span className="flex-1">Unassigned</span>
+                  <span className={`text-[12px] font-bold tabular-nums ${assigneeFilter === UNASSIGNED ? "text-brand-dark" : t.soft}`}>{assigneeOptions.unassigned}</span>
+                  {assigneeFilter === UNASSIGNED && <Check className="h-3.5 w-3.5 shrink-0" />}
+                </button>
+                {assigneeOptions.rows.map((e) => {
+                  const on = assigneeFilter === e.id;
+                  return (
+                    <button
+                      key={e.id}
+                      role="menuitemradio"
+                      aria-checked={on}
+                      onClick={() => { setAssigneeFilter(on ? null : e.id); setOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                    >
+                      <Avatar name={e.name} image={e.image} size={20} />
+                      <span className="flex-1 truncate">
+                        {e.name}
+                        {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
+                      </span>
+                      <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{e.count}</span>
+                      {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    </button>
+                  );
+                })}
+                {assigneeOptions.rows.length === 0 && (
+                  <p className={`px-2.5 py-2 text-[12.5px] ${t.soft}`}>No active staff yet.</p>
+                )}
+              </div>
+            </>
+          )}
+
           {countryOptions.length > 0 && setCountryFilter && (
             <>
               <div className={`my-1.5 border-t ${t.border}`} />
@@ -2482,6 +2844,7 @@ function ContactsSection({
   t, tab, setTab, q, setQ, statusFilter, setStatusFilter, statusCounts, list,
   companyFilter, setCompanyFilter, withCompanyCount,
   countryFilter, setCountryFilter, countryOptions, crossCount, onCrossJump,
+  employees, assigneeFilter, setAssigneeFilter, assigneeOptions, onAssign, onAssignSelected,
   selected, toggleSelect, allSelected, toggleSelectAll, busy, onOpen, onExportExcel, onExportPDF,
   onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
   onRestoreSelected, onPurgeSelected,
@@ -2495,6 +2858,12 @@ function ContactsSection({
   countryOptions: CountryOption[];
   /** Inquiries carrying the selected country — powers the cross-reference. */
   crossCount: number; onCrossJump: () => void;
+  /** Active staff a message can be handed to, and the filter over them. */
+  employees: EmployeeOption[];
+  assigneeFilter: string | null; setAssigneeFilter: (v: string | null) => void;
+  assigneeOptions: { unassigned: number; rows: (EmployeeOption & { count: number })[] };
+  onAssign: (id: string, employeeId: string | null) => void;
+  onAssignSelected: (employeeId: string | null) => void;
   statusCounts: { all: number; new: number; handled: number; spam: number };
   list: ContactMessage[]; selected: Set<string>; toggleSelect: (id: string) => void;
   allSelected: boolean; toggleSelectAll: () => void; busy: boolean;
@@ -2542,7 +2911,10 @@ function ContactsSection({
             countryFilter={countryFilter}
             setCountryFilter={setCountryFilter}
             countryOptions={countryOptions}
-            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); }}
+            assigneeFilter={assigneeFilter}
+            setAssigneeFilter={setAssigneeFilter}
+            assigneeOptions={assigneeOptions}
+            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); setAssigneeFilter(null); }}
           />
         )}
         <div className={`flex items-center gap-2 ${tab === "active" ? "" : "sm:ml-auto"}`}>
@@ -2587,6 +2959,14 @@ function ContactsSection({
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 {tab === "active" ? (
                   <>
+                    <AssigneePicker
+                      t={t}
+                      employees={employees}
+                      value={null}
+                      onChange={(employeeId) => onAssignSelected(employeeId)}
+                      busy={busy}
+                      label={`Assign ${selected.size} selected`}
+                    />
                     {(["new", "handled", "spam"] as Status[]).map((s) => (
                       <button key={s} onClick={() => onStatusSelected(s)} disabled={busy}
                         className={`inline-flex items-center rounded-full px-3 py-2 text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-60 ${STATUS_META[s].chip}`}>
@@ -2652,6 +3032,13 @@ function ContactsSection({
                 <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
                   {tab === "active" ? (
                     <>
+                      <AssigneePicker
+                        t={t}
+                        employees={employees}
+                        value={c.assignedToId}
+                        onChange={(employeeId) => onAssign(c.id, employeeId)}
+                        busy={busy}
+                      />
                       <StatusControl t={t} value={st} onChange={(s) => onSetStatus(c.id, s)} />
                       <button onClick={() => onDelete(c.id)} aria-label="Delete message" title="Delete message" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                         <Trash2 className="h-4 w-4" />
