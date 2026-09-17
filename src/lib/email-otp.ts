@@ -22,7 +22,13 @@ import {
 // only its SHA-256 reaches the database.
 // ---------------------------------------------------------------------------
 
-export type OtpPurpose = "PASSWORD_RESET";
+/**
+ * PASSWORD_RESET is a customer's. EMPLOYEE_PASSWORD_RESET is a member of
+ * staff's, and they are separate values on purpose: the same person may hold a
+ * customer account and a staff account on one address, and a code issued for
+ * one must not reset the other.
+ */
+export type OtpPurpose = "PASSWORD_RESET" | "EMPLOYEE_PASSWORD_RESET";
 
 /**
  * Codes per address per window, enforced in the database.
@@ -156,12 +162,16 @@ export async function checkEmailOtp(
  * the token is used. That is the whole single-use guarantee, and it lives in
  * one statement rather than in a read followed by a write.
  */
-export async function spendResetToken(otpId: string, email: string): Promise<boolean> {
+export async function spendResetToken(
+  otpId: string,
+  email: string,
+  purpose: OtpPurpose = "PASSWORD_RESET"
+): Promise<boolean> {
   const { count } = await prisma.emailOtp.updateMany({
     where: {
       id: otpId,
       email: email.trim().toLowerCase(),
-      purpose: "PASSWORD_RESET",
+      purpose,
       consumedAt: { not: null },
       resetAt: null,
     },

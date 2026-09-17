@@ -15,6 +15,12 @@ export interface SessionUser {
   name: string | null;
   role: string;
   image?: string | null;
+  /**
+   * Employee sessions only: the Employee.tokenVersion this cookie was signed
+   * against, so bumping that column invalidates cookies already in the wild.
+   * See lib/employee-session.ts. Admin cookies do not carry it.
+   */
+  tokenVersion?: number;
 }
 
 function b64url(input: Buffer | string) {
@@ -27,7 +33,17 @@ export function signSession(user: SessionUser): string {
   return `${payload}.${sig}`;
 }
 
-export function verifySession(token: string | undefined): SessionUser | null {
+/**
+ * The payload, plus when it was signed.
+ *
+ * signSession has always written `iat`, and until employee sessions arrived
+ * nothing ever read it: a cookie was good until the browser dropped it, thirty
+ * days later. An idle timeout has to be judged against a timestamp the server
+ * signed rather than one the page reports, so it is read back here.
+ */
+export function readSession(
+  token: string | undefined
+): { user: SessionUser; issuedAt: number | null } | null {
   if (!token) return null;
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return null;
@@ -38,10 +54,24 @@ export function verifySession(token: string | undefined): SessionUser | null {
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
   try {
     const data = JSON.parse(Buffer.from(payload, "base64url").toString());
-    return { id: data.id, email: data.email, name: data.name ?? null, role: data.role, image: data.image ?? null };
+    return {
+      user: {
+        id: data.id,
+        email: data.email,
+        name: data.name ?? null,
+        role: data.role,
+        image: data.image ?? null,
+        ...(typeof data.tokenVersion === "number" ? { tokenVersion: data.tokenVersion } : {}),
+      },
+      issuedAt: typeof data.iat === "number" ? data.iat : null,
+    };
   } catch {
     return null;
   }
+}
+
+export function verifySession(token: string | undefined): SessionUser | null {
+  return readSession(token)?.user ?? null;
 }
 
 export const cookieOptions = {

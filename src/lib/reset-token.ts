@@ -24,6 +24,20 @@ const SECRET = process.env.AUTH_SECRET || "affhan_dev_secret";
  */
 export const RESET_TOKEN_TTL_MS = 10 * 60 * 1000;
 
+/**
+ * Which password this token may set.
+ *
+ * Without it the token says only "this address answered a code", and a code
+ * answered in the customer flow would set a staff password on the same
+ * address. The audience is inside the signature, so it cannot be edited.
+ */
+export type ResetAudience = "customer" | "employee";
+
+const KIND: Record<ResetAudience, string> = {
+  customer: "pwreset",
+  employee: "employee-pwreset",
+};
+
 interface ResetClaims {
   /** Lower-cased address the code was sent to. */
   email: string;
@@ -40,7 +54,7 @@ interface ResetClaims {
   /** Issued-at, epoch ms. */
   iat: number;
   /** Distinguishes this from any other HMAC we sign with the same secret. */
-  kind: "pwreset";
+  kind: string;
 }
 
 export interface ResetClaimsOut {
@@ -48,12 +62,16 @@ export interface ResetClaimsOut {
   otpId: string;
 }
 
-export function issueResetToken(email: string, otpId: string): string {
+export function issueResetToken(
+  email: string,
+  otpId: string,
+  audience: ResetAudience = "customer"
+): string {
   const claims: ResetClaims = {
     email: email.trim().toLowerCase(),
     otpId,
     iat: Date.now(),
-    kind: "pwreset",
+    kind: KIND[audience],
   };
   const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
   const sig = crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
@@ -61,7 +79,10 @@ export function issueResetToken(email: string, otpId: string): string {
 }
 
 /** What this token vouches for, or null if forged, malformed or stale. */
-export function readResetToken(token: unknown): ResetClaimsOut | null {
+export function readResetToken(
+  token: unknown,
+  audience: ResetAudience = "customer"
+): ResetClaimsOut | null {
   if (typeof token !== "string") return null;
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return null;
@@ -75,7 +96,7 @@ export function readResetToken(token: unknown): ResetClaimsOut | null {
 
   try {
     const claims = JSON.parse(Buffer.from(payload, "base64url").toString()) as ResetClaims;
-    if (claims.kind !== "pwreset") return null;
+    if (claims.kind !== KIND[audience]) return null;
     if (typeof claims.email !== "string" || typeof claims.otpId !== "string") return null;
     if (typeof claims.iat !== "number") return null;
     if (Date.now() - claims.iat > RESET_TOKEN_TTL_MS) return null;
