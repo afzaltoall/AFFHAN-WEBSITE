@@ -57,13 +57,24 @@ function extensionFor(contentType: string) {
  * caller choose its own key would let it overwrite any object in the bucket,
  * product images included.
  */
-export async function createUploadTarget(kind: "video" | "thumbnail", contentType: string) {
+export async function createUploadTarget(
+  kind: "video" | "thumbnail" | "employee",
+  contentType: string
+) {
   const allowed = kind === "video" ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
   if (!allowed.includes(contentType)) {
     throw new Error(`Unsupported ${kind} type: ${contentType}`);
   }
 
-  const key = `videos/${kind === "video" ? "source" : "thumbs"}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+  // Staff photos get their own prefix rather than being filed under videos/,
+  // so the bucket still says what each object is for. keyFromPublicUrl below
+  // deliberately does not admit it: the delete path exists for videos, and a
+  // staff photo that has been replaced is not worth a delete that could be
+  // pointed at anything else.
+  const key =
+    kind === "employee"
+      ? `employees/${crypto.randomUUID()}.${extensionFor(contentType)}`
+      : `videos/${kind === "video" ? "source" : "thumbs"}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
   const maxSize = kind === "video" ? MAX_VIDEO_BYTES : MAX_THUMB_BYTES;
 
   const { url, fields } = await createPresignedPost(s3, {

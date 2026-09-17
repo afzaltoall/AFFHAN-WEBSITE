@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { BadgeCheck, Check, Loader2, MessageSquareText, Package, RefreshCw } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
+import { timeAgo } from "@/lib/relative-time";
 import { Card, EmptyState, Fade, SectionHeader } from "@/components/account/AccountShell";
 
 /**
@@ -42,29 +43,6 @@ interface InquiryRow {
   statusChangedAt: string | null;
 }
 
-/**
- * "Updated 2 days ago" — the line that answers the question this page exists
- * for. An absolute date cannot: "14 Aug" leaves the customer counting, which is
- * exactly the moment they give up and send a chasing message instead.
- */
-function timeAgo(iso: string): string {
-  const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-  // Largest unit that fits, so a fortnight reads "2 weeks ago" and not
-  // "14 days ago".
-  const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
-    ["year", 31_536_000],
-    ["month", 2_592_000],
-    ["week", 604_800],
-    ["day", 86_400],
-    ["hour", 3_600],
-    ["minute", 60],
-  ];
-  for (const [unit, size] of units) {
-    if (seconds >= size) return rtf.format(-Math.floor(seconds / size), unit);
-  }
-  return "just now";
-}
 
 // The server sends the wording; these are only the colours it is shown in.
 /**

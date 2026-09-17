@@ -1,0 +1,79 @@
+import { notFound, redirect } from "next/navigation";
+import type { Metadata } from "next";
+import { prisma } from "@/lib/prisma";
+import { getCurrentUser } from "@/lib/session";
+import { EmployeeDetail } from "@/components/admin/EmployeeDetail";
+
+export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Staff member | Affhan Admin",
+  robots: { index: false, follow: false },
+};
+
+export default async function EmployeeDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const admin = await getCurrentUser();
+  if (!admin) redirect("/admin/login");
+  if (admin.role !== "admin") redirect("/");
+
+  const { id } = await params;
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      image: true,
+      role: true,
+      region: true,
+      isActive: true,
+      lastLoginAt: true,
+      createdAt: true,
+      _count: { select: { assignedInquiries: true, assignedContacts: true, statusUpdates: true } },
+    },
+  });
+  if (!employee) notFound();
+
+  const updates = await prisma.statusUpdate.findMany({
+    where: { employeeId: id },
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    select: {
+      id: true,
+      status: true,
+      note: true,
+      createdAt: true,
+      inquiry: { select: { id: true, customerName: true, productName: true, email: true } },
+      contact: { select: { id: true, fullName: true, email: true } },
+    },
+  });
+
+  return (
+    <EmployeeDetail
+      employee={{
+        id: employee.id,
+        email: employee.email,
+        name: employee.name,
+        image: employee.image,
+        role: employee.role,
+        region: employee.region,
+        isActive: employee.isActive,
+        lastLoginAt: employee.lastLoginAt ? employee.lastLoginAt.toISOString() : null,
+        createdAt: employee.createdAt.toISOString(),
+      }}
+      counts={{
+        inquiries: employee._count.assignedInquiries,
+        contacts: employee._count.assignedContacts,
+        updates: employee._count.statusUpdates,
+      }}
+      updates={updates.map((u) => ({
+        id: u.id,
+        status: u.status,
+        note: u.note,
+        createdAt: u.createdAt.toISOString(),
+        inquiry: u.inquiry,
+        contact: u.contact,
+      }))}
+    />
+  );
+}
