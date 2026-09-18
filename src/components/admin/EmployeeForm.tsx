@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { checkPasswordStrength } from "@/lib/password-rules";
+import { preparePhoto } from "@/lib/prepare-photo";
 
 /** A staff account as the console lists it. */
 export interface EmployeeRow {
@@ -55,10 +56,13 @@ export function EmployeeForm({
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const uploadPhoto = async (file: File) => {
+  const uploadPhoto = async (chosen: File) => {
     setUploading(true);
     setError(null);
     try {
+      // Scaled to 800px and re-encoded here, so a photo straight off a phone
+      // camera — often over the 8MB upload limit — goes up as a few hundred KB.
+      const file = await preparePhoto(chosen);
       const res = await fetch("/api/admin/employees/upload-url/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,7 +76,7 @@ export function EmployeeForm({
       // Last, and after the policy fields: S3 ignores anything that follows it.
       form.append("file", file);
       const put = await fetch(target.uploadUrl, { method: "POST", body: form });
-      if (!put.ok) throw new Error("The upload was refused. Try a smaller image.");
+      if (!put.ok) throw new Error("The photo couldn't be uploaded. Check the connection and try again.");
 
       setImage(target.publicUrl as string);
     } catch (err) {
@@ -154,7 +158,7 @@ export function EmployeeForm({
           <input
             ref={fileRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/*"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -180,7 +184,7 @@ export function EmployeeForm({
               Remove
             </button>
           )}
-          <span className="text-[11px] text-[#86868b]">JPEG, PNG or WebP, up to 8MB.</span>
+          <span className="text-[11px] text-[#86868b]">Any photo — it is resized automatically.</span>
         </div>
       </div>
 
