@@ -8,6 +8,7 @@ import {
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import { checkPasswordStrength } from "@/lib/password-rules";
+import { preparePhoto } from "@/lib/prepare-photo";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import {
   OUTCOME_ORDER, leadStatusChip, leadStatusLabel, outcomeMeta, type LeadOutcomeKey,
@@ -182,13 +183,13 @@ function Identity({ profile, onChanged }: { profile: ProfileData; onChanged: () 
     router.refresh();
   };
 
-  const upload = async (file: File) => {
+  const upload = async (chosen: File) => {
     setBusy(true);
     setError(null);
     try {
-      if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-        throw new Error("Use a JPEG, PNG or WebP image.");
-      }
+      // Scaled and re-encoded here, so a full-size phone photo is not refused
+      // by the 8MB upload limit — see lib/prepare-photo.
+      const file = await preparePhoto(chosen);
       const res = await fetch("/api/employee/profile/photo-url/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -201,7 +202,7 @@ function Identity({ profile, onChanged }: { profile: ProfileData; onChanged: () 
       // Last, after the policy fields: S3 ignores anything that follows it.
       form.append("file", file);
       const put = await fetch(target.uploadUrl, { method: "POST", body: form });
-      if (!put.ok) throw new Error("The upload was refused. Try a smaller image.");
+      if (!put.ok) throw new Error("The photo couldn't be uploaded. Check the connection and try again.");
       await save(target.publicUrl as string);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
@@ -248,7 +249,7 @@ function Identity({ profile, onChanged }: { profile: ProfileData; onChanged: () 
           <input
             ref={fileRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp"
+            accept="image/*"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); }}
           />
