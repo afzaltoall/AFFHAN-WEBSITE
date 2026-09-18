@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { EMPLOYEE_IDLE_MS, readWorkspaceAuth } from "@/lib/employee-session";
-import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
-import { EmployeeLeadCard, type LeadCardData, type LeadUpdate } from "@/components/employee/EmployeeLeadCard";
+import { type LeadCardData, type LeadUpdate } from "@/components/employee/EmployeeLeadCard";
+import { EmployeeLeadBoard } from "@/components/employee/EmployeeLeadBoard";
+import { wt } from "@/components/employee/workspace-ui";
 
 export const dynamic = "force-dynamic";
 
@@ -118,91 +119,25 @@ export default async function EmployeeDashboardPage() {
     updates: trail.get(`contact:${c.id}`) ?? [],
   }));
 
-  const total = inquiryCards.length + contactCards.length;
   const firstName = auth.kind === "employee" ? auth.employee.name.split(" ")[0] : null;
   const minutes = Math.round(EMPLOYEE_IDLE_MS / 60000);
 
-  // What the reader has already said about their own leads, so the top of the
-  // page answers "where am I" before they scroll.
-  const tally = new Map<string, number>();
-  for (const card of [...inquiryCards, ...contactCards]) {
-    const latest = card.updates[0];
-    tally.set(latest ? latest.status : "NONE", (tally.get(latest ? latest.status : "NONE") ?? 0) + 1);
-  }
-
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-black tracking-tight">
-          {firstName ? `Welcome, ${firstName}` : "Staff workspace"}
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          {auth.kind !== "employee"
-            ? "You are signed in as an administrator. Employees see the leads assigned to them here."
-            : total === 0
-              ? "Nothing is assigned to you yet. Leads appear here as soon as an administrator hands one over."
-              : `${total} ${total === 1 ? "lead is" : "leads are"} assigned to you.`}
-        </p>
-
-        {auth.kind === "employee" && total > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
-            {[...tally.entries()]
-              .sort((a, b) => b[1] - a[1])
-              .map(([status, n]) => (
-                <span
-                  key={status}
-                  className={`rounded-md px-2 py-1 text-[11px] font-bold ${
-                    status === "NONE" ? "bg-black/[0.05] text-slate-500" : leadStatusChip(status)
-                  }`}
-                >
-                  {status === "NONE" ? "Not started" : leadStatusLabel(status)} · {n}
-                </span>
-              ))}
-          </div>
-        )}
-      </div>
-
-      {auth.kind === "employee" && (
-        <>
-          <section>
-            <div className="mb-2 flex items-baseline justify-between">
-              <h2 className="text-[15px] font-bold">Quote requests</h2>
-              <span className="text-xs font-semibold text-slate-500">{inquiryCards.length}</span>
-            </div>
-            {inquiryCards.length === 0 ? (
-              <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
-                No quote requests assigned to you.
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {inquiryCards.map((lead) => (
-                  <EmployeeLeadCard key={lead.id} lead={lead} />
-                ))}
-              </ul>
-            )}
-          </section>
-
-          <section>
-            <div className="mb-2 flex items-baseline justify-between">
-              <h2 className="text-[15px] font-bold">Contact messages</h2>
-              <span className="text-xs font-semibold text-slate-500">{contactCards.length}</span>
-            </div>
-            {contactCards.length === 0 ? (
-              <p className="rounded-xl border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
-                No contact messages assigned to you.
-              </p>
-            ) : (
-              <ul className="space-y-3">
-                {contactCards.map((lead) => (
-                  <EmployeeLeadCard key={lead.id} lead={lead} />
-                ))}
-              </ul>
-            )}
-          </section>
-        </>
+      {auth.kind === "employee" ? (
+        // Searching and filtering are the client's job; everything above is
+        // already fetched, so narrowing it costs no round trip.
+        <EmployeeLeadBoard leads={[...inquiryCards, ...contactCards]} firstName={firstName} />
+      ) : (
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Staff workspace</h1>
+          <p className={`mt-0.5 text-[13px] ${wt.soft}`}>
+            You are signed in as an administrator. Employees see the leads assigned to them here.
+          </p>
+        </div>
       )}
 
-      <p className="text-xs text-slate-500">
+      <p className={`text-[11px] ${wt.soft}`}>
         Outcomes are recorded as a trail: each one is added, and nothing already written is changed.
         This session ends after {minutes} minutes without activity.
       </p>

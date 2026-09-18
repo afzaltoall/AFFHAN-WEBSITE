@@ -21,7 +21,16 @@ function LoginContent() {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(params.get("error") === "google" ? "Google sign-in failed. Please try again." : null);
+  // Why they are looking at this form. "expired" is the console's own timeout
+  // sending them here, and saying so is the difference between a timeout and
+  // the console appearing to have forgotten them.
+  const [error, setError] = useState<string | null>(
+    params.get("error") === "google"
+      ? "Google sign-in failed. Please try again."
+      : params.get("expired") === "1"
+        ? "Your session timed out after 30 minutes of inactivity. Sign in to pick up where you left off."
+        : null
+  );
   const [loading, setLoading] = useState(false);
   const [quoteIdx, setQuoteIdx] = useState(0);
   const [showPassword, setShowPassword] = useState(false);

@@ -37,10 +37,12 @@ export function EmployeeSessionKeeper() {
   useEffect(() => {
     let cancelled = false;
 
-    const check = async () => {
+    // POST touches the session, GET only asks about it — so the idle poll
+    // below cannot hold a window open that nobody is working in.
+    const check = async (method: "GET" | "POST" = "GET") => {
       try {
         const res = await fetch("/api/employee/auth/session/", {
-          method: "GET",
+          method,
           cache: "no-store",
           credentials: "same-origin",
         });
@@ -61,7 +63,7 @@ export function EmployeeSessionKeeper() {
       const now = Date.now();
       if (now - lastTouch.current < TOUCH_INTERVAL_MS) return;
       lastTouch.current = now;
-      void check();
+      void check("POST");
     };
 
     for (const type of ACTIVITY_EVENTS) {

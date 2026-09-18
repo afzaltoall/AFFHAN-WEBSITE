@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { signSession, SESSION_COOKIE, cookieOptions } from "@/lib/session";
+import { signSession, SESSION_COOKIE, adminCookieOptions } from "@/lib/session";
 import { checkLoginRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
@@ -73,7 +73,9 @@ export async function POST(request: Request) {
 
     const token = signSession(user);
     const res = NextResponse.json({ user });
-    res.cookies.set(SESSION_COOKIE, token, cookieOptions);
+    // Written to lapse with the idle window rather than outlive it by a
+    // month: the console slides it forward while somebody is working.
+    res.cookies.set(SESSION_COOKIE, token, adminCookieOptions);
     return res;
   } catch (err) {
     console.error("login error", err);

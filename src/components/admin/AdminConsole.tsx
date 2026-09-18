@@ -69,10 +69,11 @@ const CUSTOMER_STATUSES = Object.keys(CUSTOMER_STATUS_META) as CustomerStatus[];
  *
  * Every one of these used to be `if (!res.ok) throw new Error()` and an alert
  * saying "Please try again" — which is wrong advice for the failure that
- * actually happens here. The admin session ends when the page is reloaded or
- * the tab is closed, by design, but the console that is already on screen
- * carries on looking signed in; the next save then 401s and the admin is told
- * to retry something that cannot succeed until they log in again.
+ * actually happens here. The admin session ends after thirty minutes with
+ * nobody touching it, but the console that is already on screen carries on
+ * looking signed in until something asks; the next save then 401s and the
+ * admin is told to retry something that cannot succeed until they log in
+ * again.
  *
  * So a 401 says so and goes to the login screen. Anything else surfaces
  * whatever the server actually said, rather than a shrug.
@@ -89,7 +90,7 @@ async function adminWrite(url: string, body: unknown, method: "POST" | "PATCH" =
   if (res.ok) return;
 
   if (res.status === 401) {
-    window.alert("Your admin session has ended — signing in again will restore it.\n\n(The session closes when the page is reloaded or the tab is closed.)");
+    window.alert("Your admin session has ended — signing in again will restore it.\n\n(It closes after 30 minutes with no activity.)");
     window.location.href = "/admin/login";
     // Never resolves, so the caller does not also show its own message on the
     // way out of the page.
@@ -2237,8 +2238,8 @@ function CustomerStatusControl({
  * resolution, and already offers "Save as PDF" in its print dialog. So this
  * is a real sheet in the page, invisible until the moment of printing.
  *
- * Same tab deliberately: AdminAutoLogout ends the session when it unmounts,
- * so opening this in a second tab and closing it would sign the admin out.
+ * Same tab deliberately: it prints what this console is showing, and a second
+ * tab would have to be handed that state somehow.
  *
  * It prints whatever the console is currently showing — filter, search and
  * all — because "export what I am looking at" is the only rule that does not
