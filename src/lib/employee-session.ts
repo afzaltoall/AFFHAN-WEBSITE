@@ -16,11 +16,11 @@ import {
 // one secret, one verification path — told apart by `role`. What is added here
 // is everything that cookie does not carry on its own:
 //
-//   - an idle timeout that is actually enforced. The admin console's timeout is
-//     AdminAutoLogout, a client component: real protection against a machine
-//     left unlocked, none at all against anyone who simply does not run it.
-//     Employee sessions are checked here, on the server, on every guarded
-//     request, against the `iat` the cookie is signed with.
+//   - an idle timeout that is actually enforced, on the server, on every
+//     guarded request, against the `iat` the cookie is signed with. The admin
+//     console's timeout was a client component until it was moved to
+//     lib/session.ts for the same reason; the two now work the same way and
+//     differ only in what else they check.
 //   - a check that the employee still exists and is still active. Deactivating
 //     somebody has to take effect now, not when their cookie happens to lapse.
 //   - tokenVersion, for the same reason: bumping the column on the row makes

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
-import { getCurrentUser, signSession, SESSION_COOKIE, cookieOptions } from "@/lib/session";
+import { getCurrentUser, signSession, SESSION_COOKIE, adminCookieOptions } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
       image: updated.image ?? null,
     };
     const res = NextResponse.json({ user: newUser });
-    res.cookies.set(SESSION_COOKIE, signSession(newUser), cookieOptions);
+    res.cookies.set(SESSION_COOKIE, signSession(newUser), adminCookieOptions);
     return res;
   } catch (err) {
     console.error("email change error", err);

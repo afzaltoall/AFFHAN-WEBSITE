@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { AdminAutoLogout } from "@/components/admin/AdminAutoLogout";
+import { AdminSessionKeeper } from "@/components/admin/AdminSessionKeeper";
 
 /**
  * The console's defaults, so a new admin route is noindex and named without
@@ -50,13 +50,19 @@ export const metadata: Metadata = {
  *    other, so the role check below is for the case that could actually
  *    happen — an admin-area account whose role is not admin.
  *
- * 2. AdminAutoLogout, which ends the session when it unmounts, on the
- *    principle that unmounting means the admin has left /admin. That was
- *    exactly true while the console was a single page. The moment there were
- *    two admin routes it stopped being: mounted per page, moving from the
- *    dashboard to the supplier directory unmounted one copy and signed the
- *    admin out mid-navigation. Mounted here it survives every move between
- *    admin routes and only unmounts when the admin genuinely leaves.
+ * 2. AdminSessionKeeper, which holds the session open while somebody is
+ *    working and sends them to the login page once the thirty-minute window
+ *    has closed. It ends nothing itself — the timeout is enforced in
+ *    lib/session.ts, on the server, against the timestamp the server signed.
+ *
+ *    Its predecessor, AdminAutoLogout, did end the session, from `pagehide`
+ *    and from its own unmount. Both are events about a document rather than
+ *    about a person: Next's router replaces the document on its own whenever
+ *    an RSC fetch comes back unusable — a deployment landing mid-session is
+ *    the common one — so the console signed the admin out mid-click, at
+ *    random. Mounting it here rather than per page had already been needed to
+ *    stop the same thing happening on every move between two admin routes;
+ *    that was the same fault one level down.
  *
  * The group is named in brackets, so it shapes nothing in the URL: these pages
  * are still /admin and /admin/suppliers.
@@ -68,7 +74,7 @@ export default async function AdminConsoleLayout({ children }: { children: React
 
   return (
     <>
-      <AdminAutoLogout />
+      <AdminSessionKeeper />
       {children}
     </>
   );
