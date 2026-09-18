@@ -37,7 +37,10 @@ export function checkPasswordStrength(
     return { ok: false, error: "That password is too long." };
   }
 
-  const classes = [/[a-z]/, /[A-Z]/, /d/, /[^A-Za-z0-9]/].filter((re) => re.test(password)).length;
+  // \d, a digit. This read /d/ — the letter d — from the day it was written,
+  // so "welcome2026" was refused for having no numbers while "abcdefgh" was
+  // credited with one.
+  const classes = [/[a-z]/, /[A-Z]/, /\d/, /[^A-Za-z0-9]/].filter((re) => re.test(password)).length;
   if (classes < 2) {
     return { ok: false, error: "Mix letters with numbers or symbols." };
   }
