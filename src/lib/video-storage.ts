@@ -14,8 +14,23 @@ import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
  * development and fail on the first genuine upload.
  */
 
+/**
+ * The bucket's region: S3_REGION when it is set, otherwise ap-south-1, where
+ * the bucket lives. Never AWS_REGION.
+ *
+ * AWS_REGION is not ours to set in production. The functions run on AWS
+ * Lambda, which fills it in with the region the *function* runs in — us-east-1
+ * for Vercel's default location — whatever the project's own settings say. So
+ * the live site signed every upload for us-east-1 against a bucket in
+ * ap-south-1. S3 answers that with a 301 "PermanentRedirect" that carries no
+ * CORS header, which a browser can only report as "blocked by CORS policy":
+ * "Failed to fetch" on the staff photo button, and the same on video uploads.
+ * Locally .env said ap-south-1, which is why none of it showed up here.
+ */
+export const S3_REGION = process.env.S3_REGION || "ap-south-1";
+
 const s3 = new S3Client({
-  region: process.env.AWS_REGION!,
+  region: S3_REGION,
   credentials: {
     accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
     secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
