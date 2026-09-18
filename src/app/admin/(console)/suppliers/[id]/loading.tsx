@@ -17,7 +17,7 @@ export default function SupplierLoading() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-10">
         <CardSkeleton className="p-5 sm:p-6">
           <Bar className="h-7 w-2/3 sm:h-8" />
           <Bar className="mt-2 h-[14px] w-40" />

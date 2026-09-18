@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
+import { formatDateTime } from "@/lib/datetime";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { EmployeeForm, type EmployeeRow } from "@/components/admin/EmployeeForm";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
@@ -50,7 +51,7 @@ export function EmployeeDetail({
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+      <div className="px-5 py-8 sm:px-8 lg:px-10">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/admin/employees/"
@@ -178,7 +179,7 @@ export function EmployeeDetail({
                     const what = u.inquiry ? u.inquiry.productName : "Contact message";
                     return (
                       <tr key={u.id} className="align-top transition-colors hover:bg-black/[0.015]">
-                        <td className="whitespace-nowrap px-5 py-3" title={new Date(u.createdAt).toLocaleString("en-GB")}>
+                        <td className="whitespace-nowrap px-5 py-3" title={formatDateTime(u.createdAt)}>
                           {timeAgo(u.createdAt)}
                         </td>
                         <td className="px-5 py-3">

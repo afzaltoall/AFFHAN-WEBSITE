@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
+import { formatDateTime } from "@/lib/datetime";
 import {
   LEAD_NOTE_MAX, LEAD_STATUSES, LEAD_STATUS_META, leadStatusChip, leadStatusLabel, NOT_STARTED_META,
   type LeadStatus,
@@ -16,8 +17,6 @@ import type { LeadCardData, LeadUpdate } from "@/components/employee/lead-types"
 import { wt } from "@/components/employee/workspace-ui";
 
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
-const fmtDateTime = (iso: string) =>
-  new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /**
  * One lead, opened out: everything the office knows about it, and the place to
@@ -228,7 +227,7 @@ export function LeadDetail({
             {lead.country && <Fact icon={MapPin} label="Country" value={lead.country} />}
             {lead.phone && <Fact icon={Phone} label="Phone" value={lead.phone} href={tel ?? undefined} />}
             {lead.email && <Fact icon={Mail} label="Email" value={lead.email} href={`mailto:${lead.email}`} />}
-            <Fact icon={Inbox} label="Received" value={fmtDateTime(lead.createdAt)} />
+            <Fact icon={Inbox} label="Received" value={formatDateTime(lead.createdAt)} />
           </dl>
 
           {lead.message && (
@@ -314,7 +313,7 @@ export function LeadDetail({
                       <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${leadStatusChip(u.status)}`}>
                         {leadStatusLabel(u.status)}
                       </span>
-                      <span className={wt.soft} title={fmtDateTime(u.createdAt)}>
+                      <span className={wt.soft} title={formatDateTime(u.createdAt)}>
                         {timeAgo(u.createdAt)} · {u.byMe ? "you" : u.byName}
                       </span>
                     </span>

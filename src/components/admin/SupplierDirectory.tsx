@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useAdminDark } from "@/lib/useAdminDark";
 import Image from "next/image";
 import {
   Search, X, Download, Sun, Moon, ArrowLeft, MapPin, Package, Users,
@@ -93,7 +94,8 @@ export function SupplierDirectory({ suppliers, initialQuery = "", initialProduct
   const [product, setProduct] = useState(initialProduct);
   const [sort, setSort] = useState<SortKey>("sheet");
   const [limit, setLimit] = useState(PAGE);
-  const [dark, setDark] = useState(false);
+  // Shared and remembered across the admin — see useAdminDark.
+  const [dark, setDark] = useAdminDark();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // "/" focuses the search box, the convention in every directory-shaped tool.
@@ -294,15 +296,16 @@ export function SupplierDirectory({ suppliers, initialQuery = "", initialProduct
     <div className={`min-h-screen ${t.page}`} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif' }}>
       {/* Top bar */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${t.bar}`}>
-        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
+          {/* The rail does this from lg up; phones keep the way back. */}
           <Link
             href="/admin/"
-            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:hidden ${t.pill}`}
           >
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">Dashboard</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <div className="min-w-0 leading-tight">
@@ -321,7 +324,7 @@ export function SupplierDirectory({ suppliers, initialQuery = "", initialProduct
         </div>
       </header>
 
-      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-10">
         {/* Counters */}
         <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {([

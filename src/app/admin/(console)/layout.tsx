@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { SessionKeeper } from "@/components/session/SessionKeeper";
+import { AdminFrame } from "@/components/admin/AdminFrame";
 
 /**
  * The console's defaults, so a new admin route is noindex and named without
@@ -76,7 +77,10 @@ export default async function AdminConsoleLayout({ children }: { children: React
   return (
     <>
       <SessionKeeper role="admin" />
-      {children}
+      {/* The rail on every page but the dashboard, which has its own. */}
+      <AdminFrame name={admin.name ?? "Admin"} image={admin.image ?? null}>
+        {children}
+      </AdminFrame>
     </>
   );
 }

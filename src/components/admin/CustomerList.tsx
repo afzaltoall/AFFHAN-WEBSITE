@@ -101,11 +101,12 @@ export function CustomerList({
       {/* Full width, not a centred column. This is a data table with eight
           columns; capping it at 1152px left the numbers crushed together in the
           middle of a wide screen with empty grey either side. */}
-      <div className="px-5 py-8 sm:px-8">
+      <div className="px-5 py-8 sm:px-8 lg:px-10">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/admin/"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
+            aria-label="Back to the dashboard"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] lg:hidden"
           >
             <ArrowLeft size={16} />
           </Link>

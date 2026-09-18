@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Copy, Loader2, RefreshCw, Search, UserPlus, X } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
+import { formatDateTime } from "@/lib/datetime";
 import { EmployeeForm, type EmployeeRow } from "@/components/admin/EmployeeForm";
 
 const sfFont = {
@@ -92,11 +93,12 @@ export function EmployeeManagement({ initial }: { initial: EmployeeRow[] }) {
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="px-5 py-8 sm:px-8">
+      <div className="px-5 py-8 sm:px-8 lg:px-10">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/admin/"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
+            aria-label="Back to the dashboard"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] lg:hidden"
           >
             <ArrowLeft size={16} />
           </Link>
@@ -262,7 +264,7 @@ export function EmployeeManagement({ initial }: { initial: EmployeeRow[] }) {
                       <td className="px-5 py-3">{r.region || <span className="text-[#86868b]">—</span>}</td>
                       <td className="px-5 py-3">
                         {r.lastLoginAt ? (
-                          <span title={new Date(r.lastLoginAt).toLocaleString("en-GB")}>{timeAgo(r.lastLoginAt)}</span>
+                          <span title={formatDateTime(r.lastLoginAt)}>{timeAgo(r.lastLoginAt)}</span>
                         ) : (
                           <span className="text-[#86868b]">never</span>
                         )}

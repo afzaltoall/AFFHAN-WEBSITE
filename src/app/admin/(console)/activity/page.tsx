@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { timeAgo } from "@/lib/relative-time";
+import { formatDateTime } from "@/lib/datetime";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { getCdnUrl } from "@/lib/cdn";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
@@ -71,11 +72,12 @@ export default async function ActivityPage({
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+      <div className="px-5 py-8 sm:px-8 lg:px-10">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/admin/"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
+            aria-label="Back to the dashboard"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] lg:hidden"
           >
             <ArrowLeft size={16} />
           </Link>
@@ -135,7 +137,7 @@ export default async function ActivityPage({
                       </p>
                       <p className="mt-0.5 text-[12px] text-[#86868b]">
                         {lead ? `${lead.detail}${lead.country ? ` · ${lead.country}` : ""} · ` : ""}
-                        <span title={r.createdAt.toLocaleString("en-GB")}>{timeAgo(r.createdAt)}</span>
+                        <span title={formatDateTime(r.createdAt)}>{timeAgo(r.createdAt)}</span>
                         {r.employee.region ? ` · ${r.employee.region}` : ""}
                       </p>
                       {r.note && (

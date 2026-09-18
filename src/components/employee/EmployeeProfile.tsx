@@ -6,6 +6,7 @@ import {
   BadgeCheck, Camera, Eye, EyeOff, KeyRound, Loader2, MapPin, ShieldCheck, Trash2,
 } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
+import { formatDateTime } from "@/lib/datetime";
 import { checkPasswordStrength } from "@/lib/password-rules";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import {
@@ -119,7 +120,7 @@ export function EmployeeProfile({
                       <p className={`truncate text-[12px] ${wt.soft}`}>{a.what}</p>
                       {a.note && <p className="mt-0.5 line-clamp-2 text-[12.5px] text-[#48484a]">{a.note}</p>}
                     </div>
-                    <span className={`shrink-0 text-[12px] ${wt.soft}`} title={new Date(a.createdAt).toLocaleString("en-GB")}>
+                    <span className={`shrink-0 text-[12px] ${wt.soft}`} title={formatDateTime(a.createdAt)}>
                       {timeAgo(a.createdAt)}
                     </span>
                   </li>
