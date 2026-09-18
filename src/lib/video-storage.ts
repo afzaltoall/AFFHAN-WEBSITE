@@ -29,16 +29,46 @@ import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
  */
 export const S3_REGION = process.env.S3_REGION || "ap-south-1";
 
+/**
+ * The keys, under our own names first.
+ *
+ * AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY belong to the runtime for the
+ * same reason AWS_REGION does — Lambda fills them in with the function's own
+ * role — so a deployment can hold values that are real, signed with, and
+ * useless against this bucket. S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY are
+ * names nothing else writes; the AWS_ ones stay as a fallback because that is
+ * what .env uses locally.
+ */
+const ACCESS_KEY_ID = process.env.S3_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || "";
+const SECRET_ACCESS_KEY = process.env.S3_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || "";
+
 const s3 = new S3Client({
   region: S3_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
+  credentials: { accessKeyId: ACCESS_KEY_ID, secretAccessKey: SECRET_ACCESS_KEY },
 });
 
-const BUCKET = process.env.S3_BUCKET_NAME!;
-const CDN = process.env.NEXT_PUBLIC_CDN_URL!;
+const BUCKET = process.env.S3_BUCKET_NAME || "";
+const CDN = process.env.NEXT_PUBLIC_CDN_URL || "";
+
+/**
+ * What is missing before anything can be uploaded, in plain words, or null.
+ *
+ * Without this a deployment with no storage settings still produced an upload
+ * ticket — the SDK signed one against no bucket at all, addressed to the bare
+ * region endpoint — and the browser could only report the 405 that came back as
+ * "blocked by CORS policy". A missing setting should say which setting.
+ */
+export function storageConfigProblem(): string | null {
+  const missing = [
+    !BUCKET && "S3_BUCKET_NAME",
+    !CDN && "NEXT_PUBLIC_CDN_URL",
+    !ACCESS_KEY_ID && "S3_ACCESS_KEY_ID",
+    !SECRET_ACCESS_KEY && "S3_SECRET_ACCESS_KEY",
+  ].filter(Boolean) as string[];
+  return missing.length
+    ? `Uploads are not set up on this deployment — ${missing.join(", ")} ${missing.length === 1 ? "is" : "are"} missing. An administrator needs to add ${missing.length === 1 ? "it" : "them"} to the site's environment variables.`
+    : null;
+}
 
 /** Only formats a browser can actually play back, and the poster image. */
 export const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/quicktime"];
@@ -76,6 +106,9 @@ export async function createUploadTarget(
   kind: "video" | "thumbnail" | "employee",
   contentType: string
 ) {
+  const problem = storageConfigProblem();
+  if (problem) throw new Error(problem);
+
   const allowed = kind === "video" ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
   if (!allowed.includes(contentType)) {
     throw new Error(`Unsupported ${kind} type: ${contentType}`);
