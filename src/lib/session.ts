@@ -39,7 +39,7 @@ export const ADMIN_IDLE_MS = 30 * 60 * 1000;
 export type AdminAuthFailure = "no_session" | "not_admin" | "idle_expired";
 
 export type AdminAuth =
-  | { ok: true; user: SessionUser }
+  | { ok: true; user: SessionUser; issuedAt: number }
   | { ok: false; reason: AdminAuthFailure };
 
 export interface SessionUser {
@@ -138,7 +138,7 @@ export async function readAdminSession(): Promise<AdminAuth> {
   if (!parsed) return { ok: false, reason: "no_session" };
   if (parsed.user.role !== ADMIN_ROLE) return { ok: false, reason: "not_admin" };
   if (!adminSessionIsFresh(parsed.issuedAt)) return { ok: false, reason: "idle_expired" };
-  return { ok: true, user: parsed.user };
+  return { ok: true, user: parsed.user, issuedAt: parsed.issuedAt as number };
 }
 
 /**

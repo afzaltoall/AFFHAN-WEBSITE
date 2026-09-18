@@ -1,6 +1,6 @@
 /**
- * The browser half of a session: keep-alives, and the sign-out that has to beat
- * them.
+ * The browser half of a session: keep-alives, the sign-out that has to beat
+ * them, and the channel that keeps every tab of one session in step.
  *
  * Both consoles run a keeper that touches the session while somebody is
  * working, and both put a Sign out button on the same screen. Clicking it is a
@@ -20,6 +20,47 @@
  * The flag also spares the reader a lie: a keeper polling through a sign-out
  * would get a 401 and announce that their session had timed out.
  */
+
+/** Whose session: the console's, or the staff workspace's. Separate cookies. */
+export type SessionRole = "admin" | "staff";
+
+/**
+ * One channel per session, shared by every tab holding it.
+ *
+ * Tabs share the cookie, so they share the session — but each tab only knows
+ * what it has itself been told. Without this, working in one tab left another
+ * counting down to a timeout that had already been pushed back, and signing
+ * out in one tab left the others looking signed in until they next asked.
+ */
+const CHANNEL: Record<SessionRole, string> = {
+  admin: "affhan:admin-session",
+  staff: "affhan:staff-session",
+};
+
+export type SessionMessage =
+  /** The window was pushed back. A local-clock time: every tab in one browser reads the same clock. */
+  | { type: "extended"; expiresAt: number }
+  | { type: "signed-out" };
+
+export function openSessionChannel(role: SessionRole): BroadcastChannel | null {
+  if (typeof BroadcastChannel === "undefined") return null;
+  try {
+    return new BroadcastChannel(CHANNEL[role]);
+  } catch {
+    return null;
+  }
+}
+
+/** Tell the session's other tabs. Best effort: a browser without the API simply polls. */
+export function announce(role: SessionRole, message: SessionMessage): void {
+  const channel = openSessionChannel(role);
+  if (!channel) return;
+  try {
+    channel.postMessage(message);
+  } finally {
+    channel.close();
+  }
+}
 
 const inFlight = new Set<Promise<unknown>>();
 let signingOut = false;
@@ -61,12 +102,13 @@ export async function sessionRequest(url: string, method: "GET" | "POST"): Promi
 }
 
 /**
- * Sign out through `url`, after everything already asked for has been answered.
+ * Sign out through `url`, after everything already asked for has been answered,
+ * then tell this session's other tabs so they leave too.
  *
  * Never throws: a logout that cannot reach the server still has to let the page
  * move on, or the button appears to do nothing.
  */
-export async function signOutThrough(url: string): Promise<void> {
+export async function signOutThrough(url: string, role: SessionRole): Promise<void> {
   signingOut = true;
   if (inFlight.size) await Promise.allSettled([...inFlight]);
   try {
@@ -74,4 +116,5 @@ export async function signOutThrough(url: string): Promise<void> {
   } catch {
     // Offline, or the request was refused. The caller leaves regardless.
   }
+  announce(role, { type: "signed-out" });
 }

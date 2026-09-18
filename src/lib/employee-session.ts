@@ -3,6 +3,7 @@ import type { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
   cookieOptions,
+  readAdminSession,
   readSession,
   SESSION_COOKIE,
   signSession,
@@ -12,9 +13,9 @@ import {
 // ---------------------------------------------------------------------------
 // Employee sessions.
 //
-// The same signed cookie the admin console uses (lib/session.ts) — one cookie,
-// one secret, one verification path — told apart by `role`. What is added here
-// is everything that cookie does not carry on its own:
+// The same signed token the admin console uses (lib/session.ts) — one secret,
+// one verification path, told apart by `role` — but in a cookie of its own.
+// What is added here is everything that token does not carry on its own:
 //
 //   - an idle timeout that is actually enforced, on the server, on every
 //     guarded request, against the `iat` the cookie is signed with. The admin
@@ -37,6 +38,25 @@ export const EMPLOYEE_ROLE = "employee";
 /** Thirty minutes with no request, and the session is over. */
 export const EMPLOYEE_IDLE_MS = 30 * 60 * 1000;
 
+/**
+ * The staff session's own cookie.
+ *
+ * It used to share affhan_session with the console, told apart only by the
+ * role inside it. One slot cannot hold two people: signing in to the workspace
+ * in one tab replaced the admin's session in another, and the console found
+ * out the moment its tab came back into view — it asked the server, got an
+ * employee, and sent the admin to the login page. Signing the admin back in
+ * then did the same to the workspace. That is the "switching tabs logs me out"
+ * report, reproduced with two real tabs before this change.
+ *
+ * With a slot each, the two sessions never see one another. The customer site
+ * learned the same lesson earlier — see WEB_SESSION_COOKIE in mobile-auth.ts.
+ */
+export const STAFF_SESSION_COOKIE = "affhan_staff";
+
+/** Written to lapse with the idle window rather than outlive it. */
+export const staffCookieOptions = { ...cookieOptions, maxAge: Math.floor(EMPLOYEE_IDLE_MS / 1000) };
+
 /** What /employee/login sends people back to when the timeout is what ended it. */
 export const EXPIRED_QUERY = "expired=1";
 
@@ -58,7 +78,7 @@ export type EmployeeAuthFailure =
   | "stale_token";
 
 export type EmployeeAuth =
-  | { ok: true; employee: EmployeeIdentity; session: SessionUser }
+  | { ok: true; employee: EmployeeIdentity; session: SessionUser; issuedAt: number }
   | { ok: false; reason: EmployeeAuthFailure };
 
 /**
@@ -133,6 +153,8 @@ export async function authoriseEmployeeToken(token: string | undefined): Promise
   return {
     ok: true,
     session: parsed.user,
+    // Checked non-null above; the await in between loses the narrowing.
+    issuedAt: parsed.issuedAt as number,
     employee: {
       id: employee.id,
       email: employee.email,
@@ -147,25 +169,46 @@ export async function authoriseEmployeeToken(token: string | undefined): Promise
 /** The current employee, from the request's cookies. */
 export async function readEmployeeAuth(): Promise<EmployeeAuth> {
   const store = await cookies();
-  return authoriseEmployeeToken(store.get(SESSION_COOKIE)?.value);
+  return authoriseEmployeeToken(store.get(STAFF_SESSION_COOKIE)?.value);
 }
 
-/** The current employee or admin, from the request's cookies. */
+/**
+ * The current employee or admin, from the request's cookies.
+ *
+ * The staff cookie decides when there is one, pass or fail: somebody whose own
+ * session has lapsed should be sent to the staff login with the reason, not
+ * quietly shown the admin's view because the same browser also holds a
+ * console session. Only with no staff cookie at all is the admin one read —
+ * the console's owner looking at what the team sees — and it is judged by the
+ * console's rules, timeout included.
+ */
 export async function readWorkspaceAuth(): Promise<WorkspaceAuth> {
   const store = await cookies();
-  const token = store.get(SESSION_COOKIE)?.value;
-  const parsed = readSession(token);
-  if (!parsed) return { ok: false, reason: "no_session" };
+  const staffToken = store.get(STAFF_SESSION_COOKIE)?.value;
 
-  // Admins keep the console's own session rules, including its timeout. Ageing
-  // them out here would sign an admin out of /admin by a rule written for
-  // /employee.
-  if (parsed.user.role === "admin") return { ok: true, kind: "admin", session: parsed.user };
+  if (staffToken) {
+    const auth = await authoriseEmployeeToken(staffToken);
+    return auth.ok
+      ? { ok: true, kind: "employee", employee: auth.employee, session: auth.session }
+      : auth;
+  }
 
-  const auth = await authoriseEmployeeToken(token);
-  return auth.ok
-    ? { ok: true, kind: "employee", employee: auth.employee, session: auth.session }
-    : auth;
+  const admin = await readAdminSession();
+  if (admin.ok) return { ok: true, kind: "admin", session: admin.user };
+  return { ok: false, reason: "no_session" };
+}
+
+/**
+ * Clear a staff token left in the console's slot by the build that shared it.
+ *
+ * Only an employee token is touched. An admin session in that slot is exactly
+ * what the split exists to leave alone.
+ */
+export function dropLegacyStaffCookie(res: NextResponse, adminSlotValue: string | undefined): NextResponse {
+  if (readSession(adminSlotValue)?.user.role === EMPLOYEE_ROLE) {
+    res.cookies.set(SESSION_COOKIE, "", { ...cookieOptions, maxAge: 0 });
+  }
+  return res;
 }
 
 /**
@@ -182,11 +225,7 @@ export function refreshEmployeeCookie(
   employee: { id: string; email: string; name: string; image: string | null },
   tokenVersion: number
 ): NextResponse {
-  res.cookies.set(
-    SESSION_COOKIE,
-    signEmployeeSession({ ...employee, tokenVersion }),
-    { ...cookieOptions, maxAge: Math.floor(EMPLOYEE_IDLE_MS / 1000) }
-  );
+  res.cookies.set(STAFF_SESSION_COOKIE, signEmployeeSession({ ...employee, tokenVersion }), staffCookieOptions);
   return res;
 }
 

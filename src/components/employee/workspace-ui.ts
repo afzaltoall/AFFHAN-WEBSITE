@@ -23,6 +23,7 @@ export const wt = {
   mid: "text-[#48484a]",
   strong: "text-[#1d1d1f]",
   border: "border-black/[0.06]",
+  divide: "divide-black/[0.06]",
   hover: "hover:bg-black/[0.015]",
   navIdle: "text-[#515154] hover:bg-black/[0.03]",
   navActive: "bg-[#ececed] text-[#1d1d1f]",

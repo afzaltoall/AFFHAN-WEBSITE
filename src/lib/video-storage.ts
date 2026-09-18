@@ -95,6 +95,18 @@ export async function createUploadTarget(
   return { uploadUrl: url, fields, publicUrl: `${CDN}/${key}`, key };
 }
 
+/**
+ * Is this a staff photo we issued the upload for?
+ *
+ * An admin setting a photo is trusted to paste anything. A member of staff
+ * setting their own is not: whatever they save is shown to the admin and on
+ * the activity feed, so it has to be an object under our own employees/
+ * prefix — the only thing the upload route below will ever have issued them.
+ */
+export function isStaffPhotoUrl(url: string): boolean {
+  return Boolean(CDN) && url.startsWith(`${CDN}/employees/`) && !url.includes("..");
+}
+
 /** CloudFront URL back to the S3 key it was served from. */
 export function keyFromPublicUrl(url: string): string | null {
   if (!url.startsWith(`${CDN}/`)) return null;

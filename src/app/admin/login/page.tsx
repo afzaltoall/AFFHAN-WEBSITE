@@ -24,12 +24,19 @@ function LoginContent() {
   // Why they are looking at this form. "expired" is the console's own timeout
   // sending them here, and saying so is the difference between a timeout and
   // the console appearing to have forgotten them.
+  //
+  // A notice of its own rather than the error slot: the security check's
+  // widget writes its failures there, and in a browser that cannot reach
+  // Cloudflare that happens straight away — which erased the explanation
+  // before anyone could read it. The staff login keeps the two apart for the
+  // same reason.
+  const [notice] = useState<string | null>(() =>
+    params.get("expired") === "1"
+      ? "Your session timed out after 30 minutes of inactivity. Sign in to pick up where you left off."
+      : null
+  );
   const [error, setError] = useState<string | null>(
-    params.get("error") === "google"
-      ? "Google sign-in failed. Please try again."
-      : params.get("expired") === "1"
-        ? "Your session timed out after 30 minutes of inactivity. Sign in to pick up where you left off."
-        : null
+    params.get("error") === "google" ? "Google sign-in failed. Please try again." : null
   );
   const [loading, setLoading] = useState(false);
   const [quoteIdx, setQuoteIdx] = useState(0);
@@ -117,6 +124,9 @@ function LoginContent() {
           <h2 className="text-3xl font-black text-white">Welcome back</h2>
           <p className="mt-2 text-white/80">Sign in to your Affhan account.</p>
 
+          {notice && (
+            <div className="mt-6 rounded-xl border border-white/30 bg-white/15 p-3 text-sm text-white">{notice}</div>
+          )}
           {error && (
             <div className="mt-6 p-3 rounded-xl bg-red-500/20 border border-red-500/30 text-red-200 text-sm">{error}</div>
           )}

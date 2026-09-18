@@ -24,6 +24,10 @@ export const dynamic = "force-dynamic";
  * server signed, so a client still posting after the window has closed is told
  * the session is over, and one that stops simply lets it close.
  *
+ * `remainingMs` is a duration rather than a timestamp so that the page's
+ * countdown starts from when it received it — a PC clock that is minutes out
+ * cannot move the warning.
+ *
  * 401 with a reason, so the page can say "your session timed out" rather than
  * dumping someone at a login form with no explanation.
  */
@@ -37,6 +41,7 @@ export async function GET() {
   return NextResponse.json({
     employee: auth.employee,
     idleTimeoutMs: EMPLOYEE_IDLE_MS,
+    remainingMs: Math.max(0, auth.issuedAt + EMPLOYEE_IDLE_MS - Date.now()),
   });
 }
 
@@ -50,6 +55,7 @@ export async function POST() {
   const res = NextResponse.json({
     employee: auth.employee,
     idleTimeoutMs: EMPLOYEE_IDLE_MS,
+    remainingMs: EMPLOYEE_IDLE_MS,
   });
   return refreshEmployeeCookie(
     res,

@@ -8,8 +8,13 @@ import {
   recordLoginFailure,
   verifyPassword,
 } from "@/lib/password";
-import { cookieOptions, SESSION_COOKIE } from "@/lib/session";
-import { EMPLOYEE_IDLE_MS, signEmployeeSession } from "@/lib/employee-session";
+import { SESSION_COOKIE } from "@/lib/session";
+import {
+  dropLegacyStaffCookie,
+  signEmployeeSession,
+  STAFF_SESSION_COOKIE,
+  staffCookieOptions,
+} from "@/lib/employee-session";
 
 export const dynamic = "force-dynamic";
 
@@ -120,8 +125,12 @@ export async function POST(request: NextRequest) {
         image: employee.image,
       },
     });
+    // Its own slot, so an admin session in this browser is left alone — see
+    // STAFF_SESSION_COOKIE. The options drop it on the same schedule the
+    // server enforces, so a closed laptop does not leave a cookie that is
+    // merely ignored.
     res.cookies.set(
-      SESSION_COOKIE,
+      STAFF_SESSION_COOKIE,
       signEmployeeSession({
         id: employee.id,
         email: employee.email,
@@ -129,11 +138,9 @@ export async function POST(request: NextRequest) {
         image: employee.image,
         tokenVersion: employee.tokenVersion,
       }),
-      // The browser drops it on the same schedule the server enforces, so a
-      // closed laptop does not leave a cookie that is merely ignored.
-      { ...cookieOptions, maxAge: Math.floor(EMPLOYEE_IDLE_MS / 1000) }
+      staffCookieOptions
     );
-    return res;
+    return dropLegacyStaffCookie(res, request.cookies.get(SESSION_COOKIE)?.value);
   } catch (error) {
     console.error("employee login error", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
