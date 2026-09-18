@@ -18,6 +18,7 @@ import { countryFlagUrl } from "@/lib/countryFlag";
 import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { timeAgo } from "@/lib/relative-time";
+import { signOutThrough } from "@/lib/session-client";
 
 interface Inquiry {
   id: string; createdAt: string; customerName: string; companyName: string | null;
@@ -614,7 +615,11 @@ export function AdminConsole({ data }: Props) {
 
   const refresh = () => { setRefreshing(true); router.refresh(); setTimeout(() => setRefreshing(false), 700); };
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
+    // Through session-client, which holds the clearing header back until any
+    // keep-alive already in flight has landed — including the one this very
+    // click woke. The trailing slash matters: without it this 307s and posts
+    // twice.
+    await signOutThrough("/api/auth/logout/");
     router.push("/admin/login/");
     router.refresh();
   };

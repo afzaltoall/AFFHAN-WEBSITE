@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { armSessionKeeper, sessionRequest } from "@/lib/session-client";
 
 /**
  * Keeps the console's session alive while somebody is working, and notices when
@@ -49,15 +50,16 @@ export function AdminSessionKeeper() {
 
   useEffect(() => {
     let cancelled = false;
+    // This screen only renders for a live session, so whatever a previous one
+    // in this document did, we are not signing out now.
+    armSessionKeeper();
 
     const call = async (method: "GET" | "POST") => {
       try {
-        const res = await fetch("/api/admin/session/", {
-          method,
-          cache: "no-store",
-          credentials: "same-origin",
-        });
-        if (cancelled || res.status !== 401) return;
+        // Routed through lib/session-client so that a Sign out on this screen
+        // is never undone by the keep-alive its own click set off.
+        const res = await sessionRequest("/api/admin/session/", method);
+        if (cancelled || !res || res.status !== 401) return;
         const data = await res.json().catch(() => ({}));
         router.replace(data?.reason === "idle_expired" ? "/admin/login/?expired=1" : "/admin/login/");
       } catch {

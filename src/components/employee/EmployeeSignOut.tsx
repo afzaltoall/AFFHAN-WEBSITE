@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
+import { signOutThrough } from "@/lib/session-client";
 import { sideRow } from "@/components/employee/workspace-ui";
 
 /**
@@ -25,12 +26,11 @@ export function EmployeeSignOut({
 
   const signOut = async () => {
     setBusy(true);
-    try {
-      await fetch("/api/employee/auth/logout/", { method: "POST", credentials: "same-origin" });
-    } catch {
-      // Even if the request never lands, send them to the login page: the
-      // alternative is a button that appears to do nothing.
-    }
+    // Waits for any keep-alive already in the air, so the cookie this clears
+    // cannot be re-installed a moment later. Even if the request never lands,
+    // they are sent to the login page: the alternative is a button that
+    // appears to do nothing.
+    await signOutThrough("/api/employee/auth/logout/");
     router.replace("/employee/login/");
     router.refresh();
   };

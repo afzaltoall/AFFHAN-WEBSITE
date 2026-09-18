@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { armSessionKeeper, sessionRequest } from "@/lib/session-client";
 
 /**
  * Keeps a working session alive, and notices when it has ended.
@@ -36,17 +37,18 @@ export function EmployeeSessionKeeper() {
 
   useEffect(() => {
     let cancelled = false;
+    // This screen only renders for a live session, so whatever a previous one
+    // in this document did, we are not signing out now.
+    armSessionKeeper();
 
     // POST touches the session, GET only asks about it — so the idle poll
-    // below cannot hold a window open that nobody is working in.
+    // below cannot hold a window open that nobody is working in. Both go
+    // through lib/session-client, so a Sign out on this screen is never undone
+    // by the keep-alive its own click set off.
     const check = async (method: "GET" | "POST" = "GET") => {
       try {
-        const res = await fetch("/api/employee/auth/session/", {
-          method,
-          cache: "no-store",
-          credentials: "same-origin",
-        });
-        if (cancelled) return;
+        const res = await sessionRequest("/api/employee/auth/session/", method);
+        if (cancelled || !res) return;
         if (res.status === 401) {
           const data = await res.json().catch(() => ({}));
           const reason = data?.reason === "idle_expired" ? "expired=1" : "signedout=1";
