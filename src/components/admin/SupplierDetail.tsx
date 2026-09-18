@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
+import { useAdminDark } from "@/lib/useAdminDark";
 import Image from "next/image";
 import {
   ArrowLeft, MapPin, Package, User, Building2, Hash, Sun, Moon,
@@ -29,7 +29,8 @@ interface Props {
 }
 
 export function SupplierDetail({ supplier: s, related, relatedTerm }: Props) {
-  const [dark, setDark] = useState(false);
+  // Shared and remembered across the admin — see useAdminDark.
+  const [dark, setDark] = useAdminDark();
 
   const t = dark
     ? {
@@ -61,7 +62,7 @@ export function SupplierDetail({ supplier: s, related, relatedTerm }: Props) {
   return (
     <div className={`min-h-screen ${t.page}`} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif' }}>
       <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${t.bar}`}>
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
           <Link
             href="/admin/suppliers/"
             className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
@@ -69,7 +70,7 @@ export function SupplierDetail({ supplier: s, related, relatedTerm }: Props) {
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">All suppliers</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <p className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-tight">{title}</p>
@@ -85,7 +86,7 @@ export function SupplierDetail({ supplier: s, related, relatedTerm }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6">
+      <main className="px-4 py-6 sm:px-6 lg:px-10">
         <div className={`rounded-2xl p-5 ring-1 sm:p-6 ${t.card}`}>
           <h1 className="text-[22px] font-semibold leading-tight tracking-tight sm:text-[26px]">{title}</h1>
           {s.company && s.person && <p className={`mt-1 text-[14px] ${t.soft}`}>{s.person}</p>}

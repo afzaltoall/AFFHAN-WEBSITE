@@ -21,7 +21,7 @@ export default function SuppliersLoading() {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
+      <div className="px-4 py-6 sm:px-6 lg:px-10">
         <div className="mb-5">
           <StatRowSkeleton />
         </div>

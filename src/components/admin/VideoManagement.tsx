@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useAdminDark } from "@/lib/useAdminDark";
 import Image from "next/image";
 import {
   ArrowLeft, Plus, Trash2, Sun, Moon, PlayCircle, Loader2,
@@ -28,7 +29,8 @@ interface Props {
 }
 
 export function VideoManagement({ categories }: Props) {
-  const [dark, setDark] = useState(false);
+  // Shared and remembered across the admin — see useAdminDark.
+  const [dark, setDark] = useAdminDark();
   const [videos, setVideos] = useState<Video[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -253,15 +255,16 @@ export function VideoManagement({ categories }: Props) {
     <div style={sfFont} className={`min-h-screen ${t.page}`}>
       {/* Top bar */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${t.bar}`}>
-        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
+          {/* The rail does this from lg up; phones keep the way back. */}
           <Link
             href="/admin/"
-            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:hidden ${t.pill}`}
           >
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">Dashboard</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <div className="min-w-0 flex-1 leading-tight">
@@ -284,7 +287,7 @@ export function VideoManagement({ categories }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
+      <main className="px-4 py-6 sm:px-6 lg:px-10">
         {videos.length === 0 && !loading ? (
           <div className={`rounded-2xl px-6 py-16 text-center ring-1 ${t.card}`}>
             <PlayCircle size={32} className={`mx-auto mb-4 opacity-50 ${t.soft}`} />

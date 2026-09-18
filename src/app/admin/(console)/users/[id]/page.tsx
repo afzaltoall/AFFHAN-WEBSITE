@@ -138,7 +138,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
           scroll away. It also carries the name, so several open tabs are told
           apart without reading the card inside each. */}
       <header className="sticky top-0 z-30 border-b border-black/[0.06] bg-[#f5f5f7]/85 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-5 py-3 sm:px-8">
+        <div className="flex items-center gap-3 px-5 py-3 sm:px-8 lg:px-10">
           <Link
             href="/admin/users/"
             aria-label="Back to customers"
@@ -165,7 +165,7 @@ export default function CustomerDetailPage({ params }: { params: Promise<{ id: s
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-5 py-6 sm:px-8 xl:flex-row xl:items-start">
+      <div className="flex flex-col gap-4 px-5 py-6 sm:px-8 lg:px-10 xl:flex-row xl:items-start">
         {/* Who they are, and the numbers. Neither changes as you read down the
             history, so on a wide screen both stay in view. */}
         <aside className="flex flex-col gap-4 xl:sticky xl:top-[73px] xl:w-[340px] xl:shrink-0">

@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
+import { formatDateTime } from "@/lib/datetime";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { OUTCOME_ORDER, outcomeMeta, outcomeOf, type LeadOutcomeKey } from "@/lib/leadStatus";
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
@@ -333,7 +334,7 @@ function LeadRow({ lead, outcome, onOpen }: { lead: LeadCardData; outcome: LeadO
             <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
             {meta.label}
           </span>
-          <span className={`w-20 text-right text-[12px] ${wt.soft}`} title={new Date(lead.createdAt).toLocaleString("en-GB")}>
+          <span className={`w-20 text-right text-[12px] ${wt.soft}`} title={formatDateTime(lead.createdAt)}>
             {timeAgo(lead.createdAt)}
           </span>
           <ChevronRight className={`hidden h-4 w-4 sm:block ${wt.soft}`} />

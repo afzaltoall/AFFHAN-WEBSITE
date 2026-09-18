@@ -117,12 +117,13 @@ export function MobileInquiriesConsole() {
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
+      <div className="px-5 py-8 sm:px-8 lg:px-10">
         <div className="mb-6 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <Link
               href="/admin/"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
+              aria-label="Back to the dashboard"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] lg:hidden"
             >
               <ArrowLeft size={16} />
             </Link>

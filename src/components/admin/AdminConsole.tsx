@@ -18,8 +18,10 @@ import { countryFlagUrl } from "@/lib/countryFlag";
 import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { timeAgo } from "@/lib/relative-time";
+import { formatDateTime } from "@/lib/datetime";
 import { signOutThrough } from "@/lib/session-client";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
+import { useAdminDark } from "@/lib/useAdminDark";
 
 interface Inquiry {
   id: string; createdAt: string; customerName: string; companyName: string | null;
@@ -274,7 +276,8 @@ export function AdminConsole({ data }: Props) {
   const [customerStageFilter, setCustomerStageFilter] = useState<CustomerStatus | null>(null);
   /** Country the inquiries list is narrowed to, or null for all. */
   const [countryFilter, setCountryFilter] = useState<string | null>(null);
-  const [dark, setDark] = useState(false);
+  // Shared and remembered across the admin — see useAdminDark.
+  const [dark, setDark] = useAdminDark();
   const [activeInquiry, setActiveInquiry] = useState<Inquiry | null>(null);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
   // Local copy so the checklist toggle / delete reflect instantly, re-synced
@@ -347,6 +350,9 @@ export function AdminConsole({ data }: Props) {
 
   /**
    * Open the lead a link named: /admin/?inquiry=<id> or ?contact=<id>.
+   * Or just a view: /admin/?view=inquiries | contacts | trash — the rail on
+   * every other admin page links to these, since here they are state rather
+   * than routes.
    *
    * The activity feed and an employee's own history point at rows that live
    * inside this console rather than on pages of their own, so "which lead was
@@ -358,7 +364,12 @@ export function AdminConsole({ data }: Props) {
     const params = new URLSearchParams(window.location.search);
     const inquiryId = params.get("inquiry");
     const contactId = params.get("contact");
-    if (!inquiryId && !contactId) return;
+    const viewParam = params.get("view");
+    if (!inquiryId && !contactId && !viewParam) return;
+
+    if (viewParam === "all" || viewParam === "inquiries" || viewParam === "contacts" || viewParam === "trash") {
+      setView(viewParam);
+    }
 
     if (inquiryId) {
       const row = [...data.inquiries, ...data.deletedInquiries].find((i) => i.id === inquiryId);
@@ -2555,7 +2566,7 @@ function OutcomeChip({ value }: { value: LeadOutcome | null }) {
   const who = value.by.split(" ")[0];
   return (
     <span
-      title={`${leadStatusLabel(value.status)} — ${value.by}, ${new Date(value.at).toLocaleString("en-GB")}${value.note ? `\n\n${value.note}` : ""}`}
+      title={`${leadStatusLabel(value.status)} — ${value.by}, ${formatDateTime(value.at)}${value.note ? `\n\n${value.note}` : ""}`}
       className={`inline-flex max-w-[13rem] items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${leadStatusChip(value.status)}`}
     >
       <span className="truncate">{leadStatusLabel(value.status)}</span>
