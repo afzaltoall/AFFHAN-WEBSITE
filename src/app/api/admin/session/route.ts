@@ -19,6 +19,10 @@ export const dynamic = "force-dynamic";
  * Neither can buy extra time. The answer is computed from the timestamp the
  * server signed, so a page that keeps posting past the window is told the
  * session is over rather than granted a new one.
+ *
+ * `remainingMs` is a duration, not a timestamp, on purpose: the page counts
+ * down from the moment it receives it, so a PC whose clock is minutes out
+ * cannot make the warning appear early, late, or never.
  */
 export async function GET() {
   const auth = await readAdminSession();
@@ -28,6 +32,7 @@ export async function GET() {
   return NextResponse.json({
     admin: { id: auth.user.id, email: auth.user.email, name: auth.user.name },
     idleTimeoutMs: ADMIN_IDLE_MS,
+    remainingMs: Math.max(0, auth.issuedAt + ADMIN_IDLE_MS - Date.now()),
   });
 }
 
@@ -36,5 +41,8 @@ export async function POST() {
   if (!auth.ok) {
     return NextResponse.json({ error: "Not signed in", reason: auth.reason }, { status: 401 });
   }
-  return refreshAdminCookie(NextResponse.json({ ok: true, idleTimeoutMs: ADMIN_IDLE_MS }), auth.user);
+  return refreshAdminCookie(
+    NextResponse.json({ ok: true, idleTimeoutMs: ADMIN_IDLE_MS, remainingMs: ADMIN_IDLE_MS }),
+    auth.user
+  );
 }

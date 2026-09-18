@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { loginRedirectFor, readWorkspaceAuth } from "@/lib/employee-session";
-import { EmployeeSessionKeeper } from "@/components/employee/EmployeeSessionKeeper";
+import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { WorkspaceSidebar } from "@/components/employee/WorkspaceSidebar";
 import { sfFont, wt } from "@/components/employee/workspace-ui";
@@ -54,7 +54,7 @@ export default async function EmployeeWorkspaceLayout({
     <div style={sfFont} className={`min-h-screen antialiased ${wt.page}`}>
       {/* Only a real employee session slides its own window; an admin keeps the
           console's session rules. */}
-      {auth.kind === "employee" && <EmployeeSessionKeeper />}
+      {auth.kind === "employee" && <SessionKeeper role="staff" />}
 
       <div className="flex">
         <WorkspaceSidebar name={who.name} detail={who.detail} image={who.image} />
@@ -80,6 +80,15 @@ export default async function EmployeeWorkspaceLayout({
                 <EmployeeSignOut />
               </div>
             </div>
+            {/* The rail's two destinations, for the screens the rail is not on. */}
+            <nav className="flex gap-1 px-4 pb-2 sm:px-6">
+              <Link href="/employee/dashboard/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
+                My leads
+              </Link>
+              <Link href="/employee/profile/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
+                Profile
+              </Link>
+            </nav>
           </header>
 
           {/* The console's own main: no max-width, because the width is already

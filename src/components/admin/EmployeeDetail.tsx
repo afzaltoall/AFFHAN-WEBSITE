@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { EmployeeForm, type EmployeeRow } from "@/components/admin/EmployeeForm";
+import { LiveRefresh } from "@/components/ui/LiveRefresh";
 
 const sfFont = {
   fontFamily:
@@ -43,10 +44,13 @@ export function EmployeeDetail({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [row, setRow] = useState(employee);
+  // The page refreshes itself (LiveRefresh below); keep the header's facts —
+  // last sign-in above all — in step with what the server now says.
+  useEffect(() => setRow(employee), [employee]);
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8">
+      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/admin/employees/"
@@ -58,9 +62,12 @@ export function EmployeeDetail({
             <h1 className="truncate text-2xl font-semibold tracking-tight">{row.name}</h1>
             <p className="text-[13px] text-[#86868b]">{row.email}</p>
           </div>
+          <div className="ml-auto hidden md:block">
+            <LiveRefresh intervalMs={30_000} />
+          </div>
           <button
             onClick={() => setEditing((v) => !v)}
-            className="ml-auto flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-[13px] font-semibold shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
+            className="flex shrink-0 items-center gap-2 rounded-full bg-white px-4 py-2 text-[13px] font-semibold shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
           >
             <Pencil size={14} />
             {editing ? "Close" : "Edit"}

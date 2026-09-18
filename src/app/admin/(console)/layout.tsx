@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
-import { AdminSessionKeeper } from "@/components/admin/AdminSessionKeeper";
+import { SessionKeeper } from "@/components/session/SessionKeeper";
 
 /**
  * The console's defaults, so a new admin route is noindex and named without
@@ -50,9 +50,10 @@ export const metadata: Metadata = {
  *    other, so the role check below is for the case that could actually
  *    happen — an admin-area account whose role is not admin.
  *
- * 2. AdminSessionKeeper, which holds the session open while somebody is
- *    working and sends them to the login page once the thirty-minute window
- *    has closed. It ends nothing itself — the timeout is enforced in
+ * 2. SessionKeeper, which holds the session open while somebody is working,
+ *    warns two minutes before the thirty-minute window closes, keeps every
+ *    console tab in step, and sends the admin to the login page once it has
+ *    closed. It ends nothing itself — the timeout is enforced in
  *    lib/session.ts, on the server, against the timestamp the server signed.
  *
  *    Its predecessor, AdminAutoLogout, did end the session, from `pagehide`
@@ -74,7 +75,7 @@ export default async function AdminConsoleLayout({ children }: { children: React
 
   return (
     <>
-      <AdminSessionKeeper />
+      <SessionKeeper role="admin" />
       {children}
     </>
   );

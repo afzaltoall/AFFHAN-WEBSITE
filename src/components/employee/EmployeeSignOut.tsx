@@ -30,7 +30,7 @@ export function EmployeeSignOut({
     // cannot be re-installed a moment later. Even if the request never lands,
     // they are sent to the login page: the alternative is a button that
     // appears to do nothing.
-    await signOutThrough("/api/employee/auth/logout/");
+    await signOutThrough("/api/employee/auth/logout/", "staff");
     router.replace("/employee/login/");
     router.refresh();
   };

@@ -1,10 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { EMPLOYEE_IDLE_MS, readWorkspaceAuth } from "@/lib/employee-session";
-import { type LeadCardData, type LeadUpdate } from "@/components/employee/EmployeeLeadCard";
+import type { LeadCardData, LeadUpdate } from "@/components/employee/lead-types";
 import { EmployeeLeadBoard } from "@/components/employee/EmployeeLeadBoard";
 import { wt } from "@/components/employee/workspace-ui";
 
 export const dynamic = "force-dynamic";
+
+/**
+ * The product's photographs, main one first and each once. allImages is JSON and
+ * read defensively, as the product page reads it: an array of URL strings, or
+ * nothing usable.
+ */
+function galleryOf(main: string | null, allImages: unknown): string[] {
+  const rest = Array.isArray(allImages)
+    ? allImages.filter((x): x is string => typeof x === "string" && x.length > 0)
+    : [];
+  return [...new Set([...(main ? [main] : []), ...rest])];
+}
 
 /**
  * A member of staff's own work.
@@ -35,10 +47,11 @@ export default async function EmployeeDashboardPage() {
           select: {
             id: true, createdAt: true, customerName: true, companyName: true, email: true,
             phone: true, country: true, productName: true, quantity: true, message: true,
-            // Only the image comes off the relation: `include: { product: true }`
-            // would fetch every Product column for each row, as the console
-            // once did.
-            product: { select: { imageUrl: true } },
+            // Only the photographs come off the relation: `include: { product:
+            // true }` would fetch every Product column for each row, as the
+            // console once did. productId is for the link to its page.
+            productId: true,
+            product: { select: { imageUrl: true, allImages: true } },
           },
         }),
         prisma.contactMessage.findMany({
@@ -93,6 +106,8 @@ export default async function EmployeeDashboardPage() {
     createdAt: i.createdAt.toISOString(),
     title: i.productName,
     image: i.product?.imageUrl ?? null,
+    images: galleryOf(i.product?.imageUrl ?? null, i.product?.allImages),
+    productId: i.product ? i.productId : null,
     customerName: i.customerName,
     companyName: i.companyName,
     country: i.country,
@@ -109,6 +124,8 @@ export default async function EmployeeDashboardPage() {
     createdAt: c.createdAt.toISOString(),
     title: c.fullName,
     image: null,
+    images: [],
+    productId: null,
     customerName: c.fullName,
     companyName: c.companyName,
     country: c.country,
@@ -119,7 +136,6 @@ export default async function EmployeeDashboardPage() {
     updates: trail.get(`contact:${c.id}`) ?? [],
   }));
 
-  const firstName = auth.kind === "employee" ? auth.employee.name.split(" ")[0] : null;
   const minutes = Math.round(EMPLOYEE_IDLE_MS / 60000);
 
   return (
@@ -127,7 +143,12 @@ export default async function EmployeeDashboardPage() {
       {auth.kind === "employee" ? (
         // Searching and filtering are the client's job; everything above is
         // already fetched, so narrowing it costs no round trip.
-        <EmployeeLeadBoard leads={[...inquiryCards, ...contactCards]} firstName={firstName} />
+        <EmployeeLeadBoard
+          leads={[...inquiryCards, ...contactCards].sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )}
+          name={auth.employee.name}
+        />
       ) : (
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Staff workspace</h1>

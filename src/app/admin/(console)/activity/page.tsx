@@ -1,11 +1,13 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { timeAgo } from "@/lib/relative-time";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { getCdnUrl } from "@/lib/cdn";
+import { LiveRefresh } from "@/components/ui/LiveRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,11 @@ const sfFont = {
  * customer converted two hours ago without opening Karan's page, and without
  * taking anyone's word for it. It reads the same append-only rows the employee
  * wrote, so there is one version of events rather than a summary of one.
+ *
+ * Each row is one link, to the lead itself in the console — the whole card, not
+ * just the name in it, which is what made the feed feel unclickable. The staff
+ * member's name inside stays its own link (to their page), lifted above the
+ * row's so the two never nest. The page refreshes itself while it is open.
  */
 export default async function ActivityPage({
   searchParams,
@@ -52,7 +59,9 @@ export default async function ActivityPage({
         note: true,
         createdAt: true,
         employee: { select: { id: true, name: true, image: true, region: true } },
-        inquiry: { select: { id: true, customerName: true, productName: true, country: true } },
+        inquiry: {
+          select: { id: true, customerName: true, productName: true, country: true, product: { select: { imageUrl: true } } },
+        },
         contact: { select: { id: true, fullName: true, companyName: true, country: true } },
       },
     }),
@@ -62,7 +71,7 @@ export default async function ActivityPage({
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8">
+      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-8">
         <div className="mb-6 flex items-center gap-4">
           <Link
             href="/admin/"
@@ -70,7 +79,7 @@ export default async function ActivityPage({
           >
             <ArrowLeft size={16} />
           </Link>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">Activity</h1>
             <p className="text-[13px] text-[#86868b]">
               {total === 0
@@ -78,6 +87,7 @@ export default async function ActivityPage({
                 : `${total} ${total === 1 ? "update" : "updates"} recorded · newest first`}
             </p>
           </div>
+          <LiveRefresh intervalMs={30_000} />
         </div>
 
         {rows.length === 0 ? (
@@ -89,12 +99,13 @@ export default async function ActivityPage({
             {rows.map((r) => {
               const who = r.employee.name;
               const lead = r.inquiry
-                ? { name: r.inquiry.customerName, detail: r.inquiry.productName, href: `/admin/?inquiry=${r.inquiry.id}`, country: r.inquiry.country }
+                ? { name: r.inquiry.customerName, detail: r.inquiry.productName, href: `/admin/?inquiry=${r.inquiry.id}`, country: r.inquiry.country, image: r.inquiry.product?.imageUrl ?? null }
                 : r.contact
-                  ? { name: r.contact.fullName, detail: r.contact.companyName ?? "Contact message", href: `/admin/?contact=${r.contact.id}`, country: r.contact.country }
+                  ? { name: r.contact.fullName, detail: r.contact.companyName ?? "Contact message", href: `/admin/?contact=${r.contact.id}`, country: r.contact.country, image: null }
                   : null;
+              const thumb = lead?.image ? getCdnUrl(lead.image, 128) : null;
               return (
-                <li key={r.id} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.04]">
+                <li key={r.id} className="group relative rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.04] transition-shadow hover:shadow-md">
                   <div className="flex items-start gap-3">
                     {r.employee.image ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -106,12 +117,12 @@ export default async function ActivityPage({
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="text-[13.5px] leading-snug">
-                        <Link href={`/admin/employees/${r.employee.id}/`} className="font-semibold hover:underline">
+                        <Link href={`/admin/employees/${r.employee.id}/`} className="relative z-10 font-semibold hover:underline">
                           {who}
                         </Link>{" "}
                         marked{" "}
                         {lead ? (
-                          <Link href={lead.href} className="font-semibold hover:underline">
+                          <Link href={lead.href} className="font-semibold after:absolute after:inset-0 after:rounded-2xl after:content-[''] group-hover:underline">
                             {lead.name}
                           </Link>
                         ) : (
@@ -133,6 +144,19 @@ export default async function ActivityPage({
                         </p>
                       )}
                     </div>
+                    {lead && (
+                      <div className="flex shrink-0 items-center gap-2">
+                        {thumb ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={thumb} alt="" className="h-12 w-12 rounded-xl bg-[#f5f5f7] object-cover ring-1 ring-black/[0.06]" />
+                        ) : r.contact ? (
+                          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f5f5f7] text-[#86868b]">
+                            <MessageSquare className="h-5 w-5" />
+                          </span>
+                        ) : null}
+                        <ChevronRight className="hidden h-4 w-4 text-[#86868b] sm:block" />
+                      </div>
+                    )}
                   </div>
                 </li>
               );

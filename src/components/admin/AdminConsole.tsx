@@ -19,6 +19,7 @@ import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/cu
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { timeAgo } from "@/lib/relative-time";
 import { signOutThrough } from "@/lib/session-client";
+import { useLiveRefresh } from "@/lib/useLiveRefresh";
 
 interface Inquiry {
   id: string; createdAt: string; customerName: string; companyName: string | null;
@@ -273,7 +274,6 @@ export function AdminConsole({ data }: Props) {
   const [customerStageFilter, setCustomerStageFilter] = useState<CustomerStatus | null>(null);
   /** Country the inquiries list is narrowed to, or null for all. */
   const [countryFilter, setCountryFilter] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [dark, setDark] = useState(false);
   const [activeInquiry, setActiveInquiry] = useState<Inquiry | null>(null);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
@@ -391,6 +391,7 @@ export function AdminConsole({ data }: Props) {
     setContactBusy(true);
     try {
       await adminWrite("/api/admin/contact/", { ids, action: "assign", assignedToId });
+      router.refresh();
     } catch (e) {
       setContactItems(prevA); setContactDeleted(prevD);
       window.alert(e instanceof Error ? e.message : "Could not assign.");
@@ -524,6 +525,7 @@ export function AdminConsole({ data }: Props) {
     setBulkBusy(true);
     try {
       await adminWrite(`/api/admin/inquiry/`, { ids, action: "assign", assignedToId });
+      router.refresh();
     } catch (e) {
       setItems(prevA); setDeletedItems(prevD);
       window.alert(e instanceof Error ? e.message : "Could not assign.");
@@ -613,13 +615,17 @@ export function AdminConsole({ data }: Props) {
     });
   };
 
-  const refresh = () => { setRefreshing(true); router.refresh(); setTimeout(() => setRefreshing(false), 700); };
+  // Every minute while the tab is in view, and at once on coming back to it:
+  // new inquiries and the staff's recorded outcomes arrive without anybody
+  // reloading — and reloading is no longer a thing that signs anyone out.
+  // The spinner is the real refresh now, not a fixed 700ms.
+  const { refresh, refreshing, updatedAt } = useLiveRefresh(60_000);
   const logout = async () => {
     // Through session-client, which holds the clearing header back until any
     // keep-alive already in flight has landed — including the one this very
     // click woke. The trailing slash matters: without it this 307s and posts
     // twice.
-    await signOutThrough("/api/auth/logout/");
+    await signOutThrough("/api/auth/logout/", "admin");
     router.push("/admin/login/");
     router.refresh();
   };
@@ -1180,7 +1186,10 @@ export function AdminConsole({ data }: Props) {
               <button onClick={() => setDark((d) => !d)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors lg:hidden ${t.pill}`}>
                 {dark ? <Sun size={15} /> : <Moon size={15} />}<span className="hidden sm:inline">{dark ? "Light" : "Dark"}</span>
               </button>
-              <button onClick={refresh} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors ${t.pill}`}>
+              <span className={`hidden text-[12px] md:inline ${t.soft}`} aria-live="polite">
+                {refreshing ? "Updating…" : `Updated ${timeAgo(new Date(updatedAt))}`}
+              </span>
+              <button onClick={refresh} disabled={refreshing} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors ${t.pill}`}>
                 <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> <span className="hidden sm:inline">Refresh</span>
               </button>
               <button onClick={logout} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-3.5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-red-600 lg:hidden">
@@ -1360,12 +1369,9 @@ export function AdminConsole({ data }: Props) {
                     countryFilter={countryFilter}
                     setCountryFilter={setCountryFilter}
                     countryOptions={data.inquiryCountries}
-                    assigneeFilter={assigneeFilter}
-                    setAssigneeFilter={setAssigneeFilter}
-                    assigneeOptions={inquiryAssigneeOptions}
                     extraActive={groupByCustomer}
                     summarySuffix={groupByCustomer ? " · grouped" : ""}
-                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setGroupByCustomer(false); }}
+                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setGroupByCustomer(false); }}
                     viewSection={
                       <button
                         role="menuitemcheckbox"
@@ -1379,6 +1385,21 @@ export function AdminConsole({ data }: Props) {
                         {groupByCustomer && <Check className="h-3.5 w-3.5 shrink-0" />}
                       </button>
                     }
+                  />
+                )}
+                {/* Assignment on its own button, outside the Filter — see
+                    AssignMenu. Grouped rows cannot be ticked, so it only
+                    filters while the list is grouped. */}
+                {view === "inquiries" && (
+                  <AssignMenu
+                    t={t}
+                    employees={data.employees}
+                    options={inquiryAssigneeOptions}
+                    filter={assigneeFilter}
+                    setFilter={setAssigneeFilter}
+                    selectedCount={groupByCustomer ? 0 : selected.size}
+                    onAssignSelected={(employeeId) => void assignInquiries([...selected], employeeId)}
+                    busy={bulkBusy}
                   />
                 )}
                 <div className={`flex flex-wrap items-center gap-2 ${view === "inquiries" ? "" : "sm:ml-auto"}`}>
@@ -1512,17 +1533,6 @@ export function AdminConsole({ data }: Props) {
                       <div className="ml-auto flex flex-wrap items-center gap-2">
                         {view === "inquiries" ? (
                           <>
-                            {/* Assignment sits first: handing work over is the
-                                reason a row gets ticked more often than triage
-                                is, now that there is somebody to hand it to. */}
-                            <AssigneePicker
-                              t={t}
-                              employees={data.employees}
-                              value={null}
-                              onChange={(employeeId) => void assignInquiries([...selected], employeeId)}
-                              busy={bulkBusy}
-                              label={`Assign ${selected.size} selected`}
-                            />
                             {(["new", "handled", "spam"] as Status[]).map((s) => (
                               <button key={s} onClick={() => statusSelected(s)} disabled={bulkBusy}
                                 className={`inline-flex items-center rounded-full px-3 py-2 text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-60 ${STATUS_META[s].chip}`}>
@@ -2580,6 +2590,209 @@ function FilterPill({
 }
 
 /**
+ * Assignment, as a button of its own on the toolbar.
+ *
+ * It lived inside Filter as an "Assigned to" section, which answered only half
+ * the question and hid it behind a second click: you could see who held what,
+ * but handing work over meant ticking rows and finding a picker in a bar that
+ * only appeared once you had. Asked for outside the Filter, where it can be
+ * reached at once — so it is one button with the two jobs, each titled:
+ *
+ *   - Assign N selected to…  — the rows ticked in the list go to whoever is
+ *     picked, straight away. With nothing ticked the section says how to use it
+ *     rather than disappearing, so the button never looks broken.
+ *   - Show leads for…        — the list narrowed to one person, or to what
+ *     nobody has picked up yet, with the counts.
+ *
+ * The trigger says which state it is in: "Assign 3 selected" while rows are
+ * ticked, the person's name while the list is narrowed to them, else "Assign".
+ * The panel is portalled and clamped to the viewport, as FilterMenu's is, for
+ * the same reason: the toolbar sits in an overflow-hidden card.
+ */
+function AssignMenu({
+  t, employees, options, filter, setFilter, selectedCount, onAssignSelected, busy = false,
+}: {
+  t: Theme;
+  employees: EmployeeOption[];
+  options: { unassigned: number; rows: (EmployeeOption & { count: number })[] };
+  /** null is everyone, UNASSIGNED is nobody yet, otherwise an employee id. */
+  filter: string | null;
+  setFilter: (v: string | null) => void;
+  selectedCount: number;
+  onAssignSelected: (employeeId: string | null) => void;
+  busy?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const ref = useRef<HTMLDivElement | null>(null);
+  const btnRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
+
+  useEffect(() => { if (!open) setQuery(""); }, [open]);
+
+  useIsomorphicLayoutEffect(() => {
+    if (!open) { setPos(null); return; }
+    const place = () => {
+      const b = btnRef.current?.getBoundingClientRect();
+      if (!b) return;
+      const M = 8;
+      const vw = document.documentElement.clientWidth;
+      const vh = window.innerHeight;
+      const width = Math.min(300, vw - M * 2);
+      const left = Math.max(M, Math.min(b.right - width, vw - width - M));
+      const below = vh - b.bottom - M * 2;
+      const above = b.top - M * 2;
+      const flip = below < 260 && above > below;
+      setPos(flip
+        ? { left, width, bottom: vh - b.top + M, maxHeight: above }
+        : { left, width, top: b.bottom + M, maxHeight: below });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => {
+      window.removeEventListener("scroll", place, true);
+      window.removeEventListener("resize", place);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || panelRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  const term = query.trim().toLowerCase();
+  const people = term
+    ? employees.filter((e) => `${e.name} ${e.region ?? ""}`.toLowerCase().includes(term))
+    : employees;
+  const countFor = (id: string) => options.rows.find((r) => r.id === id)?.count ?? 0;
+  const filterName =
+    filter === UNASSIGNED ? "Unassigned" : filter ? options.rows.find((e) => e.id === filter)?.name ?? "Someone" : null;
+
+  const row = (on: boolean) =>
+    `flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${
+      on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`
+    }`;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        ref={btnRef}
+        onClick={() => setOpen((o) => !o)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        disabled={busy}
+        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors disabled:opacity-60 ${
+          selectedCount > 0 || filter ? "bg-brand-dark text-white ring-transparent" : t.pill
+        }`}
+      >
+        {busy ? <Loader2 size={15} className="animate-spin" /> : <UserCog size={15} />}
+        {selectedCount > 0 ? `Assign ${selectedCount} selected` : filterName ? `Assigned: ${filterName}` : "Assign"}
+        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && pos && createPortal(
+        <div
+          ref={panelRef}
+          role="menu"
+          style={{
+            position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width,
+            maxHeight: pos.maxHeight, overflowY: "auto",
+          }}
+          className={`z-[200] overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}
+        >
+          <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
+            {selectedCount > 0 ? `Assign ${selectedCount} selected to` : "Assign to"}
+          </p>
+          {selectedCount === 0 ? (
+            <p className={`px-2.5 pb-2 text-[12.5px] leading-snug ${t.soft}`}>
+              Tick leads in the list, then pick who takes them here. Each row also has its own picker.
+            </p>
+          ) : (
+            <>
+              {employees.length > 6 && (
+                <div className="px-1 pb-1">
+                  <div className="relative">
+                    <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${t.soft}`} />
+                    <input
+                      value={query}
+                      onChange={(e) => setQuery(e.target.value)}
+                      placeholder="Search staff…"
+                      aria-label="Search staff"
+                      autoFocus
+                      className={`w-full rounded-xl py-1.5 pl-8 pr-2.5 text-[13px] font-medium outline-none ring-1 ring-transparent focus:ring-brand/40 ${t.input}`}
+                    />
+                  </div>
+                </div>
+              )}
+              {people.map((e) => (
+                <button key={e.id} role="menuitem" onClick={() => { onAssignSelected(e.id); setOpen(false); }} className={row(false)}>
+                  <Avatar name={e.name} image={e.image} size={20} />
+                  <span className="flex-1 truncate">
+                    {e.name}
+                    {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
+                  </span>
+                </button>
+              ))}
+              {people.length === 0 && (
+                <p className={`px-2.5 py-2 text-[12.5px] ${t.soft}`}>{employees.length ? "Nobody matches." : "No active staff yet."}</p>
+              )}
+              <button role="menuitem" onClick={() => { onAssignSelected(null); setOpen(false); }} className={`${row(false)} text-red-600`}>
+                <X className="h-4 w-4 shrink-0" />
+                <span className="flex-1">Unassign</span>
+              </button>
+            </>
+          )}
+
+          <div className={`my-1.5 border-t ${t.border}`} />
+
+          <p className={`px-2.5 pb-1 pt-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Show leads for</p>
+          <button role="menuitemradio" aria-checked={!filter} onClick={() => { setFilter(null); setOpen(false); }} className={row(!filter)}>
+            <span className={`h-2 w-2 shrink-0 rounded-full ${!filter ? "bg-brand" : "bg-slate-300"}`} />
+            <span className="flex-1">Anyone</span>
+            {!filter && <Check className="h-3.5 w-3.5 shrink-0" />}
+          </button>
+          {/* The Monday-morning question: what has nobody picked up. */}
+          <button role="menuitemradio" aria-checked={filter === UNASSIGNED} onClick={() => { setFilter(filter === UNASSIGNED ? null : UNASSIGNED); setOpen(false); }} className={row(filter === UNASSIGNED)}>
+            <span className={`h-2 w-2 shrink-0 rounded-full ${filter === UNASSIGNED ? "bg-brand" : "bg-slate-300"}`} />
+            <span className="flex-1">Unassigned</span>
+            <span className={`text-[12px] font-bold tabular-nums ${filter === UNASSIGNED ? "text-brand-dark" : t.soft}`}>{options.unassigned}</span>
+            {filter === UNASSIGNED && <Check className="h-3.5 w-3.5 shrink-0" />}
+          </button>
+          {options.rows.map((e) => {
+            const on = filter === e.id;
+            return (
+              <button key={e.id} role="menuitemradio" aria-checked={on} onClick={() => { setFilter(on ? null : e.id); setOpen(false); }} className={row(on)}>
+                <Avatar name={e.name} image={e.image} size={20} />
+                <span className="flex-1 truncate">
+                  {e.name}
+                  {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
+                </span>
+                <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{countFor(e.id)}</span>
+                {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+/**
  * A filter whose options are too many to lay out flat: the row shows what is
  * currently chosen, and opens the list in place when you want to change it.
  */
@@ -2605,7 +2818,6 @@ function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
   companyFilter, setCompanyFilter, withCompanyCount = 0,
   countryFilter = null, setCountryFilter, countryOptions = [],
-  assigneeFilter = null, setAssigneeFilter, assigneeOptions,
   viewSection, extraActive = false, summarySuffix = "", onClear,
 }: {
   t: Theme;
@@ -2621,11 +2833,6 @@ function FilterMenu({
   setCountryFilter?: (v: string | null) => void;
   /** Distinct countries with row counts. Empty hides the section. */
   countryOptions?: CountryOption[];
-  /** null is everyone, UNASSIGNED is nobody yet, otherwise an employee id. */
-  assigneeFilter?: string | null;
-  setAssigneeFilter?: (v: string | null) => void;
-  /** Staff with their row counts, plus how many rows nobody holds. */
-  assigneeOptions?: { unassigned: number; rows: (EmployeeOption & { count: number })[] };
   /** Optional rows under a "View" heading — grouping, on the inquiries list. */
   viewSection?: React.ReactNode;
   /** Whether anything in `viewSection` is currently on. */
@@ -2637,7 +2844,7 @@ function FilterMenu({
   const ref = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || Boolean(assigneeFilter) || extraActive;
+  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || extraActive;
 
   // The country search box. Local to the panel and cleared when it closes, so
   // reopening always shows the whole list rather than yesterday's query.
@@ -2648,7 +2855,7 @@ function FilterMenu({
    * One at a time, deliberately: both open at once is how the panel ended up
    * taller than the screen, with a scroll area nested inside another one.
    */
-  const [section, setSection] = useState<null | "assignee" | "country">(null);
+  const [section, setSection] = useState<null | "country">(null);
   useEffect(() => { if (!open) { setCountryQuery(""); setSection(null); } }, [open]);
   const shownCountries = useMemo(() => {
     const term = countryQuery.trim().toLowerCase();
@@ -2807,77 +3014,9 @@ function FilterMenu({
           {/* The two that grow. Each opens in place, and opening one closes the
               other, so the panel's height stays put however many people are on
               the team or countries have written in. */}
-          {(assigneeOptions && setAssigneeFilter) || (countryOptions.length > 0 && setCountryFilter) ? (
+          {countryOptions.length > 0 && setCountryFilter ? (
             <div className={`my-1 border-t ${t.border}`} />
           ) : null}
-
-          {assigneeOptions && setAssigneeFilter && (
-            <>
-              <FilterRow
-                t={t}
-                label="Assigned to"
-                value={
-                  !assigneeFilter
-                    ? "Anyone"
-                    : assigneeFilter === UNASSIGNED
-                      ? `Unassigned · ${assigneeOptions.unassigned}`
-                      : assigneeOptions.rows.find((e) => e.id === assigneeFilter)?.name ?? "Someone"
-                }
-                active={Boolean(assigneeFilter)}
-                open={section === "assignee"}
-                onToggle={() => setSection((cur) => (cur === "assignee" ? null : "assignee"))}
-              />
-              {section === "assignee" && (
-                <div className="overflow-y-auto pb-1" style={{ maxHeight: listMax }}>
-                  <button
-                    role="menuitemradio"
-                    aria-checked={!assigneeFilter}
-                    onClick={() => { setAssigneeFilter(null); setOpen(false); }}
-                    className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${!assigneeFilter ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                  >
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${!assigneeFilter ? "bg-brand" : "bg-slate-300"}`} />
-                    <span className="flex-1">Anyone</span>
-                    {!assigneeFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
-                  </button>
-                  {/* The Monday-morning question: what has nobody picked up. */}
-                  <button
-                    role="menuitemradio"
-                    aria-checked={assigneeFilter === UNASSIGNED}
-                    onClick={() => { setAssigneeFilter(assigneeFilter === UNASSIGNED ? null : UNASSIGNED); setOpen(false); }}
-                    className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${assigneeFilter === UNASSIGNED ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                  >
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${assigneeFilter === UNASSIGNED ? "bg-brand" : "bg-slate-300"}`} />
-                    <span className="flex-1">Unassigned</span>
-                    <span className={`text-[12px] font-bold tabular-nums ${assigneeFilter === UNASSIGNED ? "text-brand-dark" : t.soft}`}>{assigneeOptions.unassigned}</span>
-                    {assigneeFilter === UNASSIGNED && <Check className="h-3.5 w-3.5 shrink-0" />}
-                  </button>
-                  {assigneeOptions.rows.map((e) => {
-                    const on = assigneeFilter === e.id;
-                    return (
-                      <button
-                        key={e.id}
-                        role="menuitemradio"
-                        aria-checked={on}
-                        onClick={() => { setAssigneeFilter(on ? null : e.id); setOpen(false); }}
-                        className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                      >
-                        <Avatar name={e.name} image={e.image} size={20} />
-                        <span className="flex-1 truncate">
-                          {e.name}
-                          {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
-                        </span>
-                        <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{e.count}</span>
-                        {on && <Check className="h-3.5 w-3.5 shrink-0" />}
-                      </button>
-                    );
-                  })}
-                  {assigneeOptions.rows.length === 0 && (
-                    <p className={`px-2.5 py-2 text-[12.5px] ${t.soft}`}>No active staff yet.</p>
-                  )}
-                </div>
-              )}
-            </>
-          )}
 
           {countryOptions.length > 0 && setCountryFilter && (
             <>
@@ -3047,10 +3186,19 @@ function ContactsSection({
             countryFilter={countryFilter}
             setCountryFilter={setCountryFilter}
             countryOptions={countryOptions}
-            assigneeFilter={assigneeFilter}
-            setAssigneeFilter={setAssigneeFilter}
-            assigneeOptions={assigneeOptions}
-            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); setAssigneeFilter(null); }}
+            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); }}
+          />
+        )}
+        {tab === "active" && (
+          <AssignMenu
+            t={t}
+            employees={employees}
+            options={assigneeOptions}
+            filter={assigneeFilter}
+            setFilter={setAssigneeFilter}
+            selectedCount={selected.size}
+            onAssignSelected={onAssignSelected}
+            busy={busy}
           />
         )}
         <div className={`flex items-center gap-2 ${tab === "active" ? "" : "sm:ml-auto"}`}>
@@ -3095,14 +3243,6 @@ function ContactsSection({
               <div className="ml-auto flex flex-wrap items-center gap-2">
                 {tab === "active" ? (
                   <>
-                    <AssigneePicker
-                      t={t}
-                      employees={employees}
-                      value={null}
-                      onChange={(employeeId) => onAssignSelected(employeeId)}
-                      busy={busy}
-                      label={`Assign ${selected.size} selected`}
-                    />
                     {(["new", "handled", "spam"] as Status[]).map((s) => (
                       <button key={s} onClick={() => onStatusSelected(s)} disabled={busy}
                         className={`inline-flex items-center rounded-full px-3 py-2 text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-60 ${STATUS_META[s].chip}`}>

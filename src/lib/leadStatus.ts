@@ -59,3 +59,47 @@ export function leadStatusChip(value: string): string {
 
 /** How long a note may be. Long enough for the story, short enough to read. */
 export const LEAD_NOTE_MAX = 1000;
+
+/**
+ * A lead nobody has written against yet.
+ *
+ * Not a status anybody records — there is no NONE row in the table — so it is
+ * computed wherever it is shown. Neutral on purpose: "nothing yet" should read
+ * as the absence of an outcome, not as a fifth one.
+ */
+export const NOT_STARTED = "NONE" as const;
+export type LeadOutcomeKey = LeadStatus | typeof NOT_STARTED;
+
+export const NOT_STARTED_META = {
+  label: "Not started",
+  hint: "Nobody has recorded anything yet",
+  chip: "bg-black/[0.05] text-[#6e6e73]",
+  dot: "bg-[#8e8e93]",
+} as const;
+
+export function outcomeMeta(key: LeadOutcomeKey) {
+  return key === NOT_STARTED ? NOT_STARTED_META : LEAD_STATUS_META[key];
+}
+
+/**
+ * The order outcomes are shown in when they sit side by side — tiles, filters,
+ * and the segments of a breakdown bar: won, open, lost, untouched.
+ *
+ * Checked with the dataviz palette validator as adjacent stacked segments: the
+ * worst colour-blind separation in this order is 8.9 (protan), and every
+ * neighbour clears the normal-vision floor. Putting "Not started" next to
+ * "In progress" failed that floor — grey beside sky blue is too close — which
+ * is why it sits last.
+ */
+export const OUTCOME_ORDER: readonly LeadOutcomeKey[] = [
+  "CONVERTED",
+  "FOLLOW_UP",
+  "IN_PROGRESS",
+  "NOT_CONVERTED",
+  NOT_STARTED,
+];
+
+/** The outcome a lead's newest update says, or NOT_STARTED. */
+export function outcomeOf(latestStatus: string | null | undefined): LeadOutcomeKey {
+  return isLeadStatus(latestStatus) ? latestStatus : NOT_STARTED;
+}
