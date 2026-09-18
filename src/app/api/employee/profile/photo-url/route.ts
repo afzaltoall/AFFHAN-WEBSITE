@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { readEmployeeAuth } from "@/lib/employee-session";
-import { createUploadTarget } from "@/lib/video-storage";
+import { createUploadTarget, storageConfigProblem } from "@/lib/video-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,9 @@ export async function POST(request: Request) {
   if (!auth.ok) {
     return NextResponse.json({ success: false, error: "Not signed in", reason: auth.reason }, { status: 401 });
   }
+
+  const problem = storageConfigProblem();
+  if (problem) return NextResponse.json({ success: false, error: problem }, { status: 503 });
 
   try {
     const { contentType } = await request.json().catch(() => ({ contentType: "" }));

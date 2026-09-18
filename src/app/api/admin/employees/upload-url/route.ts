@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/session";
-import { createUploadTarget } from "@/lib/video-storage";
+import { createUploadTarget, storageConfigProblem } from "@/lib/video-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +17,9 @@ export async function POST(request: Request) {
   if (!admin || admin.role !== "admin") {
     return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
   }
+
+  const problem = storageConfigProblem();
+  if (problem) return NextResponse.json({ success: false, error: problem }, { status: 503 });
 
   try {
     const { contentType } = await request.json().catch(() => ({ contentType: "" }));
