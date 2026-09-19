@@ -11,7 +11,7 @@ import { checkPasswordStrength } from "@/lib/password-rules";
 import { preparePhoto } from "@/lib/prepare-photo";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import {
-  OUTCOME_ORDER, leadStatusChip, leadStatusLabel, outcomeMeta, type LeadOutcomeKey,
+  INVALID, OUTCOME_ORDER, leadStatusChip, leadStatusLabel, outcomeMeta, showsTimeToStaff, type LeadOutcomeKey,
 } from "@/lib/leadStatus";
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
@@ -63,9 +63,9 @@ export function EmployeeProfile({
   idleMinutes: number;
 }) {
   const { refresh, refreshing, updatedAt } = useLiveRefresh(60_000);
-  const converted = stats.breakdown.CONVERTED;
-  const decided = converted + stats.breakdown.NOT_CONVERTED;
-  const rate = decided > 0 ? Math.round((converted / decided) * 100) : null;
+  const won = stats.breakdown.LEAD;
+  const decided = won + stats.breakdown.NO_LEAD;
+  const rate = decided > 0 ? Math.round((won / decided) * 100) : null;
 
   return (
     <div className="space-y-6">
@@ -84,9 +84,11 @@ export function EmployeeProfile({
       <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <Stat label="Assigned to you" value={stats.assigned.toLocaleString("en-GB")}
           sub={`${stats.inquiries} quote ${stats.inquiries === 1 ? "request" : "requests"} · ${stats.contacts} ${stats.contacts === 1 ? "message" : "messages"}`} />
-        <Stat label="Converted" value={converted.toLocaleString("en-GB")} sub="by their newest outcome" />
-        <Stat label="Conversion rate" value={rate === null ? "—" : `${rate}%`}
-          sub={decided > 0 ? `${converted} of ${decided} decided ${decided === 1 ? "lead" : "leads"}` : "nothing decided yet"} />
+        {/* "Leads won", not "Leads": on a page where every row is a lead, the
+            count of the ones that became business has to say so. */}
+        <Stat label="Leads won" value={won.toLocaleString("en-GB")} sub="by their newest outcome" />
+        <Stat label="Win rate" value={rate === null ? "—" : `${rate}%`}
+          sub={decided > 0 ? `${won} of ${decided} decided ${decided === 1 ? "customer" : "customers"}` : "nothing decided yet"} />
         <Stat label="Updates recorded" value={stats.recorded.toLocaleString("en-GB")} sub="all time" />
       </div>
 
@@ -121,9 +123,14 @@ export function EmployeeProfile({
                       <p className={`truncate text-[12px] ${wt.soft}`}>{a.what}</p>
                       {a.note && <p className="mt-0.5 line-clamp-2 text-[12.5px] text-[#48484a]">{a.note}</p>}
                     </div>
-                    <span className={`shrink-0 text-[12px] ${wt.soft}`} title={formatDateTime(a.createdAt)}>
-                      {timeAgo(a.createdAt)}
-                    </span>
+                    {/* In progress carries no time on this side of the wall —
+                        leadStatus.ts says why — and no tooltip either, which
+                        would hand it back on hover. */}
+                    {showsTimeToStaff(a.status) && (
+                      <span className={`shrink-0 text-[12px] ${wt.soft}`} title={formatDateTime(a.createdAt)}>
+                        {timeAgo(a.createdAt)}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -308,8 +315,8 @@ function Identity({ profile, onChanged }: { profile: ProfileData; onChanged: () 
  *
  * A stacked bar because the question is share of a whole; kept thin (12px) and
  * split by 2px of surface rather than outlined. Order and colours are
- * OUTCOME_ORDER's, which were checked with the palette validator as adjacent
- * segments. The list beneath is the legend and the table at once: every
+ * OUTCOME_ORDER's, which were checked as adjacent segments — see the note
+ * there for what the order is protecting against. The list beneath is the legend and the table at once: every
  * segment is named there with its count and share, so nothing depends on
  * telling colours apart, and the values the bar only implies are written out.
  */
@@ -321,7 +328,13 @@ function Breakdown({ breakdown, total }: { breakdown: Record<LeadOutcomeKey, num
       </p>
     );
   }
-  const parts = OUTCOME_ORDER.map((key) => ({ key, n: breakdown[key] ?? 0 })).filter((p) => p.n > 0);
+  // The staff order, which leaves out INVALID — the system's word for a
+  // customer the whole team passed on, and the office's business rather than
+  // this person's. It is listed only in the case that should not arise: one
+  // still assigned to them, where leaving it out would make the bar disagree
+  // with the total beside it.
+  const order = OUTCOME_ORDER.filter((k) => k !== INVALID || (breakdown[INVALID] ?? 0) > 0);
+  const parts = order.map((key) => ({ key, n: breakdown[key] ?? 0 })).filter((p) => p.n > 0);
   const pct = (n: number) => `${Math.round((n / total) * 100)}%`;
 
   return (
@@ -340,7 +353,7 @@ function Breakdown({ breakdown, total }: { breakdown: Record<LeadOutcomeKey, num
         ))}
       </div>
       <ul className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
-        {OUTCOME_ORDER.map((key) => {
+        {order.map((key) => {
           const n = breakdown[key] ?? 0;
           return (
             <li key={key} className="flex items-center gap-2.5 text-[13px]">

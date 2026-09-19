@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { manualAssignCustomers } from "@/lib/lead-queue";
 import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -52,9 +53,23 @@ export async function POST(req: Request) {
       }
       const { count } = await prisma.inquiry.updateMany({
         where: { id: { in: ids as string[] } },
-        data: { assignedToId: assignedToId as string | null },
+        data: {
+          assignedToId: assignedToId as string | null,
+          // Stamped on every handover, cleared when nobody holds it: the
+          // question assignedAt answers is "how long has it been sitting with
+          // the person who has it now", which has no answer once it is back in
+          // nobody's hands.
+          assignedAt: assignedToId ? new Date() : null,
+        },
       });
-      return NextResponse.json({ ok: true, action, assignedToId, count });
+      // Assigning a customer who is going round the rotation queue is a
+      // decision about who works them, and the queue must not undo it two
+      // hours later. See lib/lead-queue.ts.
+      const released = await manualAssignCustomers({
+        leads: (ids as string[]).map((id) => ({ kind: "inquiry" as const, id })),
+        employeeId: assignedToId as string | null,
+      });
+      return NextResponse.json({ ok: true, action, assignedToId, count, released });
     }
 
     if (action === "purge") {

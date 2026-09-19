@@ -87,6 +87,18 @@ export default async function EmployeeDashboardPage() {
 
   const trail = new Map<string, LeadUpdate[]>();
   for (const u of updates) {
+    // Somebody else's "Not attended" is not this person's business.
+    //
+    // A customer reaches a second salesperson because the first could not take
+    // them on, and the whole point is that the second gets an ordinary lead —
+    // not one carrying "two people passed on this" at the top of it, which
+    // tells them what to think before they dial. It is dropped here, at the
+    // source, so nothing downstream can show it: not the trail, not the chip
+    // on the row, not the tiles, which all derive from these rows. Their own
+    // entries stay — what you did yourself is not hidden from you — and the
+    // admin's views (activity feed, staff page) read the table directly and
+    // see every one of them.
+    if (u.status === "NOT_ATTENDED" && u.employee.id !== employeeId) continue;
     const key = `${u.inquiryId ? "inquiry" : "contact"}:${u.inquiryId ?? u.contactId}`;
     const row: LeadUpdate = {
       id: u.id,

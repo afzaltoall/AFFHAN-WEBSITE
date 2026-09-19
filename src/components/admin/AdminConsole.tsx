@@ -3,22 +3,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
+import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
+import type { EmployeeOption, Theme } from "@/components/admin/console-theme";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
-  Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
+  Timer, Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
   MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal, UserCog, Activity,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { countryFlagUrl } from "@/lib/countryFlag";
 import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
-import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { isInProgress, leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { timeAgo } from "@/lib/relative-time";
-import { formatDateTime } from "@/lib/datetime";
+import { formatDateTime, formatSince } from "@/lib/datetime";
 import { signOutThrough } from "@/lib/session-client";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { useAdminDark } from "@/lib/useAdminDark";
@@ -49,8 +51,6 @@ interface Inquiry {
  */
 interface LeadOutcome { status: string; by: string; note: string | null; at: string }
 
-/** An active member of staff a lead can be handed to. */
-interface EmployeeOption { id: string; name: string; region: string | null; image: string | null }
 /** Rows per employee across the whole table; employeeId null is "unassigned". */
 interface AssigneeCount { employeeId: string | null; count: number }
 /** The filter's value: null is "everyone", UNASSIGNED is "nobody yet". */
@@ -201,23 +201,10 @@ const matchesAssignee = (assignedToId: string | null, selected: string | null) =
 
 // Light/dark class-name bundle threaded through every panel/dialog below —
 // built once from the `dark` toggle (see the `t` definition further down).
-interface Theme {
-  page: string; sidebar: string; card: string; soft: string; strong: string;
-  /**
-   * Between `soft` and `strong`. Row metadata — a customer's name, phone,
-   * email — is not a caption; it is the content people scan a list for. At
-   * #86868b it washed out against white and every list read as greyed-out
-   * placeholder text.
-   */
-  mid: string;
-  border: string; divide: string; hover: string; navIdle: string; navActive: string;
-  input: string; chip: string; pill: string; thumb: string; qty: string;
-  overlay: string; modal: string;
-}
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
-    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number };
+    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number; queue: number; queueInvalid: number };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
     /**
@@ -1132,6 +1119,33 @@ export function AdminConsole({ data }: Props) {
                   <UserCog size={17} className={t.soft} />
                 </span>
                 <span className={`flex-1 ${sideLabel}`}>Staff</span>
+              </Link>
+              {/* Customers going round the rotation because nobody has taken
+                  them on. Badged like the unread counts above it: a queue is
+                  only useful if somebody notices it filling up. */}
+              <Link href="/admin/queue/" title="Queue" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <Timer size={17} className={t.soft} />
+                  {/* Collapsed to 60px, one number has to stand for the whole
+                      queue — and a customer the rotation gave up on is exactly
+                      the one nobody else will notice, so it counts here. */}
+                  {data.stats.queue + data.stats.queueInvalid > 0 && (
+                    <span className={sideDot}>{fmtBadge(data.stats.queue + data.stats.queueInvalid)}</span>
+                  )}
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>Queue</span>
+                <span className={sidePill}>{fmtNum(data.stats.queue)}</span>
+                {/* Beside the rotating figure rather than added to it: the two
+                    numbers mean different things, and only one of them is
+                    somebody's job to fix today. */}
+                {data.stats.queueInvalid > 0 && (
+                  <span
+                    title={`${data.stats.queueInvalid} given up on — nobody took them`}
+                    className="ml-1 shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10.5px] font-bold text-amber-700"
+                  >
+                    {fmtNum(data.stats.queueInvalid)}
+                  </span>
+                )}
               </Link>
             </nav>
             <div className={`border-t p-2 ${t.border}`}>
@@ -2400,214 +2414,31 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
   );
 }
 
-/**
- * One control holding every "what should this list show?" choice.
- *
- * Inquiries and Contact Us each had the same four status pills laid
- * across their toolbar, competing with Export for attention and pushing the
- * search box around at narrow widths. They are one question, so they get one
- * button, which states its own answer: the count for whatever is selected,
- * brand-coloured once anything is applied.
- *
- * Owns its own open state — three instances exist and none of them needs to
- * know about the others.
- */
-/**
- * Hand one lead, or a selection of them, to a member of staff.
- *
- * A portal for the same reason FilterMenu is one: both lists sit inside a card
- * with `overflow-hidden rounded-2xl` for its corners, which clips an
- * absolutely-positioned child — the panel was being cut off at the card's edge.
- *
- * Searchable because the office is not a fixed size, and a first name alone is
- * not always enough to pick between two people; the region rides along with it,
- * so a row reads "Karan — Dubai", the way the team refers to each other.
- */
-function AssigneePicker({
-  t, employees, value, onChange, busy = false, label, mixed = false, title,
-}: {
-  t: Theme;
-  employees: EmployeeOption[];
-  /** The employee id currently on the row, or null. */
-  value: string | null;
-  onChange: (employeeId: string | null) => void;
-  busy?: boolean;
-  /** Overrides the trigger's text — the bulk bar says "Assign N selected". */
-  label?: string;
-  /**
-   * The rows behind this one control do not agree on an assignee — a grouped
-   * customer whose products are with different people. Reads as assigned
-   * (something is set) without claiming any one of them is it.
-   */
-  mixed?: boolean;
-  /** Overrides the trigger's tooltip, where the row's own wording is better. */
-  title?: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement | null>(null);
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
-
-  useEffect(() => { if (!open) setQuery(""); }, [open]);
-
-  useIsomorphicLayoutEffect(() => {
-    if (!open) { setPos(null); return; }
-    const place = () => {
-      const b = btnRef.current?.getBoundingClientRect();
-      if (!b) return;
-      const M = 8;
-      const vw = document.documentElement.clientWidth;
-      const vh = window.innerHeight;
-      const width = Math.min(260, vw - M * 2);
-      const left = Math.max(M, Math.min(b.right - width, vw - width - M));
-      const below = vh - b.bottom - M * 2;
-      const above = b.top - M * 2;
-      const flip = below < 240 && above > below;
-      setPos(flip
-        ? { left, width, bottom: vh - b.top + M, maxHeight: above }
-        : { left, width, top: b.bottom + M, maxHeight: below });
-    };
-    place();
-    window.addEventListener("scroll", place, true);
-    window.addEventListener("resize", place);
-    return () => {
-      window.removeEventListener("scroll", place, true);
-      window.removeEventListener("resize", place);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (ref.current?.contains(target) || panelRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  const current = employees.find((e) => e.id === value) ?? null;
-  const shown = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term) return employees;
-    return employees.filter((e) => `${e.name} ${e.region ?? ""}`.toLowerCase().includes(term));
-  }, [employees, query]);
-
-  // A lead assigned to somebody since deactivated still has to read as
-  // assigned, rather than silently showing "Unassigned" and inviting a second
-  // person to pick it up.
-  const assignedElsewhere = value !== null && !current;
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        ref={btnRef}
-        onClick={() => setOpen((o) => !o)}
-        disabled={busy}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        title={title ?? (current ? `Assigned to ${current.name}` : value ? "Assigned to a deactivated employee" : "Not assigned to anyone")}
-        className={`inline-flex max-w-[13rem] items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
-          value || mixed ? "bg-brand/10 text-brand-dark hover:bg-brand/20" : `${t.chip} hover:opacity-80`
-        }`}
-      >
-        <UserCog className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">
-          {label ?? (current ? `Assigned: ${current.name}` : assignedElsewhere ? "Assigned: (inactive)" : "Unassigned")}
-        </span>
-        <ChevronDown className={`h-3 w-3 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open && pos && createPortal(
-        <div
-          ref={panelRef}
-          role="menu"
-          style={{ position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width, maxHeight: pos.maxHeight, overflowY: "auto" }}
-          className={`z-[200] overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}
-        >
-          <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Assign to</p>
-
-          {employees.length > 6 && (
-            <div className="px-1 pb-1">
-              <div className="relative">
-                <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${t.soft}`} />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search staff…"
-                  aria-label="Search staff"
-                  className={`w-full rounded-xl py-1.5 pl-8 pr-2.5 text-[13px] font-medium outline-none ring-1 ring-transparent focus:ring-brand/40 ${t.input}`}
-                />
-              </div>
-            </div>
-          )}
-
-          <button
-            role="menuitemradio"
-            aria-checked={value === null}
-            onClick={() => { onChange(null); setOpen(false); }}
-            className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${value === null ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-          >
-            <span className={`h-2 w-2 shrink-0 rounded-full ${value === null ? "bg-brand" : "bg-slate-300"}`} />
-            <span className="flex-1">Unassigned</span>
-            {value === null && <Check className="h-3.5 w-3.5 shrink-0" />}
-          </button>
-
-          {shown.map((e) => {
-            const on = value === e.id;
-            return (
-              <button
-                key={e.id}
-                role="menuitemradio"
-                aria-checked={on}
-                onClick={() => { onChange(on ? null : e.id); setOpen(false); }}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-              >
-                <Avatar name={e.name} image={e.image} size={20} />
-                <span className="flex-1 truncate">
-                  {e.name}
-                  {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
-                </span>
-                {on && <Check className="h-3.5 w-3.5 shrink-0" />}
-              </button>
-            );
-          })}
-
-          {employees.length === 0 && (
-            <p className={`px-2.5 py-3 text-[12.5px] ${t.soft}`}>
-              No active staff yet. Add somebody under Staff first.
-            </p>
-          )}
-          {employees.length > 0 && shown.length === 0 && (
-            <p className={`px-2.5 py-3 text-[12.5px] ${t.soft}`}>Nobody matches that.</p>
-          )}
-        </div>,
-        document.body,
-      )}
-    </div>
-  );
-}
-
 /** The newest outcome, beside the triage control rather than replacing it. */
+/**
+ * The newest outcome, on the row itself.
+ *
+ * In progress prints the exact moment it was picked up rather than "2h": the
+ * question an administrator is asking of this chip is "who is on this, and
+ * since when" — a clock time answers it, a rounded duration does not. Every
+ * other outcome keeps the relative time, which is what you want of something
+ * that has already finished. The workspace shows the same fact with no time at
+ * all; see showsTimeToStaff in lib/leadStatus.ts.
+ */
 function OutcomeChip({ value }: { value: LeadOutcome | null }) {
   if (!value) return null;
   const who = value.by.split(" ")[0];
+  const working = isInProgress(value.status);
   return (
     <span
       title={`${leadStatusLabel(value.status)} — ${value.by}, ${formatDateTime(value.at)}${value.note ? `\n\n${value.note}` : ""}`}
-      className={`inline-flex max-w-[13rem] items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${leadStatusChip(value.status)}`}
+      className={`inline-flex max-w-[15rem] items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${leadStatusChip(value.status)}`}
     >
       <span className="truncate">{leadStatusLabel(value.status)}</span>
       <span className={`truncate font-semibold opacity-75`}>{who}</span>
-      <span className="shrink-0 font-medium opacity-60">{timeAgo(value.at)}</span>
+      <span className="shrink-0 font-medium opacity-60 tabular-nums">
+        {working ? `since ${formatSince(value.at)}` : timeAgo(value.at)}
+      </span>
     </span>
   );
 }
@@ -2861,6 +2692,18 @@ function FilterRow({
   );
 }
 
+/**
+ * One control holding every "what should this list show?" choice.
+ *
+ * Inquiries and Contact Us each had the same four status pills laid
+ * across their toolbar, competing with Export for attention and pushing the
+ * search box around at narrow widths. They are one question, so they get one
+ * button, which states its own answer: the count for whatever is selected,
+ * brand-coloured once anything is applied.
+ *
+ * Owns its own open state — three instances exist and none of them needs to
+ * know about the others.
+ */
 function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
   companyFilter, setCompanyFilter, withCompanyCount = 0,
@@ -3493,13 +3336,6 @@ function Row({ icon: Icon, label, value, t }: { icon: LucideIcon; label: string;
   );
 }
 
-function Avatar({ name, image, size }: { name: string; image: string | null; size: number }) {
-  if (image) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={image} alt="" className="rounded-full object-cover" style={{ width: size, height: size }} />;
-  }
-  return <span className="flex items-center justify-center rounded-full bg-brand-dark font-semibold uppercase text-white" style={{ width: size, height: size, fontSize: size * 0.42 }}>{name[0]}</span>;
-}
 
 function Thumb({ src, alt, big, t }: { src: string | null; alt: string; big?: boolean; t: Theme }) {
   const s = big ? "h-14 w-14" : "h-10 w-10";

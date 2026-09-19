@@ -120,7 +120,39 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     }
 
     const employee = await prisma.employee.update({ where: { id }, data, select: DETAIL_SELECT });
-    return NextResponse.json({ employee, passwordChanged: newPassword !== null });
+
+    // Somebody switched off keeps nothing.
+    //
+    // Deactivating already signs them out and takes them out of the rotation's
+    // pool. What it did not do was let go of the leads they were holding,
+    // which left those customers assigned to an account that cannot sign in —
+    // invisible on every workspace, and not unassigned either, so nobody was
+    // going to pick them up. The console's assign refuses to hand a lead to a
+    // deactivated employee for exactly this reason; this closes the same gap
+    // from the other end.
+    let released = 0;
+    if (body?.isActive !== undefined && !Boolean(body.isActive)) {
+      const [inquiries, contacts] = await Promise.all([
+        prisma.inquiry.updateMany({
+          where: { assignedToId: id, status: { not: "deleted" } },
+          data: { assignedToId: null, assignedAt: null },
+        }),
+        prisma.contactMessage.updateMany({
+          where: { assignedToId: id, status: { not: "deleted" } },
+          data: { assignedToId: null, assignedAt: null },
+        }),
+      ]);
+      released = inquiries.count + contacts.count;
+      // A customer they were holding for the queue is now held by nobody, so
+      // the queue has to know: parked, and on the Queue page where an
+      // administrator will see it, rather than rotating from a ghost.
+      await prisma.leadQueueEntry.updateMany({
+        where: { currentEmployeeId: id, state: "ROTATING" },
+        data: { currentEmployeeId: null, lastEmployeeId: id, nextRotationAt: null },
+      });
+    }
+
+    return NextResponse.json({ employee, passwordChanged: newPassword !== null, released });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {

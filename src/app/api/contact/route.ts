@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { customerKeyOf } from "@/lib/customerGroups";
 
 // Public "Contact Us" form endpoint. Stores a free-form message from the
 // contact page into ContactMessage, which the admin console reads back.
@@ -42,6 +43,9 @@ export async function POST(req: Request) {
         country,
         phone,
         message,
+        // A message and a quote request from the same number are the same
+        // customer — see ContactMessage.customerKey in schema.prisma.
+        customerKey: customerKeyOf({ phone, email }),
       },
     });
 
