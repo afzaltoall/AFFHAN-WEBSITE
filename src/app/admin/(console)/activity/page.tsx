@@ -8,6 +8,8 @@ import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { getCdnUrl } from "@/lib/cdn";
+import { normalizePhoneKey } from "@/lib/customerGroups";
+import { collapseUpdates } from "@/lib/statusBatch";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
 
 export const dynamic = "force-dynamic";
@@ -61,14 +63,35 @@ export default async function ActivityPage({
         createdAt: true,
         employee: { select: { id: true, name: true, image: true, region: true } },
         inquiry: {
-          select: { id: true, customerName: true, productName: true, country: true, product: { select: { imageUrl: true } } },
+          select: { id: true, customerName: true, productName: true, country: true, phone: true, product: { select: { imageUrl: true } } },
         },
-        contact: { select: { id: true, fullName: true, companyName: true, country: true } },
+        contact: { select: { id: true, fullName: true, companyName: true, country: true, phone: true } },
       },
     }),
   ]);
 
   const pages = Math.max(1, Math.ceil(total / PER_PAGE));
+
+  /**
+   * One line per action, not per row.
+   *
+   * An outcome is recorded against a customer and stored against each of the
+   * products they asked about (see the status route), so one thing somebody
+   * did arrives here as three or four identical rows. They are folded back
+   * together on the same terms the workspace wrote them: same person, same
+   * customer, same outcome, same note, same second.
+   */
+  const feed = collapseUpdates(rows, (r) => ({
+    status: r.status,
+    note: r.note,
+    createdAt: r.createdAt,
+    employeeId: r.employee.id,
+    scope:
+      normalizePhoneKey(r.inquiry?.phone ?? r.contact?.phone ?? "") ||
+      r.inquiry?.customerName ||
+      r.contact?.fullName ||
+      "",
+  }));
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
@@ -86,7 +109,9 @@ export default async function ActivityPage({
             <p className="text-[13px] text-[#86868b]">
               {total === 0
                 ? "Nothing recorded yet. Outcomes appear here as the team records them."
-                : `${total} ${total === 1 ? "update" : "updates"} recorded · newest first`}
+                : `${total} ${total === 1 ? "update" : "updates"} recorded · newest first${
+                    feed.length !== rows.length ? " · one line per outcome, however many products it covered" : ""
+                  }`}
             </p>
           </div>
           <LiveRefresh intervalMs={30_000} />
@@ -98,10 +123,17 @@ export default async function ActivityPage({
           </p>
         ) : (
           <ol className="space-y-2">
-            {rows.map((r) => {
+            {feed.map((batch) => {
+              const r = batch[0];
               const who = r.employee.name;
+              // What the whole action covered: the products named on its rows,
+              // and the first photograph among them.
+              const items = batch
+                .map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : null))
+                .filter((x): x is string => Boolean(x));
+              const image = batch.find((b) => b.inquiry?.product?.imageUrl)?.inquiry?.product?.imageUrl ?? null;
               const lead = r.inquiry
-                ? { name: r.inquiry.customerName, detail: r.inquiry.productName, href: `/admin/?inquiry=${r.inquiry.id}`, country: r.inquiry.country, image: r.inquiry.product?.imageUrl ?? null }
+                ? { name: r.inquiry.customerName, detail: items.join(" · "), href: `/admin/?inquiry=${r.inquiry.id}`, country: r.inquiry.country, image }
                 : r.contact
                   ? { name: r.contact.fullName, detail: r.contact.companyName ?? "Contact message", href: `/admin/?contact=${r.contact.id}`, country: r.contact.country, image: null }
                   : null;
@@ -134,8 +166,14 @@ export default async function ActivityPage({
                         <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${leadStatusChip(r.status)}`}>
                           {leadStatusLabel(r.status)}
                         </span>
+                        {batch.length > 1 && (
+                          <span className="text-[#86868b]">
+                            {" "}
+                            across {batch.length} products
+                          </span>
+                        )}
                       </p>
-                      <p className="mt-0.5 text-[12px] text-[#86868b]">
+                      <p className="mt-0.5 line-clamp-2 text-[12px] text-[#86868b]">
                         {lead ? `${lead.detail}${lead.country ? ` · ${lead.country}` : ""} · ` : ""}
                         <span title={formatDateTime(r.createdAt)}>{timeAgo(r.createdAt)}</span>
                         {r.employee.region ? ` · ${r.employee.region}` : ""}

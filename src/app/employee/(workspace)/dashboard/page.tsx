@@ -159,7 +159,9 @@ export default async function EmployeeDashboardPage() {
       )}
 
       <p className={`text-[11px] ${wt.soft}`}>
-        Outcomes are recorded as a trail: each one is added, and nothing already written is changed.
+        Leads are grouped by the customer’s phone number, so everything one person asked about is on one
+        row. An outcome is recorded against the customer and kept against each of their products, as a
+        trail: each one is added, and nothing already written is changed.
         This session ends after {minutes} minutes without activity.
       </p>
     </div>

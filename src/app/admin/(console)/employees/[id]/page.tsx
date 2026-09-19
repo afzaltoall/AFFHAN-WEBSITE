@@ -43,8 +43,10 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
       status: true,
       note: true,
       createdAt: true,
-      inquiry: { select: { id: true, customerName: true, productName: true, email: true } },
-      contact: { select: { id: true, fullName: true, email: true } },
+      // phone is the customer key (lib/customerGroups.ts): it is what puts the
+      // rows of one customer-level outcome back into one line below.
+      inquiry: { select: { id: true, customerName: true, productName: true, email: true, phone: true } },
+      contact: { select: { id: true, fullName: true, email: true, phone: true } },
     },
   });
 

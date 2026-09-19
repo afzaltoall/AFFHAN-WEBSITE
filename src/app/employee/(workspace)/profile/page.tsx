@@ -3,6 +3,8 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EMPLOYEE_IDLE_MS, readWorkspaceAuth } from "@/lib/employee-session";
 import { isLeadStatus, NOT_STARTED, type LeadOutcomeKey } from "@/lib/leadStatus";
+import { normalizePhoneKey } from "@/lib/customerGroups";
+import { collapseUpdates } from "@/lib/statusBatch";
 import { EmployeeProfile, type ProfileActivity } from "@/components/employee/EmployeeProfile";
 import { wt } from "@/components/employee/workspace-ui";
 
@@ -55,14 +57,17 @@ export default async function EmployeeProfilePage() {
     prisma.inquiry.findMany({ where: { assignedToId: id, status: { not: "deleted" } }, select: { id: true } }),
     prisma.contactMessage.findMany({ where: { assignedToId: id, status: { not: "deleted" } }, select: { id: true } }),
     prisma.statusUpdate.count({ where: { employeeId: id } }),
+    // Forty rows to fill eight lines: one outcome recorded against a customer
+    // writes a row per product they asked about (see the status route), and
+    // the list below shows the action, not the rows.
     prisma.statusUpdate.findMany({
       where: { employeeId: id },
       orderBy: { createdAt: "desc" },
-      take: 8,
+      take: 40,
       select: {
         id: true, status: true, note: true, createdAt: true,
-        inquiry: { select: { customerName: true, productName: true } },
-        contact: { select: { fullName: true } },
+        inquiry: { select: { customerName: true, productName: true, phone: true } },
+        contact: { select: { fullName: true, phone: true } },
       },
     }),
   ]);
@@ -95,14 +100,34 @@ export default async function EmployeeProfilePage() {
   const assigned = inquiries.length + contacts.length;
   breakdown[NOT_STARTED] = Math.max(0, assigned - seen.size);
 
-  const activity: ProfileActivity[] = recent.map((u) => ({
-    id: u.id,
+  const activity: ProfileActivity[] = collapseUpdates(recent, (u) => ({
     status: u.status,
     note: u.note,
-    createdAt: u.createdAt.toISOString(),
-    who: u.inquiry?.customerName ?? u.contact?.fullName ?? "A lead",
-    what: u.inquiry ? u.inquiry.productName : u.contact ? "Contact message" : "No longer on file",
-  }));
+    createdAt: u.createdAt,
+    scope:
+      normalizePhoneKey(u.inquiry?.phone ?? u.contact?.phone ?? "") ||
+      u.inquiry?.customerName ||
+      u.contact?.fullName ||
+      "",
+  }))
+    .slice(0, 8)
+    .map((batch) => {
+      const u = batch[0];
+      const items = batch.map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : null)).filter(Boolean);
+      return {
+        id: u.id,
+        status: u.status,
+        note: u.note,
+        createdAt: u.createdAt.toISOString(),
+        who: u.inquiry?.customerName ?? u.contact?.fullName ?? "A lead",
+        what:
+          items.length === 0
+            ? "No longer on file"
+            : items.length === 1
+              ? (items[0] as string)
+              : `${items.length} products · ${items.join(", ")}`,
+      };
+    });
 
   return (
     <EmployeeProfile

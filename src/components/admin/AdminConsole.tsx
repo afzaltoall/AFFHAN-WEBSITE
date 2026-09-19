@@ -847,6 +847,12 @@ export function AdminConsole({ data }: Props) {
   // powers the "Group by customer" view. Note this groups the loaded page; the
   // master/grouped Excel exports run server-side over the whole database.
   const customerGroups = useMemo<CustomerGroup[]>(() => groupCustomers(inquiries), [inquiries]);
+  // How many customers the ticked inquiries belong to — what the selection bar
+  // says while the list is grouped, and what "Assign N selected" is acting on.
+  const selectedCustomerCount = useMemo(
+    () => (selected.size === 0 ? 0 : customerGroups.filter((g) => g.inquiryIds.some((id) => selected.has(id))).length),
+    [customerGroups, selected]
+  );
   // Every customer (unfiltered) — powers the "All" view checklist + selected export.
   const allCustomerGroups = useMemo<CustomerGroup[]>(() => groupCustomers(items), [items]);
 
@@ -1399,8 +1405,8 @@ export function AdminConsole({ data }: Props) {
                   />
                 )}
                 {/* Assignment on its own button, outside the Filter — see
-                    AssignMenu. Grouped rows cannot be ticked, so it only
-                    filters while the list is grouped. */}
+                    AssignMenu. It assigns whatever is ticked, grouped or not:
+                    ticking a customer ticks every product they asked about. */}
                 {view === "inquiries" && (
                   <AssignMenu
                     t={t}
@@ -1408,7 +1414,7 @@ export function AdminConsole({ data }: Props) {
                     options={inquiryAssigneeOptions}
                     filter={assigneeFilter}
                     setFilter={setAssigneeFilter}
-                    selectedCount={groupByCustomer ? 0 : selected.size}
+                    selectedCount={selected.size}
                     onAssignSelected={(employeeId) => void assignInquiries([...selected], employeeId)}
                     busy={bulkBusy}
                   />
@@ -1532,7 +1538,7 @@ export function AdminConsole({ data }: Props) {
 
               {/* Selection + bulk-action bar. Inquiries: set status / delete.
                   Recently Deleted: restore / delete forever. */}
-              {(view === "inquiries" || view === "trash") && visibleIds.length > 0 && !(view === "inquiries" && groupByCustomer) && (
+              {(view === "inquiries" || view === "trash") && visibleIds.length > 0 && (
                 <div className={`flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${t.border}`}>
                   <button onClick={toggleSelectAll} className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand-dark" : `${t.soft} hover:text-brand-deep`}`}>
                     {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
@@ -1540,7 +1546,14 @@ export function AdminConsole({ data }: Props) {
                   </button>
                   {selected.size > 0 && (
                     <>
-                      <span className={`text-[13px] font-semibold ${t.strong}`}>{selected.size} selected</span>
+                      {/* Grouped, a tick is a customer, so the count says how
+                          many rows that actually is — "1 selected" under a
+                          customer with four products would be a lie. */}
+                      <span className={`text-[13px] font-semibold ${t.strong}`}>
+                        {view === "inquiries" && groupByCustomer
+                          ? `${selected.size} ${selected.size === 1 ? "product" : "products"} · ${selectedCustomerCount} ${selectedCustomerCount === 1 ? "customer" : "customers"}`
+                          : `${selected.size} selected`}
+                      </span>
                       <div className="ml-auto flex flex-wrap items-center gap-2">
                         {view === "inquiries" ? (
                           <>
@@ -1574,7 +1587,7 @@ export function AdminConsole({ data }: Props) {
                 <>
                   <div className={`flex items-center gap-2 border-b px-4 py-2.5 text-xs ${t.soft} ${t.border}`}>
                     <Users className="h-3.5 w-3.5" />
-                    {customerGroups.length} unique {customerGroups.length === 1 ? "customer" : "customers"} · deduped by phone from the loaded inquiries. Use “Grouped .xlsx” for the full database.
+                    {customerGroups.length} unique {customerGroups.length === 1 ? "customer" : "customers"} · deduped by phone from the loaded inquiries. Assigning a row hands over every product they asked about. Use “Grouped .xlsx” for the full database.
                   </div>
                   {customerGroups.length ? (
                     <ul className={`divide-y ${t.divide}`}>
@@ -1583,6 +1596,21 @@ export function AdminConsole({ data }: Props) {
                           key={g.key}
                           g={g}
                           t={t}
+                          employees={data.employees}
+                          busy={bulkBusy}
+                          selected={g.inquiryIds.length > 0 && g.inquiryIds.every((id) => selected.has(id))}
+                          onToggleSelect={() =>
+                            setSelected((prev) => {
+                              const next = new Set(prev);
+                              const all = g.inquiryIds.every((id) => next.has(id));
+                              for (const id of g.inquiryIds) {
+                                if (all) next.delete(id);
+                                else next.add(id);
+                              }
+                              return next;
+                            })
+                          }
+                          onAssign={(employeeId) => void assignInquiries(g.inquiryIds, employeeId)}
                           // Opens the drawer the ungrouped list uses. Looked up
                           // by id rather than passed down, so the row the drawer
                           // shows is the live one, not a copy frozen at group time.
@@ -2396,7 +2424,7 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
  * so a row reads "Karan — Dubai", the way the team refers to each other.
  */
 function AssigneePicker({
-  t, employees, value, onChange, busy = false, label,
+  t, employees, value, onChange, busy = false, label, mixed = false, title,
 }: {
   t: Theme;
   employees: EmployeeOption[];
@@ -2406,6 +2434,14 @@ function AssigneePicker({
   busy?: boolean;
   /** Overrides the trigger's text — the bulk bar says "Assign N selected". */
   label?: string;
+  /**
+   * The rows behind this one control do not agree on an assignee — a grouped
+   * customer whose products are with different people. Reads as assigned
+   * (something is set) without claiming any one of them is it.
+   */
+  mixed?: boolean;
+  /** Overrides the trigger's tooltip, where the row's own wording is better. */
+  title?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -2478,9 +2514,9 @@ function AssigneePicker({
         disabled={busy}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={current ? `Assigned to ${current.name}` : value ? "Assigned to a deactivated employee" : "Not assigned to anyone"}
+        title={title ?? (current ? `Assigned to ${current.name}` : value ? "Assigned to a deactivated employee" : "Not assigned to anyone")}
         className={`inline-flex max-w-[13rem] items-center gap-1.5 rounded-full px-2.5 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 ${
-          value ? "bg-brand/10 text-brand-dark hover:bg-brand/20" : `${t.chip} hover:opacity-80`
+          value || mixed ? "bg-brand/10 text-brand-dark hover:bg-brand/20" : `${t.chip} hover:opacity-80`
         }`}
       >
         <UserCog className="h-3.5 w-3.5 shrink-0" />
@@ -3494,73 +3530,165 @@ function Empty({ label, pad, t }: { label: string; pad?: boolean; t: Theme }) {
 // One de-duplicated customer, with an expandable list of every product they
 // inquired about. This is the on-screen version of the "Group by customer"
 // view; the Excel version comes from /api/admin/export/all?only=customers.
+/**
+ * One de-duplicated customer, as a row that can be acted on.
+ *
+ * The grouping has always been able to SHOW that four inquiries are one
+ * person; what it could not do was treat them as one. Everything on the right
+ * of this row now does: assigning hands over every product they asked about in
+ * a single action, the outcome chip is the newest one across those products,
+ * and the tick box selects the lot. That is the difference between a reading
+ * view and the way the office actually works — nobody gives Karan three of a
+ * customer's four products.
+ *
+ * Where the products disagree — two assigned to Karan, one to nobody — the row
+ * says "Mixed" rather than choosing a winner to display, and the lines inside
+ * name who has each.
+ */
 function CustomerGroupRow({
-  g, t, onOpenInquiry,
-}: { g: CustomerGroup; t: Theme; onOpenInquiry?: (inquiryId: string) => void }) {
+  g, t, employees, selected, onToggleSelect, onAssign, onOpenInquiry, busy = false,
+}: {
+  g: CustomerGroup;
+  t: Theme;
+  employees: EmployeeOption[];
+  /** True when every one of this customer's inquiries is ticked. */
+  selected: boolean;
+  onToggleSelect: () => void;
+  /** Hands over every inquiry behind this customer at once. */
+  onAssign: (employeeId: string | null) => void;
+  onOpenInquiry?: (inquiryId: string) => void;
+  busy?: boolean;
+}) {
   const [open, setOpen] = useState(false);
+  const mixed = g.assignees.length > 1;
+  const only = mixed ? null : g.assignees[0] ?? null;
+  const assignedCount = g.products.filter((p) => p.assignedToId).length;
+  const nameOf = (id: string | null | undefined) =>
+    id ? employees.find((e) => e.id === id)?.name ?? "(inactive)" : "Unassigned";
+
   return (
-    <li className={`transition-colors ${t.hover}`}>
-      <button onClick={() => setOpen((o) => !o)} className="flex w-full items-start gap-3 p-4 text-left">
-        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}>
-          <Users className="h-[18px] w-[18px]" />
-        </span>
-        <div className="min-w-0 flex-1">
-          {/* The customer's name is what you are scanning for, so it wraps to a
-              second line on a phone rather than being cut mid-word. The other
-              names they have written in are demoted to their own line: they
-              were what pushed the real name out of view. */}
-          <p className={`line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13.5px] ${t.strong}`}>
-            {g.customerName}
-          </p>
-          {g.altNames.length > 0 && (
-            <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
-          )}
-          <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{g.phone}</span></span>
-            {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.email}</span></span>}
-            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.country}</span></span>
-            <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Calendar className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">Last {fmtDate(g.lastInquiry)}</span></span>
-          </div>
+    <li className={`transition-colors ${t.hover} ${selected ? "bg-brand/[0.05]" : ""}`}>
+      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <button onClick={onToggleSelect} aria-label={`Select ${g.customerName}`} aria-pressed={selected} className={`shrink-0 transition-colors ${selected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
+            {selected ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+          </button>
+          <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}>
+              <Users className="h-[18px] w-[18px]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              {/* The customer's name is what you are scanning for, so it wraps to a
+                  second line on a phone rather than being cut mid-word. The other
+                  names they have written in are demoted to their own line: they
+                  were what pushed the real name out of view. */}
+              <p className={`line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13.5px] ${t.strong}`}>
+                {g.customerName}
+              </p>
+              {g.altNames.length > 0 && (
+                <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
+              )}
+              <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
+                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{g.phone}</span></span>
+                {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.email}</span></span>}
+                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.country}</span></span>
+                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Calendar className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">Last {fmtDate(g.lastInquiry)}</span></span>
+              </div>
+            </div>
+          </button>
         </div>
-        <div className="flex shrink-0 items-center gap-2.5">
-          <a onClick={(e) => e.stopPropagation()} href={waLink(g.phone)} target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white sm:inline-flex">
+
+        <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
+          <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${t.qty}`}>{g.inquiryCount} {g.inquiryCount === 1 ? "product" : "products"}</span>
+          <OutcomeChip value={g.lastStatus} />
+          <AssigneePicker
+            t={t}
+            employees={employees}
+            value={only}
+            mixed={mixed}
+            label={mixed ? `Mixed · ${assignedCount}/${g.inquiryCount}` : undefined}
+            title={
+              mixed
+                ? `Their products are with different people. Choosing somebody assigns all ${g.inquiryCount}.`
+                : only
+                  ? `All ${g.inquiryCount} assigned to ${nameOf(only)}`
+                  : `Assign all ${g.inquiryCount} of their products at once`
+            }
+            onChange={onAssign}
+            busy={busy}
+          />
+          <a href={waLink(g.phone)} target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white sm:inline-flex">
             <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
           </a>
-          <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${t.qty}`}>{g.inquiryCount} {g.inquiryCount === 1 ? "product" : "products"}</span>
-          <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""} ${t.soft}`} />
+          <button onClick={() => setOpen((o) => !o)} aria-label={open ? "Hide their products" : "Show their products"} aria-expanded={open} className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.hover} ${t.soft}`}>
+            <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+          </button>
         </div>
-      </button>
+      </div>
+
       {open && (
-        <ul className={`border-t px-4 pb-3 pt-1 ${t.border}`}>
-          {g.products.map((p, idx) => {
-            // A grouped line is an inquiry like any other, so it opens the same
-            // drawer the ungrouped list does rather than being a dead label.
-            // Only when the id survived the grouping — the export path has none.
-            const openable = Boolean(p.inquiryId && onOpenInquiry);
-            const Row = openable ? "button" : "div";
-            return (
-              <li key={p.inquiryId ?? idx} className={idx > 0 ? `border-t ${t.divide}` : ""}>
-                <Row
-                  {...(openable
-                    ? { onClick: () => onOpenInquiry!(p.inquiryId!), type: "button" as const }
-                    : {})}
-                  className={`flex w-full items-center gap-3 py-2 text-left text-sm ${
-                    openable ? `rounded-lg transition-colors ${t.hover} cursor-pointer` : ""
-                  }`}
-                >
-                  <Thumb t={t} src={p.productImage ?? null} alt={p.productName} />
-                  <span className="min-w-0 flex-1">
-                    <span className="line-clamp-2 font-medium">{p.productName}</span>
-                    <span className={`text-xs ${t.soft}`}>{fmtDate(p.createdAt)}</span>
-                  </span>
-                  <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {p.quantity}</span>
-                </Row>
-              </li>
-            );
-          })}
-        </ul>
+        <div className={`border-t px-4 pb-3 pt-3 ${t.border}`}>
+          {/* Said once, at the top, because everything below belongs to the
+              same person — the ungrouped list repeats it on every row. */}
+          <dl className={`mb-3 grid gap-x-6 gap-y-1.5 text-[12.5px] sm:grid-cols-2 lg:grid-cols-3 ${t.mid}`}>
+            <GroupFact t={t} label="Company" value={g.companyName || "—"} />
+            <GroupFact t={t} label="Email" value={[g.email, ...g.altEmails].filter(Boolean).join(", ") || "—"} />
+            <GroupFact t={t} label="Country" value={g.country || "—"} />
+            <GroupFact t={t} label="First inquiry" value={fmtDate(g.firstInquiry)} />
+            <GroupFact t={t} label="Latest" value={fmtDate(g.lastInquiry)} />
+            <GroupFact t={t} label="Total quantity" value={g.totalQuantity.toLocaleString("en-GB")} />
+          </dl>
+          <ul>
+            {g.products.map((p, idx) => {
+              // A grouped line is an inquiry like any other, so it opens the same
+              // drawer the ungrouped list does rather than being a dead label.
+              // Only when the id survived the grouping — the export path has none.
+              const openable = Boolean(p.inquiryId && onOpenInquiry);
+              const Row = openable ? "button" : "div";
+              return (
+                <li key={p.inquiryId ?? idx} className={idx > 0 ? `border-t ${t.divide}` : ""}>
+                  <Row
+                    {...(openable
+                      ? { onClick: () => onOpenInquiry!(p.inquiryId!), type: "button" as const }
+                      : {})}
+                    className={`flex w-full items-start gap-3 py-2.5 text-left text-sm ${
+                      openable ? `rounded-lg transition-colors ${t.hover} cursor-pointer` : ""
+                    }`}
+                  >
+                    <Thumb t={t} src={p.productImage ?? null} alt={p.productName} />
+                    <span className="min-w-0 flex-1">
+                      <span className="line-clamp-2 font-medium">{p.productName}</span>
+                      {/* What they wrote with it: the one thing the grouped
+                          view used to drop, and the thing that says what they
+                          actually want. */}
+                      {p.message && <span className={`mt-0.5 line-clamp-2 text-xs ${t.mid}`}>{p.message}</span>}
+                      <span className={`mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs ${t.soft}`}>
+                        <span>{fmtDate(p.createdAt)}</span>
+                        {mixed && <span className="font-semibold">{nameOf(p.assignedToId)}</span>}
+                      </span>
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                      <OutcomeChip value={p.lastStatus ?? null} />
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {p.quantity}</span>
+                    </span>
+                  </Row>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </li>
+  );
+}
+
+/** One labelled fact in a grouped customer's header. */
+function GroupFact({ t, label, value }: { t: Theme; label: string; value: string }) {
+  return (
+    <div className="flex min-w-0 items-start gap-2">
+      <dt className={`w-[92px] shrink-0 text-[11px] uppercase tracking-wide ${t.soft}`}>{label}</dt>
+      <dd className="min-w-0 break-words font-medium">{value}</dd>
+    </div>
   );
 }
 
