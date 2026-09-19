@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { normalizePhoneKey } from "@/lib/customerGroups";
+import { collapseUpdates } from "@/lib/statusBatch";
 import { EmployeeForm, type EmployeeRow } from "@/components/admin/EmployeeForm";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
 
@@ -20,8 +22,8 @@ export interface StatusUpdateRow {
   status: string;
   note: string | null;
   createdAt: string;
-  inquiry: { id: string; customerName: string; productName: string; email: string | null } | null;
-  contact: { id: string; fullName: string; email: string } | null;
+  inquiry: { id: string; customerName: string; productName: string; email: string | null; phone: string } | null;
+  contact: { id: string; fullName: string; email: string; phone: string } | null;
 }
 
 /**
@@ -48,6 +50,22 @@ export function EmployeeDetail({
   // The page refreshes itself (LiveRefresh below); keep the header's facts —
   // last sign-in above all — in step with what the server now says.
   useEffect(() => setRow(employee), [employee]);
+
+  // The rows of one recorded outcome, back together — see lib/statusBatch.ts.
+  const history = useMemo(
+    () =>
+      collapseUpdates(updates, (u) => ({
+        status: u.status,
+        note: u.note,
+        createdAt: u.createdAt,
+        scope:
+          normalizePhoneKey(u.inquiry?.phone ?? u.contact?.phone ?? "") ||
+          u.inquiry?.customerName ||
+          u.contact?.fullName ||
+          "",
+      })),
+    [updates]
+  );
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
@@ -174,9 +192,13 @@ export function EmployeeDetail({
                     </td>
                   </tr>
                 ) : (
-                  updates.map((u) => {
+                  history.map((batch) => {
+                    const u = batch[0];
                     const who = u.inquiry?.customerName ?? u.contact?.fullName ?? "—";
-                    const what = u.inquiry ? u.inquiry.productName : "Contact message";
+                    // One customer-level outcome is one line, whatever number
+                    // of that customer's products it was written against.
+                    const items = batch.map((b) => (b.inquiry ? b.inquiry.productName : "Contact message"));
+                    const what = items.length === 1 ? items[0] : `${items.length} products · ${items.join(", ")}`;
                     return (
                       <tr key={u.id} className="align-top transition-colors hover:bg-black/[0.015]">
                         <td className="whitespace-nowrap px-5 py-3" title={formatDateTime(u.createdAt)}>
@@ -191,7 +213,7 @@ export function EmployeeDetail({
                               className="block"
                             >
                               <span className="block font-semibold hover:underline">{who}</span>
-                              <span className="block text-xs text-[#86868b]">{what}</span>
+                              <span className="line-clamp-2 block text-xs text-[#86868b]">{what}</span>
                             </Link>
                           ) : (
                             <>

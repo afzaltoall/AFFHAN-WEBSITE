@@ -11,6 +11,20 @@
 // stable handle in a B2B sourcing inquiry (it's how the team calls / WhatsApps
 // them). See CLAUDE.md — inquiries are the core lead data.
 
+/**
+ * What the assigned employee last said happened to one inquiry.
+ *
+ * Structurally the console's own LeadOutcome; named here so the grouping can
+ * carry it without the console's module having to be imported by the export
+ * path, which has no outcomes to give.
+ */
+export interface GroupedOutcome {
+  status: string;
+  by: string;
+  note: string | null;
+  at: string;
+}
+
 /** The subset of an inquiry the grouping cares about. */
 export interface GroupableInquiry {
   /** The row's own id, so a grouped line can be traced back to its inquiry. */
@@ -25,6 +39,12 @@ export interface GroupableInquiry {
   quantity: number;
   createdAt: string | Date;
   status?: string;
+  /** What the customer wrote with this one. Shown on the grouped line. */
+  message?: string | null;
+  /** The employee working it, so a customer can be handed over in one go. */
+  assignedToId?: string | null;
+  /** Its newest sales outcome, so the customer can show where they stand. */
+  lastStatus?: GroupedOutcome | null;
 }
 
 /** One product line inside a grouped customer. */
@@ -41,6 +61,12 @@ export interface GroupedProduct {
   productImage?: string | null;
   quantity: number;
   createdAt: string;
+  /** What they wrote with this product, if anything. */
+  message?: string | null;
+  /** Who is working this one — a customer's products can differ. */
+  assignedToId?: string | null;
+  /** Its own newest outcome, which can differ from the customer's newest. */
+  lastStatus?: GroupedOutcome | null;
 }
 
 /** A single de-duplicated customer with all of their inquiries folded in. */
@@ -60,6 +86,19 @@ export interface CustomerGroup {
   inquiryCount: number;
   firstInquiry: string;
   lastInquiry: string;
+  /**
+   * Every inquiry behind this customer, newest first — what an action on the
+   * customer (assigning them to somebody) is actually applied to.
+   */
+  inquiryIds: string[];
+  /**
+   * The distinct employees their products are assigned to, null included for
+   * "nobody yet". One entry means the whole customer is in one person's hands;
+   * more than one means the console has to say so rather than pick a winner.
+   */
+  assignees: (string | null)[];
+  /** The newest outcome across their products, whichever product it was on. */
+  lastStatus: GroupedOutcome | null;
 }
 
 /**
@@ -111,6 +150,9 @@ export function groupCustomers(rows: GroupableInquiry[]): CustomerGroup[] {
         inquiryCount: 0,
         firstInquiry: created,
         lastInquiry: created,
+        inquiryIds: [],
+        assignees: [],
+        lastStatus: null,
       };
       map.set(key, g);
     }
@@ -132,15 +174,27 @@ export function groupCustomers(rows: GroupableInquiry[]): CustomerGroup[] {
       productImage: r.productImage ?? null,
       quantity: r.quantity,
       createdAt: created,
+      message: r.message ?? null,
+      assignedToId: r.assignedToId ?? null,
+      lastStatus: r.lastStatus ?? null,
     });
     g.totalQuantity += r.quantity || 0;
     g.inquiryCount += 1;
+    if (r.id) g.inquiryIds.push(r.id);
+    // Null is a value here, not a missing one: "some of their products are
+    // assigned and some are not" is exactly the case the console must show.
+    const assignee = r.assignedToId ?? null;
+    if (!g.assignees.includes(assignee)) g.assignees.push(assignee);
+    if (r.lastStatus && (!g.lastStatus || r.lastStatus.at > g.lastStatus.at)) g.lastStatus = r.lastStatus;
     if (created < g.firstInquiry) g.firstInquiry = created;
     if (created > g.lastInquiry) g.lastInquiry = created;
   });
 
   const groups = [...map.values()];
-  groups.forEach((g) => g.products.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+  groups.forEach((g) => {
+    g.products.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    g.inquiryIds = g.products.map((p) => p.inquiryId).filter((id): id is string => Boolean(id));
+  });
   groups.sort((a, b) => (a.lastInquiry < b.lastInquiry ? 1 : -1));
   return groups;
 }

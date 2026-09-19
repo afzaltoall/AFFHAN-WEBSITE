@@ -11,21 +11,27 @@ import { formatDateTime } from "@/lib/datetime";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { OUTCOME_ORDER, outcomeMeta, outcomeOf, type LeadOutcomeKey } from "@/lib/leadStatus";
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
-import { LeadDetail } from "@/components/employee/LeadDetail";
+import { CustomerDetail, type RecordedUpdate } from "@/components/employee/CustomerDetail";
+import { groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
 
 /**
- * A member of staff's leads, laid out the way the console lays out the same
- * rows — because the admin assigns from there, and what they hand over should
- * look like what they handed over.
+ * A member of staff's work, as the people it belongs to.
  *
- *   - Tiles across the top: how much is assigned, and where each outcome
- *     stands. Each one is also the filter for itself.
+ * The console hands leads over one product at a time, but a customer who asks
+ * about four things is one customer: same name, same number, four rows. This
+ * folds them back together with the same key the console groups by (the last
+ * ten digits of the phone — lib/customerGroups.ts), so a row here is a person
+ * and opening it shows everything of theirs, each item expandable on its own.
+ *
+ *   - Tiles across the top: how many customers are yours, and where each
+ *     outcome stands. Each one is also the filter for itself.
  *   - One list in a card: search, Quote requests / Contact messages, and the
  *     outcome filter above it; rows with the product's photograph, the
  *     customer, and the outcome so far.
- *   - A row opens the lead in full (LeadDetail), where the outcome is recorded.
+ *   - A row opens the customer in full (CustomerDetail), where the outcome is
+ *     recorded — once, for the customer, against every item they asked about.
  *
  * The page keeps itself current (useLiveRefresh): a lead assigned from /admin
  * appears here within half a minute without anybody reloading. Filtering is
@@ -36,8 +42,8 @@ import { wt } from "@/components/employee/workspace-ui";
 type OutcomeFilter = "all" | LeadOutcomeKey;
 type KindFilter = "all" | "inquiry" | "contact";
 
-/** Where a lead stands: its newest update's outcome, or not started. */
-const outcomeFor = (lead: LeadCardData) => outcomeOf(lead.updates[0]?.status);
+/** Where a customer stands: their newest update's outcome, or not started. */
+const outcomeFor = (g: CustomerLeadGroup) => outcomeOf(g.latest?.status);
 
 export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name: string | null }) {
   const { refresh, refreshing, updatedAt } = useLiveRefresh(30_000);
@@ -47,8 +53,8 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
   const [openKey, setOpenKey] = useState<string | null>(null);
   /**
    * Outcomes recorded here that the server's copy of the page may not have
-   * yet. Merged by id, so once the refresh brings them back they are simply
-   * the server's rows again.
+   * yet, keyed by lead. Merged by id, so once the refresh brings them back
+   * they are simply the server's rows again.
    */
   const [pending, setPending] = useState<Map<string, LeadUpdate[]>>(() => new Map());
 
@@ -66,50 +72,50 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
     [leads, pending]
   );
 
+  const groups = useMemo(() => groupLeads(merged), [merged]);
 
   // The tiles describe the whole of this person's work, so they do not move
   // while somebody types.
   const totals = useMemo(() => {
     const m = new Map<LeadOutcomeKey, number>();
-    for (const lead of merged) m.set(outcomeFor(lead), (m.get(outcomeFor(lead)) ?? 0) + 1);
+    for (const g of groups) m.set(outcomeFor(g), (m.get(outcomeFor(g)) ?? 0) + 1);
     return m;
-  }, [merged]);
+  }, [groups]);
 
   const searched = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return merged.filter(
-      (l) =>
-        (kind === "all" || l.kind === kind) &&
-        (!needle ||
-          `${l.customerName} ${l.companyName ?? ""} ${l.title} ${l.country} ${l.email ?? ""} ${l.phone} ${l.message ?? ""}`
-            .toLowerCase()
-            .includes(needle))
+    return groups.filter(
+      (g) =>
+        (kind === "all" || (kind === "inquiry" ? g.inquiryCount > 0 : g.contactCount > 0)) &&
+        (!needle || groupHaystack(g).includes(needle))
     );
-  }, [merged, q, kind]);
+  }, [groups, q, kind]);
 
   // The filter panel's counts follow the search and the tab, so a number on a
   // row is what choosing it would actually show.
   const filterCounts = useMemo(() => {
     const m = new Map<LeadOutcomeKey, number>();
-    for (const lead of searched) m.set(outcomeFor(lead), (m.get(outcomeFor(lead)) ?? 0) + 1);
+    for (const g of searched) m.set(outcomeFor(g), (m.get(outcomeFor(g)) ?? 0) + 1);
     return m;
   }, [searched]);
 
   const shown = useMemo(
-    () => (outcome === "all" ? searched : searched.filter((l) => outcomeFor(l) === outcome)),
+    () => (outcome === "all" ? searched : searched.filter((g) => outcomeFor(g) === outcome)),
     [searched, outcome]
   );
 
   const inquiryCount = merged.filter((l) => l.kind === "inquiry").length;
   const contactCount = merged.length - inquiryCount;
-  const open = openKey ? merged.find((l) => leadKey(l) === openKey) ?? null : null;
+  const withInquiries = groups.filter((g) => g.inquiryCount > 0).length;
+  const withContacts = groups.filter((g) => g.contactCount > 0).length;
+  const open = openKey ? groups.find((g) => g.key === openKey) ?? null : null;
   const filtering = q.trim() !== "" || outcome !== "all" || kind !== "all";
   const clear = () => { setQ(""); setOutcome("all"); setKind("all"); };
 
-  const recorded = (lead: LeadCardData, update: LeadUpdate) => {
+  const recorded = (rows: RecordedUpdate[]) => {
     setPending((cur) => {
       const next = new Map(cur);
-      next.set(leadKey(lead), [update, ...(next.get(leadKey(lead)) ?? [])]);
+      for (const row of rows) next.set(row.lead, [row.update, ...(next.get(row.lead) ?? [])]);
       return next;
     });
     // The console reads the same rows; bring this page's server copy up too.
@@ -125,17 +131,21 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
             {name ? `Welcome back, ${name}.` : "Welcome back."}{" "}
             {merged.length === 0
               ? "Nothing is assigned to you yet — new leads appear here as soon as they are handed over."
-              : `${merged.length} ${merged.length === 1 ? "lead is" : "leads are"} assigned to you.`}
+              : `${groups.length} ${groups.length === 1 ? "customer" : "customers"} · ${merged.length} ${
+                  merged.length === 1 ? "item" : "items"
+                } assigned to you.`}
           </p>
         </div>
         <LiveRefreshButton onRefresh={refresh} refreshing={refreshing} updatedAt={updatedAt} />
       </div>
 
       {/* KPI row: stat tiles, not a chart — each is one number, and each is
-          the filter for itself. Identity is the label; the dot beside it is
-          the colour the same outcome wears everywhere else. */}
+          the filter for itself. Every tile counts CUSTOMERS, so they add up to
+          the list below rather than to the number of rows behind it. Identity
+          is the label; the dot beside it is the colour the same outcome wears
+          everywhere else. */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
-        <Tile label="Assigned to you" value={merged.length} on={outcome === "all"} onClick={() => setOutcome("all")} />
+        <Tile label="Your customers" value={groups.length} on={outcome === "all"} onClick={() => setOutcome("all")} />
         {OUTCOME_ORDER.map((key) => (
           <Tile
             key={key}
@@ -156,7 +166,7 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search name, company, product…"
-              aria-label="Search your leads"
+              aria-label="Search your customers"
               className={`h-10 w-full rounded-xl pl-9 pr-9 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${wt.input}`}
             />
             {q && (
@@ -171,11 +181,13 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
             )}
           </div>
 
+          {/* Counts are customers, like everything else on the page; the tab
+              itself says what they asked for. */}
           <div className="flex flex-wrap items-center gap-2">
             {([
-              ["all", "All", merged.length],
-              ["inquiry", "Quote requests", inquiryCount],
-              ["contact", "Contact messages", contactCount],
+              ["all", "All", groups.length],
+              ["inquiry", "Quote requests", withInquiries],
+              ["contact", "Contact messages", withContacts],
             ] as const).map(([value, label, n]) => (
               <button
                 key={value}
@@ -202,13 +214,26 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
           </div>
         </div>
 
+        {groups.length > 0 && (
+          <div className={`flex flex-wrap items-center gap-1.5 border-b px-4 py-2.5 text-[12px] ${wt.soft} ${wt.border}`}>
+            <Users className="h-3.5 w-3.5" />
+            {shown.length === groups.length
+              ? `${groups.length} ${groups.length === 1 ? "customer" : "customers"}`
+              : `${shown.length} of ${groups.length} customers`}
+            {" · "}
+            {inquiryCount} quote {inquiryCount === 1 ? "request" : "requests"}
+            {contactCount > 0 && ` · ${contactCount} ${contactCount === 1 ? "message" : "messages"}`}
+            {" · "}the same person’s products are on one row.
+          </div>
+        )}
+
         {shown.length === 0 ? (
           <div className="px-4 py-14 text-center">
             <p className="text-[15px] font-semibold">{merged.length === 0 ? "Nothing assigned yet" : "Nothing matches"}</p>
             <p className={`mt-1 text-[13px] ${wt.soft}`}>
               {merged.length === 0
                 ? "When a lead is assigned to you from the console it appears here — this page checks every half minute."
-                : "No lead of yours matches that. Try a different search or outcome."}
+                : "No customer of yours matches that. Try a different search or outcome."}
             </p>
             {filtering && (
               <button type="button" onClick={clear} className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-semibold shadow-sm ${wt.pill}`}>
@@ -218,19 +243,15 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
           </div>
         ) : (
           <ul className={`divide-y ${wt.divide}`}>
-            {shown.map((lead) => (
-              <LeadRow key={leadKey(lead)} lead={lead} outcome={outcomeFor(lead)} onOpen={() => setOpenKey(leadKey(lead))} />
+            {shown.map((g) => (
+              <CustomerRow key={g.key} group={g} outcome={outcomeFor(g)} onOpen={() => setOpenKey(g.key)} />
             ))}
           </ul>
         )}
       </div>
 
       {open && (
-        <LeadDetail
-          lead={open}
-          onClose={() => setOpenKey(null)}
-          onRecorded={(update) => recorded(open, update)}
-        />
+        <CustomerDetail group={open} onClose={() => setOpenKey(null)} onRecorded={recorded} />
       )}
     </div>
   );
@@ -259,9 +280,24 @@ function Tile({
   );
 }
 
-function LeadRow({ lead, outcome, onOpen }: { lead: LeadCardData; outcome: LeadOutcomeKey; onOpen: () => void }) {
-  const thumb = lead.kind === "inquiry" ? getCdnUrl(lead.image, 160) : null;
+/**
+ * One customer as a row: their photograph (the newest product they asked
+ * about), who they are, and how much of them there is. What they asked about
+ * is inside — a row that listed four product names would be four lines tall
+ * and still not say they are one person.
+ */
+function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; outcome: LeadOutcomeKey; onOpen: () => void }) {
+  const withImage = group.leads.find((l) => l.kind === "inquiry" && l.image);
+  const thumb = withImage ? getCdnUrl(withImage.image, 160) : null;
   const meta = outcomeMeta(outcome);
+  const extra = group.leads.length - 1;
+  const newest = group.leads[0];
+  // What they asked about, in one line: every product they want, newest first.
+  // "The same customer asked about different things" is the fact the row has to
+  // carry, and the product names are the only way to say it.
+  const products = group.leads.filter((l) => l.kind === "inquiry").map((l) => l.title);
+  const summary = products.length > 0 ? products.join(" · ") : newest?.message || "Contact message";
+
   return (
     <li>
       <button
@@ -270,56 +306,51 @@ function LeadRow({ lead, outcome, onOpen }: { lead: LeadCardData; outcome: LeadO
         className="flex w-full flex-col gap-3 p-4 text-left transition-colors hover:bg-black/[0.02] sm:flex-row sm:items-center"
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          {lead.kind === "inquiry" ? (
-            thumb ? (
-              <span className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-xl ${wt.thumb}`}>
-                <Image src={thumb as string} alt={lead.title} fill sizes="64px" className="object-cover" />
+          <span className="relative shrink-0">
+            {thumb ? (
+              <span className={`relative block h-16 w-16 overflow-hidden rounded-xl ${wt.thumb}`}>
+                <Image src={thumb as string} alt="" fill sizes="64px" className="object-cover" />
               </span>
             ) : (
-              <span className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-xl text-[10px] font-semibold ${wt.thumb} ${wt.soft}`}>
-                No image
+              <span className={`flex h-16 w-16 items-center justify-center rounded-xl ${wt.thumb} ${wt.soft}`}>
+                {group.inquiryCount > 0 ? <Users className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
               </span>
-            )
-          ) : (
-            <span className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-xl ${wt.thumb} ${wt.soft}`}>
-              <MessageSquare className="h-6 w-6" />
-            </span>
-          )}
+            )}
+            {extra > 0 && (
+              <span className="absolute -bottom-1 -right-1 rounded-full bg-[#1d1d1f] px-1.5 py-0.5 text-[10px] font-bold text-white ring-2 ring-white">
+                +{extra}
+              </span>
+            )}
+          </span>
 
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-[14px] font-semibold leading-snug sm:text-[13.5px]">{lead.title}</p>
-            {lead.kind === "contact" && lead.message && (
-              <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${wt.mid}`}>{lead.message}</p>
-            )}
+            <p className="line-clamp-2 text-[14px] font-semibold leading-snug sm:text-[13.5px]">{group.customerName}</p>
+            <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${wt.mid}`} title={summary}>
+              {summary}
+            </p>
             <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${wt.mid}`}>
-              {lead.kind === "inquiry" && (
-                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-                  <Users className={`h-3 w-3 shrink-0 ${wt.soft}`} />
-                  <span className="truncate font-semibold">{lead.customerName}</span>
-                </span>
-              )}
-              {lead.companyName && (
+              {group.companyName && (
                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                   <Building2 className={`h-3 w-3 shrink-0 ${wt.soft}`} />
-                  <span className="truncate">{lead.companyName}</span>
+                  <span className="truncate">{group.companyName}</span>
                 </span>
               )}
-              {lead.country && (
+              {group.country && (
                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                   <MapPin className={`h-3 w-3 shrink-0 ${wt.soft}`} />
-                  <span className="truncate">{lead.country}</span>
+                  <span className="truncate">{group.country}</span>
                 </span>
               )}
-              {lead.phone && (
+              {group.phone && (
                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                   <Phone className={`h-3 w-3 shrink-0 ${wt.soft}`} />
-                  <span className="truncate tabular-nums">{lead.phone}</span>
+                  <span className="truncate tabular-nums">{group.phone}</span>
                 </span>
               )}
-              {lead.email && (
+              {group.email && (
                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
                   <Mail className={`h-3 w-3 shrink-0 ${wt.soft}`} />
-                  <span className="truncate">{lead.email}</span>
+                  <span className="truncate">{group.email}</span>
                 </span>
               )}
             </div>
@@ -327,15 +358,22 @@ function LeadRow({ lead, outcome, onOpen }: { lead: LeadCardData; outcome: LeadO
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[76px] sm:pl-0">
-          {lead.quantity !== null && (
-            <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand-dark">Qty {lead.quantity}</span>
+          {group.inquiryCount > 0 && (
+            <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand-dark">
+              {group.inquiryCount} {group.inquiryCount === 1 ? "product" : "products"}
+            </span>
+          )}
+          {group.contactCount > 0 && (
+            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${wt.chip}`}>
+              {group.contactCount} {group.contactCount === 1 ? "message" : "messages"}
+            </span>
           )}
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${meta.chip}`}>
             <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
             {meta.label}
           </span>
-          <span className={`w-20 text-right text-[12px] ${wt.soft}`} title={formatDateTime(lead.createdAt)}>
-            {timeAgo(lead.createdAt)}
+          <span className={`w-20 text-right text-[12px] ${wt.soft}`} title={formatDateTime(group.lastAt)}>
+            {timeAgo(group.lastAt)}
           </span>
           <ChevronRight className={`hidden h-4 w-4 sm:block ${wt.soft}`} />
         </div>
