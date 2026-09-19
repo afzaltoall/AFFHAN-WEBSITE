@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readEmployeeAuth } from "@/lib/employee-session";
 import { isLeadStatus, LEAD_NOTE_MAX } from "@/lib/leadStatus";
+import { declineCustomer, touchCustomer } from "@/lib/lead-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -151,6 +152,36 @@ export async function POST(request: Request) {
       kind: u.inquiryId ? ("inquiry" as const) : ("contact" as const),
       leadId: u.inquiryId ?? u.contactId ?? "",
     }));
+
+    // What the record MEANS for who holds this customer, after the record
+    // itself is safely written. See lib/lead-queue.ts.
+    //
+    //   Not attended  they cannot take it on, so it goes to the next person
+    //                 immediately — not in two hours' time.
+    //   Lead/No lead  somebody has decided; the queue lets go.
+    //   In progress   they are on it, which stops the silence timer.
+    //
+    // Deliberately after the response's data is assembled and inside its own
+    // try: a customer who cannot be moved must not cost the salesperson the
+    // outcome they just recorded.
+    try {
+      if (status === "NOT_ATTENDED") {
+        await declineCustomer({ leads: refs, employeeId: auth.employee.id, employeeName: auth.employee.name, now: createdAt });
+      } else {
+        await touchCustomer({ leads: refs, employeeId: auth.employee.id, employeeName: auth.employee.name, status, now: createdAt });
+      }
+    } catch (error) {
+      // The name alone was not enough to act on the first time this failed:
+      // Prisma's code says which constraint or which stage, and the first line
+      // of the message says where. Neither carries customer data.
+      const code = (error as { code?: string } | null)?.code;
+      console.error(
+        "lead queue follow-up failed:",
+        error instanceof Error ? error.name : "unknown",
+        code ?? "",
+        error instanceof Error ? error.message.split("\n")[0] : ""
+      );
+    }
 
     // `update` is the single-lead answer this route has always given; `updates`
     // is the whole action. Both are sent so neither caller has to branch.
