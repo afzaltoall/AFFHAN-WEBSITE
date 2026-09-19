@@ -99,6 +99,10 @@ public/static/images/map*.png
 # anything the old workspace wrote in between, and it is the only written
 # record of which old status became which new one.
 !scripts/migrate_lead_statuses.mjs
+# The customer-key backfill, for the same reason and one more: it is how a
+# restored backup, or any row written outside the API routes, gets the key the
+# rotation queue finds customers by. It stays runnable, not historical.
+!scripts/backfill_customer_keys.mjs
 # The moderation audit toolchain — how the contact sheets, the decisions and
 # the moves were made, and how the next pass resumes. REPORT.md alongside it is
 # the record of what was removed and why.

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { customerKeyOf } from "@/lib/customerGroups";
 
 export async function POST(req: Request) {
   try {
@@ -26,6 +27,9 @@ export async function POST(req: Request) {
         country: country || "Unknown",
         phone,
         message: message || null,
+        // Which customer this is, decided once here rather than recomputed by
+        // everything that reads it. See Inquiry.customerKey in schema.prisma.
+        customerKey: customerKeyOf({ phone, email }),
       },
     });
 

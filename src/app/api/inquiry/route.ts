@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { customerKeyOf } from "@/lib/customerGroups";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 
 /**
@@ -59,6 +60,9 @@ export async function POST(req: Request) {
         country,
         phone,
         message,
+        // Which customer this is, decided once here rather than recomputed by
+        // everything that reads it. See Inquiry.customerKey in schema.prisma.
+        customerKey: customerKeyOf({ phone, email }),
         // The whole point of the linkage: this is what lets the customer see
         // the inquiry again on /account/inquiries.
         userId: user.id,

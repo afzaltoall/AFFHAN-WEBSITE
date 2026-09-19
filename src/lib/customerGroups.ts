@@ -115,6 +115,24 @@ export function normalizePhoneKey(raw: string): string {
   return digits.length > 10 ? digits.slice(-10) : digits;
 }
 
+/**
+ * The key that says "these rows are the same customer", or null.
+ *
+ * The phone, normalised, and failing that the email — exactly the order
+ * groupCustomers() has always folded rows in, written as one function so that
+ * the grouping the screens do in memory and the grouping the database does
+ * through Inquiry.customerKey cannot drift apart. Null when a row has neither,
+ * which is a row nobody could contact anyway; the in-memory groupings keep
+ * their own last-resort fallback so such a row still stands alone on screen
+ * rather than vanishing.
+ */
+export function customerKeyOf(row: { phone?: string | null; email?: string | null }): string | null {
+  const phone = normalizePhoneKey(row.phone ?? "");
+  if (phone) return phone;
+  const email = (row.email ?? "").trim().toLowerCase();
+  return email ? `email:${email}` : null;
+}
+
 const iso = (v: string | Date) => (v instanceof Date ? v.toISOString() : v);
 
 /**
@@ -129,9 +147,7 @@ export function groupCustomers(rows: GroupableInquiry[]): CustomerGroup[] {
   const map = new Map<string, CustomerGroup>();
 
   rows.forEach((r, idx) => {
-    const phoneKey = normalizePhoneKey(r.phone);
-    const emailKey = (r.email || "").trim().toLowerCase();
-    const key = phoneKey || (emailKey ? `email:${emailKey}` : `row:${idx}`);
+    const key = customerKeyOf(r) ?? `row:${idx}`;
     const created = iso(r.createdAt);
 
     let g = map.get(key);

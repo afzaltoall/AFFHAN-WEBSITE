@@ -52,7 +52,14 @@ export async function POST(req: Request) {
       }
       const { count } = await prisma.inquiry.updateMany({
         where: { id: { in: ids as string[] } },
-        data: { assignedToId: assignedToId as string | null },
+        data: {
+          assignedToId: assignedToId as string | null,
+          // Stamped on every handover, cleared when nobody holds it: the
+          // question assignedAt answers is "how long has it been sitting with
+          // the person who has it now", which has no answer once it is back in
+          // nobody's hands.
+          assignedAt: assignedToId ? new Date() : null,
+        },
       });
       return NextResponse.json({ ok: true, action, assignedToId, count });
     }

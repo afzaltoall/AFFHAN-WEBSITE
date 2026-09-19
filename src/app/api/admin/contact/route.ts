@@ -52,7 +52,12 @@ export async function POST(req: Request) {
       }
       const { count } = await prisma.contactMessage.updateMany({
         where: { id: { in: ids as string[] } },
-        data: { assignedToId: assignedToId as string | null },
+        data: {
+          assignedToId: assignedToId as string | null,
+          // As on the inquiry route: stamped on handover, cleared when nobody
+          // holds it.
+          assignedAt: assignedToId ? new Date() : null,
+        },
       });
       return NextResponse.json({ ok: true, action, assignedToId, count });
     }

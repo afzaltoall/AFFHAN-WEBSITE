@@ -1,4 +1,4 @@
-import { normalizePhoneKey } from "@/lib/customerGroups";
+import { customerKeyOf } from "@/lib/customerGroups";
 import { collapseUpdates } from "@/lib/statusBatch";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 
@@ -78,9 +78,7 @@ export function groupLeads(leads: LeadCardData[]): CustomerLeadGroup[] {
   const map = new Map<string, CustomerLeadGroup>();
 
   for (const lead of leads) {
-    const phoneKey = normalizePhoneKey(lead.phone);
-    const emailKey = (lead.email || "").trim().toLowerCase();
-    const key = phoneKey || (emailKey ? `email:${emailKey}` : `lead:${leadKey(lead)}`);
+    const key = customerKeyOf(lead) ?? `lead:${leadKey(lead)}`;
 
     let g = map.get(key);
     if (!g) {
