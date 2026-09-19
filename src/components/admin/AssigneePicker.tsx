@@ -176,7 +176,22 @@ export function AssigneePicker({
                 key={e.id}
                 role="menuitemradio"
                 aria-checked={on}
-                onClick={() => { onChange(on ? null : e.id); setOpen(false); }}
+                // Choosing a name means that name, always — including the name
+                // already on the row.
+                //
+                // This used to toggle: clicking the ticked person sent null and
+                // took the lead off everybody. It cost three customers on the
+                // Queue page in one afternoon, because "assign this to the
+                // person who already has it" is a reasonable thing to click
+                // when you are confirming an assignment, and what it did was
+                // the opposite. There is an explicit Unassigned row at the top
+                // of this menu for letting go, which is the only gesture that
+                // should do it — a hidden second way to unassign, disguised as
+                // the way to assign, is not an affordance.
+                //
+                // It was also wrong as a radio: role="menuitemradio" means
+                // choosing one of a set, and a radio does not untick itself.
+                onClick={() => { onChange(e.id); setOpen(false); }}
                 className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
               >
                 <Avatar name={e.name} image={e.image} size={20} />

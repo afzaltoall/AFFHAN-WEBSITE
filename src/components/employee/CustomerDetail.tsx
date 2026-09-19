@@ -49,7 +49,11 @@ export function CustomerDetail({
 }: {
   group: CustomerLeadGroup;
   onClose: () => void;
-  onRecorded: (rows: RecordedUpdate[]) => void;
+  /**
+   * The rows to merge, and what was recorded — the board says so out loud, and
+   * closes this panel when the customer has just left the person reading it.
+   */
+  onRecorded: (rows: RecordedUpdate[], status: LeadStatus) => void;
 }) {
   const [zoom, setZoom] = useState<string | null>(null);
   const [choice, setChoice] = useState<LeadStatus | null>(null);
@@ -131,7 +135,7 @@ export function CustomerDetail({
           },
         })
       );
-      onRecorded(rows);
+      onRecorded(rows, choice);
       setChoice(null);
       setNote("");
       setSavedAt(Date.now());

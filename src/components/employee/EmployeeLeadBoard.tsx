@@ -9,9 +9,10 @@ import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
-import { STAFF_OUTCOME_ORDER, outcomeMeta, outcomeOf, type LeadOutcomeKey } from "@/lib/leadStatus";
+import { LEAD_STATUS_META, STAFF_OUTCOME_ORDER, outcomeMeta, outcomeOf, type LeadOutcomeKey, type LeadStatus } from "@/lib/leadStatus";
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
 import { CustomerDetail, type RecordedUpdate } from "@/components/employee/CustomerDetail";
+import { WorkspaceToast, type ToastMessage } from "@/components/employee/WorkspaceToast";
 import { groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
@@ -51,6 +52,7 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
   const [outcome, setOutcome] = useState<OutcomeFilter>("all");
   const [kind, setKind] = useState<KindFilter>("all");
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   /**
    * Outcomes recorded here that the server's copy of the page may not have
    * yet, keyed by lead. Merged by id, so once the refresh brings them back
@@ -112,12 +114,38 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
   const filtering = q.trim() !== "" || outcome !== "all" || kind !== "all";
   const clear = () => { setQ(""); setOutcome("all"); setKind("all"); };
 
-  const recorded = (rows: RecordedUpdate[]) => {
+  /**
+   * An outcome has been recorded: say so, and get out of the way.
+   *
+   * The confirmation lives here rather than in the panel because "Not
+   * attended" hands the customer to somebody else — the panel closes and the
+   * row leaves the list in the same second, which without a word looks like
+   * the screen threw the work away. The board survives both, so the message
+   * outlives what it is about.
+   */
+  const recorded = (rows: RecordedUpdate[], status: LeadStatus) => {
     setPending((cur) => {
       const next = new Map(cur);
       for (const row of rows) next.set(row.lead, [row.update, ...(next.get(row.lead) ?? [])]);
       return next;
     });
+
+    const items = rows.length;
+    const covered = items === 1 ? "" : ` Recorded against all ${items} of their items.`;
+    if (status === "NOT_ATTENDED") {
+      // It is no longer theirs, so the panel must not sit open over a customer
+      // they cannot act on any more.
+      setOpenKey(null);
+      setToast({ id: Date.now(), text: "Recorded. This customer has been passed to the next person.", tone: "moved" });
+    } else {
+      setToast({
+        id: Date.now(),
+        text: `Recorded — marked as ${LEAD_STATUS_META[status].label.toLowerCase()}.`,
+        detail: covered.trim() || undefined,
+        tone: "done",
+      });
+    }
+
     // The console reads the same rows; bring this page's server copy up too.
     refresh();
   };
@@ -253,6 +281,10 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
       {open && (
         <CustomerDetail group={open} onClose={() => setOpenKey(null)} onRecorded={recorded} />
       )}
+
+      {/* Outside the panel on purpose: what it confirms often closes the panel
+          and takes the row off the list in the same moment. */}
+      <WorkspaceToast message={toast} onDone={() => setToast(null)} />
     </div>
   );
 }

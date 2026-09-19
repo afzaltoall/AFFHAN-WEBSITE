@@ -222,7 +222,12 @@ function SettledList({ rows }: { rows: SettledRow[] }) {
     );
   }
   const why = (row: SettledRow) => {
-    if (row.closedReason === "MANUAL") return "taken over by an administrator";
+    // "Taken over" and "taken off everybody" are both MANUAL, and reading the
+    // first against a row that says Nobody is what made the picker's toggle
+    // look like a saving bug rather than the unassignment it actually was.
+    if (row.closedReason === "MANUAL") {
+      return row.holder ? "taken over by an administrator" : "taken off everybody by an administrator";
+    }
     if (row.closedReason === "GONE") return "no leads left on file";
     if (row.state === "RESOLVED") return "decided by the salesperson";
     return row.closedReason?.toLowerCase() ?? "closed";

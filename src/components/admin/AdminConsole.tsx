@@ -999,6 +999,10 @@ export function AdminConsole({ data }: Props) {
      survive the collapse instead of leaving with the text. */
   const sideDot = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand-dark px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${sideOpen ? "opacity-0" : "opacity-100"}`;
   const sidePill = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[11px] font-semibold leading-5 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${sideOpen ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
+  /* The same collapse as sidePill, in the colour of something that needs a
+     person: the queue's given-up-on count, which is not a workload figure
+     but a backlog nobody else is going to notice. */
+  const sideAlert = `shrink-0 overflow-hidden whitespace-nowrap rounded-full bg-amber-500/15 text-[10.5px] font-bold leading-5 text-amber-700 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${sideOpen ? "ml-1 max-w-[96px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
 
   return (
     <div style={sfFont} className={`min-h-screen w-full antialiased transition-colors duration-200 ${t.page}`}>
@@ -1123,7 +1127,15 @@ export function AdminConsole({ data }: Props) {
               {/* Customers going round the rotation because nobody has taken
                   them on. Badged like the unread counts above it: a queue is
                   only useful if somebody notices it filling up. */}
-              <Link href="/admin/queue/" title="Queue" className={`${sideRow} ${t.navIdle}`}>
+              <Link
+                href="/admin/queue/"
+                title={
+                  data.stats.queueInvalid > 0
+                    ? `Queue — ${fmtNum(data.stats.queue)} going round, ${fmtNum(data.stats.queueInvalid)} given up on and waiting for you`
+                    : `Queue — ${fmtNum(data.stats.queue)} going round`
+                }
+                className={`${sideRow} ${t.navIdle}`}
+              >
                 <span className={sideIconCol}>
                   <Timer size={17} className={t.soft} />
                   {/* Collapsed to 60px, one number has to stand for the whole
@@ -1137,14 +1149,11 @@ export function AdminConsole({ data }: Props) {
                 <span className={sidePill}>{fmtNum(data.stats.queue)}</span>
                 {/* Beside the rotating figure rather than added to it: the two
                     numbers mean different things, and only one of them is
-                    somebody's job to fix today. */}
+                    somebody's job to fix today. The word rides along because
+                    two bare numbers side by side say nothing about which is
+                    which — and this is the one that needs a person. */}
                 {data.stats.queueInvalid > 0 && (
-                  <span
-                    title={`${data.stats.queueInvalid} given up on — nobody took them`}
-                    className="ml-1 shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10.5px] font-bold text-amber-700"
-                  >
-                    {fmtNum(data.stats.queueInvalid)}
-                  </span>
+                  <span className={sideAlert}>{fmtNum(data.stats.queueInvalid)} invalid</span>
                 )}
               </Link>
             </nav>
