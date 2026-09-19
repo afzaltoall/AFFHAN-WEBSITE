@@ -204,7 +204,7 @@ const matchesAssignee = (assignedToId: string | null, selected: string | null) =
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
-    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number; queue: number };
+    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number; queue: number; queueInvalid: number };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
     /**
@@ -1126,10 +1126,26 @@ export function AdminConsole({ data }: Props) {
               <Link href="/admin/queue/" title="Queue" className={`${sideRow} ${t.navIdle}`}>
                 <span className={sideIconCol}>
                   <Timer size={17} className={t.soft} />
-                  {data.stats.queue > 0 && <span className={sideDot}>{fmtBadge(data.stats.queue)}</span>}
+                  {/* Collapsed to 60px, one number has to stand for the whole
+                      queue — and a customer the rotation gave up on is exactly
+                      the one nobody else will notice, so it counts here. */}
+                  {data.stats.queue + data.stats.queueInvalid > 0 && (
+                    <span className={sideDot}>{fmtBadge(data.stats.queue + data.stats.queueInvalid)}</span>
+                  )}
                 </span>
                 <span className={`flex-1 ${sideLabel}`}>Queue</span>
                 <span className={sidePill}>{fmtNum(data.stats.queue)}</span>
+                {/* Beside the rotating figure rather than added to it: the two
+                    numbers mean different things, and only one of them is
+                    somebody's job to fix today. */}
+                {data.stats.queueInvalid > 0 && (
+                  <span
+                    title={`${data.stats.queueInvalid} given up on — nobody took them`}
+                    className="ml-1 shrink-0 rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10.5px] font-bold text-amber-700"
+                  >
+                    {fmtNum(data.stats.queueInvalid)}
+                  </span>
+                )}
               </Link>
             </nav>
             <div className={`border-t p-2 ${t.border}`}>

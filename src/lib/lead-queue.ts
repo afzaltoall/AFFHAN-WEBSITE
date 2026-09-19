@@ -1,6 +1,9 @@
 import { prisma } from "@/lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { addOfficeMinutes, isOfficeOpen } from "@/lib/office-hours";
+import { formatDateTime } from "@/lib/datetime";
+import { sendEmail } from "@/lib/email";
+import { leadGivenUpEmail } from "@/lib/email-templates";
 import { decideRotation, nextInOrder, type RotationMember } from "@/lib/lead-rotation-order";
 
 /**
@@ -591,7 +594,7 @@ export async function runRotation(opts: { now?: Date; dryRun?: boolean } = {}): 
   //    INVALID hands nothing to anybody, so it need not wait for the office.
   const stale = await prisma.leadQueueEntry.findMany({
     where: { state: QUEUE_STATE.ROTATING, expiresAt: { lte: now } },
-    select: { id: true, customerKey: true, customerName: true },
+    select: { id: true, customerKey: true, customerName: true, passes: true, handoffs: true, enteredAt: true },
     take: 100,
   });
   for (const entry of stale) {
@@ -602,6 +605,9 @@ export async function runRotation(opts: { now?: Date; dryRun?: boolean } = {}): 
       data: { state: QUEUE_STATE.INVALID, closedAt: now, closedReason: "INVALID", nextRotationAt: null, currentEmployeeId: null },
     });
     await logEvent(prisma, entry.id, "INVALIDATED", { note: "a week in the queue with no outcome" });
+    // Outside the loop's writes, and after them: a customer nobody took on is
+    // a state with no witness unless somebody is told.
+    await announceGivenUp(entry);
     report.expired += 1;
     report.invalidated.push(entry.customerName);
   }
@@ -646,11 +652,55 @@ export async function runRotation(opts: { now?: Date; dryRun?: boolean } = {}): 
     const result = await prisma.$transaction((tx) => applyAdvance(tx, entry, plan, now));
     if (result.outcome === "ROTATED") report.rotated.push({ customer: entry.customerName, to: result.to?.name ?? "?", passes: result.passes });
     else if (result.outcome === "PARKED") report.parked.push(entry.customerName);
-    else if (result.outcome === "INVALID") report.invalidated.push(entry.customerName);
+    else if (result.outcome === "INVALID") {
+      report.invalidated.push(entry.customerName);
+      // After the transaction has committed, never inside it: a mail server
+      // having a bad afternoon must not roll a customer back into a rotation
+      // that has already given up on them.
+      await announceGivenUp(entry);
+    }
     else if (result.outcome === "GONE") report.closed.push(entry.customerName);
   }
 
   return report;
+}
+
+/**
+ * Tell the office a customer has been given up on.
+ *
+ * INVALID is the one state in this whole feature that nobody is watching: the
+ * customer stops moving, stops being anybody's work, and waits for somebody to
+ * open the Queue page. So it is the one state that reaches out.
+ *
+ * Sent to every active administrator, because "the admin" is not one person
+ * and a notification nobody receives is the problem it was meant to solve.
+ * Failures are logged and swallowed — an email that does not send must not
+ * roll back a customer's state, which would leave them rotating forever.
+ */
+async function announceGivenUp(entry: { customerKey: string; customerName: string; passes: number; handoffs: number; enteredAt: Date }) {
+  try {
+    const [admins, inquiries, contacts] = await Promise.all([
+      prisma.adminUser.findMany({ select: { email: true } }),
+      prisma.inquiry.count({ where: { customerKey: entry.customerKey, status: { not: "deleted" } } }),
+      prisma.contactMessage.count({ where: { customerKey: entry.customerKey, status: { not: "deleted" } } }),
+    ]);
+    if (admins.length === 0) return;
+
+    const body = leadGivenUpEmail({
+      customerName: entry.customerName,
+      products: inquiries,
+      messages: contacts,
+      passes: entry.passes,
+      handoffs: entry.handoffs,
+      enteredAt: formatDateTime(entry.enteredAt),
+    });
+    for (const admin of admins) {
+      const sent = await sendEmail({ ...body, to: admin.email });
+      if (!sent.ok) console.warn(`[queue] could not tell an administrator about ${entry.customerName}: ${sent.reason ?? "unknown"}`);
+    }
+  } catch (error) {
+    console.error("queue notification failed:", error instanceof Error ? error.name : "unknown");
+  }
 }
 
 /** Fill Inquiry/ContactMessage.customerKey wherever it is missing. */

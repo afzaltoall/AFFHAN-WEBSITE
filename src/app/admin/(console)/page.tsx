@@ -32,7 +32,7 @@ export default async function AdminPage() {
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
-        inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint; queue: bigint;
+        inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint; queue: bigint; queueInvalid: bigint;
       }]>`
         SELECT
           (SELECT count(*) FROM "Product")                                        AS products,
@@ -49,7 +49,10 @@ export default async function AdminPage() {
           -- Customers going round the rotation queue right now. It belongs on
           -- the sidebar because a queue nobody looks at is a queue that has
           -- quietly stopped moving.
-          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'ROTATING')         AS queue
+          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'ROTATING')         AS queue,
+          -- Given up on, and counted separately: these need a person, and
+          -- folding them into the rotating figure would hide the ones that do.
+          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'INVALID')           AS "queueInvalid"
       `,
       // High take so the "All" customer checklist and grouping never silently
       // drop rows — the master export reads the full DB server-side regardless.
@@ -144,6 +147,7 @@ export default async function AdminPage() {
   const contactCount = n(counts[0].contacts);
   const supplierCount = n(counts[0].suppliers);
   const queueCount = n(counts[0].queue);
+  const queueInvalidCount = n(counts[0].queueInvalid);
   const videoCount = n(counts[0].videos);
 
   const inquiries = allInquiries.filter((i) => i.status !== "deleted");
@@ -214,6 +218,7 @@ export default async function AdminPage() {
       suppliers: supplierCount,
       videos: videoCount,
       queue: queueCount,
+      queueInvalid: queueInvalidCount,
     },
     inquiries: inquiries.map(mapInquiry),
     deletedInquiries: deletedInquiries.map(mapInquiry),

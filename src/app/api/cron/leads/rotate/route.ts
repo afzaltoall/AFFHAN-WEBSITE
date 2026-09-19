@@ -52,6 +52,26 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const dryRun = url.searchParams.get("dryRun") === "1";
   const nowParam = url.searchParams.get("now");
+
+  // ?now= moves the clock, and a moved clock can hand every customer in the
+  // queue to the wrong person at once — "pretend it is Tuesday" run against
+  // production during an incident is a worse outcome than whatever was being
+  // debugged. The bearer token is not enough of a gate for that: it is held by
+  // a scheduler, sits in an environment variable, and is meant for a machine
+  // that never needs this.
+  //
+  // So it is off unless a deployment says otherwise. LEAD_QUEUE_TEST_CLOCK is
+  // set on a local or staging build and nowhere else; production simply does
+  // not have it, and there is nothing to get wrong at the call site. It
+  // refuses loudly rather than ignoring the parameter, because a test that
+  // silently ran against the real clock would report a pass it did not earn.
+  if (nowParam && process.env.LEAD_QUEUE_TEST_CLOCK !== "1") {
+    return NextResponse.json(
+      { error: "The clock override is not enabled on this deployment. Set LEAD_QUEUE_TEST_CLOCK=1 on a test build to use ?now=." },
+      { status: 403 }
+    );
+  }
+
   const now = nowParam ? new Date(nowParam) : new Date();
   if (nowParam && !Number.isFinite(now.getTime())) {
     return NextResponse.json({ error: "now must be an ISO date" }, { status: 400 });

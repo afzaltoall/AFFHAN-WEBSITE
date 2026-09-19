@@ -35,6 +35,19 @@ export interface QueueRow {
   trail: { id: string; kind: string; from: string | null; to: string | null; note: string | null; at: string }[];
 }
 
+/** A customer who has left the queue: taken over, or decided. */
+export interface SettledRow {
+  id: string;
+  customerName: string;
+  state: string;
+  closedReason: string | null;
+  holder: { id: string; name: string; image: string | null } | null;
+  handoffs: number;
+  passes: number;
+  enteredAt: string;
+  closedAt: string | null;
+}
+
 /**
  * The rotation queue, and the two piles inside it that need a person.
  *
@@ -48,9 +61,16 @@ export interface QueueRow {
  * the button: it says "this is now somebody's job", and the sweep must not
  * undo that two hours later.
  */
-export function QueueBoard({ rows, employees }: { rows: QueueRow[]; employees: EmployeeOption[] }) {
+export function QueueBoard({
+  rows, settled, employees,
+}: {
+  rows: QueueRow[];
+  settled: SettledRow[];
+  employees: EmployeeOption[];
+}) {
   const router = useRouter();
   const t = LIGHT_THEME;
+  const [tab, setTab] = useState<"open" | "settled">("open");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // A countdown that does not move is a screenshot. Half a minute is as often
@@ -116,6 +136,32 @@ export function QueueBoard({ rows, employees }: { rows: QueueRow[]; employees: E
           <p className="mb-4 rounded-xl bg-red-500/10 px-4 py-2.5 text-[13px] font-medium text-red-700">{error}</p>
         )}
 
+        {/* Open and settled, because "who did the queue hand this to last
+            week" was previously a question only the database could answer. */}
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {([
+            ["open", "Open", rows.length],
+            ["settled", "Settled", settled.length],
+          ] as const).map(([key, label, n]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setTab(key)}
+              aria-pressed={tab === key}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+                tab === key ? "bg-[#1d1d1f] text-white" : "bg-white text-[#1d1d1f] ring-1 ring-black/[0.06] hover:bg-black/[0.02]"
+              }`}
+            >
+              {label}
+              <span className={`text-[11px] font-bold ${tab === key ? "text-white/70" : "text-[#86868b]"}`}>{n}</span>
+            </button>
+          ))}
+        </div>
+
+        {tab === "settled" ? (
+          <SettledList rows={settled} />
+        ) : (
+        <>
         <div className="grid gap-3 sm:grid-cols-3">
           <Tile icon={Timer} label="Going round" value={rotating.length} hint="somebody has them, and the clock is running" tint="text-sky-500" bg="bg-sky-50" />
           <Tile icon={PauseCircle} label="Need you" value={attention.length} hint="parked, or being worked with the clock stopped" tint="text-amber-500" bg="bg-amber-50" />
@@ -152,8 +198,63 @@ export function QueueBoard({ rows, employees }: { rows: QueueRow[]; employees: E
             />
           </>
         )}
+        </>
+        )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Customers who have left the queue, newest first.
+ *
+ * Read-only on purpose: these are settled, and anything that needs doing to
+ * them is done where they live — the console's own list. What this answers is
+ * "what happened to them", which until now meant asking the database.
+ */
+function SettledList({ rows }: { rows: SettledRow[] }) {
+  if (rows.length === 0) {
+    return (
+      <p className="rounded-2xl bg-white px-5 py-12 text-center text-[13px] text-[#86868b] shadow-sm ring-1 ring-black/[0.04]">
+        Nothing has left the queue yet. Customers appear here once somebody decides about them, or an
+        administrator takes them over.
+      </p>
+    );
+  }
+  const why = (row: SettledRow) => {
+    if (row.closedReason === "MANUAL") return "taken over by an administrator";
+    if (row.closedReason === "GONE") return "no leads left on file";
+    if (row.state === "RESOLVED") return "decided by the salesperson";
+    return row.closedReason?.toLowerCase() ?? "closed";
+  };
+  return (
+    <ul className="divide-y divide-black/[0.06] overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.04]">
+      {rows.map((row) => (
+        <li key={row.id} className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-semibold leading-snug">{row.customerName}</p>
+            <p className="mt-1 text-[12px] text-[#48484a]">
+              {why(row)} · {row.handoffs} {row.handoffs === 1 ? "handover" : "handovers"}
+              {row.passes > 0 && `, ${row.passes} ${row.passes === 1 ? "pass" : "passes"}`} · in the queue from{" "}
+              {formatDateTime(row.enteredAt)}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2.5">
+            {row.holder ? (
+              <span className="inline-flex items-center gap-2 rounded-full bg-black/[0.04] py-1 pl-1 pr-3 text-xs font-semibold">
+                <Avatar name={row.holder.name} image={row.holder.image} size={20} />
+                {row.holder.name}
+              </span>
+            ) : (
+              <span className="rounded-full bg-black/[0.04] px-2.5 py-1 text-xs font-semibold text-[#86868b]">Nobody</span>
+            )}
+            <span className="w-28 text-right text-[12px] text-[#86868b]" title={row.closedAt ? formatDateTime(row.closedAt) : ""}>
+              {row.closedAt ? timeAgo(row.closedAt) : "—"}
+            </span>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { QUEUE_STATE } from "@/lib/lead-queue";
-import { QueueBoard, type QueueRow } from "@/components/admin/QueueBoard";
+import { QueueBoard, type QueueRow, type SettledRow } from "@/components/admin/QueueBoard";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,11 @@ export default async function QueuePage() {
   if (!admin) redirect("/admin/login");
   if (admin.role !== "admin") redirect("/");
 
-  const [entries, employees] = await Promise.all([
+  // What is still open, and what has settled. The second list is the answer to
+  // "who did the queue hand this to last week", which was previously a
+  // question only the database could answer.
+  const settledWhere = { state: { in: [QUEUE_STATE.MANUAL, QUEUE_STATE.RESOLVED] } };
+  const [entries, settledRows, employees] = await Promise.all([
     prisma.leadQueueEntry.findMany({
       where: { state: { in: [QUEUE_STATE.ROTATING, QUEUE_STATE.INVALID] } },
       orderBy: [{ state: "asc" }, { nextRotationAt: "asc" }, { enteredAt: "asc" }],
@@ -45,6 +49,16 @@ export default async function QueuePage() {
           take: 6,
           select: { id: true, kind: true, fromName: true, toName: true, note: true, createdAt: true },
         },
+      },
+    }),
+    prisma.leadQueueEntry.findMany({
+      where: settledWhere,
+      orderBy: [{ closedAt: "desc" }],
+      take: 50,
+      select: {
+        id: true, customerKey: true, customerName: true, state: true, closedReason: true,
+        handoffs: true, passes: true, enteredAt: true, closedAt: true,
+        currentEmployee: { select: { id: true, name: true, image: true } },
       },
     }),
     prisma.employee.findMany({
@@ -98,5 +112,17 @@ export default async function QueuePage() {
     })),
   }));
 
-  return <QueueBoard rows={rows} employees={employees} />;
+  const settled: SettledRow[] = settledRows.map((e) => ({
+    id: e.id,
+    customerName: e.customerName,
+    state: e.state,
+    closedReason: e.closedReason,
+    holder: e.currentEmployee ? { id: e.currentEmployee.id, name: e.currentEmployee.name, image: e.currentEmployee.image } : null,
+    handoffs: e.handoffs,
+    passes: e.passes,
+    enteredAt: e.enteredAt.toISOString(),
+    closedAt: e.closedAt ? e.closedAt.toISOString() : null,
+  }));
+
+  return <QueueBoard rows={rows} settled={settled} employees={employees} />;
 }
