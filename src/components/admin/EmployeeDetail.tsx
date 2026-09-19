@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
-import { formatDateTime } from "@/lib/datetime";
-import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { formatDateTime, formatSince } from "@/lib/datetime";
+import { isInProgress, leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { normalizePhoneKey } from "@/lib/customerGroups";
 import { collapseUpdates } from "@/lib/statusBatch";
 import { EmployeeForm, type EmployeeRow } from "@/components/admin/EmployeeForm";
@@ -201,8 +201,11 @@ export function EmployeeDetail({
                     const what = items.length === 1 ? items[0] : `${items.length} products · ${items.join(", ")}`;
                     return (
                       <tr key={u.id} className="align-top transition-colors hover:bg-black/[0.015]">
+                        {/* Picking a customer up prints the exact moment; the
+                            workspace shows this person none of it. See
+                            showsTimeToStaff in lib/leadStatus.ts. */}
                         <td className="whitespace-nowrap px-5 py-3" title={formatDateTime(u.createdAt)}>
-                          {timeAgo(u.createdAt)}
+                          {isInProgress(u.status) ? formatSince(u.createdAt) : timeAgo(u.createdAt)}
                         </td>
                         <td className="px-5 py-3">
                           {/* Back to the row itself — it lives in the console's

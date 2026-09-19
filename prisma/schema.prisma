@@ -739,7 +739,11 @@ model StatusUpdate {
   employeeId String
   employee   Employee        @relation(fields: [employeeId], references: [id])
 
-  /// CONVERTED | NOT_CONVERTED | IN_PROGRESS | FOLLOW_UP
+  /// IN_PROGRESS | LEAD | NO_LEAD | NOT_ATTENDED, and INVALID
+  ///
+  /// The first four are what a member of staff can record; INVALID is written
+  /// by the system for a customer the whole team passed on, and no button
+  /// offers it. See lib/leadStatus.ts, which is where the vocabulary lives.
   ///
   /// A THIRD status vocabulary on these rows, and deliberately its own column
   /// rather than a reuse of either existing one. Inquiry.status is internal

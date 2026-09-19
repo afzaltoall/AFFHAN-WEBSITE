@@ -16,9 +16,9 @@ import {
 import { getCdnUrl } from "@/lib/cdn";
 import { countryFlagUrl } from "@/lib/countryFlag";
 import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
-import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { isInProgress, leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { timeAgo } from "@/lib/relative-time";
-import { formatDateTime } from "@/lib/datetime";
+import { formatDateTime, formatSince } from "@/lib/datetime";
 import { signOutThrough } from "@/lib/session-client";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { useAdminDark } from "@/lib/useAdminDark";
@@ -2597,17 +2597,30 @@ function AssigneePicker({
 }
 
 /** The newest outcome, beside the triage control rather than replacing it. */
+/**
+ * The newest outcome, on the row itself.
+ *
+ * In progress prints the exact moment it was picked up rather than "2h": the
+ * question an administrator is asking of this chip is "who is on this, and
+ * since when" — a clock time answers it, a rounded duration does not. Every
+ * other outcome keeps the relative time, which is what you want of something
+ * that has already finished. The workspace shows the same fact with no time at
+ * all; see showsTimeToStaff in lib/leadStatus.ts.
+ */
 function OutcomeChip({ value }: { value: LeadOutcome | null }) {
   if (!value) return null;
   const who = value.by.split(" ")[0];
+  const working = isInProgress(value.status);
   return (
     <span
       title={`${leadStatusLabel(value.status)} — ${value.by}, ${formatDateTime(value.at)}${value.note ? `\n\n${value.note}` : ""}`}
-      className={`inline-flex max-w-[13rem] items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${leadStatusChip(value.status)}`}
+      className={`inline-flex max-w-[15rem] items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${leadStatusChip(value.status)}`}
     >
       <span className="truncate">{leadStatusLabel(value.status)}</span>
       <span className={`truncate font-semibold opacity-75`}>{who}</span>
-      <span className="shrink-0 font-medium opacity-60">{timeAgo(value.at)}</span>
+      <span className="shrink-0 font-medium opacity-60 tabular-nums">
+        {working ? `since ${formatSince(value.at)}` : timeAgo(value.at)}
+      </span>
     </span>
   );
 }

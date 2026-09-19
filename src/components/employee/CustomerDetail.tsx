@@ -11,7 +11,7 @@ import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import {
   LEAD_NOTE_MAX, LEAD_STATUSES, LEAD_STATUS_META, leadStatusChip, leadStatusLabel, NOT_STARTED_META,
-  type LeadStatus,
+  showsTimeToStaff, type LeadStatus,
 } from "@/lib/leadStatus";
 import { batchesOf, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
@@ -308,14 +308,19 @@ export function CustomerDetail({
               <p className={`text-[13px] ${wt.soft}`}>Nothing recorded yet. Whatever you record appears here, newest first.</p>
             ) : (
               <ol className="space-y-2.5 border-l-2 border-black/[0.06] pl-3">
-                {batches.map((b) => (
+                {batches.map((b) => {
+                  // In progress is shown without its clock here, and with it in
+                  // the admin's views — leadStatus.ts says why. The tooltip goes
+                  // with it, or hovering would give away what the line does not.
+                  const timed = showsTimeToStaff(b.status);
+                  return (
                   <li key={b.id} className="text-[12.5px]">
                     <span className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${leadStatusChip(b.status)}`}>
                         {leadStatusLabel(b.status)}
                       </span>
-                      <span className={wt.soft} title={formatDateTime(b.createdAt)}>
-                        {timeAgo(b.createdAt)} · {b.byMe ? "you" : b.byName}
+                      <span className={wt.soft} {...(timed ? { title: formatDateTime(b.createdAt) } : {})}>
+                        {timed ? `${timeAgo(b.createdAt)} · ` : ""}{b.byMe ? "you" : b.byName}
                         {b.titles.length > 1 && ` · ${b.titles.length} items`}
                       </span>
                     </span>
@@ -324,7 +329,8 @@ export function CustomerDetail({
                       <p className={`mt-0.5 truncate text-[11.5px] ${wt.soft}`}>{b.titles[0]}</p>
                     )}
                   </li>
-                ))}
+                  );
+                })}
               </ol>
             )}
           </div>
@@ -502,7 +508,8 @@ function ItemPanel({
                 )}
                 {latest && (
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${leadStatusChip(latest.status)}`}>
-                    {leadStatusLabel(latest.status)} · {timeAgo(latest.createdAt)}
+                    {leadStatusLabel(latest.status)}
+                    {showsTimeToStaff(latest.status) && ` · ${timeAgo(latest.createdAt)}`}
                   </span>
                 )}
               </div>

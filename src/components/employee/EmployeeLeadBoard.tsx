@@ -9,7 +9,7 @@ import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
-import { OUTCOME_ORDER, outcomeMeta, outcomeOf, type LeadOutcomeKey } from "@/lib/leadStatus";
+import { STAFF_OUTCOME_ORDER, outcomeMeta, outcomeOf, type LeadOutcomeKey } from "@/lib/leadStatus";
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
 import { CustomerDetail, type RecordedUpdate } from "@/components/employee/CustomerDetail";
 import { groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
@@ -146,7 +146,7 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
           everywhere else. */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Tile label="Your customers" value={groups.length} on={outcome === "all"} onClick={() => setOutcome("all")} />
-        {OUTCOME_ORDER.map((key) => (
+        {STAFF_OUTCOME_ORDER.map((key) => (
           <Tile
             key={key}
             label={outcomeMeta(key).label}
@@ -404,7 +404,7 @@ function OutcomeMenu({
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  const rows: OutcomeFilter[] = ["all", ...OUTCOME_ORDER];
+  const rows: OutcomeFilter[] = ["all", ...STAFF_OUTCOME_ORDER];
   const label = (o: OutcomeFilter) => (o === "all" ? "All outcomes" : outcomeMeta(o).label);
 
   return (
