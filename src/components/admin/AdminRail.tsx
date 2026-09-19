@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  Activity, Globe, Inbox, LayoutList, LogOut, MessageSquare, Moon, PlayCircle, Smartphone, Sun, Trash2,
+  Activity, Globe, Inbox, LayoutList, LogOut, MessageSquare, Moon, PlayCircle, Smartphone, Sun, Timer, Trash2,
   UserCog, Users, type LucideIcon,
 } from "lucide-react";
 import { signOutThrough } from "@/lib/session-client";
@@ -44,6 +44,7 @@ const ITEMS: Item[] = [
   { href: "/admin/users/website/", label: "Website Users", icon: Globe },
   { href: "/admin/users/app/", label: "App Users", icon: Smartphone },
   { href: "/admin/mobile-inquiries/", label: "App Inquiries", icon: MessageSquare },
+  { href: "/admin/queue/", label: "Queue", icon: Timer },
   { href: "/admin/activity/", label: "Activity", icon: Activity },
   { href: "/admin/employees/", label: "Staff", icon: UserCog },
 ];

@@ -466,6 +466,84 @@ export async function manualAssignCustomers(opts: {
   return entries.length;
 }
 
+/**
+ * An administrator hands a queued customer to somebody, by name.
+ *
+ * Every lead of theirs moves, as it does everywhere else in this module, and
+ * the rotation lets go: this is now a decision somebody made, not a customer
+ * going round. Passing null takes the customer off everybody, which is how an
+ * administrator parks one deliberately.
+ */
+export async function assignQueuedCustomer(opts: {
+  entryId: string;
+  employeeId: string | null;
+  now?: Date;
+}): Promise<{ customerName: string; to: string | null; leads: number }> {
+  const now = opts.now ?? new Date();
+  const entry = await prisma.leadQueueEntry.findUniqueOrThrow({ where: { id: opts.entryId } });
+  const to = opts.employeeId
+    ? await prisma.employee.findUnique({ where: { id: opts.employeeId }, select: { id: true, name: true } })
+    : null;
+  const leads = await customerLeads(prisma, entry.customerKey);
+
+  await prisma.$transaction(async (tx) => {
+    await assignCustomer(tx, entry.customerKey, to?.id ?? null, now);
+    await tx.leadQueueEntry.update({
+      where: { id: entry.id },
+      data: {
+        state: QUEUE_STATE.MANUAL,
+        currentEmployeeId: to?.id ?? null,
+        lastEmployeeId: entry.currentEmployeeId ?? entry.lastEmployeeId,
+        nextRotationAt: null,
+        closedAt: now,
+        closedReason: "MANUAL",
+      },
+    });
+    await logEvent(tx, entry.id, "MANUAL_ASSIGN", {
+      to,
+      note: to ? "assigned by an administrator" : "taken off everybody by an administrator",
+    });
+  });
+
+  return { customerName: entry.customerName, to: to?.name ?? null, leads: leads.count };
+}
+
+/**
+ * Put a customer the queue gave up on back into it.
+ *
+ * A fresh cycle, not a continuation: the counters go back to zero and the week
+ * starts again, because an administrator sending a customer round a second
+ * time means "try again", not "carry on from where you stopped". The RESUMED
+ * event is also what tells the rotation that nobody has been asked yet — see
+ * seenThisPass.
+ *
+ * Due immediately, so the next sweep picks it up rather than the customer
+ * waiting two more working hours to be offered to anybody.
+ */
+export async function requeueCustomer(opts: { entryId: string; now?: Date }): Promise<{ customerName: string }> {
+  const now = opts.now ?? new Date();
+  const entry = await prisma.leadQueueEntry.findUniqueOrThrow({ where: { id: opts.entryId } });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.leadQueueEntry.update({
+      where: { id: entry.id },
+      data: {
+        state: QUEUE_STATE.ROTATING,
+        passes: 0,
+        handoffs: 0,
+        enteredAt: now,
+        expiresAt: new Date(now.getTime() + QUEUE_LIFETIME_MS),
+        nextRotationAt: now,
+        closedAt: null,
+        closedReason: null,
+      },
+    });
+    await logEvent(tx, entry.id, "RESUMED", { note: "put back into the rotation by an administrator" });
+  });
+
+  return { customerName: entry.customerName };
+}
+
 export interface RotationReport {
   at: string;
   officeOpen: boolean;
