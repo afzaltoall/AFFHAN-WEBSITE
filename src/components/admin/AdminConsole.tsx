@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
+import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
 import type { EmployeeOption, Theme } from "@/components/admin/console-theme";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -1568,6 +1569,16 @@ export function AdminConsole({ data }: Props) {
                 </div>
               )}
 
+              {/* What the grouping actually collapsed, before the list of it. */}
+              {view === "inquiries" && groupByCustomer && (
+                <CustomerGroupSummary
+                  t={t}
+                  groups={customerGroups}
+                  onlyUnassigned={assigneeFilter === UNASSIGNED}
+                  onToggleUnassigned={() => setAssigneeFilter(assigneeFilter === UNASSIGNED ? null : UNASSIGNED)}
+                />
+              )}
+
               {/* Selection + bulk-action bar. Inquiries: set status / delete.
                   Recently Deleted: restore / delete forever. */}
               {(view === "inquiries" || view === "trash") && visibleIds.length > 0 && (
@@ -1617,10 +1628,6 @@ export function AdminConsole({ data }: Props) {
 
               {view === "inquiries" && groupByCustomer ? (
                 <>
-                  <div className={`flex items-center gap-2 border-b px-4 py-2.5 text-xs ${t.soft} ${t.border}`}>
-                    <Users className="h-3.5 w-3.5" />
-                    {customerGroups.length} unique {customerGroups.length === 1 ? "customer" : "customers"} · deduped by phone from the loaded inquiries. Assigning a row hands over every product they asked about. Use “Grouped .xlsx” for the full database.
-                  </div>
                   {customerGroups.length ? (
                     <ul className={`divide-y ${t.divide}`}>
                       {customerGroups.map((g) => (
