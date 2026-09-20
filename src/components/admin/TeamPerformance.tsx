@@ -80,6 +80,9 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
     // has no sort state, the header cell does.
     return (
       <th
+        // Five of these come out of a map over STAFF_ORDER, so the cell
+        // carries its own key rather than leaving the caller to remember one.
+        key={key}
         aria-sort={on ? (asc ? "ascending" : "descending") : "none"}
         className={`px-3 py-3 ${align === "right" ? "text-right" : "text-left"}`}
       >
