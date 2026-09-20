@@ -101,6 +101,16 @@ export default async function EmployeeProfilePage() {
     seen.add(key);
     if (isStoredLeadStatus(u.status)) breakdown[u.status] += 1;
   }
+  // What they have recorded lately, for the line under the win rate. Two
+  // counts off one indexed column, so it costs a single statement.
+  const week = 7 * 24 * 60 * 60 * 1000;
+  const since = new Date(Date.now() - week);
+  const before = new Date(Date.now() - 2 * week);
+  const [thisWeek, lastWeek] = await Promise.all([
+    prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: since } } }),
+    prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: before, lt: since } } }),
+  ]);
+
   const assigned = inquiries.length + contacts.length;
   breakdown[NOT_STARTED] = Math.max(0, assigned - seen.size);
 
@@ -144,7 +154,15 @@ export default async function EmployeeProfilePage() {
         createdAt: row.createdAt.toISOString(),
         lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
       }}
-      stats={{ assigned, inquiries: inquiries.length, contacts: contacts.length, recorded, breakdown }}
+      stats={{
+        assigned,
+        inquiries: inquiries.length,
+        contacts: contacts.length,
+        recorded,
+        thisWeek,
+        lastWeek,
+        breakdown,
+      }}
       activity={activity}
       idleMinutes={Math.round(EMPLOYEE_IDLE_MS / 60000)}
     />

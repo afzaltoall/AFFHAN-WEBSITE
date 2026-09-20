@@ -11,7 +11,7 @@ import Image from "next/image";
 import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
-  Timer, Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
+  TrendingUp, Timer, Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
   MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal, UserCog, Activity,
   type LucideIcon,
 } from "lucide-react";
@@ -1123,6 +1123,15 @@ export function AdminConsole({ data }: Props) {
                   <UserCog size={17} className={t.soft} />
                 </span>
                 <span className={`flex-1 ${sideLabel}`}>Staff</span>
+              </Link>
+              {/* How the team is doing, as opposed to who they are — the two
+                  questions sit beside each other because the answer to the
+                  first is usually a name to open on the second. */}
+              <Link href="/admin/team-performance/" title="Team performance" className={`${sideRow} ${t.navIdle}`}>
+                <span className={sideIconCol}>
+                  <TrendingUp size={17} className={t.soft} />
+                </span>
+                <span className={`flex-1 ${sideLabel}`}>Team performance</span>
               </Link>
               {/* Customers going round the rotation because nobody has taken
                   them on. Badged like the unread counts above it: a queue is

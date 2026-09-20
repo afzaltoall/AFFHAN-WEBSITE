@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { leadPerformance, winRateOf } from "@/lib/lead-performance";
 import { EmployeeDetail } from "@/components/admin/EmployeeDetail";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,10 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
     },
   });
   if (!employee) notFound();
+
+  // Their book by newest outcome, from the same two statements the team page
+  // uses — one person rather than everybody, not a different calculation.
+  const [performance] = await leadPerformance({ employeeId: id });
 
   const updates = await prisma.statusUpdate.findMany({
     where: { employeeId: id },
@@ -68,6 +73,20 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
         contacts: employee._count.assignedContacts,
         updates: employee._count.statusUpdates,
       }}
+      performance={
+        performance
+          ? {
+              assigned: performance.assigned,
+              inquiries: performance.inquiries,
+              contacts: performance.contacts,
+              counts: performance.counts,
+              recorded: performance.recorded,
+              thisWeek: performance.thisWeek,
+              lastWeek: performance.lastWeek,
+              winRate: winRateOf(performance.counts.LEAD, performance.counts.NO_LEAD),
+            }
+          : null
+      }
       updates={updates.map((u) => ({
         id: u.id,
         status: u.status,

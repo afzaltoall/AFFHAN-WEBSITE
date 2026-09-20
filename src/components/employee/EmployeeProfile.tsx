@@ -11,8 +11,9 @@ import { checkPasswordStrength } from "@/lib/password-rules";
 import { preparePhoto } from "@/lib/prepare-photo";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import {
-  INVALID, OUTCOME_ORDER, leadStatusChip, leadStatusLabel, outcomeMeta, showsTimeToStaff, type LeadOutcomeKey,
+  INVALID, NOT_STARTED, OUTCOME_ORDER, leadStatusChip, leadStatusLabel, outcomeMeta, showsTimeToStaff, type LeadOutcomeKey,
 } from "@/lib/leadStatus";
+import { OutcomeTiles, STAFF_ORDER, WinRateCard } from "@/components/ui/OutcomeVisuals";
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { wt } from "@/components/employee/workspace-ui";
@@ -41,6 +42,9 @@ interface ProfileStats {
   inquiries: number;
   contacts: number;
   recorded: number;
+  /** Outcomes written in the last seven days, and in the seven before them. */
+  thisWeek: number;
+  lastWeek: number;
   breakdown: Record<LeadOutcomeKey, number>;
 }
 
@@ -79,18 +83,43 @@ export function EmployeeProfile({
 
       <Identity profile={profile} onChanged={refresh} />
 
-      {/* KPI row. Stat tiles: one number each, a label, and — where a number
-          needs its denominator to mean anything — the denominator under it. */}
-      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-        <Stat label="Assigned to you" value={stats.assigned.toLocaleString("en-GB")}
-          sub={`${stats.inquiries} quote ${stats.inquiries === 1 ? "request" : "requests"} · ${stats.contacts} ${stats.contacts === 1 ? "message" : "messages"}`} />
-        {/* "Leads won", not "Leads": on a page where every row is a lead, the
-            count of the ones that became business has to say so. */}
-        <Stat label="Leads won" value={won.toLocaleString("en-GB")} sub="by their newest outcome" />
-        <Stat label="Win rate" value={rate === null ? "—" : `${rate}%`}
-          sub={decided > 0 ? `${won} of ${decided} decided ${decided === 1 ? "customer" : "customers"}` : "nothing decided yet"} />
-        <Stat label="Updates recorded" value={stats.recorded.toLocaleString("en-GB")} sub="all time" />
+      {/* Win rate leads, at the size of the thing it is: the one figure on this
+          page that says how the work is going rather than how much of it there
+          is. The same card the office sees on their side of the same person,
+          so the two screens cannot quietly disagree about what it means. */}
+      <div className="grid gap-3 sm:gap-4 lg:grid-cols-3">
+        <WinRateCard
+          winRate={rate}
+          lead={won}
+          noLead={stats.breakdown.NO_LEAD}
+          thisWeek={stats.thisWeek}
+          lastWeek={stats.lastWeek}
+        />
+        <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:col-span-2">
+          <Stat label="Assigned to you" value={stats.assigned.toLocaleString("en-GB")}
+            sub={`${stats.inquiries} quote ${stats.inquiries === 1 ? "request" : "requests"} · ${stats.contacts} ${stats.contacts === 1 ? "message" : "messages"}`} />
+          {/* "Leads won", not "Leads": on a page where every row is a lead, the
+              count of the ones that became business has to say so. */}
+          <Stat label="Leads won" value={won.toLocaleString("en-GB")} sub="by their newest outcome" />
+          <Stat label="Updates recorded" value={stats.recorded.toLocaleString("en-GB")} sub="all time" />
+          <Stat
+            label="Still open"
+            value={(stats.breakdown.IN_PROGRESS + stats.breakdown.NOT_ATTENDED + stats.breakdown[NOT_STARTED]).toLocaleString("en-GB")}
+            sub="working, passed on, or untouched"
+          />
+        </div>
       </div>
+
+      {/* The five, each wearing its own colour — the same tiles, in the same
+          order, as the office's view of this person. */}
+      <OutcomeTiles counts={stats.breakdown} order={STAFF_ORDER} />
+
+      {decided === 0 && stats.assigned > 0 && (
+        <p className={`-mt-2 text-[12px] ${wt.soft}`}>
+          Nothing has been decided yet, so there is no win rate to show — it appears once a customer becomes a
+          lead or says no.
+        </p>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="space-y-6 xl:col-span-2">
