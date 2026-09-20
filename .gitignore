@@ -103,6 +103,11 @@ public/static/images/map*.png
 # restored backup, or any row written outside the API routes, gets the key the
 # rotation queue finds customers by. It stays runnable, not historical.
 !scripts/backfill_customer_keys.mjs
+# The one-time reset that cleared what testing recorded against the live
+# database. Kept because it documents exactly what was removed and what was
+# deliberately left alone, and because its dry run is the safe way to ask the
+# same question again. Not for repeated use — the header says so.
+!scripts/reset_lead_testing_data.mjs
 # The moderation audit toolchain — how the contact sheets, the decisions and
 # the moves were made, and how the next pass resumes. REPORT.md alongside it is
 # the record of what was removed and why.
@@ -118,3 +123,9 @@ tools/audit/out/
 # log is that it survives in history rather than sitting on one laptop.
 !tools/eprolo/moderation/*.csv
 flutter-patch-*.js
+
+# Backups written by the one-off data scripts before they change anything.
+# They hold real customer rows, so they never belong in the repository — the
+# file stays on the machine that ran the script.
+lead-testing-reset-backup-*.json
+lead-status-backup-*.json
