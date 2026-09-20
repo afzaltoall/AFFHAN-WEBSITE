@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { countryFlagUrl } from "@/lib/countryFlag";
-import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
+import { groupCustomers, buildCustomerSheet, customerKeyOf, type CustomerGroup } from "@/lib/customerGroups";
+import { searchMatches } from "@/lib/customerCodeSearch";
 import { isInProgress, leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime, formatSince } from "@/lib/datetime";
@@ -670,6 +671,19 @@ export function AdminConsole({ data }: Props) {
         qty: "bg-brand/10 text-brand-dark", overlay: "bg-slate-900/50", modal: "bg-white text-[#1d1d1f] ring-black/[0.06]",
       };
 
+  /**
+   * A row's AFFHAN number, in every form somebody might type it.
+   *
+   * Looked up by the same customerKey the badge on the row uses, so what the
+   * search finds and what the card shows can never disagree. Empty for a row
+   * whose customer has no number yet, which costs the haystack nothing.
+   */
+  const codeOf = useCallback(
+    (row: { phone?: string | null; email?: string | null }) =>
+      data.customerCodes[customerKeyOf(row) ?? ""] ?? null,
+    [data.customerCodes],
+  );
+
   const inquiries = useMemo(
     () => items.filter((i) =>
       (statusFilter === "all" || asStatus(i.status) === statusFilter) &&
@@ -680,9 +694,9 @@ export function AdminConsole({ data }: Props) {
         (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
       matchesCountry(i.country, countryFilter) &&
       matchesAssignee(i.assignedToId, assigneeFilter) &&
-      (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
+      (!q || searchMatches(`${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`, q, codeOf(i)))
     ),
-    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter]
+    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter, codeOf]
   );
   /**
    * Narrowed by country, like contactStatusCounts is by company: these numbers
@@ -792,9 +806,9 @@ export function AdminConsole({ data }: Props) {
     () => deletedItems.filter((i) =>
       matchesCountry(i.country, countryFilter) &&
       matchesAssignee(i.assignedToId, assigneeFilter) &&
-      (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
+      (!q || searchMatches(`${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`, q, codeOf(i)))
     ),
-    [deletedItems, q, countryFilter, assigneeFilter]
+    [deletedItems, q, countryFilter, assigneeFilter, codeOf]
   );
   // Ids visible in the current view, for the select-all control.
   const visibleIds = (view === "trash" ? trashList : inquiries).map((i) => i.id);
@@ -804,8 +818,14 @@ export function AdminConsole({ data }: Props) {
 
   // Derived contact lists — active list respects the status filter + search;
   // trash list is the soft-deleted messages.
-  const contactMatch = (c: ContactMessage, term: string) =>
-    !term || `${c.fullName} ${c.companyName || ""} ${c.country} ${c.phone} ${c.email} ${c.message}`.toLowerCase().includes(term.toLowerCase());
+  // Memoised because it now closes over codeOf, and two lists below depend
+  // on it: a fresh function each render would rebuild both on every keystroke
+  // anywhere in the console.
+  const contactMatch = useCallback(
+    (c: ContactMessage, term: string) =>
+      !term || searchMatches(`${c.fullName} ${c.companyName || ""} ${c.country} ${c.phone} ${c.email} ${c.message}`, term, codeOf(c)),
+    [codeOf],
+  );
   
   const contactWithCompany = useMemo(
     () => contactItems.filter((c) => c.companyName?.trim()).length,
@@ -820,7 +840,7 @@ export function AdminConsole({ data }: Props) {
       matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
       contactMatch(c, contactQ)
     ),
-    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter]
+    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactMatch]
   );
   const contactTrash = useMemo(
     () => contactDeleted.filter((c) =>
@@ -829,7 +849,7 @@ export function AdminConsole({ data }: Props) {
       matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
       contactMatch(c, contactQ)
     ),
-    [contactDeleted, contactQ, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter]
+    [contactDeleted, contactQ, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactMatch]
   );
   const contactStatusCounts = useMemo(() => {
     const scoped = contactItems.filter(

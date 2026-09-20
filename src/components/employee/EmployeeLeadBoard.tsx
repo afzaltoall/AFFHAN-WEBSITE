@@ -17,6 +17,7 @@ import { groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
+import { searchMatches } from "@/lib/customerCodeSearch";
 
 /**
  * A member of staff's work, as the people it belongs to.
@@ -93,13 +94,16 @@ export function EmployeeLeadBoard({
   }, [groups]);
 
   const searched = useMemo(() => {
-    const needle = q.trim().toLowerCase();
+    const needle = q.trim();
     return groups.filter(
       (g) =>
         (kind === "all" || (kind === "inquiry" ? g.inquiryCount > 0 : g.contactCount > 0)) &&
-        (!needle || groupHaystack(g).includes(needle))
+        // Their AFFHAN number searches here too: it is how the office refers to
+        // a customer on the phone, and the card has been showing it since the
+        // numbering shipped.
+        (!needle || searchMatches(groupHaystack(g), needle, codes[g.key]))
     );
-  }, [groups, q, kind]);
+  }, [groups, q, kind, codes]);
 
   // The filter panel's counts follow the search and the tab, so a number on a
   // row is what choosing it would actually show.
