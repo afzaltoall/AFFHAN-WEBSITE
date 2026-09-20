@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
+import { ensureCustomerCode } from "@/lib/customerCode";
 
 // Public "Contact Us" form endpoint. Stores a free-form message from the
 // contact page into ContactMessage, which the admin console reads back.
@@ -35,7 +36,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
     }
 
-    await prisma.contactMessage.create({
+    const saved = await prisma.contactMessage.create({
       data: {
         fullName,
         email,
@@ -48,6 +49,15 @@ export async function POST(req: Request) {
         customerKey: customerKeyOf({ phone, email }),
       },
     });
+
+    // The same number they would get from a quote request, because it is the
+    // same customer — the channel they arrive through does not change who they
+    // are. Never fatal: the message is saved either way.
+    try {
+      await ensureCustomerCode({ phone, email }, saved.createdAt, "CONTACT");
+    } catch (e) {
+      console.error("customer code:", e);
+    }
 
     return NextResponse.json(
       { message: "Thanks for reaching out — we'll get back to you soon." },

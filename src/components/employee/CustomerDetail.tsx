@@ -16,6 +16,7 @@ import {
 import { batchesOf, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
+import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
 
@@ -44,10 +45,13 @@ export interface RecordedUpdate {
  */
 export function CustomerDetail({
   group,
+  code,
   onClose,
   onRecorded,
 }: {
   group: CustomerLeadGroup;
+  /** Their AFFHAN number, when one has been issued. */
+  code?: string;
   onClose: () => void;
   /**
    * The rows to merge, and what was recorded — the board says so out loud, and
@@ -172,8 +176,9 @@ export function CustomerDetail({
             <h2 id="customer-detail-title" className="truncate text-lg font-semibold leading-snug">
               {group.customerName}
             </h2>
-            <p className={`mt-0.5 text-[12px] ${wt.soft}`}>
-              {countLine} · last activity {timeAgo(group.lastAt)}
+            <p className={`mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] ${wt.soft}`}>
+              {code && <CustomerCodeBadge code={code} chip={wt.chip} />}
+              <span>{countLine} · last activity {timeAgo(group.lastAt)}</span>
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">

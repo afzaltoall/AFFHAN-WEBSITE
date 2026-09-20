@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { customerCodeMap } from "@/lib/customerCode";
 import type { Metadata } from "next";
 import { prisma, withDbRetry } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
@@ -28,7 +29,7 @@ export default async function AdminPage() {
   // so the surplus queued until they timed out. Every count is now one SQL
   // statement, and each active/deleted pair is one query split in JavaScript
   // rather than two round trips asking the same table opposite questions.
-  const [counts, allInquiries, allContacts, inquiryCountryRows, contactCountryRows, employees, inquiryAssigneeRows, contactAssigneeRows, latestOutcomes] = await withDbRetry(() =>
+  const [counts, allInquiries, allContacts, inquiryCountryRows, contactCountryRows, employees, inquiryAssigneeRows, contactAssigneeRows, latestOutcomes, customerCodes] = await withDbRetry(() =>
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
@@ -128,6 +129,10 @@ export default async function AdminPage() {
           WHERE su."contactId" IS NOT NULL
           ORDER BY su."contactId", su."createdAt" DESC)
       `,
+      // Every customer’s permanent number, key → AFFHAN-xxxx. One short row
+      // each, and the grouping that needs them happens in the browser, so
+      // it is the whole table rather than a lookup per group.
+      customerCodeMap(),
     ])
   );
 
@@ -229,6 +234,7 @@ export default async function AdminPage() {
     employees: employees.map((e) => ({ id: e.id, name: e.name, region: e.region, image: e.image })),
     inquiryAssignees: toAssigneeCounts(inquiryAssigneeRows),
     contactAssignees: toAssigneeCounts(contactAssigneeRows),
+    customerCodes,
   };
 
   return <AdminConsole data={data} />;

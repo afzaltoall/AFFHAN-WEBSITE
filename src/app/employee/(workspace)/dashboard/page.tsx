@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { customerKeyOf } from "@/lib/customerGroups";
+import { customerCodesFor } from "@/lib/customerCode";
 import { EMPLOYEE_IDLE_MS, readWorkspaceAuth } from "@/lib/employee-session";
 import type { LeadCardData, LeadUpdate } from "@/components/employee/lead-types";
 import { EmployeeLeadBoard } from "@/components/employee/EmployeeLeadBoard";
@@ -148,6 +150,13 @@ export default async function EmployeeDashboardPage() {
     updates: trail.get(`contact:${c.id}`) ?? [],
   }));
 
+  // Their customers' permanent numbers, for the keys on this board only —
+  // the same AFFHAN-xxxx the console shows, so a salesperson and an admin can
+  // name the same customer to each other. See lib/customerCode.ts.
+  const codes = await customerCodesFor(
+    [...inquiryCards, ...contactCards].map((l) => customerKeyOf(l)),
+  );
+
   const minutes = Math.round(EMPLOYEE_IDLE_MS / 60000);
 
   return (
@@ -160,6 +169,7 @@ export default async function EmployeeDashboardPage() {
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )}
           name={auth.employee.name}
+          codes={codes}
         />
       ) : (
         <div>

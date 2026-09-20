@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
+import { ensureCustomerCode } from "@/lib/customerCode";
 
 export async function POST(req: Request) {
   try {
@@ -32,6 +33,15 @@ export async function POST(req: Request) {
         customerKey: customerKeyOf({ phone, email }),
       },
     });
+
+    // Their AFFHAN number, issued now if this is the first we have heard from
+    // them and left alone if it is not. Never fatal: the inquiry is saved, and
+    // the rotation job re-runs the issuing for anyone it finds without one.
+    try {
+      await ensureCustomerCode({ phone, email }, newInquiry.createdAt, "INQUIRY");
+    } catch (e) {
+      console.error("customer code:", e);
+    }
 
     return NextResponse.json(
       { message: "Inquiry saved successfully", inquiry: newInquiry },

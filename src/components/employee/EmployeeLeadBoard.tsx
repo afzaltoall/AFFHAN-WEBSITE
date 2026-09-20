@@ -16,6 +16,7 @@ import { WorkspaceToast, type ToastMessage } from "@/components/employee/Workspa
 import { groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
+import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 
 /**
  * A member of staff's work, as the people it belongs to.
@@ -46,7 +47,14 @@ type KindFilter = "all" | "inquiry" | "contact";
 /** Where a customer stands: their newest update's outcome, or not started. */
 const outcomeFor = (g: CustomerLeadGroup) => outcomeOf(g.latest?.status);
 
-export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name: string | null }) {
+export function EmployeeLeadBoard({
+  leads, name, codes,
+}: {
+  leads: LeadCardData[];
+  name: string | null;
+  /** customerKey → AFFHAN-xxxx, the number the console shows for the same person. */
+  codes: Record<string, string>;
+}) {
   const { refresh, refreshing, updatedAt } = useLiveRefresh(30_000);
   const [q, setQ] = useState("");
   const [outcome, setOutcome] = useState<OutcomeFilter>("all");
@@ -272,14 +280,14 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
         ) : (
           <ul className={`divide-y ${wt.divide}`}>
             {shown.map((g) => (
-              <CustomerRow key={g.key} group={g} outcome={outcomeFor(g)} onOpen={() => setOpenKey(g.key)} />
+              <CustomerRow key={g.key} group={g} code={codes[g.key]} outcome={outcomeFor(g)} onOpen={() => setOpenKey(g.key)} />
             ))}
           </ul>
         )}
       </div>
 
       {open && (
-        <CustomerDetail group={open} onClose={() => setOpenKey(null)} onRecorded={recorded} />
+        <CustomerDetail group={open} code={codes[open.key]} onClose={() => setOpenKey(null)} onRecorded={recorded} />
       )}
 
       {/* Outside the panel on purpose: what it confirms often closes the panel
@@ -318,7 +326,14 @@ function Tile({
  * is inside — a row that listed four product names would be four lines tall
  * and still not say they are one person.
  */
-function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; outcome: LeadOutcomeKey; onOpen: () => void }) {
+function CustomerRow({
+  group, outcome, onOpen, code,
+}: {
+  group: CustomerLeadGroup;
+  outcome: LeadOutcomeKey;
+  onOpen: () => void;
+  code?: string;
+}) {
   const withImage = group.leads.find((l) => l.kind === "inquiry" && l.image);
   const thumb = withImage ? getCdnUrl(withImage.image, 160) : null;
   const meta = outcomeMeta(outcome);
@@ -330,13 +345,13 @@ function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; out
   const products = group.leads.filter((l) => l.kind === "inquiry").map((l) => l.title);
   const summary = products.length > 0 ? products.join(" · ") : newest?.message || "Contact message";
 
+  // The row opens the customer, but the ID badge on it is a button, and a
+  // button inside a button is invalid HTML React will not hydrate. The name
+  // takes the click and stretches over the row with ::after; the badge sits
+  // above it.
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex w-full flex-col gap-3 p-4 text-left transition-colors hover:bg-black/[0.02] sm:flex-row sm:items-center"
-      >
+    <li className="relative transition-colors hover:bg-black/[0.02]">
+      <div className="flex w-full flex-col gap-3 p-4 text-left sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="relative shrink-0">
             {thumb ? (
@@ -356,7 +371,22 @@ function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; out
           </span>
 
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-[14px] font-semibold leading-snug sm:text-[13.5px]">{group.customerName}</p>
+            {/* The number beside the name: the handle they are referred to
+                by when this card is discussed with the office. */}
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold leading-snug sm:text-[13.5px]">
+              <button
+                type="button"
+                onClick={onOpen}
+                className="line-clamp-2 text-left after:absolute after:inset-0 after:content-['']"
+              >
+                {group.customerName}
+              </button>
+              {code && (
+                <span className="relative">
+                  <CustomerCodeBadge code={code} chip={wt.chip} />
+                </span>
+              )}
+            </p>
             <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${wt.mid}`} title={summary}>
               {summary}
             </p>
@@ -409,7 +439,7 @@ function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; out
           </span>
           <ChevronRight className={`hidden h-4 w-4 sm:block ${wt.soft}`} />
         </div>
-      </button>
+      </div>
     </li>
   );
 }

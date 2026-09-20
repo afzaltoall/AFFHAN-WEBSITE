@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
+import { issueMissingCodes } from "@/lib/customerCode";
 import { addOfficeMinutes, isOfficeOpen } from "@/lib/office-hours";
 import { formatDateTime } from "@/lib/datetime";
 import { sendEmail } from "@/lib/email";
@@ -558,6 +559,8 @@ export interface RotationReport {
   closed: string[];
   expired: number;
   keysFilled: number;
+  /** Customers given their AFFHAN number by this run — see lib/customerCode.ts. */
+  codesIssued: number;
   wouldRotate?: { customer: string; to: string | null }[];
 }
 
@@ -583,12 +586,19 @@ export async function runRotation(opts: { now?: Date; dryRun?: boolean } = {}): 
     closed: [],
     expired: 0,
     keysFilled: 0,
+    codesIssued: 0,
   };
 
   // 1. A lead with no customer key cannot be found by the queue. The API
   //    routes set it and the backfill filled the rest; this is the net under
   //    both of them, for rows written by a script or restored from a backup.
   if (!dryRun) report.keysFilled = await fillMissingKeys();
+
+  // 1b. The same net under the numbering: a row whose key was null when it was
+  //     written never passed through the issuing path, and the line above has
+  //     just given it the key it needed. Nobody goes unnumbered for longer
+  //     than one sweep.
+  if (!dryRun) report.codesIssued = (await issueMissingCodes()).length;
 
   // 2. The week-long backstop, whatever the hour: marking a dead customer
   //    INVALID hands nothing to anybody, so it need not wait for the office.

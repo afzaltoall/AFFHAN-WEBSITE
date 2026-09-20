@@ -103,6 +103,10 @@ public/static/images/map*.png
 # restored backup, or any row written outside the API routes, gets the key the
 # rotation queue finds customers by. It stays runnable, not historical.
 !scripts/backfill_customer_keys.mjs
+# The customer numbering. It carries the ordering rule that decided who is
+# AFFHAN-0001, which nothing else records once the rows exist, and its preview
+# is how anybody asks "who would be numbered next, and in what order".
+!scripts/backfill_customer_codes.mjs
 # The one-time reset that cleared what testing recorded against the live
 # database. Kept because it documents exactly what was removed and what was
 # deliberately left alone, and because its dry run is the safe way to ask the

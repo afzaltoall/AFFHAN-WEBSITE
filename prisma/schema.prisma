@@ -906,3 +906,48 @@ model StatusUpdate {
   @@index([employeeId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
 }
+
+/// The customer's own permanent number — AFFHAN-0001, AFFHAN-0002 — and the
+/// only table here with exactly one row per customer.
+///
+/// Everything else about a customer is spread across the rows they sent:
+/// several Inquiry rows for several products, a ContactMessage if they also
+/// wrote in, and a LeadQueueEntry only while the rotation is handling them.
+/// The identity behind all of those is Inquiry.customerKey / ContactMessage
+/// .customerKey — one string, from customerKeyOf() in lib/customerGroups.ts —
+/// and this table is that key written down once, with a number beside it.
+///
+/// It is a registry, not a profile: no name, no country, nothing that can go
+/// stale or disagree with the rows it stands for. Ask the rows for those.
+model CustomerCode {
+  id String @id @default(uuid())
+
+  /// The key their leads carry. Unique, because this IS what "one customer"
+  /// means here — a second row for the same key would be a second number for
+  /// one person, so the database refuses it rather than the application
+  /// remembering to check.
+  customerKey String @unique
+
+  /// AFFHAN- and the sequence, zero-padded to four digits.
+  ///
+  /// Written by the column's own DEFAULT — `nextval('customer_code_seq')` —
+  /// and never by the application. A "count the rows and add one" read is
+  /// exactly what two first inquiries arriving in the same second would both
+  /// win, and a sequence is the one thing Postgres guarantees they cannot.
+  /// Past 9,999 lpad simply stops padding (AFFHAN-10000); nothing breaks.
+  code String @unique @default(dbgenerated("('AFFHAN-'::text || lpad((nextval('customer_code_seq'::regclass))::text, 4, '0'::text))"))
+
+  /// Their earliest contact of any kind — the first inquiry or the first
+  /// message, whichever came first. This is what the existing customers were
+  /// ordered by when they were numbered, so AFFHAN-0001 is the oldest
+  /// relationship in the system, and it is the only surviving record of that
+  /// ordering. Moved earlier, never later, if an older row turns up.
+  firstContactAt DateTime
+
+  /// INQUIRY | CONTACT | BACKFILL — which door they came through.
+  source String
+
+  createdAt DateTime @default(now())
+
+  @@index([firstContactAt])
+}

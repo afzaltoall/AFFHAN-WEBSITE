@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
 import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
+import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 import type { EmployeeOption, Theme } from "@/components/admin/console-theme";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -220,6 +221,14 @@ interface Props {
     employees: EmployeeOption[];
     /** Whole-table assignment counts, for the filter panel. */
     inquiryAssignees: AssigneeCount[]; contactAssignees: AssigneeCount[];
+    /**
+     * customerKey → AFFHAN-xxxx, their permanent number (lib/customerCode.ts).
+     * Keyed by exactly what groupCustomers() keys a group by, so a group finds
+     * its own number with a lookup and never a scan. A key with no entry is a
+     * customer whose number has not been issued yet; the badge stays away
+     * rather than inventing a placeholder.
+     */
+    customerCodes: Record<string, string>;
   };
 }
 
@@ -1634,6 +1643,7 @@ export function AdminConsole({ data }: Props) {
                         <CustomerGroupRow
                           key={g.key}
                           g={g}
+                          code={data.customerCodes[g.key]}
                           t={t}
                           employees={data.employees}
                           busy={bulkBusy}
@@ -3407,10 +3417,12 @@ function Empty({ label, pad, t }: { label: string; pad?: boolean; t: Theme }) {
  * name who has each.
  */
 function CustomerGroupRow({
-  g, t, employees, selected, onToggleSelect, onAssign, onOpenInquiry, busy = false,
+  g, t, employees, selected, onToggleSelect, onAssign, onOpenInquiry, busy = false, code,
 }: {
   g: CustomerGroup;
   t: Theme;
+  /** Their AFFHAN number, when one has been issued. */
+  code?: string;
   employees: EmployeeOption[];
   /** True when every one of this customer's inquiries is ticked. */
   selected: boolean;
@@ -3434,7 +3446,13 @@ function CustomerGroupRow({
           <button onClick={onToggleSelect} aria-label={`Select ${g.customerName}`} aria-pressed={selected} className={`shrink-0 transition-colors ${selected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
             {selected ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
           </button>
-          <button onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+          {/* The whole block opens the customer, but it is no longer one big
+              button: the ID badge inside it is a button too, and a button
+              inside a button is invalid HTML that React refuses to hydrate.
+              The name carries the click and stretches its hit area over the
+              block with ::after — the pattern the staff table already uses —
+              and the badge sits above it. */}
+          <div className="relative flex min-w-0 flex-1 items-center gap-3">
             <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}>
               <Users className="h-[18px] w-[18px]" />
             </span>
@@ -3443,8 +3461,23 @@ function CustomerGroupRow({
                   second line on a phone rather than being cut mid-word. The other
                   names they have written in are demoted to their own line: they
                   were what pushed the real name out of view. */}
-              <p className={`line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13.5px] ${t.strong}`}>
-                {g.customerName}
+              {/* The number sits with the name, not in a column of its own:
+                  it is how you refer to this person, so it belongs where you
+                  read who they are. */}
+              <p className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold leading-snug sm:text-[13.5px] ${t.strong}`}>
+                <button
+                  type="button"
+                  onClick={() => setOpen((o) => !o)}
+                  aria-expanded={open}
+                  className="line-clamp-2 break-words text-left after:absolute after:inset-0 after:content-[''] sm:line-clamp-1"
+                >
+                  {g.customerName}
+                </button>
+                {code && (
+                  <span className="relative">
+                    <CustomerCodeBadge code={code} chip={t.chip} />
+                  </span>
+                )}
               </p>
               {g.altNames.length > 0 && (
                 <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
@@ -3456,7 +3489,7 @@ function CustomerGroupRow({
                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Calendar className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">Last {fmtDate(g.lastInquiry)}</span></span>
               </div>
             </div>
-          </button>
+          </div>
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
@@ -3492,6 +3525,14 @@ function CustomerGroupRow({
           {/* Said once, at the top, because everything below belongs to the
               same person — the ungrouped list repeats it on every row. */}
           <dl className={`mb-3 grid gap-x-6 gap-y-1.5 text-[12.5px] sm:grid-cols-2 lg:grid-cols-3 ${t.mid}`}>
+            {code && (
+              <div className="flex min-w-0 items-start gap-2">
+                <dt className={`w-[92px] shrink-0 text-[11px] uppercase tracking-wide ${t.soft}`}>Customer ID</dt>
+                <dd className="min-w-0">
+                  <CustomerCodeBadge code={code} chip={t.chip} size="md" />
+                </dd>
+              </div>
+            )}
             <GroupFact t={t} label="Company" value={g.companyName || "—"} />
             <GroupFact t={t} label="Email" value={[g.email, ...g.altEmails].filter(Boolean).join(", ") || "—"} />
             <GroupFact t={t} label="Country" value={g.country || "—"} />
