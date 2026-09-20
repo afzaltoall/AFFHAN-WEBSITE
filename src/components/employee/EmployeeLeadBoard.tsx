@@ -282,7 +282,7 @@ export function EmployeeLeadBoard({
             )}
           </div>
         ) : (
-          <ul className={`divide-y ${wt.divide}`}>
+          <ul className={`space-y-2 p-3 ${wt.page}`}>
             {shown.map((g) => (
               <CustomerRow key={g.key} group={g} code={codes[g.key]} outcome={outcomeFor(g)} onOpen={() => setOpenKey(g.key)} />
             ))}
@@ -354,8 +354,8 @@ function CustomerRow({
   // takes the click and stretches over the row with ::after; the badge sits
   // above it.
   return (
-    <li className="relative transition-colors hover:bg-black/[0.02]">
-      <div className="flex w-full flex-col gap-3 p-4 text-left sm:flex-row sm:items-center">
+    <li className={`relative overflow-hidden rounded-xl shadow-sm ring-1 transition-shadow hover:shadow-md ${wt.card}`}>
+      <div className="flex w-full flex-col gap-3 p-3.5 text-left transition-colors hover:bg-black/[0.015] sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="relative shrink-0">
             {thumb ? (
@@ -377,7 +377,7 @@ function CustomerRow({
           <div className="min-w-0 flex-1">
             {/* The number beside the name: the handle they are referred to
                 by when this card is discussed with the office. */}
-            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold leading-snug sm:text-[13.5px]">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold leading-snug tracking-tight sm:text-[14.5px]">
               <button
                 type="button"
                 onClick={onOpen}
@@ -391,7 +391,7 @@ function CustomerRow({
                 </span>
               )}
             </p>
-            <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${wt.mid}`} title={summary}>
+            <p className={`mt-1 line-clamp-1 text-[13px] font-medium ${wt.mid}`} title={summary}>
               {summary}
             </p>
             <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${wt.mid}`}>
