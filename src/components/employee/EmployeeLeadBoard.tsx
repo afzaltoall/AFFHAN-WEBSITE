@@ -9,12 +9,14 @@ import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
-import { OUTCOME_ORDER, outcomeMeta, outcomeOf, type LeadOutcomeKey } from "@/lib/leadStatus";
+import { LEAD_STATUS_META, STAFF_OUTCOME_ORDER, outcomeMeta, outcomeOf, type LeadOutcomeKey, type LeadStatus } from "@/lib/leadStatus";
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
 import { CustomerDetail, type RecordedUpdate } from "@/components/employee/CustomerDetail";
+import { WorkspaceToast, type ToastMessage } from "@/components/employee/WorkspaceToast";
 import { groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
+import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 
 /**
  * A member of staff's work, as the people it belongs to.
@@ -45,12 +47,20 @@ type KindFilter = "all" | "inquiry" | "contact";
 /** Where a customer stands: their newest update's outcome, or not started. */
 const outcomeFor = (g: CustomerLeadGroup) => outcomeOf(g.latest?.status);
 
-export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name: string | null }) {
+export function EmployeeLeadBoard({
+  leads, name, codes,
+}: {
+  leads: LeadCardData[];
+  name: string | null;
+  /** customerKey → AFFHAN-xxxx, the number the console shows for the same person. */
+  codes: Record<string, string>;
+}) {
   const { refresh, refreshing, updatedAt } = useLiveRefresh(30_000);
   const [q, setQ] = useState("");
   const [outcome, setOutcome] = useState<OutcomeFilter>("all");
   const [kind, setKind] = useState<KindFilter>("all");
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   /**
    * Outcomes recorded here that the server's copy of the page may not have
    * yet, keyed by lead. Merged by id, so once the refresh brings them back
@@ -112,12 +122,38 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
   const filtering = q.trim() !== "" || outcome !== "all" || kind !== "all";
   const clear = () => { setQ(""); setOutcome("all"); setKind("all"); };
 
-  const recorded = (rows: RecordedUpdate[]) => {
+  /**
+   * An outcome has been recorded: say so, and get out of the way.
+   *
+   * The confirmation lives here rather than in the panel because "Not
+   * attended" hands the customer to somebody else — the panel closes and the
+   * row leaves the list in the same second, which without a word looks like
+   * the screen threw the work away. The board survives both, so the message
+   * outlives what it is about.
+   */
+  const recorded = (rows: RecordedUpdate[], status: LeadStatus) => {
     setPending((cur) => {
       const next = new Map(cur);
       for (const row of rows) next.set(row.lead, [row.update, ...(next.get(row.lead) ?? [])]);
       return next;
     });
+
+    const items = rows.length;
+    const covered = items === 1 ? "" : ` Recorded against all ${items} of their items.`;
+    if (status === "NOT_ATTENDED") {
+      // It is no longer theirs, so the panel must not sit open over a customer
+      // they cannot act on any more.
+      setOpenKey(null);
+      setToast({ id: Date.now(), text: "Recorded. This customer has been passed to the next person.", tone: "moved" });
+    } else {
+      setToast({
+        id: Date.now(),
+        text: `Recorded — marked as ${LEAD_STATUS_META[status].label.toLowerCase()}.`,
+        detail: covered.trim() || undefined,
+        tone: "done",
+      });
+    }
+
     // The console reads the same rows; bring this page's server copy up too.
     refresh();
   };
@@ -146,7 +182,7 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
           everywhere else. */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6">
         <Tile label="Your customers" value={groups.length} on={outcome === "all"} onClick={() => setOutcome("all")} />
-        {OUTCOME_ORDER.map((key) => (
+        {STAFF_OUTCOME_ORDER.map((key) => (
           <Tile
             key={key}
             label={outcomeMeta(key).label}
@@ -244,15 +280,19 @@ export function EmployeeLeadBoard({ leads, name }: { leads: LeadCardData[]; name
         ) : (
           <ul className={`divide-y ${wt.divide}`}>
             {shown.map((g) => (
-              <CustomerRow key={g.key} group={g} outcome={outcomeFor(g)} onOpen={() => setOpenKey(g.key)} />
+              <CustomerRow key={g.key} group={g} code={codes[g.key]} outcome={outcomeFor(g)} onOpen={() => setOpenKey(g.key)} />
             ))}
           </ul>
         )}
       </div>
 
       {open && (
-        <CustomerDetail group={open} onClose={() => setOpenKey(null)} onRecorded={recorded} />
+        <CustomerDetail group={open} code={codes[open.key]} onClose={() => setOpenKey(null)} onRecorded={recorded} />
       )}
+
+      {/* Outside the panel on purpose: what it confirms often closes the panel
+          and takes the row off the list in the same moment. */}
+      <WorkspaceToast message={toast} onDone={() => setToast(null)} />
     </div>
   );
 }
@@ -286,7 +326,14 @@ function Tile({
  * is inside — a row that listed four product names would be four lines tall
  * and still not say they are one person.
  */
-function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; outcome: LeadOutcomeKey; onOpen: () => void }) {
+function CustomerRow({
+  group, outcome, onOpen, code,
+}: {
+  group: CustomerLeadGroup;
+  outcome: LeadOutcomeKey;
+  onOpen: () => void;
+  code?: string;
+}) {
   const withImage = group.leads.find((l) => l.kind === "inquiry" && l.image);
   const thumb = withImage ? getCdnUrl(withImage.image, 160) : null;
   const meta = outcomeMeta(outcome);
@@ -298,13 +345,13 @@ function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; out
   const products = group.leads.filter((l) => l.kind === "inquiry").map((l) => l.title);
   const summary = products.length > 0 ? products.join(" · ") : newest?.message || "Contact message";
 
+  // The row opens the customer, but the ID badge on it is a button, and a
+  // button inside a button is invalid HTML React will not hydrate. The name
+  // takes the click and stretches over the row with ::after; the badge sits
+  // above it.
   return (
-    <li>
-      <button
-        type="button"
-        onClick={onOpen}
-        className="flex w-full flex-col gap-3 p-4 text-left transition-colors hover:bg-black/[0.02] sm:flex-row sm:items-center"
-      >
+    <li className="relative transition-colors hover:bg-black/[0.02]">
+      <div className="flex w-full flex-col gap-3 p-4 text-left sm:flex-row sm:items-center">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="relative shrink-0">
             {thumb ? (
@@ -324,7 +371,22 @@ function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; out
           </span>
 
           <div className="min-w-0 flex-1">
-            <p className="line-clamp-2 text-[14px] font-semibold leading-snug sm:text-[13.5px]">{group.customerName}</p>
+            {/* The number beside the name: the handle they are referred to
+                by when this card is discussed with the office. */}
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold leading-snug sm:text-[13.5px]">
+              <button
+                type="button"
+                onClick={onOpen}
+                className="line-clamp-2 text-left after:absolute after:inset-0 after:content-['']"
+              >
+                {group.customerName}
+              </button>
+              {code && (
+                <span className="relative">
+                  <CustomerCodeBadge code={code} chip={wt.chip} />
+                </span>
+              )}
+            </p>
             <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${wt.mid}`} title={summary}>
               {summary}
             </p>
@@ -377,7 +439,7 @@ function CustomerRow({ group, outcome, onOpen }: { group: CustomerLeadGroup; out
           </span>
           <ChevronRight className={`hidden h-4 w-4 sm:block ${wt.soft}`} />
         </div>
-      </button>
+      </div>
     </li>
   );
 }
@@ -404,7 +466,7 @@ function OutcomeMenu({
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  const rows: OutcomeFilter[] = ["all", ...OUTCOME_ORDER];
+  const rows: OutcomeFilter[] = ["all", ...STAFF_OUTCOME_ORDER];
   const label = (o: OutcomeFilter) => (o === "all" ? "All outcomes" : outcomeMeta(o).label);
 
   return (

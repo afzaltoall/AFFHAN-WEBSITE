@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
-import { formatDateTime } from "@/lib/datetime";
-import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { formatDateTime, formatSince } from "@/lib/datetime";
+import { isInProgress, leadStatusChip, leadStatusLabel, type LeadOutcomeKey } from "@/lib/leadStatus";
 import { normalizePhoneKey } from "@/lib/customerGroups";
 import { collapseUpdates } from "@/lib/statusBatch";
+import { BookSummary, OutcomeBar, OutcomeLegend, OutcomeTiles, WinRateCard } from "@/components/ui/OutcomeVisuals";
 import { EmployeeForm, type EmployeeRow } from "@/components/admin/EmployeeForm";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
 
@@ -38,10 +39,27 @@ export interface StatusUpdateRow {
 export function EmployeeDetail({
   employee,
   counts,
+  performance,
   updates,
 }: {
   employee: EmployeeRow;
   counts: { inquiries: number; contacts: number; updates: number };
+  /**
+   * Their book by newest outcome, from lib/lead-performance.ts — the same two
+   * statements the team page runs, narrowed to one person rather than a second
+   * way of counting the same thing. Null only if the figures could not be read,
+   * where the page falls back to the three plain counters it used to show.
+   */
+  performance: {
+    assigned: number;
+    inquiries: number;
+    contacts: number;
+    counts: Record<LeadOutcomeKey, number>;
+    recorded: number;
+    thisWeek: number;
+    lastWeek: number;
+    winRate: number | null;
+  } | null;
   updates: StatusUpdateRow[];
 }) {
   const router = useRouter();
@@ -155,18 +173,67 @@ export function EmployeeDetail({
           )}
         </div>
 
-        <div className="mb-4 grid gap-3 sm:grid-cols-3">
-          {[
-            ["Assigned inquiries", counts.inquiries],
-            ["Assigned contact messages", counts.contacts],
-            ["Status updates recorded", counts.updates],
-          ].map(([label, value]) => (
-            <div key={label as string} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.04]">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">{label}</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums">{value as number}</p>
+        {/* What the three plain counters used to say, and the thing they never
+            said: where this person's leads actually stand. The win rate leads
+            because it is the number a manager reads first; the distribution
+            sits beside it because a rate without its denominator's shape can
+            flatter or damn somebody unfairly. */}
+        {performance ? (
+          <>
+            <div className="mb-4 grid gap-3 sm:gap-4 lg:grid-cols-3">
+              <WinRateCard
+                winRate={performance.winRate}
+                lead={performance.counts.LEAD}
+                noLead={performance.counts.NO_LEAD}
+                thisWeek={performance.thisWeek}
+                lastWeek={performance.lastWeek}
+              />
+              <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/[0.04] lg:col-span-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <h2 className="text-[15px] font-semibold">Where their leads stand</h2>
+                  <span className="text-[12px] text-[#86868b]">each lead once, by its newest outcome</span>
+                </div>
+                <p className="mt-1 text-[12.5px] text-[#48484a]">
+                  <BookSummary
+                    assigned={performance.assigned}
+                    inquiries={performance.inquiries}
+                    contacts={performance.contacts}
+                  />
+                  {performance.recorded > 0 && (
+                    <> · {performance.recorded.toLocaleString("en-GB")} {performance.recorded === 1 ? "outcome" : "outcomes"} recorded all time</>
+                  )}
+                </p>
+                {performance.assigned === 0 ? (
+                  <p className="mt-4 text-[13px] text-[#86868b]">
+                    Nothing is assigned to them at the moment. This fills in as leads are handed over.
+                  </p>
+                ) : (
+                  <>
+                    <OutcomeBar counts={performance.counts} total={performance.assigned} className="mt-4" />
+                    <OutcomeLegend counts={performance.counts} total={performance.assigned} />
+                  </>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
+
+            <div className="mb-4">
+              <OutcomeTiles counts={performance.counts} />
+            </div>
+          </>
+        ) : (
+          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+            {[
+              ["Assigned inquiries", counts.inquiries],
+              ["Assigned contact messages", counts.contacts],
+              ["Status updates recorded", counts.updates],
+            ].map(([label, value]) => (
+              <div key={label as string} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.04]">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">{label}</p>
+                <p className="mt-1 text-2xl font-semibold tabular-nums">{value as number}</p>
+              </div>
+            ))}
+          </div>
+        )}
 
         <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.04]">
           <div className="flex items-center justify-between px-5 py-3">
@@ -201,8 +268,11 @@ export function EmployeeDetail({
                     const what = items.length === 1 ? items[0] : `${items.length} products · ${items.join(", ")}`;
                     return (
                       <tr key={u.id} className="align-top transition-colors hover:bg-black/[0.015]">
+                        {/* Picking a customer up prints the exact moment; the
+                            workspace shows this person none of it. See
+                            showsTimeToStaff in lib/leadStatus.ts. */}
                         <td className="whitespace-nowrap px-5 py-3" title={formatDateTime(u.createdAt)}>
-                          {timeAgo(u.createdAt)}
+                          {isInProgress(u.status) ? formatSince(u.createdAt) : timeAgo(u.createdAt)}
                         </td>
                         <td className="px-5 py-3">
                           {/* Back to the row itself — it lives in the console's

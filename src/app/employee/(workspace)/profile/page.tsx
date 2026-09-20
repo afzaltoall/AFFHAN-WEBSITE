@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { EMPLOYEE_IDLE_MS, readWorkspaceAuth } from "@/lib/employee-session";
-import { isLeadStatus, NOT_STARTED, type LeadOutcomeKey } from "@/lib/leadStatus";
+import { isStoredLeadStatus, NOT_STARTED, OUTCOME_ORDER, type LeadOutcomeKey } from "@/lib/leadStatus";
 import { normalizePhoneKey } from "@/lib/customerGroups";
 import { collapseUpdates } from "@/lib/statusBatch";
 import { EmployeeProfile, type ProfileActivity } from "@/components/employee/EmployeeProfile";
@@ -84,19 +84,33 @@ export default async function EmployeeProfilePage() {
           ],
         },
         orderBy: { createdAt: "desc" },
-        select: { status: true, inquiryId: true, contactId: true },
+        select: { status: true, inquiryId: true, contactId: true, employeeId: true },
       })
     : [];
-  const breakdown: Record<LeadOutcomeKey, number> = {
-    CONVERTED: 0, FOLLOW_UP: 0, IN_PROGRESS: 0, NOT_CONVERTED: 0, [NOT_STARTED]: 0,
-  };
+  // Every outcome at zero to begin with, from the one list of them — the keys
+  // were written out here once and went stale the moment the vocabulary
+  // changed.
+  const breakdown = Object.fromEntries(OUTCOME_ORDER.map((k) => [k, 0])) as Record<LeadOutcomeKey, number>;
   const seen = new Set<string>();
   for (const u of trail) {
+    // Somebody else's "Not attended" is hidden from staff — the dashboard says
+    // why — so it must not decide where a lead of theirs stands either.
+    if (u.status === "NOT_ATTENDED" && u.employeeId !== id) continue;
     const key = u.inquiryId ? `i:${u.inquiryId}` : `c:${u.contactId}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (isLeadStatus(u.status)) breakdown[u.status] += 1;
+    if (isStoredLeadStatus(u.status)) breakdown[u.status] += 1;
   }
+  // What they have recorded lately, for the line under the win rate. Two
+  // counts off one indexed column, so it costs a single statement.
+  const week = 7 * 24 * 60 * 60 * 1000;
+  const since = new Date(Date.now() - week);
+  const before = new Date(Date.now() - 2 * week);
+  const [thisWeek, lastWeek] = await Promise.all([
+    prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: since } } }),
+    prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: before, lt: since } } }),
+  ]);
+
   const assigned = inquiries.length + contacts.length;
   breakdown[NOT_STARTED] = Math.max(0, assigned - seen.size);
 
@@ -140,7 +154,15 @@ export default async function EmployeeProfilePage() {
         createdAt: row.createdAt.toISOString(),
         lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
       }}
-      stats={{ assigned, inquiries: inquiries.length, contacts: contacts.length, recorded, breakdown }}
+      stats={{
+        assigned,
+        inquiries: inquiries.length,
+        contacts: contacts.length,
+        recorded,
+        thisWeek,
+        lastWeek,
+        breakdown,
+      }}
       activity={activity}
       idleMinutes={Math.round(EMPLOYEE_IDLE_MS / 60000)}
     />

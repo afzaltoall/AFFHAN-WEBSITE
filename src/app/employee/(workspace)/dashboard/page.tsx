@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { customerKeyOf } from "@/lib/customerGroups";
+import { customerCodesFor } from "@/lib/customerCode";
 import { EMPLOYEE_IDLE_MS, readWorkspaceAuth } from "@/lib/employee-session";
 import type { LeadCardData, LeadUpdate } from "@/components/employee/lead-types";
 import { EmployeeLeadBoard } from "@/components/employee/EmployeeLeadBoard";
@@ -87,6 +89,18 @@ export default async function EmployeeDashboardPage() {
 
   const trail = new Map<string, LeadUpdate[]>();
   for (const u of updates) {
+    // Somebody else's "Not attended" is not this person's business.
+    //
+    // A customer reaches a second salesperson because the first could not take
+    // them on, and the whole point is that the second gets an ordinary lead —
+    // not one carrying "two people passed on this" at the top of it, which
+    // tells them what to think before they dial. It is dropped here, at the
+    // source, so nothing downstream can show it: not the trail, not the chip
+    // on the row, not the tiles, which all derive from these rows. Their own
+    // entries stay — what you did yourself is not hidden from you — and the
+    // admin's views (activity feed, staff page) read the table directly and
+    // see every one of them.
+    if (u.status === "NOT_ATTENDED" && u.employee.id !== employeeId) continue;
     const key = `${u.inquiryId ? "inquiry" : "contact"}:${u.inquiryId ?? u.contactId}`;
     const row: LeadUpdate = {
       id: u.id,
@@ -136,6 +150,13 @@ export default async function EmployeeDashboardPage() {
     updates: trail.get(`contact:${c.id}`) ?? [],
   }));
 
+  // Their customers' permanent numbers, for the keys on this board only —
+  // the same AFFHAN-xxxx the console shows, so a salesperson and an admin can
+  // name the same customer to each other. See lib/customerCode.ts.
+  const codes = await customerCodesFor(
+    [...inquiryCards, ...contactCards].map((l) => customerKeyOf(l)),
+  );
+
   const minutes = Math.round(EMPLOYEE_IDLE_MS / 60000);
 
   return (
@@ -148,6 +169,7 @@ export default async function EmployeeDashboardPage() {
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )}
           name={auth.employee.name}
+          codes={codes}
         />
       ) : (
         <div>

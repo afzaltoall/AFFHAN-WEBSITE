@@ -213,6 +213,29 @@ model Inquiry {
   assignedToId String?
   assignedTo   Employee? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  /// When it was given to its CURRENT owner, not when it was first assigned:
+  /// it is rewritten on every handover and cleared when the lead is
+  /// unassigned. The rotation queue reads it to answer "has anybody touched
+  /// this since it landed with them".
+  ///
+  /// Null also means "assigned before this column existed" — the 14 rows that
+  /// predate it were deliberately left null rather than guessed at from
+  /// createdAt, which would have invented a handover that never happened.
+  assignedAt DateTime?
+
+  /// The customer this row belongs to, as a stable key: the last ten digits of
+  /// the phone number, or "email:<address>" when there is no usable phone.
+  ///
+  /// The same rule the console and the workspace group by (normalizePhoneKey /
+  /// customerKeyOf in lib/customerGroups.ts) — written here so the grouping
+  /// can also be a QUERY. Four inquiries from one person are one customer, one
+  /// assignment and one queue entry, and that is a join, not a scan of every
+  /// row in the table. Maintained in three overlapping places, because a key
+  /// that drifts silently would be worse than none: the API routes set it when
+  /// a row is created, scripts/backfill_customer_keys.mjs filled the rows that
+  /// predate it, and the rotation job refills anything it finds null.
+  customerKey String?
+
   salesUpdates StatusUpdate[]
 
   statusEvents InquiryStatusEvent[]
@@ -220,6 +243,7 @@ model Inquiry {
   @@index([userId])
   @@index([customerStatus])
   @@index([assignedToId])
+  @@index([customerKey])
   @@index([createdAt(sort: Desc)])
 }
 
@@ -269,11 +293,17 @@ model ContactMessage {
   assignedToId String?
   assignedTo   Employee? @relation(fields: [assignedToId], references: [id], onDelete: SetNull)
 
+  /// Both as on Inquiry, and for the same reasons — a customer's messages move
+  /// with their quote requests, so the queue has to find them the same way.
+  assignedAt  DateTime?
+  customerKey String?
+
   salesUpdates StatusUpdate[]
 
   @@index([status])
   @@index([createdAt])
   @@index([assignedToId])
+  @@index([customerKey])
 }
 
 // Existing table created outside this schema (scraper output). Modelled here so
@@ -710,8 +740,125 @@ model Employee {
   assignedInquiries Inquiry[]
   assignedContacts  ContactMessage[]
   statusUpdates     StatusUpdate[]
+  queueEntries      LeadQueueEntry[]
 
   @@index([isActive])
+}
+
+/// A customer nobody has taken on yet, going round the team.
+///
+/// One row per CUSTOMER, not per inquiry — which is the whole point. Somebody
+/// who asked about four products is one person to call, so they are handed
+/// over, timed and given up on as one thing; a queue keyed on inquiries would
+/// scatter their four products across four people.
+///
+/// The cycle, as confirmed with the office:
+///
+///   - A salesperson records NOT_ATTENDED. Their whole customer leaves them at
+///     once — every inquiry and every contact message — and is offered to the
+///     next person immediately. There is no waiting period before a handover
+///     that somebody has already asked for.
+///   - The next holder has two working hours to do something. Silence hands
+///     the customer on again; that is what nextRotationAt is.
+///   - Rotation happens in office hours only (Mon–Sat, 09:30–18:30, Asia/
+///     Kolkata). A customer handed to somebody at 03:00 has been handed to
+///     nobody, and a week of round-the-clock rotation is 84 handovers, most of
+///     them into an empty office.
+///   - After two full passes through the active team with nothing decided, the
+///     customer is marked INVALID and stops moving. With five people that is
+///     ten offers, which is enough to say the team has seen it.
+///   - An admin assigning the customer by hand ends the rotation (MANUAL): it
+///     is somebody's job now, not the queue's.
+///
+/// Nothing here is shown to the person holding the lead. To them it is an
+/// ordinary lead, which is why there is no queue flag on Inquiry itself.
+model LeadQueueEntry {
+  id String @id @default(uuid())
+
+  /// The customer, by the key their leads carry (Inquiry.customerKey). Unique:
+  /// a customer is in the queue once, and a new inquiry from somebody already
+  /// in it joins the entry they already have rather than starting a second.
+  customerKey String @unique
+
+  /// Their name as it read when they entered, copied rather than joined. The
+  /// queue list is read constantly and the rows behind it can be deleted;
+  /// InquiryStatusEvent copies a name for the same reason.
+  customerName String
+
+  /// ROTATING | MANUAL | RESOLVED | INVALID
+  ///
+  /// ROTATING is the only live state. The other three are endings: taken over
+  /// by an admin, decided by somebody (LEAD or NO_LEAD), or given up on.
+  state String @default("ROTATING")
+
+  /// Who holds the customer now. Null while parked — a team too small to
+  /// rotate within, or nobody active at all — which is a thing the admin's
+  /// Queue view has to be able to show rather than a state to hide.
+  currentEmployeeId String?
+  currentEmployee   Employee? @relation(fields: [currentEmployeeId], references: [id], onDelete: SetNull)
+
+  /// Who held it before, kept so that a parked entry still knows where it had
+  /// got to in the order when the team grows again.
+  lastEmployeeId String?
+
+  /// Handovers so far, and completed passes through the active team. passes is
+  /// what the two-pass cap counts; handoffs is what the admin is shown.
+  handoffs Int @default(0)
+  passes   Int @default(0)
+
+  enteredAt DateTime @default(now())
+
+  /// When the current holder's silence runs out. Null when parked or closed.
+  nextRotationAt DateTime?
+
+  /// A week after entering: the backstop for anything the pass cap cannot
+  /// reach, such as an entry parked for days because the team shrank to one.
+  expiresAt DateTime
+
+  closedAt     DateTime?
+  /// RESOLVED | INVALID | MANUAL | GONE (every lead deleted or reassigned away)
+  closedReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  events LeadQueueEvent[]
+
+  @@index([state, nextRotationAt])
+  @@index([state, expiresAt])
+  @@index([currentEmployeeId])
+}
+
+/// What happened to a queue entry, in order — append-only, like every other
+/// trail here.
+///
+/// It is also the working memory of the rotation: who has already been offered
+/// this customer in the current pass is read back from these rows rather than
+/// kept as a list on the entry, so there is one account of events and not two
+/// that can disagree.
+///
+/// Employee ids are plain columns with the name copied beside them, and no
+/// foreign key. The trail has to survive the deletion of the person it names —
+/// the same decision InquiryStatusEvent made.
+model LeadQueueEvent {
+  id      String         @id @default(uuid())
+  entryId String
+  entry   LeadQueueEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  /// ENTERED | ROTATED | PARKED | RESUMED | MANUAL_ASSIGN | RESOLVED | INVALIDATED | CLOSED
+  kind String
+
+  fromEmployeeId String?
+  fromName       String?
+  toEmployeeId   String?
+  toName         String?
+
+  /// Why, where the kind alone does not say it: "no active employee to hand to".
+  note String? @db.Text
+
+  createdAt DateTime @default(now())
+
+  @@index([entryId, createdAt])
 }
 
 /// One entry in a lead's history — append-only.
@@ -739,7 +886,11 @@ model StatusUpdate {
   employeeId String
   employee   Employee        @relation(fields: [employeeId], references: [id])
 
-  /// CONVERTED | NOT_CONVERTED | IN_PROGRESS | FOLLOW_UP
+  /// IN_PROGRESS | LEAD | NO_LEAD | NOT_ATTENDED, and INVALID
+  ///
+  /// The first four are what a member of staff can record; INVALID is written
+  /// by the system for a customer the whole team passed on, and no button
+  /// offers it. See lib/leadStatus.ts, which is where the vocabulary lives.
   ///
   /// A THIRD status vocabulary on these rows, and deliberately its own column
   /// rather than a reuse of either existing one. Inquiry.status is internal
@@ -754,4 +905,49 @@ model StatusUpdate {
   @@index([contactId, createdAt(sort: Desc)])
   @@index([employeeId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
+}
+
+/// The customer's own permanent number — AFFHAN-0001, AFFHAN-0002 — and the
+/// only table here with exactly one row per customer.
+///
+/// Everything else about a customer is spread across the rows they sent:
+/// several Inquiry rows for several products, a ContactMessage if they also
+/// wrote in, and a LeadQueueEntry only while the rotation is handling them.
+/// The identity behind all of those is Inquiry.customerKey / ContactMessage
+/// .customerKey — one string, from customerKeyOf() in lib/customerGroups.ts —
+/// and this table is that key written down once, with a number beside it.
+///
+/// It is a registry, not a profile: no name, no country, nothing that can go
+/// stale or disagree with the rows it stands for. Ask the rows for those.
+model CustomerCode {
+  id String @id @default(uuid())
+
+  /// The key their leads carry. Unique, because this IS what "one customer"
+  /// means here — a second row for the same key would be a second number for
+  /// one person, so the database refuses it rather than the application
+  /// remembering to check.
+  customerKey String @unique
+
+  /// AFFHAN- and the sequence, zero-padded to four digits.
+  ///
+  /// Written by the column's own DEFAULT — `nextval('customer_code_seq')` —
+  /// and never by the application. A "count the rows and add one" read is
+  /// exactly what two first inquiries arriving in the same second would both
+  /// win, and a sequence is the one thing Postgres guarantees they cannot.
+  /// Past 9,999 lpad simply stops padding (AFFHAN-10000); nothing breaks.
+  code String @unique @default(dbgenerated("('AFFHAN-'::text || lpad((nextval('customer_code_seq'::regclass))::text, 4, '0'::text))"))
+
+  /// Their earliest contact of any kind — the first inquiry or the first
+  /// message, whichever came first. This is what the existing customers were
+  /// ordered by when they were numbered, so AFFHAN-0001 is the oldest
+  /// relationship in the system, and it is the only surviving record of that
+  /// ordering. Moved earlier, never later, if an older row turns up.
+  firstContactAt DateTime
+
+  /// INQUIRY | CONTACT | BACKFILL — which door they came through.
+  source String
+
+  createdAt DateTime @default(now())
+
+  @@index([firstContactAt])
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { manualAssignCustomers } from "@/lib/lead-queue";
 import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -52,9 +53,20 @@ export async function POST(req: Request) {
       }
       const { count } = await prisma.contactMessage.updateMany({
         where: { id: { in: ids as string[] } },
-        data: { assignedToId: assignedToId as string | null },
+        data: {
+          assignedToId: assignedToId as string | null,
+          // As on the inquiry route: stamped on handover, cleared when nobody
+          // holds it.
+          assignedAt: assignedToId ? new Date() : null,
+        },
       });
-      return NextResponse.json({ ok: true, action, assignedToId, count });
+      // As on the inquiry route: taking a queued customer over by hand ends
+      // their rotation.
+      const released = await manualAssignCustomers({
+        leads: (ids as string[]).map((id) => ({ kind: "contact" as const, id })),
+        employeeId: assignedToId as string | null,
+      });
+      return NextResponse.json({ ok: true, action, assignedToId, count, released });
     }
 
     if (action === "purge") {

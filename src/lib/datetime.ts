@@ -22,3 +22,31 @@ export function formatDateTime(value: string | Date): string {
   const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: OFFICE_TIME_ZONE });
   return `${date}, ${time}`;
 }
+
+/** Just the clock: "5:49 PM", the office's, twelve-hour. */
+export function formatTimeOnly(value: string | Date): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(d.getTime())) return "";
+  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: OFFICE_TIME_ZONE });
+}
+
+const officeDay = (d: Date) =>
+  d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: OFFICE_TIME_ZONE });
+
+/**
+ * An exact moment, as short as it can be and still be unambiguous: "5:49 PM"
+ * when it happened today, "18 Sept, 5:49 PM" when it did not.
+ *
+ * For the places that must say precisely when, rather than how long ago — the
+ * console's In-progress chip above all, where "2h" is not the answer to "since
+ * when has Karan been on this?". Today is the office's today, not the reader's
+ * or the server's: the same string on the server and in every browser.
+ */
+export function formatSince(value: string | Date, now: Date = new Date()): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(d.getTime())) return "";
+  const time = formatTimeOnly(d);
+  if (officeDay(d) === officeDay(now)) return time;
+  const date = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: OFFICE_TIME_ZONE });
+  return `${date}, ${time}`;
+}

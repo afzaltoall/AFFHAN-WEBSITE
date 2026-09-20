@@ -94,6 +94,24 @@ public/static/images/map*.png
 # only way to create one or reset one, and it is what the employee auth work
 # points the next person at.
 !scripts/create_employee.mjs
+# The sales-vocabulary migration. It has to travel with the code that changed
+# the vocabulary: it is run once before the deploy and again after it, to catch
+# anything the old workspace wrote in between, and it is the only written
+# record of which old status became which new one.
+!scripts/migrate_lead_statuses.mjs
+# The customer-key backfill, for the same reason and one more: it is how a
+# restored backup, or any row written outside the API routes, gets the key the
+# rotation queue finds customers by. It stays runnable, not historical.
+!scripts/backfill_customer_keys.mjs
+# The customer numbering. It carries the ordering rule that decided who is
+# AFFHAN-0001, which nothing else records once the rows exist, and its preview
+# is how anybody asks "who would be numbered next, and in what order".
+!scripts/backfill_customer_codes.mjs
+# The one-time reset that cleared what testing recorded against the live
+# database. Kept because it documents exactly what was removed and what was
+# deliberately left alone, and because its dry run is the safe way to ask the
+# same question again. Not for repeated use — the header says so.
+!scripts/reset_lead_testing_data.mjs
 # The moderation audit toolchain — how the contact sheets, the decisions and
 # the moves were made, and how the next pass resumes. REPORT.md alongside it is
 # the record of what was removed and why.
@@ -109,3 +127,9 @@ tools/audit/out/
 # log is that it survives in history rather than sitting on one laptop.
 !tools/eprolo/moderation/*.csv
 flutter-patch-*.js
+
+# Backups written by the one-off data scripts before they change anything.
+# They hold real customer rows, so they never belong in the repository — the
+# file stays on the machine that ran the script.
+lead-testing-reset-backup-*.json
+lead-status-backup-*.json
