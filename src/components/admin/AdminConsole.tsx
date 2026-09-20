@@ -1428,9 +1428,12 @@ export function AdminConsole({ data }: Props) {
                     countryFilter={countryFilter}
                     setCountryFilter={setCountryFilter}
                     countryOptions={data.inquiryCountries}
+                    assigneeFilter={assigneeFilter}
+                    setAssigneeFilter={setAssigneeFilter}
+                    assigneeOptions={inquiryAssigneeOptions}
                     extraActive={groupByCustomer}
                     summarySuffix={groupByCustomer ? " · grouped" : ""}
-                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setGroupByCustomer(false); }}
+                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setGroupByCustomer(false); }}
                     viewSection={
                       <button
                         role="menuitemcheckbox"
@@ -1453,9 +1456,6 @@ export function AdminConsole({ data }: Props) {
                   <AssignMenu
                     t={t}
                     employees={data.employees}
-                    options={inquiryAssigneeOptions}
-                    filter={assigneeFilter}
-                    setFilter={setAssigneeFilter}
                     selectedCount={selected.size}
                     onAssignSelected={(employeeId) => void assignInquiries([...selected], employeeId)}
                     busy={bulkBusy}
@@ -2503,34 +2503,28 @@ function FilterPill({
 }
 
 /**
- * Assignment, as a button of its own on the toolbar.
+ * Assignment, as a button of its own on the toolbar: one job, one list.
  *
- * It lived inside Filter as an "Assigned to" section, which answered only half
- * the question and hid it behind a second click: you could see who held what,
- * but handing work over meant ticking rows and finding a picker in a bar that
- * only appeared once you had. Asked for outside the Filter, where it can be
- * reached at once — so it is one button with the two jobs, each titled:
+ * It held two for a while. "Assigned to" had been a section inside Filter,
+ * which hid handing work over behind a second click, so both were brought out
+ * here together — and with five people on the team the panel then showed the
+ * same five names twice, once to assign to and once to filter by, the second
+ * list reading as a broken duplicate of the first.
  *
- *   - Assign N selected to…  — the rows ticked in the list go to whoever is
- *     picked, straight away. With nothing ticked the section says how to use it
- *     rather than disappearing, so the button never looks broken.
- *   - Show leads for…        — the list narrowed to one person, or to what
- *     nobody has picked up yet, with the counts.
+ * They are two different questions. Who should take this (an action, on the
+ * rows you have ticked) belongs on a button you can reach at once; whose leads
+ * am I looking at (a filter, like status and country) belongs in Filter, which
+ * is where it is now. With nothing ticked this says how to use it rather than
+ * disappearing, so the button never looks broken.
  *
- * The trigger says which state it is in: "Assign 3 selected" while rows are
- * ticked, the person's name while the list is narrowed to them, else "Assign".
  * The panel is portalled and clamped to the viewport, as FilterMenu's is, for
  * the same reason: the toolbar sits in an overflow-hidden card.
  */
 function AssignMenu({
-  t, employees, options, filter, setFilter, selectedCount, onAssignSelected, busy = false,
+  t, employees, selectedCount, onAssignSelected, busy = false,
 }: {
   t: Theme;
   employees: EmployeeOption[];
-  options: { unassigned: number; rows: (EmployeeOption & { count: number })[] };
-  /** null is everyone, UNASSIGNED is nobody yet, otherwise an employee id. */
-  filter: string | null;
-  setFilter: (v: string | null) => void;
   selectedCount: number;
   onAssignSelected: (employeeId: string | null) => void;
   busy?: boolean;
@@ -2590,10 +2584,6 @@ function AssignMenu({
   const people = term
     ? employees.filter((e) => `${e.name} ${e.region ?? ""}`.toLowerCase().includes(term))
     : employees;
-  const countFor = (id: string) => options.rows.find((r) => r.id === id)?.count ?? 0;
-  const filterName =
-    filter === UNASSIGNED ? "Unassigned" : filter ? options.rows.find((e) => e.id === filter)?.name ?? "Someone" : null;
-
   const row = (on: boolean) =>
     `flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${
       on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`
@@ -2608,11 +2598,11 @@ function AssignMenu({
         aria-expanded={open}
         disabled={busy}
         className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors disabled:opacity-60 ${
-          selectedCount > 0 || filter ? "bg-brand-dark text-white ring-transparent" : t.pill
+          selectedCount > 0 ? "bg-brand-dark text-white ring-transparent" : t.pill
         }`}
       >
         {busy ? <Loader2 size={15} className="animate-spin" /> : <UserCog size={15} />}
-        {selectedCount > 0 ? `Assign ${selectedCount} selected` : filterName ? `Assigned: ${filterName}` : "Assign"}
+        {selectedCount > 0 ? `Assign ${selectedCount} selected` : "Assign"}
         <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
 
@@ -2668,36 +2658,6 @@ function AssignMenu({
               </button>
             </>
           )}
-
-          <div className={`my-1.5 border-t ${t.border}`} />
-
-          <p className={`px-2.5 pb-1 pt-1 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Show leads for</p>
-          <button role="menuitemradio" aria-checked={!filter} onClick={() => { setFilter(null); setOpen(false); }} className={row(!filter)}>
-            <span className={`h-2 w-2 shrink-0 rounded-full ${!filter ? "bg-brand" : "bg-slate-300"}`} />
-            <span className="flex-1">Anyone</span>
-            {!filter && <Check className="h-3.5 w-3.5 shrink-0" />}
-          </button>
-          {/* The Monday-morning question: what has nobody picked up. */}
-          <button role="menuitemradio" aria-checked={filter === UNASSIGNED} onClick={() => { setFilter(filter === UNASSIGNED ? null : UNASSIGNED); setOpen(false); }} className={row(filter === UNASSIGNED)}>
-            <span className={`h-2 w-2 shrink-0 rounded-full ${filter === UNASSIGNED ? "bg-brand" : "bg-slate-300"}`} />
-            <span className="flex-1">Unassigned</span>
-            <span className={`text-[12px] font-bold tabular-nums ${filter === UNASSIGNED ? "text-brand-dark" : t.soft}`}>{options.unassigned}</span>
-            {filter === UNASSIGNED && <Check className="h-3.5 w-3.5 shrink-0" />}
-          </button>
-          {options.rows.map((e) => {
-            const on = filter === e.id;
-            return (
-              <button key={e.id} role="menuitemradio" aria-checked={on} onClick={() => { setFilter(on ? null : e.id); setOpen(false); }} className={row(on)}>
-                <Avatar name={e.name} image={e.image} size={20} />
-                <span className="flex-1 truncate">
-                  {e.name}
-                  {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
-                </span>
-                <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{countFor(e.id)}</span>
-                {on && <Check className="h-3.5 w-3.5 shrink-0" />}
-              </button>
-            );
-          })}
         </div>,
         document.body
       )}
@@ -2743,6 +2703,7 @@ function FilterMenu({
   t, statusFilter, setStatusFilter, statusCounts,
   companyFilter, setCompanyFilter, withCompanyCount = 0,
   countryFilter = null, setCountryFilter, countryOptions = [],
+  assigneeFilter = null, setAssigneeFilter, assigneeOptions,
   viewSection, extraActive = false, summarySuffix = "", onClear,
 }: {
   t: Theme;
@@ -2758,6 +2719,17 @@ function FilterMenu({
   setCountryFilter?: (v: string | null) => void;
   /** Distinct countries with row counts. Empty hides the section. */
   countryOptions?: CountryOption[];
+  /**
+   * Whose leads to show: null is everyone, UNASSIGNED is nobody yet, otherwise
+   * an employee id. Narrowing the list by who holds it is a filter like any
+   * other and belongs here with them — handing work OVER is the Assign
+   * button's job, and the two were one panel for a while, which read as the
+   * same five names listed twice.
+   */
+  assigneeFilter?: string | null;
+  setAssigneeFilter?: (v: string | null) => void;
+  /** Staff with their lead counts, and how many nobody holds. */
+  assigneeOptions?: { unassigned: number; rows: (EmployeeOption & { count: number })[] };
   /** Optional rows under a "View" heading — grouping, on the inquiries list. */
   viewSection?: React.ReactNode;
   /** Whether anything in `viewSection` is currently on. */
@@ -2769,24 +2741,39 @@ function FilterMenu({
   const ref = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || extraActive;
+  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || Boolean(assigneeFilter) || extraActive;
 
   // The country search box. Local to the panel and cleared when it closes, so
   // reopening always shows the whole list rather than yesterday's query.
   const [countryQuery, setCountryQuery] = useState("");
+  const [staffQuery, setStaffQuery] = useState("");
   /**
    * Which of the two long filters is open, if either.
    *
    * One at a time, deliberately: both open at once is how the panel ended up
    * taller than the screen, with a scroll area nested inside another one.
    */
-  const [section, setSection] = useState<null | "country">(null);
-  useEffect(() => { if (!open) { setCountryQuery(""); setSection(null); } }, [open]);
+  const [section, setSection] = useState<null | "assignee" | "country">(null);
+  useEffect(() => { if (!open) { setCountryQuery(""); setStaffQuery(""); setSection(null); } }, [open]);
   const shownCountries = useMemo(() => {
     const term = countryQuery.trim().toLowerCase();
     if (!term) return countryOptions;
     return countryOptions.filter((c) => c.country.toLowerCase().includes(term));
   }, [countryOptions, countryQuery]);
+
+  const shownStaff = useMemo(() => {
+    const rows = assigneeOptions?.rows ?? [];
+    const term = staffQuery.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter((e) => `${e.name} ${e.region ?? ""}`.toLowerCase().includes(term));
+  }, [assigneeOptions, staffQuery]);
+
+  const assigneeName =
+    assigneeFilter === UNASSIGNED
+      ? "Unassigned"
+      : assigneeFilter
+        ? assigneeOptions?.rows.find((e) => e.id === assigneeFilter)?.name ?? "Someone"
+        : null;
 
   // The panel is rendered into document.body rather than beside the button.
   //
@@ -2878,6 +2865,9 @@ function FilterMenu({
             <span className="truncate">{countryFilter}</span>
           </span>
         )}
+        {/* And who the list is narrowed to, for the same reason: it used to be
+            announced by the Assign button, which is no longer where it lives. */}
+        {assigneeName && <span className="max-w-[7.5rem] truncate">{assigneeName}</span>}
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${active ? "bg-white/25" : t.chip}`}>
           {statusFilter === "all" ? statusCounts.all : statusCounts[statusFilter]}
           {summarySuffix}
@@ -2939,9 +2929,94 @@ function FilterMenu({
           {/* The two that grow. Each opens in place, and opening one closes the
               other, so the panel's height stays put however many people are on
               the team or countries have written in. */}
-          {countryOptions.length > 0 && setCountryFilter ? (
+          {(assigneeOptions && setAssigneeFilter) || (countryOptions.length > 0 && setCountryFilter) ? (
             <div className={`my-1 border-t ${t.border}`} />
           ) : null}
+
+          {assigneeOptions && setAssigneeFilter && (
+            <>
+              <FilterRow
+                t={t}
+                label="Assigned to"
+                value={
+                  assigneeFilter === UNASSIGNED
+                    ? `Unassigned · ${assigneeOptions.unassigned}`
+                    : assigneeName ?? "Anyone"
+                }
+                active={Boolean(assigneeFilter)}
+                open={section === "assignee"}
+                onToggle={() => setSection((cur) => (cur === "assignee" ? null : "assignee"))}
+              />
+              {section === "assignee" && (
+                <div className="pb-1">
+                  {assigneeOptions.rows.length > 6 && (
+                    <div className="px-1 pb-1">
+                      <div className="relative">
+                        <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${t.soft}`} />
+                        <input
+                          value={staffQuery}
+                          onChange={(e) => setStaffQuery(e.target.value)}
+                          placeholder="Search staff…"
+                          aria-label="Search staff"
+                          autoFocus
+                          className={`w-full rounded-xl py-1.5 pl-8 pr-2.5 text-[13px] font-medium outline-none ring-1 ring-transparent focus:ring-brand/40 ${t.input}`}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  <div className="overflow-y-auto" style={{ maxHeight: listMax }}>
+                    <button
+                      role="menuitemradio"
+                      aria-checked={!assigneeFilter}
+                      onClick={() => { setAssigneeFilter(null); setOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${!assigneeFilter ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                    >
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${!assigneeFilter ? "bg-brand" : "bg-slate-300"}`} />
+                      <span className="flex-1">Anyone</span>
+                      {!assigneeFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    </button>
+                    {/* The Monday-morning question: what has nobody picked up. */}
+                    <button
+                      role="menuitemradio"
+                      aria-checked={assigneeFilter === UNASSIGNED}
+                      onClick={() => { setAssigneeFilter(assigneeFilter === UNASSIGNED ? null : UNASSIGNED); setOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${assigneeFilter === UNASSIGNED ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                    >
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${assigneeFilter === UNASSIGNED ? "bg-brand" : "bg-slate-300"}`} />
+                      <span className="flex-1">Unassigned</span>
+                      <span className={`text-[12px] font-bold tabular-nums ${assigneeFilter === UNASSIGNED ? "text-brand-dark" : t.soft}`}>{assigneeOptions.unassigned}</span>
+                      {assigneeFilter === UNASSIGNED && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    </button>
+                    {shownStaff.map((e) => {
+                      const on = assigneeFilter === e.id;
+                      return (
+                        <button
+                          key={e.id}
+                          role="menuitemradio"
+                          aria-checked={on}
+                          onClick={() => { setAssigneeFilter(on ? null : e.id); setOpen(false); }}
+                          className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
+                        >
+                          <Avatar name={e.name} image={e.image} size={20} />
+                          <span className="flex-1 truncate">
+                            {e.name}
+                            {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
+                          </span>
+                          <span className={`text-[12px] font-bold tabular-nums ${on ? "text-brand-dark" : t.soft}`}>{e.count}</span>
+                          {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                    {shownStaff.length === 0 && (
+                      <p className={`px-2.5 py-2 text-[12.5px] ${t.soft}`}>
+                        {assigneeOptions.rows.length ? "Nobody matches." : "No active staff yet."}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           {countryOptions.length > 0 && setCountryFilter && (
             <>
@@ -3111,16 +3186,16 @@ function ContactsSection({
             countryFilter={countryFilter}
             setCountryFilter={setCountryFilter}
             countryOptions={countryOptions}
-            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); }}
+            assigneeFilter={assigneeFilter}
+            setAssigneeFilter={setAssigneeFilter}
+            assigneeOptions={assigneeOptions}
+            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); setAssigneeFilter(null); }}
           />
         )}
         {tab === "active" && (
           <AssignMenu
             t={t}
             employees={employees}
-            options={assigneeOptions}
-            filter={assigneeFilter}
-            setFilter={setAssigneeFilter}
             selectedCount={selected.size}
             onAssignSelected={onAssignSelected}
             busy={busy}
