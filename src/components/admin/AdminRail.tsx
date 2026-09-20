@@ -4,12 +4,10 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  Activity, Globe, Inbox, LayoutList, LogOut, MessageSquare, Moon, PlayCircle, Smartphone, Sun, Timer, Trash2,
-  TrendingUp, UserCog, Users, type LucideIcon,
-} from "lucide-react";
 import { signOutThrough } from "@/lib/session-client";
 import { useAdminDark } from "@/lib/useAdminDark";
+import { AccountMenu } from "@/components/admin/AccountMenu";
+import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
 
 /**
  * The console's rail, for every admin page that is not the dashboard.
@@ -32,35 +30,19 @@ import { useAdminDark } from "@/lib/useAdminDark";
  * so the rail never sits light beside a dark page, or the other way round.
  */
 
-type Item = { href: string; label: string; icon: LucideIcon; match?: (path: string) => boolean };
-
-const ITEMS: Item[] = [
-  { href: "/admin/", label: "All", icon: LayoutList, match: () => false },
-  { href: "/admin/?view=inquiries", label: "Inquiries", icon: Inbox, match: () => false },
-  { href: "/admin/?view=contacts", label: "Contact Us", icon: MessageSquare, match: () => false },
-  { href: "/admin/?view=trash", label: "Recently Deleted", icon: Trash2, match: () => false },
-  { href: "/admin/suppliers/", label: "Suppliers", icon: Users },
-  { href: "/admin/videos/", label: "Videos", icon: PlayCircle },
-  { href: "/admin/users/website/", label: "Website Users", icon: Globe },
-  { href: "/admin/users/app/", label: "App Users", icon: Smartphone },
-  { href: "/admin/mobile-inquiries/", label: "App Inquiries", icon: MessageSquare },
-  { href: "/admin/queue/", label: "Queue", icon: Timer },
-  { href: "/admin/activity/", label: "Activity", icon: Activity },
-  { href: "/admin/employees/", label: "Staff", icon: UserCog },
-  { href: "/admin/team-performance/", label: "Team performance", icon: TrendingUp },
-];
-
 const LIGHT = {
   sidebar: "bg-white/80 border-black/[0.06]", sidebarOpen: "bg-white border-black/[0.06]",
   soft: "text-[#86868b]", strong: "text-[#1d1d1f]", border: "border-black/[0.06]", thumb: "bg-[#f5f5f7]",
   navIdle: "text-[#515154] hover:bg-black/[0.03]", navActive: "bg-[#ececed] text-[#1d1d1f]",
   pill: "bg-white text-[#1d1d1f] ring-black/[0.06] hover:bg-black/[0.02]",
+  mid: "text-[#48484a]", hover: "hover:bg-black/[0.015]", modal: "bg-white text-[#1d1d1f] ring-black/[0.06]",
 };
 const DARK = {
   sidebar: "bg-[#151517]/90 border-white/10", sidebarOpen: "bg-[#151517] border-white/10",
   soft: "text-[#8a8a8e]", strong: "text-white", border: "border-white/[0.08]", thumb: "bg-white/[0.05]",
   navIdle: "text-[#a1a1a6] hover:bg-white/[0.05]", navActive: "bg-white/[0.1] text-white",
   pill: "bg-white/[0.06] text-[#e5e5e7] ring-white/[0.1] hover:bg-white/[0.1]",
+  mid: "text-[#c7c7cc]", hover: "hover:bg-white/[0.03]", modal: "bg-[#151517] text-[#f2f2f4] ring-white/[0.1]",
 };
 
 export function AdminRail({
@@ -85,6 +67,10 @@ export function AdminRail({
   const label = `overflow-hidden whitespace-nowrap text-left transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${
     open ? "ml-2.5 max-w-[190px] opacity-100" : "ml-0 max-w-0 opacity-0"
   }`;
+  /* Collapses in height, not width: a zero-width heading still owns a line
+     box, and the 60px rail would pay for five of them. Same as the
+     dashboard’s — see sideGroupLabel there. */
+  const groupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[10px] font-bold uppercase tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${open ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
 
   const signOut = async () => {
     await signOutThrough("/api/auth/logout/", "admin");
@@ -118,61 +104,59 @@ export function AdminRail({
           </span>
         </Link>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-2">
-          {ITEMS.map((item) => {
-            const active = item.match ? item.match(pathname) : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={item.label}
-                aria-current={active ? "page" : undefined}
-                className={`${sideRow} ${active ? t.navActive : t.navIdle}`}
-              >
-                <span className={iconCol}>
-                  <item.icon size={17} className={active ? "text-brand" : t.soft} />
-                </span>
-                <span className={`flex-1 ${label}`}>{item.label}</span>
-              </Link>
-            );
-          })}
+        {/* The same sections, in the same order, under the same headings as
+            the dashboard's rail — both read RAIL_GROUPS, because a rail that
+            rearranges itself when you open Staff is worse than one that was
+            never grouped. */}
+        <nav
+          className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2 ${
+            open ? `console-scroll ${dark ? "console-scroll-dark" : ""}` : "scrollbar-hide"
+          }`}
+        >
+          {RAIL_GROUPS.map((group, i) => (
+            <div
+              key={group.label ?? "top"}
+              className={i === 0 ? "space-y-1" : `mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}
+            >
+              {group.label && <p className={groupLabel}>{group.label}</p>}
+              {group.items.map((item: RailItem) => {
+                // The dashboard's four are views on a page this is not, so
+                // none of them is ever the current one here.
+                const active = !item.view && pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.key}
+                    href={item.href}
+                    title={item.label}
+                    aria-current={active ? "page" : undefined}
+                    className={`${sideRow} ${active ? t.navActive : t.navIdle}`}
+                  >
+                    <span className={iconCol}>
+                      <item.icon size={17} className={active ? "text-brand" : t.soft} />
+                    </span>
+                    <span className={`flex-1 ${label}`}>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+          <div className="pb-2" />
         </nav>
 
+        {/* One row, and what you can do with the account behind it — the same
+            menu the dashboard shows. Change email and change password are
+            dialogs that live on the dashboard, so from here they are links
+            it opens on arrival. */}
         <div className={`border-t p-2 ${t.border}`}>
-          <div className="flex items-center px-1.5 py-2">
-            {image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={image} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-black/10" />
-            ) : (
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-black/10">
-                <Image src="/logo.png" alt="" width={26} height={26} className="object-contain" />
-              </span>
-            )}
-            <span className={`min-w-0 flex-1 leading-tight ${label}`}>
-              <span className={`block truncate text-[13px] font-semibold ${t.strong}`}>{name}</span>
-              <span className={`block text-[11px] ${t.soft}`}>Administrator</span>
-            </span>
-          </div>
-          {supportsDark && (
-            <button
-              type="button"
-              onClick={() => setDark((d) => !d)}
-              title={dark ? "Light mode" : "Dark mode"}
-              className={`mt-1 ${sideRow} justify-start font-semibold ring-1 ${t.pill}`}
-            >
-              <span className={iconCol}>{dark ? <Sun size={15} /> : <Moon size={15} />}</span>
-              <span className={label}>{dark ? "Light" : "Dark"}</span>
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            title="Sign out"
-            className={`mt-2 ${sideRow} justify-start bg-red-500 font-semibold text-white hover:bg-red-600`}
-          >
-            <span className={iconCol}><LogOut size={15} /></span>
-            <span className={label}>Sign out</span>
-          </button>
+          <AccountMenu
+            t={t}
+            name={name}
+            image={image}
+            dark={dark}
+            label={label}
+            onToggleDark={supportsDark ? () => setDark((d) => !d) : undefined}
+            onSignOut={() => void signOut()}
+          />
         </div>
       </aside>
     </div>

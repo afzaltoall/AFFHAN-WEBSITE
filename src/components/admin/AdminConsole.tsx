@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
 import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
+import { AccountMenu } from "@/components/admin/AccountMenu";
+import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 import type { EmployeeOption, Theme } from "@/components/admin/console-theme";
 import { useRouter } from "next/navigation";
@@ -13,8 +15,8 @@ import Image from "next/image";
 import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
-  TrendingUp, Timer, Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, Smartphone, Globe, SlidersHorizontal, UserCog, Activity,
+  Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
+  MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, SlidersHorizontal, UserCog,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -362,7 +364,12 @@ export function AdminConsole({ data }: Props) {
     const inquiryId = params.get("inquiry");
     const contactId = params.get("contact");
     const viewParam = params.get("view");
-    if (!inquiryId && !contactId && !viewParam) return;
+    // The two account dialogs live here, so the rail on every other admin page
+    // links to them rather than carrying its own copy — see AccountMenu.
+    const accountParam = params.get("account");
+    if (accountParam === "email") setShowEmail(true);
+    if (accountParam === "password") setShowPwd(true);
+    if (!inquiryId && !contactId && !viewParam && !accountParam) return;
 
     if (viewParam === "all" || viewParam === "inquiries" || viewParam === "contacts" || viewParam === "trash") {
       setView(viewParam);
@@ -1019,26 +1026,70 @@ export function AdminConsole({ data }: Props) {
      the grouping is still legible at 60px with the words gone. */
   const sideGroupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[10px] font-bold uppercase tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${sideOpen ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
 
-  /* One view row of the rail. A function rather than a component so React sees
-     the same element type between renders and nothing remounts on hover. */
-  const railView = (n: (typeof nav)[number]) => (
-    <button
-      key={n.key}
-      onClick={() => { setView(n.key); setQ(""); }}
-      // The rail's tooltip. Collapsed, the icon is all there is.
-      title={n.label}
-      className={`${sideRow} ${view === n.key ? t.navActive : t.navIdle}`}
-    >
-      <span className={sideIconCol}>
-        <n.icon size={17} className={view === n.key ? "text-brand" : t.soft} />
-        {n.count !== undefined && n.count > 0 && (
-          <span className={sideDot}>{fmtBadge(n.count)}</span>
+  /* The figure beside a row, where it has one. Keyed off rail-sections so the
+     other rail can never be given a different set. */
+  const railCount: Partial<Record<RailItem["key"], number>> = {
+    inquiries: statusCounts.new,
+    contacts: newContactCount,
+    trash: deletedItems.length,
+    suppliers: data.stats.suppliers,
+    videos: data.stats.videos,
+    queue: data.stats.queue,
+  };
+
+  /* One row of the rail. A function rather than a component so React sees the
+     same element type between renders and nothing remounts on hover.
+
+     Four of these are views on this page and the rest are other pages, so a
+     row is a button or a link depending on which — everything else about it,
+     including where the count sits, is the same either way. */
+  const railRow = (item: RailItem) => {
+    const active = item.view ? view === item.view : false;
+    const count = railCount[item.key];
+    /* Collapsed to 60px, one number has to stand for the whole queue — and a
+       customer the rotation gave up on is exactly the one nobody else will
+       notice, so it counts here. */
+    const dot = item.key === "queue" ? data.stats.queue + data.stats.queueInvalid : count;
+    const body = (
+      <>
+        <span className={sideIconCol}>
+          <item.icon size={17} className={active ? "text-brand" : t.soft} />
+          {dot !== undefined && dot > 0 && <span className={sideDot}>{fmtBadge(dot)}</span>}
+        </span>
+        <span className={`flex-1 ${sideLabel}`}>{item.label}</span>
+        {count !== undefined && <span className={sidePill}>{fmtNum(count)}</span>}
+        {/* Beside the rotating figure rather than added to it: the two numbers
+            mean different things, and only one of them is somebody's job to fix
+            today. The word rides along because two bare numbers side by side
+            say nothing about which is which. */}
+        {item.key === "queue" && data.stats.queueInvalid > 0 && (
+          <span className={sideAlert}>{fmtNum(data.stats.queueInvalid)} invalid</span>
         )}
-      </span>
-      <span className={`flex-1 ${sideLabel}`}>{n.label}</span>
-      {n.count !== undefined && <span className={sidePill}>{fmtNum(n.count)}</span>}
-    </button>
-  );
+      </>
+    );
+    const title =
+      item.key === "queue"
+        ? data.stats.queueInvalid > 0
+          ? `Queue — ${fmtNum(data.stats.queue)} going round, ${fmtNum(data.stats.queueInvalid)} given up on and waiting for you`
+          : `Queue — ${fmtNum(data.stats.queue)} going round`
+        : item.label;
+
+    // The rail's tooltip. Collapsed, the icon is all there is.
+    return item.view ? (
+      <button
+        key={item.key}
+        onClick={() => { setView(item.view as View); setQ(""); }}
+        title={title}
+        className={`${sideRow} ${active ? t.navActive : t.navIdle}`}
+      >
+        {body}
+      </button>
+    ) : (
+      <Link key={item.key} href={item.href} title={title} className={`${sideRow} ${t.navIdle}`}>
+        {body}
+      </Link>
+    );
+  };
 
   return (
     <div style={sfFont} className={`min-h-screen w-full antialiased transition-colors duration-200 ${t.page}`}>
@@ -1097,170 +1148,41 @@ export function AdminConsole({ data }: Props) {
             <nav
               className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 ${
                 // The scrollbar shows only once there is room for it. In the
-                // 60px rail it would take a fifth of the width; open, it is the
+                // 60px rail it would take a tenth of the width; open, it is the
                 // only thing that says the list continues past the fold, which
-                // on a short laptop screen it does.
-                sideOpen ? "" : "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                // on a short laptop screen it does. When it shows it is the
+                // console's own (see .console-scroll) — the platform's was a
+                // pale grey column with arrow buttons, lit up against a black
+                // panel in dark mode.
+                sideOpen ? `console-scroll ${dark ? "console-scroll-dark" : ""}` : "scrollbar-hide"
               }`}
             >
-              {/* The landing view, on its own: a heading over one row says less
-                  than the row does. */}
-              <div className="space-y-1">
-                {railView(nav[0])}
-              </div>
-
-              <div className={`mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}>
-                <p className={sideGroupLabel}>Leads</p>
-                {nav.slice(1).map(railView)}
-              </div>
-
-              {/* The sales team: who they are, how they are doing, what the
-                  rotation is holding, and what they have recorded. Activity is
-                  here rather than under a heading of its own — it is the team's
-                  own trail, and a section with one row in it is a divider with
-                  a word on top. */}
-              <div className={`mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}>
-                <p className={sideGroupLabel}>Team</p>
-                {/* The sales team's own accounts — who can sign in at
-                    /employee/login, and what each of them has been assigned. */}
-                <Link href="/admin/employees/" title="Staff" className={`${sideRow} ${t.navIdle}`}>
-                  <span className={sideIconCol}>
-                    <UserCog size={17} className={t.soft} />
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>Staff</span>
-                </Link>
-                {/* How the team is doing, as opposed to who they are — the two
-                    questions sit beside each other because the answer to the
-                    first is usually a name to open on the second. */}
-                <Link href="/admin/team-performance/" title="Team performance" className={`${sideRow} ${t.navIdle}`}>
-                  <span className={sideIconCol}>
-                    <TrendingUp size={17} className={t.soft} />
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>Team performance</span>
-                </Link>
-                {/* Customers going round the rotation because nobody has taken
-                    them on. Badged like the unread counts above it: a queue is
-                    only useful if somebody notices it filling up. */}
-                <Link
-                  href="/admin/queue/"
-                  title={
-                    data.stats.queueInvalid > 0
-                      ? `Queue — ${fmtNum(data.stats.queue)} going round, ${fmtNum(data.stats.queueInvalid)} given up on and waiting for you`
-                      : `Queue — ${fmtNum(data.stats.queue)} going round`
-                  }
-                  className={`${sideRow} ${t.navIdle}`}
+              {RAIL_GROUPS.map((group, i) => (
+                <div
+                  key={group.label ?? "top"}
+                  className={i === 0 ? "space-y-1" : `mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}
                 >
-                  <span className={sideIconCol}>
-                    <Timer size={17} className={t.soft} />
-                    {/* Collapsed to 60px, one number has to stand for the whole
-                        queue — and a customer the rotation gave up on is exactly
-                        the one nobody else will notice, so it counts here. */}
-                    {data.stats.queue + data.stats.queueInvalid > 0 && (
-                      <span className={sideDot}>{fmtBadge(data.stats.queue + data.stats.queueInvalid)}</span>
-                    )}
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>Queue</span>
-                  <span className={sidePill}>{fmtNum(data.stats.queue)}</span>
-                  {/* Beside the rotating figure rather than added to it: the two
-                      numbers mean different things, and only one of them is
-                      somebody's job to fix today. The word rides along because
-                      two bare numbers side by side say nothing about which is
-                      which — and this is the one that needs a person. */}
-                  {data.stats.queueInvalid > 0 && (
-                    <span className={sideAlert}>{fmtNum(data.stats.queueInvalid)} invalid</span>
-                  )}
-                </Link>
-                {/* What the sales team has recorded, across everybody. */}
-                <Link href="/admin/activity/" title="Activity" className={`${sideRow} ${t.navIdle}`}>
-                  <span className={sideIconCol}>
-                    <Activity size={17} className={t.soft} />
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>Activity</span>
-                </Link>
-              </div>
-
-              <div className={`mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}>
-                <p className={sideGroupLabel}>Catalog &amp; content</p>
-                {/* A link rather than a view: the supplier book is its own route, so
-                    it survives a reload and can be opened in its own tab, which is
-                    how it actually gets used — open beside a chat window. */}
-                <Link href="/admin/suppliers/" title="Suppliers" className={`${sideRow} ${t.navIdle}`}>
-                  <span className={sideIconCol}>
-                    <Users size={17} className={t.soft} />
-                    {data.stats.suppliers > 0 && <span className={sideDot}>{fmtBadge(data.stats.suppliers)}</span>}
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>Suppliers</span>
-                  <span className={sidePill}>{fmtNum(data.stats.suppliers)}</span>
-                </Link>
-                <Link href="/admin/videos/" title="Videos" className={`${sideRow} ${t.navIdle}`}>
-                  <span className={sideIconCol}>
-                    <PlayCircle size={17} className={t.soft} />
-                    {data.stats.videos > 0 && <span className={sideDot}>{fmtBadge(data.stats.videos)}</span>}
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>Videos</span>
-                  <span className={sidePill}>{fmtNum(data.stats.videos)}</span>
-                </Link>
-              </div>
-
-              {/* Two lists, because the office asks two different questions:
-                  who signs in on the site, and who signs in on the app. One
-                  table underneath — somebody who uses both appears on both,
-                  which is the honest answer rather than a duplicate. */}
-              <div className={`mt-1.5 space-y-1 border-t pb-2 pt-1.5 ${t.border}`}>
-                <p className={sideGroupLabel}>Users</p>
-                <Link href="/admin/users/website/" title="Website Users" className={`${sideRow} ${t.navIdle}`}>
-                  <span className={sideIconCol}>
-                    <Globe size={17} className={t.soft} />
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>Website Users</span>
-                </Link>
-                <Link href="/admin/users/app/" title="App Users" className={`${sideRow} ${t.navIdle}`}>
-                  <span className={sideIconCol}>
-                    <Smartphone size={17} className={t.soft} />
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>App Users</span>
-                </Link>
-                <Link href="/admin/mobile-inquiries/" title="App Inquiries" className={`${sideRow} ${t.navIdle}`}>
-                  <span className={sideIconCol}>
-                    <MessageSquare size={17} className={t.soft} />
-                  </span>
-                  <span className={`flex-1 ${sideLabel}`}>App Inquiries</span>
-                </Link>
-              </div>
-            </nav>
-            <div className={`border-t p-2 ${t.border}`}>
-              <div className="flex items-center px-1.5 py-2">
-                {data.adminImage ? (
-                  <Avatar name={data.adminName} image={data.adminImage} size={32} />
-                ) : (
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-black/10">
-                    <Image src="/logo.png" alt="Affhan" width={26} height={26} className="object-contain" />
-                  </span>
-                )}
-                <div className={`min-w-0 flex-1 leading-tight ${sideLabel}`}>
-                  <p className="truncate text-[13px] font-semibold">{data.adminName}</p>
-                  <p className={`text-[11px] ${t.soft}`}>Administrator</p>
+                  {group.label && <p className={sideGroupLabel}>{group.label}</p>}
+                  {group.items.map(railRow)}
                 </div>
-              </div>
-              {/* Stacked, not the two-across pair they used to be: side by side
-                  they had 22px each in the collapsed rail, which is not a
-                  button. One per row works at both widths. */}
-              <button onClick={() => setShowEmail(true)} title="Change email" className={`mt-1 ${sideRow} justify-start rounded-xl font-semibold ring-1 ${t.pill}`}>
-                <span className={sideIconCol}><Mail size={15} /></span>
-                <span className={sideLabel}>Change email</span>
-              </button>
-              <button onClick={() => setShowPwd(true)} title="Change password" className={`mt-2 ${sideRow} justify-start rounded-xl font-semibold ring-1 ${t.pill}`}>
-                <span className={sideIconCol}><KeyRound size={15} /></span>
-                <span className={sideLabel}>Change password</span>
-              </button>
-              <button onClick={() => setDark((d) => !d)} title={dark ? "Light mode" : "Dark mode"} className={`mt-2 ${sideRow} justify-start rounded-xl font-semibold ring-1 ${t.pill}`}>
-                <span className={sideIconCol}>{dark ? <Sun size={15} /> : <Moon size={15} />}</span>
-                <span className={sideLabel}>{dark ? "Light" : "Dark"}</span>
-              </button>
-              <button onClick={logout} title="Sign out" className={`mt-2 ${sideRow} justify-start rounded-xl bg-red-500 font-semibold text-white hover:bg-red-600`}>
-                <span className={sideIconCol}><LogOut size={15} /></span>
-                <span className={sideLabel}>Sign out</span>
-              </button>
+              ))}
+              <div className="pb-2" />
+            </nav>
+            {/* One row, not five. What you can do with the account is behind
+                it — see AccountMenu — which is 160px of rail handed back to
+                the navigation that has to scroll. */}
+            <div className={`border-t p-2 ${t.border}`}>
+              <AccountMenu
+                t={t}
+                name={data.adminName}
+                image={data.adminImage}
+                dark={dark}
+                label={sideLabel}
+                onEmail={() => setShowEmail(true)}
+                onPassword={() => setShowPwd(true)}
+                onToggleDark={() => setDark((d) => !d)}
+                onSignOut={logout}
+              />
             </div>
           </aside>
         </div>
