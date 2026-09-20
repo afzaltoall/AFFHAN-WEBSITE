@@ -1013,6 +1013,32 @@ export function AdminConsole({ data }: Props) {
      person: the queue's given-up-on count, which is not a workload figure
      but a backlog nobody else is going to notice. */
   const sideAlert = `shrink-0 overflow-hidden whitespace-nowrap rounded-full bg-amber-500/15 text-[10.5px] font-bold leading-5 text-amber-700 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${sideOpen ? "ml-1 max-w-[96px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
+  /* A group's heading. It collapses in HEIGHT rather than width, because a
+     zero-width label still owns a line box and every group would cost the
+     collapsed rail 14px of nothing. The hairline above each group stays, so
+     the grouping is still legible at 60px with the words gone. */
+  const sideGroupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[10px] font-bold uppercase tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${sideOpen ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
+
+  /* One view row of the rail. A function rather than a component so React sees
+     the same element type between renders and nothing remounts on hover. */
+  const railView = (n: (typeof nav)[number]) => (
+    <button
+      key={n.key}
+      onClick={() => { setView(n.key); setQ(""); }}
+      // The rail's tooltip. Collapsed, the icon is all there is.
+      title={n.label}
+      className={`${sideRow} ${view === n.key ? t.navActive : t.navIdle}`}
+    >
+      <span className={sideIconCol}>
+        <n.icon size={17} className={view === n.key ? "text-brand" : t.soft} />
+        {n.count !== undefined && n.count > 0 && (
+          <span className={sideDot}>{fmtBadge(n.count)}</span>
+        )}
+      </span>
+      <span className={`flex-1 ${sideLabel}`}>{n.label}</span>
+      {n.count !== undefined && <span className={sidePill}>{fmtNum(n.count)}</span>}
+    </button>
+  );
 
   return (
     <div style={sfFont} className={`min-h-screen w-full antialiased transition-colors duration-200 ${t.page}`}>
@@ -1059,122 +1085,148 @@ export function AdminConsole({ data }: Props) {
                 <p className={`text-[11px] ${t.soft}`}>Admin</p>
               </div>
             </div>
-            <nav className="flex-1 space-y-1 px-2">
-              {nav.map((n) => (
-                <button
-                  key={n.key}
-                  onClick={() => { setView(n.key); setQ(""); }}
-                  // The rail's tooltip. Collapsed, the icon is all there is.
-                  title={n.label}
-                  className={`${sideRow} ${view === n.key ? t.navActive : t.navIdle}`}
+            {/* Thirteen destinations in one flat column read as a list of
+                everything rather than a place to go. They are grouped now, by
+                the question each one answers, with a hairline between groups
+                so the grouping survives the collapse to 60px — where the
+                labels cannot follow, but the gaps between icon clusters can.
+
+                It scrolls rather than clipping: the rail is h-screen with
+                overflow-hidden, and the groups cost enough height that a short
+                laptop screen would otherwise lose whatever sat at the bottom. */}
+            <nav
+              className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 ${
+                // The scrollbar shows only once there is room for it. In the
+                // 60px rail it would take a fifth of the width; open, it is the
+                // only thing that says the list continues past the fold, which
+                // on a short laptop screen it does.
+                sideOpen ? "" : "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              }`}
+            >
+              {/* The landing view, on its own: a heading over one row says less
+                  than the row does. */}
+              <div className="space-y-1">
+                {railView(nav[0])}
+              </div>
+
+              <div className={`mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}>
+                <p className={sideGroupLabel}>Leads</p>
+                {nav.slice(1).map(railView)}
+              </div>
+
+              {/* The sales team: who they are, how they are doing, what the
+                  rotation is holding, and what they have recorded. Activity is
+                  here rather than under a heading of its own — it is the team's
+                  own trail, and a section with one row in it is a divider with
+                  a word on top. */}
+              <div className={`mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}>
+                <p className={sideGroupLabel}>Team</p>
+                {/* The sales team's own accounts — who can sign in at
+                    /employee/login, and what each of them has been assigned. */}
+                <Link href="/admin/employees/" title="Staff" className={`${sideRow} ${t.navIdle}`}>
+                  <span className={sideIconCol}>
+                    <UserCog size={17} className={t.soft} />
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>Staff</span>
+                </Link>
+                {/* How the team is doing, as opposed to who they are — the two
+                    questions sit beside each other because the answer to the
+                    first is usually a name to open on the second. */}
+                <Link href="/admin/team-performance/" title="Team performance" className={`${sideRow} ${t.navIdle}`}>
+                  <span className={sideIconCol}>
+                    <TrendingUp size={17} className={t.soft} />
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>Team performance</span>
+                </Link>
+                {/* Customers going round the rotation because nobody has taken
+                    them on. Badged like the unread counts above it: a queue is
+                    only useful if somebody notices it filling up. */}
+                <Link
+                  href="/admin/queue/"
+                  title={
+                    data.stats.queueInvalid > 0
+                      ? `Queue — ${fmtNum(data.stats.queue)} going round, ${fmtNum(data.stats.queueInvalid)} given up on and waiting for you`
+                      : `Queue — ${fmtNum(data.stats.queue)} going round`
+                  }
+                  className={`${sideRow} ${t.navIdle}`}
                 >
                   <span className={sideIconCol}>
-                    <n.icon size={17} className={view === n.key ? "text-brand" : t.soft} />
-                    {n.count !== undefined && n.count > 0 && (
-                      <span className={sideDot}>{fmtBadge(n.count)}</span>
+                    <Timer size={17} className={t.soft} />
+                    {/* Collapsed to 60px, one number has to stand for the whole
+                        queue — and a customer the rotation gave up on is exactly
+                        the one nobody else will notice, so it counts here. */}
+                    {data.stats.queue + data.stats.queueInvalid > 0 && (
+                      <span className={sideDot}>{fmtBadge(data.stats.queue + data.stats.queueInvalid)}</span>
                     )}
                   </span>
-                  <span className={`flex-1 ${sideLabel}`}>{n.label}</span>
-                  {n.count !== undefined && <span className={sidePill}>{fmtNum(n.count)}</span>}
-                </button>
-              ))}
-              {/* A link rather than a view: the supplier book is its own route, so
-                  it survives a reload and can be opened in its own tab, which is
-                  how it actually gets used — open beside a chat window. */}
-              <Link href="/admin/suppliers/" title="Suppliers" className={`${sideRow} ${t.navIdle}`}>
-                <span className={sideIconCol}>
-                  <Users size={17} className={t.soft} />
-                  {data.stats.suppliers > 0 && <span className={sideDot}>{fmtBadge(data.stats.suppliers)}</span>}
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>Suppliers</span>
-                <span className={sidePill}>{fmtNum(data.stats.suppliers)}</span>
-              </Link>
-              <Link href="/admin/videos/" title="Videos" className={`${sideRow} ${t.navIdle}`}>
-                <span className={sideIconCol}>
-                  <PlayCircle size={17} className={t.soft} />
-                  {data.stats.videos > 0 && <span className={sideDot}>{fmtBadge(data.stats.videos)}</span>}
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>Videos</span>
-                <span className={sidePill}>{fmtNum(data.stats.videos)}</span>
-              </Link>
+                  <span className={`flex-1 ${sideLabel}`}>Queue</span>
+                  <span className={sidePill}>{fmtNum(data.stats.queue)}</span>
+                  {/* Beside the rotating figure rather than added to it: the two
+                      numbers mean different things, and only one of them is
+                      somebody's job to fix today. The word rides along because
+                      two bare numbers side by side say nothing about which is
+                      which — and this is the one that needs a person. */}
+                  {data.stats.queueInvalid > 0 && (
+                    <span className={sideAlert}>{fmtNum(data.stats.queueInvalid)} invalid</span>
+                  )}
+                </Link>
+                {/* What the sales team has recorded, across everybody. */}
+                <Link href="/admin/activity/" title="Activity" className={`${sideRow} ${t.navIdle}`}>
+                  <span className={sideIconCol}>
+                    <Activity size={17} className={t.soft} />
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>Activity</span>
+                </Link>
+              </div>
+
+              <div className={`mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}>
+                <p className={sideGroupLabel}>Catalog &amp; content</p>
+                {/* A link rather than a view: the supplier book is its own route, so
+                    it survives a reload and can be opened in its own tab, which is
+                    how it actually gets used — open beside a chat window. */}
+                <Link href="/admin/suppliers/" title="Suppliers" className={`${sideRow} ${t.navIdle}`}>
+                  <span className={sideIconCol}>
+                    <Users size={17} className={t.soft} />
+                    {data.stats.suppliers > 0 && <span className={sideDot}>{fmtBadge(data.stats.suppliers)}</span>}
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>Suppliers</span>
+                  <span className={sidePill}>{fmtNum(data.stats.suppliers)}</span>
+                </Link>
+                <Link href="/admin/videos/" title="Videos" className={`${sideRow} ${t.navIdle}`}>
+                  <span className={sideIconCol}>
+                    <PlayCircle size={17} className={t.soft} />
+                    {data.stats.videos > 0 && <span className={sideDot}>{fmtBadge(data.stats.videos)}</span>}
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>Videos</span>
+                  <span className={sidePill}>{fmtNum(data.stats.videos)}</span>
+                </Link>
+              </div>
+
               {/* Two lists, because the office asks two different questions:
                   who signs in on the site, and who signs in on the app. One
                   table underneath — somebody who uses both appears on both,
                   which is the honest answer rather than a duplicate. */}
-              <Link href="/admin/users/website/" title="Website Users" className={`${sideRow} ${t.navIdle}`}>
-                <span className={sideIconCol}>
-                  <Globe size={17} className={t.soft} />
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>Website Users</span>
-              </Link>
-              <Link href="/admin/users/app/" title="App Users" className={`${sideRow} ${t.navIdle}`}>
-                <span className={sideIconCol}>
-                  <Smartphone size={17} className={t.soft} />
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>App Users</span>
-              </Link>
-              <Link href="/admin/mobile-inquiries/" title="App Inquiries" className={`${sideRow} ${t.navIdle}`}>
-                <span className={sideIconCol}>
-                  <MessageSquare size={17} className={t.soft} />
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>App Inquiries</span>
-              </Link>
-              {/* What the sales team has recorded, across everybody. */}
-              <Link href="/admin/activity/" title="Activity" className={`${sideRow} ${t.navIdle}`}>
-                <span className={sideIconCol}>
-                  <Activity size={17} className={t.soft} />
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>Activity</span>
-              </Link>
-              {/* The sales team's own accounts — who can sign in at
-                  /employee/login, and what each of them has been assigned. */}
-              <Link href="/admin/employees/" title="Staff" className={`${sideRow} ${t.navIdle}`}>
-                <span className={sideIconCol}>
-                  <UserCog size={17} className={t.soft} />
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>Staff</span>
-              </Link>
-              {/* How the team is doing, as opposed to who they are — the two
-                  questions sit beside each other because the answer to the
-                  first is usually a name to open on the second. */}
-              <Link href="/admin/team-performance/" title="Team performance" className={`${sideRow} ${t.navIdle}`}>
-                <span className={sideIconCol}>
-                  <TrendingUp size={17} className={t.soft} />
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>Team performance</span>
-              </Link>
-              {/* Customers going round the rotation because nobody has taken
-                  them on. Badged like the unread counts above it: a queue is
-                  only useful if somebody notices it filling up. */}
-              <Link
-                href="/admin/queue/"
-                title={
-                  data.stats.queueInvalid > 0
-                    ? `Queue — ${fmtNum(data.stats.queue)} going round, ${fmtNum(data.stats.queueInvalid)} given up on and waiting for you`
-                    : `Queue — ${fmtNum(data.stats.queue)} going round`
-                }
-                className={`${sideRow} ${t.navIdle}`}
-              >
-                <span className={sideIconCol}>
-                  <Timer size={17} className={t.soft} />
-                  {/* Collapsed to 60px, one number has to stand for the whole
-                      queue — and a customer the rotation gave up on is exactly
-                      the one nobody else will notice, so it counts here. */}
-                  {data.stats.queue + data.stats.queueInvalid > 0 && (
-                    <span className={sideDot}>{fmtBadge(data.stats.queue + data.stats.queueInvalid)}</span>
-                  )}
-                </span>
-                <span className={`flex-1 ${sideLabel}`}>Queue</span>
-                <span className={sidePill}>{fmtNum(data.stats.queue)}</span>
-                {/* Beside the rotating figure rather than added to it: the two
-                    numbers mean different things, and only one of them is
-                    somebody's job to fix today. The word rides along because
-                    two bare numbers side by side say nothing about which is
-                    which — and this is the one that needs a person. */}
-                {data.stats.queueInvalid > 0 && (
-                  <span className={sideAlert}>{fmtNum(data.stats.queueInvalid)} invalid</span>
-                )}
-              </Link>
+              <div className={`mt-1.5 space-y-1 border-t pb-2 pt-1.5 ${t.border}`}>
+                <p className={sideGroupLabel}>Users</p>
+                <Link href="/admin/users/website/" title="Website Users" className={`${sideRow} ${t.navIdle}`}>
+                  <span className={sideIconCol}>
+                    <Globe size={17} className={t.soft} />
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>Website Users</span>
+                </Link>
+                <Link href="/admin/users/app/" title="App Users" className={`${sideRow} ${t.navIdle}`}>
+                  <span className={sideIconCol}>
+                    <Smartphone size={17} className={t.soft} />
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>App Users</span>
+                </Link>
+                <Link href="/admin/mobile-inquiries/" title="App Inquiries" className={`${sideRow} ${t.navIdle}`}>
+                  <span className={sideIconCol}>
+                    <MessageSquare size={17} className={t.soft} />
+                  </span>
+                  <span className={`flex-1 ${sideLabel}`}>App Inquiries</span>
+                </Link>
+              </div>
             </nav>
             <div className={`border-t p-2 ${t.border}`}>
               <div className="flex items-center px-1.5 py-2">
