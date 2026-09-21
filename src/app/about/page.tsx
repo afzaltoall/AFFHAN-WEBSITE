@@ -25,6 +25,13 @@ export const metadata: Metadata = {
     url: "https://affhan.com/about/",
     siteName: "Affhan",
     type: "website",
+    images: [
+      {
+        url: "/images/logo.png",
+        width: 800,
+        height: 600,
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
