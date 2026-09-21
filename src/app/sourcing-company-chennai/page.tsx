@@ -24,7 +24,7 @@ export const revalidate = 3600;
 // lost its tail — "— China Import" was being cut anyway, and it was the least
 // valuable part. Both phrases this page targets, "sourcing agent in Chennai"
 // and "sourcing company in Chennai", now survive the truncation intact.
-const PAGE_TITLE = "Sourcing Agent & Sourcing Company in Chennai, India | Affhan";
+const PAGE_TITLE = "Sourcing Agent & Sourcing Company in Chennai, India | AFFHAN";
 
 // 149 chars, down from 182. Google shows roughly 155, so the old "Get a quote
 // today" call to action was being clipped off the end where it did no work.
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     // 308s, so a share pointed one hop away from the page's own canonical.
     url: "https://affhan.com/sourcing-company-chennai/",
     type: "website",
-    siteName: "Affhan",
+    siteName: "AFFHAN",
     images: [
       {
         url: "/images/logo.png",
@@ -60,7 +60,7 @@ export const metadata: Metadata = {
   },
 };
 
-// Affhan has traded since 2000. Derived rather than written down so the figure
+// AFFHAN has traded since 2000. Derived rather than written down so the figure
 // cannot go stale — the page revalidates hourly, so it rolls over on its own
 // each new year. It previously read "3+ years", understating the company by
 // more than two decades, in both the bullet list and this FAQ answer (which is
@@ -71,22 +71,22 @@ const yearsTrading = new Date().getFullYear() - FOUNDED_YEAR;
 
 const faqs = [
   {
-    question: "What makes Affhan the best sourcing company in Chennai?",
+    question: "What makes AFFHAN the best sourcing company in Chennai?",
     answer:
-      `With over ${yearsTrading} years of proven expertise, a 4.8 rating, and direct presence in China and Chennai, Affhan eliminates the middleman. We provide seamless B2B sourcing from a catalog of over 10 Lakhs+ products across 500+ product categories.`,
+      `With over ${yearsTrading} years of proven expertise, a 4.8 rating, and direct presence in China and Chennai, AFFHAN eliminates the middleman. We provide seamless B2B sourcing from a catalog of over 10 Lakhs+ products across 500+ product categories.`,
   },
   {
     question: "How to source products from China to Chennai safely?",
     answer:
-      "The safest way to source products from China is to use a reliable sourcing agent in Chennai like Affhan. We handle supplier verification, physical factory audits, quality control, and secure shipping directly to your warehouse.",
+      "The safest way to source products from China is to use a reliable sourcing agent in Chennai like AFFHAN. We handle supplier verification, physical factory audits, quality control, and secure shipping directly to your warehouse.",
   },
   {
     question: "What does a sourcing agent cost in Chennai?",
     answer:
-      "Sourcing agent costs vary depending on the complexity of the order, product type, and logistics requirements. At Affhan, we offer highly competitive and transparent pricing for procurement, quality inspection, and freight forwarding.",
+      "Sourcing agent costs vary depending on the complexity of the order, product type, and logistics requirements. At AFFHAN, we offer highly competitive and transparent pricing for procurement, quality inspection, and freight forwarding.",
   },
   {
-    question: "Does Affhan provide door-to-door shipping from China to Chennai?",
+    question: "Does AFFHAN provide door-to-door shipping from China to Chennai?",
     answer:
       "Yes! We are a full-service import export company in Chennai offering door-to-door shipping. Whether it's LCL, FCL, Air Freight, or Sea Freight, we manage everything including customs clearance in India.",
   },
@@ -98,7 +98,7 @@ const faqs = [
   {
     question: "Are you a sourcing agent in Chennai?",
     answer:
-      "Yes, Affhan acts as your dedicated product sourcing agent in Chennai with our own procurement team on the ground in China. We bridge the gap between Indian buyers and Chinese factories.",
+      "Yes, AFFHAN acts as your dedicated product sourcing agent in Chennai with our own procurement team on the ground in China. We bridge the gap between Indian buyers and Chinese factories.",
   },
   {
     question: "What documents does a Chennai business need before its first import?",
@@ -125,7 +125,7 @@ const schema = {
       logo: LOGO_URL,
       image: LOGO_URL,
       description:
-        "Affhan is a trusted sourcing company in Chennai for China imports, product sourcing & freight forwarding.",
+        "AFFHAN is a trusted sourcing company in Chennai for China imports, product sourcing & freight forwarding.",
       // The Royapuram profile lists the mobile first; the landline follows.
       telephone: OFFICES.chennai.telephone,
       email: "info@affhan.com",
@@ -258,7 +258,7 @@ export default async function SourcingCompanyChennaiPage() {
               href="/"
               className="cta-sheen group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-300 ease-out hover:border-brand/45 hover:bg-white hover:text-[#176579] hover:shadow-[0_2px_10px_rgba(15,23,42,0.07),0_10px_30px_-10px_rgba(39,168,196,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
             >
-              Visit Affhan Website
+              Visit AFFHAN Website
               <span aria-hidden="true" className="transition-transform duration-300 ease-out motion-safe:group-hover:translate-x-1">
                 →
               </span>
@@ -601,10 +601,10 @@ export default async function SourcingCompanyChennaiPage() {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance mb-6">
-                Why Choose Affhan as Your Chennai Sourcing Partner?
+                Why Choose AFFHAN as Your Chennai Sourcing Partner?
               </h2>
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
-                We are not a broker forwarding your enquiry to a Chinese trading company and adding a margin. Affhan buys, inspects and ships on its own account, with staff in Guangzhou and an office at Royapuram you can walk into.
+                We are not a broker forwarding your enquiry to a Chinese trading company and adding a margin. AFFHAN buys, inspects and ships on its own account, with staff in Guangzhou and an office at Royapuram you can walk into.
               </p>
               {/* These used to restate the stat tiles sitting beside them —
                   products, countries and rating were each printed twice in one
