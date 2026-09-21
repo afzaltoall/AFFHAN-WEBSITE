@@ -879,7 +879,12 @@ html.scroll-behavior-auto {
  * matching under a real Tab keypress, which is the only way to test it
  * (programmatic .focus() does not always match the selector).
  */
-.auth-focus-ring:focus-visible {
+/* Scoped to the employee auth shell. The class is only applied on that
+   screen today, so an unscoped rule changed nothing else in practice — but
+   "in practice" is one careless className away from being wrong, and the
+   public /login/ deliberately keeps its own (broken) focus behaviour in this
+   branch. The ancestor makes that guarantee structural. */
+.employee-auth-shell .auth-focus-ring:focus-visible {
   border-color: #1d7e93;
   box-shadow: 0 0 0 3px rgba(29, 126, 147, 0.45);
 }

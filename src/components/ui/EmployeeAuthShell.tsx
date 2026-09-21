@@ -48,7 +48,7 @@ export function EmployeeAuthShell({
   children: React.ReactNode;
 }) {
   return (
-    <main className="grid min-h-screen lg:grid-cols-[1fr_1fr]">
+    <main className="employee-auth-shell grid min-h-screen lg:grid-cols-[1fr_1fr]">
       {/* ---------------------------------------------------------- left */}
       <div className="relative hidden flex-col justify-between overflow-hidden bg-[#0b2230] p-12 lg:flex">
         {/* Ground: one deep gradient plus a faint grid. Both are painted, not

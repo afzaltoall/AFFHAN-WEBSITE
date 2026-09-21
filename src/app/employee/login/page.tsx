@@ -27,17 +27,51 @@ import { EmployeeLoginForm } from "./EmployeeLoginForm";
  */
 export const revalidate = 3600;
 
-/** Failing to count must not fail the login page; it just drops the strip. */
+/**
+ * How long the decoration may hold the door.
+ *
+ * A login page that will not render because a count is slow is a worse page
+ * than one with no counts. Neon sleeps when idle and the first query after
+ * that can take seconds, so the strip is given a budget and then dropped.
+ */
+const STATS_TIMEOUT_MS = 1500;
+
+/** Resolves to null rather than rejecting, so the caller has one thing to check. */
+function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    work,
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
+/**
+ * Failing to count must not fail the login page; it just drops the strip.
+ *
+ * Null on any of: a thrown query, a slow one, or a database that is not
+ * reachable at all. The caller renders nothing in that case — no zeroes and no
+ * skeleton, because a row of zeroes is a claim ("we have no products") and a
+ * skeleton on a login screen is a promise of something that may never arrive.
+ */
 async function deskStats(): Promise<DeskStat[] | null> {
   try {
-    const [products, categories] = await withDbRetry(() =>
-      Promise.all([
-        prisma.product.count(),
-        prisma.category.count({ where: { products: { some: {} } } }),
-      ]),
+    const counts = await withTimeout(
+      withDbRetry(() =>
+        Promise.all([
+          prisma.product.count(),
+          prisma.category.count({ where: { products: { some: {} } } }),
+        ]),
+      ),
+      STATS_TIMEOUT_MS,
     );
+    if (!counts) {
+      console.warn(`employee login stats: gave up after ${STATS_TIMEOUT_MS}ms`);
+      return null;
+    }
+    const [products, categories] = counts;
     return [
-      { label: "Products sourced", value: products },
+      // "in catalogue", not "sourced": this counts CJ and EPROLO listing
+      // rows, which is what we can source, not what we have sourced.
+      { label: "Products in catalogue", value: products },
       { label: "Categories", value: categories },
       // Both already stated publicly: the offices in the footer, the reach in
       // the homepage description ("100+ countries").
