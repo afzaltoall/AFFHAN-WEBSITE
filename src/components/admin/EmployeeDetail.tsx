@@ -45,7 +45,9 @@ export function EmployeeDetail({
   employee: EmployeeRow;
   counts: { inquiries: number; contacts: number; updates: number };
   /**
-   * Their book by newest outcome, from lib/lead-performance.ts — the same two
+   * Their book by what THEY last recorded on each lead — not by the lead's
+   * newest entry, which can be a previous holder's. From lib/lead-performance
+   * .ts, the same two
    * statements the team page runs, narrowed to one person rather than a second
    * way of counting the same thing. Null only if the figures could not be read,
    * where the page falls back to the three plain counters it used to show.
@@ -191,7 +193,7 @@ export function EmployeeDetail({
               <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/[0.04] lg:col-span-2">
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                   <h2 className="text-[15px] font-semibold">Where their leads stand</h2>
-                  <span className="text-[12px] text-[#86868b]">each lead once, by its newest outcome</span>
+                  <span className="text-[12px] text-[#86868b]">each lead once, by what they last recorded</span>
                 </div>
                 <p className="mt-1 text-[12.5px] text-[#48484a]">
                   <BookSummary

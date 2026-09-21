@@ -117,7 +117,7 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
             <p className="text-[13px] text-[#86868b]">
               {totals.staff === 0
                 ? "No active staff yet."
-                : `${totals.staff} active ${totals.staff === 1 ? "person" : "people"} · each lead counted once, by its newest outcome`}
+                : `${totals.staff} active ${totals.staff === 1 ? "person" : "people"} · each lead counted once, by what its holder last recorded`}
             </p>
           </div>
           <LiveRefresh intervalMs={60_000} />
