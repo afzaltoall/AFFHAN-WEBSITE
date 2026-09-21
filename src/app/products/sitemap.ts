@@ -66,14 +66,8 @@ const SITEMAP_URL_CAP = 50_000;
  *     an ordinary category.
  *   missing description — the whole basis for including a product at all.
  */
-/** A product's id and when the feed last touched it — see lastModified below. */
-interface SitemapProduct {
-  id: number;
-  lastSynced: Date | null;
-}
-
 const getSitemapProductIds = unstable_cache(
-  async (): Promise<SitemapProduct[]> => {
+  async (): Promise<number[]> => {
     const cats = await prisma.category.findMany({ select: { id: true, name: true, parentId: true } });
     const blocked = blockedCategoryIdSet(cats);
 
@@ -83,8 +77,8 @@ const getSitemapProductIds = unstable_cache(
       ? Prisma.sql`AND p."categoryId" NOT IN (${Prisma.join([...blocked])})`
       : Prisma.empty;
 
-    const rows = await prisma.$queryRaw<Array<SitemapProduct>>(Prisma.sql`
-      SELECT p."id", p."lastSynced"
+    const rows = await prisma.$queryRaw<Array<{ id: number }>>(Prisma.sql`
+      SELECT p."id"
       FROM "Product" p
       WHERE p."supplierSource" = 'EPROLO'
         AND p."description" IS NOT NULL
@@ -96,7 +90,7 @@ const getSitemapProductIds = unstable_cache(
         )
       ORDER BY p."id" ASC
     `);
-    return rows;
+    return rows.map((r) => r.id);
   },
   ["sitemap-product-ids"],
   { revalidate: 86_400, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
@@ -113,20 +107,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // The trailing slash is load-bearing: next.config sets trailingSlash: true,
   // so a URL without one answers 308 and every crawl of it is spent on a
   // redirect instead of on the page.
-  return included.map((product) => ({
-    url: `https://affhan.com/products/${product.id}/`,
-    // The row's own date, never the clock. Every entry here used to say
-    // `new Date()`, which told Google that all 11,785 product pages had been
-    // modified at the instant of the crawl — every crawl. A lastmod that is
-    // always "now" carries no information, and one that never disagrees with
-    // the clock teaches Google to disregard the field across the whole site.
+  return included.map((productId) => ({
+    url: `https://affhan.com/products/${productId}/`,
+    // No lastModified, deliberately.
     //
-    // Product.lastSynced is when the feed last wrote this row, and the page is
-    // generated from the row, so it is the closest honest answer to "when did
-    // this page's content change". Null on a row the sync has never stamped,
-    // and then the entry carries no lastmod at all — "unknown" is a true
-    // statement where "just now" is not.
-    ...(product.lastSynced ? { lastModified: product.lastSynced } : {}),
+    // It used to say `new Date()`, which told Google that all 11,785 product
+    // pages had changed at the instant of the crawl — every crawl. The obvious
+    // replacement, Product.lastSynced, turns out to be no better: every EPROLO
+    // row was written in one 2h15m window on 2026-09-08 (12,149 distinct
+    // stamps between 05:55:14 and 08:10:31), because the importer stamps every
+    // row it touches whether the product changed or not. That is the wall
+    // clock of one import, dressed up as a content date.
+    //
+    // There is no honest date to give, so the field is left out. Omitting
+    // lastmod is valid and means "unknown", which is true; a wrong date is a
+    // claim, and a sitemap that makes 11,785 false claims teaches Google to
+    // disregard the field on the static pages too — where the dates in
+    // src/app/sitemap.ts are real.
     changeFrequency: "monthly" as const,
     // Below the static pages (0.7-1.0). These are catalogue listings, not the
     // pages the business wants to rank for.
