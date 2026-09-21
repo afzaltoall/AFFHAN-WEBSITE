@@ -10,6 +10,7 @@ import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { getCdnUrl } from "@/lib/cdn";
 import { normalizePhoneKey } from "@/lib/customerGroups";
 import { collapseUpdates } from "@/lib/statusBatch";
+import { handoffsFor } from "@/lib/lead-handoff";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
 
 export const dynamic = "force-dynamic";
@@ -63,9 +64,9 @@ export default async function ActivityPage({
         createdAt: true,
         employee: { select: { id: true, name: true, image: true, region: true } },
         inquiry: {
-          select: { id: true, customerName: true, productName: true, country: true, phone: true, product: { select: { imageUrl: true } } },
+          select: { id: true, customerName: true, productName: true, country: true, phone: true, customerKey: true, product: { select: { imageUrl: true } } },
         },
-        contact: { select: { id: true, fullName: true, companyName: true, country: true, phone: true } },
+        contact: { select: { id: true, fullName: true, companyName: true, country: true, phone: true, customerKey: true } },
       },
     }),
   ]);
@@ -92,6 +93,31 @@ export default async function ActivityPage({
       r.contact?.fullName ||
       "",
   }));
+
+  /**
+   * And then what?
+   *
+   * "Not attended" is the one outcome that does something on its own: the
+   * customer leaves the person who recorded it that second and is offered to
+   * somebody else. The feed used to stop at the recording, which reads as a
+   * dead end — the administrator's next question is always who has them now,
+   * and answering it meant opening the Queue and matching up timestamps.
+   *
+   * One line per decline, keyed on the batch's first row, and one query for
+   * the page however many declines are on it. Where the record says nothing
+   * the line says nothing: see lib/lead-handoff.ts.
+   */
+  const handoffs = await handoffsFor(
+    feed
+      .map((batch) => batch[0])
+      .filter((r) => r.status === "NOT_ATTENDED")
+      .map((r) => ({
+        id: r.id,
+        customerKey: r.inquiry?.customerKey ?? r.contact?.customerKey ?? null,
+        employeeId: r.employee.id,
+        at: r.createdAt,
+      })),
+  );
 
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
@@ -138,6 +164,7 @@ export default async function ActivityPage({
                   ? { name: r.contact.fullName, detail: r.contact.companyName ?? "Contact message", href: `/admin/?contact=${r.contact.id}`, country: r.contact.country, image: null }
                   : null;
               const thumb = lead?.image ? getCdnUrl(lead.image, 128) : null;
+              const handoff = handoffs.get(r.id);
               return (
                 <li key={r.id} className="group relative rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.04] transition-shadow hover:shadow-md">
                   <div className="flex items-start gap-3">
@@ -170,6 +197,36 @@ export default async function ActivityPage({
                           <span className="text-[#86868b]">
                             {" "}
                             across {batch.length} products
+                          </span>
+                        )}
+                        {/* Where the customer went next, in the same sentence.
+                            The arrow does the work a second line would, and
+                            keeps one action on one line. */}
+                        {handoff && (
+                          <span className="text-[#48484a]">
+                            {" → "}
+                            {handoff.kind === "passed" ? (
+                              <>
+                                passed to{" "}
+                                {handoff.toEmployeeId ? (
+                                  <Link
+                                    href={`/admin/employees/${handoff.toEmployeeId}/`}
+                                    className="relative z-10 font-semibold hover:underline"
+                                  >
+                                    {handoff.toName}
+                                  </Link>
+                                ) : (
+                                  <span className="font-semibold">{handoff.toName}</span>
+                                )}
+                              </>
+                            ) : handoff.kind === "waiting" ? (
+                              <>
+                                waiting in the queue
+                                {handoff.reason && <span className="text-[#86868b]"> · {handoff.reason}</span>}
+                              </>
+                            ) : (
+                              <>nobody on the team took it on</>
+                            )}
                           </span>
                         )}
                       </p>
