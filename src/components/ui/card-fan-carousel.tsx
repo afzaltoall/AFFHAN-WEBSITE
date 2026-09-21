@@ -69,6 +69,27 @@ function getSlotConfig(totalCards: number, slot: number) {
   };
 }
 
+/**
+ * Marks the fan as positioned.
+ *
+ * Until GSAP has run, every card is coincident — the server HTML carries no
+ * transforms — and twenty superimposed box-shadows do not read as one shadow.
+ * A box-shadow blur is an alpha gradient; stacked twenty times it compounds to
+ * 1-(1-a)^20, which turns a smooth falloff into a steep curve and amplifies
+ * 8-bit quantisation into visible concentric rings. That is the banded dark
+ * halo, and on a throttled first paint it was on screen for over five seconds.
+ *
+ * globals.css suppresses the shadow on the nineteen cards underneath while
+ * this class is absent. Adding it restores exactly the shadow every card has
+ * always had — no value is changed, only when it applies.
+ *
+ * Set by the positioning code itself, never on a timer: the stacked state
+ * lasts exactly until GSAP writes the transforms, which is over five seconds
+ * throttled and one frame on a fast machine. A timeout would have to guess
+ * that, and would be wrong at both ends.
+ */
+const READY_CLASS = "fan-ready";
+
 const ARROW_CLASSES =
   "relative flex items-center justify-center rounded-full border-[1.5px] border-black/10 bg-black/5 backdrop-blur-[16px] text-black/40 cursor-pointer shrink-0 z-30 outline-none shadow-[0_4px_20px_rgba(0,0,0,0.1)] hover:border-black/25 hover:text-black/70 active:opacity-70 transition-colors duration-300";
 
@@ -131,38 +152,50 @@ export default function SocialCards({ cards }: SocialCardsProps) {
       }
     };
 
-    cardElements.forEach((card, cardIndex) => {
-      const slot = visibleMap.get(cardIndex);
-      const wasVisible = previouslyVisible.has(cardIndex);
+    // try/finally, not a trailing statement: if a gsap call throws part way
+    // through, the cards it already moved must still get their shadow back
+    // rather than being left permanently shadowless in a fanned layout. The
+    // failure then degrades to exactly today's behaviour.
+    try {
+      cardElements.forEach((card, cardIndex) => {
+        const slot = visibleMap.get(cardIndex);
+        const wasVisible = previouslyVisible.has(cardIndex);
 
-      if (slot !== undefined) {
-        const { x, y, rot, scale, zIndex } = config(slot);
-        const target = {
-          x: `${x * multiplier}rem`,
-          y: `${y * hMult}rem`,
-          rotation: rot,
-          scale,
-          opacity: 1,
-          zIndex,
-        };
+        if (slot !== undefined) {
+          const { x, y, rot, scale, zIndex } = config(slot);
+          const target = {
+            x: `${x * multiplier}rem`,
+            y: `${y * hMult}rem`,
+            rotation: rot,
+            scale,
+            opacity: 1,
+            zIndex,
+          };
 
-        if (isFirstMount) {
-          gsap.set(card, { x: 0, y: `${12 * hMult}rem`, rotation: 0, scale: 0.5, opacity: 0 });
-          gsap.to(card, { ...target, duration: 1.2, ease: "elastic.out(1.05,.78)", delay: 0.2 + slot * 0.06, onComplete: onCardDone });
-        } else if (!wasVisible) {
-          const enterX = direction === "right" ? 40 : -40;
-          gsap.set(card, { x: `${enterX}rem`, y: `${y * hMult}rem`, rotation: direction === "right" ? 30 : -30, scale: 0.5, opacity: 0 });
-          gsap.to(card, { ...target, duration: 0.6, ease: "power2.out", onComplete: onCardDone });
-        } else {
-          gsap.to(card, { ...target, duration: 0.5, ease: "power2.out", onComplete: onCardDone });
+          if (isFirstMount) {
+            gsap.set(card, { x: 0, y: `${12 * hMult}rem`, rotation: 0, scale: 0.5, opacity: 0 });
+            gsap.to(card, { ...target, duration: 1.2, ease: "elastic.out(1.05,.78)", delay: 0.2 + slot * 0.06, onComplete: onCardDone });
+          } else if (!wasVisible) {
+            const enterX = direction === "right" ? 40 : -40;
+            gsap.set(card, { x: `${enterX}rem`, y: `${y * hMult}rem`, rotation: direction === "right" ? 30 : -30, scale: 0.5, opacity: 0 });
+            gsap.to(card, { ...target, duration: 0.6, ease: "power2.out", onComplete: onCardDone });
+          } else {
+            gsap.to(card, { ...target, duration: 0.5, ease: "power2.out", onComplete: onCardDone });
+          }
+        } else if (wasVisible) {
+          const exitX = direction === "right" ? -40 : 40;
+          gsap.to(card, { x: `${exitX}rem`, opacity: 0, scale: 0.5, rotation: direction === "right" ? -30 : 30, duration: 0.4, ease: "power2.in", zIndex: 0 });
+        } else if (isFirstMount) {
+          gsap.set(card, { opacity: 0, scale: 0.3, x: 0, y: 0, zIndex: 0 });
         }
-      } else if (wasVisible) {
-        const exitX = direction === "right" ? -40 : 40;
-        gsap.to(card, { x: `${exitX}rem`, opacity: 0, scale: 0.5, rotation: direction === "right" ? -30 : 30, duration: 0.4, ease: "power2.in", zIndex: 0 });
-      } else if (isFirstMount) {
-        gsap.set(card, { opacity: 0, scale: 0.3, x: 0, y: 0, zIndex: 0 });
-      }
-    });
+      });
+    } finally {
+      // Every card that was going to be positioned has been. classList.add is
+      // idempotent and this effect re-runs on every page change, so repeating
+      // it costs nothing. A reduced-motion path that skips the animation still
+      // passes through here.
+      container.classList.add(READY_CLASS);
+    }
 
     prevVisible.current = new Set(visibleMap.keys());
 

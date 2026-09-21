@@ -892,6 +892,22 @@ html.scroll-behavior-auto {
   outline: none;
   border: 3px solid #fff;
 }
+/* Until GSAP has positioned them, every card is exactly coincident — the
+   server HTML carries no transforms, so all twenty sit at the container
+   centre at scale 1. Twenty identical shadows superimposed do not read as one
+   shadow: a box-shadow blur is an alpha gradient, and stacking it twenty times
+   compounds to 1-(1-a)^20, which turns a smooth falloff into a steep curve and
+   amplifies 8-bit quantisation into visible concentric rings. That is the dark
+   banded halo, and under a slow first paint it is on screen for seconds.
+
+   So only the card actually on top keeps its shadow until then. :last-child is
+   that card: they all carry z-index auto, so paint order is DOM order. The
+   shadow value is not restated here — the rule only suppresses the nineteen
+   underneath, which are invisible anyway, and .fan-ready (set by the effect
+   that does the positioning, in card-fan-carousel.tsx) lifts it. */
+.fan-layout:not(.fan-ready) .fan-card:not(:last-child) {
+  box-shadow: none;
+}
 @media (min-width: 480px) {
   .fan-layout { height: 15rem; }
   .fan-card { width: 7.5rem; height: 11.25rem; margin-left: -3.75rem; margin-top: -5.625rem; }
