@@ -22,21 +22,33 @@ import { LoginBackground } from "@/components/ui/LoginBackground";
  * form, so a phone gets the logo and the heading without 50% of the viewport
  * spent on decoration, and nothing scrolls sideways.
  *
- * No dark-background logo variant exists in public/ — only logo.png — so the
- * white pill stays. Creating one was out of scope.
+ * THE LOGO. public/logo.png is a 225x225 transparent PNG, so on a dark ground
+ * it needs a light plate behind it or it disappears. The first attempt used a
+ * 128x40 pill, which is the wrong shape for a square mark: object-contain
+ * fitted the logo to the 40px height and left ~44px of bare white either side,
+ * which is the lopsided look this replaces. It is now a square plate sized to
+ * the mark, with the wordmark set beside it in white — a lockup rather than a
+ * logo floating in a white rectangle.
  */
 export function EmployeeAuthShell({
   title,
   blurb,
+  stats,
   children,
 }: {
   /** The headline on the left panel, and the small heading on mobile. */
   title: string;
   blurb: string;
+  /**
+   * The figures under the preview. A slot rather than a fetch: the route
+   * counts them on the server and hands the element in, so this component
+   * stays presentational and the page adds no client request.
+   */
+  stats?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
-    <main className="grid min-h-screen lg:grid-cols-[1fr_1fr]">
+    <main className="employee-auth-shell grid min-h-screen lg:grid-cols-[1fr_1fr]">
       {/* ---------------------------------------------------------- left */}
       <div className="relative hidden flex-col justify-between overflow-hidden bg-[#0b2230] p-12 lg:flex">
         {/* Ground: one deep gradient plus a faint grid. Both are painted, not
@@ -57,10 +69,20 @@ export function EmployeeAuthShell({
 
         <Link
           href="/"
-          className="relative z-10 inline-block rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/70"
+          aria-label="Affhan home"
+          className="group relative z-10 inline-flex items-center gap-3 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/70"
         >
-          <span className="relative block h-10 w-32 rounded-xl bg-white p-2 shadow-sm">
-            <Image src="/logo.png" alt="Affhan" fill className="object-contain" />
+          {/* A square plate for a square mark, with even padding on all four
+              sides. The ring and the soft shadow stop it reading as a hole
+              punched in the panel. */}
+          <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] ring-1 ring-white/70 transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+            <Image src="/logo.png" alt="" width={34} height={34} className="object-contain" />
+          </span>
+          <span className="leading-none">
+            <span className="block text-[15px] font-black tracking-[0.14em] text-white">AFFHAN</span>
+            <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
+              Staff workspace
+            </span>
           </span>
         </Link>
 
@@ -70,6 +92,11 @@ export function EmployeeAuthShell({
           <div className="mt-9">
             <SalesDeskPreview />
           </div>
+          {stats ? (
+            <div className="mt-8 border-t border-white/10 pt-6">
+              {stats}
+            </div>
+          ) : null}
         </div>
 
         <p className="relative z-10 text-sm text-slate-400">
@@ -86,10 +113,17 @@ export function EmployeeAuthShell({
           <div className="mb-6 flex flex-col items-center text-center lg:hidden">
             <Link
               href="/"
-              className="inline-block rounded-xl transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/70"
+              aria-label="Affhan home"
+              className="inline-flex items-center gap-2.5 rounded-2xl transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/70"
             >
-              <span className="relative block h-10 w-32 rounded-xl bg-white p-2 shadow-sm">
-                <Image src="/logo.png" alt="Affhan" fill className="object-contain" />
+              <span className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-2 shadow-[0_8px_24px_rgba(0,0,0,0.25)] ring-1 ring-white/70">
+                <Image src="/logo.png" alt="" width={30} height={30} className="object-contain" />
+              </span>
+              <span className="text-left leading-none">
+                <span className="block text-[14px] font-black tracking-[0.14em] text-white">AFFHAN</span>
+                <span className="mt-1 block text-[9.5px] font-semibold uppercase tracking-[0.18em] text-white/50">
+                  Staff workspace
+                </span>
               </span>
             </Link>
             <h1 className="mt-4 text-2xl font-black text-white">{title}</h1>

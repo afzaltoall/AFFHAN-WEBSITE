@@ -865,6 +865,30 @@ html.scroll-behavior-auto {
   padding: 0 1.5rem;
 }
 
+/* Focus ring for the auth inputs.
+ *
+ * These inputs set outline-none to suppress the UA ring, and neither utility
+ * route replaces it in this build: focus:ring-* composes into box-shadow but
+ * renders every segment transparent, and focus-visible:outline loses
+ * outline-style to the outline-none on the same element. Measured on this page
+ * AND on the public /login/, which share the classes through authFieldStyles,
+ * so the gap is site-wide rather than local to the staff screen.
+ *
+ * A plain rule cannot be reordered away. :focus-visible, not :focus, so the
+ * ring appears for keyboard traversal and not on a mouse click — confirmed
+ * matching under a real Tab keypress, which is the only way to test it
+ * (programmatic .focus() does not always match the selector).
+ */
+/* Scoped to the employee auth shell. The class is only applied on that
+   screen today, so an unscoped rule changed nothing else in practice — but
+   "in practice" is one careless className away from being wrong, and the
+   public /login/ deliberately keeps its own (broken) focus behaviour in this
+   branch. The ancestor makes that guarantee structural. */
+.employee-auth-shell .auth-focus-ring:focus-visible {
+  border-color: #1d7e93;
+  box-shadow: 0 0 0 3px rgba(29, 126, 147, 0.45);
+}
+
 /* Card-fan carousel (card-fan-carousel.tsx). GSAP drives the transforms;
    these rules give the layout its height and each card its base size, which
    the component's responsive multipliers assume. Cards are stacked at the
