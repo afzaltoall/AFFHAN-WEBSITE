@@ -168,7 +168,14 @@ export const Footer: FC<FooterProps> = ({
               {companyName}
             </span>
           </div>
-          <p className="max-w-[390px] text-sm leading-7 text-slate-200/90">
+          {/* data-nosnippet, because this sentence is on all twenty pages.
+              Google was using it as the search snippet for routes that have
+              their own description — a location page can be summarised by the
+              footer's "headquartered in Chennai … with offices in …" line,
+              which says nothing about the page. The attribute excludes the
+              text from snippet generation only; the paragraph still renders,
+              is still indexed, and the wording is untouched. */}
+          <p data-nosnippet className="max-w-[390px] text-sm leading-7 text-slate-200/90">
             {description}
           </p>
           {companyEmail ? (

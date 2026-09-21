@@ -177,6 +177,16 @@ const schema = {
         },
       })),
     },
+    {
+      // Same node /sourcing-company-france/ and /china-sourcing-company/
+      // already carry. It costs nothing and gives the page a named parent in
+      // results instead of a bare URL.
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: "https://affhan.com/" },
+        { "@type": "ListItem", position: 2, name: "Sourcing Company in Dubai", item: "https://affhan.com/sourcing-company-dubai/" },
+      ],
+    },
   ],
 };
 
