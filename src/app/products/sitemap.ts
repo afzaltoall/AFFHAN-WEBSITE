@@ -109,7 +109,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // redirect instead of on the page.
   return included.map((productId) => ({
     url: `https://affhan.com/products/${productId}/`,
-    lastModified: new Date(),
+    // No lastModified, deliberately.
+    //
+    // It used to say `new Date()`, which told Google that all 11,785 product
+    // pages had changed at the instant of the crawl — every crawl. The obvious
+    // replacement, Product.lastSynced, turns out to be no better: every EPROLO
+    // row was written in one 2h15m window on 2026-09-08 (12,149 distinct
+    // stamps between 05:55:14 and 08:10:31), because the importer stamps every
+    // row it touches whether the product changed or not. That is the wall
+    // clock of one import, dressed up as a content date.
+    //
+    // There is no honest date to give, so the field is left out. Omitting
+    // lastmod is valid and means "unknown", which is true; a wrong date is a
+    // claim, and a sitemap that makes 11,785 false claims teaches Google to
+    // disregard the field on the static pages too — where the dates in
+    // src/app/sitemap.ts are real.
     changeFrequency: "monthly" as const,
     // Below the static pages (0.7-1.0). These are catalogue listings, not the
     // pages the business wants to rank for.
