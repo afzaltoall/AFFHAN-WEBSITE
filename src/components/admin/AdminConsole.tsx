@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
@@ -21,7 +21,8 @@ import {
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { countryFlagUrl } from "@/lib/countryFlag";
-import { groupCustomers, buildCustomerSheet, type CustomerGroup } from "@/lib/customerGroups";
+import { groupCustomers, buildCustomerSheet, customerKeyOf, type CustomerGroup } from "@/lib/customerGroups";
+import { searchMatches } from "@/lib/customerCodeSearch";
 import { isInProgress, leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime, formatSince } from "@/lib/datetime";
@@ -670,6 +671,19 @@ export function AdminConsole({ data }: Props) {
         qty: "bg-brand/10 text-brand-dark", overlay: "bg-slate-900/50", modal: "bg-white text-[#1d1d1f] ring-black/[0.06]",
       };
 
+  /**
+   * A row's AFFHAN number, in every form somebody might type it.
+   *
+   * Looked up by the same customerKey the badge on the row uses, so what the
+   * search finds and what the card shows can never disagree. Empty for a row
+   * whose customer has no number yet, which costs the haystack nothing.
+   */
+  const codeOf = useCallback(
+    (row: { phone?: string | null; email?: string | null }) =>
+      data.customerCodes[customerKeyOf(row) ?? ""] ?? null,
+    [data.customerCodes],
+  );
+
   const inquiries = useMemo(
     () => items.filter((i) =>
       (statusFilter === "all" || asStatus(i.status) === statusFilter) &&
@@ -680,9 +694,9 @@ export function AdminConsole({ data }: Props) {
         (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
       matchesCountry(i.country, countryFilter) &&
       matchesAssignee(i.assignedToId, assigneeFilter) &&
-      (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
+      (!q || searchMatches(`${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`, q, codeOf(i)))
     ),
-    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter]
+    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter, codeOf]
   );
   /**
    * Narrowed by country, like contactStatusCounts is by company: these numbers
@@ -792,9 +806,9 @@ export function AdminConsole({ data }: Props) {
     () => deletedItems.filter((i) =>
       matchesCountry(i.country, countryFilter) &&
       matchesAssignee(i.assignedToId, assigneeFilter) &&
-      (!q || `${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`.toLowerCase().includes(q.toLowerCase()))
+      (!q || searchMatches(`${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`, q, codeOf(i)))
     ),
-    [deletedItems, q, countryFilter, assigneeFilter]
+    [deletedItems, q, countryFilter, assigneeFilter, codeOf]
   );
   // Ids visible in the current view, for the select-all control.
   const visibleIds = (view === "trash" ? trashList : inquiries).map((i) => i.id);
@@ -804,8 +818,14 @@ export function AdminConsole({ data }: Props) {
 
   // Derived contact lists — active list respects the status filter + search;
   // trash list is the soft-deleted messages.
-  const contactMatch = (c: ContactMessage, term: string) =>
-    !term || `${c.fullName} ${c.companyName || ""} ${c.country} ${c.phone} ${c.email} ${c.message}`.toLowerCase().includes(term.toLowerCase());
+  // Memoised because it now closes over codeOf, and two lists below depend
+  // on it: a fresh function each render would rebuild both on every keystroke
+  // anywhere in the console.
+  const contactMatch = useCallback(
+    (c: ContactMessage, term: string) =>
+      !term || searchMatches(`${c.fullName} ${c.companyName || ""} ${c.country} ${c.phone} ${c.email} ${c.message}`, term, codeOf(c)),
+    [codeOf],
+  );
   
   const contactWithCompany = useMemo(
     () => contactItems.filter((c) => c.companyName?.trim()).length,
@@ -820,7 +840,7 @@ export function AdminConsole({ data }: Props) {
       matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
       contactMatch(c, contactQ)
     ),
-    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter]
+    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactMatch]
   );
   const contactTrash = useMemo(
     () => contactDeleted.filter((c) =>
@@ -829,7 +849,7 @@ export function AdminConsole({ data }: Props) {
       matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
       contactMatch(c, contactQ)
     ),
-    [contactDeleted, contactQ, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter]
+    [contactDeleted, contactQ, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactMatch]
   );
   const contactStatusCounts = useMemo(() => {
     const scoped = contactItems.filter(
@@ -1612,7 +1632,7 @@ export function AdminConsole({ data }: Props) {
               {view === "inquiries" && groupByCustomer ? (
                 <>
                   {customerGroups.length ? (
-                    <ul className={`divide-y ${t.divide}`}>
+                    <ul className={`space-y-2 p-3 ${t.page}`}>
                       {customerGroups.map((g) => (
                         <CustomerGroupRow
                           key={g.key}
@@ -3244,12 +3264,12 @@ function ContactsSection({
       )}
 
       {list.length ? (
-        <ul className={`divide-y ${t.divide}`}>
+        <ul className={`space-y-2 p-3 ${t.page}`}>
           {list.map((c) => {
             const st = asStatus(c.status);
             const sel = selected.has(c.id);
             return (
-              <li key={c.id} className={`flex flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-center ${t.hover} ${sel ? "bg-brand/[0.05]" : st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
+              <li key={c.id} className={`flex flex-col gap-3 rounded-xl p-3.5 shadow-sm ring-1 transition-shadow sm:flex-row sm:items-center ${t.card} ${t.hover} ${sel ? "ring-brand/40" : ""} ${st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
                 <div className="flex min-w-0 flex-1 items-center gap-3">
                   <button onClick={() => toggleSelect(c.id)} aria-label="Select message" className={`shrink-0 transition-colors ${sel ? "text-brand" : `${t.soft} hover:text-brand`}`}>
                     {sel ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
@@ -3264,7 +3284,7 @@ function ContactsSection({
                           only question is "which of these have I dealt with" —
                           a small green chip on the far right answers it far
                           more slowly than the line through the name does. */}
-                      <p className={`line-clamp-1 text-[13.5px] font-semibold leading-snug hover:text-brand-dark ${
+                      <p className={`line-clamp-1 text-[15px] font-semibold leading-snug tracking-tight hover:text-brand-dark sm:text-[14.5px] ${
                         st !== "new" ? `line-through ${t.soft}` : t.strong
                       } ${tab === "trash" ? "opacity-70" : ""}`}>
                         {contactName(c)}{c.companyName ? <span className={`font-normal ${t.soft}`}> · {c.companyName}</span> : null}
@@ -3489,8 +3509,12 @@ function CustomerGroupRow({
     id ? employees.find((e) => e.id === id)?.name ?? "(inactive)" : "Unassigned";
 
   return (
-    <li className={`transition-colors ${t.hover} ${selected ? "bg-brand/[0.05]" : ""}`}>
-      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center">
+    <li
+      className={`overflow-hidden rounded-xl shadow-sm ring-1 transition-shadow ${t.card} ${
+        selected ? "ring-brand/40" : open ? "shadow-md" : ""
+      }`}
+    >
+      <div className={`flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center ${t.hover} ${selected ? "bg-brand/[0.04]" : ""}`}>
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <button onClick={onToggleSelect} aria-label={`Select ${g.customerName}`} aria-pressed={selected} className={`shrink-0 transition-colors ${selected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
             {selected ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
@@ -3513,7 +3537,7 @@ function CustomerGroupRow({
               {/* The number sits with the name, not in a column of its own:
                   it is how you refer to this person, so it belongs where you
                   read who they are. */}
-              <p className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] font-semibold leading-snug sm:text-[13.5px] ${t.strong}`}>
+              <p className={`flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] font-semibold leading-snug tracking-tight sm:text-[14.5px] ${t.strong}`}>
                 <button
                   type="button"
                   onClick={() => setOpen((o) => !o)}
@@ -3570,25 +3594,23 @@ function CustomerGroupRow({
       </div>
 
       {open && (
-        <div className={`border-t px-4 pb-3 pt-3 ${t.border}`}>
+        <div className={`border-t px-3.5 pb-3 pt-2.5 ${t.border}`}>
           {/* Said once, at the top, because everything below belongs to the
               same person — the ungrouped list repeats it on every row. */}
-          <dl className={`mb-3 grid gap-x-6 gap-y-1.5 text-[12.5px] sm:grid-cols-2 lg:grid-cols-3 ${t.mid}`}>
-            {code && (
-              <div className="flex min-w-0 items-start gap-2">
-                <dt className={`w-[92px] shrink-0 text-[11px] uppercase tracking-wide ${t.soft}`}>Customer ID</dt>
-                <dd className="min-w-0">
-                  <CustomerCodeBadge code={code} chip={t.chip} size="md" />
-                </dd>
-              </div>
-            )}
+          <dl className={`grid gap-x-6 gap-y-2 text-[12.5px] sm:grid-cols-2 lg:grid-cols-3 ${t.mid}`}>
             <GroupFact t={t} label="Company" value={g.companyName || "—"} />
             <GroupFact t={t} label="Email" value={[g.email, ...g.altEmails].filter(Boolean).join(", ") || "—"} />
             <GroupFact t={t} label="Country" value={g.country || "—"} />
             <GroupFact t={t} label="First inquiry" value={fmtDate(g.firstInquiry)} />
             <GroupFact t={t} label="Latest" value={fmtDate(g.lastInquiry)} />
-            <GroupFact t={t} label="Total quantity" value={g.totalQuantity.toLocaleString("en-GB")} />
+            <GroupFact t={t} label="Total qty" value={g.totalQuantity.toLocaleString("en-GB")} />
           </dl>
+          {/* What they asked about, under a heading of its own — the same
+              structure the staff panel uses, so one customer's block reads as
+              two parts rather than one long column of similar-looking text. */}
+          <p className={`mt-3 border-t pt-2.5 text-[10px] font-semibold uppercase tracking-[0.08em] ${t.soft} ${t.border}`}>
+            {g.products.length === 1 ? "What they asked about" : `What they asked about · ${g.products.length}`}
+          </p>
           <ul>
             {g.products.map((p, idx) => {
               // A grouped line is an inquiry like any other, so it opens the same
@@ -3608,7 +3630,7 @@ function CustomerGroupRow({
                   >
                     <Thumb t={t} src={p.productImage ?? null} alt={p.productName} />
                     <span className="min-w-0 flex-1">
-                      <span className="line-clamp-2 font-medium">{p.productName}</span>
+                      <span className={`line-clamp-2 text-[13.5px] font-semibold leading-snug ${t.strong}`}>{p.productName}</span>
                       {/* What they wrote with it: the one thing the grouped
                           view used to drop, and the thing that says what they
                           actually want. */}
@@ -3636,9 +3658,11 @@ function CustomerGroupRow({
 /** One labelled fact in a grouped customer's header. */
 function GroupFact({ t, label, value }: { t: Theme; label: string; value: string }) {
   return (
-    <div className="flex min-w-0 items-start gap-2">
-      <dt className={`w-[92px] shrink-0 text-[11px] uppercase tracking-wide ${t.soft}`}>{label}</dt>
-      <dd className="min-w-0 break-words font-medium">{value}</dd>
+    <div className="flex min-w-0 items-baseline gap-2">
+      {/* The label recedes and the value answers it: at the same weight and
+          colour, which is where these started, the eye has nowhere to go. */}
+      <dt className={`w-[88px] shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] ${t.soft}`}>{label}</dt>
+      <dd className={`min-w-0 break-words text-[13px] font-medium ${t.strong}`}>{value}</dd>
     </div>
   );
 }
