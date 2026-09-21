@@ -20,7 +20,10 @@ export interface TeamRow {
   region: string | null;
   assigned: number;
   counts: Record<LeadOutcomeKey, number>;
+  /** By author, counted in customers — see lib/lead-performance.ts. */
   recorded: number;
+  passedOn: number;
+  won: number;
   thisWeek: number;
   winRate: number | null;
 }
@@ -38,7 +41,32 @@ interface Totals {
 }
 
 /** Every column somebody might want the list ordered by. */
-type SortKey = "name" | "assigned" | "winRate" | LeadOutcomeKey;
+type SortKey = "name" | "assigned" | "winRate" | "recorded" | "passedOn" | "won" | "thisWeek" | LeadOutcomeKey;
+
+/**
+ * The second block of columns, and why it is fenced off from the first.
+ *
+ * Everything left of the divider is a person's BOOK: the leads assigned to
+ * them now, bucketed by what they themselves last recorded on each. Everything
+ * right of it is their WORK: what they have written, whoever holds the lead
+ * today. A lead that changes hands leaves the first and stays in the second,
+ * which is the whole point — Khaja passing on a customer disappears from his
+ * book the moment the rotation moves them, and this is where it survives.
+ *
+ * Counted in customers rather than rows: somebody who asked about four
+ * products is one person to call and one piece of work, however many rows the
+ * status route wrote. Same key as the rotation queue's, Inquiry.customerKey.
+ *
+ * No win rate here. A rate over work recorded rather than work held is a
+ * different denominator from the one beside it, and two numbers called "win
+ * rate" that do not agree is worse than one.
+ */
+const RECORDED_GROUP: { key: SortKey; label: string }[] = [
+  { key: "recorded", label: "Recorded" },
+  { key: "passedOn", label: "Passed on" },
+  { key: "won", label: "Leads won" },
+  { key: "thisWeek", label: "This week" },
+];
 
 /**
  * The team, one row each.
@@ -65,7 +93,11 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
       sort === "name" ? r.name.toLowerCase()
         : sort === "assigned" ? r.assigned
         : sort === "winRate" ? (r.winRate ?? -1)
-        : r.counts[sort] ?? 0;
+        : sort === "recorded" ? r.recorded
+        : sort === "passedOn" ? r.passedOn
+        : sort === "won" ? r.won
+        : sort === "thisWeek" ? r.thisWeek
+        : r.counts[sort as LeadOutcomeKey] ?? 0;
     return [...filtered].sort((a, b) => {
       const av = value(a), bv = value(b);
       const cmp = typeof av === "string" && typeof bv === "string" ? av.localeCompare(bv) : Number(av) - Number(bv);
@@ -74,7 +106,7 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
     });
   }, [rows, q, sort, asc]);
 
-  const head = (key: SortKey, label: string, align: "left" | "right" = "right") => {
+  const head = (key: SortKey, label: string, align: "left" | "right" = "right", extra = "") => {
     const on = sort === key;
     // aria-sort belongs to the column, not to the control inside it: a button
     // has no sort state, the header cell does.
@@ -84,7 +116,7 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
         // carries its own key rather than leaving the caller to remember one.
         key={key}
         aria-sort={on ? (asc ? "ascending" : "descending") : "none"}
-        className={`px-3 py-3 ${align === "right" ? "text-right" : "text-left"}`}
+        className={`px-3 py-3 ${align === "right" ? "text-right" : "text-left"} ${extra}`}
       >
         <button
           type="button"
@@ -125,7 +157,7 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
 
         {/* The glance before the detail: four figures, no chart. */}
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
-          <Figure value={totals.lead} label="Leads won" hint="across everybody, all time" />
+          <Figure value={totals.lead} label="Leads won" hint="each won lead counted once, wherever it sits now" />
           <Figure
             value={totals.winRate === null ? "—" : `${totals.winRate}%`}
             label="Team win rate"
@@ -135,7 +167,7 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
           <Figure
             value={totals.open}
             label="Still open"
-            hint="in progress, passed on, or not started"
+            hint="in progress, passed on or not started, wherever it sits now"
           />
         </div>
 
@@ -177,8 +209,19 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[56rem] text-[13px]">
+              <table className="w-full min-w-[72rem] text-[13px]">
                 <thead className="bg-[#f5f5f7]">
+                  {/* Two questions, said once each above the columns that
+                      answer them, so the divider is not left to explain
+                      itself. */}
+                  <tr>
+                    <th colSpan={9} className="px-3 pt-3 text-left text-[10px] font-bold uppercase tracking-[0.09em] text-[#86868b]">
+                      The leads they hold now
+                    </th>
+                    <th colSpan={4} className="border-l border-black/[0.08] px-3 pt-3 text-left text-[10px] font-bold uppercase tracking-[0.09em] text-[#86868b]">
+                      Recorded by them
+                    </th>
+                  </tr>
                   <tr>
                     {head("name", "Staff", "left")}
                     {head("assigned", "Assigned")}
@@ -187,6 +230,8 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
                     </th>
                     {STAFF_ORDER.map((key) => head(key, shortLabel(key)))}
                     {head("winRate", "Win rate")}
+                    {RECORDED_GROUP.map((c, i) =>
+                      head(c.key, c.label, "right", i === 0 ? "border-l border-black/[0.08]" : ""))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/[0.04]">
@@ -230,6 +275,22 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
                           </>
                         )}
                       </td>
+                      {/* Their work, which a handover does not take away. The
+                          divider is on the first of the four, matching its
+                          heading above. */}
+                      {([
+                        ["recorded", r.recorded],
+                        ["passedOn", r.passedOn],
+                        ["won", r.won],
+                        ["thisWeek", r.thisWeek],
+                      ] as const).map(([key, value], i) => (
+                        <td
+                          key={key}
+                          className={`px-3 py-3 text-right tabular-nums ${i === 0 ? "border-l border-black/[0.08]" : ""}`}
+                        >
+                          <span className={value === 0 ? "text-[#c7c7cc]" : i === 0 ? "font-semibold" : ""}>{value}</span>
+                        </td>
+                      ))}
                     </tr>
                   ))}
                 </tbody>
@@ -247,6 +308,18 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
             </li>
           ))}
         </ul>
+
+        {/* Said out loud, because the arithmetic invites the wrong reading.
+            The four figures at the top count LEADS, once each, wherever they
+            sit now. The columns count what each person holds, or has done. A
+            lead won by one person and then handed to another for fulfilment
+            is in the strip, in its winner's "Leads won" column, and in
+            nobody's book — so the columns are not the strip broken down, and
+            adding them up will not reach it. */}
+        <p className="mt-2 px-1 text-[12px] text-[#86868b]">
+          The four figures at the top count leads, once each, wherever they sit now —
+          so the columns below are not a breakdown of them and will not add up to them.
+        </p>
       </div>
     </div>
   );

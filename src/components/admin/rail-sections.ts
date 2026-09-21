@@ -109,7 +109,31 @@ export const fmtRailNum = (n: number) => n.toLocaleString("en-US");
 export const fmtRailBadge = (n: number) =>
   n < 1000 ? String(n) : n < 1_000_000 ? `${Math.round(n / 100) / 10}k` : `${Math.round(n / 100_000) / 10}M`;
 
-/** Which rows carry a count, and what it is. Rows left out carry none. */
+/**
+ * Which rows carry a count, and what it is. Rows left out carry none.
+ *
+ * Six of the thirteen rows do, and each counts something different enough to
+ * be worth writing down — the figures are read at a glance by people who will
+ * not go and check what they mean:
+ *
+ *   inquiries  quote requests nobody has triaged yet — every status that is
+ *              not handled, spam or deleted, which is what the console's own
+ *              asStatus() treats as "new". NOT the total number of inquiries.
+ *   contacts   the same rule over Contact Us messages.
+ *   trash      what is sitting in Recently Deleted. Inquiries only, because
+ *              that is what the view restores.
+ *   suppliers  every row of the supplier book. A total, not a backlog.
+ *   videos     every uploaded video. Also a total.
+ *   queue      customers the rotation is moving RIGHT NOW (state ROTATING).
+ *              The ones it gave up on are counted separately and shown in
+ *              amber beside this, never added to it — see railDotFor, which
+ *              folds them in only for the single dot the collapsed rail has
+ *              room for.
+ *
+ * The dashboard draws its own rail from the rows it has already loaded, so
+ * its four lead figures honour whatever country filter is on; every other
+ * page reads lib/admin-rail-counts.ts, which counts the whole table.
+ */
 export type RailCountMap = Partial<Record<RailKey, number>>;
 
 /**

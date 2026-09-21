@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAdminDark } from "@/lib/useAdminDark";
 import Image from "next/image";
 import {
@@ -29,6 +30,7 @@ interface Props {
 }
 
 export function VideoManagement({ categories }: Props) {
+  const router = useRouter();
   // Shared and remembered across the admin — see useAdminDark.
   const [dark, setDark] = useAdminDark();
   const [videos, setVideos] = useState<Video[]>([]);
@@ -221,6 +223,12 @@ export function VideoManagement({ categories }: Props) {
 
       setUploadState("success");
       fetchVideos(1, true); // Refresh list
+      // And the figure beside Videos on the rail, which is counted in the
+      // console layout — a layout does not re-render on a client navigation,
+      // so without this the badge keeps the number it had when the tab was
+      // opened until something reloads the page. fetchVideos above only
+      // refreshes this page's own list.
+      router.refresh();
       setTimeout(() => {
         setShowModal(false);
         resetUpload();
@@ -240,6 +248,7 @@ export function VideoManagement({ categories }: Props) {
       if (res.ok) {
         setVideos(videos.filter(v => v.id !== id));
         setTotal(t => t - 1);
+        router.refresh(); // The rail's Videos count, as above.
       } else {
         alert("Failed to delete video");
       }

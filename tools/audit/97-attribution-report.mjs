@@ -45,6 +45,18 @@ function literalAfter(marker) {
 const ASSIGNED_LEADS = literalAfter('leads AS (\n    SELECT id, "assignedToId"');
 const PER_PERSON = literalAfter('WITH mine AS (').replace('${ASSIGNED_LEADS}', ASSIGNED_LEADS);
 const TEAM = literalAfter('WITH latest AS (').replace('${ASSIGNED_LEADS}', ASSIGNED_LEADS);
+// "Recorded by them" — the by-author half, counted in customers.
+const RECORDED = literalAfter('WITH acts AS (');
+// What it replaced, kept here only so the overcount can be shown rather than
+// asserted. Nothing in the app runs this any more.
+const RECORDED_OLD = `
+  SELECT "employeeId",
+         COUNT(*)::int                                                        AS recorded,
+         COUNT(*) FILTER (WHERE status = 'NOT_ATTENDED')::int                 AS passed_on,
+         COUNT(*) FILTER (WHERE status = 'LEAD')::int                         AS won,
+         COUNT(*) FILTER (WHERE "createdAt" >= now() - interval '7 days')::int AS this_week
+    FROM "StatusUpdate"
+   GROUP BY "employeeId"`;
 
 // The page's own arithmetic, restated — and pinned to the source so it cannot
 // quietly diverge from what the screen does.
@@ -62,38 +74,45 @@ for (const [needle, what] of [
 const A = 'e-a', B = 'e-b';
 const NAMES = { [A]: 'A (recorded it)', [B]: 'B (holds it now)' };
 
-async function run({ assignedTo, updates }) {
+async function run({ assignedTo, updates, leads = ['lead-1'], customerKey = 'cust-1' }) {
   return prisma.$transaction(async (tx) => {
     await tx.$executeRawUnsafe(`CREATE TEMP TABLE "Employee" (id text primary key, name text, email text, image text, region text, "isActive" boolean) ON COMMIT DROP`);
-    await tx.$executeRawUnsafe(`CREATE TEMP TABLE "Inquiry" (id text primary key, status text, "assignedToId" text) ON COMMIT DROP`);
-    await tx.$executeRawUnsafe(`CREATE TEMP TABLE "ContactMessage" (id text primary key, status text, "assignedToId" text) ON COMMIT DROP`);
+    // customerKey is what the by-author half groups on, so the temp tables
+    // have to carry it exactly as the real ones do.
+    await tx.$executeRawUnsafe(`CREATE TEMP TABLE "Inquiry" (id text primary key, status text, "assignedToId" text, "customerKey" text) ON COMMIT DROP`);
+    await tx.$executeRawUnsafe(`CREATE TEMP TABLE "ContactMessage" (id text primary key, status text, "assignedToId" text, "customerKey" text) ON COMMIT DROP`);
     await tx.$executeRawUnsafe(`CREATE TEMP TABLE "StatusUpdate" (id text primary key, "inquiryId" text, "contactId" text, "employeeId" text, status text, "createdAt" timestamptz) ON COMMIT DROP`);
     await tx.$executeRawUnsafe(`INSERT INTO "Employee" VALUES ('${A}','A','a@x.com',null,'Chennai',true),('${B}','B','b@x.com',null,'Chennai',true)`);
-    await tx.$executeRawUnsafe(`INSERT INTO "Inquiry" VALUES ('lead-1','new','${assignedTo}')`);
+    // One customer, however many products they asked about: several Inquiry
+    // rows sharing one customerKey, which is exactly the shape the overcount
+    // was hiding in.
+    await tx.$executeRawUnsafe(
+      'INSERT INTO "Inquiry" VALUES ' +
+      leads.map((id) => `('${id}','new','${assignedTo}','${customerKey}')`).join(',')
+    );
     let n = 0;
     for (const [who, status, hour] of updates) {
-      await tx.$executeRawUnsafe(
-        `INSERT INTO "StatusUpdate" VALUES ('su-${++n}','lead-1',null,'${who}','${status}','2026-09-21T0${hour}:00:00Z')`
-      );
+      // One action writes one row per product, all at the same instant — the
+      // status route does this deliberately, so the rows are provably one act.
+      for (const leadId of leads) {
+        await tx.$executeRawUnsafe(
+          `INSERT INTO "StatusUpdate" VALUES ('su-${++n}','${leadId}',null,'${who}','${status}','2026-09-21T0${hour}:00:00Z')`
+        );
+      }
     }
     const people = await tx.$queryRawUnsafe(PER_PERSON.replace('${scope}', 'e."isActive" = true'));
     const [team] = await tx.$queryRawUnsafe(TEAM);
-    // The second statement leadPerformance runs: what each person has written,
-    // by author, whoever holds the lead now.
-    const recorded = await tx.$queryRawUnsafe(`
-      SELECT "employeeId",
-             COUNT(*)::int AS recorded,
-             COUNT(*) FILTER (WHERE status = 'NOT_ATTENDED')::int AS not_attended,
-             COUNT(*) FILTER (WHERE status = 'LEAD')::int         AS lead
-        FROM "StatusUpdate" GROUP BY "employeeId"`);
-    return { people, team, recorded };
+    // The second statement leadPerformance runs, and the one it replaced.
+    const recorded = await tx.$queryRawUnsafe(RECORDED);
+    const before = await tx.$queryRawUnsafe(RECORDED_OLD);
+    return { people, team, recorded, before };
   }, { timeout: 30_000, maxWait: 15_000 });
 }
 
 const COLS = ['Lead', 'Passed on', 'Working', 'No lead', 'Untouched'];
 const pick = (r) => [r.lead, r.not_attended, r.in_progress, r.no_lead, r.not_started];
 
-function report(title, { people, team, recorded }) {
+function report(title, { people, team, recorded, before }) {
   console.log(`\n${'='.repeat(74)}\n${title}\n${'='.repeat(74)}`);
   console.log('\n  THE TABLE — /admin/team-performance/\n');
   console.log(`  ${'STAFF'.padEnd(18)} ${'ASSIGNED'.padStart(8)} ` +
@@ -105,16 +124,27 @@ function report(title, { people, team, recorded }) {
       (rate === null ? '—' : `${rate}%`).padStart(10));
   }
   const byAuthor = new Map(recorded.map((r) => [r.employeeId, r]));
+  const wasAuthor = new Map((before ?? []).map((r) => [r.employeeId, r]));
   console.log('\n  THE STRIP — the four figures above the table\n');
   const rate = winRateOf(team.lead, team.no_lead);
   console.log(`    Leads won      ${team.lead}`);
   console.log(`    Team win rate  ${rate === null ? '—  (nothing decided yet)' : `${rate}%  (${team.lead} of ${team.lead + team.no_lead} decided)`}`);
   console.log(`    Active staff   ${people.length}   (${people.reduce((s, p) => s + p.assigned, 0)} leads between them)`);
   console.log(`    Still open     ${openOf(team)}   (in progress, passed on, or not started)`);
-  console.log('\n  HELD BY THE ROWS BUT NEVER PRINTED (recorded, by author):\n');
+  console.log('\n  RECORDED BY THEM — the fenced group of columns\n');
+  console.log(`  ${'STAFF'.padEnd(18)} ${'Recorded'.padStart(10)}${'Passed on'.padStart(11)}${'Leads won'.padStart(11)}${'This week'.padStart(11)}`);
   for (const p of people) {
     const r = byAuthor.get(p.id);
-    console.log(`    ${NAMES[p.id].padEnd(18)} recorded=${r?.recorded ?? 0}  of which Not attended=${r?.not_attended ?? 0}, Lead=${r?.lead ?? 0}`);
+    console.log(`  ${NAMES[p.id].padEnd(18)} ${String(r?.recorded ?? 0).padStart(10)}${String(r?.passed_on ?? 0).padStart(11)}${String(r?.won ?? 0).padStart(11)}${String(r?.this_week ?? 0).padStart(11)}`);
+  }
+  if (before) {
+    console.log('\n    what COUNT(*) would have said (the overcount this replaced):');
+    for (const p of people) {
+      const w = wasAuthor.get(p.id), r = byAuthor.get(p.id);
+      const same = (w?.recorded ?? 0) === (r?.recorded ?? 0) && (w?.passed_on ?? 0) === (r?.passed_on ?? 0);
+      console.log(`      ${NAMES[p.id].padEnd(18)} recorded=${w?.recorded ?? 0} passed_on=${w?.passed_on ?? 0} won=${w?.won ?? 0}` +
+        (same ? '   (same)' : '   <-- OVERCOUNT'));
+    }
   }
 }
 
@@ -125,6 +155,14 @@ report(
 report(
   '2. A records Lead; an admin reassigns the lead to B; B has done nothing',
   await run({ assignedTo: B, updates: [[A, 'LEAD', 1]] })
+);
+report(
+  '3. One customer, THREE products: A marks Not attended once (3 rows)',
+  await run({ assignedTo: B, updates: [[A, 'NOT_ATTENDED', 1]], leads: ['lead-1', 'lead-2', 'lead-3'] })
+);
+report(
+  '4. A records In progress then Lead on one lead (2 rows, one customer)',
+  await run({ assignedTo: A, updates: [[A, 'IN_PROGRESS', 1], [A, 'LEAD', 2]] })
 );
 
 await prisma.$disconnect();

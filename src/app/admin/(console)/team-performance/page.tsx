@@ -41,6 +41,8 @@ export default async function TeamPerformancePage() {
     assigned: p.assigned,
     counts: p.counts,
     recorded: p.recorded,
+    passedOn: p.passedOn,
+    won: p.won,
     thisWeek: p.thisWeek,
     winRate: winRateOf(p.counts.LEAD, p.counts.NO_LEAD),
   }));
