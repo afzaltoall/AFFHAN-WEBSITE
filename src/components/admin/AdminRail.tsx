@@ -7,7 +7,11 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOutThrough } from "@/lib/session-client";
 import { useAdminDark } from "@/lib/useAdminDark";
 import { AccountMenu } from "@/components/admin/AccountMenu";
-import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
+import {
+  RAIL_GROUPS, fmtRailBadge, fmtRailNum, railDotFor,
+  type RailCountMap, type RailItem,
+} from "@/components/admin/rail-sections";
+import type { RailCounts } from "@/lib/admin-rail-counts";
 
 /**
  * The console's rail, for every admin page that is not the dashboard.
@@ -36,6 +40,7 @@ const LIGHT = {
   navIdle: "text-[#515154] hover:bg-black/[0.03]", navActive: "bg-[#ececed] text-[#1d1d1f]",
   pill: "bg-white text-[#1d1d1f] ring-black/[0.06] hover:bg-black/[0.02]",
   mid: "text-[#48484a]", hover: "hover:bg-black/[0.015]", modal: "bg-white text-[#1d1d1f] ring-black/[0.06]",
+  chip: "bg-black/[0.05] text-[#48484a]",
 };
 const DARK = {
   sidebar: "bg-[#151517]/90 border-white/10", sidebarOpen: "bg-[#151517] border-white/10",
@@ -43,15 +48,23 @@ const DARK = {
   navIdle: "text-[#a1a1a6] hover:bg-white/[0.05]", navActive: "bg-white/[0.1] text-white",
   pill: "bg-white/[0.06] text-[#e5e5e7] ring-white/[0.1] hover:bg-white/[0.1]",
   mid: "text-[#c7c7cc]", hover: "hover:bg-white/[0.03]", modal: "bg-[#151517] text-[#f2f2f4] ring-white/[0.1]",
+  chip: "bg-white/[0.08] text-[#d1d1d6]",
 };
 
 export function AdminRail({
   name,
   image,
+  counts,
   supportsDark,
 }: {
   name: string;
   image: string | null;
+  /**
+   * The figures beside the rows. Counted in the console layout rather than
+   * here, because a rail cannot fetch its own numbers and every admin route
+   * should show the same ones. See lib/admin-rail-counts.ts.
+   */
+  counts: RailCounts;
   /** Whether the page beside the rail has a dark theme of its own to match. */
   supportsDark: boolean;
 }) {
@@ -70,6 +83,29 @@ export function AdminRail({
   /* Collapses in height, not width: a zero-width heading still owns a line
      box, and the 60px rail would pay for five of them. Same as the
      dashboard’s — see sideGroupLabel there. */
+  /* A count in two forms, exactly as the dashboard's rail shows it: a pill
+     beside the label when the panel is open, and a dot on the icon when it is
+     closed. The office reads these at a glance — how many new inquiries, how
+     many unread messages — so they survive the collapse instead of leaving
+     with the text. */
+  const dotCls = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand-dark px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${open ? "opacity-0" : "opacity-100"}`;
+  const pillCls = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[11px] font-semibold leading-5 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${open ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
+  /* The same collapse in the colour of something that needs a person: the
+     queue's given-up-on count, which is not a workload figure but a backlog
+     nobody else is going to notice. */
+  const alertCls = `shrink-0 overflow-hidden whitespace-nowrap rounded-full bg-amber-500/15 text-[10.5px] font-bold leading-5 text-amber-700 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${open ? "ml-1 max-w-[96px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
+
+  /* Which rows carry a figure — the same six the dashboard badges, and read
+     through rail-sections so the two rails cannot drift apart again. */
+  const railCount: RailCountMap = {
+    inquiries: counts.inquiries,
+    contacts: counts.contacts,
+    trash: counts.trash,
+    suppliers: counts.suppliers,
+    videos: counts.videos,
+    queue: counts.queue,
+  };
+
   const groupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[10px] font-bold uppercase tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${open ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
 
   const signOut = async () => {
@@ -123,6 +159,8 @@ export function AdminRail({
                 // The dashboard's four are views on a page this is not, so
                 // none of them is ever the current one here.
                 const active = !item.view && pathname.startsWith(item.href);
+                const count = railCount[item.key];
+                const dot = railDotFor(item.key, railCount, counts.queueInvalid);
                 return (
                   <Link
                     key={item.key}
@@ -133,8 +171,18 @@ export function AdminRail({
                   >
                     <span className={iconCol}>
                       <item.icon size={17} className={active ? "text-brand" : t.soft} />
+                      {dot !== undefined && dot > 0 && <span className={dotCls}>{fmtRailBadge(dot)}</span>}
                     </span>
                     <span className={`flex-1 ${label}`}>{item.label}</span>
+                    {count !== undefined && <span className={pillCls}>{fmtRailNum(count)}</span>}
+                    {/* Beside the rotating figure rather than added to it: the
+                        two numbers mean different things, and only one of them
+                        is somebody's job to fix today. The word rides along
+                        because two bare numbers side by side say nothing about
+                        which is which. */}
+                    {item.key === "queue" && counts.queueInvalid > 0 && (
+                      <span className={alertCls}>{fmtRailNum(counts.queueInvalid)} invalid</span>
+                    )}
                   </Link>
                 );
               })}

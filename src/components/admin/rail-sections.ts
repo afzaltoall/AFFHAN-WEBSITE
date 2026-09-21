@@ -97,3 +97,26 @@ export const RAIL_GROUPS: RailGroup[] = [
 
 /** Every row, flat, for the rails that do not care about the headings. */
 export const RAIL_ITEMS: RailItem[] = RAIL_GROUPS.flatMap((g) => g.items);
+
+/**
+ * The figure beside a row, in the two shapes the rail needs it.
+ *
+ * Both rails print these, so both round the same way: "1.1k" fits beside a
+ * 17px icon at 60px wide and 1,068,225 does not, while the pill in the opened
+ * panel has room for the real number and should say it.
+ */
+export const fmtRailNum = (n: number) => n.toLocaleString("en-US");
+export const fmtRailBadge = (n: number) =>
+  n < 1000 ? String(n) : n < 1_000_000 ? `${Math.round(n / 100) / 10}k` : `${Math.round(n / 100_000) / 10}M`;
+
+/** Which rows carry a count, and what it is. Rows left out carry none. */
+export type RailCountMap = Partial<Record<RailKey, number>>;
+
+/**
+ * One number stands for the whole queue when the rail is collapsed to 60px,
+ * and a customer the rotation gave up on is precisely the one nobody else will
+ * notice — so the dot adds them in even though the pill beside the label keeps
+ * them apart. Anything else shows the figure it has.
+ */
+export const railDotFor = (key: RailKey, counts: RailCountMap, queueInvalid: number) =>
+  key === "queue" ? (counts.queue ?? 0) + queueInvalid : counts[key];

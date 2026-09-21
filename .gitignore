@@ -133,3 +133,6 @@ flutter-patch-*.js
 # file stays on the machine that ran the script.
 lead-testing-reset-backup-*.json
 lead-status-backup-*.json
+
+# Screenshots from the rail check — real customer names and counts.
+tools/audit/rail-shots/

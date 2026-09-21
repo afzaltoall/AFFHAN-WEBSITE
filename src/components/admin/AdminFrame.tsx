@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { AdminRail } from "@/components/admin/AdminRail";
+import type { RailCounts } from "@/lib/admin-rail-counts";
 
 /**
  * Puts the admin rail beside every console page except the dashboard, which
@@ -11,10 +12,13 @@ import { AdminRail } from "@/components/admin/AdminRail";
 export function AdminFrame({
   name,
   image,
+  counts,
   children,
 }: {
   name: string;
   image: string | null;
+  /** The figures on the rail, counted once in the console layout. */
+  counts: RailCounts;
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "";
@@ -25,7 +29,7 @@ export function AdminFrame({
 
   return (
     <div className="flex">
-      <AdminRail name={name} image={image} supportsDark={supportsDark} />
+      <AdminRail name={name} image={image} counts={counts} supportsDark={supportsDark} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
