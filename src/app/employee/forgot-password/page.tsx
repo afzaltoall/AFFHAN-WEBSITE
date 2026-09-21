@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import { EmployeeAuthShell } from "@/components/ui/EmployeeAuthShell";
 import { checkPasswordStrength } from "@/lib/password-rules";
 
 /**
@@ -94,8 +95,11 @@ export default function EmployeeForgotPasswordPage() {
     "flex w-full items-center justify-center gap-2 rounded-xl bg-brand-dark py-3 font-bold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-70";
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-5 py-12">
-      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl sm:p-7">
+    <EmployeeAuthShell
+      title="The sales desk."
+      blurb="Your assigned inquiries and contact requests, and the record of what happened to each one. Reset the password for the address your administrator registered."
+    >
+      <div>
         {step === "done" ? (
           <div className="py-6 text-center">
             <CheckCircle2 size={40} className="mx-auto text-emerald-500" />
@@ -200,6 +204,6 @@ export default function EmployeeForgotPasswordPage() {
           </>
         )}
       </div>
-    </main>
+    </EmployeeAuthShell>
   );
 }
