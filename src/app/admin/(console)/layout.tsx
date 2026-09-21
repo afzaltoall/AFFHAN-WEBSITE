@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { AdminFrame } from "@/components/admin/AdminFrame";
+import { railCounts } from "@/lib/admin-rail-counts";
 
 /**
  * The console's defaults, so a new admin route is noindex and named without
@@ -66,6 +67,14 @@ export const metadata: Metadata = {
  *    stop the same thing happening on every move between two admin routes;
  *    that was the same fault one level down.
  *
+ * 3. The figures on the rail. They were the dashboard's alone, and not by
+ *    anybody's decision: the dashboard loads its lists anyway, so it had the
+ *    numbers and put them on its own rail, while every other page's rail had
+ *    nothing to show. Counting them here — the one piece of server code every
+ *    admin route already runs — is what makes "3 new inquiries" as true on
+ *    Staff and Suppliers as it is on the dashboard. See
+ *    lib/admin-rail-counts.ts for what it costs.
+ *
  * The group is named in brackets, so it shapes nothing in the URL: these pages
  * are still /admin and /admin/suppliers.
  */
@@ -74,11 +83,13 @@ export default async function AdminConsoleLayout({ children }: { children: React
   if (!admin) redirect("/admin/login");
   if (admin.role !== "admin") redirect("/");
 
+  const counts = await railCounts();
+
   return (
     <>
       <SessionKeeper role="admin" />
       {/* The rail on every page but the dashboard, which has its own. */}
-      <AdminFrame name={admin.name ?? "Admin"} image={admin.image ?? null}>
+      <AdminFrame name={admin.name ?? "Admin"} image={admin.image ?? null} counts={counts}>
         {children}
       </AdminFrame>
     </>

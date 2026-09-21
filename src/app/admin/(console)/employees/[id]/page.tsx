@@ -35,8 +35,10 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
   });
   if (!employee) notFound();
 
-  // Their book by newest outcome, from the same two statements the team page
-  // uses — one person rather than everybody, not a different calculation.
+  // Their book by what THEY last recorded on each lead, from the same two
+  // statements the team page uses — one person rather than everybody, not a
+  // different calculation. A lead that arrived carrying somebody else's
+  // history counts as untouched here until this person writes something.
   const [performance] = await leadPerformance({ employeeId: id });
 
   const updates = await prisma.statusUpdate.findMany({
