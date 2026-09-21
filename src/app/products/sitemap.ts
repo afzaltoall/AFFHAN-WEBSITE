@@ -66,8 +66,14 @@ const SITEMAP_URL_CAP = 50_000;
  *     an ordinary category.
  *   missing description — the whole basis for including a product at all.
  */
+/** A product's id and when the feed last touched it — see lastModified below. */
+interface SitemapProduct {
+  id: number;
+  lastSynced: Date | null;
+}
+
 const getSitemapProductIds = unstable_cache(
-  async (): Promise<number[]> => {
+  async (): Promise<SitemapProduct[]> => {
     const cats = await prisma.category.findMany({ select: { id: true, name: true, parentId: true } });
     const blocked = blockedCategoryIdSet(cats);
 
@@ -77,8 +83,8 @@ const getSitemapProductIds = unstable_cache(
       ? Prisma.sql`AND p."categoryId" NOT IN (${Prisma.join([...blocked])})`
       : Prisma.empty;
 
-    const rows = await prisma.$queryRaw<Array<{ id: number }>>(Prisma.sql`
-      SELECT p."id"
+    const rows = await prisma.$queryRaw<Array<SitemapProduct>>(Prisma.sql`
+      SELECT p."id", p."lastSynced"
       FROM "Product" p
       WHERE p."supplierSource" = 'EPROLO'
         AND p."description" IS NOT NULL
@@ -90,7 +96,7 @@ const getSitemapProductIds = unstable_cache(
         )
       ORDER BY p."id" ASC
     `);
-    return rows.map((r) => r.id);
+    return rows;
   },
   ["sitemap-product-ids"],
   { revalidate: 86_400, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
@@ -107,9 +113,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // The trailing slash is load-bearing: next.config sets trailingSlash: true,
   // so a URL without one answers 308 and every crawl of it is spent on a
   // redirect instead of on the page.
-  return included.map((productId) => ({
-    url: `https://affhan.com/products/${productId}/`,
-    lastModified: new Date(),
+  return included.map((product) => ({
+    url: `https://affhan.com/products/${product.id}/`,
+    // The row's own date, never the clock. Every entry here used to say
+    // `new Date()`, which told Google that all 11,785 product pages had been
+    // modified at the instant of the crawl — every crawl. A lastmod that is
+    // always "now" carries no information, and one that never disagrees with
+    // the clock teaches Google to disregard the field across the whole site.
+    //
+    // Product.lastSynced is when the feed last wrote this row, and the page is
+    // generated from the row, so it is the closest honest answer to "when did
+    // this page's content change". Null on a row the sync has never stamped,
+    // and then the entry carries no lastmod at all — "unknown" is a true
+    // statement where "just now" is not.
+    ...(product.lastSynced ? { lastModified: product.lastSynced } : {}),
     changeFrequency: "monthly" as const,
     // Below the static pages (0.7-1.0). These are catalogue listings, not the
     // pages the business wants to rank for.
