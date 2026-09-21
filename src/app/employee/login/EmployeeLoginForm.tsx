@@ -1,41 +1,23 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { AlertCircle, Eye, EyeOff, Info, Loader2, Lock, Mail } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { EmployeeAuthShell } from "@/components/ui/EmployeeAuthShell";
 import { authLabel, authPrimaryButton } from "@/components/ui/authFieldStyles";
+import { SessionNotice } from "./SessionNotice";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
-/**
- * Why a session ended, in the words of the person it happened to.
- *
- * The guard in the workspace layout puts one of these on the URL when it sends
- * somebody here, because a login form that appears with no explanation reads as
- * a bug — and "you were signed out" and "your account was switched off" want
- * different responses from the reader.
- */
-const REASONS: Record<string, string> = {
-  expired: "Your session timed out after 30 minutes of inactivity. Please sign in again.",
-  disabled: "That account is no longer active. Ask an administrator to re-enable it.",
-  signedout: "You were signed out. Please sign in again.",
-};
-
 export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
   const router = useRouter();
-  const params = useSearchParams();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [notice] = useState<string | null>(() => {
-    for (const key of Object.keys(REASONS)) if (params.get(key)) return REASONS[key];
-    return null;
-  });
   const [error, setError] = useState<string | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
@@ -83,19 +65,13 @@ export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
           was under 4.5:1, which is what item 3 was about. */}
       <p className="mt-1 text-[13px] text-slate-600">For the Affhan sales team.</p>
 
-      {/* Why you are here, when the workspace sent you. role="status" rather
-          than "alert": it is the expected consequence of a timeout, not an
-          error, and it is present on first paint so an assertive live region
-          would interrupt the reader for something they already know. */}
-      {notice && (
-        <div
-          role="status"
-          className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-[12.5px] font-medium text-amber-900"
-        >
-          <Info className="mt-px h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
-          <span>{notice}</span>
-        </div>
-      )}
+      {/* The ONLY thing that reads the query string, and therefore the only
+          thing that has to sit behind a boundary. Everything around it —
+          shell, headline, description, stats, form — is server-rendered
+          again. See SessionNotice for what this cost before. */}
+      <Suspense fallback={null}>
+        <SessionNotice />
+      </Suspense>
 
       {/* The failure, announced. aria-live on the wrapper rather than the
           element, so it is in the DOM before the message exists and the

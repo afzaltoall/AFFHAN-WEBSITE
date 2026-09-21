@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { prisma, withDbRetry } from "@/lib/prisma";
 import { OFFICES } from "@/lib/brand";
 import { LiveDeskStats, type DeskStat } from "@/components/ui/LiveDeskStats";
@@ -33,8 +32,13 @@ export const revalidate = 3600;
  * A login page that will not render because a count is slow is a worse page
  * than one with no counts. Neon sleeps when idle and the first query after
  * that can take seconds, so the strip is given a budget and then dropped.
+ *
+ * 2500ms, raised from 1500ms: against a cold Neon the race was lost and the
+ * warning logged, and on an hourly-prerendered page a lost race means the
+ * figures are missing for the next hour. Vercel sits beside the database and
+ * makes it comfortably; the budget should survive the slow case too.
  */
-const STATS_TIMEOUT_MS = 1500;
+const STATS_TIMEOUT_MS = 2500;
 
 /** Resolves to null rather than rejecting, so the caller has one thing to check. */
 function withTimeout<T>(work: Promise<T>, ms: number): Promise<T | null> {
@@ -90,11 +94,11 @@ async function deskStats(): Promise<DeskStat[] | null> {
 export default async function EmployeeLoginPage() {
   const stats = await deskStats();
 
-  return (
-    // useSearchParams inside the form needs a Suspense boundary to keep the
-    // route static-friendly. Unchanged from before the split.
-    <Suspense fallback={null}>
-      <EmployeeLoginForm stats={stats ? <LiveDeskStats stats={stats} /> : undefined} />
-    </Suspense>
-  );
+  // No Suspense here any more. It used to wrap the whole screen, because the
+  // form called useSearchParams and Next then skips server rendering for
+  // everything inside the nearest boundary: the shell, the headline, the
+  // description, the stats and the form all arrived as an empty document plus
+  // an RSC payload. The boundary now sits around SessionNotice alone, which is
+  // the only part that reads the query string.
+  return <EmployeeLoginForm stats={stats ? <LiveDeskStats stats={stats} /> : undefined} />;
 }
