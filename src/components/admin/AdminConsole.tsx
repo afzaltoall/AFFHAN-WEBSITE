@@ -451,6 +451,9 @@ export function AdminConsole({ data }: Props) {
     setContactBusy(true);
     try {
       await adminWrite(`/api/admin/contact/`, { ids, action, status: newStatus });
+      // Same as the inquiry half above: the count beside Contact Us lives in
+      // the layout, which this navigation will never re-run on its own.
+      router.refresh();
     } catch (e) {
       setContactItems(prevA); setContactDeleted(prevD);
       window.alert(e instanceof Error ? e.message : "Action failed.");
@@ -514,6 +517,13 @@ export function AdminConsole({ data }: Props) {
     setBulkBusy(true);
     try {
       await adminWrite(`/api/admin/inquiry/`, { ids, action, status: newStatus });
+      // The rail's figures are counted in the console layout, and a layout
+      // does not re-render on a client navigation — only a fresh load or
+      // router.refresh() re-runs it. Deleting, restoring, purging or
+      // re-triaging all move one of those numbers, so without this the badge
+      // beside Inquiries stays at what it read when the tab was opened.
+      // Assignment already did this; these did not.
+      router.refresh();
     } catch (e) {
       setItems(prevA); setDeletedItems(prevD);
       window.alert(e instanceof Error ? e.message : "Action failed.");

@@ -63,8 +63,14 @@ export interface PerformanceRow {
   contacts: number;
   /** Their book by what THEY last recorded on it. These five add up to `assigned`. */
   counts: Record<LeadOutcomeKey, number>;
-  /** Outcomes they have written, all time, whoever holds the lead now. */
+  /**
+   * What they have DONE, by author, whoever holds the lead now — counted in
+   * customers, not rows. See the note on the second statement below.
+   */
   recorded: number;
+  /** Of those, the ones they passed on and the ones they won. */
+  passedOn: number;
+  won: number;
   /** And in the last seven days, against the seven before that. */
   thisWeek: number;
   lastWeek: number;
@@ -98,6 +104,8 @@ interface CountsRow {
 interface RecordedRow {
   employeeId: string;
   recorded: number;
+  passed_on: number;
+  won: number;
   this_week: number;
   last_week: number;
 }
@@ -165,13 +173,46 @@ export async function leadPerformance(opts: { employeeId?: string } = {}): Promi
        GROUP BY e.id, e.name, e.email, e.image, e.region, e."isActive"
        ORDER BY assigned DESC, e.name ASC
     `,
+    // What each person has DONE, by author — the other half of the page, and
+    // the only part of it that survives a lead changing hands.
+    //
+    // COUNTED IN CUSTOMERS, NOT ROWS. An outcome is recorded against a
+    // customer and stored against every product they asked about (see the
+    // status route), so one thing somebody did arrives in this table as three
+    // or four rows. COUNT(*) called that three or four pieces of work: a
+    // salesperson who passed on one customer with four products scored the
+    // same as one who passed on four customers. The customer is the unit of
+    // work here for the same reason the rotation queue is keyed on it — one
+    // person to call, however many things they asked about — and it is the
+    // same key, Inquiry.customerKey.
+    //
+    // Rows with no customerKey fall back to their own lead id rather than
+    // collapsing into one bucket together, which would count a whole column
+    // of unkeyed rows as a single customer.
+    //
+    // The two filtered figures are the ones the "Recorded by them" group
+    // prints; they cost nothing extra, being filters over a scan this
+    // statement was already doing.
     prisma.$queryRaw<RecordedRow[]>`
+      WITH acts AS (
+        SELECT su."employeeId",
+               COALESCE(i."customerKey", c."customerKey",
+                        'lead:' || COALESCE(su."inquiryId", su."contactId")) AS customer,
+               su.status, su."createdAt"
+          FROM "StatusUpdate" su
+          LEFT JOIN "Inquiry"        i ON i.id = su."inquiryId"
+          LEFT JOIN "ContactMessage" c ON c.id = su."contactId"
+      )
       SELECT "employeeId",
-             COUNT(*)::int                                                                 AS recorded,
-             COUNT(*) FILTER (WHERE "createdAt" >= now() - interval '7 days')::int          AS this_week,
-             COUNT(*) FILTER (WHERE "createdAt" >= now() - interval '14 days'
-                                AND "createdAt" <  now() - interval  '7 days')::int         AS last_week
-        FROM "StatusUpdate"
+             COUNT(DISTINCT customer)::int                                        AS recorded,
+             COUNT(DISTINCT customer) FILTER (WHERE status = 'NOT_ATTENDED')::int AS passed_on,
+             COUNT(DISTINCT customer) FILTER (WHERE status = 'LEAD')::int         AS won,
+             COUNT(DISTINCT customer) FILTER (
+               WHERE "createdAt" >= now() - interval '7 days')::int                AS this_week,
+             COUNT(DISTINCT customer) FILTER (
+               WHERE "createdAt" >= now() - interval '14 days'
+                 AND "createdAt" <  now() - interval  '7 days')::int               AS last_week
+        FROM acts
        GROUP BY "employeeId"
     `,
   ]);
@@ -200,6 +241,8 @@ export async function leadPerformance(opts: { employeeId?: string } = {}): Promi
         [NOT_STARTED]: row.not_started,
       },
       recorded: mine?.recorded ?? 0,
+      passedOn: mine?.passed_on ?? 0,
+      won: mine?.won ?? 0,
       thisWeek: mine?.this_week ?? 0,
       lastWeek: mine?.last_week ?? 0,
     };

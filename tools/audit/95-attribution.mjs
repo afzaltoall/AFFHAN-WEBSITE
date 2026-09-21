@@ -87,9 +87,16 @@ if (holder) {
 const sums = liveRows.every((r) =>
   r.lead + r.no_lead + r.not_attended + r.in_progress + r.invalid + r.not_started === r.assigned);
 check(sums, 'every row\'s five buckets still add up to their assigned total');
-check(liveTeam.not_attended === 1,
-  'the strip still counts the lead somebody passed on — it did not vanish with the attribution',
-  JSON.stringify(liveTeam));
+// Pinned to the SHAPE rather than to a figure: the live table is one row
+// today and somebody reassigning a lead in the console between two runs of
+// this script changed it under us once already. What must always hold is that
+// the strip accounts for every assigned lead exactly once.
+const liveAssigned = liveRows.reduce((s, r) => s + r.assigned, 0);
+const liveStrip = liveTeam.lead + liveTeam.no_lead + liveTeam.not_attended
+  + liveTeam.in_progress + liveTeam.invalid + liveTeam.not_started;
+check(liveStrip === liveAssigned,
+  'the strip accounts for every assigned lead exactly once, whoever recorded on it',
+  `strip totals ${liveStrip}, assigned ${liveAssigned} — ${JSON.stringify(liveTeam)}`);
 
 // ------------------------------------------------------------- scenarios
 console.log('\n=== SCENARIOS — the same SQL over temp tables, nothing written\n');
