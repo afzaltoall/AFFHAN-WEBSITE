@@ -170,13 +170,21 @@ export const Footer: FC<FooterProps> = ({
           </div>
           {/* data-nosnippet, because this sentence is on all twenty pages.
               Google was using it as the search snippet for routes that have
-              their own description — a location page can be summarised by the
+              their own description — a location page summarised by the
               footer's "headquartered in Chennai … with offices in …" line,
-              which says nothing about the page. The attribute excludes the
-              text from snippet generation only; the paragraph still renders,
-              is still indexed, and the wording is untouched. */}
-          <p data-nosnippet className="max-w-[390px] text-sm leading-7 text-slate-200/90">
-            {description}
+              which says nothing about that page. The attribute excludes the
+              text from snippet generation only; it still renders, is still
+              indexed, and the wording is untouched.
+
+              On a SPAN, not on the <p>. Google documents the attribute on
+              span, div and section elements only — "This can be done on an
+              HTML-element level with the data-nosnippet HTML attribute on
+              span, div, and section elements" — so on a <p> it is silently
+              ignored and the paragraph goes on being used as the snippet.
+              The span is inline and carries no styles of its own, so nothing
+              about the rendering changes. */}
+          <p className="max-w-[390px] text-sm leading-7 text-slate-200/90">
+            <span data-nosnippet>{description}</span>
           </p>
           {companyEmail ? (
             <a
