@@ -19,6 +19,12 @@ import { prisma, withDbRetry } from "@/lib/prisma";
  *
  * cache() for the case the dashboard ever wants the same figures: React keeps
  * one call per request, so asking twice is one query.
+ *
+ * WHEN IT FAILS IT RETURNS NULL, not zeroes. Zero is a fact — no new
+ * inquiries, an empty queue — and handing it back for "the database did not
+ * answer" tells an administrator the office is quiet when in truth nobody
+ * asked. Null means "no figure", the rail prints none, and the badges are
+ * simply absent, which is what they looked like before any of this existed.
  */
 export interface RailCounts {
   /** Inquiries nobody has triaged yet. */
@@ -35,17 +41,13 @@ export interface RailCounts {
   queueInvalid: number;
 }
 
-const EMPTY: RailCounts = {
-  inquiries: 0, contacts: 0, trash: 0, suppliers: 0, videos: 0, queue: 0, queueInvalid: 0,
-};
-
 /**
  * "New" is every status that is not handled, spam or deleted — the same rule
  * the console's own asStatus() applies, rather than `status = 'new'`. They
  * differ on a row carrying anything unexpected, and the two rails disagreeing
  * about one row is exactly the thing this file exists to prevent.
  */
-export const railCounts = cache(async (): Promise<RailCounts> => {
+export const railCounts = cache(async (): Promise<RailCounts | null> => {
   try {
     const [row] = await withDbRetry(() =>
       prisma.$queryRaw<[{
@@ -73,9 +75,11 @@ export const railCounts = cache(async (): Promise<RailCounts> => {
     };
   } catch (error) {
     // Decoration, not the page. A sleeping database must cost an administrator
-    // the numbers on the rail, never the page they asked for — so this returns
-    // zeroes and the rail renders without badges, exactly as it did before.
-    console.error("rail counts failed:", error instanceof Error ? error.name : "unknown");
-    return EMPTY;
+    // the numbers on the rail, never the page they asked for.
+    console.error(
+      "rail counts failed:",
+      error instanceof Error ? `${error.name}: ${error.message.split("\n")[0]}` : "unknown",
+    );
+    return null;
   }
 });

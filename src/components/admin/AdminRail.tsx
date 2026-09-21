@@ -62,9 +62,11 @@ export function AdminRail({
   /**
    * The figures beside the rows. Counted in the console layout rather than
    * here, because a rail cannot fetch its own numbers and every admin route
-   * should show the same ones. See lib/admin-rail-counts.ts.
+   * should show the same ones. Null when they could not be read, and then the
+   * rail prints no figures at all rather than a row of zeroes that reads as
+   * "nothing waiting". See lib/admin-rail-counts.ts.
    */
-  counts: RailCounts;
+  counts: RailCounts | null;
   /** Whether the page beside the rail has a dark theme of its own to match. */
   supportsDark: boolean;
 }) {
@@ -97,14 +99,17 @@ export function AdminRail({
 
   /* Which rows carry a figure — the same six the dashboard badges, and read
      through rail-sections so the two rails cannot drift apart again. */
-  const railCount: RailCountMap = {
-    inquiries: counts.inquiries,
-    contacts: counts.contacts,
-    trash: counts.trash,
-    suppliers: counts.suppliers,
-    videos: counts.videos,
-    queue: counts.queue,
-  };
+  const railCount: RailCountMap = counts
+    ? {
+        inquiries: counts.inquiries,
+        contacts: counts.contacts,
+        trash: counts.trash,
+        suppliers: counts.suppliers,
+        videos: counts.videos,
+        queue: counts.queue,
+      }
+    : {};
+  const queueInvalid = counts?.queueInvalid ?? 0;
 
   const groupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[10px] font-bold uppercase tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${open ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
 
@@ -160,7 +165,7 @@ export function AdminRail({
                 // none of them is ever the current one here.
                 const active = !item.view && pathname.startsWith(item.href);
                 const count = railCount[item.key];
-                const dot = railDotFor(item.key, railCount, counts.queueInvalid);
+                const dot = counts ? railDotFor(item.key, railCount, queueInvalid) : undefined;
                 return (
                   <Link
                     key={item.key}
@@ -180,8 +185,8 @@ export function AdminRail({
                         is somebody's job to fix today. The word rides along
                         because two bare numbers side by side say nothing about
                         which is which. */}
-                    {item.key === "queue" && counts.queueInvalid > 0 && (
-                      <span className={alertCls}>{fmtRailNum(counts.queueInvalid)} invalid</span>
+                    {item.key === "queue" && queueInvalid > 0 && (
+                      <span className={alertCls}>{fmtRailNum(queueInvalid)} invalid</span>
                     )}
                   </Link>
                 );

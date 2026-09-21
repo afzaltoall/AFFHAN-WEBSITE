@@ -17,8 +17,9 @@ export function AdminFrame({
 }: {
   name: string;
   image: string | null;
-  /** The figures on the rail, counted once in the console layout. */
-  counts: RailCounts;
+  /** The figures on the rail, counted once in the console layout, or null
+   *  when they could not be read — see lib/admin-rail-counts.ts. */
+  counts: RailCounts | null;
   children: React.ReactNode;
 }) {
   const pathname = usePathname() ?? "";
