@@ -56,7 +56,7 @@ export function PopularProductsSection({ initialProducts = [] }: { initialProduc
             </div>
           </h2>
           <p className="text-slate-500 max-w-xl">
-            High-demand listings across our top sourcing categories. Tap any product to request a quote.
+            High-demand listings across our top sourcing categories. Tap any product to request a quote, and our China sourcing agent team in Guangzhou takes it from there.
           </p>
         </div>
 
