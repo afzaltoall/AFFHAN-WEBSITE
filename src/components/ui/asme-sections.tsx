@@ -71,7 +71,7 @@ function Section1Hero() {
   // to JobAlert any more.
 
   return (
-    <section ref={sectionRef} className="relative flex h-screen min-h-[640px] flex-col overflow-hidden bg-[#FAFAF7]">
+    <section ref={sectionRef} className="relative flex h-screen min-h-[640px] flex-col items-center justify-center overflow-hidden bg-[#FAFAF7]">
       {/* The starfield that replaced the video only worked on a dark ground.
           On white it would be invisible, so the atmosphere here is a single
           cool wash off the brand teal — enough to stop the panel reading as a
@@ -85,8 +85,20 @@ function Section1Hero() {
         }}
       />
 
+      {/* One centred group, not two.
+
+         The copy used to be a flex-1 child with justify-center while the
+         social row was pinned to the bottom with mt-auto. On a short window
+         that reads fine; on a tall one flex-1 swallows everything the copy
+         does not use and the icons are left on the floor, so the button and
+         the icons end up ~370px apart with nothing in between. Measured at
+         1190px of viewport, which is an ordinary laptop in a maximised window.
+
+         Centring the section's single child keeps the full-height panel — the
+         page's rhythm depends on it — while the copy and the icons stay one
+         block with a deliberate gap between them. */}
       {/* Hero Content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-6 text-center">
+      <div className="relative z-10 flex flex-col items-center px-6 py-6 text-center">
         {/* h2, not h1. The page already has one — "Grow without limits, with
             Affhan." in the hero — and this section had a second, which leaves
             a document with two competing titles for search engines and no
@@ -130,10 +142,10 @@ function Section1Hero() {
         >
           Life at Affhan
         </Link>
-      </div>
 
-      {/* Social Icons Footer — Affhan's official channels */}
-      <div className="relative z-10 mt-auto flex shrink-0 flex-wrap justify-center gap-3 pb-6 sm:gap-4 sm:pb-8">
+        {/* Social Icons Footer — Affhan's official channels. mt-14 is a chosen
+          distance rather than whatever the viewport had left over. */}
+      <div className="relative z-10 mt-14 flex shrink-0 flex-wrap justify-center gap-3 sm:mt-16 sm:gap-4">
         {SOCIALS.map(({ label, href, Icon }, i) => (
           <a
             style={reveal(at(0.62 + i * 0.03, 0.14), 12)}
@@ -147,6 +159,7 @@ function Section1Hero() {
             <Icon className="w-5 h-5" />
           </a>
         ))}
+        </div>
       </div>
     </section>
   );
