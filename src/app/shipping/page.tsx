@@ -9,6 +9,21 @@ export const metadata: Metadata = {
   description:
     "Sea and air freight, NVOCC, customs clearance and door-to-door delivery from Affhan. Offices in Chennai, Guangzhou, Dubai, Singapore, Malaysia and the UK.",
   alternates: { canonical: "https://affhan.com/shipping/" },
+  openGraph: {
+    title: "Shipping & Freight Forwarding | Affhan",
+    description:
+      "Sea and air freight, NVOCC, customs clearance and door-to-door delivery from Affhan. Offices in Chennai, Guangzhou, Dubai, Singapore, Malaysia and the UK.",
+    url: "https://affhan.com/shipping/",
+    type: "website",
+    siteName: "Affhan",
+    images: [{ url: "/images/logo.png", width: 800, height: 600 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Shipping & Freight Forwarding | Affhan",
+    description:
+      "Sea and air freight, NVOCC, customs clearance and door-to-door delivery from Affhan. Offices in Chennai, Guangzhou, Dubai, Singapore, Malaysia and the UK.",
+  },
 };
 
 /**

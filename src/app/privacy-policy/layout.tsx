@@ -5,6 +5,21 @@ export const metadata: Metadata = {
   description:
     "How Affhan International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
   alternates: { canonical: "https://affhan.com/privacy-policy/" },
+  openGraph: {
+    title: "Privacy Policy | Affhan",
+    description:
+      "How Affhan International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
+    url: "https://affhan.com/privacy-policy/",
+    type: "website",
+    siteName: "Affhan",
+    images: [{ url: "/images/logo.png", width: 800, height: 600 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy | Affhan",
+    description:
+      "How Affhan International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
+  },
 };
 
 export default function PrivacyPolicyLayout({ children }: { children: React.ReactNode }) {
