@@ -320,6 +320,38 @@ export default async function SourcingFromChinaPage() {
             </Link>
             .
           </p>
+          {/* This page explains the China end and linked only to Guangzhou and
+              the catalogue. The arrival end is six more offices, and a reader
+              deciding whether to import is exactly the reader who wants the one
+              for their own market. */}
+          <p className="text-center text-slate-500 text-sm sm:text-[15px] leading-[1.65] mt-3 max-w-2xl mx-auto">
+            Importing into a particular market? The arrival end is our own staff, not a local
+            partner — our{" "}
+            <Link href="/sourcing-company-chennai/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">
+              sourcing agent in Chennai
+            </Link>
+            ,{" "}
+            <Link href="/sourcing-company-dubai/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">
+              sourcing company in Dubai
+            </Link>
+            ,{" "}
+            <Link href="/sourcing-company-uk/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">
+              sourcing company in London
+            </Link>
+            ,{" "}
+            <Link href="/sourcing-company-singapore/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">
+              sourcing company in Singapore
+            </Link>
+            ,{" "}
+            <Link href="/sourcing-company-malaysia/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">
+              import agent in Malaysia
+            </Link>{" "}
+            and{" "}
+            <Link href="/sourcing-company-france/" className="font-medium text-[#176579] hover:text-[#27a8c4] hover:underline transition-colors">
+              China sourcing agent in France
+            </Link>
+            .
+          </p>
         </div>
       </section>
 

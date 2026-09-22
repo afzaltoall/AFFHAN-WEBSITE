@@ -510,6 +510,32 @@ export default async function ChinaSourcingCompanyPage() {
               </Link>
               .
             </p>
+            {/* The other arrival markets, which this page named nowhere. Each
+                anchor says what the page it points at is about, because
+                "read more" tells a reader and a crawler the same nothing. */}
+            <p className="text-slate-600 text-sm sm:text-base leading-[1.7] text-pretty mb-4">
+              The same arrangement covers the rest of the corridor: our{" "}
+              <Link href="/sourcing-company-uk/" className="text-[#176579] font-medium underline underline-offset-2 hover:text-brand-dark">
+                sourcing company in London
+              </Link>
+              ,{" "}
+              <Link href="/sourcing-company-singapore/" className="text-[#176579] font-medium underline underline-offset-2 hover:text-brand-dark">
+                sourcing company in Singapore
+              </Link>
+              ,{" "}
+              <Link href="/sourcing-company-malaysia/" className="text-[#176579] font-medium underline underline-offset-2 hover:text-brand-dark">
+                import agent in Malaysia
+              </Link>{" "}
+              and{" "}
+              <Link href="/sourcing-company-france/" className="text-[#176579] font-medium underline underline-offset-2 hover:text-brand-dark">
+                China sourcing agent in France
+              </Link>
+              . What we can source is in the{" "}
+              <Link href="/products/" className="text-[#176579] font-medium underline underline-offset-2 hover:text-brand-dark">
+                product catalogue
+              </Link>
+              .
+            </p>
             <p className="text-slate-600 text-sm sm:text-base leading-[1.7] text-pretty">
               If you already know what you need,{" "}
               <Link href="/contact/" className="text-[#176579] font-medium underline underline-offset-2 hover:text-brand-dark">

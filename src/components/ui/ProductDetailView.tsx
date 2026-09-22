@@ -126,8 +126,15 @@ export function ProductDetailView({ product, similar }: Props) {
             levels deep now reads
             All Categories › Jewelry & Watches › Fashion Jewelry › Earrings › <product>
             instead of collapsing the middle two away. */}
-        <nav className="mb-5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
-          <Link href="/products" className="hover:text-[#176579]">All Categories</Link>
+        <nav
+          aria-label="Breadcrumb"
+          className="mb-5 flex flex-wrap items-center gap-1.5 text-xs text-slate-500"
+        >
+          {/* Trailing slash. next.config sets trailingSlash: true, so "/products"
+              costs every visitor a 308 to "/products/" — and the BreadcrumbList
+              on this page has always said "/products/", so the visible trail and
+              the schema disagreed by exactly one character. */}
+          <Link href="/products/" className="hover:text-[#176579]">All Categories</Link>
           {(product.categoryPath.length
             ? product.categoryPath
             : product.categoryId && product.categoryName

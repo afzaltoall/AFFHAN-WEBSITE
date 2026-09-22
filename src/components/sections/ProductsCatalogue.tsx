@@ -584,7 +584,19 @@ export function ProductsCatalogue({
                       the deepest (current) category adjacent to the Clear
                       control. min-w-0 lets the strip actually shrink inside the
                       flex row instead of pushing Clear off the edge. */}
-                  <div ref={crumbScrollRef} className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto scrollbar-hide text-[13px] sm:text-sm">
+                  {/* role + label rather than a real <nav>: the ref is typed
+                      HTMLDivElement and drives the horizontal scroll, so
+                      swapping the element would ripple further than the
+                      semantics are worth. The crumbs are buttons, not links —
+                      they change client state — so this strip is navigable and
+                      announced, but it is NOT a crawlable breadcrumb. See the
+                      report for what converting them would involve. */}
+                  <div
+                    ref={crumbScrollRef}
+                    role="navigation"
+                    aria-label="Breadcrumb"
+                    className="flex min-w-0 flex-1 flex-nowrap items-center gap-1 overflow-x-auto scrollbar-hide text-[13px] sm:text-sm"
+                  >
                     <button
                       onClick={() => goToCategory(null)}
                       className="shrink-0 whitespace-nowrap font-bold text-slate-500 hover:text-brand-dark transition-colors"
