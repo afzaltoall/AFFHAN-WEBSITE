@@ -342,7 +342,7 @@ export default async function SourcingCompanyDubaiPage() {
               Our Sourcing Services in Dubai
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-[15px] leading-[1.6] tracking-[-0.003em] text-pretty">
-              Sourcing, verification and freight, run by one team at both ends of the corridor. For a trading company here the risk is rarely the shipping line — it is what went into the container. Product sourcing in Dubai works when somebody has looked at the goods in China before they move.
+              Sourcing, verification and freight forwarding, run by one team at both ends of the corridor. For a trading company here the risk is rarely the shipping line — it is what went into the container. Product sourcing in Dubai works when somebody has looked at the goods in China before they move.
             </p>
           </div>
 
@@ -697,7 +697,7 @@ export default async function SourcingCompanyDubaiPage() {
                 What a Dubai sourcing partner should actually do
               </h2>
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
-                Anyone can forward a quotation and add a margin. The value sits in the part that happens in China — the factory visit, the sample approval, the inspection before release — and in a Dubai office that answers when a shipment needs a decision that day.
+                Anyone can forward a quotation and add a margin. The value sits in the part that happens in China — the factory visit, the sample approval, the inspection before release — and in a Dubai office that answers when a shipment needs a decision that day. That is the difference between a broker and a sourcing company with its own staff at both ends.
               </p>
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-200">
