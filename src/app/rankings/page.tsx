@@ -23,6 +23,21 @@ export const metadata: Metadata = {
   description:
     "The most-stocked categories in Affhan's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
   alternates: { canonical: "https://affhan.com/rankings/" },
+  openGraph: {
+    title: "Top Ranking | Affhan",
+    description:
+      "The most-stocked categories in Affhan's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
+    url: "https://affhan.com/rankings/",
+    type: "website",
+    siteName: "Affhan",
+    images: [{ url: "/images/logo.png", width: 800, height: 600 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Top Ranking | Affhan",
+    description:
+      "The most-stocked categories in Affhan's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
+  },
 };
 
 // Matches the cache inside getCachedRankings. The page is a shell around data

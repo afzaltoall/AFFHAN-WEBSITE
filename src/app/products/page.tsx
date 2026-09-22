@@ -43,6 +43,21 @@ export async function generateMetadata({
       description:
         "Browse Affhan's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
       alternates: { canonical: `${SITE}/products/` },
+      openGraph: {
+        title: "Product Catalog | Affhan",
+        description:
+          "Browse Affhan's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
+        url: `${SITE}/products/`,
+        type: "website",
+        siteName: "Affhan",
+        images: [{ url: "/images/logo.png", width: 800, height: 600 }],
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: "Product Catalog | Affhan",
+        description:
+          "Browse Affhan's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
+      },
     };
   }
 
