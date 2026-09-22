@@ -366,7 +366,7 @@ export default async function SourcingFromChinaPage() {
                 Where we fit into all this
               </h2>
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
-                Everything on this page is knowable in advance, and almost all of it is only actionable by somebody standing in China. That is the reason the buying team sits in Guangzhou rather than answering emails from a destination market.
+                Everything on this page is knowable in advance, and almost all of it is only actionable by somebody standing in China. That is the reason the buying team sits in Guangzhou rather than answering emails from a destination market. The other half of the job is at the arrival end, where the same import export company clears customs and handles freight forwarding instead of passing you to a third party.
               </p>
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-200">
