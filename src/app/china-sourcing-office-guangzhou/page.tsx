@@ -384,7 +384,7 @@ export default async function ChinaSourcingOfficeGuangzhouPage() {
                 Why the China end is the end that matters
               </h2>
               <p className="text-slate-300 mb-8 leading-[1.6] tracking-[-0.003em] text-pretty">
-                Most sourcing arrangements put a company in the buyer&apos;s country and an unrelated agent in China, with a margin in between and nobody accountable for the join. Ours is one company on both sides, which is only obvious as an advantage on the day something goes wrong.
+                Most sourcing arrangements put a company in the buyer&apos;s country and an unrelated agent in China, with a margin in between and nobody accountable for the join. Ours is one company on both sides, which is only obvious as an advantage on the day something goes wrong. The same import export company that buys the goods here books the freight forwarding that moves them, so there is no handover to lose them in.
               </p>
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-200">

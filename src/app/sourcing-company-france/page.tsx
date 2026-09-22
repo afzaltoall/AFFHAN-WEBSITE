@@ -405,7 +405,7 @@ export default async function SourcingCompanyFrancePage() {
             You pick a supplier and we take a pre-production sample. Nothing goes into production until you have held that sample. Once it does, our Guangzhou team inspects during the run rather than at the end, because a fault found at forty per cent completion is a correction and the same fault found at the packing stage is a reorder.
           </p>
           <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty mb-5">
-            We consolidate, book the freight, and prepare the documents. If you are clearing in your own name we hand your broker a complete file; if you would rather we handled the European end, our Paris office does that. The goods arrive, you clear them once, and they are then free to move anywhere in the union.
+            We consolidate, handle the freight forwarding, and prepare the documents. If you are clearing in your own name we hand your broker a complete file; if you would rather we handled the European end, our Paris office does that as your import export company in France. The goods arrive, you clear them once, and they are then free to move anywhere in the union.
           </p>
           <p className="text-slate-600 text-[15px] sm:text-base leading-[1.75] tracking-[-0.003em] text-pretty">
             Throughout, you are dealing with one company. The person who audited the factory and the person who can tell you where your container is work for the same business, which is the entire argument for using us rather than assembling a sourcing agent, an inspection firm and a forwarder yourself.
