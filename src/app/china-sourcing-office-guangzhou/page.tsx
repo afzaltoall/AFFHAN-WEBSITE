@@ -18,7 +18,7 @@ export const revalidate = 3600;
 const PAGE_TITLE = "Guangzhou Sourcing Agent & China Buying Office | Affhan";
 
 const PAGE_DESCRIPTION =
-  "Our Guangzhou sourcing agent and China buying office: supplier sourcing, factory audits, Canton Fair sourcing, container consolidation and freight.";
+  "Our Guangzhou sourcing agent and China buying office: supplier sourcing, factory audits, Canton Fair sourcing, consolidation and freight forwarding.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
