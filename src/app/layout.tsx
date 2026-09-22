@@ -77,6 +77,10 @@ const organizationSchema = {
   "@type": "Organization",
   "@id": ORG_ID,
   name: "AFFHAN International Pvt Ltd",
+  // The names this company is actually searched for and written as. Google
+  // uses alternateName for entity matching, and "AFFHAN" alone is how the
+  // brand appears in most of the site's own titles.
+  alternateName: ["AFFHAN", "Affhan Group", "AFFHAN Group"],
   legalName: OFFICES.chennai.legalName,
   image: LOGO_URL,
   logo: LOGO_URL,
@@ -86,6 +90,16 @@ const organizationSchema = {
   telephone: OFFICES.chennai.telephone,
   email: "info@affhan.com",
   address: postalAddress(OFFICES.chennai),
+  // Same number and address already on the node, restated as a contactPoint
+  // because that is the shape Google reads for "how do I reach this business".
+  // Nothing new is claimed: both values come from OFFICES.chennai and the
+  // email is the one already on this node.
+  contactPoint: {
+    "@type": "ContactPoint",
+    contactType: "sales",
+    telephone: OFFICES.chennai.telephone,
+    email: "info@affhan.com",
+  },
   // "Opening date: 1 July 2000" on every one of the company's Google profiles.
   // Worth stating: twenty-five years of trading is the strongest trust signal
   // this business has, and nothing in the markup was carrying it.

@@ -21,6 +21,7 @@ function ChevronIcon() {
 const usefulLinks = [
   { label: "Home", href: "/" },
   { label: "Explore Products", href: "/products/" },
+  { label: "Top Ranking", href: "/rankings/" },
   { label: "About Us", href: "/about/" },
   { label: "Careers", href: "/careers/" },
   { label: "Contact Us", href: "/contact/" },
@@ -65,6 +66,7 @@ const socialLinks = [
   { label: "Air Freight Services", href: "/about/#service-air-freight", icon: <ChevronIcon /> },
   { label: "Non-Vessel Operating Common Carrier", href: "/about/#service-nvocc", icon: <ChevronIcon /> },
   { label: "Global Stocking Solutions", href: "/about/#service-global-stocking", icon: <ChevronIcon /> },
+  { label: "Shipping & Freight Forwarding", href: "/shipping/", icon: <ChevronIcon /> },
 ];
 
 export function FooterSection() {
