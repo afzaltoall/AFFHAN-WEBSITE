@@ -1,13 +1,12 @@
 "use client";
 
-import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { Check, ArrowRight, Package, ShieldCheck, Ship, Handshake } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Almarai } from "next/font/google";
 import { cn } from "@/lib/utils";
-import { WordsPullUpMultiStyle } from "./words-pull-up";
 import { ROLES, rolePath, roleLocationLabel } from "@/lib/careerRoles";
+import { useScrollLit, staggerLit, ink, INK_LIT } from "./scrollLit";
 
 // latin only — the page renders no Arabic text, and the arabic subset is a
 // large glyph set that would be downloaded and never drawn.
@@ -21,6 +20,21 @@ const almarai = Almarai({ weight: ["400", "700"], subsets: ["latin"] });
 // layout has to read the same list to emit JobPosting markup and this file is
 // a client component. Only the icon per role stays here — it is presentation,
 // and a lucide component has no business in a data module the server imports.
+/**
+ * The heading, in two voices — the statement and the qualifier under it.
+ *
+ * Split into words here because the reveal darkens word by word, exactly as
+ * PrismaHero's sentence does. The second line keeps its quieter target colour,
+ * so the two-tone the design already had survives the change: both lines
+ * darken, they just darken to different inks.
+ */
+const HEADING = [
+  { text: "Open roles across our global sourcing network.", lit: INK_LIT },
+  { text: "From China factory floors to freight lanes worldwide.", lit: "#6b7280" },
+].map((seg) => ({ ...seg, words: seg.text.split(" ") }));
+
+const HEADING_WORDS = HEADING.reduce((n, s) => n + s.words.length, 0);
+
 const ROLE_ICONS: Record<string, LucideIcon> = {
   "01": Package,
   "02": ShieldCheck,
@@ -29,11 +43,29 @@ const ROLE_ICONS: Record<string, LucideIcon> = {
 };
 
 export function PrismaRoles() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const isInView = useInView(containerRef, { once: true, margin: "-100px" });
+  const sectionRef = useRef<HTMLElement>(null);
+
+  /* One screen tall, so the track is the approach rather than the section's
+     own length: progress starts as the top clears the fold and completes once
+     the section is settled in view. PrismaHero uses start/end because it is a
+     tall pinned track; the mechanism is the same, only the window differs. */
+  const { p, reduced } = useScrollLit(sectionRef, ["start 0.9", "center 0.45"]);
+
+  // Heading first, then the cards — the same order a reader's eye takes.
+  const HEAD_FROM = 0.0;
+  const HEAD_TO = 0.55;
+  const CARDS_FROM = 0.42;
+  /* 0.92, not 1: with the 1.6 overlap the last card starts at
+     CARDS_FROM + 3*each and still needs each*1.6 to finish, so ending the
+     stagger at 1 leaves card four at 0.75 when the section is fully in view.
+     Measured: it now completes at p=0.995. */
+  const CARDS_TO = 0.92;
+
+  let wordCursor = -1;
 
   return (
     <section
+      ref={sectionRef}
       id="roles"
       className={cn(
         "relative min-h-screen flex flex-col justify-center bg-white py-14 lg:py-16 px-4 sm:px-6 md:px-8",
@@ -62,25 +94,48 @@ export function PrismaRoles() {
       <div className="relative z-10 max-w-[1400px] mx-auto">
         {/* Header */}
         <div className="mb-8 lg:mb-10">
-          <WordsPullUpMultiStyle
-            segments={[
-              { text: "Open roles across our global sourcing network. ", className: "text-black" },
-              { text: "From China factory floors to freight lanes worldwide.", className: "text-gray-500" }
-            ]}
-            className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-normal max-w-2xl leading-tight"
-          />
+          <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-normal max-w-2xl leading-tight">
+            {HEADING.map((seg, segIdx) => (
+              <span key={segIdx} className={segIdx === 1 ? "block" : undefined}>
+                {seg.words.map((word) => {
+                  wordCursor += 1;
+                  const lit = reduced
+                    ? 1
+                    : staggerLit(p, wordCursor, HEADING_WORDS, HEAD_FROM, HEAD_TO, 3);
+                  return (
+                    <span
+                      key={wordCursor}
+                      className="inline-block will-change-[color,transform]"
+                      style={ink(lit, seg.lit)}
+                    >
+                      {word}
+                      {"\u00A0"}
+                    </span>
+                  );
+                })}
+              </span>
+            ))}
+          </h2>
         </div>
 
         {/* 4-column grid of Affhan roles — white liquid-glass cards */}
-        <div ref={containerRef} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 lg:h-[440px]">
-          {ROLES.map((role, idx) => (
-            <motion.div
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6 lg:h-[440px]">
+          {ROLES.map((role, idx) => {
+            /* Was: opacity+scale over 0.8s with a 0.15s delay per card, fired
+               once by useInView. That is a clock, and next to a scroll-linked
+               section it reads as a separate animation that happens to start
+               nearby. This is the same stagger expressed in scroll progress,
+               so the cards arrive with the wheel and reverse with it. */
+            const lit = reduced ? 1 : staggerLit(p, idx, ROLES.length, CARDS_FROM, CARDS_TO);
+            return (
+            <div
               key={role.id}
               id={`role-${role.id}`}
-              className="liquid-glass-card flex flex-col justify-between p-6 lg:p-7 h-[400px] lg:h-full"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={isInView ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: idx * 0.15 }}
+              className="liquid-glass-card flex flex-col justify-between p-6 lg:p-7 h-[400px] lg:h-full will-change-[opacity,transform]"
+              style={{
+                opacity: 0.12 + lit * 0.88,
+                transform: `translateY(${(1 - lit) * 18}px) scale(${0.965 + lit * 0.035})`,
+              }}
             >
               <div>
                 <div className="flex justify-between items-start mb-8">
@@ -109,8 +164,9 @@ export function PrismaRoles() {
                 <span className="text-[#176579] text-xs sm:text-sm font-semibold">View role &amp; apply</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[#176579] transition-transform duration-300 group-hover:translate-x-1 -rotate-45" />
               </a>
-            </motion.div>
-          ))}
+            </div>
+            );
+          })}
 
         </div>
       </div>

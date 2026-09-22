@@ -6,6 +6,7 @@ import { motion, useScroll, useTransform, useMotionValueEvent, useReducedMotion 
 import { useRef, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { scrollToId } from "@/lib/scroll";
+import { ink } from "./scrollLit";
 
 // latin only — the page renders no Arabic text, and the arabic subset is a
 // large glyph set that would be downloaded and never drawn.
@@ -108,10 +109,8 @@ export function PrismaHero() {
      frame, so the browser was running forty colour interpolations that never
      reached their target before the next one arrived. Scroll position already
      supplies the smoothness; the transition only added work. */
-  const ink = (lit: number) => ({
-    color: `color-mix(in srgb, #08222e ${Math.round(lit * 100)}%, #63757d)`,
-    transform: `translateY(${(1 - lit) * 5}px)`,
-  });
+  // Shared with PrismaRoles via ./scrollLit so the two sections cannot drift
+  // apart. Same values, same reasoning — the comment above now lives there.
 
   /* The words are painted by hand, not by React.
 
