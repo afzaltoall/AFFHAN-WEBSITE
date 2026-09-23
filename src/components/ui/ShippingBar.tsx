@@ -128,8 +128,8 @@ export function ShippingBar() {
           <Image
             src="/affhan-ship-nav.webp"
             alt=""
-            width={166}
-            height={175}
+            width={176}
+            height={140}
             sizes="40px"
             className="block h-10 w-auto object-contain"
           />
