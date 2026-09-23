@@ -23,11 +23,11 @@ import Link from "next/link";
  *
  * The asset is public/affhan-ship-nav.webp — the brand mark trimmed of its
  * transparent padding so it fills its box instead of floating in the middle,
- * then re-encoded. 176x131 at 12KB. It has a real alpha channel, so it needs
+ * then re-encoded. 176x70 at 8KB. It has a real alpha channel, so it needs
  * no plate behind it and works on any surface.
  *
  * Landscape now, where the old sailboat silhouette was portrait (166x175):
- * the replacement mark trims to 1390x1038. Both call sites size on one axis
+ * the replacement mark trims to 1589x636. Both call sites size on one axis
  * with the other auto, so the box follows — but the declared width/height had
  * to change with it, or next/image reserves the old aspect and shifts.
  */
@@ -57,7 +57,7 @@ export function ShipNavMark({ className = "" }: { className?: string }) {
         src="/affhan-ship-nav.webp"
         alt=""
         width={176}
-        height={131}
+        height={70}
         sizes="44px"
         className="ship-mark__vessel block w-11 h-auto object-contain"
       />
