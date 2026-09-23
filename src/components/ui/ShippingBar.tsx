@@ -129,7 +129,7 @@ export function ShippingBar() {
             src="/affhan-ship-nav.webp"
             alt=""
             width={176}
-            height={140}
+            height={118}
             sizes="40px"
             className="block h-10 w-auto object-contain"
           />
