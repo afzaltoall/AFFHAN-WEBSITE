@@ -1,0 +1,52 @@
+[
+  {
+    "state": "main-auto",
+    "page": "home",
+    "perNotch": 100,
+    "glide": 0,
+    "total": 500,
+    "behavior": "auto",
+    "lenis": false,
+    "height": 9443
+  },
+  {
+    "state": "main-auto",
+    "page": "dubai",
+    "perNotch": 100,
+    "glide": 0,
+    "total": 500,
+    "behavior": "auto",
+    "lenis": false,
+    "height": 11605
+  },
+  {
+    "state": "main-auto",
+    "page": "shipping",
+    "perNotch": 100,
+    "glide": 0,
+    "total": 500,
+    "behavior": "auto",
+    "lenis": false,
+    "height": 9599
+  },
+  {
+    "state": "main-auto",
+    "page": "careers",
+    "perNotch": 69.6,
+    "glide": 76.7,
+    "total": 348,
+    "behavior": "auto",
+    "lenis": true,
+    "height": 14906
+  },
+  {
+    "state": "main-auto",
+    "page": "admin",
+    "perNotch": 100,
+    "glide": 0,
+    "total": 500,
+    "behavior": "auto",
+    "lenis": false,
+    "height": 12323
+  }
+]

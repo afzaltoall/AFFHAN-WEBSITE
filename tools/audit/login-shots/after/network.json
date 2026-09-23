@@ -1,0 +1,12 @@
+[
+  {
+    "url": "http://localhost:3000/api/employee/auth/login/",
+    "method": "POST",
+    "contentType": "application/json",
+    "bodyKeys": [
+      "email",
+      "password",
+      "turnstileToken"
+    ]
+  }
+]

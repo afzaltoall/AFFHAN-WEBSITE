@@ -1,0 +1,30 @@
+{
+  "desktopBaseline": {
+    "ready": 1399,
+    "seeked": 155,
+    "duration": 10.067,
+    "readyState": 3,
+    "wasDetached": false
+  },
+  "mobileBaseline": {
+    "ready": 0,
+    "seeked": 130,
+    "duration": 10.067,
+    "readyState": 3,
+    "wasDetached": false
+  },
+  "desktopLazy": {
+    "ready": 0,
+    "seeked": 106,
+    "duration": 10.067,
+    "readyState": 4,
+    "wasDetached": false
+  },
+  "mobileLazy": {
+    "ready": 0,
+    "seeked": 562,
+    "duration": 10.067,
+    "readyState": 4,
+    "wasDetached": false
+  }
+}
