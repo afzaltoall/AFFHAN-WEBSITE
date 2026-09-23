@@ -197,7 +197,19 @@ export const CircularTestimonials = ({
             />
           ))}
         </div>
-        <div className="testimonial-content">
+        {/* Same height as the image column beside it, so the card cannot
+            change size when the slide does.
+
+            Product names in this catalogue run from three words to twenty —
+            "Pregancy And Maternity Body Pillow" against "Wireless Guitar
+            System Rechargeable Upgrated LED Screen15 Channels UHF Wireless
+            Guitar Transmitter Receiver Guitar Accessories". Unpinned, the
+            text column grew by three lines on the long one, the card grew
+            with it, and everything below — including the footer — was pushed
+            down. On an autoplaying carousel that repeats every few seconds
+            for as long as the tab is open, which is the worst shape a layout
+            shift can take. */}
+        <div className="testimonial-content md:min-h-80">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeIndex}
@@ -272,6 +284,14 @@ export const CircularTestimonials = ({
         .name {
           font-weight: bold;
           margin-bottom: 0.25rem;
+          /* Two lines, then ellipsis. The pinned height above stops the card
+             resizing; this stops a twenty-word product name overflowing it
+             and colliding with the quote underneath. */
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
         }
         .designation {
           margin-bottom: 1.5rem;
