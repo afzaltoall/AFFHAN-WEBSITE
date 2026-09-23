@@ -131,7 +131,10 @@ export function ShippingBar() {
             width={176}
             height={47}
             sizes="40px"
-            className="block h-10 w-auto object-contain"
+            /* Nudged down 4px so the hull meets the pill's waterline instead of
+               riding above it. On the Image rather than the span, because the
+               span carries animate-float-medium and owns its own transform. */
+            className="block h-10 w-auto translate-y-[4px] object-contain"
           />
         </span >
 
