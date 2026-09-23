@@ -20,6 +20,12 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
   const [activeId, setActiveId] = useState<string | null>(initialActiveId ?? tree[0]?.id ?? null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  // The rail scrolls too. It carries every section — 177 of them on the live
+  // taxonomy — so on any category past the first handful the highlighted row
+  // sits far below the fold. Scrolling only the right panel left the rail
+  // parked at the top, which reads as the panel having ignored the click.
+  const railRef = useRef<HTMLDivElement>(null);
+  const railRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
   // Suppresses the scroll-spy while a click-driven smooth scroll is running,
   // so the left rail doesn't flicker through every section it passes.
   const programmaticUntil = useRef(0);
@@ -48,6 +54,19 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
     if (el && container) {
       programmaticUntil.current = Date.now() + 600;
       container.scrollTo({ top: el.offsetTop - 12, behavior: smooth ? "smooth" : "auto" });
+    }
+
+    // And bring the highlighted rail row into view, centred rather than
+    // scrolled-to-top: the row above and below give it context, and a row
+    // pinned to the very top of a long list looks like the list begins there.
+    const railEl = railRefs.current.get(id);
+    const rail = railRef.current;
+    if (railEl && rail) {
+      const centred = railEl.offsetTop - rail.clientHeight / 2 + railEl.clientHeight / 2;
+      rail.scrollTo({
+        top: Math.max(0, Math.min(centred, rail.scrollHeight - rail.clientHeight)),
+        behavior: smooth ? "smooth" : "auto",
+      });
     }
   };
 
@@ -108,7 +127,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
           A name longer than that would clip rather than wrap. Nothing in the
           taxonomy comes close, but if one is promoted later this is the number
           to raise. */}
-      <div className="w-72 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
+      <div ref={railRef} className="w-72 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
         {sections.map(s => (
           // A row in a list of categories opens that category — the same place
           // its tiles and its "View all" go. It used to only scroll the right
@@ -118,6 +137,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
           // leaving is still possible: hovering the row brings it up.
           <button
             key={s.id}
+            ref={(el) => { if (el) railRefs.current.set(s.id, el); }}
             onClick={() => onNavigate(s.id)}
             onMouseEnter={() => previewSection(s.id)}
             onMouseLeave={cancelPreview}
