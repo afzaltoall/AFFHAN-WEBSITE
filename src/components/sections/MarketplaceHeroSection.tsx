@@ -526,15 +526,21 @@ export function MarketplaceHeroSection({
                 {sidebarCategories.map(cat => {
                   const Icon = getCategoryIcon(cat.name);
                   return (
-                    // Straight to the listing. Opening the mega panel scrolled
-                    // to the category was a second menu on top of the menu:
-                    // one more click before any product, and indistinguishable
-                    // from nothing having happened when the panel opened over
-                    // the row that was just clicked. "View All" above and below
-                    // still opens the panel — that is what it is for.
+                    // Opens the mega panel on this category — the same panel
+                    // the navbar's "All Categories" opens. Every control in
+                    // this sidebar now does the same thing: the header, each
+                    // row, and "View All" below.
+                    //
+                    // This was the other way round for a while, going straight
+                    // to /products/?categoryId=. The objection then was that
+                    // the panel opens centred, over the row just clicked, so it
+                    // can read as nothing having happened. If that turns out to
+                    // be a problem again, the fix is the panel's entry — an
+                    // offset or a transition — not sending one row somewhere
+                    // different from its neighbours.
                     <button
                       key={cat.id}
-                      onClick={() => router.push(`/products/?categoryId=${cat.id}`)}
+                      onClick={() => openMega(cat.id)}
                       className="w-full flex items-center justify-between px-4 py-2.5 text-left text-[13.5px] font-semibold text-slate-700 hover:bg-white/40 hover:text-brand-dark transition-colors group"
                     >
                       <div className="flex items-center gap-3 pr-2">
