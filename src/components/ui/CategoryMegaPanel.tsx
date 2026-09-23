@@ -26,6 +26,17 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
   // parked at the top, which reads as the panel having ignored the click.
   const railRef = useRef<HTMLDivElement>(null);
   const railRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  /* The category the reader actually chose, held until they scroll themselves.
+   *
+   * The time-boxed suppression below is not enough on its own. A section near
+   * the end of the list cannot be scrolled to the top — there is nothing under
+   * it to scroll — so the container stops at its maximum and the scroll-spy,
+   * once the window lapses, sees some earlier section at the top and moves the
+   * highlight there. Clicking "Fully Printing Hat" then highlighted "Fashion &
+   * Clothing", which is the sort of thing that reads as the click going
+   * somewhere else entirely.
+   */
+  const pinnedId = useRef<string | null>(null);
   // Suppresses the scroll-spy while a click-driven smooth scroll is running,
   // so the left rail doesn't flicker through every section it passes.
   const programmaticUntil = useRef(0);
@@ -49,10 +60,16 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
 
   const scrollToSection = (id: string, smooth = true) => {
     setActiveId(id);
+    pinnedId.current = id;
     const el = sectionRefs.current.get(id);
     const container = scrollRef.current;
     if (el && container) {
-      programmaticUntil.current = Date.now() + 600;
+      // Long enough to outlast the animation. A smooth scroll the length of
+      // this grid runs well past 600ms, and the moment the window lapses the
+      // scroll-spy starts reassigning activeId to whatever section is passing
+      // — the highlight then races down the rail ahead of the scroll and
+      // settles on the wrong row.
+      programmaticUntil.current = Date.now() + (smooth ? 1400 : 200);
       container.scrollTo({ top: el.offsetTop - 12, behavior: smooth ? "smooth" : "auto" });
     }
 
@@ -70,6 +87,8 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
     }
   };
 
+  const releasePin = () => { pinnedId.current = null; };
+
   // Hovering a rail row previews its section on the right; clicking it opens
   // the category. The delay is what makes that bearable — without it, crossing
   // the rail on the way to a tile drags the panel through every section the
@@ -84,9 +103,26 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
   };
   useEffect(() => () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); }, []);
 
-  // Open scrolled to the requested category.
+  /* Open at the top, then travel to the category.
+   *
+   * This used to jump there instantly. Arriving already scrolled tells the
+   * reader nothing about where they are: on a rail of 178 categories the panel
+   * simply appears mid-list, with no sense of how far down that is or what
+   * else the list holds. Scrolling there shows both, and it ties the click to
+   * the result — the thing that was missing when the rail did not move at all.
+   *
+   * Two frames before it starts. One for the panel to paint at the top, one
+   * for the section and rail refs to be populated by that paint; starting on
+   * the same tick as mount gives scrollTo a container with no laid-out
+   * children and it lands nowhere.
+   */
   useEffect(() => {
-    if (initialActiveId) scrollToSection(initialActiveId, false);
+    if (!initialActiveId) return;
+    let inner = 0;
+    const outer = requestAnimationFrame(() => {
+      inner = requestAnimationFrame(() => scrollToSection(initialActiveId, true));
+    });
+    return () => { cancelAnimationFrame(outer); cancelAnimationFrame(inner); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -94,6 +130,9 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
   // is currently at the top of the right panel as the user scrolls.
   const handleScroll = () => {
     if (Date.now() < programmaticUntil.current) return;
+    // A chosen category outranks whatever happens to be at the top. Released
+    // by releasePin below, on the first scroll the reader makes themselves.
+    if (pinnedId.current) return;
     const container = scrollRef.current;
     if (!container) return;
     
@@ -162,7 +201,18 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
       </div>
 
       {/* Right: one continuous scrollable panel, one section per category */}
-      <div data-mega-scroll ref={scrollRef} onScroll={handleScroll} className="relative flex-1 overflow-y-auto custom-scrollbar p-6">
+      {/* onWheel/onPointerDown/onKeyDown release the pin, not onScroll —
+          onScroll fires for the programmatic animation too and would release
+          it immediately. These three are the reader moving the list. */}
+      <div
+        data-mega-scroll
+        ref={scrollRef}
+        onScroll={handleScroll}
+        onWheel={releasePin}
+        onPointerDown={releasePin}
+        onKeyDown={releasePin}
+        className="relative flex-1 overflow-y-auto custom-scrollbar p-6"
+      >
         {sections.map((s, idx) => (
           <div
             key={s.id}
@@ -209,6 +259,17 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
             </div>
           </div>
         ))}
+
+        {/* Tail room, so the last categories can actually be scrolled to.
+            Without it a section near the end can never reach the top of the
+            panel — there is nothing beneath it to scroll — so choosing it
+            leaves the grid stopped at its maximum with some earlier section
+            still at the top, which is exactly what "it did not go where I
+            clicked" looked like. Capped at 440px: the panel is
+            min(70vh,560px) tall and a section header is about 120px, so this
+            is the most that can ever be needed and never leaves a gap bigger
+            than one screen. */}
+        <div aria-hidden="true" className="h-[min(55vh,440px)]" />
       </div>
     </div>
   );
