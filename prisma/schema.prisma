@@ -379,12 +379,26 @@ model ShipmentInquiry {
   assignedAt   DateTime?
   customerKey  String?
 
+  /// The account that sent it, which is what puts it on that customer's My
+  /// Shipments page. Sending has needed a sign-in since 2026-09-24, but the
+  /// column stays nullable: the requests sent before it began being stored
+  /// have no account, and they are left null rather than guessed at by
+  /// matching email addresses, Inquiry.userId's rule. A match on an address
+  /// someone typed would show one customer another's request.
+  ///
+  /// SetNull, not Cascade: a deleted account must not take the shipping
+  /// desk's record of the request with it.
+  userId String?
+  user   MobileUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   salesUpdates StatusUpdate[]
 
   @@index([status])
   @@index([createdAt])
   @@index([assignedToId])
   @@index([customerKey])
+  // My Shipments: one customer's rows, newest first.
+  @@index([userId, createdAt])
 }
 
 // Existing table created outside this schema (scraper output). Modelled here so
@@ -531,6 +545,8 @@ model MobileUser {
   // `inquiries` because the two live in different tables — see the note on
   // Inquiry.userId for why they were not merged.
   webInquiries Inquiry[]
+  // Freight quotes from /shipping/, for the account's My Shipments page.
+  shipmentInquiries ShipmentInquiry[]
   productViews ProductView[]
   favourites   ProductFavourite[]
   changes      AccountChange[]

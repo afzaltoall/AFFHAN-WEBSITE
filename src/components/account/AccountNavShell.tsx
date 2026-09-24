@@ -12,6 +12,7 @@ import {
   LogOut,
   MessageSquareText,
   Share2,
+  Ship,
   User2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -27,7 +28,7 @@ import { avatarUrl } from "@/lib/avatar";
  * section scrolls, so moving between sections never means scrolling back up to
  * find the menu.
  *
- * A layout rather than five pages each drawing their own nav, so the sidebar
+ * A layout rather than six pages each drawing their own nav, so the sidebar
  * cannot drift between them and the redirect for a signed-out visitor is
  * written once. Each section is a real route, so "my inquiries" is a link
  * somebody can send themselves — which a tab switcher held in React state
@@ -60,6 +61,14 @@ const GROUPS: NavGroup[] = [
     label: "Inquiries",
     Icon: MessageSquareText,
     items: [{ href: "/account/inquiries/", label: "My Inquiries", Icon: MessageSquareText }],
+  },
+  {
+    // Freight quotes from /shipping/: a different table and a different
+    // question from a product quote, so a row of their own.
+    id: "shipments",
+    label: "Shipments",
+    Icon: Ship,
+    items: [{ href: "/account/shipments/", label: "My Shipments", Icon: Ship }],
   },
   {
     id: "saved",

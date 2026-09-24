@@ -242,6 +242,23 @@ export function routeSummary(s: { mode: string; method: string; portOfLoading: s
   return `${modeLabel(s.mode)} · ${methodLabel(s.method)} · ${s.portOfLoading} → ${s.portOfDischarge}`;
 }
 
+/**
+ * A sent request as the one sentence /shipping/ reads it back in:
+ * "Sea freight, FCL — 68 m³ and 6,500 kg of LED panel lights, Shanghai to
+ * Chennai, on FOB terms." Plain text, for a request that is complete; the
+ * form's own RequestSentence draws the same words with blanks while a draft is
+ * still being filled in.
+ */
+export function shipmentSentence(s: {
+  mode: string; method: string; cbm: string | number; weightKg: string | number;
+  commodity: string; portOfLoading: string; portOfDischarge: string; terms: string;
+}) {
+  const fig = (v: string | number) => Number(v).toLocaleString("en-IN", { maximumFractionDigits: 3 });
+  const how = s.mode === "SEA" ? `Sea freight, ${methodLabel(s.method)}` : "Air freight";
+  const terms = s.terms === "OTHER" ? "on other terms" : `on ${termsLabel(s.terms)} terms`;
+  return `${how} — ${fig(s.cbm)} m³ and ${fig(s.weightKg)} kg of ${s.commodity}, ${s.portOfLoading} to ${s.portOfDischarge}, ${terms}.`;
+}
+
 /** Figures as staff read them: "68 m³ · 6,500 kg · 120 cartons". */
 export function loadSummary(s: { cbm: string | number; weightKg: string | number; cartonBoxes: number | null }) {
   const fmt = (v: string | number) => Number(v).toLocaleString("en-IN", { maximumFractionDigits: 3 });

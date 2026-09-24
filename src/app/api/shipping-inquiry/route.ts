@@ -14,9 +14,10 @@ import { verifyMobileSession } from "@/lib/mobile-auth";
 // (QuoteGateContext); this check is the one that counts, because the route is
 // a public URL and anyone can post to it directly.
 //
-// Who signed in is checked, not stored: ShipmentInquiry has no userId column
-// yet. The name, phone and email are kept as typed, as on /api/inquiry, since
-// someone signed in may be asking on a colleague's behalf.
+// The account is stored as userId, which is what lists the request on that
+// customer's My Shipments page (/api/account/shipments). The name, phone and
+// email are kept as typed, as on /api/inquiry, since someone signed in may be
+// asking on a colleague's behalf.
 //
 // Validation is validateShipmentInquiry, the same function the form runs, so
 // the two cannot disagree about what is acceptable.
@@ -51,6 +52,7 @@ export async function POST(req: Request) {
         // A freight request, a quote request and a message from the same number
         // are the same customer: see ShipmentInquiry in schema.prisma.
         customerKey: customerKeyOf({ phone: v.phone, email: v.email }),
+        userId: user.id,
       },
       select: { referenceNo: true, createdAt: true },
     });

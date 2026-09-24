@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { ArrowRight, Check, Copy, Loader2, Plane, Ship, type LucideIcon } from "lucide-react";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { Reveal } from "@/components/ui/Reveal";
@@ -1032,18 +1033,30 @@ function Sent({
         <span aria-live="polite" className="sr-only">{copied ? "Reference copied" : ""}</span>
       </div>
 
-      <p className="mt-8 max-w-2xl text-[18px] leading-relaxed text-[#5a6e77]">
-        Quote it whenever you speak to us about this shipment.
+      {/* What happens next, straight under the number it is about. */}
+      <p className="mt-8 max-w-2xl text-[22px] font-medium leading-snug tracking-[-0.01em] text-[#08222e] lg:text-[26px]">
+        Our team will contact you as soon as possible.
       </p>
-      <RequestSentence v={sent} className="mt-8 text-[24px] lg:text-[30px]" />
-      <p className="mt-8 max-w-2xl text-[16px] leading-relaxed text-[#5a6e77]">
-        We&apos;ll come back to you on <strong className="font-semibold text-[#08222e]">{sent.phone}</strong>
+      <p className="mt-3 max-w-2xl text-[16px] leading-relaxed text-[#5a6e77]">
+        On <strong className="font-semibold text-[#08222e]">{sent.phone}</strong>
         {sent.email && (
           <>
             {" "}or <strong className="break-words font-semibold text-[#08222e]">{sent.email}</strong>
           </>
-        )}{" "}
-        with a rate and a routing.
+        )}
+        , with a rate and a routing. Quote {referenceNo} whenever you speak to us about this shipment.
+      </p>
+      <RequestSentence v={sent} className="mt-10 text-[24px] lg:text-[30px]" />
+      {/* Sending needs an account, so there is always one to point to. */}
+      <p className="mt-6 max-w-2xl text-[16px] leading-relaxed text-[#5a6e77]">
+        It&apos;s kept in your account with everything you sent, under{" "}
+        <Link
+          href={`/account/shipments/#${referenceNo}`}
+          className="font-medium text-[#176579] underline decoration-[#176579]/35 underline-offset-4 transition-colors hover:decoration-[#176579] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176579]/50"
+        >
+          My Shipments
+        </Link>
+        .
       </p>
 
       <button

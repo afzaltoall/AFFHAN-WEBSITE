@@ -13,6 +13,7 @@ import {
   MessageSquareText,
   Phone,
   Share2,
+  Ship,
   User2,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -43,6 +44,7 @@ import { avatarUrl } from "@/lib/avatar";
 const MENU = [
   { href: "/account/", label: "Account", Icon: User2 },
   { href: "/account/inquiries/", label: "My Inquiries", Icon: MessageSquareText },
+  { href: "/account/shipments/", label: "My Shipments", Icon: Ship },
   { href: "/account/favourites/", label: "Favourites", Icon: Heart },
   { href: "/account/history/", label: "Browsing history", Icon: Clock },
   { href: "/account/social/", label: "Social pages", Icon: Share2 },
