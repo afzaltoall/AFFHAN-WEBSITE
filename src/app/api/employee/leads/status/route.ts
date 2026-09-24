@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readEmployeeAuth } from "@/lib/employee-session";
 import { isLeadStatus, LEAD_NOTE_MAX } from "@/lib/leadStatus";
-import { declineCustomer, touchCustomer } from "@/lib/lead-queue";
+import { declineCustomer, touchCustomer, type LeadRef } from "@/lib/lead-queue";
 
 export const dynamic = "force-dynamic";
 
@@ -12,11 +12,6 @@ export const dynamic = "force-dynamic";
  * leads per person. Beyond this it is not a customer, it is a bug or a flood.
  */
 const MAX_LEADS = 100;
-
-interface LeadRef {
-  kind: "inquiry" | "contact";
-  id: string;
-}
 
 /**
  * Record what happened to a lead — or, when the caller sends several, to a
@@ -76,8 +71,8 @@ export async function POST(request: Request) {
     for (const entry of raw) {
       const kind = (entry as LeadRef)?.kind;
       const id = (entry as LeadRef)?.id;
-      if (kind !== "inquiry" && kind !== "contact") {
-        return NextResponse.json({ error: "kind must be inquiry or contact" }, { status: 400 });
+      if (kind !== "inquiry" && kind !== "contact" && kind !== "shipment") {
+        return NextResponse.json({ error: "kind must be inquiry, contact or shipment" }, { status: 400 });
       }
       if (typeof id !== "string" || !id) {
         return NextResponse.json({ error: single ? "leadId is required" : "Every lead needs an id." }, { status: 400 });
@@ -98,7 +93,8 @@ export async function POST(request: Request) {
     // Assigned to this employee, and not in the console's Recently Deleted.
     const inquiryIds = refs.filter((r) => r.kind === "inquiry").map((r) => r.id);
     const contactIds = refs.filter((r) => r.kind === "contact").map((r) => r.id);
-    const [ownedInquiries, ownedContacts] = await Promise.all([
+    const shipmentIds = refs.filter((r) => r.kind === "shipment").map((r) => r.id);
+    const [ownedInquiries, ownedContacts, ownedShipments] = await Promise.all([
       inquiryIds.length
         ? prisma.inquiry.findMany({
             where: { id: { in: inquiryIds }, assignedToId: auth.employee.id, status: { not: "deleted" } },
@@ -111,9 +107,19 @@ export async function POST(request: Request) {
             select: { id: true },
           })
         : Promise.resolve([]),
+      shipmentIds.length
+        ? prisma.shipmentInquiry.findMany({
+            where: { id: { in: shipmentIds }, assignedToId: auth.employee.id, status: { not: "deleted" } },
+            select: { id: true },
+          })
+        : Promise.resolve([]),
     ]);
 
-    if (ownedInquiries.length !== inquiryIds.length || ownedContacts.length !== contactIds.length) {
+    if (
+      ownedInquiries.length !== inquiryIds.length ||
+      ownedContacts.length !== contactIds.length ||
+      ownedShipments.length !== shipmentIds.length
+    ) {
       return NextResponse.json(
         {
           error:
@@ -134,12 +140,16 @@ export async function POST(request: Request) {
         prisma.statusUpdate.create({
           data: {
             employeeId: auth.employee.id,
-            ...(ref.kind === "inquiry" ? { inquiryId: ref.id } : { contactId: ref.id }),
+            ...(ref.kind === "inquiry"
+              ? { inquiryId: ref.id }
+              : ref.kind === "contact"
+                ? { contactId: ref.id }
+                : { shipmentId: ref.id }),
             status,
             note: rawNote || null,
             createdAt,
           },
-          select: { id: true, status: true, note: true, createdAt: true, inquiryId: true, contactId: true },
+          select: { id: true, status: true, note: true, createdAt: true, inquiryId: true, contactId: true, shipmentId: true },
         })
       )
     );
@@ -149,8 +159,8 @@ export async function POST(request: Request) {
       status: u.status,
       note: u.note,
       createdAt: u.createdAt.toISOString(),
-      kind: u.inquiryId ? ("inquiry" as const) : ("contact" as const),
-      leadId: u.inquiryId ?? u.contactId ?? "",
+      kind: u.inquiryId ? ("inquiry" as const) : u.contactId ? ("contact" as const) : ("shipment" as const),
+      leadId: u.inquiryId ?? u.contactId ?? u.shipmentId ?? "",
     }));
 
     // What the record MEANS for who holds this customer, after the record

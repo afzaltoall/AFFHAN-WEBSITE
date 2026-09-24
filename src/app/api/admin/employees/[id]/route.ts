@@ -24,7 +24,7 @@ const DETAIL_SELECT = {
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
-  _count: { select: { assignedInquiries: true, assignedContacts: true, statusUpdates: true } },
+  _count: { select: { assignedInquiries: true, assignedContacts: true, assignedShipments: true, statusUpdates: true } },
 } satisfies Prisma.EmployeeSelect;
 
 /** One employee, with the work attached to them. */
@@ -48,9 +48,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
       status: true,
       note: true,
       createdAt: true,
-      // The two lead tables name their person differently.
+      // The lead tables name their person differently.
       inquiry: { select: { id: true, customerName: true, productName: true, email: true } },
       contact: { select: { id: true, fullName: true, email: true } },
+      shipment: { select: { id: true, customerName: true, referenceNo: true, email: true } },
     },
   });
 
@@ -132,17 +133,14 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // from the other end.
     let released = 0;
     if (body?.isActive !== undefined && !Boolean(body.isActive)) {
-      const [inquiries, contacts] = await Promise.all([
-        prisma.inquiry.updateMany({
-          where: { assignedToId: id, status: { not: "deleted" } },
-          data: { assignedToId: null, assignedAt: null },
-        }),
-        prisma.contactMessage.updateMany({
-          where: { assignedToId: id, status: { not: "deleted" } },
-          data: { assignedToId: null, assignedAt: null },
-        }),
+      const held = { assignedToId: id, status: { not: "deleted" } };
+      const letGo = { assignedToId: null, assignedAt: null };
+      const [inquiries, contacts, shipments] = await Promise.all([
+        prisma.inquiry.updateMany({ where: held, data: letGo }),
+        prisma.contactMessage.updateMany({ where: held, data: letGo }),
+        prisma.shipmentInquiry.updateMany({ where: held, data: letGo }),
       ]);
-      released = inquiries.count + contacts.count;
+      released = inquiries.count + contacts.count + shipments.count;
       // A customer they were holding for the queue is now held by nobody, so
       // the queue has to know: parked, and on the Queue page where an
       // administrator will see it, rather than rotating from a ghost.

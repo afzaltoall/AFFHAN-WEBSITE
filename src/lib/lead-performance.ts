@@ -57,10 +57,11 @@ export interface PerformanceRow {
   image: string | null;
   region: string | null;
   isActive: boolean;
-  /** Their whole book: quote requests and messages together. */
+  /** Their whole book: quote requests, messages and freight requests together. */
   assigned: number;
   inquiries: number;
   contacts: number;
+  shipments: number;
   /** Their book by what THEY last recorded on it. These five add up to `assigned`. */
   counts: Record<LeadOutcomeKey, number>;
   /**
@@ -97,7 +98,7 @@ const emptyCounts = (): Record<LeadOutcomeKey, number> => ({
 
 interface CountsRow {
   id: string; name: string; email: string; image: string | null; region: string | null; isActive: boolean;
-  assigned: number; inquiries: number; contacts: number;
+  assigned: number; inquiries: number; contacts: number; shipments: number;
   lead: number; no_lead: number; not_attended: number; in_progress: number; invalid: number; not_started: number;
 }
 
@@ -110,7 +111,7 @@ interface RecordedRow {
   last_week: number;
 }
 
-/** Every live lead somebody holds — the team's book, both tables. */
+/** Every live lead somebody holds — the team's book, all three tables. */
 const ASSIGNED_LEADS = Prisma.sql`
   leads AS (
     SELECT id, "assignedToId", 'inquiry' AS kind FROM "Inquiry"
@@ -118,7 +119,13 @@ const ASSIGNED_LEADS = Prisma.sql`
     UNION ALL
     SELECT id, "assignedToId", 'contact' AS kind FROM "ContactMessage"
      WHERE status <> 'deleted' AND "assignedToId" IS NOT NULL
+    UNION ALL
+    SELECT id, "assignedToId", 'shipment' AS kind FROM "ShipmentInquiry"
+     WHERE status <> 'deleted' AND "assignedToId" IS NOT NULL
   )`;
+
+/** The lead a status row is about, whichever of the three it names. */
+const LEAD_OF = Prisma.sql`COALESCE(su."inquiryId", su."contactId", su."shipmentId")`;
 
 /**
  * Everybody's figures, or one person's.
@@ -145,18 +152,19 @@ export async function leadPerformance(opts: { employeeId?: string } = {}): Promi
         -- about this lead. It costs a sort the per-lead version got free from
         -- the (inquiryId, createdAt desc) index, which on a table of this size
         -- is nothing worth trading the correctness for.
-        SELECT DISTINCT ON (COALESCE(su."inquiryId", su."contactId"), su."employeeId")
-               COALESCE(su."inquiryId", su."contactId") AS lead_id,
-               su."employeeId"                          AS employee_id,
+        SELECT DISTINCT ON (${LEAD_OF}, su."employeeId")
+               ${LEAD_OF}         AS lead_id,
+               su."employeeId"    AS employee_id,
                su.status
           FROM "StatusUpdate" su
-         ORDER BY COALESCE(su."inquiryId", su."contactId"), su."employeeId", su."createdAt" DESC
+         ORDER BY ${LEAD_OF}, su."employeeId", su."createdAt" DESC
       ),
       ${ASSIGNED_LEADS}
       SELECT e.id, e.name, e.email, e.image, e.region, e."isActive",
              COUNT(l.id)::int                                                            AS assigned,
              COUNT(*) FILTER (WHERE l.kind = 'inquiry')::int                             AS inquiries,
              COUNT(*) FILTER (WHERE l.kind = 'contact')::int                             AS contacts,
+             COUNT(*) FILTER (WHERE l.kind = 'shipment')::int                            AS shipments,
              COUNT(*) FILTER (WHERE mine.status = 'LEAD')::int                           AS lead,
              COUNT(*) FILTER (WHERE mine.status = 'NO_LEAD')::int                        AS no_lead,
              COUNT(*) FILTER (WHERE mine.status = 'NOT_ATTENDED')::int                   AS not_attended,
@@ -196,12 +204,13 @@ export async function leadPerformance(opts: { employeeId?: string } = {}): Promi
     prisma.$queryRaw<RecordedRow[]>`
       WITH acts AS (
         SELECT su."employeeId",
-               COALESCE(i."customerKey", c."customerKey",
-                        'lead:' || COALESCE(su."inquiryId", su."contactId")) AS customer,
+               COALESCE(i."customerKey", c."customerKey", s."customerKey",
+                        'lead:' || ${LEAD_OF}) AS customer,
                su.status, su."createdAt"
           FROM "StatusUpdate" su
-          LEFT JOIN "Inquiry"        i ON i.id = su."inquiryId"
-          LEFT JOIN "ContactMessage" c ON c.id = su."contactId"
+          LEFT JOIN "Inquiry"         i ON i.id = su."inquiryId"
+          LEFT JOIN "ContactMessage"  c ON c.id = su."contactId"
+          LEFT JOIN "ShipmentInquiry" s ON s.id = su."shipmentId"
       )
       SELECT "employeeId",
              COUNT(DISTINCT customer)::int                                        AS recorded,
@@ -231,6 +240,7 @@ export async function leadPerformance(opts: { employeeId?: string } = {}): Promi
       assigned: row.assigned,
       inquiries: row.inquiries,
       contacts: row.contacts,
+      shipments: row.shipments,
       counts: {
         ...emptyCounts(),
         LEAD: row.lead,
@@ -271,10 +281,10 @@ export async function assignedOutcomes(): Promise<Record<LeadOutcomeKey, number>
     lead: number; no_lead: number; not_attended: number; in_progress: number; invalid: number; not_started: number;
   }]>`
     WITH latest AS (
-      SELECT DISTINCT ON (COALESCE(su."inquiryId", su."contactId"))
-             COALESCE(su."inquiryId", su."contactId") AS lead_id, su.status
+      SELECT DISTINCT ON (${LEAD_OF})
+             ${LEAD_OF} AS lead_id, su.status
         FROM "StatusUpdate" su
-       ORDER BY COALESCE(su."inquiryId", su."contactId"), su."createdAt" DESC
+       ORDER BY ${LEAD_OF}, su."createdAt" DESC
     ),
     ${ASSIGNED_LEADS}
     SELECT COUNT(*) FILTER (WHERE latest.status = 'LEAD')::int          AS lead,

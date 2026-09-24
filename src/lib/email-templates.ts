@@ -85,15 +85,20 @@ export function leadGivenUpEmail(details: {
   customerName: string;
   products: number;
   messages: number;
+  /** Freight quote requests from /shipping/. */
+  freight?: number;
   passes: number;
   handoffs: number;
   enteredAt: string;
 }): Omit<EmailMessage, "to"> {
-  const { customerName, products, messages, passes, handoffs, enteredAt } = details;
-  const has = [
+  const { customerName, products, messages, freight = 0, passes, handoffs, enteredAt } = details;
+  const parts = [
     products > 0 ? `${products} ${products === 1 ? "product" : "products"}` : "",
     messages > 0 ? `${messages} ${messages === 1 ? "message" : "messages"}` : "",
-  ].filter(Boolean).join(" and ");
+    freight > 0 ? `${freight} ${freight === 1 ? "freight request" : "freight requests"}` : "",
+  ].filter(Boolean);
+  // "a and b", "a, b and c".
+  const has = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts.join("");
 
   const text = [
     `${customerName} has been given up on by the rotation and needs somebody to look at them.`,

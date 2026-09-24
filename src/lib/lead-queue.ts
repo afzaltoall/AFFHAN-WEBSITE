@@ -68,9 +68,11 @@ type PoolMember = RotationMember;
 
 /** One lead, as the queue refers to it. */
 export interface LeadRef {
-  kind: "inquiry" | "contact";
+  kind: "inquiry" | "contact" | "shipment";
   id: string;
 }
+
+const idsOf = (leads: LeadRef[], kind: LeadRef["kind"]) => leads.filter((l) => l.kind === kind).map((l) => l.id);
 
 /**
  * Who a customer may be handed to, in the order they are handed to.
@@ -119,21 +121,30 @@ async function seenThisPass(db: Db, entryId: string): Promise<Set<string>> {
   return seen;
 }
 
-/** Every live lead belonging to a customer: quote requests and messages both. */
+/** Every live lead belonging to a customer: quote requests, messages and freight requests. */
 async function customerLeads(db: Db, customerKey: string) {
-  const [inquiries, contacts] = await Promise.all([
-    db.inquiry.findMany({ where: { customerKey, status: { not: "deleted" } }, select: { id: true } }),
-    db.contactMessage.findMany({ where: { customerKey, status: { not: "deleted" } }, select: { id: true } }),
+  const live = { customerKey, status: { not: "deleted" } };
+  const [inquiries, contacts, shipments] = await Promise.all([
+    db.inquiry.findMany({ where: live, select: { id: true } }),
+    db.contactMessage.findMany({ where: live, select: { id: true } }),
+    db.shipmentInquiry.findMany({ where: live, select: { id: true } }),
   ]);
-  return { inquiries: inquiries.map((r) => r.id), contacts: contacts.map((r) => r.id), count: inquiries.length + contacts.length };
+  return {
+    inquiries: inquiries.map((r) => r.id),
+    contacts: contacts.map((r) => r.id),
+    shipments: shipments.map((r) => r.id),
+    count: inquiries.length + contacts.length + shipments.length,
+  };
 }
 
 /** Hand every one of a customer's leads to somebody, or to nobody. */
 async function assignCustomer(db: Db, customerKey: string, employeeId: string | null, now: Date) {
   const data = { assignedToId: employeeId, assignedAt: employeeId ? now : null };
+  const live = { customerKey, status: { not: "deleted" } };
   await Promise.all([
-    db.inquiry.updateMany({ where: { customerKey, status: { not: "deleted" } }, data }),
-    db.contactMessage.updateMany({ where: { customerKey, status: { not: "deleted" } }, data }),
+    db.inquiry.updateMany({ where: live, data }),
+    db.contactMessage.updateMany({ where: live, data }),
+    db.shipmentInquiry.updateMany({ where: live, data }),
   ]);
 }
 
@@ -158,17 +169,16 @@ async function logEvent(
 
 /** The customer key shared by a set of leads, or null if they have none. */
 export async function keyForLeads(db: Db, leads: LeadRef[]): Promise<string | null> {
-  const inquiryIds = leads.filter((l) => l.kind === "inquiry").map((l) => l.id);
-  const contactIds = leads.filter((l) => l.kind === "contact").map((l) => l.id);
-  const [inquiries, contacts] = await Promise.all([
-    inquiryIds.length
-      ? db.inquiry.findMany({ where: { id: { in: inquiryIds } }, select: { customerKey: true, phone: true, email: true } })
-      : Promise.resolve([]),
-    contactIds.length
-      ? db.contactMessage.findMany({ where: { id: { in: contactIds } }, select: { customerKey: true, phone: true, email: true } })
-      : Promise.resolve([]),
+  const inquiryIds = idsOf(leads, "inquiry");
+  const contactIds = idsOf(leads, "contact");
+  const shipmentIds = idsOf(leads, "shipment");
+  const select = { customerKey: true, phone: true, email: true } as const;
+  const [inquiries, contacts, shipments] = await Promise.all([
+    inquiryIds.length ? db.inquiry.findMany({ where: { id: { in: inquiryIds } }, select }) : Promise.resolve([]),
+    contactIds.length ? db.contactMessage.findMany({ where: { id: { in: contactIds } }, select }) : Promise.resolve([]),
+    shipmentIds.length ? db.shipmentInquiry.findMany({ where: { id: { in: shipmentIds } }, select }) : Promise.resolve([]),
   ]);
-  for (const row of [...inquiries, ...contacts]) {
+  for (const row of [...inquiries, ...contacts, ...shipments]) {
     // The stored key first; failing that the rule that produces it, so a row
     // written before the column existed still finds its customer.
     const key = row.customerKey ?? customerKeyOf(row);
@@ -349,6 +359,7 @@ export async function declineCustomer(opts: {
   const name =
     (await prisma.inquiry.findFirst({ where: { customerKey: key }, orderBy: { createdAt: "desc" }, select: { customerName: true } }))?.customerName ??
     (await prisma.contactMessage.findFirst({ where: { customerKey: key }, orderBy: { createdAt: "desc" }, select: { fullName: true } }))?.fullName ??
+    (await prisma.shipmentInquiry.findFirst({ where: { customerKey: key }, orderBy: { createdAt: "desc" }, select: { customerName: true } }))?.customerName ??
     "Customer";
 
   // A customer who was in the queue before and left it starts a new cycle
@@ -442,13 +453,15 @@ export async function manualAssignCustomers(opts: {
 }): Promise<number> {
   const now = opts.now ?? new Date();
   const keys = new Set<string>();
-  const inquiryIds = opts.leads.filter((l) => l.kind === "inquiry").map((l) => l.id);
-  const contactIds = opts.leads.filter((l) => l.kind === "contact").map((l) => l.id);
-  const [inquiries, contacts] = await Promise.all([
+  const inquiryIds = idsOf(opts.leads, "inquiry");
+  const contactIds = idsOf(opts.leads, "contact");
+  const shipmentIds = idsOf(opts.leads, "shipment");
+  const [inquiries, contacts, shipments] = await Promise.all([
     inquiryIds.length ? prisma.inquiry.findMany({ where: { id: { in: inquiryIds } }, select: { customerKey: true } }) : Promise.resolve([]),
     contactIds.length ? prisma.contactMessage.findMany({ where: { id: { in: contactIds } }, select: { customerKey: true } }) : Promise.resolve([]),
+    shipmentIds.length ? prisma.shipmentInquiry.findMany({ where: { id: { in: shipmentIds } }, select: { customerKey: true } }) : Promise.resolve([]),
   ]);
-  for (const row of [...inquiries, ...contacts]) if (row.customerKey) keys.add(row.customerKey);
+  for (const row of [...inquiries, ...contacts, ...shipments]) if (row.customerKey) keys.add(row.customerKey);
   if (keys.size === 0) return 0;
 
   const entries = await prisma.leadQueueEntry.findMany({
@@ -689,10 +702,12 @@ export async function runRotation(opts: { now?: Date; dryRun?: boolean } = {}): 
  */
 async function announceGivenUp(entry: { customerKey: string; customerName: string; passes: number; handoffs: number; enteredAt: Date }) {
   try {
-    const [admins, inquiries, contacts] = await Promise.all([
+    const live = { customerKey: entry.customerKey, status: { not: "deleted" } };
+    const [admins, inquiries, contacts, shipments] = await Promise.all([
       prisma.adminUser.findMany({ select: { email: true } }),
-      prisma.inquiry.count({ where: { customerKey: entry.customerKey, status: { not: "deleted" } } }),
-      prisma.contactMessage.count({ where: { customerKey: entry.customerKey, status: { not: "deleted" } } }),
+      prisma.inquiry.count({ where: live }),
+      prisma.contactMessage.count({ where: live }),
+      prisma.shipmentInquiry.count({ where: live }),
     ]);
     if (admins.length === 0) return;
 
@@ -700,6 +715,7 @@ async function announceGivenUp(entry: { customerKey: string; customerName: strin
       customerName: entry.customerName,
       products: inquiries,
       messages: contacts,
+      freight: shipments,
       passes: entry.passes,
       handoffs: entry.handoffs,
       enteredAt: formatDateTime(entry.enteredAt),
@@ -713,12 +729,13 @@ async function announceGivenUp(entry: { customerKey: string; customerName: strin
   }
 }
 
-/** Fill Inquiry/ContactMessage.customerKey wherever it is missing. */
+/** Fill Inquiry/ContactMessage/ShipmentInquiry.customerKey wherever it is missing. */
 async function fillMissingKeys(limit = 500): Promise<number> {
   let filled = 0;
-  const [inquiries, contacts] = await Promise.all([
+  const [inquiries, contacts, shipments] = await Promise.all([
     prisma.inquiry.findMany({ where: { customerKey: null }, select: { id: true, phone: true, email: true }, take: limit }),
     prisma.contactMessage.findMany({ where: { customerKey: null }, select: { id: true, phone: true, email: true }, take: limit }),
+    prisma.shipmentInquiry.findMany({ where: { customerKey: null }, select: { id: true, phone: true, email: true }, take: limit }),
   ]);
   for (const row of inquiries) {
     const key = customerKeyOf(row);
@@ -730,6 +747,12 @@ async function fillMissingKeys(limit = 500): Promise<number> {
     const key = customerKeyOf(row);
     if (!key) continue;
     await prisma.contactMessage.update({ where: { id: row.id }, data: { customerKey: key } });
+    filled += 1;
+  }
+  for (const row of shipments) {
+    const key = customerKeyOf(row);
+    if (!key) continue;
+    await prisma.shipmentInquiry.update({ where: { id: row.id }, data: { customerKey: key } });
     filled += 1;
   }
   return filled;
