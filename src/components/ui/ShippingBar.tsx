@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
+
 
 /**
  * The way through to the shipping side, sitting on the hero's badge line.
@@ -126,13 +126,14 @@ export function ShippingBar() {
           className="relative flex shrink-0 items-center animate-float-medium"
         >
           <Image
-            {...SHIP_MARK_NAV}
+            src="/affhan-ship-nav.webp"
             alt=""
+            width={176}
+            height={47}
             sizes="40px"
-            /* Nudged down 4px so the mark sits into the pill's water instead of
-               floating above it — asked for with the container-ship mark, and
-               kept for the emblem. On the Image rather than the span, because
-               the span carries animate-float-medium and owns its own transform. */
+            /* Nudged down 4px so the hull meets the pill's waterline instead of
+               riding above it. On the Image rather than the span, because the
+               span carries animate-float-medium and owns its own transform. */
             className="block h-10 w-auto translate-y-[4px] object-contain"
           />
         </span >
