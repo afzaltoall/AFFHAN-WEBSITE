@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
 
 /**
  * The Affhan sail mark, in the gap on the right of the navbar — now the way in
@@ -22,14 +23,12 @@ import Link from "next/link";
  * the boat riding it.
  *
  * The asset is public/affhan-ship-nav.webp — the brand mark trimmed of its
- * transparent padding so it fills its box instead of floating in the middle,
- * then re-encoded. 176x47 at 6KB. It has a real alpha channel, so it needs
- * no plate behind it and works on any surface.
- *
- * Landscape now, where the old sailboat silhouette was portrait (166x175):
- * the replacement mark trims to 1830x486. Both call sites size on one axis
- * with the other auto, so the box follows — but the declared width/height had
- * to change with it, or next/image reserves the old aspect and shifts.
+ * transparent padding so it fills its box instead of floating in the middle.
+ * It has a real alpha channel, so it needs no plate behind it and works on any
+ * surface. The mark has been portrait, landscape and now square; its file and
+ * its declared width/height both come from scripts/build_ship_assets.mjs via
+ * SHIP_MARK_NAV, so a swap can no longer leave next/image reserving the old
+ * aspect. Currently unused — ShippingBar draws the same file.
  */
 export function ShipNavMark({ className = "" }: { className?: string }) {
   return (
@@ -54,10 +53,8 @@ export function ShipNavMark({ className = "" }: { className?: string }) {
       {/* w-/h-auto as a pair: sizing only one of the two makes next/image warn
           that the aspect ratio changed, and it would be right. */}
       <Image
-        src="/affhan-ship-nav.webp"
+        {...SHIP_MARK_NAV}
         alt=""
-        width={176}
-        height={47}
         sizes="44px"
         className="ship-mark__vessel block w-11 h-auto object-contain"
       />
