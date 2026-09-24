@@ -1,19 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  ArrowRight,
-  Boxes,
-  Building2,
-  Check,
-  Copy,
-  Loader2,
-  Package,
-  Plane,
-  Route,
-  Ship,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowRight, Check, Copy, Loader2, Plane, Ship, type LucideIcon } from "lucide-react";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { Reveal } from "@/components/ui/Reveal";
 import { COUNTRIES } from "@/lib/countries";
@@ -21,12 +9,8 @@ import {
   COMMODITY_TYPES,
   LIMITS,
   TERMS,
-  commodityTypeLabel,
-  loadSummary,
   methodLabel,
   methodsFor,
-  modeLabel,
-  routeSummary,
   termsLabel,
   termsName,
   validateShipmentInquiry,
@@ -42,6 +26,12 @@ import {
  * It asks for what the freight CRM's enquiry screen records and nothing else,
  * and it checks with validateShipmentInquiry, the function the API runs on
  * arrival, so the form cannot let through what the server will refuse.
+ *
+ * Drawn in the page's own typographic language (see ShippingContent): the
+ * warm off-white ground, navy ink, hairline rules between numbered sections
+ * the way the journey numbers its stages, underlined fields rather than boxes,
+ * and the hero's pill for the send button. Beside the form the request is
+ * read back as one sentence, built from the four things a rate is made of.
  *
  * Plain <input>s rather than ui/input: that component's classes include
  * rounded-full and bg-white, and cn() in lib/utils only joins class names, so
@@ -112,6 +102,12 @@ const CARGO_HINTS: Record<string, string> = {
   HAZARDOUS: "If you have the safety data sheet (MSDS) or the UN number, add it in the notes.",
   PERISHABLE: "Add the temperature it has to travel at in the notes.",
 };
+
+const STEPS = [
+  "Send the form and your request gets a reference number straight away.",
+  "The shipping desk looks over the lane, the cargo and the terms.",
+  "We come back to you with a rate and a routing.",
+];
 
 const toInput = (d: Draft): ShipmentInquiryInput => ({
   customerName: d.customerName,
@@ -296,7 +292,7 @@ export function ShippingQuoteSection() {
     }
   }
 
-  // The success card is far shorter than the form, so without this the reader
+  // The confirmation is far shorter than the form, so without this the reader
   // is left looking at whatever was below it.
   useEffect(() => {
     if (phase.kind !== "sent") return;
@@ -326,481 +322,476 @@ export function ShippingQuoteSection() {
     <section
       id="shipping-quote"
       aria-labelledby="shipping-quote-title"
-      className="scroll-mt-16 bg-slate-50 py-16 lg:py-24"
+      className="scroll-mt-16 bg-[#FAFAF7] text-[#08222e]"
     >
-      <div className="mx-auto grid max-w-6xl gap-10 px-5 sm:px-8 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-10 xl:gap-14">
-        {/* Intro. The column stretches to the form's height, which is what lets
-            the ticket at its foot stay in view while the form scrolls past. */}
-        <div className="min-w-0">
-          <Reveal>
-            <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-dark">
+      <div className="mx-auto w-full max-w-[1500px] px-6 py-24 md:px-12 lg:px-16 lg:py-32">
+        {/* The hero's composition: the heading takes the width, the copy
+            sits on its baseline to the right. */}
+        <div className="grid gap-10 lg:grid-cols-12 lg:gap-14">
+          <Reveal className="lg:col-span-7">
+            <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">
               Freight quote
             </span>
             <h2
               id="shipping-quote-title"
-              className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl"
+              className="mt-4 text-[11vw] font-medium leading-[0.9] tracking-[-0.04em] sm:text-[7vw] lg:text-[5vw]"
             >
               Request a freight quote
             </h2>
-            <p className="mt-4 max-w-md text-[15px] leading-relaxed text-slate-600">
-              A rate comes down to four things: the volume, the mode, the lane, and how
-              much of the job the quote covers. This form asks for exactly those, and the
-              shipping desk comes back with a rate and a routing.
-            </p>
           </Reveal>
-
-          <ol className="mt-8 grid max-w-md gap-4">
-            {[
-              "Send the form and your request gets a reference number straight away.",
-              "The shipping desk looks over the lane, the cargo and the terms.",
-              "We come back to you with a rate and a routing.",
-            ].map((step, i) => (
-              <li key={step} className="flex gap-3.5">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand/30 bg-white text-xs font-bold text-brand-dark">
-                  {i + 1}
-                </span>
-                <p className="pt-1 text-[14px] leading-relaxed text-slate-600">{step}</p>
-              </li>
-            ))}
-          </ol>
-
-          <div className="sticky top-24 mt-10 hidden lg:block">
-            <RouteTicket
-              draft={draft}
-              referenceNo={phase.kind === "sent" ? phase.referenceNo : undefined}
-              notchClass="bg-slate-50"
-            />
+          <div className="lg:col-span-5 lg:self-end">
+            <p className="text-[18px] leading-relaxed text-[#5a6e77]">
+              A rate comes down to four things: the volume, the mode, the lane, and how much
+              of the job the quote covers. This form asks for exactly those, and the shipping
+              desk comes back with a rate and a routing.
+            </p>
+            <ol className="mt-8 border-t border-[#08222e]/10">
+              {STEPS.map((step, i) => (
+                <li key={step} className="flex gap-5 border-b border-[#08222e]/10 py-3.5">
+                  <span className="pt-[3px] text-[11px] font-bold tracking-[0.2em] text-[#176579] tabular-nums">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-[15px] leading-relaxed text-[#5a6e77]">{step}</span>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
 
-        <div
-          ref={cardRef}
-          className="min-w-0 scroll-mt-24 self-start rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_18px_40px_-20px_rgba(15,23,42,0.18)] sm:p-8 xl:p-10"
-        >
-          {phase.kind === "sent" ? (
-            <Sent
-              phase={phase}
-              copied={copied}
-              onCopy={copyReference}
-              onAnother={sendAnother}
-              headingRef={successRef}
-            />
-          ) : (
-            // method="post" so that a submit without JavaScript cannot put a
-            // phone number into the address bar as a query string.
-            <form method="post" noValidate onSubmit={submit} className="grid gap-9" aria-busy={sending}>
-              <Group icon={Building2} title="Your details" id="sq-group-you">
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <Field id="sq-customerName" label="Company or your name" required error={errorFor("customerName")}>
-                    <input
-                      {...text("customerName")}
-                      type="text"
-                      autoComplete="organization"
-                      maxLength={LIMITS.customerName}
-                      placeholder="Company, or your full name"
-                      aria-required
-                      className={inputClass(!!errorFor("customerName"))}
-                    />
-                  </Field>
+        <div className="mt-16 grid gap-12 lg:mt-24 lg:grid-cols-12 lg:gap-14">
+          {/* The request read back as a sentence, kept in view while the form
+              scrolls past. The column stretches to the form's height, which
+              is what lets its contents stick. */}
+          <div className="hidden lg:col-span-4 lg:block">
+            <div aria-hidden className="sticky top-28 border-t-2 border-[#08222e] pt-7">
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">
+                Your request
+              </span>
+              <RequestSentence v={draft} className="mt-5 text-[28px] xl:text-[32px]" />
+              <p className="mt-8 border-t border-[#08222e]/10 pt-4 text-[14px] leading-relaxed text-[#5a6e77]">
+                {phase.kind === "sent" ? (
+                  <>
+                    Reference{" "}
+                    <span className="font-bold tabular-nums text-[#08222e]">{phase.referenceNo}</span>
+                  </>
+                ) : (
+                  "A reference number is issued the moment you send it."
+                )}
+              </p>
+            </div>
+          </div>
 
-                  <Field id="sq-phone" label="Mobile number" required error={errorFor("phone")}>
-                    <div className="flex items-stretch gap-2">
-                      <div className="w-[6.5rem] shrink-0">
-                        <FlagSelect
-                          mode="dial"
-                          placeholder="Code"
-                          selected={phoneCountry}
-                          onSelect={(c) => update({ phoneIso: c.iso, phoneCode: c.dial }, "phone")}
-                          buttonClassName="!h-11 bg-slate-100"
+          <div ref={cardRef} className="min-w-0 scroll-mt-24 lg:col-span-8">
+            {phase.kind === "sent" ? (
+              <Sent
+                phase={phase}
+                copied={copied}
+                onCopy={copyReference}
+                onAnother={sendAnother}
+                headingRef={successRef}
+              />
+            ) : (
+              // method="post" so that a submit without JavaScript cannot put a
+              // phone number into the address bar as a query string.
+              <form method="post" noValidate onSubmit={submit} aria-busy={sending}>
+                <Group n="01" title="Your details" id="sq-group-you">
+                  <div className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
+                    <Field id="sq-customerName" label="Company or your name" required error={errorFor("customerName")}>
+                      <input
+                        {...text("customerName")}
+                        type="text"
+                        autoComplete="organization"
+                        maxLength={LIMITS.customerName}
+                        placeholder="Company, or your full name"
+                        aria-required
+                        className={lineInput(!!errorFor("customerName"))}
+                      />
+                    </Field>
+
+                    <Field id="sq-phone" label="Mobile number" required error={errorFor("phone")}>
+                      <div className="flex items-end gap-4">
+                        <div className="w-[5.75rem] shrink-0">
+                          <FlagSelect
+                            mode="dial"
+                            placeholder="Code"
+                            selected={phoneCountry}
+                            onSelect={(c) => update({ phoneIso: c.iso, phoneCode: c.dial }, "phone")}
+                            buttonClassName={lineSelect(false)}
+                          />
+                        </div>
+                        <input
+                          id="sq-phone"
+                          name="phone"
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete="tel-national"
+                          maxLength={18}
+                          value={draft.phone}
+                          // Digits only, so pasted formatting cannot pass for a
+                          // longer number than it is.
+                          onChange={(e) => update({ phone: e.target.value.replace(/\D/g, "") }, "phone")}
+                          onBlur={leave("phone")}
+                          placeholder="9876543210"
+                          aria-required
+                          aria-invalid={errorFor("phone") ? true : undefined}
+                          aria-describedby={errorFor("phone") ? "sq-phone-error" : undefined}
+                          className={`min-w-0 flex-1 ${lineInput(!!errorFor("phone"))}`}
                         />
                       </div>
+                    </Field>
+
+                    <Field id="sq-email" label="Email" optional error={errorFor("email")}>
                       <input
-                        id="sq-phone"
-                        name="phone"
-                        type="tel"
-                        inputMode="numeric"
-                        autoComplete="tel-national"
-                        maxLength={18}
-                        value={draft.phone}
-                        // Digits only, so pasted formatting cannot pass for a
-                        // longer number than it is.
-                        onChange={(e) => update({ phone: e.target.value.replace(/\D/g, "") }, "phone")}
-                        onBlur={leave("phone")}
-                        placeholder="9876543210"
-                        aria-required
-                        aria-invalid={errorFor("phone") ? true : undefined}
-                        aria-describedby={errorFor("phone") ? "sq-phone-error" : undefined}
-                        className={`min-w-0 flex-1 ${inputClass(!!errorFor("phone"))}`}
+                        {...text("email")}
+                        type="email"
+                        autoComplete="email"
+                        maxLength={LIMITS.email}
+                        placeholder="you@company.com"
+                        className={lineInput(!!errorFor("email"))}
                       />
-                    </div>
-                  </Field>
+                    </Field>
 
-                  <Field id="sq-email" label="Email" optional error={errorFor("email")}>
+                    <Field id="sq-country" label="Shipment country" required error={errorFor("country")}>
+                      <FlagSelect
+                        id="sq-country"
+                        mode="country"
+                        placeholder="Select country"
+                        selected={COUNTRIES.find((c) => c.name === draft.country) ?? null}
+                        onSelect={(c) => {
+                          update({ country: c.name }, "country");
+                          setTouched((t) => new Set(t).add("country"));
+                        }}
+                        buttonClassName={lineSelect(!!errorFor("country"))}
+                      />
+                    </Field>
+                  </div>
+                </Group>
+
+                <Group n="02" title="The cargo" id="sq-group-cargo">
+                  <Field id="sq-commodity" label="Commodity" required error={errorFor("commodity")}>
                     <input
-                      {...text("email")}
-                      type="email"
-                      autoComplete="email"
-                      maxLength={LIMITS.email}
-                      placeholder="you@company.com"
-                      className={inputClass(!!errorFor("email"))}
+                      {...text("commodity")}
+                      type="text"
+                      autoComplete="off"
+                      maxLength={LIMITS.commodity}
+                      placeholder="What the goods are, e.g. LED panel lights"
+                      aria-required
+                      className={lineInput(!!errorFor("commodity"))}
                     />
                   </Field>
 
-                  <Field id="sq-country" label="Shipment country" required error={errorFor("country")}>
-                    <FlagSelect
-                      id="sq-country"
-                      mode="country"
-                      placeholder="Select country"
-                      selected={COUNTRIES.find((c) => c.name === draft.country) ?? null}
-                      onSelect={(c) => {
-                        update({ country: c.name }, "country");
-                        setTouched((t) => new Set(t).add("country"));
-                      }}
-                      buttonClassName={`!h-11 ${errorFor("country") ? "!border-red-400" : ""}`}
-                    />
-                  </Field>
-                </div>
-              </Group>
-
-              <Group icon={Package} title="The cargo" id="sq-group-cargo">
-                <Field id="sq-commodity" label="Commodity" required error={errorFor("commodity")}>
-                  <input
-                    {...text("commodity")}
-                    type="text"
-                    autoComplete="off"
-                    maxLength={LIMITS.commodity}
-                    placeholder="What the goods are, e.g. LED panel lights"
-                    aria-required
-                    className={inputClass(!!errorFor("commodity"))}
-                  />
-                </Field>
-
-                <Choice
-                  id="sq-commodityType"
-                  legend="Type of cargo"
-                  error={errorFor("commodityType")}
-                  hint={CARGO_HINTS[draft.commodityType]}
-                >
-                  <div className="flex flex-wrap gap-2">
-                    {COMMODITY_TYPES.map((t) => {
-                      const on = draft.commodityType === t.value;
-                      return (
-                        <label
+                  <Choice
+                    id="sq-commodityType"
+                    legend="Type of cargo"
+                    error={errorFor("commodityType")}
+                    hint={CARGO_HINTS[draft.commodityType]}
+                  >
+                    <div className="flex flex-wrap gap-2 sm:gap-2.5">
+                      {COMMODITY_TYPES.map((t) => (
+                        <Pill
                           key={t.value}
-                          className={`inline-flex cursor-pointer select-none items-center gap-1.5 rounded-full border px-3 py-2 text-sm font-medium transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 ${
-                            on
-                              ? "border-brand bg-brand/10 text-brand-dark"
-                              : "border-slate-200 bg-white text-slate-700 hover:border-brand/50"
-                          }`}
+                          name="commodityType"
+                          value={t.value}
+                          on={draft.commodityType === t.value}
+                          onPick={() => update({ commodityType: t.value }, "commodityType")}
                         >
-                          <input
-                            type="radio"
-                            required
-                            name="commodityType"
-                            value={t.value}
-                            checked={on}
-                            onChange={() => update({ commodityType: t.value }, "commodityType")}
-                            className="sr-only"
-                          />
-                          {/* A tick as well as the tint, so the choice does not
-                              rest on colour alone. */}
-                          {on && <Check size={14} strokeWidth={3} aria-hidden className="-ml-0.5" />}
                           {t.label}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </Choice>
-              </Group>
+                        </Pill>
+                      ))}
+                    </div>
+                  </Choice>
+                </Group>
 
-              <Group icon={Route} title="Route and terms" id="sq-group-route">
-                <Choice id="sq-mode" legend="Mode of shipment" error={errorFor("mode")}>
-                  <div className="grid grid-cols-2 gap-3">
-                    {MODE_CARDS.map(({ value, title, sub, icon: Icon }) => {
-                      const on = draft.mode === value;
-                      return (
-                        <label
-                          key={value}
-                          // Stacked on a phone: side by side, two cards leave
-                          // the words about ninety pixels.
-                          className={`flex cursor-pointer select-none flex-col items-start gap-2.5 rounded-2xl border p-3.5 transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 sm:flex-row sm:items-center sm:gap-3 sm:p-4 ${
-                            on
-                              ? "border-brand bg-brand/[0.06] shadow-[inset_0_0_0_1px_var(--color-brand)]"
-                              : "border-slate-200 bg-white hover:border-brand/50"
-                          }`}
-                        >
-                          <input
-                            type="radio"
-                            required
-                            name="mode"
-                            value={value}
-                            checked={on}
-                            onChange={() => onModeChange(value)}
-                            className="sr-only"
-                          />
-                          <span
-                            aria-hidden
-                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors sm:h-11 sm:w-11 ${
-                              on ? "bg-brand-dark text-white" : "bg-brand/10 text-brand-dark"
-                            }`}
-                          >
-                            <Icon size={20} />
-                          </span>
-                          <span className="min-w-0">
-                            <span className="block text-[15px] font-bold text-slate-900">{title}</span>
-                            <span className="block text-xs text-slate-500">{sub}</span>
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </Choice>
-
-                <Choice id="sq-method" legend="Method of shipment" error={errorFor("method")}>
-                  {methodOptions.length > 0 ? (
-                    <div className={`grid gap-3 ${methodOptions.length > 1 ? "grid-cols-2" : ""}`}>
-                      {methodOptions.map((m) => {
-                        const on = draft.method === m.value;
+                <Group n="03" title="Route and terms" id="sq-group-route">
+                  <Choice id="sq-mode" legend="Mode of shipment" error={errorFor("mode")}>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {MODE_CARDS.map(({ value, title, sub, icon: Icon }) => {
+                        const on = draft.mode === value;
                         return (
                           <label
-                            key={m.value}
-                            className={`flex cursor-pointer select-none items-center justify-between gap-3 rounded-xl border px-4 py-3 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 ${
+                            key={value}
+                            className={`flex cursor-pointer select-none items-center gap-4 rounded-2xl border p-5 transition-colors ${FOCUS_RING} ${
                               on
-                                ? "border-brand bg-brand/[0.06]"
-                                : "border-slate-200 bg-white hover:border-brand/50"
+                                ? "border-[#08222e] bg-[#08222e] text-[#FAFAF7]"
+                                : "border-[#08222e]/15 hover:border-[#08222e]/45"
                             }`}
                           >
                             <input
                               type="radio"
                               required
-                              name="method"
-                              value={m.value}
+                              name="mode"
+                              value={value}
                               checked={on}
-                              onChange={() => update({ method: m.value }, "method")}
+                              onChange={() => onModeChange(value)}
                               className="sr-only"
                             />
+                            <Icon aria-hidden size={28} strokeWidth={1.5} className={on ? "text-[#FAFAF7]" : "text-[#176579]"} />
                             <span className="min-w-0">
-                              <span className="block text-sm font-bold text-slate-900">{m.label}</span>
-                              <span className="block text-xs text-slate-500">{m.name}</span>
-                            </span>
-                            <span
-                              aria-hidden
-                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition-colors ${
-                                on ? "border-brand-dark bg-brand-dark text-white" : "border-slate-300 bg-white"
-                              }`}
-                            >
-                              {on && <Check size={12} strokeWidth={3} />}
+                              <span className="block text-xl font-medium tracking-tight">{title}</span>
+                              <span className={`block text-[13px] ${on ? "text-[#FAFAF7]/70" : "text-[#5a6e77]"}`}>{sub}</span>
                             </span>
                           </label>
                         );
                       })}
                     </div>
-                  ) : (
-                    <p className="rounded-xl border border-dashed border-slate-300 px-4 py-3 text-sm text-slate-500">
-                      Choose sea or air above, and the ways to ship by it appear here.
-                    </p>
-                  )}
-                </Choice>
+                  </Choice>
 
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <Field id="sq-portOfLoading" label="Port of loading (POL)" required error={errorFor("portOfLoading")}>
-                    <input
-                      {...text("portOfLoading")}
-                      type="text"
-                      autoComplete="off"
-                      maxLength={LIMITS.port}
-                      placeholder={air ? "e.g. Guangzhou (CAN)" : "e.g. Shanghai"}
-                      aria-required
-                      className={inputClass(!!errorFor("portOfLoading"))}
-                    />
-                  </Field>
-                  <Field id="sq-portOfDischarge" label="Port of discharge (POD)" required error={errorFor("portOfDischarge")}>
-                    <input
-                      {...text("portOfDischarge")}
-                      type="text"
-                      autoComplete="off"
-                      maxLength={LIMITS.port}
-                      placeholder={air ? "e.g. Chennai (MAA)" : "e.g. Chennai"}
-                      aria-required
-                      className={inputClass(!!errorFor("portOfDischarge"))}
-                    />
-                  </Field>
-                </div>
+                  <Choice id="sq-method" legend="Method of shipment" error={errorFor("method")}>
+                    {methodOptions.length > 0 ? (
+                      <div className={`grid gap-3 ${methodOptions.length > 1 ? "sm:grid-cols-2" : ""}`}>
+                        {methodOptions.map((m) => {
+                          const on = draft.method === m.value;
+                          return (
+                            <label
+                              key={m.value}
+                              className={`flex cursor-pointer select-none items-center justify-between gap-3 rounded-2xl border px-5 py-4 transition-colors ${FOCUS_RING} ${
+                                on
+                                  ? "border-[#08222e] bg-[#08222e] text-[#FAFAF7]"
+                                  : "border-[#08222e]/15 hover:border-[#08222e]/45"
+                              }`}
+                            >
+                              <input
+                                type="radio"
+                                required
+                                name="method"
+                                value={m.value}
+                                checked={on}
+                                onChange={() => update({ method: m.value }, "method")}
+                                className="sr-only"
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-lg font-medium tracking-tight">{m.label}</span>
+                                <span className={`block text-[13px] ${on ? "text-[#FAFAF7]/70" : "text-[#5a6e77]"}`}>{m.name}</span>
+                              </span>
+                              {on && <Check aria-hidden size={18} strokeWidth={2.5} className="shrink-0" />}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="border-b border-dashed border-[#08222e]/25 py-3 text-[15px] text-[#5a6e77]">
+                        Choose sea or air above, and the ways to ship by it appear here.
+                      </p>
+                    )}
+                  </Choice>
 
-                <Choice
-                  id="sq-terms"
-                  legend="Terms (Incoterm)"
-                  error={errorFor("terms")}
-                  hint={
-                    draft.terms
-                      ? `${termsLabel(draft.terms)}: ${termsName(draft.terms)}`
-                      : "The term on your supplier's quote. Not sure? Choose Other and say so in the notes."
-                  }
-                >
-                  <div className="grid grid-cols-5 gap-1 rounded-xl border border-slate-200 bg-slate-100/80 p-1">
-                    {TERMS.map((t) => {
-                      const on = draft.terms === t.value;
-                      return (
-                        <label
+                  <div className="grid gap-x-10 gap-y-9 sm:grid-cols-2">
+                    <Field id="sq-portOfLoading" label="Port of loading (POL)" required error={errorFor("portOfLoading")}>
+                      <input
+                        {...text("portOfLoading")}
+                        type="text"
+                        autoComplete="off"
+                        maxLength={LIMITS.port}
+                        placeholder={air ? "e.g. Guangzhou (CAN)" : "e.g. Shanghai"}
+                        aria-required
+                        className={lineInput(!!errorFor("portOfLoading"))}
+                      />
+                    </Field>
+                    <Field id="sq-portOfDischarge" label="Port of discharge (POD)" required error={errorFor("portOfDischarge")}>
+                      <input
+                        {...text("portOfDischarge")}
+                        type="text"
+                        autoComplete="off"
+                        maxLength={LIMITS.port}
+                        placeholder={air ? "e.g. Chennai (MAA)" : "e.g. Chennai"}
+                        aria-required
+                        className={lineInput(!!errorFor("portOfDischarge"))}
+                      />
+                    </Field>
+                  </div>
+
+                  <Choice
+                    id="sq-terms"
+                    legend="Terms (Incoterm)"
+                    error={errorFor("terms")}
+                    hint={
+                      draft.terms
+                        ? draft.terms === "OTHER"
+                          ? "Say which terms in the notes."
+                          : `${termsLabel(draft.terms)}: ${termsName(draft.terms)}`
+                        : "The term on your supplier's quote. Not sure? Choose Other and say so in the notes."
+                    }
+                  >
+                    {/* Five short codes: an even grid on a phone, where a
+                        wrapping row left "Other" alone on a line of its own. */}
+                    <div className="grid grid-cols-5 gap-1.5 sm:flex sm:flex-wrap sm:gap-2.5">
+                      {TERMS.map((t) => (
+                        <Pill
                           key={t.value}
+                          cell
+                          name="terms"
+                          value={t.value}
                           title={t.name}
-                          className={`flex h-10 cursor-pointer select-none items-center justify-center rounded-lg text-sm font-semibold transition-all has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand/40 ${
-                            on
-                              ? "bg-white text-brand-dark shadow-sm ring-1 ring-slate-200"
-                              : "text-slate-600 hover:text-slate-900"
-                          }`}
+                          on={draft.terms === t.value}
+                          onPick={() => update({ terms: t.value }, "terms")}
                         >
-                          <input
-                            type="radio"
-                            required
-                            name="terms"
-                            value={t.value}
-                            checked={on}
-                            onChange={() => update({ terms: t.value }, "terms")}
-                            className="sr-only"
-                          />
                           {t.label}
                           {t.value !== "OTHER" && <span className="sr-only">, {t.name}</span>}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </Choice>
-              </Group>
+                        </Pill>
+                      ))}
+                    </div>
+                  </Choice>
+                </Group>
 
-              <Group icon={Boxes} title="Size of the load" id="sq-group-load">
-                <div className="grid gap-5 sm:grid-cols-3">
-                  <Field
-                    id="sq-cbm"
-                    label="Volume (CBM)"
-                    required
-                    error={errorFor("cbm")}
-                    hint="Carton length × width × height in metres, times the cartons."
-                  >
-                    <Suffixed unit="m³">
+                <Group n="04" title="Size of the load" id="sq-group-load">
+                  {/* The figures a rate is built from, set as figures. */}
+                  <div className="grid gap-x-10 gap-y-9 sm:grid-cols-3">
+                    <Field
+                      id="sq-cbm"
+                      label="Volume (CBM)"
+                      required
+                      error={errorFor("cbm")}
+                      hint="Carton length × width × height in metres, times the cartons."
+                    >
+                      <Suffixed unit="m³">
+                        <input
+                          {...text("cbm")}
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
+                          maxLength={14}
+                          placeholder="68"
+                          aria-required
+                          className={lineInput(!!errorFor("cbm"), "figure")}
+                        />
+                      </Suffixed>
+                    </Field>
+                    <Field id="sq-weightKg" label="Weight" required error={errorFor("weightKg")} hint="Gross, packing included.">
+                      <Suffixed unit="kg">
+                        <input
+                          {...text("weightKg")}
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
+                          maxLength={16}
+                          placeholder="6500"
+                          aria-required
+                          className={lineInput(!!errorFor("weightKg"), "figure")}
+                        />
+                      </Suffixed>
+                    </Field>
+                    <Field id="sq-cartonBoxes" label="Cartons" optional error={errorFor("cartonBoxes")}>
                       <input
-                        {...text("cbm")}
+                        {...text("cartonBoxes")}
+                        // Whole cartons, so stripping everything but digits
+                        // cannot misread a decimal the way it could for CBM.
+                        onChange={(e) => update({ cartonBoxes: e.target.value.replace(/\D/g, "") }, "cartonBoxes")}
                         type="text"
-                        inputMode="decimal"
+                        inputMode="numeric"
                         autoComplete="off"
-                        maxLength={14}
-                        placeholder="68"
-                        aria-required
-                        className={inputClass(!!errorFor("cbm"), "h-11 pl-4 pr-11")}
+                        maxLength={7}
+                        placeholder="120"
+                        className={lineInput(!!errorFor("cartonBoxes"), "figure-plain")}
                       />
-                    </Suffixed>
-                  </Field>
-                  <Field id="sq-weightKg" label="Weight" required error={errorFor("weightKg")} hint="Gross, packing included.">
-                    <Suffixed unit="kg">
-                      <input
-                        {...text("weightKg")}
-                        type="text"
-                        inputMode="decimal"
-                        autoComplete="off"
-                        maxLength={16}
-                        placeholder="6500"
-                        aria-required
-                        className={inputClass(!!errorFor("weightKg"), "h-11 pl-4 pr-11")}
-                      />
-                    </Suffixed>
-                  </Field>
-                  <Field id="sq-cartonBoxes" label="Cartons" optional error={errorFor("cartonBoxes")}>
-                    <input
-                      {...text("cartonBoxes")}
-                      // Whole cartons, so stripping everything but digits
-                      // cannot misread a decimal the way it could for CBM.
-                      onChange={(e) => update({ cartonBoxes: e.target.value.replace(/\D/g, "") }, "cartonBoxes")}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="off"
-                      maxLength={7}
-                      placeholder="120"
-                      className={inputClass(!!errorFor("cartonBoxes"))}
+                    </Field>
+                  </div>
+
+                  <Field id="sq-notes" label="Anything else we should know" optional error={errorFor("notes")}>
+                    <textarea
+                      {...text("notes")}
+                      rows={4}
+                      maxLength={LIMITS.notes}
+                      placeholder="Ready date, pickup address, oversized pieces, a temperature range…"
+                      className="min-h-[128px] w-full resize-y rounded-2xl border border-[#08222e]/20 bg-transparent p-4 text-[17px] leading-relaxed text-[#08222e] transition-colors placeholder:text-[#08222e]/35 hover:border-[#08222e]/45 focus:border-[#176579] focus:outline-none focus:ring-1 focus:ring-[#176579]"
                     />
                   </Field>
-                </div>
+                </Group>
 
-                <Field id="sq-notes" label="Anything else we should know" optional error={errorFor("notes")}>
-                  <textarea
-                    {...text("notes")}
-                    rows={4}
-                    maxLength={LIMITS.notes}
-                    placeholder="Ready date, pickup address, oversized pieces, a temperature range…"
-                    className={inputClass(false, "min-h-[112px] resize-y px-4 py-3")}
-                  />
-                </Field>
-              </Group>
+                <div className="border-t border-[#08222e]/20 pt-10">
+                  {/* Below lg the sentence beside the form is out of sight, so
+                      it is read back here instead, just before sending. */}
+                  <div aria-hidden className="mb-10 lg:hidden">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">
+                      Your request
+                    </span>
+                    <RequestSentence v={draft} className="mt-4 text-[24px]" />
+                  </div>
 
-              <div className="grid gap-4 border-t border-slate-100 pt-8">
-                {/* Below lg the intro's ticket is out of sight, so the summary
-                    sits here instead, where it is read just before sending. */}
-                <div className="lg:hidden">
-                  <RouteTicket draft={draft} notchClass="bg-white" />
-                </div>
-
-                {failure && (
-                  <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                    {failure}
-                  </p>
-                )}
-
-                {/* brand-dark rather than the brand gradient /contact/ uses: white
-                    on brand is 2.81:1, see the note at the top of globals.css. */}
-                <button
-                  type="submit"
-                  disabled={sending}
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-brand-dark text-sm font-bold text-white shadow-[0_10px_24px_-10px_rgba(23,101,121,0.6)] transition-colors hover:bg-brand-deep focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  {sending ? (
-                    <>
-                      <Loader2 size={17} className="animate-spin" aria-hidden />
-                      Sending…
-                    </>
-                  ) : (
-                    <>
-                      Send quote request
-                      <ArrowRight size={17} aria-hidden />
-                    </>
+                  {failure && (
+                    <p role="alert" className="mb-8 border-l-2 border-[#b42318] py-1 pl-4 text-[15px] font-medium text-[#b42318]">
+                      {failure}
+                    </p>
                   )}
-                </button>
-                <p className="text-center text-xs text-slate-500">
-                  Fields marked <span className="text-red-500">*</span> are required.
-                </p>
-              </div>
-            </form>
-          )}
+
+                  <div className="flex flex-wrap items-center gap-x-8 gap-y-5">
+                    {/* The hero's own button. */}
+                    <button
+                      type="submit"
+                      disabled={sending}
+                      className="group inline-flex items-center gap-3 rounded-full bg-[#08222e] py-1.5 pl-7 pr-1.5 text-[16px] font-medium text-[#FAFAF7] transition-all duration-300 hover:gap-4 hover:bg-[#176579] hover:shadow-lg hover:shadow-[#176579]/20 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579]/30 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      {sending ? "Sending…" : "Send quote request"}
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#FAFAF7] text-[#08222e] transition-transform duration-300 group-hover:scale-110">
+                        {sending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <ArrowRight size={18} aria-hidden />}
+                      </span>
+                    </button>
+                    <p className="text-[13px] text-[#5a6e77]">
+                      Fields marked <span className="text-[#b42318]">*</span> are required.
+                    </p>
+                  </div>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-/** `shape` carries height and padding, so no caller has to override them. */
-function inputClass(bad: boolean, shape = "h-11 px-4") {
-  return `${shape} w-full rounded-xl border bg-slate-50/70 text-sm text-slate-950 shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] transition-all placeholder:text-slate-400 focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 ${
+/** Keyboard focus on a radio drawn as a pill or a card, off the page's ground. */
+const FOCUS_RING =
+  "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[#176579]/50 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[#FAFAF7]";
+
+/**
+ * An underlined field. `figure` sets the three load figures large, with room
+ * on the right for their unit; `figure-plain` is the same without the unit.
+ * Size and padding live here so no caller has to override them.
+ */
+function lineInput(bad: boolean, size: "text" | "figure" | "figure-plain" = "text") {
+  const shape =
+    size === "text"
+      ? "h-12 px-0 text-[17px]"
+      : `h-16 pl-0 ${size === "figure" ? "pr-12" : "pr-0"} text-[34px] font-medium tracking-[-0.03em] tabular-nums`;
+  return `${shape} block w-full rounded-none border-b bg-transparent text-[#08222e] transition-[border-color,box-shadow] duration-200 placeholder:text-[#08222e]/25 focus:outline-none ${
     bad
-      ? "border-red-400 focus-visible:border-red-500 focus-visible:ring-red-400/30"
-      : "border-slate-200 focus-visible:border-brand focus-visible:ring-brand/30 focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]"
+      ? "border-[#b42318] focus:shadow-[inset_0_-1px_0_0_#b42318]"
+      : "border-[#08222e]/25 hover:border-[#08222e]/50 focus:border-[#176579] focus:shadow-[inset_0_-1px_0_0_#176579]"
   }`;
 }
 
-function Group({ icon: Icon, title, id, children }: { icon: LucideIcon; title: string; id: string; children: React.ReactNode }) {
+/**
+ * FlagSelect as an underlined field. Its own classes draw a box, and they are
+ * joined rather than merged, so every property that differs is set with the
+ * important modifier.
+ */
+function lineSelect(bad: boolean) {
+  return `h-12! rounded-none! border-x-0! border-t-0! bg-transparent! px-0! text-[17px]! text-[#08222e]! focus-visible:ring-0! focus-visible:shadow-[inset_0_-1px_0_0_#176579]! ${
+    bad ? "border-[#b42318]!" : "border-[#08222e]/25! hover:border-[#08222e]/50! focus-visible:border-[#176579]!"
+  }`;
+}
+
+function Group({ n, title, id, children }: { n: string; title: string; id: string; children: React.ReactNode }) {
   return (
-    <div role="group" aria-labelledby={id} className="grid gap-5">
-      <h3 id={id} className="flex items-center gap-2.5 text-[15px] font-bold text-slate-900">
-        <span aria-hidden className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand/10 text-brand-dark">
-          <Icon size={16} />
+    <div role="group" aria-labelledby={id} className="grid gap-9 border-t border-[#08222e]/20 pb-14 pt-8 lg:pb-16">
+      {/* Numbered the way the journey numbers its stages: the order is the
+          order the form is filled in. */}
+      <div className="flex items-baseline gap-5">
+        <span aria-hidden className="text-4xl font-medium leading-none tracking-tight text-[#08222e]/15 tabular-nums lg:text-5xl">
+          {n}
         </span>
-        {title}
-      </h3>
+        <h3 id={id} className="text-2xl font-bold tracking-tight lg:text-3xl">
+          {title}
+        </h3>
+      </div>
       {children}
     </div>
   );
 }
 
 function Mark({ required, optional }: { required?: boolean; optional?: boolean }) {
-  if (required) return <span aria-hidden className="text-red-500"> *</span>;
-  if (optional) return <span className="font-normal text-slate-500"> (optional)</span>;
+  if (required) return <span aria-hidden className="text-[#b42318]"> *</span>;
+  if (optional) return <span className="font-normal text-[#5a6e77]"> (optional)</span>;
   return null;
 }
 
@@ -817,15 +808,15 @@ function Field({
 }) {
   return (
     <div className="grid min-w-0 content-start gap-2">
-      <label htmlFor={id} className="text-sm font-semibold tracking-wide text-slate-700">
+      <label htmlFor={id} className="text-[14px] font-semibold">
         {label}
         <Mark required={required} optional={optional} />
       </label>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="text-xs font-semibold text-red-600">{error}</p>
+        <p id={`${id}-error`} className="text-[13px] font-medium text-[#b42318]">{error}</p>
       ) : hint ? (
-        <p className="text-xs leading-relaxed text-slate-500">{hint}</p>
+        <p className="text-[13px] leading-relaxed text-[#5a6e77]">{hint}</p>
       ) : null}
     </div>
   );
@@ -842,18 +833,49 @@ function Choice({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset id={id} aria-describedby={error ? `${id}-error` : undefined} className="grid min-w-0 gap-2.5">
-      <legend className="mb-2 text-sm font-semibold tracking-wide text-slate-700">
+    <fieldset id={id} aria-describedby={error ? `${id}-error` : undefined} className="grid min-w-0 gap-3">
+      <legend className="mb-3 text-[14px] font-semibold">
         {legend}
         <Mark required />
       </legend>
       {children}
       {error ? (
-        <p id={`${id}-error`} className="text-xs font-semibold text-red-600">{error}</p>
+        <p id={`${id}-error`} className="text-[13px] font-medium text-[#b42318]">{error}</p>
       ) : hint ? (
-        <p className="text-xs leading-relaxed text-slate-500">{hint}</p>
+        <p className="text-[13px] leading-relaxed text-[#5a6e77]">{hint}</p>
       ) : null}
     </fieldset>
+  );
+}
+
+/** One answer of a short list, as a pill: navy when chosen, like the hero's button. */
+function Pill({
+  name, value, on, onPick, title, cell, children,
+}: {
+  name: string;
+  value: string;
+  on: boolean;
+  onPick: () => void;
+  title?: string;
+  /** Fills a grid cell below sm, centred, instead of sizing to its text. */
+  cell?: boolean;
+  children: React.ReactNode;
+}) {
+  const size = cell
+    ? "justify-center gap-1 px-1 text-[14px] sm:justify-start sm:gap-1.5 sm:px-4 sm:text-[15px]"
+    : "gap-1.5 px-3.5 text-[15px] sm:px-4";
+  return (
+    <label
+      title={title}
+      className={`inline-flex cursor-pointer select-none items-center rounded-full border py-2 font-medium transition-colors ${size} ${FOCUS_RING} ${
+        on ? "border-[#08222e] bg-[#08222e] text-[#FAFAF7]" : "border-[#08222e]/20 hover:border-[#08222e]/50"
+      }`}
+    >
+      <input type="radio" required name={name} value={value} checked={on} onChange={onPick} className="sr-only" />
+      {/* A tick as well as the fill, so the choice does not rest on colour alone. */}
+      {on && <Check size={14} strokeWidth={3} aria-hidden className="-ml-0.5" />}
+      {children}
+    </label>
   );
 }
 
@@ -861,99 +883,55 @@ function Suffixed({ unit, children }: { unit: string; children: React.ReactNode 
   return (
     <div className="relative">
       {children}
-      <span aria-hidden className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
+      <span aria-hidden className="pointer-events-none absolute bottom-3.5 right-0 text-lg font-medium text-[#5a6e77]">
         {unit}
       </span>
     </div>
   );
 }
 
+/** What the sentence reads: a draft as typed, or a request as sent. */
+interface SentenceValues {
+  mode: string;
+  method: string;
+  cbm: string;
+  weightKg: string;
+  commodity: string;
+  portOfLoading: string;
+  portOfDischarge: string;
+  terms: string;
+}
+
+/** "6500" → "6,500"; anything that is not yet a number is shown as typed. */
+const figureText = (v: string) => {
+  const s = v.trim();
+  return /^\d+(\.\d+)?$/.test(s) ? Number(s).toLocaleString("en-IN", { maximumFractionDigits: 3 }) : s;
+};
+
 /**
- * The request as it stands, drawn like a booking: POL to POD, and underneath
- * it the four figures a rate is built from. It fills in as the form does, and
- * gets its SHP number once the request is sent.
+ * The request as one sentence, built from the four things a rate is made of:
+ * mode, volume, lane and terms.
  *
- * Hidden from screen readers. It repeats what the form fields already say.
+ *   Sea freight, FCL — 68 m³ and 6,500 kg of LED panel lights,
+ *   Shanghai to Chennai, on FOB terms.
+ *
+ * What has not been answered yet stays in the sentence as a faint blank, so it
+ * says as it fills in what is still missing.
  */
-function RouteTicket({
-  draft, referenceNo, notchClass,
-}: {
-  draft: Draft;
-  referenceNo?: string;
-  /** The colour behind the ticket, which the two notches are cut to. */
-  notchClass: string;
-}) {
-  const ModeIcon = draft.mode === "AIR" ? Plane : draft.mode === "SEA" ? Ship : Route;
-  const t = (s: string) => s.trim();
-  const load = [
-    t(draft.cbm) && `${t(draft.cbm)} m³`,
-    t(draft.weightKg) && `${t(draft.weightKg)} kg`,
-    t(draft.cartonBoxes) && `${t(draft.cartonBoxes)} ctns`,
-  ].filter(Boolean).join(" · ");
-  const how = [draft.mode && modeLabel(draft.mode), draft.method && methodLabel(draft.method)]
-    .filter(Boolean).join(" · ");
-  const cargo = [t(draft.commodity), draft.commodityType && commodityTypeLabel(draft.commodityType)]
-    .filter(Boolean).join(" · ");
+function RequestSentence({ v, className = "" }: { v: SentenceValues; className?: string }) {
+  const blank = (s: string) => <span className="text-[#08222e]/25">{s}</span>;
+  const said = (s: string, placeholder: string) => (s.trim() ? s.trim() : blank(placeholder));
+  const how = v.mode === "SEA"
+    ? `Sea freight${v.method ? `, ${methodLabel(v.method)}` : ""}`
+    : v.mode === "AIR" ? "Air freight" : "";
+  const terms = v.terms === "OTHER" ? "on other terms" : v.terms ? `on ${termsLabel(v.terms)} terms` : "";
 
   return (
-    <div
-      aria-hidden
-      className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-dark to-brand-deep p-5 text-white shadow-[0_22px_44px_-22px_rgba(16,80,95,0.7)] sm:p-6"
-    >
-      <div className="flex items-center justify-between gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">
-        <span>Freight quote</span>
-        <span className={`tabular-nums ${referenceNo ? "text-white" : ""}`}>
-          {referenceNo ?? "Ref. on sending"}
-        </span>
-      </div>
-
-      <div className="mt-5 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-2 sm:gap-3">
-        <TicketPort code="POL" value={t(draft.portOfLoading)} />
-        <div className="flex items-center gap-1 pt-5 text-white/80 sm:gap-1.5">
-          <span className="w-3 border-t border-dashed border-white/40 sm:w-7" />
-          <ModeIcon size={18} />
-          <span className="w-3 border-t border-dashed border-white/40 sm:w-7" />
-        </div>
-        <TicketPort code="POD" value={t(draft.portOfDischarge)} right />
-      </div>
-
-      <div className="relative my-5">
-        <div className="border-t border-dashed border-white/25" />
-        <span className={`absolute -left-8 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full sm:-left-9 ${notchClass}`} />
-        <span className={`absolute -right-8 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full sm:-right-9 ${notchClass}`} />
-      </div>
-
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-3.5">
-        <TicketCell term="Cargo" value={cargo} />
-        <TicketCell term="Method" value={how} />
-        <TicketCell term="Terms" value={draft.terms ? termsLabel(draft.terms) : ""} />
-        <TicketCell term="Load" value={load} />
-      </dl>
-    </div>
-  );
-}
-
-function TicketPort({ code, value, right }: { code: string; value: string; right?: boolean }) {
-  return (
-    <div className={`min-w-0 ${right ? "text-right" : ""}`}>
-      <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">{code}</p>
-      {/* Two lines rather than an ellipsis: "Guangzhou (CAN)" cut to
-          "Guangz…" on a phone says nothing. */}
-      <p className={`mt-1 line-clamp-2 break-words text-[15px] font-bold leading-snug sm:text-lg ${value ? "text-white" : "text-white/40"}`}>
-        {value || "—"}
-      </p>
-    </div>
-  );
-}
-
-function TicketCell({ term, value }: { term: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/80">{term}</dt>
-      <dd className={`mt-0.5 line-clamp-2 break-words text-sm font-semibold ${value ? "text-white" : "text-white/40"}`}>
-        {value || "—"}
-      </dd>
-    </div>
+    <p className={`break-words font-medium leading-[1.2] tracking-[-0.02em] text-[#08222e] ${className}`}>
+      {how || blank("Sea or air")} — {v.cbm.trim() ? `${figureText(v.cbm)} m³` : blank("___ m³")} and{" "}
+      {v.weightKg.trim() ? `${figureText(v.weightKg)} kg` : blank("___ kg")} of {said(v.commodity, "your goods")},{" "}
+      {said(v.portOfLoading, "from ___")} to {said(v.portOfDischarge, "___")}, {terms || blank("on ___ terms")}.
+    </p>
   );
 }
 
@@ -968,65 +946,47 @@ function Sent({
 }) {
   const refText = useRef<HTMLSpanElement>(null);
   const { referenceNo, sent } = phase;
-  const rows: [string, string][] = [
-    ["Route", routeSummary(sent)],
-    ["Load", loadSummary(sent)],
-    ["Cargo", `${sent.commodity} · ${commodityTypeLabel(sent.commodityType)}`],
-    ["Terms", `${termsLabel(sent.terms)}${sent.terms === "OTHER" ? "" : ` · ${termsName(sent.terms)}`}`],
-  ];
 
   return (
-    <div className="py-2 text-center sm:py-6">
-      <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-8 ring-emerald-50/60">
-        <Check size={26} strokeWidth={2.5} aria-hidden />
-      </span>
-      <h3
-        ref={headingRef}
-        tabIndex={-1}
-        className="mt-6 text-2xl font-bold tracking-tight text-slate-900 outline-none"
-      >
-        Request received
+    <div className="border-t-2 border-[#08222e] pt-8">
+      <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">Request received</span>
+      <h3 ref={headingRef} tabIndex={-1} className="mt-5 text-3xl font-medium tracking-[-0.02em] outline-none lg:text-4xl">
+        The shipping desk has it.
       </h3>
-      <p className="mx-auto mt-2 max-w-md text-[15px] leading-relaxed text-slate-600">
-        The shipping desk has it. Keep this reference and quote it whenever you speak to us
-        about this shipment.
-      </p>
 
-      <div className="mx-auto mt-6 flex max-w-sm items-center justify-between gap-3 rounded-2xl border border-dashed border-brand/50 bg-brand/[0.05] py-3 pl-5 pr-3 text-left">
+      <div className="mt-10 flex flex-wrap items-end justify-between gap-x-6 gap-y-5 border-b border-[#08222e]/15 pb-8">
         <span className="min-w-0">
-          <span className="block text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">Reference</span>
-          <span ref={refText} className="block whitespace-nowrap text-[22px] font-bold tabular-nums tracking-wide text-brand-dark sm:text-2xl">
+          <span className="block text-[11px] font-bold uppercase tracking-[0.2em] text-[#5a6e77]">Your reference</span>
+          {/* The one thing on this screen that must never be cut short: it is
+              what the customer quotes on the phone. */}
+          <span
+            ref={refText}
+            className="mt-3 block whitespace-nowrap text-[11vw] font-medium leading-none tracking-[-0.04em] tabular-nums sm:text-[8vw] lg:text-[4.75vw]"
+          >
             {referenceNo}
           </span>
         </span>
-        {/* Icon only on a phone: the reference is the one thing on this card
-            that must never be cut short, and it needs the width. */}
         <button
           type="button"
           onClick={() => onCopy(referenceNo, refText.current)}
           aria-label={copied ? "Reference copied" : "Copy reference"}
-          className="inline-flex h-10 w-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-0 text-sm font-semibold text-slate-700 transition-colors hover:border-brand hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 sm:w-auto sm:px-3.5"
+          className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full border border-[#08222e]/20 px-5 text-[14px] font-medium transition-colors hover:border-[#08222e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176579]/50"
         >
-          {copied ? <Check size={15} aria-hidden /> : <Copy size={15} aria-hidden />}
-          <span aria-hidden className="hidden sm:inline">{copied ? "Copied" : "Copy"}</span>
+          {copied ? <Check size={16} aria-hidden /> : <Copy size={16} aria-hidden />}
+          <span aria-hidden>{copied ? "Copied" : "Copy"}</span>
         </button>
         <span aria-live="polite" className="sr-only">{copied ? "Reference copied" : ""}</span>
       </div>
 
-      <dl className="mx-auto mt-6 grid max-w-md gap-2.5 rounded-2xl border border-slate-200 bg-slate-50/60 p-4 text-left text-sm">
-        {rows.map(([k, v]) => (
-          <div key={k} className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3">
-            <dt className="text-slate-500">{k}</dt>
-            <dd className="break-words font-semibold text-slate-800">{v}</dd>
-          </div>
-        ))}
-      </dl>
-
-      <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-slate-600">
-        We&apos;ll come back to you on <strong className="font-semibold text-slate-800">{sent.phone}</strong>
+      <p className="mt-8 max-w-2xl text-[18px] leading-relaxed text-[#5a6e77]">
+        Quote it whenever you speak to us about this shipment.
+      </p>
+      <RequestSentence v={sent} className="mt-8 text-[24px] lg:text-[30px]" />
+      <p className="mt-8 max-w-2xl text-[16px] leading-relaxed text-[#5a6e77]">
+        We&apos;ll come back to you on <strong className="font-semibold text-[#08222e]">{sent.phone}</strong>
         {sent.email && (
           <>
-            {" "}or <strong className="font-semibold text-slate-800 break-words">{sent.email}</strong>
+            {" "}or <strong className="break-words font-semibold text-[#08222e]">{sent.email}</strong>
           </>
         )}{" "}
         with a rate and a routing.
@@ -1035,11 +995,11 @@ function Sent({
       <button
         type="button"
         onClick={onAnother}
-        className="mt-8 inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-semibold text-brand-dark transition-colors hover:border-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+        className="group mt-10 inline-flex items-center gap-2 rounded-full border border-[#08222e]/20 px-6 py-3 text-[15px] font-medium transition-colors hover:border-[#08222e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#176579]/50"
       >
-        Send another request <ArrowRight size={15} aria-hidden />
+        Send another request <ArrowRight size={16} aria-hidden className="transition-transform group-hover:translate-x-1" />
       </button>
-      <p className="mt-2 text-xs text-slate-500">Your contact details stay filled in.</p>
+      <p className="mt-3 text-[13px] text-[#5a6e77]">Your contact details stay filled in.</p>
     </div>
   );
 }
