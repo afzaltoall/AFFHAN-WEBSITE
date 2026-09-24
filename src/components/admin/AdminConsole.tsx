@@ -958,12 +958,12 @@ export function AdminConsole({ data }: Props) {
             <tbody>
               ${src.map(c => `
                 <tr>
-                  <td>${fmtDate(c.createdAt)}</td>
-                  <td>${c.fullName}</td>
-                  <td>${c.companyName || ""}</td>
-                  <td>${c.email}</td>
-                  <td>${c.phone}</td>
-                  <td>${c.message}</td>
+                  <td>${escHtml(fmtDate(c.createdAt))}</td>
+                  <td>${escHtml(c.fullName)}</td>
+                  <td>${escHtml(c.companyName || "")}</td>
+                  <td>${escHtml(c.email)}</td>
+                  <td>${escHtml(c.phone)}</td>
+                  <td>${escHtml(c.message)}</td>
                 </tr>
               `).join("")}
             </tbody>
@@ -3461,7 +3461,9 @@ interface Shipment {
 
 /**
  * Text bound for a print window, which renders whatever it is handed as HTML.
- * Every value on a freight request was typed by a member of the public.
+ * Every value on a freight request or a contact message was typed by a
+ * member of the public, and that window runs with the admin's session: an
+ * unescaped message is a script the next PDF export runs as the admin.
  */
 const escHtml = (s: string) =>
   s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] as string);
