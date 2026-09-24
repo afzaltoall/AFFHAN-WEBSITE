@@ -303,11 +303,12 @@ export function ShippingContent() {
             Tell us the ports, the cargo and the timing, and we will come back with
             a rate and a routing.
           </p>
+          {/* The freight quote form follows this band directly (see page.tsx). */}
           <Link
-            href="/contact/"
+            href="#shipping-quote"
             className="group mt-12 inline-flex items-center gap-2 rounded-full bg-[#FAFAF7] px-8 py-4 text-[15px] font-bold text-[#08222e] transition-all hover:bg-white hover:scale-105"
           >
-            Contact us <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
+            Request a freight quote <ArrowRight size={18} className="transition-transform group-hover:translate-x-1" />
           </Link>
         </Reveal>
       </section>

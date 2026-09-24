@@ -235,8 +235,9 @@ export function ShippingHero({ officeCount }: { officeCount: number }) {
               </div>
 
               <div className="mt-10 flex flex-col items-start gap-4 relative z-50">
+                {/* To the freight quote form at the foot of the page. */}
                 <Link
-                  href="/contact/"
+                  href="#shipping-quote"
                   className="group flex cursor-pointer items-center gap-2 rounded-full bg-[#08222e] py-1.5 pl-6 pr-1.5 transition-all duration-300 hover:gap-3 hover:bg-[#176579] hover:shadow-lg hover:shadow-[#176579]/20"
                 >
                   <span className="whitespace-nowrap text-sm font-medium text-[#FAFAF7] sm:text-base">Request a quote</span>
