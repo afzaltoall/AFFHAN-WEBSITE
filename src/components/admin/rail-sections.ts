@@ -1,5 +1,5 @@
 import {
-  Activity, Globe, Inbox, LayoutList, MessageSquare, PlayCircle, Smartphone, Timer, Trash2,
+  Activity, Globe, Inbox, LayoutList, MessageSquare, PlayCircle, Ship, Smartphone, Timer, Trash2,
   TrendingUp, UserCog, Users, type LucideIcon,
 } from "lucide-react";
 
@@ -18,13 +18,13 @@ import {
  */
 
 export type RailKey =
-  | "all" | "inquiries" | "contacts" | "trash"
+  | "all" | "inquiries" | "contacts" | "shipping" | "trash"
   | "staff" | "team-performance" | "queue" | "activity"
   | "suppliers" | "videos"
   | "website-users" | "app-users" | "app-inquiries";
 
-/** The dashboard's four in-page views. */
-export type RailView = "all" | "inquiries" | "contacts" | "trash";
+/** The dashboard's five in-page views. */
+export type RailView = "all" | "inquiries" | "contacts" | "shipping" | "trash";
 
 export interface RailItem {
   key: RailKey;
@@ -33,7 +33,7 @@ export interface RailItem {
   label: string;
   icon: LucideIcon;
   /**
-   * The dashboard's own view, for the four that are state there. The console
+   * The dashboard's own view, for the five that are state there. The console
    * renders these as buttons; every other page links to them with ?view=,
    * which the console reads on arrival.
    */
@@ -58,6 +58,8 @@ export const RAIL_GROUPS: RailGroup[] = [
     items: [
       { key: "inquiries", href: "/admin/?view=inquiries", label: "Inquiries", icon: Inbox, view: "inquiries" },
       { key: "contacts", href: "/admin/?view=contacts", label: "Contact Us", icon: MessageSquare, view: "contacts" },
+      // Freight quote requests from the form on /shipping/.
+      { key: "shipping", href: "/admin/?view=shipping", label: "Shipping", icon: Ship, view: "shipping" },
       { key: "trash", href: "/admin/?view=trash", label: "Recently Deleted", icon: Trash2, view: "trash" },
     ],
   },
@@ -112,7 +114,7 @@ export const fmtRailBadge = (n: number) =>
 /**
  * Which rows carry a count, and what it is. Rows left out carry none.
  *
- * Six of the thirteen rows do, and each counts something different enough to
+ * Seven of the fourteen rows do, and each counts something different enough to
  * be worth writing down — the figures are read at a glance by people who will
  * not go and check what they mean:
  *
@@ -120,6 +122,9 @@ export const fmtRailBadge = (n: number) =>
  *              not handled, spam or deleted, which is what the console's own
  *              asStatus() treats as "new". NOT the total number of inquiries.
  *   contacts   the same rule over Contact Us messages.
+ *   shipping   the same rule over freight quote requests from /shipping/.
+ *              Always the whole table: unlike the two above, the dashboard does
+ *              not load these rows, so it takes the server's count too.
  *   trash      what is sitting in Recently Deleted. Inquiries only, because
  *              that is what the view restores.
  *   suppliers  every row of the supplier book. A total, not a backlog.

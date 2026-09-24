@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowLeft, ChevronRight, MessageSquare } from "lucide-react";
+import { ArrowLeft, ChevronRight, MessageSquare, Plane, Ship } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { timeAgo } from "@/lib/relative-time";
@@ -67,6 +67,12 @@ export default async function ActivityPage({
           select: { id: true, customerName: true, productName: true, country: true, phone: true, customerKey: true, product: { select: { imageUrl: true } } },
         },
         contact: { select: { id: true, fullName: true, companyName: true, country: true, phone: true, customerKey: true } },
+        shipment: {
+          select: {
+            id: true, customerName: true, referenceNo: true, country: true, phone: true, customerKey: true,
+            mode: true, portOfLoading: true, portOfDischarge: true,
+          },
+        },
       },
     }),
   ]);
@@ -88,9 +94,10 @@ export default async function ActivityPage({
     createdAt: r.createdAt,
     employeeId: r.employee.id,
     scope:
-      normalizePhoneKey(r.inquiry?.phone ?? r.contact?.phone ?? "") ||
+      normalizePhoneKey(r.inquiry?.phone ?? r.contact?.phone ?? r.shipment?.phone ?? "") ||
       r.inquiry?.customerName ||
       r.contact?.fullName ||
+      r.shipment?.customerName ||
       "",
   }));
 
@@ -113,7 +120,7 @@ export default async function ActivityPage({
       .filter((r) => r.status === "NOT_ATTENDED")
       .map((r) => ({
         id: r.id,
-        customerKey: r.inquiry?.customerKey ?? r.contact?.customerKey ?? null,
+        customerKey: r.inquiry?.customerKey ?? r.contact?.customerKey ?? r.shipment?.customerKey ?? null,
         employeeId: r.employee.id,
         at: r.createdAt,
       })),
@@ -155,14 +162,22 @@ export default async function ActivityPage({
               // What the whole action covered: the products named on its rows,
               // and the first photograph among them.
               const items = batch
-                .map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : null))
+                .map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : b.shipment ? `Freight request ${b.shipment.referenceNo}` : null))
                 .filter((x): x is string => Boolean(x));
               const image = batch.find((b) => b.inquiry?.product?.imageUrl)?.inquiry?.product?.imageUrl ?? null;
               const lead = r.inquiry
                 ? { name: r.inquiry.customerName, detail: items.join(" · "), href: `/admin/?inquiry=${r.inquiry.id}`, country: r.inquiry.country, image }
                 : r.contact
                   ? { name: r.contact.fullName, detail: r.contact.companyName ?? "Contact message", href: `/admin/?contact=${r.contact.id}`, country: r.contact.country, image: null }
-                  : null;
+                  : r.shipment
+                    ? {
+                        name: r.shipment.customerName,
+                        detail: `${r.shipment.referenceNo} · ${r.shipment.portOfLoading} → ${r.shipment.portOfDischarge}`,
+                        href: `/admin/?shipment=${r.shipment.id}`,
+                        country: r.shipment.country,
+                        image: null,
+                      }
+                    : null;
               const thumb = lead?.image ? getCdnUrl(lead.image, 128) : null;
               const handoff = handoffs.get(r.id);
               return (
@@ -249,6 +264,10 @@ export default async function ActivityPage({
                         ) : r.contact ? (
                           <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#f5f5f7] text-[#86868b]">
                             <MessageSquare className="h-5 w-5" />
+                          </span>
+                        ) : r.shipment ? (
+                          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand/10 text-brand-dark">
+                            {r.shipment.mode === "AIR" ? <Plane className="h-5 w-5" /> : <Ship className="h-5 w-5" />}
                           </span>
                         ) : null}
                         <ChevronRight className="hidden h-4 w-4 text-[#86868b] sm:block" />

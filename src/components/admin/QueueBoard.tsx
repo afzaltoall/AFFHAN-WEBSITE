@@ -32,6 +32,8 @@ export interface QueueRow {
   closedAt: string | null;
   inquiries: number;
   contacts: number;
+  /** Freight requests from /shipping/. */
+  shipments: number;
   trail: { id: string; kind: string; from: string | null; to: string | null; note: string | null; at: string }[];
 }
 
@@ -367,6 +369,7 @@ function QueueEntry({
   const items = [
     row.inquiries > 0 ? `${row.inquiries} ${row.inquiries === 1 ? "product" : "products"}` : "",
     row.contacts > 0 ? `${row.contacts} ${row.contacts === 1 ? "message" : "messages"}` : "",
+    row.shipments > 0 ? `${row.shipments} freight ${row.shipments === 1 ? "request" : "requests"}` : "",
   ].filter(Boolean).join(" · ");
 
   return (

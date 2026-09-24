@@ -30,7 +30,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
       isActive: true,
       lastLoginAt: true,
       createdAt: true,
-      _count: { select: { assignedInquiries: true, assignedContacts: true, statusUpdates: true } },
+      _count: { select: { assignedInquiries: true, assignedContacts: true, assignedShipments: true, statusUpdates: true } },
     },
   });
   if (!employee) notFound();
@@ -54,6 +54,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
       // rows of one customer-level outcome back into one line below.
       inquiry: { select: { id: true, customerName: true, productName: true, email: true, phone: true } },
       contact: { select: { id: true, fullName: true, email: true, phone: true } },
+      shipment: { select: { id: true, customerName: true, referenceNo: true, email: true, phone: true } },
     },
   });
 
@@ -73,6 +74,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
       counts={{
         inquiries: employee._count.assignedInquiries,
         contacts: employee._count.assignedContacts,
+        shipments: employee._count.assignedShipments,
         updates: employee._count.statusUpdates,
       }}
       performance={
@@ -81,6 +83,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
               assigned: performance.assigned,
               inquiries: performance.inquiries,
               contacts: performance.contacts,
+              shipments: performance.shipments,
               counts: performance.counts,
               recorded: performance.recorded,
               thisWeek: performance.thisWeek,
@@ -96,6 +99,7 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
         createdAt: u.createdAt.toISOString(),
         inquiry: u.inquiry,
         contact: u.contact,
+        shipment: u.shipment,
       }))}
     />
   );

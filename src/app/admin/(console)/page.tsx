@@ -34,6 +34,7 @@ export default async function AdminPage() {
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
         inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint; queue: bigint; queueInvalid: bigint;
+        shipments: bigint; shipmentsNew: bigint;
       }]>`
         SELECT
           (SELECT count(*) FROM "Product")                                        AS products,
@@ -45,6 +46,13 @@ export default async function AdminPage() {
           (SELECT count(*) FROM "Category")                                       AS "categoriesTotal",
           (SELECT count(*) FROM "Inquiry"        WHERE status <> 'deleted')        AS inquiries,
           (SELECT count(*) FROM "ContactMessage" WHERE status <> 'deleted')        AS contacts,
+          -- Freight requests. Counted here rather than loaded: the Shipping
+          -- view fetches its own rows when opened, so a load of this page that
+          -- never opens it pays two count(*)s in a statement it was running
+          -- anyway, not an eleventh query.
+          (SELECT count(*) FROM "ShipmentInquiry" WHERE status <> 'deleted')       AS shipments,
+          (SELECT count(*) FROM "ShipmentInquiry"
+             WHERE status NOT IN ('handled', 'spam', 'deleted'))                   AS "shipmentsNew",
           (SELECT count(*) FROM "Supplier")                                        AS suppliers,
           (SELECT count(*) FROM "Video")                                           AS videos,
           -- Customers going round the rotation queue right now. It belongs on
@@ -154,6 +162,8 @@ export default async function AdminPage() {
   const queueCount = n(counts[0].queue);
   const queueInvalidCount = n(counts[0].queueInvalid);
   const videoCount = n(counts[0].videos);
+  const shipmentCount = n(counts[0].shipments);
+  const shipmentNewCount = n(counts[0].shipmentsNew);
 
   const inquiries = allInquiries.filter((i) => i.status !== "deleted");
   const deletedInquiries = allInquiries.filter((i) => i.status === "deleted");
@@ -224,6 +234,8 @@ export default async function AdminPage() {
       videos: videoCount,
       queue: queueCount,
       queueInvalid: queueInvalidCount,
+      shipments: shipmentCount,
+      shipmentsNew: shipmentNewCount,
     },
     inquiries: inquiries.map(mapInquiry),
     deletedInquiries: deletedInquiries.map(mapInquiry),

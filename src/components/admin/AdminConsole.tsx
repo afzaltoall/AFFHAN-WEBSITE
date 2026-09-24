@@ -17,6 +17,7 @@ import {
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
   MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, SlidersHorizontal, UserCog,
+  Ship, Plane, Boxes,
   type LucideIcon,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
@@ -29,6 +30,9 @@ import { formatDateTime, formatSince } from "@/lib/datetime";
 import { signOutThrough } from "@/lib/session-client";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { useAdminDark } from "@/lib/useAdminDark";
+import {
+  commodityTypeLabel, loadSummary, methodLabel, methodName, modeLabel, routeSummary, termsLabel, termsName,
+} from "@/lib/shipment-inquiry";
 
 interface Inquiry {
   id: string; createdAt: string; customerName: string; companyName: string | null;
@@ -209,7 +213,12 @@ const matchesAssignee = (assignedToId: string | null, selected: string | null) =
 interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
-    stats: { products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number; queue: number; queueInvalid: number };
+    stats: {
+      products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number; queue: number; queueInvalid: number;
+      /** Freight requests from /shipping/: all live ones, and the untriaged. Counted
+       *  by the server because the Shipping view loads its own rows. */
+      shipments: number; shipmentsNew: number;
+    };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
     /**
@@ -250,7 +259,7 @@ const fmtDateTime = (iso: string) => new Date(iso).toLocaleString("en-US", { mon
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
 const sfFont = { fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif' } as const;
 
-type View = "all" | "inquiries" | "trash" | "contacts";
+type View = "all" | "inquiries" | "trash" | "contacts" | "shipping";
 
 type ConfirmState = {
   title: string;
@@ -305,6 +314,9 @@ export function AdminConsole({ data }: Props) {
    * whether or not a mouse is anywhere near it.
    */
   const [sideOpen, setSideOpen] = useState(false);
+  /** A freight request a link asked for — the Shipping view opens it once its rows arrive. */
+  const [shipmentLink, setShipmentLink] = useState<string | null>(null);
+  const clearShipmentLink = useCallback(() => setShipmentLink(null), []);
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
@@ -349,8 +361,8 @@ export function AdminConsole({ data }: Props) {
   const [groupByCustomer, setGroupByCustomer] = useState(false);
 
   /**
-   * Open the lead a link named: /admin/?inquiry=<id> or ?contact=<id>.
-   * Or just a view: /admin/?view=inquiries | contacts | trash — the rail on
+   * Open the lead a link named: /admin/?inquiry=<id>, ?contact=<id> or ?shipment=<id>.
+   * Or just a view: /admin/?view=inquiries | contacts | shipping | trash — the rail on
    * every other admin page links to these, since here they are state rather
    * than routes.
    *
@@ -364,15 +376,16 @@ export function AdminConsole({ data }: Props) {
     const params = new URLSearchParams(window.location.search);
     const inquiryId = params.get("inquiry");
     const contactId = params.get("contact");
+    const shipmentId = params.get("shipment");
     const viewParam = params.get("view");
     // The two account dialogs live here, so the rail on every other admin page
     // links to them rather than carrying its own copy — see AccountMenu.
     const accountParam = params.get("account");
     if (accountParam === "email") setShowEmail(true);
     if (accountParam === "password") setShowPwd(true);
-    if (!inquiryId && !contactId && !viewParam && !accountParam) return;
+    if (!inquiryId && !contactId && !shipmentId && !viewParam && !accountParam) return;
 
-    if (viewParam === "all" || viewParam === "inquiries" || viewParam === "contacts" || viewParam === "trash") {
+    if (viewParam === "all" || viewParam === "inquiries" || viewParam === "contacts" || viewParam === "shipping" || viewParam === "trash") {
       setView(viewParam);
     }
 
@@ -389,6 +402,11 @@ export function AdminConsole({ data }: Props) {
         setContactTab(row.status === "deleted" ? "trash" : "active");
         setActiveContact(row);
       }
+    } else if (shipmentId) {
+      // Not in this page's data: the Shipping view loads its own rows, and
+      // opens this one when they arrive.
+      setView("shipping");
+      setShipmentLink(shipmentId);
     }
     window.history.replaceState(null, "", window.location.pathname);
     // Once, on arrival: this is a deep link, not a subscription.
@@ -1005,12 +1023,13 @@ export function AdminConsole({ data }: Props) {
   // What the hamburger badges. With the nav collapsed behind a button, an
   // unread inquiry would otherwise be invisible until the menu was opened —
   // the count has to survive on the button itself.
-  const newTotal = statusCounts.new + newContactCount;
+  const newTotal = statusCounts.new + newContactCount + data.stats.shipmentsNew;
 
   const nav: { key: View; label: string; icon: LucideIcon; count?: number }[] = [
     { key: "all", label: "All", icon: LayoutList },
     { key: "inquiries", label: "Inquiries", icon: Inbox, count: statusCounts.new },
     { key: "contacts", label: "Contact Us", icon: MessageSquare, count: newContactCount },
+    { key: "shipping", label: "Shipping", icon: Ship, count: data.stats.shipmentsNew },
     { key: "trash", label: "Recently Deleted", icon: Trash2, count: deletedItems.length },
   ];
 
@@ -1061,6 +1080,9 @@ export function AdminConsole({ data }: Props) {
   const railCount: Partial<Record<RailItem["key"], number>> = {
     inquiries: statusCounts.new,
     contacts: newContactCount,
+    // The whole table's untriaged count, from the server: unlike the two
+    // above, these rows are not loaded on this page.
+    shipping: data.stats.shipmentsNew,
     trash: deletedItems.length,
     suppliers: data.stats.suppliers,
     videos: data.stats.videos,
@@ -1222,7 +1244,7 @@ export function AdminConsole({ data }: Props) {
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-                {view === "all" ? "All" : view === "inquiries" ? "Inquiries" : view === "contacts" ? "Contact Us" : "Recently Deleted"}
+                {view === "all" ? "All" : view === "inquiries" ? "Inquiries" : view === "contacts" ? "Contact Us" : view === "shipping" ? "Shipping" : "Recently Deleted"}
               </h1>
               <p className={`mt-0.5 text-[13px] ${t.soft}`}>Welcome back, {data.adminName.split(" ")[0]}.</p>
             </div>
@@ -1343,6 +1365,19 @@ export function AdminConsole({ data }: Props) {
                 }}
               />
             </>
+          ) : view === "shipping" ? (
+            <ShipmentsSection
+              t={t}
+              employees={data.employees}
+              customerCodes={data.customerCodes}
+              reloadKey={updatedAt}
+              openId={shipmentLink}
+              onOpened={clearShipmentLink}
+              // Through the live refresh rather than router.refresh(), so the
+              // refetch lands when the counts on the rail have been re-read.
+              onChanged={refresh}
+              onConfirm={setConfirm}
+            />
           ) : view === "contacts" ? (
             <ContactsSection
               t={t}
@@ -3401,6 +3436,681 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
               </button>
             ) : (
               <button onClick={onDelete} className="inline-flex items-center gap-2 rounded-full bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500 hover:text-white">
+                <Trash2 className="h-3.5 w-3.5" /> Delete
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A freight quote request from /shipping/, as the console reads it. */
+interface Shipment {
+  id: string; referenceNo: string; createdAt: string;
+  customerName: string; phone: string; email: string | null; country: string;
+  commodity: string; commodityType: string; mode: string; method: string;
+  portOfLoading: string; portOfDischarge: string; terms: string;
+  /** Exact decimal text, as stored. */
+  cbm: string; weightKg: string; cartonBoxes: number | null;
+  notes: string | null; source: string; status: string;
+  assignedToId: string | null; customerKey: string | null;
+  lastStatus: LeadOutcome | null;
+}
+
+/**
+ * Text bound for a print window, which renders whatever it is handed as HTML.
+ * Every value on a freight request was typed by a member of the public.
+ */
+const escHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch] as string);
+
+/** "68", "12.5", "6,500": figures as the office reads them. */
+const fmtFigure = (v: string) => Number(v).toLocaleString("en-IN", { maximumFractionDigits: 3 });
+
+/**
+ * Freight quote requests from /shipping/ — the Shipping view.
+ *
+ * Unlike the two lists beside it, this one asks for its own rows when it is
+ * opened (see /api/admin/shipping): the console page is at its round-trip
+ * budget, and most loads of /admin never open this view. It asks again
+ * whenever the console refreshes, so the live refresh and the Refresh button
+ * keep it as current as everything else on screen.
+ *
+ * Otherwise it is Contact Us over again, on purpose: the same Inbox and
+ * Recently Deleted tabs, the same New / Handled / Spam triage and the same
+ * assignment — which goes through the rotation-aware path, so a freight
+ * request, a quote request and a message from one person are one customer to
+ * the team.
+ */
+function ShipmentsSection({
+  t, employees, customerCodes, reloadKey, openId, onOpened, onChanged, onConfirm,
+}: {
+  t: Theme;
+  employees: EmployeeOption[];
+  customerCodes: Record<string, string>;
+  /** Changes whenever the console refreshes; each change is a refetch. */
+  reloadKey: number;
+  /** A request a deep link (/admin/?shipment=<id>) asked for. */
+  openId: string | null;
+  onOpened: () => void;
+  /** Something changed on the server, and the rail's counts are the console's to re-read. */
+  onChanged: () => void;
+  onConfirm: (c: ConfirmState) => void;
+}) {
+  const [rows, setRows] = useState<Shipment[] | null>(null);
+  const [total, setTotal] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"active" | "trash">("active");
+  const [q, setQ] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
+  const [countryFilter, setCountryFilter] = useState<string | null>(null);
+  const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  const [modeFilter, setModeFilter] = useState<"all" | "SEA" | "AIR">("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/shipping/", { cache: "no-store" });
+        if (res.status === 401) {
+          window.location.href = "/admin/login";
+          return;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = (await res.json()) as { shipments: Shipment[]; total: number };
+        if (cancelled) return;
+        setRows(body.shipments);
+        setTotal(body.total);
+        setLoadError(null);
+      } catch {
+        if (cancelled) return;
+        setLoadError("Freight requests did not load. Press Refresh to try again.");
+        setRows((r) => r ?? []);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [reloadKey]);
+
+  // A deep link waits for the rows, then opens its request once.
+  useEffect(() => {
+    if (!openId || !rows) return;
+    const row = rows.find((r) => r.id === openId);
+    if (row) {
+      setTab(row.status === "deleted" ? "trash" : "active");
+      setActiveId(row.id);
+    }
+    onOpened();
+  }, [openId, rows, onOpened]);
+
+  useEffect(() => setSelected(new Set()), [tab, q, statusFilter, countryFilter, assigneeFilter, modeFilter]);
+
+  const codeOf = useCallback(
+    (r: Shipment) => (r.customerKey ? customerCodes[r.customerKey] : undefined) ?? customerCodes[customerKeyOf(r) ?? ""] ?? null,
+    [customerCodes],
+  );
+
+  const live = useMemo(() => (rows ?? []).filter((r) => r.status !== "deleted"), [rows]);
+  const deleted = useMemo(() => (rows ?? []).filter((r) => r.status === "deleted"), [rows]);
+
+  const inScope = useCallback(
+    (r: Shipment) =>
+      (modeFilter === "all" || r.mode === modeFilter) &&
+      matchesCountry(r.country, countryFilter) &&
+      matchesAssignee(r.assignedToId, assigneeFilter) &&
+      (!q || searchMatches(
+        `${r.referenceNo} ${r.customerName} ${r.phone} ${r.email ?? ""} ${r.country} ${r.commodity} ` +
+        `${r.portOfLoading} ${r.portOfDischarge} ${modeLabel(r.mode)} ${methodLabel(r.method)} ${r.terms}`,
+        q,
+        codeOf(r),
+      )),
+    [modeFilter, countryFilter, assigneeFilter, q, codeOf],
+  );
+
+  const list = useMemo(
+    () => tab === "trash"
+      ? deleted.filter(inScope)
+      : live.filter((r) => (statusFilter === "all" || asStatus(r.status) === statusFilter) && inScope(r)),
+    [tab, deleted, live, statusFilter, inScope],
+  );
+
+  // What the filter panel counts: the inbox, narrowed by everything except the
+  // status being counted.
+  const statusCounts = useMemo(() => {
+    const c = { all: 0, new: 0, handled: 0, spam: 0 };
+    for (const r of live) {
+      if (!inScope(r)) continue;
+      c.all++;
+      c[asStatus(r.status)]++;
+    }
+    return c;
+  }, [live, inScope]);
+  const countryOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of live) if (r.country.trim()) m.set(r.country, (m.get(r.country) ?? 0) + 1);
+    return [...m].map(([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country));
+  }, [live]);
+  const assigneeOptions = useMemo(() => {
+    const by = new Map<string | null, number>();
+    for (const r of live) by.set(r.assignedToId, (by.get(r.assignedToId) ?? 0) + 1);
+    return { unassigned: by.get(null) ?? 0, rows: employees.map((e) => ({ ...e, count: by.get(e.id) ?? 0 })) };
+  }, [live, employees]);
+  const modeCounts = useMemo(() => ({
+    SEA: live.filter((r) => r.mode === "SEA").length,
+    AIR: live.filter((r) => r.mode === "AIR").length,
+  }), [live]);
+
+  const visibleIds = list.map((r) => r.id);
+  const allSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+  const active = rows?.find((r) => r.id === activeId) ?? null;
+
+  // Optimistic, with the whole list put back if the server says no.
+  const act = async (ids: string[], action: "delete" | "restore" | "purge" | "status", newStatus?: Status) => {
+    if (!rows || ids.length === 0) return;
+    const idset = new Set(ids);
+    const before = rows;
+    setRows(rows.flatMap((r) => {
+      if (!idset.has(r.id)) return [r];
+      if (action === "purge") return [];
+      if (action === "delete") return [{ ...r, status: "deleted" }];
+      if (action === "restore") return [{ ...r, status: "new" }];
+      return [{ ...r, status: newStatus ?? r.status }];
+    }));
+    setSelected(new Set());
+    if (action === "delete" || action === "purge") setActiveId((cur) => (cur && idset.has(cur) ? null : cur));
+    setBusy(true);
+    try {
+      await adminWrite("/api/admin/shipping/", { ids, action, status: newStatus });
+      onChanged();
+    } catch (e) {
+      setRows(before);
+      window.alert(e instanceof Error ? e.message : "Action failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const assign = async (ids: string[], assignedToId: string | null) => {
+    if (!rows || ids.length === 0) return;
+    const idset = new Set(ids);
+    const before = rows;
+    setRows(rows.map((r) => (idset.has(r.id) ? { ...r, assignedToId } : r)));
+    setSelected(new Set());
+    setBusy(true);
+    try {
+      await adminWrite("/api/admin/shipping/", { ids, action: "assign", assignedToId });
+      onChanged();
+    } catch (e) {
+      setRows(before);
+      window.alert(e instanceof Error ? e.message : "Could not assign.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmDelete = (ids: string[]) =>
+    onConfirm({
+      title: "Move to Recently Deleted?",
+      message: ids.length === 1
+        ? "This freight request will be moved to Recently Deleted. You can restore it any time."
+        : `${ids.length} freight requests will be moved to Recently Deleted. You can restore them any time.`,
+      confirmLabel: "Delete",
+      danger: true,
+      onConfirm: () => void act(ids, "delete"),
+    });
+  const confirmPurge = (ids: string[]) =>
+    onConfirm({
+      title: "Permanently delete?",
+      message: "This cannot be undone. The request and its sales history will be erased forever.",
+      confirmLabel: "Delete forever",
+      danger: true,
+      onConfirm: () => void act(ids, "purge"),
+    });
+
+  const nameOf = (id: string | null) =>
+    id ? employees.find((e) => e.id === id)?.name ?? "A deactivated member of staff" : "";
+  const exportRows = () => (selected.size > 0 ? list.filter((r) => selected.has(r.id)) : list);
+
+  const exportExcel = async () => {
+    const XLSX = await import("xlsx");
+    const headers = [
+      "Reference", "Date", "Customer", "Phone", "Email", "Shipment Country", "Commodity", "Cargo Type",
+      "Mode", "Method", "POL", "POD", "Terms", "CBM", "Weight (kg)", "Cartons", "Notes",
+      "Status", "Assigned To", "Latest Outcome", "Source",
+    ];
+    const data: (string | number)[][] = exportRows().map((r) => [
+      r.referenceNo, fmtDate(r.createdAt), r.customerName, r.phone, r.email ?? "", r.country, r.commodity,
+      commodityTypeLabel(r.commodityType), modeLabel(r.mode), methodLabel(r.method), r.portOfLoading,
+      r.portOfDischarge, termsLabel(r.terms), Number(r.cbm), Number(r.weightKg), r.cartonBoxes ?? "",
+      r.notes ?? "", asStatus(r.status), nameOf(r.assignedToId),
+      r.lastStatus ? `${leadStatusLabel(r.lastStatus.status)} (${r.lastStatus.by})` : "", r.source,
+    ]);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
+    // The phone column as text, or Excel shows 919876543210 as 9.19E+11.
+    for (let row = 1; row <= data.length; row++) {
+      const cell = ws[XLSX.utils.encode_cell({ r: row, c: 3 })];
+      if (cell) { cell.t = "s"; cell.z = "@"; cell.v = String(cell.v ?? ""); }
+    }
+    ws["!cols"] = headers.map((h) => ({ wch: h === "Notes" ? 44 : h === "Email" || h === "Commodity" ? 26 : Math.max(11, h.length + 2) }));
+    const wb = XLSX.utils.book_new();
+    const file = tab === "trash" ? "freight-requests-deleted" : "freight-requests";
+    XLSX.utils.book_append_sheet(wb, ws, file.slice(0, 31));
+    XLSX.writeFile(wb, `${file}-${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
+  const exportPDF = () => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    const cells = exportRows().map((r) => [
+      r.referenceNo, fmtDate(r.createdAt), r.customerName, r.phone, routeSummary(r),
+      loadSummary(r), r.commodity, termsLabel(r.terms), STATUS_META[asStatus(r.status)].label,
+    ].map((v) => `<td>${escHtml(String(v))}</td>`).join(""));
+    w.document.write(`<html><head><title>Freight requests</title><style>
+      body { font-family: sans-serif; } h2 { margin: 0 0 10px; font-size: 18px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 11px; vertical-align: top; }
+      th { background: #f4f4f5; }
+    </style></head><body><h2>Freight requests</h2><table><thead><tr>
+      <th>Reference</th><th>Date</th><th>Customer</th><th>Phone</th><th>Route</th><th>Load</th><th>Commodity</th><th>Terms</th><th>Status</th>
+    </tr></thead><tbody>${cells.map((c) => `<tr>${c}</tr>`).join("")}</tbody></table>
+    <script>window.onload = () => { window.print(); window.close(); }</script></body></html>`);
+    w.document.close();
+  };
+
+  return (
+    <>
+      <div className={`overflow-hidden rounded-2xl shadow-sm ring-1 ${t.card}`}>
+        <div className={`flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center ${t.border}`}>
+          <div className="relative flex-1 sm:max-w-xs">
+            <Search className={`absolute left-3 top-2.5 h-4 w-4 ${t.soft}`} />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={tab === "trash" ? "Search deleted requests…" : "Search reference, name, port…"}
+              className={`h-10 w-full rounded-xl pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`}
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(["active", "trash"] as const).map((key) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`rounded-full px-3 py-1.5 text-xs font-bold ring-1 transition-colors ${tab === key ? "bg-[#1d1d1f] text-white ring-transparent" : t.pill}`}
+              >
+                {key === "active" ? "Inbox" : `Recently Deleted${deleted.length ? ` · ${deleted.length}` : ""}`}
+              </button>
+            ))}
+          </div>
+          {tab === "active" && (
+            <FilterMenu
+              t={t}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              statusCounts={statusCounts}
+              countryFilter={countryFilter}
+              setCountryFilter={setCountryFilter}
+              countryOptions={countryOptions}
+              assigneeFilter={assigneeFilter}
+              setAssigneeFilter={setAssigneeFilter}
+              assigneeOptions={assigneeOptions}
+              extraActive={modeFilter !== "all"}
+              summarySuffix={modeFilter !== "all" ? ` · ${modeLabel(modeFilter).toLowerCase()}` : ""}
+              onClear={() => { setStatusFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setModeFilter("all"); }}
+              viewSection={
+                <div className="px-1 pb-1 pt-1">
+                  <p className={`px-1.5 pb-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Mode</p>
+                  <div className="flex flex-wrap gap-1.5 px-0.5">
+                    <FilterPill t={t} on={modeFilter === "all"} dot="bg-slate-300" onClick={() => setModeFilter("all")}>Sea and air</FilterPill>
+                    <FilterPill t={t} on={modeFilter === "SEA"} dot="bg-sky-500" count={modeCounts.SEA} onClick={() => setModeFilter("SEA")}>Sea</FilterPill>
+                    <FilterPill t={t} on={modeFilter === "AIR"} dot="bg-violet-500" count={modeCounts.AIR} onClick={() => setModeFilter("AIR")}>Air</FilterPill>
+                  </div>
+                </div>
+              }
+            />
+          )}
+          {tab === "active" && (
+            <AssignMenu
+              t={t}
+              employees={employees}
+              selectedCount={selected.size}
+              onAssignSelected={(employeeId) => void assign([...selected], employeeId)}
+              busy={busy}
+            />
+          )}
+          <div className={`flex items-center gap-2 ${tab === "active" ? "" : "sm:ml-auto"}`}>
+            <button onClick={() => void exportExcel()} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export the list to Excel"} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black">
+              <Download size={14} /> Excel
+            </button>
+            <button onClick={exportPDF} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export the list to PDF"} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-3 py-2 text-[12px] font-semibold text-white transition-colors hover:bg-black">
+              <Download size={14} /> PDF
+            </button>
+          </div>
+        </div>
+
+        {loadError && (
+          <p role="alert" className={`flex items-center gap-2 border-b px-4 py-2.5 text-[12.5px] font-semibold text-red-500 ${t.border}`}>
+            <AlertTriangle className="h-4 w-4 shrink-0" /> {loadError}
+          </p>
+        )}
+        {rows && total > rows.length && (
+          <p className={`border-b px-4 py-2.5 text-[12.5px] font-medium ${t.mid} ${t.border}`}>
+            Showing the newest {fmtNum(rows.length)} of {fmtNum(total)} freight requests. The Excel export covers the same {fmtNum(rows.length)}.
+          </p>
+        )}
+
+        {list.length > 0 && (
+          <div className={`flex flex-wrap items-center gap-3 border-b px-4 py-2.5 ${t.border}`}>
+            <button
+              onClick={() => setSelected(allSelected ? new Set() : new Set(visibleIds))}
+              className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allSelected ? "text-brand-dark" : `${t.soft} hover:text-brand-deep`}`}
+            >
+              {allSelected ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+              {allSelected ? "Clear selection" : "Select all"}
+            </button>
+            {selected.size > 0 && (
+              <>
+                <span className={`text-[13px] font-semibold ${t.strong}`}>{selected.size} selected</span>
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  {tab === "active" ? (
+                    <>
+                      {(["new", "handled", "spam"] as Status[]).map((s) => (
+                        <button key={s} onClick={() => void act([...selected], "status", s)} disabled={busy}
+                          className={`inline-flex items-center rounded-full px-3 py-2 text-xs font-bold transition-opacity hover:opacity-80 disabled:opacity-60 ${STATUS_META[s].chip}`}>
+                          Mark {STATUS_META[s].label}
+                        </button>
+                      ))}
+                      <button onClick={() => confirmDelete([...selected])} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60">
+                        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Delete
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button onClick={() => void act([...selected], "restore")} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-600 disabled:opacity-60">
+                        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />} Restore selected
+                      </button>
+                      <button onClick={() => confirmPurge([...selected])} disabled={busy} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60">
+                        <Trash2 className="h-3.5 w-3.5" /> Delete forever
+                      </button>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {rows === null ? (
+          <div className={`flex items-center justify-center gap-2 px-6 py-16 text-sm ${t.soft}`}>
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading freight requests…
+          </div>
+        ) : list.length ? (
+          <ul className={`space-y-2 p-3 ${t.page}`}>
+            {list.map((r) => {
+              const st = asStatus(r.status);
+              const sel = selected.has(r.id);
+              const ModeIcon = r.mode === "AIR" ? Plane : Ship;
+              const flag = countryFlagUrl(r.country);
+              return (
+                <li key={r.id} className={`flex flex-col gap-3 rounded-xl p-3.5 shadow-sm ring-1 transition-shadow sm:flex-row sm:items-center ${t.card} ${t.hover} ${sel ? "ring-brand/40" : ""} ${st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <button
+                      onClick={() => setSelected((cur) => { const n = new Set(cur); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })}
+                      aria-label={`Select ${r.referenceNo}`}
+                      className={`shrink-0 transition-colors ${sel ? "text-brand" : `${t.soft} hover:text-brand`}`}
+                    >
+                      {sel ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+                    </button>
+                    <button onClick={() => setActiveId(r.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`} title={modeLabel(r.mode)}>
+                        <ModeIcon className="h-[18px] w-[18px]" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        {/* The reference stays legible when the rest is struck
+                            through: it is what a customer quotes on the phone. */}
+                        <p className={`line-clamp-1 text-[15px] font-semibold leading-snug tracking-tight sm:text-[14.5px] ${tab === "trash" ? "opacity-70" : ""}`}>
+                          <span className="mr-2 tabular-nums text-brand-dark">{r.referenceNo}</span>
+                          <span className={st !== "new" ? `line-through ${t.soft}` : `${t.strong} hover:text-brand-dark`}>{r.customerName}</span>
+                        </p>
+                        <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${st !== "new" ? `line-through ${t.soft}` : t.mid}`}>
+                          {routeSummary(r)} · {r.commodity}
+                        </p>
+                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{r.phone}</span></span>
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                            {flag ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={flag} alt="" aria-hidden="true" width={16} height={12} className="h-3 w-4 shrink-0 rounded-[2px] object-cover ring-1 ring-black/10" />
+                            ) : <MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} />}
+                            <span className="truncate font-medium">{r.country}</span>
+                          </span>
+                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Package className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{loadSummary(r)}</span></span>
+                          <span className="inline-flex items-center gap-1.5"><Calendar className={`h-3 w-3 ${t.soft}`} /><span className="font-medium">{fmtDate(r.createdAt)}</span></span>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
+                    {tab === "active" ? (
+                      <>
+                        <OutcomeChip value={r.lastStatus} />
+                        <AssigneePicker t={t} employees={employees} value={r.assignedToId} onChange={(employeeId) => void assign([r.id], employeeId)} busy={busy} />
+                        <StatusControl t={t} value={st} onChange={(s) => void act([r.id], "status", s)} />
+                        <button onClick={() => confirmDelete([r.id])} aria-label={`Delete ${r.referenceNo}`} title="Delete request" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => void act([r.id], "restore")} className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white">
+                          <RotateCcw className="h-3.5 w-3.5" /> Restore
+                        </button>
+                        <button onClick={() => confirmPurge([r.id])} aria-label={`Delete ${r.referenceNo} forever`} title="Delete forever" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <Empty
+            t={t}
+            pad
+            label={
+              tab === "trash"
+                ? "Nothing in Recently Deleted. Deleted freight requests land here and can be restored any time."
+                : live.length === 0
+                  ? "No freight requests yet. They arrive here from the quote form at the foot of /shipping/."
+                  : "No freight requests match."
+            }
+          />
+        )}
+      </div>
+
+      {active && (
+        <ShipmentModal
+          t={t}
+          s={active}
+          code={codeOf(active)}
+          employees={employees}
+          busy={busy}
+          onClose={() => setActiveId(null)}
+          onAssign={(employeeId) => void assign([active.id], employeeId)}
+          onSetStatus={(s) => void act([active.id], "status", s)}
+          onDelete={() => confirmDelete([active.id])}
+          onRestore={() => void act([active.id], "restore")}
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * One freight request, everything the customer gave.
+ *
+ * The route is drawn the way the form drew it for them — POL to POD with the
+ * mode between — because it is the first thing anybody pricing the job reads,
+ * and the figures that decide the rate sit directly under it.
+ */
+function ShipmentModal({
+  s, code, employees, busy, onClose, onAssign, onSetStatus, onDelete, onRestore, t,
+}: {
+  s: Shipment;
+  code: string | null;
+  employees: EmployeeOption[];
+  busy: boolean;
+  onClose: () => void;
+  onAssign: (employeeId: string | null) => void;
+  onSetStatus: (s: Status) => void;
+  onDelete: () => void;
+  onRestore: () => void;
+  t: Theme;
+}) {
+  const deleted = s.status === "deleted";
+  const st = asStatus(s.status);
+  const ModeIcon = s.mode === "AIR" ? Plane : Ship;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
+      <div className={`absolute inset-0 ${t.overlay}`} />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Freight request ${s.referenceNo}`}
+        onClick={(e) => e.stopPropagation()}
+        className={`relative z-10 flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl shadow-2xl ring-1 sm:max-h-[88dvh] ${t.modal}`}
+      >
+        <div className={`flex items-center justify-between border-b px-5 py-4 ${t.border}`}>
+          <p className="text-sm font-semibold">
+            Freight request <span className="ml-1 tabular-nums text-brand-dark">{s.referenceNo}</span>
+          </p>
+          <button onClick={onClose} aria-label="Close" className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${t.thumb} ${t.soft} hover:text-brand-dark`}>
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="min-h-0 overflow-y-auto overscroll-contain p-5">
+          <div className="flex items-center gap-3">
+            <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${t.thumb} ${t.soft}`}>
+              <ModeIcon className="h-5 w-5" />
+            </span>
+            <div className="min-w-0">
+              <h3 className={`break-words text-lg font-semibold leading-snug ${t.strong}`}>{s.customerName}</h3>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${deleted ? "bg-red-500/10 text-red-600" : STATUS_META[st].chip}`}>
+                  {deleted ? "Deleted" : STATUS_META[st].label}
+                </span>
+                {code && <CustomerCodeBadge code={code} chip={t.chip} size="sm" />}
+                <OutcomeChip value={s.lastStatus} />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-2xl bg-gradient-to-br from-brand-dark to-brand-deep p-4 text-white sm:p-5">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">Port of loading</p>
+                <p className="mt-1 break-words text-base font-bold leading-snug sm:text-lg">{s.portOfLoading}</p>
+              </div>
+              <div className="flex items-center gap-1.5 pt-5 text-white/80">
+                <span className="w-4 border-t border-dashed border-white/40 sm:w-6" />
+                <ModeIcon size={18} aria-hidden />
+                <span className="w-4 border-t border-dashed border-white/40 sm:w-6" />
+              </div>
+              <div className="min-w-0 text-right">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">Port of discharge</p>
+                <p className="mt-1 break-words text-base font-bold leading-snug sm:text-lg">{s.portOfDischarge}</p>
+              </div>
+            </div>
+            {/* The four figures a rate is built from, under the lane. */}
+            <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-dashed border-white/25 pt-4 text-[13px]">
+              {[
+                ["Method", `${modeLabel(s.mode)} · ${methodLabel(s.method)}`, methodName(s.method)],
+                ["Terms", termsLabel(s.terms), s.terms === "OTHER" ? "" : termsName(s.terms)],
+                ["Volume", `${fmtFigure(s.cbm)} m³`, ""],
+                ["Weight", `${fmtFigure(s.weightKg)} kg`, "Gross"],
+              ].map(([k, v, sub]) => (
+                <div key={k} className="min-w-0">
+                  <dt className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/80">{k}</dt>
+                  <dd className="mt-0.5 break-words font-semibold">
+                    {v}
+                    {sub && <span className="block text-[12px] font-medium text-white/80">{sub}</span>}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <dl className="mt-5 grid gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2">
+            <Row t={t} icon={Phone} label="Phone" value={s.phone} />
+            <Row t={t} icon={Mail} label="Email" value={s.email ?? "Not given"} />
+            <Row t={t} icon={MapPin} label="Country" value={s.country} />
+            <Row t={t} icon={Calendar} label="Received" value={fmtDateTime(s.createdAt)} />
+            <Row t={t} icon={Package} label="Goods" value={s.commodity} />
+            <Row t={t} icon={Layers} label="Cargo" value={commodityTypeLabel(s.commodityType)} />
+            <Row t={t} icon={Boxes} label="Cartons" value={s.cartonBoxes ? s.cartonBoxes.toLocaleString("en-IN") : "Not given"} />
+            <Row t={t} icon={Inbox} label="Source" value={s.source} />
+          </dl>
+
+          {s.notes && (
+            <div className={`mt-4 rounded-xl p-3 ${t.thumb}`}>
+              <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Notes from the customer</p>
+              <p className={`whitespace-pre-wrap break-words text-sm font-medium leading-relaxed ${t.strong}`}>{s.notes}</p>
+            </div>
+          )}
+
+          {s.lastStatus?.note && (
+            <div className={`mt-4 rounded-xl p-3 ${t.thumb}`}>
+              <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>
+                Latest note · {s.lastStatus.by}
+              </p>
+              <p className={`whitespace-pre-wrap break-words text-sm font-medium leading-relaxed ${t.strong}`}>{s.lastStatus.note}</p>
+            </div>
+          )}
+
+          {!deleted && (
+            <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-4">
+              <div>
+                <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Assigned to</p>
+                <AssigneePicker t={t} employees={employees} value={s.assignedToId} onChange={onAssign} busy={busy} />
+              </div>
+              <div>
+                <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this request</p>
+                <StatusControl t={t} value={st} onChange={onSetStatus} big />
+              </div>
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            <a href={`tel:${s.phone.replace(/[^+\d]/g, "")}`} className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep">
+              <PhoneCall className="h-3.5 w-3.5" /> Call
+            </a>
+            <a href={waLink(s.phone)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white">
+              <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
+            </a>
+            {s.email && (
+              <a href={`mailto:${s.email}?subject=${encodeURIComponent(`Freight quote ${s.referenceNo}`)}`} className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold ring-1 transition-colors ${t.pill}`}>
+                <Mail className="h-3.5 w-3.5" /> Email
+              </a>
+            )}
+            {deleted ? (
+              <button onClick={onRestore} className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white">
+                <RotateCcw className="h-3.5 w-3.5" /> Restore
+              </button>
+            ) : (
+              <button onClick={onDelete} className="ml-auto inline-flex items-center gap-2 rounded-full bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-500 transition-colors hover:bg-red-500 hover:text-white">
                 <Trash2 className="h-3.5 w-3.5" /> Delete
               </button>
             )}

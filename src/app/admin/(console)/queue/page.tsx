@@ -69,9 +69,9 @@ export default async function QueuePage() {
   ]);
 
   // How much of each customer is actually at stake: counted per customer key
-  // in two grouped queries rather than one per row.
+  // in three grouped queries rather than one per row.
   const keys = entries.map((e) => e.customerKey);
-  const [inquiryCounts, contactCounts] = keys.length
+  const [inquiryCounts, contactCounts, shipmentCounts] = keys.length
     ? await Promise.all([
         prisma.inquiry.groupBy({
           by: ["customerKey"],
@@ -83,10 +83,16 @@ export default async function QueuePage() {
           where: { customerKey: { in: keys }, status: { not: "deleted" } },
           _count: { _all: true },
         }),
+        prisma.shipmentInquiry.groupBy({
+          by: ["customerKey"],
+          where: { customerKey: { in: keys }, status: { not: "deleted" } },
+          _count: { _all: true },
+        }),
       ])
-    : [[], []];
+    : [[], [], []];
   const inquiriesBy = new Map(inquiryCounts.map((r) => [r.customerKey, r._count._all]));
   const contactsBy = new Map(contactCounts.map((r) => [r.customerKey, r._count._all]));
+  const shipmentsBy = new Map(shipmentCounts.map((r) => [r.customerKey, r._count._all]));
 
   const rows: QueueRow[] = entries.map((e) => ({
     id: e.id,
@@ -102,6 +108,7 @@ export default async function QueuePage() {
     closedAt: e.closedAt ? e.closedAt.toISOString() : null,
     inquiries: inquiriesBy.get(e.customerKey) ?? 0,
     contacts: contactsBy.get(e.customerKey) ?? 0,
+    shipments: shipmentsBy.get(e.customerKey) ?? 0,
     trail: e.events.map((v) => ({
       id: v.id,
       kind: v.kind,

@@ -25,6 +25,7 @@ export interface StatusUpdateRow {
   createdAt: string;
   inquiry: { id: string; customerName: string; productName: string; email: string | null; phone: string } | null;
   contact: { id: string; fullName: string; email: string; phone: string } | null;
+  shipment: { id: string; customerName: string; referenceNo: string; email: string | null; phone: string } | null;
 }
 
 /**
@@ -43,7 +44,7 @@ export function EmployeeDetail({
   updates,
 }: {
   employee: EmployeeRow;
-  counts: { inquiries: number; contacts: number; updates: number };
+  counts: { inquiries: number; contacts: number; shipments: number; updates: number };
   /**
    * Their book by what THEY last recorded on each lead — not by the lead's
    * newest entry, which can be a previous holder's. From lib/lead-performance
@@ -56,6 +57,7 @@ export function EmployeeDetail({
     assigned: number;
     inquiries: number;
     contacts: number;
+    shipments: number;
     counts: Record<LeadOutcomeKey, number>;
     recorded: number;
     thisWeek: number;
@@ -79,9 +81,10 @@ export function EmployeeDetail({
         note: u.note,
         createdAt: u.createdAt,
         scope:
-          normalizePhoneKey(u.inquiry?.phone ?? u.contact?.phone ?? "") ||
+          normalizePhoneKey(u.inquiry?.phone ?? u.contact?.phone ?? u.shipment?.phone ?? "") ||
           u.inquiry?.customerName ||
           u.contact?.fullName ||
+          u.shipment?.customerName ||
           "",
       })),
     [updates]
@@ -200,6 +203,7 @@ export function EmployeeDetail({
                     assigned={performance.assigned}
                     inquiries={performance.inquiries}
                     contacts={performance.contacts}
+                    shipments={performance.shipments}
                   />
                   {performance.recorded > 0 && (
                     <> · {performance.recorded.toLocaleString("en-GB")} {performance.recorded === 1 ? "outcome" : "outcomes"} recorded all time</>
@@ -223,10 +227,11 @@ export function EmployeeDetail({
             </div>
           </>
         ) : (
-          <div className="mb-4 grid gap-3 sm:grid-cols-3">
+          <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {[
               ["Assigned inquiries", counts.inquiries],
               ["Assigned contact messages", counts.contacts],
+              ["Assigned freight requests", counts.shipments],
               ["Status updates recorded", counts.updates],
             ].map(([label, value]) => (
               <div key={label as string} className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.04]">
@@ -263,10 +268,11 @@ export function EmployeeDetail({
                 ) : (
                   history.map((batch) => {
                     const u = batch[0];
-                    const who = u.inquiry?.customerName ?? u.contact?.fullName ?? "—";
+                    const who = u.inquiry?.customerName ?? u.contact?.fullName ?? u.shipment?.customerName ?? "—";
                     // One customer-level outcome is one line, whatever number
                     // of that customer's products it was written against.
-                    const items = batch.map((b) => (b.inquiry ? b.inquiry.productName : "Contact message"));
+                    const items = batch.map((b) =>
+                      b.inquiry ? b.inquiry.productName : b.shipment ? `Freight request ${b.shipment.referenceNo}` : "Contact message");
                     const what = items.length === 1 ? items[0] : `${items.length} products · ${items.join(", ")}`;
                     return (
                       <tr key={u.id} className="align-top transition-colors hover:bg-black/[0.015]">
@@ -279,9 +285,15 @@ export function EmployeeDetail({
                         <td className="px-5 py-3">
                           {/* Back to the row itself — it lives in the console's
                               list, not on a page of its own. */}
-                          {u.inquiry || u.contact ? (
+                          {u.inquiry || u.contact || u.shipment ? (
                             <Link
-                              href={u.inquiry ? `/admin/?inquiry=${u.inquiry.id}` : `/admin/?contact=${u.contact!.id}`}
+                              href={
+                                u.inquiry
+                                  ? `/admin/?inquiry=${u.inquiry.id}`
+                                  : u.contact
+                                    ? `/admin/?contact=${u.contact.id}`
+                                    : `/admin/?shipment=${u.shipment!.id}`
+                              }
                               className="block"
                             >
                               <span className="block font-semibold hover:underline">{who}</span>

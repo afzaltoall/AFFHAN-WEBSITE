@@ -12,7 +12,7 @@ import { prisma, withDbRetry } from "@/lib/prisma";
  * is worse than no number: it reads as zero.
  *
  * So the counting happens here, in the console layout, which is the one piece
- * of server code every admin route already runs. One statement, seven
+ * of server code every admin route already runs. One statement, eight
  * count(*)s, none of them touching Product — the biggest table any of them
  * reads is Supplier at a few hundred rows, and the layout renders alongside
  * the page rather than before it, so it costs a page load nothing it waits on.
@@ -31,6 +31,8 @@ export interface RailCounts {
   inquiries: number;
   /** Contact Us messages, the same. */
   contacts: number;
+  /** Freight quote requests from /shipping/, the same. */
+  shipping: number;
   /** In Recently Deleted — inquiries, which is what that view restores. */
   trash: number;
   suppliers: number;
@@ -51,12 +53,13 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
   try {
     const [row] = await withDbRetry(() =>
       prisma.$queryRaw<[{
-        inquiries: bigint; contacts: bigint; trash: bigint;
+        inquiries: bigint; contacts: bigint; shipping: bigint; trash: bigint;
         suppliers: bigint; videos: bigint; queue: bigint; queueInvalid: bigint;
       }]>`
         SELECT
           (SELECT count(*) FROM "Inquiry"        WHERE status NOT IN ('handled', 'spam', 'deleted')) AS inquiries,
           (SELECT count(*) FROM "ContactMessage" WHERE status NOT IN ('handled', 'spam', 'deleted')) AS contacts,
+          (SELECT count(*) FROM "ShipmentInquiry" WHERE status NOT IN ('handled', 'spam', 'deleted')) AS shipping,
           (SELECT count(*) FROM "Inquiry"        WHERE status = 'deleted')                           AS trash,
           (SELECT count(*) FROM "Supplier")                                                          AS suppliers,
           (SELECT count(*) FROM "Video")                                                             AS videos,
@@ -67,6 +70,7 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
     return {
       inquiries: Number(row.inquiries),
       contacts: Number(row.contacts),
+      shipping: Number(row.shipping),
       trash: Number(row.trash),
       suppliers: Number(row.suppliers),
       videos: Number(row.videos),

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { groupCustomers, buildCustomerSheet } from "@/lib/customerGroups";
+import { commodityTypeLabel, methodLabel, modeLabel, termsLabel } from "@/lib/shipment-inquiry";
 import type { WorkSheet } from "xlsx";
 
 export const dynamic = "force-dynamic";
@@ -43,9 +44,12 @@ export async function GET(req: Request) {
     // its endpoints and the JobAlert table were all removed. The three
     // addresses it had collected are archived at
     // tools/eprolo/moderation/job-alert-subscribers-*.csv.
-    const [inquiries, contacts] = await Promise.all([
+    const [inquiries, contacts, shipments] = await Promise.all([
       prisma.inquiry.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" } }),
       prisma.contactMessage.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" } }),
+      only === "customers"
+        ? Promise.resolve([])
+        : prisma.shipmentInquiry.findMany({ where: { status: { not: "deleted" } }, orderBy: { createdAt: "desc" } }),
     ]);
 
     const XLSX = await import("xlsx");
@@ -131,6 +135,25 @@ export async function GET(req: Request) {
     forceTextCols(conWs, conRows.length, [5, 6]); // Code, Phone → text
     conWs["!cols"] = conHeaders.map((h) => ({ wch: h === "Message" ? 50 : h === "Email" ? 26 : Math.max(12, h.length + 2) }));
     XLSX.utils.book_append_sheet(wb, conWs, "Contact Us");
+
+    // --- Shipping (freight quote requests from /shipping/) ------------------
+    // CBM and weight as numbers, so the sheet can add them up.
+    const shipHeaders = [
+      "Reference", "Date", "Customer", "Email", "Shipment Country", "Code", "Phone", "Commodity", "Cargo Type",
+      "Mode", "Method", "POL", "POD", "Terms", "CBM", "Weight (kg)", "Cartons", "Notes", "Status",
+    ];
+    const shipRows: (string | number)[][] = shipments.map((s) => {
+      const { code, number } = splitPhone(s.phone);
+      return [
+        s.referenceNo, fmtDate(s.createdAt), s.customerName, s.email || "", s.country, code, number, s.commodity,
+        commodityTypeLabel(s.commodityType), modeLabel(s.mode), methodLabel(s.method), s.portOfLoading,
+        s.portOfDischarge, termsLabel(s.terms), Number(s.cbm), Number(s.weightKg), s.cartonBoxes ?? "", s.notes || "", s.status,
+      ];
+    });
+    const shipWs = XLSX.utils.aoa_to_sheet([shipHeaders, ...shipRows]);
+    forceTextCols(shipWs, shipRows.length, [5, 6]); // Code, Phone → text
+    shipWs["!cols"] = shipHeaders.map((h) => ({ wch: h === "Notes" ? 44 : h === "Email" || h === "Commodity" ? 26 : Math.max(11, h.length + 2) }));
+    XLSX.utils.book_append_sheet(wb, shipWs, "Shipping");
 
     const buf = XLSX.write(wb, { bookType: "xlsx", type: "buffer" });
     return new NextResponse(buf, {

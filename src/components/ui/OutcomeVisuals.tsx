@@ -209,12 +209,15 @@ export function WinRateCard({
 }
 
 /** Their book in one line: how much, and of what. */
-export function BookSummary({ assigned, inquiries, contacts }: { assigned: number; inquiries: number; contacts: number }) {
+export function BookSummary({
+  assigned, inquiries, contacts, shipments = 0,
+}: { assigned: number; inquiries: number; contacts: number; shipments?: number }) {
   if (assigned === 0) return <>nothing assigned</>;
   return (
     <>
       {assigned.toLocaleString("en-GB")} assigned · {inquiries} quote {inquiries === 1 ? "request" : "requests"}
       {contacts > 0 && ` · ${contacts} ${contacts === 1 ? "message" : "messages"}`}
+      {shipments > 0 && ` · ${shipments} freight ${shipments === 1 ? "request" : "requests"}`}
     </>
   );
 }

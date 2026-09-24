@@ -97,12 +97,13 @@ export function AdminRail({
      nobody else is going to notice. */
   const alertCls = `shrink-0 overflow-hidden whitespace-nowrap rounded-full bg-amber-500/15 text-[10.5px] font-bold leading-5 text-amber-700 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${open ? "ml-1 max-w-[96px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
 
-  /* Which rows carry a figure — the same six the dashboard badges, and read
+  /* Which rows carry a figure — the same seven the dashboard badges, and read
      through rail-sections so the two rails cannot drift apart again. */
   const railCount: RailCountMap = counts
     ? {
         inquiries: counts.inquiries,
         contacts: counts.contacts,
+        shipping: counts.shipping,
         trash: counts.trash,
         suppliers: counts.suppliers,
         videos: counts.videos,
