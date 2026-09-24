@@ -36,7 +36,7 @@ const FREIGHT_DATA: Record<FreightId, FreightData> = {
     id: 'sea',
     label: 'Sea',
     title: 'Sea Freight',
-    description: 'FCL and LCL out of major global ports. Cost-effective for large volumes where the holding cost of time at sea outweighs the freight bill.',
+    description: 'FCL and LCL out of major global ports. Cost-effective for large volumes.',
     image: 'https://images.unsplash.com/photo-1494412651409-8963ce7935a7?q=80&w=800&auto=format&fit=crop',
     colors: {
       gradient: 'from-blue-600 to-indigo-900',
@@ -49,7 +49,7 @@ const FREIGHT_DATA: Record<FreightId, FreightData> = {
     id: 'air',
     label: 'Air',
     title: 'Air Freight',
-    description: 'For cargo where speed is paramount. Ideal for high-value or time-sensitive shipments that justify the premium over sea transport.',
+    description: 'For cargo where the holding cost of time at sea outweighs the freight bill. Ideal for high-value or time-sensitive shipments that justify the premium over sea transport.',
     image: 'https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=800&auto=format&fit=crop',
     colors: {
       gradient: 'from-amber-600 to-orange-900',
