@@ -2,15 +2,13 @@
 
 import Link from "next/link";
 import { ArrowRight, Globe2 } from "lucide-react";
-import { motion } from "framer-motion";
 import { OFFICES } from "@/lib/brand";
 import { Reveal, RevealNoScriptFallback } from "@/components/ui/Reveal";
 import { ShippingHero } from "@/components/ui/ShippingHero";
 import { ShippingJourney } from "@/components/ui/ShippingJourney";
 import { FaqAccordion } from "@/components/sections/FaqAccordion";
 import { SHIPPING_FAQS } from "@/lib/shippingFaqs";
-import { LANES } from "@/lib/shippingJourney";
-
+import { SpatialFreightShowcase } from "@/components/ui/spatial-freight-showcase";
 const SERVICES = [
   {
     title: "Sea freight",
@@ -70,7 +68,7 @@ export function ShippingContent() {
 
       {/* Remove the wave divider, keep it clean */}
       <div className="h-px w-full bg-[#08222e]/10"></div>
-      
+
       <ShippingJourney />
 
       <div className="h-px w-full bg-[#08222e]/10"></div>
@@ -88,7 +86,7 @@ export function ShippingContent() {
           </Reveal>
 
           <div className="mt-16 border-t border-[#08222e]/20">
-            {SERVICES.map(({ title, body }, i) => (
+            {SERVICES.map(({ title, body }) => (
               <div
                 key={title}
                 className="group flex flex-col sm:flex-row sm:items-baseline justify-between gap-4 sm:gap-10 border-b border-[#08222e]/10 py-8 lg:py-12 transition-colors hover:bg-[#08222e]/[0.02]"
@@ -201,6 +199,10 @@ export function ShippingContent() {
               </div>
             </Reveal>
           </div>
+          
+          <Reveal delay={120}>
+            <SpatialFreightShowcase />
+          </Reveal>
         </div>
       </section>
 
