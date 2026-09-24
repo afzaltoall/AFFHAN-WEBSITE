@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ShippingContent } from "@/components/ui/ShippingContent";
+import { ShippingQuoteSection } from "@/components/ui/ShippingQuoteSection";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { LOGO_URL, ORG_ID, SITE_URL } from "@/lib/brand";
 import { SHIPPING_FAQS } from "@/lib/shippingFaqs";
@@ -97,6 +98,9 @@ export default function ShippingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
       />
       <ShippingContent />
+      {/* Here rather than inside ShippingContent, so the page's content can be
+          redesigned without the form having to move with it. */}
+      <ShippingQuoteSection />
       <FooterSection />
     </>
   );

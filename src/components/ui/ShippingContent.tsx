@@ -367,10 +367,10 @@ export function ShippingContent() {
             a rate and a routing.
           </p>
           <Link
-            href="/contact/"
+            href="#shipping-quote"
             className="mt-7 inline-flex items-center gap-2 rounded-xl bg-white px-7 py-3.5 text-sm font-semibold text-brand-dark shadow-sm transition-transform hover:scale-[1.02] active:scale-95"
           >
-            Contact us <ArrowRight size={16} />
+            Request a freight quote <ArrowRight size={16} />
           </Link>
         </Reveal>
       </section>

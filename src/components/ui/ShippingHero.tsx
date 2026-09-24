@@ -140,7 +140,7 @@ export function ShippingHero({ officeCount }: { officeCount: number }) {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href="/contact/"
+                href="#shipping-quote"
                 className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-brand-dark shadow-sm transition-transform hover:scale-[1.02] active:scale-95"
               >
                 Request a shipping quote <ArrowRight size={16} />
