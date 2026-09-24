@@ -49,3 +49,22 @@ export function isValidMobileE164(e164: string): boolean {
     return false;
   }
 }
+
+/**
+ * An E.164 number ("+919876543210") as the three pieces a dial-code picker and
+ * a digits-only field hold: { iso: "in", dial: "+91", national: "9876543210" }.
+ *
+ * For prefilling a form from a signed-in account. Null for anything that does
+ * not parse, so the prefill simply does not happen rather than guessing.
+ */
+export function splitE164(e164: string): { iso: string; dial: string; national: string } | null {
+  const value = (e164 || "").trim();
+  if (!value.startsWith("+")) return null;
+  try {
+    const parsed = parsePhoneNumber(value);
+    if (!parsed?.country) return null;
+    return { iso: parsed.country.toLowerCase(), dial: `+${parsed.countryCallingCode}`, national: parsed.nationalNumber };
+  } catch {
+    return null;
+  }
+}
