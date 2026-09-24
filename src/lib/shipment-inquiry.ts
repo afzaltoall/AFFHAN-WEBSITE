@@ -243,6 +243,32 @@ export function routeSummary(s: { mode: string; method: string; portOfLoading: s
 }
 
 /**
+ * One row of /api/account/shipments: a request as its sender sees it again,
+ * which is what they typed plus the reference and when. Read by the account's
+ * My Shipments page, and by the /shipping/ form, which shows the latest one
+ * again after a reload.
+ */
+export interface AccountShipment {
+  referenceNo: string;
+  createdAt: string;
+  customerName: string;
+  phone: string;
+  email: string | null;
+  country: string;
+  commodity: string;
+  commodityType: string;
+  mode: string;
+  method: string;
+  portOfLoading: string;
+  portOfDischarge: string;
+  terms: string;
+  cbm: string;
+  weightKg: string;
+  cartonBoxes: number | null;
+  notes: string | null;
+}
+
+/**
  * A sent request as the one sentence /shipping/ reads it back in:
  * "Sea freight, FCL — 68 m³ and 6,500 kg of LED panel lights, Shanghai to
  * Chennai, on FOB terms." Plain text, for a request that is complete; the

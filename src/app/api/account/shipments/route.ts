@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyMobileSession } from "@/lib/mobile-auth";
+import type { AccountShipment } from "@/lib/shipment-inquiry";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
       },
     });
 
-    const shipments = rows.map((s) => ({
+    const shipments: AccountShipment[] = rows.map((s) => ({
       ...s,
       createdAt: s.createdAt.toISOString(),
       // Decimals as their exact text, as the console reads them.

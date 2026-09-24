@@ -11,6 +11,7 @@ import {
   shipmentSentence,
   termsLabel,
   termsName,
+  type AccountShipment,
 } from "@/lib/shipment-inquiry";
 
 /**
@@ -30,30 +31,10 @@ import {
  * this account.
  */
 
-interface ShipmentRow {
-  referenceNo: string;
-  createdAt: string;
-  customerName: string;
-  phone: string;
-  email: string | null;
-  country: string;
-  commodity: string;
-  commodityType: string;
-  mode: string;
-  method: string;
-  portOfLoading: string;
-  portOfDischarge: string;
-  terms: string;
-  cbm: string;
-  weightKg: string;
-  cartonBoxes: number | null;
-  notes: string | null;
-}
-
 const figure = (v: string | number) => Number(v).toLocaleString("en-IN", { maximumFractionDigits: 3 });
 
 export default function ShipmentsPage() {
-  const [rows, setRows] = useState<ShipmentRow[] | null>(null);
+  const [rows, setRows] = useState<AccountShipment[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   /** The card a link pointed at (/account/shipments/#SHP-26-00001), briefly. */
@@ -170,7 +151,7 @@ export default function ShipmentsPage() {
   );
 }
 
-function ShipmentCard({ s, pointedAt }: { s: ShipmentRow; pointedAt: boolean }) {
+function ShipmentCard({ s, pointedAt }: { s: AccountShipment; pointedAt: boolean }) {
   const ModeIcon = s.mode === "AIR" ? Plane : Ship;
   const titleId = `${s.referenceNo}-title`;
   const sent = new Date(s.createdAt).toLocaleDateString(undefined, {

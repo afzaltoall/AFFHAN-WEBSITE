@@ -18,6 +18,7 @@ import {
   termsLabel,
   termsName,
   validateShipmentInquiry,
+  type AccountShipment,
   type CleanShipmentInquiry,
   type FieldErrors,
   type ShipmentField,
@@ -41,6 +42,11 @@ import {
  * fill, and the sign-in gate (QuoteGateContext) sits on the send. The login
  * modal opens over this section, which stays mounted with everything typed,
  * and the request goes the moment sign-in succeeds, without a second click.
+ *
+ * After a reload, a signed-in customer who has sent a request before sees the
+ * latest one, with its shipment ID and what happens next, rather than an empty
+ * form; "Send another request" opens the form. It is read from
+ * /api/account/shipments, the list My Shipments shows.
  *
  * Plain <input>s rather than ui/input: that component's classes include
  * rounded-full and bg-white, and cn() in lib/utils only joins class names, so
@@ -155,7 +161,28 @@ function focusField(field: ShipmentField) {
 type Phase =
   | { kind: "editing" }
   | { kind: "sending" }
-  | { kind: "sent"; referenceNo: string; sent: CleanShipmentInquiry };
+  // sentAt only on a request read back from the account after a reload,
+  // rather than one sent a moment ago.
+  | { kind: "sent"; referenceNo: string; sent: CleanShipmentInquiry; sentAt?: string };
+
+/** A request from /api/account/shipments, in the shape a fresh send is kept in. */
+const fromAccount = (r: AccountShipment): CleanShipmentInquiry => ({
+  customerName: r.customerName,
+  phone: r.phone,
+  email: r.email,
+  country: r.country,
+  commodity: r.commodity,
+  commodityType: r.commodityType as CleanShipmentInquiry["commodityType"],
+  mode: r.mode as CleanShipmentInquiry["mode"],
+  portOfLoading: r.portOfLoading,
+  portOfDischarge: r.portOfDischarge,
+  terms: r.terms as CleanShipmentInquiry["terms"],
+  cbm: r.cbm,
+  cartonBoxes: r.cartonBoxes,
+  weightKg: r.weightKg,
+  method: r.method as CleanShipmentInquiry["method"],
+  notes: r.notes,
+});
 
 export function ShippingQuoteSection() {
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -231,6 +258,47 @@ export function ShippingQuoteSection() {
       ...(known && !d.phone ? { phoneIso: known.iso, phoneCode: known.dial, phone: known.national } : {}),
     }));
   }, [user]);
+
+  // A signed-in customer who has already sent a request sees the latest one
+  // again after a reload: its shipment ID and what happens next, as it looked
+  // the moment it was sent, rather than an empty form suggesting nothing went.
+  //
+  // Asked once per account per visit, and never put over a form somebody has
+  // started: the answer can land after they have begun typing, which is what
+  // `pristine` is checked for at that moment rather than when it was asked.
+  const userId = user?.id ?? null;
+  const signedInAs = useRef<string | null>(null);
+  const askedFor = useRef<string | null>(null);
+  const pristine = useRef(true);
+  useEffect(() => {
+    signedInAs.current = userId;
+    pristine.current =
+      phase.kind === "editing" &&
+      !attempted &&
+      (Object.keys(NO_SHIPMENT) as (keyof typeof NO_SHIPMENT)[]).every((k) => draft[k] === "");
+  });
+  useEffect(() => {
+    if (!userId) {
+      // Signed out on this page: their request goes off the screen with them.
+      askedFor.current = null;
+      setPhase((p) => (p.kind === "sent" && p.sentAt ? { kind: "editing" } : p));
+      return;
+    }
+    if (askedFor.current === userId) return;
+    askedFor.current = userId;
+    void (async () => {
+      try {
+        const res = await fetch("/api/account/shipments/", { credentials: "include", cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        const latest: AccountShipment | undefined = Array.isArray(json?.shipments) ? json.shipments[0] : undefined;
+        if (!latest || signedInAs.current !== userId || !pristine.current) return;
+        setPhase({ kind: "sent", referenceNo: latest.referenceNo, sent: fromAccount(latest), sentAt: latest.createdAt });
+      } catch {
+        // The form is there either way; there is nothing to tell anyone.
+      }
+    })();
+  }, [userId]);
 
   // Air has one method and it is chosen for them; switching to sea keeps FCL or
   // LCL if one was already picked and otherwise asks.
@@ -343,12 +411,14 @@ export function ShippingQuoteSection() {
   }
 
   // The confirmation is far shorter than the form, so without this the reader
-  // is left looking at whatever was below it.
+  // is left looking at whatever was below it. Not for a request shown again on
+  // arrival, which would drag the page down to it on every visit.
+  const restored = phase.kind === "sent" && !!phase.sentAt;
   useEffect(() => {
-    if (phase.kind !== "sent") return;
+    if (phase.kind !== "sent" || restored) return;
     cardRef.current?.scrollIntoView({ block: "start", behavior: prefersMotion() ? "smooth" : "auto" });
     successRef.current?.focus({ preventScroll: true });
-  }, [phase.kind]);
+  }, [phase.kind, restored]);
 
   useEffect(() => {
     if (phase.kind === "editing" && focusNext.current) {
@@ -417,7 +487,9 @@ export function ShippingQuoteSection() {
               <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">
                 Your request
               </span>
-              <RequestSentence v={draft} className="mt-5 text-[28px] xl:text-[32px]" />
+              {/* The request as sent once there is one: after a reload the
+                  draft is empty, and this would read as a blank. */}
+              <RequestSentence v={phase.kind === "sent" ? phase.sent : draft} className="mt-5 text-[28px] xl:text-[32px]" />
               <p className="mt-8 border-t border-[#08222e]/10 pt-4 text-[14px] leading-relaxed text-[#5a6e77]">
                 {phase.kind === "sent" ? (
                   <>
@@ -1004,7 +1076,11 @@ function Sent({
 
   return (
     <div className="border-t-2 border-[#08222e] pt-8">
-      <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">Request received</span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">
+        {phase.sentAt
+          ? `Your latest request · Sent ${new Date(phase.sentAt).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })}`
+          : "Request received"}
+      </span>
       <h3 ref={headingRef} tabIndex={-1} className="mt-5 text-3xl font-medium tracking-[-0.02em] outline-none lg:text-4xl">
         The shipping desk has it.
       </h3>
