@@ -49,7 +49,7 @@ const FREIGHT_DATA: Record<FreightId, FreightData> = {
     id: 'air',
     label: 'Air',
     title: 'Air Freight',
-    description: 'For cargo where the holding cost of time at sea outweighs the freight bill. Ideal for high-value or time-sensitive shipments that justify the premium over sea transport.',
+    description: 'For cargo where the cost of delay outweighs the freight bill. Ideal for high-value or time-sensitive shipments that justify the premium over sea transport.',
     image: 'https://images.unsplash.com/photo-1542296332-2e4473faf563?q=80&w=800&auto=format&fit=crop',
     colors: {
       gradient: 'from-amber-600 to-orange-900',
