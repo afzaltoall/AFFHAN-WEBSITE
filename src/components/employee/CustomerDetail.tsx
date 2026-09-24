@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  Boxes, Building2, Calendar, ChevronDown, ExternalLink, FileText, Inbox, Layers, Loader2, Mail, MapPin, MessageCircle,
+  Box, Boxes, Building2, Calendar, ChevronDown, ExternalLink, FileText, Inbox, Layers, Loader2, Mail, MapPin, MessageCircle,
   MessageSquare, Package, Phone, PhoneCall, Plane, Scale, Ship, Users, X, ZoomIn, type LucideIcon,
 } from "lucide-react";
 import {
@@ -236,6 +236,7 @@ export function CustomerDetail({
                   open={expanded.has(leadKey(lead))}
                   onToggle={() => toggle(leadKey(lead))}
                   onZoom={setZoom}
+                  customerCountry={group.country}
                 />
               ))}
             </ul>
@@ -406,12 +407,14 @@ const figure = (v: string) => Number(v).toLocaleString("en-IN", { maximumFractio
  * "the black one or the brown one?".
  */
 function ItemPanel({
-  lead, open, onToggle, onZoom,
+  lead, open, onToggle, onZoom, customerCountry,
 }: {
   lead: LeadCardData;
   open: boolean;
   onToggle: () => void;
   onZoom: (src: string) => void;
+  /** What the panel's header already says, so an item repeats it only when it differs. */
+  customerCountry: string;
 }) {
   const [shown, setShown] = useState(0);
   const images = lead.images.length ? lead.images : lead.image ? [lead.image] : [];
@@ -561,10 +564,14 @@ function ItemPanel({
                     <Fact icon={Layers} label="Cargo" value={commodityTypeLabel(freight.commodityType)} />
                     <Fact icon={FreightIcon} label="Method" value={`${methodLabel(freight.method)} · ${methodName(freight.method)}`} />
                     <Fact icon={FileText} label="Terms" value={`${termsLabel(freight.terms)}${freight.terms === "OTHER" ? "" : ` · ${termsName(freight.terms)}`}`} />
-                    <Fact icon={Boxes} label="Volume" value={`${figure(freight.cbm)} m³`} />
+                    <Fact icon={Box} label="Volume" value={`${figure(freight.cbm)} m³`} />
                     <Fact icon={Scale} label="Weight" value={`${figure(freight.weightKg)} kg`} />
-                    <Fact icon={Package} label="Cartons" value={freight.cartonBoxes ? freight.cartonBoxes.toLocaleString("en-IN") : "Not given"} />
-                    <Fact icon={MapPin} label="Country" value={lead.country} />
+                    <Fact icon={Boxes} label="Cartons" value={freight.cartonBoxes ? freight.cartonBoxes.toLocaleString("en-IN") : "Not given"} />
+                    {/* The shipment's country, when it is not the one the header
+                        already shows for this customer. */}
+                    {lead.country && lead.country !== customerCountry && (
+                      <Fact icon={MapPin} label="Country" value={lead.country} />
+                    )}
                   </>
                 )}
               </dl>
