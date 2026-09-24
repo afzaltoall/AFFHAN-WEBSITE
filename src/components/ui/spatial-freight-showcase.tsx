@@ -2,16 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, Variants } from 'framer-motion';
-import {
-  Ship,
-  Plane,
-  Clock,
-  Shield,
-  Box,
-  Target,
-  ChevronRight,
-  LucideIcon,
-} from 'lucide-react';
+import { Ship, Plane, ChevronRight } from 'lucide-react';
 
 // =========================================
 // 1. CONFIGURATION & DATA TYPES
@@ -19,12 +10,10 @@ import {
 
 export type FreightId = 'sea' | 'air';
 
-export interface FeatureMetric {
-  label: string;
-  value: number; // 0-100
-  icon: LucideIcon;
-}
-
+// No figures here. The cards once carried percentage bars (volume capacity,
+// cost efficiency, transit speed, security) and an "efficiency" score, none
+// with any source behind it; they were removed rather than replaced. A number
+// goes on this page only when it can be checked.
 export interface FreightData {
   id: FreightId;
   label: string; // Display name for the switcher
@@ -38,9 +27,7 @@ export interface FreightData {
   };
   stats: {
     status: string;
-    efficiency: number;
   };
-  features: FeatureMetric[];
 }
 
 // Default Data (Easy to Modify Here)
@@ -56,11 +43,7 @@ const FREIGHT_DATA: Record<FreightId, FreightData> = {
       glow: 'bg-blue-500',
       ring: 'border-l-blue-500/50',
     },
-    stats: { status: 'Standard Transit', efficiency: 95 },
-    features: [
-      { label: 'Volume Capacity', value: 98, icon: Box },
-      { label: 'Cost Efficiency', value: 92, icon: Target },
-    ],
+    stats: { status: 'Standard Transit' },
   },
   air: {
     id: 'air',
@@ -73,11 +56,7 @@ const FREIGHT_DATA: Record<FreightId, FreightData> = {
       glow: 'bg-amber-500',
       ring: 'border-r-amber-500/50',
     },
-    stats: { status: 'Priority Transit', efficiency: 88 },
-    features: [
-      { label: 'Transit Speed', value: 96, icon: Clock },
-      { label: 'Security', value: 90, icon: Shield },
-    ],
+    stats: { status: 'Priority Transit' },
   },
 };
 
@@ -206,8 +185,6 @@ const FreightVisual = ({ data, isLeft }: { data: FreightData; isLeft: boolean })
 
 const FreightDetails = ({ data, isLeft }: { data: FreightData; isLeft: boolean }) => {
   const alignClass = isLeft ? 'items-start text-left' : 'items-end text-right';
-  const flexDirClass = isLeft ? 'flex-row' : 'flex-row-reverse';
-  const barColorClass = isLeft ? 'left-0 bg-blue-500' : 'right-0 bg-amber-500';
 
   return (
     <motion.div
@@ -227,33 +204,13 @@ const FreightDetails = ({ data, isLeft }: { data: FreightData; isLeft: boolean }
         {data.description}
       </motion.p>
 
-      {/* Feature Grid */}
-      <motion.div variants={ANIMATIONS.item} className="w-full space-y-6 bg-white p-6 rounded-2xl border border-[#08222e]/10 shadow-sm">
-        {data.features.map((feature, idx) => (
-          <div key={feature.label} className="group">
-            <div className={`flex items-center justify-between mb-3 text-sm ${flexDirClass}`}>
-              <div className={`flex items-center gap-2 text-[#08222e] font-medium`}>
-                <feature.icon size={16} className="text-[#176579]" /> <span>{feature.label}</span>
-              </div>
-              <span className="font-mono text-xs text-[#5a6e77]">{feature.value}%</span>
-            </div>
-            <div className="relative h-2 w-full bg-[#08222e]/5 rounded-full overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${feature.value}%` }}
-                transition={{ duration: 1, delay: 0.4 + idx * 0.15 }}
-                className={`absolute top-0 bottom-0 ${barColorClass} opacity-80`}
-              />
-            </div>
-          </div>
-        ))}
-
-        <div className={`pt-4 flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
-          <a href="/contact/" className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#176579] hover:text-[#08222e] transition-colors group">
-            Get a quote
-            <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
-          </a>
-        </div>
+      {/* To the freight quote form at the foot of the page, like every other
+          quote button on it. */}
+      <motion.div variants={ANIMATIONS.item} className={`flex ${isLeft ? 'justify-start' : 'justify-end'}`}>
+        <a href="#shipping-quote" className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#176579] hover:text-[#08222e] transition-colors group">
+          Get a quote
+          <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform" />
+        </a>
       </motion.div>
     </motion.div>
   );
