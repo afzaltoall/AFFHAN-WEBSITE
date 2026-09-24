@@ -1,145 +1,174 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { motion, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
-import { useScrollLit, ink } from "./scrollLit";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-const HEADING = "Freight forwarding and NVOCC services, from the factory floor to your warehouse";
-const WORDS = HEADING.split(" ");
-
+/**
+ * The shipping hero: the sail mark rises out of the fold as you scroll into it,
+ * and the title settles in behind it.
+ *
+ * Pinned the way the rest of the site pins — a tall section with a sticky
+ * stage inside it, scrubbed from "top top" to "bottom bottom", exactly as
+ * parallax-scrolling.tsx and growth-flow.tsx do. ScrollTrigger's own `pin`
+ * wraps and re-parents the DOM to hold an element still; CSS sticky already
+ * does that without touching the tree, and it is what the existing components
+ * chose.
+ *
+ * The section is 160vh, so the scrub plays over 60vh of scrolling. Long enough
+ * to read as motion, short enough that nobody is held at the top of a services
+ * page they came to read.
+ *
+ * No Lenis. The parallax components each construct their own instance for
+ * their own page; there is no site-wide smooth scroll to join, and adding a
+ * second instance here would put two virtual scrollers on one document.
+ */
 export function ShippingHero({ officeCount }: { officeCount: number }) {
-  const trackRef = useRef<HTMLElement>(null);
-  const { p, reduced, scrollYProgress } = useScrollLit(trackRef, ["start start", "end end"]);
+  const rootRef = useRef<HTMLDivElement | null>(null);
 
-  const READ_FROM = 0.05;
-  const READ_TO = 0.5;
-  const span = (READ_TO - READ_FROM) / WORDS.length;
+  useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger);
 
-  const titleScale = useTransform(scrollYProgress, [0, 0.4], [1, 0.85]);
-  const titleY = useTransform(scrollYProgress, [0, 0.4], ["0%", "5%"]);
-  const imageY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
-  
-  const pLit = reduced ? 1 : Math.min(1, Math.max(0, (p - 0.45) / 0.15));
-  const ctaLit = reduced ? 1 : Math.min(1, Math.max(0, (p - 0.55) / 0.15));
+    const root = rootRef.current;
+    if (!root) return;
 
-  const wordEls = useRef<(HTMLSpanElement | null)[]>([]);
-  const wordStep = useRef<number[]>([]);
-  
-  useMotionValueEvent(scrollYProgress, "change", (v) => {
-    if (reduced) return;
-    for (let i = 0; i < WORDS.length; i += 1) {
-      const el = wordEls.current[i];
-      if (!el) continue;
-      const t = (v - (READ_FROM + i * span)) / (span * 3);
-      const lit = t < 0 ? 0 : t > 1 ? 1 : t;
-      const step = Math.round(lit * 25);
-      if (wordStep.current[i] === step) continue;
-      wordStep.current[i] = step;
-      const pct = step * 4;
-      el.style.color = `color-mix(in srgb, #08222e ${pct}%, #63757d)`;
-      el.style.transform = `translateY(${((100 - pct) / 100) * 5}px)`;
-    }
-  });
+    const mm = gsap.matchMedia();
+
+    // Desktop: scrubbed. The ship's position is the scroll position — it moves
+    // only while the reader moves, and reverses if they scroll back up.
+    mm.add("(min-width: 768px) and (prefers-reduced-motion: no-preference)", () => {
+      const ship = root.querySelector<HTMLElement>("[data-ship]");
+      const title = root.querySelectorAll<HTMLElement>("[data-hero-reveal]");
+      if (!ship) return;
+
+      // Below the fold to begin with, so it enters rather than appears.
+      gsap.set(ship, { yPercent: 165, opacity: 0 });
+      gsap.set(title, { opacity: 0, y: 16 });
+
+      const tl = gsap.timeline({
+        defaults: { ease: "none" },
+        scrollTrigger: {
+          trigger: root,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 0.6,
+        },
+      });
+
+      tl.to(ship, { yPercent: 0, opacity: 1, duration: 1 }, 0);
+      // "Affhan Shipping" lands slightly behind the ship, so the arrival leads
+      // and the words follow — the same fade-up the milestone nodes use in
+      // growth-flow.
+      title.forEach((el, i) => {
+        tl.to(el, { opacity: 1, y: 0, duration: 0.4 }, 0.45 + i * 0.12);
+      });
+
+      return () => {
+        tl.kill();
+      };
+    });
+
+    // Mobile, and anyone who asked for less motion: a plain fade-in, played
+    // once on entry. Touch scrolling carries momentum, so a scrubbed transform
+    // stutters as the finger lifts — the effect is not worth the jank.
+    mm.add("(max-width: 767px), (prefers-reduced-motion: reduce)", () => {
+      const targets = root.querySelectorAll<HTMLElement>("[data-ship], [data-hero-reveal]");
+      const tween = gsap.fromTo(
+        targets,
+        { opacity: 0, y: 14 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          stagger: 0.08,
+          ease: "power2.out",
+          scrollTrigger: { trigger: root, start: "top 80%", once: true },
+        }
+      );
+      return () => {
+        tween.scrollTrigger?.kill();
+        tween.kill();
+      };
+    });
+
+    // The ship is a raster that loads after first paint; measuring the scrub
+    // range before it lands leaves the range stale.
+    const refresh = setTimeout(() => ScrollTrigger.refresh(), 400);
+
+    return () => {
+      clearTimeout(refresh);
+      // revert() runs every matchMedia cleanup above and restores the inline
+      // styles gsap.set wrote, so nothing is left behind on unmount.
+      mm.revert();
+    };
+  }, []);
 
   return (
-    <section
-      ref={trackRef}
-      className="relative h-[240vh] bg-[#FAFAF7] sm:h-[280vh]"
-    >
-      <div className="sticky top-16 flex h-[calc(100vh-4rem)] items-center overflow-hidden">
-        
-        {/* Abstract ship background */}
-        <motion.div 
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[20%] opacity-[0.03] pointer-events-none mix-blend-multiply filter blur-[2px]"
-          style={{ y: imageY }}
-        >
-          <Image
-            src="/affhan-ship.png"
-            alt=""
-            aria-hidden="true"
-            /* Square, because the mark is. It was 1200x960 for the old
-               450x360 ship silhouette; the replacement logo is 1:1, and a
-               mismatched width/height makes Next reserve the wrong aspect box
-               and shift when the real image lands. */
-            width={1200}
-            height={448}
-            priority
-            className="w-[80vw] h-auto object-contain max-w-[1200px]"
-          />
-        </motion.div>
-
-        <div className="mx-auto w-full max-w-[1500px] px-6 py-10 md:px-12 lg:px-16 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
-            
-            {/* The main typographic reveal */}
-            <div className="lg:col-span-8 xl:col-span-9">
-              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">
-                Affhan Shipping
-              </span>
-              
-              <motion.h1
-                style={{ scale: reduced ? 1 : titleScale, y: reduced ? 0 : titleY, transformOrigin: "left center" }}
-                className="mt-6 text-[11vw] font-medium leading-[0.9] tracking-[-0.04em] text-[#08222e] sm:text-[9vw] lg:text-[7vw]"
+    <div ref={rootRef} className="relative h-[160vh]">
+      <section className="sticky top-0 flex h-screen items-center overflow-hidden bg-gradient-to-br from-brand to-brand-dark text-white">
+        {/* min-w-0 on the flex item and on the text column. Defensive rather
+            than fixing an observed break: this div is a flex item of the
+            section and a grid container in its own right, both of which
+            default to min-width:auto, and the section clips overflow — so a
+            heading long enough to hold them open would be cut off with no
+            scrollbar to reveal it. */}
+        <div className="mx-auto grid w-full min-w-0 max-w-6xl items-center gap-10 px-5 sm:px-8 lg:grid-cols-[1fr_auto] lg:gap-16">
+          <div className="min-w-0">
+            <p
+              data-hero-reveal
+              className="text-[11px] font-bold uppercase tracking-[0.24em] text-white/70"
+            >
+              Affhan Shipping
+            </p>
+            {/* The h1, the paragraph and the buttons are NOT animated. The
+                trigger starts at the top of the page, so at scroll 0 the
+                timeline is at progress 0 — anything revealed by it would be
+                invisible on arrival. That is fine for a mark rising into view;
+                it is not fine for the page's heading, which is the LCP element
+                and the reason someone opened the page. */}
+            <h1 className="mt-3 max-w-3xl text-3xl font-bold leading-[1.12] tracking-tight sm:text-4xl lg:text-5xl">
+              Freight forwarding and NVOCC services, from the factory floor to
+              your warehouse
+            </h1>
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white/85 sm:text-lg">
+              Sea and air freight, customs clearance and inland delivery, run out of
+              our own offices in {officeCount} countries. The same team that sources
+              your goods can move them.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/contact/"
+                className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 text-sm font-semibold text-brand-dark shadow-sm transition-transform hover:scale-[1.02] active:scale-95"
               >
-                {WORDS.map((word, i) => (
-                  <span
-                    key={`${word}-${i}`}
-                    ref={(el) => {
-                      wordEls.current[i] = el;
-                    }}
-                    className="inline-block whitespace-pre"
-                    style={ink(reduced ? 1 : 0)}
-                  >
-                    {word}
-                    {i < WORDS.length - 1 ? " " : ""}
-                  </span>
-                ))}
-              </motion.h1>
+                Request a shipping quote <ArrowRight size={16} />
+              </Link>
+              <Link
+                href="/about/"
+                className="inline-flex items-center gap-2 rounded-xl border border-white/30 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-white/10"
+              >
+                About Affhan
+              </Link>
             </div>
+          </div>
 
-            {/* The supporting text and CTA, revealed after the heading */}
-            <div className="lg:col-span-4 xl:col-span-3 lg:self-end pb-4 lg:pb-12">
-              <div
-                style={{
-                  opacity: pLit,
-                  transform: `translateY(${(1 - pLit) * 20}px)`,
-                  transition: "opacity 0.25s ease-out, transform 0.5s cubic-bezier(0.16,1,0.3,1)"
-                }}
-              >
-                <p className="text-[16px] font-medium leading-[1.6] text-[#5a6e77] sm:text-[18px]">
-                  Sea and air freight, customs clearance and inland delivery, run out of
-                  our own offices in {officeCount} countries. The same team that sources
-                  your goods can move them.
-                </p>
-              </div>
-
-              <div
-                style={{
-                  opacity: ctaLit,
-                  transform: `translateY(${(1 - ctaLit) * 20}px)`,
-                  transition: "opacity 0.25s ease-out, transform 0.5s cubic-bezier(0.16,1,0.3,1)",
-                  pointerEvents: ctaLit < 0.05 ? "none" : "auto",
-                }}
-                className="mt-10 flex flex-col items-start gap-4"
-              >
-                <Link
-                  href="/contact/"
-                  className="group flex cursor-pointer items-center gap-2 rounded-full bg-[#08222e] py-1.5 pl-6 pr-1.5 transition-all duration-300 hover:gap-3"
-                >
-                  <span className="whitespace-nowrap text-sm font-medium text-[#FAFAF7] sm:text-base">Request a quote</span>
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FAFAF7] transition-transform duration-300 group-hover:scale-110 sm:h-10 sm:w-10">
-                    <ArrowRight className="h-4 w-4 text-[#08222e] sm:h-5 sm:w-5" />
-                  </div>
-                </Link>
-              </div>
-            </div>
-
+          {/* Held to 220px. The source is 450×360, so this stays inside a 2x
+              display's budget; drawn larger it visibly softens. */}
+          <div data-ship className="hidden justify-self-center lg:block">
+            <Image
+              src="/affhan-ship.png"
+              alt=""
+              aria-hidden="true"
+              width={450}
+              height={360}
+              priority
+              className="h-auto w-[220px] object-contain drop-shadow-2xl"
+            />
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
