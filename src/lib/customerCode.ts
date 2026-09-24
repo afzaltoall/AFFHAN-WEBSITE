@@ -78,7 +78,7 @@ export interface Contactable {
 export async function ensureCustomerCode(
   row: Contactable,
   firstContactAt: Date,
-  source: "INQUIRY" | "CONTACT",
+  source: "INQUIRY" | "CONTACT" | "SHIPPING",
   db: Db = prisma,
 ): Promise<string | null> {
   const key = customerKeyOf(row);
@@ -189,7 +189,8 @@ export async function issueMissingCodes(
 /**
  * Who has no number yet, oldest first.
  *
- * Both tables, folded on the key they already share, taking the earliest
+ * All three tables a customer arrives through (quote requests, messages,
+ * freight requests), folded on the key they share, taking the earliest
  * createdAt of everything that customer has ever sent. Deleted and spam rows
  * count: Recently Deleted is restorable, a mis-triaged customer still arrived
  * when they arrived, and leaving either out would mean the number they were
@@ -206,6 +207,8 @@ export async function pendingCustomers(
       SELECT "customerKey", "createdAt", 'INQUIRY' AS source FROM "Inquiry"        WHERE "customerKey" IS NOT NULL
       UNION ALL
       SELECT "customerKey", "createdAt", 'CONTACT' AS source FROM "ContactMessage" WHERE "customerKey" IS NOT NULL
+      UNION ALL
+      SELECT "customerKey", "createdAt", 'SHIPPING' AS source FROM "ShipmentInquiry" WHERE "customerKey" IS NOT NULL
     ),
     first_contact AS (
       SELECT DISTINCT ON ("customerKey")
