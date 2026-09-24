@@ -41,6 +41,7 @@ interface ProfileStats {
   assigned: number;
   inquiries: number;
   contacts: number;
+  shipments: number;
   recorded: number;
   /** Outcomes written in the last seven days, and in the seven before them. */
   thisWeek: number;
@@ -97,7 +98,14 @@ export function EmployeeProfile({
         />
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:col-span-2">
           <Stat label="Assigned to you" value={stats.assigned.toLocaleString("en-GB")}
-            sub={`${stats.inquiries} quote ${stats.inquiries === 1 ? "request" : "requests"} · ${stats.contacts} ${stats.contacts === 1 ? "message" : "messages"}`} />
+            sub={[
+              `${stats.inquiries} quote ${stats.inquiries === 1 ? "request" : "requests"}`,
+              `${stats.contacts} ${stats.contacts === 1 ? "message" : "messages"}`,
+              // Only once there is one: most of the team will never hold a
+              // freight request, and "0 freight requests" on every profile
+              // would be noise.
+              ...(stats.shipments > 0 ? [`${stats.shipments} freight ${stats.shipments === 1 ? "request" : "requests"}`] : []),
+            ].join(" · ")} />
           {/* "Leads won", not "Leads": on a page where every row is a lead, the
               count of the ones that became business has to say so. */}
           <Stat label="Leads won" value={won.toLocaleString("en-GB")} sub="by their newest outcome" />

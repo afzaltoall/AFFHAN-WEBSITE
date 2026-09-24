@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  Building2, Check, ChevronRight, Mail, MapPin, MessageSquare, Phone, Search, SlidersHorizontal, Users, X,
+  Building2, Check, ChevronRight, Mail, MapPin, MessageSquare, Phone, Search, Ship, SlidersHorizontal, Users, X,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
@@ -30,7 +30,8 @@ import { searchMatches } from "@/lib/customerCodeSearch";
  *
  *   - Tiles across the top: how many customers are yours, and where each
  *     outcome stands. Each one is also the filter for itself.
- *   - One list in a card: search, Quote requests / Contact messages, and the
+ *   - One list in a card: search, Quote requests / Contact messages (and
+ *     Freight requests, for whoever holds any), and the
  *     outcome filter above it; rows with the product's photograph, the
  *     customer, and the outcome so far.
  *   - A row opens the customer in full (CustomerDetail), where the outcome is
@@ -43,7 +44,10 @@ import { searchMatches } from "@/lib/customerCodeSearch";
  */
 
 type OutcomeFilter = "all" | LeadOutcomeKey;
-type KindFilter = "all" | "inquiry" | "contact";
+type KindFilter = "all" | "inquiry" | "contact" | "shipment";
+
+const hasKind = (g: CustomerLeadGroup, kind: Exclude<KindFilter, "all">) =>
+  kind === "inquiry" ? g.inquiryCount > 0 : kind === "contact" ? g.contactCount > 0 : g.shipmentCount > 0;
 
 /** Where a customer stands: their newest update's outcome, or not started. */
 const outcomeFor = (g: CustomerLeadGroup) => outcomeOf(g.latest?.status);
@@ -97,7 +101,7 @@ export function EmployeeLeadBoard({
     const needle = q.trim();
     return groups.filter(
       (g) =>
-        (kind === "all" || (kind === "inquiry" ? g.inquiryCount > 0 : g.contactCount > 0)) &&
+        (kind === "all" || hasKind(g, kind)) &&
         // Their AFFHAN number searches here too: it is how the office refers to
         // a customer on the phone, and the card has been showing it since the
         // numbering shipped.
@@ -119,9 +123,19 @@ export function EmployeeLeadBoard({
   );
 
   const inquiryCount = merged.filter((l) => l.kind === "inquiry").length;
-  const contactCount = merged.length - inquiryCount;
+  const contactCount = merged.filter((l) => l.kind === "contact").length;
+  const shipmentCount = merged.filter((l) => l.kind === "shipment").length;
   const withInquiries = groups.filter((g) => g.inquiryCount > 0).length;
   const withContacts = groups.filter((g) => g.contactCount > 0).length;
+  const withShipments = groups.filter((g) => g.shipmentCount > 0).length;
+  // Freight requests get a tab only for somebody who holds one: most of the
+  // team never will, and a tab reading 0 for ever is a question nobody asked.
+  const kindTabs: [KindFilter, string, number][] = [
+    ["all", "All", groups.length],
+    ["inquiry", "Quote requests", withInquiries],
+    ["contact", "Contact messages", withContacts],
+    ...(withShipments > 0 || kind === "shipment" ? [["shipment", "Freight requests", withShipments] as [KindFilter, string, number]] : []),
+  ];
   const open = openKey ? groups.find((g) => g.key === openKey) ?? null : null;
   const filtering = q.trim() !== "" || outcome !== "all" || kind !== "all";
   const clear = () => { setQ(""); setOutcome("all"); setKind("all"); };
@@ -224,11 +238,7 @@ export function EmployeeLeadBoard({
           {/* Counts are customers, like everything else on the page; the tab
               itself says what they asked for. */}
           <div className="flex flex-wrap items-center gap-2">
-            {([
-              ["all", "All", groups.length],
-              ["inquiry", "Quote requests", withInquiries],
-              ["contact", "Contact messages", withContacts],
-            ] as const).map(([value, label, n]) => (
+            {kindTabs.map(([value, label, n]) => (
               <button
                 key={value}
                 type="button"
@@ -263,6 +273,7 @@ export function EmployeeLeadBoard({
             {" · "}
             {inquiryCount} quote {inquiryCount === 1 ? "request" : "requests"}
             {contactCount > 0 && ` · ${contactCount} ${contactCount === 1 ? "message" : "messages"}`}
+            {shipmentCount > 0 && ` · ${shipmentCount} freight ${shipmentCount === 1 ? "request" : "requests"}`}
             {" · "}the same person’s products are on one row.
           </div>
         )}
@@ -347,7 +358,14 @@ function CustomerRow({
   // "The same customer asked about different things" is the fact the row has to
   // carry, and the product names are the only way to say it.
   const products = group.leads.filter((l) => l.kind === "inquiry").map((l) => l.title);
-  const summary = products.length > 0 ? products.join(" · ") : newest?.message || "Contact message";
+  // With no products, the lanes they want moved, which is what a freight
+  // request is about in the way a product is what a quote request is about.
+  const lanes = group.leads.flatMap((l) => (l.freight ? [`${l.freight.portOfLoading} → ${l.freight.portOfDischarge}`] : []));
+  const summary = products.length > 0
+    ? products.join(" · ")
+    : lanes.length > 0
+      ? `Freight · ${lanes.join(" · ")}`
+      : newest?.message || "Contact message";
 
   // The row opens the customer, but the ID badge on it is a button, and a
   // button inside a button is invalid HTML React will not hydrate. The name
@@ -364,7 +382,7 @@ function CustomerRow({
               </span>
             ) : (
               <span className={`flex h-16 w-16 items-center justify-center rounded-xl ${wt.thumb} ${wt.soft}`}>
-                {group.inquiryCount > 0 ? <Users className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
+                {group.inquiryCount > 0 ? <Users className="h-6 w-6" /> : group.shipmentCount > 0 ? <Ship className="h-6 w-6" /> : <MessageSquare className="h-6 w-6" />}
               </span>
             )}
             {extra > 0 && (
@@ -432,6 +450,11 @@ function CustomerRow({
           {group.contactCount > 0 && (
             <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${wt.chip}`}>
               {group.contactCount} {group.contactCount === 1 ? "message" : "messages"}
+            </span>
+          )}
+          {group.shipmentCount > 0 && (
+            <span className="rounded-full bg-brand/10 px-2.5 py-1 text-xs font-semibold text-brand-dark">
+              {group.shipmentCount} freight {group.shipmentCount === 1 ? "request" : "requests"}
             </span>
           )}
           <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${meta.chip}`}>

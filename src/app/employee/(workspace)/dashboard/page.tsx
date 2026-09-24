@@ -40,7 +40,7 @@ export default async function EmployeeDashboardPage() {
 
   const employeeId = auth.kind === "employee" ? auth.employee.id : null;
 
-  const [inquiries, contacts] = employeeId
+  const [inquiries, contacts, shipments] = employeeId
     ? await Promise.all([
         prisma.inquiry.findMany({
           where: { assignedToId: employeeId, status: { not: "deleted" } },
@@ -65,21 +65,33 @@ export default async function EmployeeDashboardPage() {
             phone: true, country: true, message: true,
           },
         }),
+        prisma.shipmentInquiry.findMany({
+          where: { assignedToId: employeeId, status: { not: "deleted" } },
+          orderBy: { createdAt: "desc" },
+          take: 200,
+          select: {
+            id: true, createdAt: true, referenceNo: true, customerName: true, email: true,
+            phone: true, country: true, commodity: true, commodityType: true, mode: true,
+            method: true, portOfLoading: true, portOfDischarge: true, terms: true,
+            cbm: true, weightKg: true, cartonBoxes: true, notes: true,
+          },
+        }),
       ])
-    : [[], []];
+    : [[], [], []];
 
   // One query for the trail on every card, rather than one per card.
-  const updates = employeeId && (inquiries.length || contacts.length)
+  const updates = employeeId && (inquiries.length || contacts.length || shipments.length)
     ? await prisma.statusUpdate.findMany({
         where: {
           OR: [
             { inquiryId: { in: inquiries.map((i) => i.id) } },
             { contactId: { in: contacts.map((c) => c.id) } },
+            { shipmentId: { in: shipments.map((s) => s.id) } },
           ],
         },
         orderBy: { createdAt: "desc" },
         select: {
-          id: true, status: true, note: true, createdAt: true, inquiryId: true, contactId: true,
+          id: true, status: true, note: true, createdAt: true, inquiryId: true, contactId: true, shipmentId: true,
           // A lead can change hands, so the trail can hold somebody else's
           // entries; the card names them when they are not the reader's.
           employee: { select: { id: true, name: true } },
@@ -101,7 +113,7 @@ export default async function EmployeeDashboardPage() {
     // admin's views (activity feed, staff page) read the table directly and
     // see every one of them.
     if (u.status === "NOT_ATTENDED" && u.employee.id !== employeeId) continue;
-    const key = `${u.inquiryId ? "inquiry" : "contact"}:${u.inquiryId ?? u.contactId}`;
+    const key = u.inquiryId ? `inquiry:${u.inquiryId}` : u.contactId ? `contact:${u.contactId}` : `shipment:${u.shipmentId}`;
     const row: LeadUpdate = {
       id: u.id,
       status: u.status,
@@ -150,11 +162,44 @@ export default async function EmployeeDashboardPage() {
     updates: trail.get(`contact:${c.id}`) ?? [],
   }));
 
+  // A freight request from /shipping/. The title is what the trail and the
+  // search show for it: its reference and its lane.
+  const shipmentCards: LeadCardData[] = shipments.map((s) => ({
+    kind: "shipment",
+    id: s.id,
+    createdAt: s.createdAt.toISOString(),
+    title: `${s.referenceNo} · ${s.portOfLoading} → ${s.portOfDischarge}`,
+    image: null,
+    images: [],
+    productId: null,
+    customerName: s.customerName,
+    companyName: null,
+    country: s.country,
+    phone: s.phone,
+    email: s.email,
+    quantity: null,
+    message: s.notes,
+    updates: trail.get(`shipment:${s.id}`) ?? [],
+    freight: {
+      referenceNo: s.referenceNo,
+      mode: s.mode,
+      method: s.method,
+      portOfLoading: s.portOfLoading,
+      portOfDischarge: s.portOfDischarge,
+      terms: s.terms,
+      commodity: s.commodity,
+      commodityType: s.commodityType,
+      cbm: s.cbm.toString(),
+      weightKg: s.weightKg.toString(),
+      cartonBoxes: s.cartonBoxes,
+    },
+  }));
+
   // Their customers' permanent numbers, for the keys on this board only —
   // the same AFFHAN-xxxx the console shows, so a salesperson and an admin can
   // name the same customer to each other. See lib/customerCode.ts.
   const codes = await customerCodesFor(
-    [...inquiryCards, ...contactCards].map((l) => customerKeyOf(l)),
+    [...inquiryCards, ...contactCards, ...shipmentCards].map((l) => customerKeyOf(l)),
   );
 
   const minutes = Math.round(EMPLOYEE_IDLE_MS / 60000);
@@ -165,7 +210,7 @@ export default async function EmployeeDashboardPage() {
         // Searching and filtering are the client's job; everything above is
         // already fetched, so narrowing it costs no round trip.
         <EmployeeLeadBoard
-          leads={[...inquiryCards, ...contactCards].sort(
+          leads={[...inquiryCards, ...contactCards, ...shipmentCards].sort(
             (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )}
           name={auth.employee.name}

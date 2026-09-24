@@ -53,10 +53,11 @@ export interface CustomerLeadGroup {
   altEmails: string[];
   country: string;
   phone: string;
-  /** Their leads, newest first: quote requests and messages together. */
+  /** Their leads, newest first: quote requests, messages and freight requests together. */
   leads: LeadCardData[];
   inquiryCount: number;
   contactCount: number;
+  shipmentCount: number;
   /** Across their quote requests; messages have no quantity. */
   totalQuantity: number;
   firstAt: string;
@@ -94,6 +95,7 @@ export function groupLeads(leads: LeadCardData[]): CustomerLeadGroup[] {
         leads: [],
         inquiryCount: 0,
         contactCount: 0,
+        shipmentCount: 0,
         totalQuantity: 0,
         firstAt: lead.createdAt,
         lastAt: lead.createdAt,
@@ -119,7 +121,8 @@ export function groupLeads(leads: LeadCardData[]): CustomerLeadGroup[] {
 
     g.leads.push(lead);
     if (lead.kind === "inquiry") g.inquiryCount += 1;
-    else g.contactCount += 1;
+    else if (lead.kind === "contact") g.contactCount += 1;
+    else g.shipmentCount += 1;
     g.totalQuantity += lead.quantity ?? 0;
     if (lead.createdAt < g.firstAt) g.firstAt = lead.createdAt;
     if (lead.createdAt > g.lastAt) g.lastAt = lead.createdAt;
@@ -180,6 +183,10 @@ export function groupHaystack(g: CustomerLeadGroup): string {
     g.phone,
     g.country,
     ...g.leads.map((l) => `${l.title} ${l.message ?? ""}`),
+    // A freight request is found by its reference, its ports and its goods.
+    ...g.leads.flatMap((l) => (l.freight
+      ? [`${l.freight.referenceNo} ${l.freight.portOfLoading} ${l.freight.portOfDischarge} ${l.freight.commodity}`]
+      : [])),
   ]
     .join(" ")
     .toLowerCase();

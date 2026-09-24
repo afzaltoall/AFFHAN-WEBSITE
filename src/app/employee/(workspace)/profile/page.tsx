@@ -49,13 +49,14 @@ export default async function EmployeeProfilePage() {
   }
 
   const id = auth.employee.id;
-  const [row, inquiries, contacts, recorded, recent] = await Promise.all([
+  const [row, inquiries, contacts, shipments, recorded, recent] = await Promise.all([
     prisma.employee.findUnique({
       where: { id },
       select: { name: true, email: true, region: true, role: true, image: true, createdAt: true, lastLoginAt: true },
     }),
     prisma.inquiry.findMany({ where: { assignedToId: id, status: { not: "deleted" } }, select: { id: true } }),
     prisma.contactMessage.findMany({ where: { assignedToId: id, status: { not: "deleted" } }, select: { id: true } }),
+    prisma.shipmentInquiry.findMany({ where: { assignedToId: id, status: { not: "deleted" } }, select: { id: true } }),
     prisma.statusUpdate.count({ where: { employeeId: id } }),
     // Forty rows to fill eight lines: one outcome recorded against a customer
     // writes a row per product they asked about (see the status route), and
@@ -68,6 +69,7 @@ export default async function EmployeeProfilePage() {
         id: true, status: true, note: true, createdAt: true,
         inquiry: { select: { customerName: true, productName: true, phone: true } },
         contact: { select: { fullName: true, phone: true } },
+        shipment: { select: { customerName: true, referenceNo: true, phone: true } },
       },
     }),
   ]);
@@ -75,16 +77,17 @@ export default async function EmployeeProfilePage() {
 
   // Each assigned lead once, by its newest entry — whoever wrote it, since a
   // lead can arrive with history from somebody else.
-  const trail = inquiries.length || contacts.length
+  const trail = inquiries.length || contacts.length || shipments.length
     ? await prisma.statusUpdate.findMany({
         where: {
           OR: [
             { inquiryId: { in: inquiries.map((i) => i.id) } },
             { contactId: { in: contacts.map((c) => c.id) } },
+            { shipmentId: { in: shipments.map((s) => s.id) } },
           ],
         },
         orderBy: { createdAt: "desc" },
-        select: { status: true, inquiryId: true, contactId: true, employeeId: true },
+        select: { status: true, inquiryId: true, contactId: true, shipmentId: true, employeeId: true },
       })
     : [];
   // Every outcome at zero to begin with, from the one list of them — the keys
@@ -96,7 +99,7 @@ export default async function EmployeeProfilePage() {
     // Somebody else's "Not attended" is hidden from staff — the dashboard says
     // why — so it must not decide where a lead of theirs stands either.
     if (u.status === "NOT_ATTENDED" && u.employeeId !== id) continue;
-    const key = u.inquiryId ? `i:${u.inquiryId}` : `c:${u.contactId}`;
+    const key = u.inquiryId ? `i:${u.inquiryId}` : u.contactId ? `c:${u.contactId}` : `s:${u.shipmentId}`;
     if (seen.has(key)) continue;
     seen.add(key);
     if (isStoredLeadStatus(u.status)) breakdown[u.status] += 1;
@@ -111,7 +114,7 @@ export default async function EmployeeProfilePage() {
     prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: before, lt: since } } }),
   ]);
 
-  const assigned = inquiries.length + contacts.length;
+  const assigned = inquiries.length + contacts.length + shipments.length;
   breakdown[NOT_STARTED] = Math.max(0, assigned - seen.size);
 
   const activity: ProfileActivity[] = collapseUpdates(recent, (u) => ({
@@ -119,21 +122,24 @@ export default async function EmployeeProfilePage() {
     note: u.note,
     createdAt: u.createdAt,
     scope:
-      normalizePhoneKey(u.inquiry?.phone ?? u.contact?.phone ?? "") ||
+      normalizePhoneKey(u.inquiry?.phone ?? u.contact?.phone ?? u.shipment?.phone ?? "") ||
       u.inquiry?.customerName ||
       u.contact?.fullName ||
+      u.shipment?.customerName ||
       "",
   }))
     .slice(0, 8)
     .map((batch) => {
       const u = batch[0];
-      const items = batch.map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : null)).filter(Boolean);
+      const items = batch
+        .map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : b.shipment ? `Freight request ${b.shipment.referenceNo}` : null))
+        .filter(Boolean);
       return {
         id: u.id,
         status: u.status,
         note: u.note,
         createdAt: u.createdAt.toISOString(),
-        who: u.inquiry?.customerName ?? u.contact?.fullName ?? "A lead",
+        who: u.inquiry?.customerName ?? u.contact?.fullName ?? u.shipment?.customerName ?? "A lead",
         what:
           items.length === 0
             ? "No longer on file"
@@ -158,6 +164,7 @@ export default async function EmployeeProfilePage() {
         assigned,
         inquiries: inquiries.length,
         contacts: contacts.length,
+        shipments: shipments.length,
         recorded,
         thisWeek,
         lastWeek,

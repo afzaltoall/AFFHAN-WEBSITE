@@ -9,9 +9,25 @@ export interface LeadUpdate {
   byMe: boolean;
 }
 
-/** A lead assigned to the reader: a quote request or a contact message. */
+/** What a freight request from /shipping/ carries that the other two kinds do not. */
+export interface FreightDetail {
+  referenceNo: string;
+  mode: string;
+  method: string;
+  portOfLoading: string;
+  portOfDischarge: string;
+  terms: string;
+  commodity: string;
+  commodityType: string;
+  /** Exact decimal text, as stored. */
+  cbm: string;
+  weightKg: string;
+  cartonBoxes: number | null;
+}
+
+/** A lead assigned to the reader: a quote request, a contact message or a freight request. */
 export interface LeadCardData {
-  kind: "inquiry" | "contact";
+  kind: "inquiry" | "contact" | "shipment";
   id: string;
   createdAt: string;
   /** Product for a quote request; the sender's own name for a message. */
@@ -31,6 +47,8 @@ export interface LeadCardData {
   message: string | null;
   /** Newest first. */
   updates: LeadUpdate[];
+  /** Freight requests only. */
+  freight?: FreightDetail;
 }
 
 export const leadKey = (lead: Pick<LeadCardData, "kind" | "id">) => `${lead.kind}:${lead.id}`;

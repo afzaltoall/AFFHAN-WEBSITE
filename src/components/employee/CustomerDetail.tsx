@@ -3,9 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import {
-  Building2, Calendar, ChevronDown, ExternalLink, Inbox, Loader2, Mail, MapPin, MessageCircle,
-  MessageSquare, Package, Phone, PhoneCall, Users, X, ZoomIn, type LucideIcon,
+  Boxes, Building2, Calendar, ChevronDown, ExternalLink, FileText, Inbox, Layers, Loader2, Mail, MapPin, MessageCircle,
+  MessageSquare, Package, Phone, PhoneCall, Plane, Scale, Ship, Users, X, ZoomIn, type LucideIcon,
 } from "lucide-react";
+import {
+  commodityTypeLabel, methodLabel, methodName, modeLabel, termsLabel, termsName,
+} from "@/lib/shipment-inquiry";
 import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
@@ -154,6 +157,7 @@ export function CustomerDetail({
   const countLine = [
     group.inquiryCount > 0 ? `${group.inquiryCount} ${group.inquiryCount === 1 ? "product" : "products"}` : "",
     group.contactCount > 0 ? `${group.contactCount} ${group.contactCount === 1 ? "message" : "messages"}` : "",
+    group.shipmentCount > 0 ? `${group.shipmentCount} freight ${group.shipmentCount === 1 ? "request" : "requests"}` : "",
   ]
     .filter(Boolean)
     .join(" · ");
@@ -389,8 +393,12 @@ export function CustomerDetail({
   );
 }
 
+/** "68", "12.5", "6,500": a freight figure as the office reads it. */
+const figure = (v: string) => Number(v).toLocaleString("en-IN", { maximumFractionDigits: 3 });
+
 /**
- * One thing the customer asked about — a product, or the message they wrote.
+ * One thing the customer asked about — a product, the message they wrote, or
+ * a shipment they want moved.
  *
  * Closed it is a line you can scan: photograph, name, quantity, when. Open it
  * is everything the office holds about that one item, the rest of the
@@ -410,6 +418,8 @@ function ItemPanel({
   const main = images[Math.min(shown, images.length - 1)] ?? null;
   const thumb = main ? getCdnUrl(main, 160) : null;
   const latest = lead.updates[0] ?? null;
+  const freight = lead.kind === "shipment" ? lead.freight ?? null : null;
+  const FreightIcon = freight?.mode === "AIR" ? Plane : Ship;
 
   return (
     <li className={open ? "bg-black/[0.015]" : ""}>
@@ -429,6 +439,10 @@ function ItemPanel({
               No image
             </span>
           )
+        ) : freight ? (
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand/10 text-brand-dark">
+            <FreightIcon className="h-5 w-5" />
+          </span>
         ) : (
           <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${wt.thumb} ${wt.soft}`}>
             <MessageSquare className="h-5 w-5" />
@@ -436,10 +450,11 @@ function ItemPanel({
         )}
         <span className="min-w-0 flex-1">
           <span className="line-clamp-2 block text-[13.5px] font-semibold leading-snug">
-            {lead.kind === "inquiry" ? lead.title : "Contact message"}
+            {lead.kind === "inquiry" ? lead.title : freight ? `Freight request ${freight.referenceNo}` : "Contact message"}
           </span>
           <span className={`mt-0.5 block text-[12px] ${wt.soft}`} title={formatDateTime(lead.createdAt)}>
             {lead.kind === "contact" && lead.message ? `${lead.message.slice(0, 60)}${lead.message.length > 60 ? "…" : ""} · ` : ""}
+            {freight ? `${modeLabel(freight.mode)} · ${methodLabel(freight.method)} · ${freight.portOfLoading} → ${freight.portOfDischarge} · ` : ""}
             {timeAgo(lead.createdAt)}
           </span>
         </span>
@@ -504,7 +519,11 @@ function ItemPanel({
 
             <div className="min-w-0 flex-1">
               <h3 className="text-[15px] font-semibold leading-snug">
-                {lead.kind === "inquiry" ? lead.title : `Message from ${lead.customerName}`}
+                {lead.kind === "inquiry"
+                  ? lead.title
+                  : freight
+                    ? `${freight.portOfLoading} → ${freight.portOfDischarge}`
+                    : `Message from ${lead.customerName}`}
               </h3>
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 {lead.quantity !== null && (
@@ -514,6 +533,17 @@ function ItemPanel({
                 )}
                 {lead.kind === "contact" && (
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${wt.chip}`}>Contact form</span>
+                )}
+                {freight && (
+                  <>
+                    {/* The number the customer was given, and will quote. */}
+                    <span className="rounded-full bg-brand/10 px-3 py-1 text-xs font-semibold tabular-nums text-brand-dark">
+                      {freight.referenceNo}
+                    </span>
+                    <span className={`rounded-full px-3 py-1 text-xs font-semibold ${wt.chip}`}>
+                      {modeLabel(freight.mode)} · {methodLabel(freight.method)}
+                    </span>
+                  </>
                 )}
                 {latest && (
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${leadStatusChip(latest.status)}`}>
@@ -525,16 +555,30 @@ function ItemPanel({
               {/* Only what the heading above does not already say. */}
               <dl className="mt-3 grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
                 <Fact icon={Inbox} label="Received" value={formatDateTime(lead.createdAt)} />
+                {freight && (
+                  <>
+                    <Fact icon={Package} label="Goods" value={freight.commodity} />
+                    <Fact icon={Layers} label="Cargo" value={commodityTypeLabel(freight.commodityType)} />
+                    <Fact icon={FreightIcon} label="Method" value={`${methodLabel(freight.method)} · ${methodName(freight.method)}`} />
+                    <Fact icon={FileText} label="Terms" value={`${termsLabel(freight.terms)}${freight.terms === "OTHER" ? "" : ` · ${termsName(freight.terms)}`}`} />
+                    <Fact icon={Boxes} label="Volume" value={`${figure(freight.cbm)} m³`} />
+                    <Fact icon={Scale} label="Weight" value={`${figure(freight.weightKg)} kg`} />
+                    <Fact icon={Package} label="Cartons" value={freight.cartonBoxes ? freight.cartonBoxes.toLocaleString("en-IN") : "Not given"} />
+                    <Fact icon={MapPin} label="Country" value={lead.country} />
+                  </>
+                )}
               </dl>
               {lead.message ? (
                 <div className={`mt-3 rounded-xl p-3 ${wt.thumb}`}>
                   <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${wt.soft}`}>
-                    {lead.kind === "inquiry" ? "What they wrote with it" : "Message"}
+                    {lead.kind === "inquiry" ? "What they wrote with it" : freight ? "Notes from the customer" : "Message"}
                   </p>
                   <p className="whitespace-pre-line text-sm font-medium leading-relaxed">{lead.message}</p>
                 </div>
               ) : (
-                <p className={`mt-3 text-[12.5px] ${wt.soft}`}>No message was sent with this one.</p>
+                <p className={`mt-3 text-[12.5px] ${wt.soft}`}>
+                  {freight ? "No notes were added to this one." : "No message was sent with this one."}
+                </p>
               )}
               {lead.productId && (
                 <a
