@@ -4,7 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Check, Copy, Loader2, Plane, Ship, type LucideIcon } from "lucide-react";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { Reveal } from "@/components/ui/Reveal";
+import { useAuth } from "@/context/AuthContext";
+import { useQuoteGate } from "@/context/QuoteGateContext";
 import { COUNTRIES } from "@/lib/countries";
+import { splitE164 } from "@/lib/phone";
 import {
   COMMODITY_TYPES,
   LIMITS,
@@ -32,6 +35,11 @@ import {
  * the way the journey numbers its stages, underlined fields rather than boxes,
  * and the hero's pill for the send button. Beside the form the request is
  * read back as one sentence, built from the four things a rate is made of.
+ *
+ * Sending needs an account, as a product quote does: the form is open to
+ * fill, and the sign-in gate (QuoteGateContext) sits on the send. The login
+ * modal opens over this section, which stays mounted with everything typed,
+ * and the request goes the moment sign-in succeeds, without a second click.
  *
  * Plain <input>s rather than ui/input: that component's classes include
  * rounded-full and bg-white, and cn() in lib/utils only joins class names, so
@@ -159,6 +167,8 @@ export function ShippingQuoteSection() {
   const [serverErrors, setServerErrors] = useState<FieldErrors>({});
   const [failure, setFailure] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { user, loading: authLoading } = useAuth();
+  const { requireLogin } = useQuoteGate();
 
   const cardRef = useRef<HTMLDivElement>(null);
   const successRef = useRef<HTMLHeadingElement>(null);
@@ -205,6 +215,22 @@ export function ShippingQuoteSection() {
     "aria-describedby": errorFor(f) ? `sq-${f}-error` : undefined,
   });
 
+  // What the account already knows, into fields that are still empty: the
+  // product quote form's rule. Someone may be asking on a colleague's behalf,
+  // and a field that changes under their cursor is worse than an empty one.
+  // The phone goes in only when it maps onto the dial-code list as it stands.
+  useEffect(() => {
+    if (!user) return;
+    const phone = user.phone ? splitE164(user.phone) : null;
+    const known = phone && COUNTRIES.some((c) => c.iso === phone.iso && c.dial === phone.dial) ? phone : null;
+    setDraft((d) => ({
+      ...d,
+      customerName: d.customerName || user.name || "",
+      email: d.email || user.email || "",
+      ...(known && !d.phone ? { phoneIso: known.iso, phoneCode: known.dial, phone: known.national } : {}),
+    }));
+  }, [user]);
+
   // Air has one method and it is chosen for them; switching to sea keeps FCL or
   // LCL if one was already picked and otherwise asks.
   const pickMode = (mode: string) =>
@@ -221,12 +247,17 @@ export function ShippingQuoteSection() {
     clearServer("mode", "method");
   };
 
-  async function submit(e: React.FormEvent) {
+  const SIGN_IN_TO_SEND = "Sign in to send this request. Everything you typed is still here.";
+
+  function submit(e: React.FormEvent) {
     e.preventDefault();
     if (phase.kind === "sending") return;
     setAttempted(true);
 
-    const result = validateShipmentInquiry(toInput(draft));
+    // Checked before anybody is asked to sign in: an account is no use to a
+    // form that is not ready to go.
+    const input = toInput(draft);
+    const result = validateShipmentInquiry(input);
     if (!result.ok) {
       const bad = FIELD_ORDER.filter((f) => result.errors[f]);
       setFailure(bad.length === 1 ? "One field needs another look." : `${bad.length} fields need another look.`);
@@ -235,19 +266,37 @@ export function ShippingQuoteSection() {
     }
 
     setFailure(null);
+    // Straight through for someone signed in. Otherwise the login modal, and
+    // send() once sign-in succeeds, with exactly the values checked above.
+    requireLogin(() => void send(input, result.value), "Sign in to send your freight request", () =>
+      setFailure(SIGN_IN_TO_SEND));
+  }
+
+  async function send(input: ShipmentInquiryInput, clean: CleanShipmentInquiry) {
+    setFailure(null);
     setPhase({ kind: "sending" });
     try {
-      const res = await fetch("/api/shipping-inquiry", {
+      // The trailing slash is the route's own address (trailingSlash: true);
+      // without it every send takes a 308 first.
+      const res = await fetch("/api/shipping-inquiry/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(toInput(draft)),
+        credentials: "include",
+        body: JSON.stringify(input),
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok && typeof body.referenceNo === "string") {
-        setPhase({ kind: "sent", referenceNo: body.referenceNo, sent: result.value });
+        setPhase({ kind: "sent", referenceNo: body.referenceNo, sent: clean });
         return;
       }
       setPhase({ kind: "editing" });
+      if (res.status === 401) {
+        // The browser still held a cookie the server has since expired. Sign
+        // in again and it sends itself, with the same values.
+        requireLogin(() => void send(input, clean), "Your session expired. Sign in to send it", () =>
+          setFailure(SIGN_IN_TO_SEND));
+        return;
+      }
       if (res.status === 400 && body.fields && typeof body.fields === "object") {
         const fields = body.fields as FieldErrors;
         setServerErrors(fields);
@@ -725,8 +774,13 @@ export function ShippingQuoteSection() {
                         {sending ? <Loader2 size={18} className="animate-spin" aria-hidden /> : <ArrowRight size={18} aria-hidden />}
                       </span>
                     </button>
-                    <p className="text-[13px] text-[#5a6e77]">
+                    <p className="text-[13px] leading-relaxed text-[#5a6e77]">
                       Fields marked <span className="text-[#b42318]">*</span> are required.
+                      {/* Said before the button is pressed, so the sign-in
+                          box is expected rather than a surprise. */}
+                      {!authLoading && !user && (
+                        <span className="block">You&apos;ll sign in before it sends; nothing you&apos;ve typed is lost.</span>
+                      )}
                     </p>
                   </div>
                 </div>

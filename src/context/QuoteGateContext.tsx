@@ -52,11 +52,12 @@ const DEFAULT_REASON = "Sign in to request a quote";
  * back-button handling and lazy import; hoisting all that into one provider
  * would have meant rewriting each of them.
  *
- * There is exactly ONE caller now, and it is not any of those seven: the quote
- * form's own submit handler. The gate used to sit on the button that opened
- * the form, which meant nobody could see what they were filling in before
- * being asked for an account. It sits on the send instead — fill it freely,
- * sign in to send it:
+ * There are two callers, and neither is any of those seven: the product quote
+ * form's own submit handler (InquiryModal), and the freight quote form's at
+ * the foot of /shipping/ (ShippingQuoteSection). The gate used to sit on the
+ * button that opened the form, which meant nobody could see what they were
+ * filling in before being asked for an account. It sits on the send instead —
+ * fill it freely, sign in to send it:
  *
  *     requireLogin(() => void send(), reason, onCancel)
  *
