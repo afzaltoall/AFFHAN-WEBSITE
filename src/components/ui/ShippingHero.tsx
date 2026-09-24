@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { motion, useMotionValueEvent, useScroll, useTransform } from "framer-motion";
 import { useScrollLit, ink } from "./scrollLit";
+import { SHIP_MARK_HERO } from "@/lib/shipMarkAssets";
 
 const HEADING = "Freight forwarding and NVOCC services, from the factory floor to your warehouse";
 const WORDS = HEADING.split(" ");
@@ -20,7 +21,6 @@ export function ShippingHero({ officeCount }: { officeCount: number }) {
 
   const titleScale = useTransform(scrollYProgress, [0, 0.4], [1, 0.85]);
   const titleY = useTransform(scrollYProgress, [0, 0.4], ["0%", "5%"]);
-  const imageY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
   
   const pLit = reduced ? 1 : Math.min(1, Math.max(0, (p - 0.45) / 0.15));
   const ctaLit = reduced ? 1 : Math.min(1, Math.max(0, (p - 0.55) / 0.15));
@@ -51,26 +51,6 @@ export function ShippingHero({ officeCount }: { officeCount: number }) {
     >
       <div className="sticky top-16 flex h-[calc(100vh-4rem)] items-center overflow-hidden">
         
-        {/* Abstract ship background */}
-        <motion.div 
-          className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-[20%] opacity-[0.03] pointer-events-none mix-blend-multiply filter blur-[2px]"
-          style={{ y: imageY }}
-        >
-          <Image
-            src="/affhan-ship.png"
-            alt=""
-            aria-hidden="true"
-            /* Square, because the mark is. It was 1200x960 for the old
-               450x360 ship silhouette; the replacement logo is 1:1, and a
-               mismatched width/height makes Next reserve the wrong aspect box
-               and shift when the real image lands. */
-            width={1200}
-            height={448}
-            priority
-            className="w-[80vw] h-auto object-contain max-w-[1200px]"
-          />
-        </motion.div>
-
         <div className="mx-auto w-full max-w-[1500px] px-6 py-10 md:px-12 lg:px-16 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14">
             
@@ -102,6 +82,32 @@ export function ShippingHero({ officeCount }: { officeCount: number }) {
 
             {/* The supporting text and CTA, revealed after the heading */}
             <div className="lg:col-span-4 xl:col-span-3 lg:self-end pb-4 lg:pb-12">
+              {/* The ship mark, above the copy rather than behind it.
+
+                  It used to be a 1200px watermark at 3% opacity, blurred,
+                  multiply-blended and parallaxed behind this column. That only
+                  worked for a wide mark faint enough to read as texture; the
+                  square emblem that replaced it sat squarely behind the
+                  paragraph and the button, and any render that let it through
+                  at more than a whisper put the copy on top of the logo.
+
+                  In this column's own flow, so it can neither overlap the copy
+                  nor ride up under the fixed navbar: where the heading leaves
+                  room above the copy it takes that room, and where it does not,
+                  the row grows instead. Placed absolutely it slid 13-35px under
+                  the navbar on 720-768px-tall laptops. Visible from the first
+                  frame rather than revealed with the copy, so the stage is not
+                  empty on its right until the reader scrolls. No parallax: it
+                  would carry the mark down into the paragraph. Capped at the
+                  column, 260px and 28vh; lg and up only, since stacked in one
+                  column the only space above the copy is the heading. */}
+              <Image
+                {...SHIP_MARK_HERO}
+                alt=""
+                aria-hidden="true"
+                className="mb-8 hidden h-auto w-[min(100%,260px,28vh)] lg:block"
+              />
+
               <div
                 style={{
                   opacity: pLit,
