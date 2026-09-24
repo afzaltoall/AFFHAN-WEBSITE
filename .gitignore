@@ -136,3 +136,18 @@ lead-status-backup-*.json
 
 # Screenshots from the rail check — real customer names and counts.
 tools/audit/rail-shots/
+
+# Working files that a commit-everything swept into d5e1edf, removed again.
+# None of them is the site: backups, patches and diffs, screenshots at the repo
+# root, and the screenshots / Lighthouse / network dumps the audit tooling
+# writes. The tooling's scripts stay trackable through the !tools/... rules
+# above; what they generate does not belong in git.
+*.bak
+/*.patch
+/diff*.md
+/*.png
+tools/audit/**/*.png
+tools/audit/**/*.json
+tools/audit/**/*.patch
+tools/eprolo/moderation/**/*.png
+tools/eprolo/moderation/*.json
