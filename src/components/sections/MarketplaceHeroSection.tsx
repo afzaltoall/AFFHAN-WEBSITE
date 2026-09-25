@@ -165,22 +165,23 @@ export function MarketplaceHeroSection({
             {/* The China trip banner, top right, mirroring the pill on the
                 left: the same 40px inset from the edge, and its top on the
                 pill's top (the pill is 58px, centred on this line, so its top
-                is 29px above the centre). 100px tall takes it to the foot of
-                the headline, and 300px keeps the picture's 3:1 uncropped.
-                From 2xl only: narrower, it runs into the headline (at 1440 the
-                headline ends at 1060, and a 300px banner would start at 1068).
+                is 29px above the centre). 336x112 keeps the picture's 3:1
+                uncropped, and leaves 52px to the end of the headline and 20px
+                or more to the search row below.
+                From 1600px only: narrower, the headline comes closer than 40px
+                (at 1536 the gap would be 20px), and below 1440 they overlap.
                 Cut from the owner's public/china-trip.png (2172x724, 2.4MB) to
-                600x200 WebP, 38KB, for the 2x screens this width implies. */}
-            <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] 2xl:block">
+                672x224 WebP, 45KB, for the 2x screens this width implies. */}
+            <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] min-[1600px]:block">
               <Image
                 src="/china-trip-hero.webp"
                 alt="China trip"
-                width={600}
-                height={200}
-                sizes="300px"
+                width={672}
+                height={224}
+                sizes="336px"
                 loading="lazy"
                 fetchPriority="low"
-                className="h-[100px] w-[300px] rounded-2xl object-cover shadow-md ring-1 ring-brand/20"
+                className="h-[112px] w-[336px] rounded-2xl object-cover shadow-md ring-1 ring-brand/20"
               />
             </div>
             <style dangerouslySetInnerHTML={{
