@@ -39,9 +39,10 @@ import { useEffect, useRef } from "react";
  * against the night, while one over a light part, or out on the page, keeps
  * the deep, saturated colour that stays visible there.
  *
- * The show reaches past the card into the page (44px to the left, stopping 8px
- * short of the hero headline; 64px to the right; 20px up and 10px down, short
- * of the navbar and the search row), and feathers out at its edge.
+ * The show reaches past the card into the page (56px to the left, stopping
+ * 12px short of the hero headline; 64px to the right; 20px up and 10px down,
+ * short of the navbar and the search row), some rockets go up beside the card
+ * and burst above its rim, and the canvas feathers out at its edge.
  *
  * What it costs: it starts only once the page has loaded and gone idle, runs
  * only while the card is on screen and the tab is visible (a card hidden by
@@ -88,7 +89,7 @@ const KINDS: readonly (readonly [Kind, number])[] = [
 /** Where the canvas reaches past the card, in CSS px. Measured on the hero,
  *  where the card has 68px to the headline, 24px to the navbar, 18px to the
  *  search row, and open page to its right. */
-const SPILL = { left: 44, right: 64, top: 20, bottom: 10 } as const;
+const SPILL = { left: 56, right: 64, top: 20, bottom: 10 } as const;
 const MAX_STARS = 1000;
 const ROCKET_GRAVITY = 300; // px/s²: a rocket slows as it climbs
 const TRAIL_KEEP = 0.88;    // share of the last frame kept, per 60th of a second
@@ -344,8 +345,8 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
       if (!card.w) return;
       // From the card's foot, or just beside the card, to burst in its upper
       // half or just above its rim, so the show spills out into the page.
-      const x = tx ?? rand(card.x - 20, card.x + card.w + 36);
-      const apex = ty ?? rand(card.y - 4, card.y + 0.55 * card.h);
+      const x = tx ?? rand(card.x - 30, card.x + card.w + 44);
+      const apex = ty ?? rand(card.y - 8, card.y + 0.55 * card.h);
       const y = card.y + card.h;
       const vy = -Math.sqrt(2 * ROCKET_GRAVITY * Math.max(8, y - apex)) * 1.03;
       const sx = tx === undefined ? x : x + rand(-10, 10);
