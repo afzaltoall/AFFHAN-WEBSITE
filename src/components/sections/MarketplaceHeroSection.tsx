@@ -13,7 +13,7 @@ import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph-wrapper";
 import { buildCategoryTree, getCategoryIcon, type CategoryTreeNode } from "@/lib/categoryTree";
 import { ShippingBar } from "@/components/ui/ShippingBar";
-import { HoverFireworks } from "@/components/ui/HoverFireworks";
+import { FireworksCard } from "@/components/ui/FireworksCard";
 import { loadAllCategories } from "@/lib/categoriesClient";
 
 /** The two small slices the first screen needs, in place of all 668 rows. */
@@ -174,10 +174,11 @@ export function MarketplaceHeroSection({
                 overlap.
                 Cut from the owner's public/china-trip.png (2172x724, 2.4MB) to
                 672x224 WebP, 45KB, for the 2x screens this width implies.
-                Hovering it sets off fireworks inside the card; the card, the
-                lift and the rounded frame are HoverFireworks'. */}
+                A fireworks show plays over it by itself, and comes to the
+                pointer on hover; the card, its lift and the rounded frame are
+                FireworksCard's. */}
             <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] min-[1600px]:block">
-              <HoverFireworks className="h-[112px] w-[336px]">
+              <FireworksCard className="h-[112px] w-[336px]">
                 <Image
                   src="/china-trip-hero.webp"
                   alt="China trip"
@@ -188,7 +189,7 @@ export function MarketplaceHeroSection({
                   fetchPriority="low"
                   className="h-full w-full object-cover"
                 />
-              </HoverFireworks>
+              </FireworksCard>
             </div>
             <style dangerouslySetInnerHTML={{
               __html: `
