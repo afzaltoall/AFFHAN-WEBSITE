@@ -53,8 +53,8 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
           <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 1024px) 78vw, 150vw" className="opacity-90" />
         </div>
 
-        {/* The offer, beside his open hand. */}
-        <div className="absolute inset-x-6 top-[56svh] z-[30] lg:inset-x-auto lg:bottom-[calc(var(--host-h)*0.71-8rem)] lg:left-[calc(7vw+var(--host-h)*0.61)] lg:right-[5vw] lg:top-auto">
+        {/* The offer, beside his open hand; above the silk, so nothing crosses the words. */}
+        <div className="absolute inset-x-6 top-[56svh] z-[45] lg:inset-x-auto lg:bottom-[calc(var(--host-h)*0.71-8rem)] lg:left-[calc(7vw+var(--host-h)*0.66)] lg:right-[5vw] lg:top-auto">
           <h2
             id="cx-cta-title"
             data-cx="cta-headline"
