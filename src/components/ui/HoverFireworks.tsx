@@ -249,8 +249,11 @@ export function HoverFireworks({ children, className = "" }: { children: React.R
     // is what lifts: lifting the box itself would pull its edge out from under
     // a pointer resting on the bottom rim, and the hover would flicker.
     <div onPointerEnter={onEnter} onPointerLeave={onLeave} className={`group relative ${className}`}>
-      <div className="relative isolate h-full w-full overflow-hidden rounded-2xl shadow-md ring-1 ring-brand/20 transition-[transform,box-shadow] duration-300 ease-out group-hover:-translate-y-0.5 group-hover:shadow-xl group-hover:ring-brand/40 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
-        <div className="h-full w-full transition-[transform,filter] duration-500 ease-out group-hover:scale-[1.04] group-hover:brightness-[0.82] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+      {/* translate and scale by name in the transitions: Tailwind 4 moves and
+          zooms with those properties, not transform, so a transition on
+          transform would let the lift and the zoom jump. */}
+      <div className="relative isolate h-full w-full overflow-hidden rounded-2xl shadow-md ring-1 ring-brand/20 transition-[translate,box-shadow] duration-300 ease-out group-hover:-translate-y-0.5 group-hover:shadow-xl group-hover:ring-brand/40 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
+        <div className="h-full w-full transition-[scale,filter] duration-500 ease-out group-hover:scale-[1.04] group-hover:brightness-[0.82] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
           {children}
         </div>
         {/* The night sky the sparks glow against, strongest at the top where
