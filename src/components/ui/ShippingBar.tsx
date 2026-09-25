@@ -7,26 +7,18 @@ import { ArrowRight } from "lucide-react";
 import { SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
 
 /**
- * The way through to the shipping side, in the hero.
+ * The way through to the shipping side, at the left of the hero's badge line,
+ * in the place the Affhan.com lockup had until the owner removed it
+ * (2026-09-25). If the lockup comes back, this goes back to the right end of
+ * the line: `right-12` in place of the left insets below.
  *
  * It used to be a bare sail in the navbar's link row — decorative, unlabelled,
  * and impossible to guess at. Out here it carries its own name, which is what
  * makes it a destination rather than an ornament.
  *
- * Where it sits depends on the width, because the room does. On a window
- * 1536px or wider it goes beside the headline, under the Affhan.com lockup and
- * sharing its left edge. Narrower than that there is no room there: the pill
- * is 288px and the space left of the headline, measured on the live page, is
- * 268px at 1280 and 348px at 1440, so it would run into the headline. There it
- * keeps its place at the end of the badge line.
- *
- * The hero renders one of each (`placement`). Exactly one is displayed at any
- * width; the other is display:none, so it is neither announced nor tabbed to.
- *
- * Absolutely positioned either way, so the badge and the headline stay centred
- * and nothing else in the hero moves. Desktop only: at narrow widths it would
- * sit on top of the badge, and the mobile drawer already has a named Shipping
- * row.
+ * Absolutely positioned so the badge beside it stays centred on the line and
+ * nothing else in the hero moves. Desktop only: at narrow widths it would sit
+ * on top of the badge, and the mobile drawer already has a named Shipping row.
  */
 
 interface Splash {
@@ -55,18 +47,7 @@ function makeDrops() {
   });
 }
 
-/** 2xl is Tailwind's 1536px: the width from which it fits beside the headline. */
-const PLACEMENT = {
-  // left-10 is the lockup's own xl:left-10, so the two share an edge.
-  headline: "absolute left-10 top-1/2 hidden -translate-y-1/2 2xl:block",
-  // right-12 rather than right-0 from xl: pulled in off the container edge so
-  // it sits inside the hero's rhythm instead of against its margin. Flush on
-  // lg, because there is no room for the inset: at 1024px the centred badge
-  // ends at 685 and right-12 would start the pill at 656, on top of it.
-  badge: "absolute right-0 xl:right-12 top-1/2 hidden -translate-y-1/2 lg:block 2xl:hidden",
-} as const;
-
-export function ShippingBar({ placement = "badge" }: { placement?: keyof typeof PLACEMENT }) {
+export function ShippingBar() {
   const ref = useRef<HTMLAnchorElement | null>(null);
   const [splashes, setSplashes] = useState<Splash[]>([]);
   const nextId = useRef(0);
@@ -93,7 +74,10 @@ export function ShippingBar({ placement = "badge" }: { placement?: keyof typeof 
   }, []);
 
   return (
-    <div className={PLACEMENT[placement]}>
+    // left-10 from xl is the lockup's own inset, so the pill sits exactly
+    // where it did. Flush on lg, where there is no room for an inset: at 1024px
+    // the centred badge starts at 339, and the pill is 288px wide.
+    <div className="absolute left-0 xl:left-10 top-1/2 hidden -translate-y-1/2 lg:block">
       <Link
         ref={ref}
         href="/shipping/"

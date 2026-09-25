@@ -6,6 +6,10 @@ import Link from "next/link";
 /**
  * Affhan.com Brand Lockup (Alibaba.com style, pure clean branding - NO badge/pill box)
  * Symmetrically balanced in the hero section with pixel-perfect alignment.
+ *
+ * Not rendered anywhere since 2026-09-25: the owner took it off the hero and
+ * gave its place to the shipping pill, and asked for it to be kept for later.
+ * To bring it back, see the note where it sat in MarketplaceHeroSection.
  */
 export function AffhanBrandBar() {
   return (
