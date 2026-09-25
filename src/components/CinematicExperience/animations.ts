@@ -99,6 +99,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   // Resting states the tweens below start from.
   gsap.set($("hero-img", "hero-copy", "hero-glow", "hero-silk"), { filter: "blur(0px)" });
   gsap.set($("city-yiwu"), { filter: "blur(0px) brightness(1)" });
+  gsap.set($("globe-art"), { filter: "brightness(1) saturate(1)" });
   gsap.set($("boarding", "map"), { transformPerspective: 1400 });
   gsap.set($("route-head"), { x: ROUTE_POINTS[0].x, y: ROUTE_POINTS[0].y });
   gsap.set($("free-blur", "free-word", "free-glow", "free-sub-char"), { autoAlpha: 0 });
@@ -136,9 +137,9 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
     { autoAlpha: 0.55, x: X(-6, -10), y: vh(2), rotation: -2, scale: 1, duration: 1.4 }, 0.7);
   tl.to($("gold-back"), { autoAlpha: 0, duration: 0.35 }, 2.1);
   // Silk crossing the frame in front.
-  tl.fromTo($("silk-front"), { autoAlpha: 0, x: X(95, 120), y: vh(20), rotation: 10, scale: 1.1 },
-    { autoAlpha: 0.95, x: X(-10, -20), y: vh(-4), rotation: -4, scale: 1.2, ease: "power1.inOut", duration: 1.0 }, 1.0);
-  tl.to($("silk-front"), { x: X(-110, -150), y: vh(-16), rotation: -10, autoAlpha: 0, ease: "power1.in", duration: 0.6 }, 2.0);
+  tl.fromTo($("silk-front"), { autoAlpha: 0, x: X(95, 120), y: vh(-30), rotation: 10, scale: 0.9 },
+    { autoAlpha: 0.85, x: X(-5, -10), y: vh(-27), rotation: -4, scale: 1, ease: "power1.inOut", duration: 0.9 }, 1.0);
+  tl.to($("silk-front"), { x: X(-110, -150), y: vh(-34), rotation: -10, autoAlpha: 0, ease: "power1.in", duration: 0.55 }, 1.9);
   caption("cap-passport", 1.15, 2.0);
 
   // ---- 03 BOARDING PASS: small behind the passport, then the hero ------------
@@ -177,6 +178,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("globe"), { autoAlpha: 0, scale: 0.34, y: vh(9), rotation: -16, filter: "blur(14px)" },
     { autoAlpha: 1, scale: 0.86, y: 0, rotation: -5, filter: "blur(0px)", ease: "power2.out", duration: 1.1 }, 4.5);
   tl.to($("globe"), { rotation: 2, scale: 0.92, duration: 1.0 }, 5.6);
+  tl.to($("globe-art"), { filter: "brightness(0.62) saturate(0.85)", duration: 0.3 }, 5.45);
   // ...and becomes the globe's orbit.
   tl.to($("gold-back"), { x: 0, y: vh(2), rotation: -10, scale: d ? 0.78 : 0.9, autoAlpha: 0.75, ease: "power2.inOut", duration: 0.9 }, 5.1);
   tl.to($("gold-back"), { rotation: -4, duration: 0.8 }, 6.0);
@@ -206,13 +208,13 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.to($("map-glow"), { autoAlpha: 0, scale: 1.3, duration: 0.6 }, 8.2);
   tl.to($("haze-deep"), { autoAlpha: 0, duration: 0.6 }, 6.4);
   tl.to($("haze-crimson"), { autoAlpha: 1, duration: 0.6 }, 6.4);
-  tl.fromTo($("silk-front"), { autoAlpha: 0, x: X(-120, -160), y: vh(24), rotation: -16, scale: 1.35 },
-    { autoAlpha: 1, x: X(10, 0), y: vh(4), rotation: -4, scale: 1.25, ease: "power2.out", duration: 0.7 }, 6.25);
-  tl.to($("silk-front"), { x: X(125, 170), y: vh(-18), rotation: 10, autoAlpha: 0, ease: "power2.in", duration: 0.7 }, 6.95);
-  tl.fromTo($("gold-front"), { autoAlpha: 0, x: X(-130, -170), y: vh(-8), rotation: 12, scale: 1.1 },
-    { autoAlpha: 0.9, x: X(0, -10), y: vh(6), rotation: 2, scale: 1.1, ease: "power2.out", duration: 0.75 }, 6.45);
-  tl.to($("gold-front"), { x: X(130, 170), y: vh(14), rotation: -8, autoAlpha: 0, ease: "power2.in", duration: 0.75 }, 7.2);
-  caption("cap-map", 7.0, 7.95);
+  tl.fromTo($("silk-front"), { autoAlpha: 0, x: X(-120, -160), y: vh(30), rotation: -16, scale: 1.2 },
+    { autoAlpha: 1, x: X(0, 0), y: vh(26), rotation: -4, scale: 1.15, ease: "power2.out", duration: 0.5 }, 6.15);
+  tl.to($("silk-front"), { x: X(125, 170), y: vh(18), rotation: 10, autoAlpha: 0, ease: "power2.in", duration: 0.5 }, 6.65);
+  tl.fromTo($("gold-front"), { autoAlpha: 0, x: X(-130, -170), y: vh(-30), rotation: 12, scale: 1 },
+    { autoAlpha: 0.9, x: X(0, -10), y: vh(-26), rotation: 2, scale: 1, ease: "power2.out", duration: 0.55 }, 6.35);
+  tl.to($("gold-front"), { x: X(130, 170), y: vh(-22), rotation: -8, autoAlpha: 0, ease: "power2.in", duration: 0.55 }, 6.9);
+  caption("cap-map", 7.2, 8.2);
   // Dive into the Shanghai marker (30% right of centre): the city pass starts there.
   tl.to($("map"), { scale: 3.6, xPercent: -(3.6 - 1.05) * 30, autoAlpha: 0, filter: "blur(10px)", ease: "power2.in", duration: 0.8 }, 8.35);
 
@@ -270,11 +272,11 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.to($("haze-warm"), { autoAlpha: 0, duration: 0.5 }, 15.7);
   // Silk and gold keep moving through the dark, framing the word.
   tl.fromTo($("silk-back"), { autoAlpha: 0, x: X(70, 90), y: vh(26), rotation: 8, scale: 1.1 },
-    { autoAlpha: 0.7, x: X(8, 0), y: vh(22), rotation: 2, scale: 1.15, ease: "power1.out", duration: 1.0 }, 15.8);
-  tl.to($("silk-back"), { x: X(-20, -30), y: vh(24), rotation: -3, duration: 1.5 }, 16.8);
+    { autoAlpha: 0.42, x: X(8, 0), y: vh(30), rotation: 2, scale: 1.15, ease: "power1.out", duration: 1.0 }, 15.8);
+  tl.to($("silk-back"), { x: X(-20, -30), y: vh(32), rotation: -3, duration: 1.5 }, 16.8);
   tl.fromTo($("gold-back"), { autoAlpha: 0, x: X(-70, -90), y: vh(-24), rotation: -8, scale: 1 },
-    { autoAlpha: 0.7, x: X(-4, 0), y: vh(-22), rotation: -2, scale: 1.1, ease: "power1.out", duration: 1.0 }, 15.9);
-  tl.to($("gold-back"), { x: X(16, 24), y: vh(-24), rotation: 3, duration: 1.4 }, 16.9);
+    { autoAlpha: 0.45, x: X(-4, 0), y: vh(-30), rotation: -2, scale: 1.1, ease: "power1.out", duration: 1.0 }, 15.9);
+  tl.to($("gold-back"), { x: X(16, 24), y: vh(-32), rotation: 3, duration: 1.4 }, 16.9);
   // Particles gather into the shape of the word.
   const dust = { gather: 0, fade: 0 };
   const draw = () => particles?.render(dust.gather, dust.fade);

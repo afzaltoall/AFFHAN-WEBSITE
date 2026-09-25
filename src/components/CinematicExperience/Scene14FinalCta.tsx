@@ -35,7 +35,7 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
         </div>
 
         {/* The gold trail, sweeping in behind him. */}
-        <div data-cx="cta-gold" data-cx-hide aria-hidden className="pointer-events-none absolute left-[-40vw] top-[10svh] z-[8] w-[170vw] lg:left-[-14vw] lg:top-[24svh] lg:w-[92vw]">
+        <div data-cx="cta-gold" data-cx-hide aria-hidden className="pointer-events-none absolute left-[-40vw] top-[10svh] z-[8] w-[170vw] lg:left-[-14vw] lg:top-[40svh] lg:w-[92vw]">
           <FilmImage asset={ASSETS.gold} alt="" sizes="(min-width: 1024px) 92vw, 170vw" />
         </div>
 

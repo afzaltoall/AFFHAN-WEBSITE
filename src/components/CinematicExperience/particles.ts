@@ -121,7 +121,7 @@ export class GatherField {
         ty,
         delay: rnd() * 0.35,
         swirl: (rnd() - 0.5) * 220,
-        size: 0.8 + rnd() * (i % 9 === 0 ? 2.4 : 1.3),
+        size: 1.1 + rnd() * (i % 9 === 0 ? 2.8 : 1.6),
         shade: (i % 3) as 0 | 1 | 2,
       };
     });
@@ -142,7 +142,7 @@ export class GatherField {
     // One fill style per shade and alpha step: a few state changes, not one per dot.
     for (let s = 0; s < 3; s++) {
       for (let band = 0; band < 4; band++) {
-        const alpha = (0.35 + band * 0.2) * alphaAll;
+        const alpha = (0.5 + band * 0.17) * alphaAll;
         ctx.fillStyle = `${SHADES[s]}${alpha.toFixed(3)})`;
         for (let i = 0; i < this.dots.length; i++) {
           const d = this.dots[i];

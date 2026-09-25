@@ -24,18 +24,20 @@ const at = (t: number) => ({
 });
 
 /** Points along the route, shared with animations.ts for the travelling head. */
-export const ROUTE_POINTS = Array.from({ length: 26 }, (_, i) => at(i / 25));
+export const ROUTE_POINTS = Array.from({ length: 44 }, (_, i) => at(i / 43));
 
 export function Scene05Globe() {
   return (
     <div data-cx-scene="globe">
       <div className="pointer-events-none absolute inset-0 z-[22] flex items-center justify-center">
         <div data-cx="globe" data-cx-hide className="relative w-[112vw] max-w-none shrink-0 md:w-[min(50vw,86vh)]">
-          <FilmImage
-            asset={ASSETS.globe}
-            alt="The globe, with a gold route from India to China"
-            sizes="(min-width: 768px) 50vw, 112vw"
-          />
+          <div data-cx="globe-art">
+            <FilmImage
+              asset={ASSETS.globe}
+              alt="The globe, with a gold route from India to China"
+              sizes="(min-width: 768px) 50vw, 112vw"
+            />
+          </div>
           <svg viewBox={`0 0 ${VB.w} ${VB.h}`} aria-hidden className="absolute inset-0 h-full w-full overflow-visible">
             <defs>
               <radialGradient id="cx-route-glow">
@@ -47,12 +49,12 @@ export function Scene05Globe() {
             <path
               d={`M${A.x} ${A.y} Q${C.x} ${C.y} ${B.x} ${B.y}`}
               fill="none"
-              stroke="rgb(242 211 142 / 0.16)"
-              strokeWidth={3}
+              stroke="rgb(242 211 142 / 0.22)"
+              strokeWidth={5}
               strokeLinecap="round"
             />
             {ROUTE_POINTS.slice(1, -1).map((p, i) => (
-              <circle key={i} data-cx="route-dot" cx={p.x} cy={p.y} r={5} fill="#f2d38e" opacity={0} />
+              <circle key={i} data-cx="route-dot" cx={p.x} cy={p.y} r={7.5} fill="#fff1c9" opacity={0} />
             ))}
             {[A, B].map((p, i) => (
               <g key={i} data-cx={i === 0 ? "route-end-a" : "route-end-b"} opacity={0}>
@@ -62,8 +64,8 @@ export function Scene05Globe() {
               </g>
             ))}
             <g data-cx="route-head" opacity={0}>
-              <circle r={40} fill="url(#cx-route-glow)" />
-              <circle r={9} fill="#ffffff" />
+              <circle r={64} fill="url(#cx-route-glow)" />
+              <circle r={13} fill="#ffffff" />
             </g>
           </svg>
           <span

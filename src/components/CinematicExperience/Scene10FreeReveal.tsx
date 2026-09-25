@@ -55,7 +55,7 @@ export function Scene10FreeReveal() {
             >
               {[...FREE.sub].map((ch, i) => (
                 <span key={i} data-cx="free-sub-char" className="inline-block">
-                  {ch === " " ? " " : ch}
+                  {ch === " " ? "\u00a0" : ch}
                 </span>
               ))}
             </span>
