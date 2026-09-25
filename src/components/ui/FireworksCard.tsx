@@ -37,8 +37,9 @@ import { useEffect, useRef } from "react";
  *
  * What it costs: it starts only once the page has loaded and gone idle, runs
  * only while the card is on screen and the tab is visible (a card hidden by
- * display:none never counts as on screen), and stamps pre-made glow images,
- * so a frame stays a few milliseconds. Nothing plays for reduced motion.
+ * display:none never counts as on screen), draws at most ~60 frames a second,
+ * and stamps pre-made glow images, so a frame stays a few milliseconds.
+ * Nothing plays for reduced motion.
  */
 
 type Rgb = readonly [number, number, number];
@@ -326,6 +327,11 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
     function frame(now: number) {
       raf = 0;
       if (!w) return;
+      // At most ~60 frames a second, whatever the display's refresh rate:
+      // this runs for as long as the card is on screen, and a 144Hz monitor
+      // would otherwise draw it more than twice as often for nothing the eye
+      // can use. Motion is by elapsed time, so it looks the same.
+      if (last && now - last < 15) { loop(); return; }
       const dt = Math.min(0.033, last ? (now - last) / 1000 : 0.016);
       last = now;
       const c = ctx!;
