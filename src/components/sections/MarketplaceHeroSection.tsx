@@ -169,7 +169,8 @@ export function MarketplaceHeroSection({
                 uncropped, and leaves 52px to the end of the headline and 20px
                 or more to the search row below.
                 From 1600px only: narrower, the headline comes closer than 40px
-                (at 1536 the gap would be 20px), and below 1440 they overlap.
+                (at 1536 the gap would be 20px), and below about 1500 they
+                overlap.
                 Cut from the owner's public/china-trip.png (2172x724, 2.4MB) to
                 672x224 WebP, 45KB, for the 2x screens this width implies. */}
             <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] min-[1600px]:block">

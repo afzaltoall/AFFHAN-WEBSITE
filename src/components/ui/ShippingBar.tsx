@@ -10,7 +10,8 @@ import { SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
  * The way through to the shipping side, at the left of the hero's badge line,
  * in the place the Affhan.com lockup had until the owner removed it
  * (2026-09-25). If the lockup comes back, this goes back to the right end of
- * the line: `right-12` in place of the left insets below.
+ * the line: `right-0 xl:right-12` in place of the left insets below (a plain
+ * right-12 runs it into the centred badge at 1024-1150px).
  *
  * It used to be a bare sail in the navbar's link row — decorative, unlabelled,
  * and impossible to guess at. Out here it carries its own name, which is what
