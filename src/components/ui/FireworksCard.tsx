@@ -6,92 +6,96 @@ import { useEffect, useRef } from "react";
  * A card with a fireworks show playing over it, and out past its edges.
  *
  * It plays by itself, the way a real display does: a shell every second or
- * so, now and then a salvo of two or three, and every 14-18s a short finale.
- * Put the pointer on it and the show comes to the pointer and quickens; click
- * and a shell bursts right there. The picture underneath is never dimmed,
- * zoomed or covered: hovering only lifts the card.
+ * so, now and then a salvo of two or three, and every 14-18s a short finale
+ * that ends in a gold willow crown. Put the pointer on it and the show comes
+ * to the pointer and quickens; click and a shell bursts right there. The
+ * picture underneath is never dimmed, zoomed or covered: hovering only lifts
+ * the card.
  *
- * The show is not kept inside the card. The canvas reaches past it into the
- * page (44px to the left, which stops 8px short of the hero headline; 64px to
- * the right; 20px up and 16px down, which stop short of the navbar and the
- * search row), some rockets go up beside the card and burst above its rim, and
- * the canvas feathers out over its last stretch, so sparks leaving it dissolve
- * rather than being cut off by a line.
+ * Every stage of a real shell is drawn:
+ *  1. Lift. A thin glittering tail climbs, wobbling a little and slowing.
+ *  2. Break. It coasts to a near stop at the top and bursts, with a flash.
+ *  3. Expansion. The stars fly out violently, as sharp streaks with white-hot
+ *     heads, spread as a sphere seen from the front: crowded at the rim.
+ *  4. Hang. Air drag (exponential, so the pop is quick) takes their speed;
+ *     they hang, and gravity bends every trail down. A willow droops into
+ *     long gold curtains.
+ *  5. Effects. Stars change colour, glitter (shed gold sparks), crackle (pop
+ *     into flecks), strobe, split in four (crossette), or carry an inner core
+ *     in a second colour (pistil).
+ *  6. End. Stars dim to dark embers, flicker, and die.
  *
- * What makes it read as real fireworks rather than confetti:
- *  - Long-exposure trails. Each frame fades the last one instead of wiping
- *    it, so every star draws its own glowing streak, which is how fireworks
- *    look to the eye and in every photograph of them.
- *  - The physics of a shell: a violent pop, then the stars hang as air drag
- *    takes their speed (exponential drag, so the burst is fast and brief),
- *    then droop and fall under gravity.
- *  - A round burst is a 3D shell seen from the front, so its stars crowd at
- *    the rim. Shells come nearer and farther, so bigger and smaller.
- *  - Stars change colour as they burn, and die as dim orange embers. Some
- *    shells glitter (shed tiny gold sparks), some strobe at the end, crackle
- *    pops into flecks, crossette splits each star in four.
- *  - Built to show on a bright picture, which the banner is: stars are drawn
- *    as coloured glows (additive light would vanish on near-white) with
- *    white-hot centres, and the palettes lean on the cool colours that stand
- *    out against its warm ones.
+ * Why streaks and not glows: an earlier version drew each star as a soft round
+ * glow, and a cloud of those reads as fairy lights. A firework is seen as
+ * lines: each star is drawn as the segment it moved this frame, and each
+ * frame fades the last instead of wiping it, so the segments build into
+ * tapered trails the way a long-exposure photograph shows them.
+ *
+ * The colours are deep and saturated, and lean cool (blue, emerald, teal,
+ * fuchsia), because the picture is bright and warm and the page around it is
+ * pale: pale sparks, and additive light, vanish on both.
+ *
+ * The show reaches past the card into the page (44px to the left, stopping 8px
+ * short of the hero headline; 64px to the right; 20px up and 16px down, short
+ * of the navbar and the search row), and feathers out at its edge.
  *
  * What it costs: it starts only once the page has loaded and gone idle, runs
  * only while the card is on screen and the tab is visible (a card hidden by
  * display:none never counts as on screen), draws at most ~60 frames a second,
- * and stamps pre-made glow images, so a frame stays a few milliseconds.
- * Nothing plays for reduced motion.
+ * and strokes all the segments of one colour, brightness and width as one
+ * path, so a frame is a few dozen draw calls. Nothing plays for reduced
+ * motion.
  */
 
-type Rgb = readonly [number, number, number];
-interface Palette { main: Rgb; tip: Rgb }
-type Kind = "peony" | "chrysanthemum" | "willow" | "ring" | "crackle" | "palm" | "crossette" | "strobe";
+interface Palette { main: string; tip: string; ember: string }
+type Kind = "peony" | "pistil" | "chrysanthemum" | "willow" | "ring" | "crackle" | "palm" | "crossette" | "strobe";
 
-// main is the colour a star burns; tip is what it turns as it burns out.
-const PALETTES: readonly Palette[] = [
-  { main: [255, 40, 80], tip: [255, 190, 70] },   // crimson turning gold
-  { main: [22, 200, 100], tip: [150, 245, 175] }, // emerald
-  { main: [40, 110, 245], tip: [140, 195, 255] }, // sapphire
-  { main: [225, 40, 200], tip: [255, 160, 235] }, // magenta
-  { main: [10, 170, 210], tip: [120, 230, 250] }, // Affhan teal
-  { main: [255, 150, 0], tip: [255, 205, 80] },   // gold
-];
-const GOLD = PALETTES[5];
-const EMBER: Rgb = [230, 90, 20];
-const WHITE: Rgb = [255, 255, 255];
+// main is the colour a star burns, tip what it changes to, ember how it dies.
+const CRIMSON: Palette = { main: "#e11d48", tip: "#f97316", ember: "#9a3412" };
+const EMERALD: Palette = { main: "#059669", tip: "#65a30d", ember: "#3f6212" };
+const ROYAL: Palette = { main: "#2563eb", tip: "#7c3aed", ember: "#4c1d95" };
+const FUCHSIA: Palette = { main: "#c026d3", tip: "#db2777", ember: "#831843" };
+const TEAL: Palette = { main: "#0891b2", tip: "#0d9488", ember: "#134e4a" };
+const GOLD: Palette = { main: "#d97706", tip: "#b45309", ember: "#78350f" };
+const SPARK = "#f59e0b"; // glitter, rocket tails, crackle flecks
+
+// Cool colours come up more often: they are the ones that show on a warm picture.
+const SHELL_COLOURS: readonly Palette[] = [CRIMSON, EMERALD, EMERALD, ROYAL, ROYAL, FUCHSIA, TEAL, TEAL];
 
 // How often each shell comes up, out of 100.
 const KINDS: readonly (readonly [Kind, number])[] = [
-  ["peony", 18], ["chrysanthemum", 16], ["willow", 12], ["ring", 10],
-  ["crackle", 12], ["palm", 12], ["crossette", 10], ["strobe", 10],
+  ["peony", 14], ["pistil", 12], ["chrysanthemum", 14], ["willow", 12], ["ring", 9],
+  ["crackle", 11], ["palm", 10], ["crossette", 9], ["strobe", 9],
 ];
 
 /** Where the canvas reaches past the card, in CSS px. Measured on the hero,
  *  where the card has 52px to the headline, 24px to the navbar, 27px to the
  *  search row, and open page to its right. */
 const SPILL = { left: 44, right: 64, top: 20, bottom: 16 } as const;
-const MAX_STARS = 900;
-const ROCKET_GRAVITY = 300;       // px/s²: a rocket slows as it climbs
-const TRAIL_KEEP = 0.8;           // share of the last frame kept, per 60th of a second
+const MAX_STARS = 1000;
+const ROCKET_GRAVITY = 300; // px/s²: a rocket slows as it climbs
+const TRAIL_KEEP = 0.86;    // share of the last frame kept, per 60th of a second
 
 interface Star {
-  x: number; y: number; vx: number; vy: number;
+  x: number; y: number; px: number; py: number; vx: number; vy: number;
   life: number; max: number;
-  palette: Palette; size: number;
-  /** Air drag, per second: speed falls by e^-drag*t. */
+  palette: Palette; width: number;
+  /** Air drag, per second: speed falls by e^(-drag * t). */
   drag: number; gravity: number;
-  twinkle: boolean; glitter: boolean; strobe: boolean;
+  head: boolean; twinkle: boolean; glitter: boolean; strobe: boolean; shift: boolean;
   /** The share of its life left at which it pops (crackle) or splits (crossette); 0 for neither. */
   popAt: number; split: boolean;
 }
 interface Rocket {
-  x: number; y: number; vx: number; vy: number;
+  x: number; y: number; px: number; py: number; vx: number; vy: number; t: number;
   apex: number; kind: Kind; palette: Palette; depth: number;
 }
-interface Flash { x: number; y: number; life: number; radius: number; colour: Rgb }
+interface Flash { x: number; y: number; life: number; radius: number; colour: string }
 interface ShellOptions {
   life: readonly [number, number];
-  palette?: Palette; size?: number; drag?: number; gravity?: number;
-  twinkle?: boolean; glitter?: boolean; strobe?: boolean; popAt?: number; split?: boolean;
+  palette?: Palette; width?: number; drag?: number; gravity?: number;
+  head?: boolean; twinkle?: boolean; glitter?: boolean; strobe?: boolean; shift?: boolean;
+  popAt?: number; split?: boolean;
 }
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -102,18 +106,33 @@ const pickKind = (): Kind => {
   return "peony";
 };
 
-/** A soft round glow in one colour, drawn once and stamped for every star. */
-function glowSprite(c: Rgb): HTMLCanvasElement {
+/** A star's head: white-hot centre, its colour at the rim. Drawn once per colour. */
+function headSprite(colour: string): HTMLCanvasElement {
   const s = document.createElement("canvas");
-  s.width = s.height = 32;
+  s.width = s.height = 16;
   const g = s.getContext("2d")!;
-  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
-  grad.addColorStop(0, `rgba(${c[0]},${c[1]},${c[2]},1)`);
-  grad.addColorStop(0.3, `rgba(${c[0]},${c[1]},${c[2]},0.85)`);
-  grad.addColorStop(0.62, `rgba(${c[0]},${c[1]},${c[2]},0.25)`);
-  grad.addColorStop(1, `rgba(${c[0]},${c[1]},${c[2]},0)`);
+  const grad = g.createRadialGradient(8, 8, 0, 8, 8, 8);
+  grad.addColorStop(0, "#ffffff");
+  grad.addColorStop(0.32, "#ffffff");
+  grad.addColorStop(0.55, colour);
+  grad.addColorStop(1, "rgba(255,255,255,0)");
   g.fillStyle = grad;
-  g.fillRect(0, 0, 32, 32);
+  g.fillRect(0, 0, 16, 16);
+  return s;
+}
+
+/** The flash of a burst, in the burst's colour. */
+function flashSprite(colour: string): HTMLCanvasElement {
+  const s = document.createElement("canvas");
+  s.width = s.height = 48;
+  const g = s.getContext("2d")!;
+  const grad = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+  grad.addColorStop(0, "rgba(255,255,255,0.95)");
+  grad.addColorStop(0.18, colour);
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.globalAlpha = 0.9;
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 48, 48);
   return s;
 }
 
@@ -149,12 +168,19 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
     const rockets: Rocket[] = [];
     const flashes: Flash[] = [];
 
-    const sprites = new Map<Rgb, HTMLCanvasElement>();
-    const sprite = (c: Rgb) => {
-      let s = sprites.get(c);
-      if (!s) { s = glowSprite(c); sprites.set(c, s); }
-      return s;
-    };
+    const heads = new Map<string, HTMLCanvasElement>();
+    const head = (c: string) => { let s = heads.get(c); if (!s) { s = headSprite(c); heads.set(c, s); } return s; };
+    const blooms = new Map<string, HTMLCanvasElement>();
+    const bloom = (c: string) => { let s = blooms.get(c); if (!s) { s = flashSprite(c); blooms.set(c, s); } return s; };
+
+    // Segments are stroked in batches: one path per colour, brightness step
+    // and width step. Brightness is in 8 steps, width in 0.4px steps.
+    const colourIds = new Map<string, number>();
+    const colourOf: string[] = [];
+    for (const p of [CRIMSON, EMERALD, ROYAL, FUCHSIA, TEAL, GOLD]) {
+      for (const c of [p.main, p.tip, p.ember]) if (!colourIds.has(c)) { colourIds.set(c, colourOf.length); colourOf.push(c); }
+    }
+    if (!colourIds.has(SPARK)) { colourIds.set(SPARK, colourOf.length); colourOf.push(SPARK); }
 
     const size = () => {
       const r = canvas.getBoundingClientRect();
@@ -175,6 +201,12 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
     function addStar(s: Star) {
       if (stars.length < MAX_STARS) stars.push(s);
     }
+    const star = (x: number, y: number, vx: number, vy: number, life: number, o: Partial<Star> & { palette: Palette }): Star => ({
+      x, y, px: x, py: y, vx, vy, life, max: life,
+      palette: o.palette, width: o.width ?? 1.4, drag: o.drag ?? 3.4, gravity: o.gravity ?? 56,
+      head: o.head ?? true, twinkle: o.twinkle ?? false, glitter: o.glitter ?? false,
+      strobe: o.strobe ?? false, shift: o.shift ?? false, popAt: o.popAt ?? 0, split: o.split ?? false,
+    });
 
     function burst(x: number, y: number, kind: Kind, pal: Palette, depth: number) {
       // Speeds are for a 112px-tall card; a burst's radius is speed / drag.
@@ -184,86 +216,83 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
           // A point on a sphere, seen from the front: crowded at the rim.
           const u = rand(-1, 1), phi = rand(0, Math.PI * 2), r = Math.sqrt(1 - u * u);
           const v = speed * rand(0.9, 1.05);
-          const max = rand(o.life[0], o.life[1]);
-          addStar({
-            x, y, vx: Math.cos(phi) * r * v, vy: Math.sin(phi) * r * v,
-            life: max, max, palette: o.palette ?? pal, size: (o.size ?? 1.6) * depth,
-            drag: o.drag ?? 3.1, gravity: (o.gravity ?? 60) * k,
-            twinkle: o.twinkle ?? Math.random() < 0.3, glitter: o.glitter ?? false, strobe: o.strobe ?? false,
+          addStar(star(x, y, Math.cos(phi) * r * v, Math.sin(phi) * r * v, rand(o.life[0], o.life[1]), {
+            palette: o.palette ?? pal, width: (o.width ?? 1.4) * depth, drag: o.drag ?? 3.4,
+            gravity: (o.gravity ?? 56) * k, head: o.head ?? true, twinkle: o.twinkle ?? Math.random() < 0.25,
+            glitter: o.glitter ?? false, strobe: o.strobe ?? false, shift: o.shift ?? false,
             popAt: o.popAt ?? 0, split: o.split ?? false,
-          });
+          }));
         }
       };
 
       switch (kind) {
         case "peony":
-          shell(100, 170 * k, { life: [1.1, 1.5] });
+          shell(110, 205 * k, { life: [1.2, 1.6], shift: true });
+          break;
+        case "pistil":
+          // A peony with an inner core of a second colour.
+          shell(96, 205 * k, { life: [1.2, 1.6] });
+          shell(30, 92 * k, { life: [0.9, 1.2], palette: pick(SHELL_COLOURS.filter((p) => p !== pal)), width: 1.2 });
           break;
         case "chrysanthemum":
-          shell(88, 165 * k, { life: [1.3, 1.7], glitter: true });
+          shell(96, 200 * k, { life: [1.4, 1.8], glitter: true });
           break;
         case "willow":
-          shell(76, 120 * k, { life: [2.4, 3.1], palette: GOLD, drag: 1.9, gravity: 36, size: 1.3, twinkle: true, glitter: true });
+          shell(84, 150 * k, { life: [2.6, 3.4], palette: GOLD, drag: 2.1, gravity: 30, width: 1.2, glitter: true, twinkle: true });
           break;
         case "ring": {
           // A flat ring tilted away from the viewer, with a small heart.
-          const n = 64, squash = rand(0.35, 0.7), tilt = rand(0, Math.PI), speed = 175 * k;
+          const n = 70, squash = rand(0.35, 0.7), tilt = rand(0, Math.PI), speed = 210 * k;
           for (let i = 0; i < n; i++) {
             const a = (i / n) * Math.PI * 2;
             const ex = Math.cos(a) * speed, ey = Math.sin(a) * speed * squash;
-            const max = rand(1.0, 1.3);
-            addStar({
-              x, y, vx: ex * Math.cos(tilt) - ey * Math.sin(tilt), vy: ex * Math.sin(tilt) + ey * Math.cos(tilt),
-              life: max, max, palette: pal, size: 1.7 * depth, drag: 3.2, gravity: 52 * k,
-              twinkle: false, glitter: false, strobe: false, popAt: 0, split: false,
-            });
+            addStar(star(x, y, ex * Math.cos(tilt) - ey * Math.sin(tilt), ex * Math.sin(tilt) + ey * Math.cos(tilt), rand(1.1, 1.4), {
+              palette: pal, width: 1.5 * depth, drag: 3.5, gravity: 50 * k,
+            }));
           }
-          shell(20, 60 * k, { life: [0.7, 1.0], size: 1.2 });
+          shell(22, 70 * k, { life: [0.8, 1.1], width: 1.1 });
           break;
         }
         case "crackle":
-          shell(72, 160 * k, { life: [1.0, 1.25], popAt: rand(0.42, 0.55) });
+          shell(84, 195 * k, { life: [1.1, 1.35], popAt: rand(0.4, 0.52) });
           break;
         case "palm": {
           // A few thick comet arms that glitter as they droop, and a fine core.
           const arms = 8 + Math.floor(rand(0, 3));
           for (let i = 0; i < arms; i++) {
             const a = (i / arms) * Math.PI * 2 + rand(-0.12, 0.12);
-            const v = 190 * k * rand(0.92, 1.05);
-            const max = rand(1.5, 1.9);
-            addStar({
-              x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
-              life: max, max, palette: GOLD, size: 2.5 * depth, drag: 2.6, gravity: 64 * k,
-              twinkle: false, glitter: true, strobe: false, popAt: 0, split: false,
-            });
+            const v = 230 * k * rand(0.92, 1.05);
+            addStar(star(x, y, Math.cos(a) * v, Math.sin(a) * v, rand(1.6, 2.0), {
+              palette: GOLD, width: 2.4 * depth, drag: 2.8, gravity: 64 * k, glitter: true,
+            }));
           }
-          shell(40, 90 * k, { life: [0.8, 1.2], size: 1.1, twinkle: true });
+          shell(40, 100 * k, { life: [0.9, 1.2], width: 1.0, twinkle: true });
           break;
         }
         case "crossette":
-          // Fewer, bigger stars that each split in four halfway.
-          shell(22, 130 * k, { life: [1.2, 1.4], size: 2.0, popAt: rand(0.5, 0.6), split: true, twinkle: false });
+          // Fewer, heavier stars that each split in four halfway.
+          shell(24, 160 * k, { life: [1.3, 1.5], width: 1.9, popAt: rand(0.5, 0.6), split: true });
           break;
         case "strobe":
-          shell(90, 160 * k, { life: [1.3, 1.7], strobe: true, twinkle: false });
+          shell(100, 195 * k, { life: [1.4, 1.8], strobe: true });
           break;
       }
-      // The bloom of the burst, in its own colour: white would vanish on a
-      // bright picture.
-      flashes.push({ x, y, life: 0.16, radius: 44 * k, colour: kind === "willow" || kind === "palm" ? GOLD.main : pal.main });
+      const colour = kind === "willow" || kind === "palm" ? GOLD.main : pal.main;
+      flashes.push({ x, y, life: 0.13, radius: 22 * k, colour });
     }
 
-    function launch(tx?: number, ty?: number) {
+    function launch(tx?: number, ty?: number, kind?: Kind) {
       if (!card.w) return;
       // From the card's foot, or just beside the card, to burst in its upper
       // half or just above its rim, so the show spills out into the page.
       const x = tx ?? rand(card.x - 20, card.x + card.w + 36);
       const apex = ty ?? rand(card.y - 10, card.y + 0.5 * card.h);
       const y = card.y + card.h;
-      const vy = -Math.sqrt(2 * ROCKET_GRAVITY * Math.max(8, y - apex)) * 1.02;
+      const vy = -Math.sqrt(2 * ROCKET_GRAVITY * Math.max(8, y - apex)) * 1.03;
+      const sx = tx === undefined ? x : x + rand(-10, 10);
       rockets.push({
-        x: tx === undefined ? x : x + rand(-10, 10), y, vx: rand(-12, 12), vy, apex,
-        kind: pickKind(), palette: pick(PALETTES), depth: rand(0.85, 1.15),
+        x: sx, y, px: sx, py: y, vx: rand(-10, 10), vy, t: rand(0, 6), apex,
+        kind: kind ?? pickKind(), palette: pick(SHELL_COLOURS), depth: rand(0.85, 1.15),
       });
       loop();
     }
@@ -279,8 +308,10 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
     function fire() {
       const now = performance.now();
       if (!hovering && now >= nextFinale) {
+        // A quick salvo, closed by a gold willow crown over the middle.
         nextFinale = now + rand(14000, 18000);
-        for (let i = 0; i < 5; i++) pending.push(setTimeout(() => running() && launch(), i * rand(150, 240)));
+        for (let i = 0; i < 5; i++) pending.push(setTimeout(() => running() && launch(), i * rand(140, 220)));
+        pending.push(setTimeout(() => running() && launch(card.x + card.w * rand(0.4, 0.6), card.y + card.h * 0.12, "willow"), 1250));
         return;
       }
       const one = hovering ? atPointer : () => launch();
@@ -300,7 +331,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         if (!running()) return;
         fire();
         schedule();
-      }, hovering ? rand(380, 640) : rand(900, 1600));
+      }, hovering ? rand(380, 640) : rand(950, 1700));
     }
 
     function update() {
@@ -324,6 +355,21 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
       if (!raf && (running() || busy() || quietFor < 0.8)) raf = requestAnimationFrame(frame);
     }
 
+    // One path per (colour, brightness step, width step), rebuilt each frame.
+    // Brightness is rounded up to the next eighth, so a star at full strength
+    // is drawn at full strength.
+    const batches = new Map<number, Path2D>();
+    const segment = (colour: string, alpha: number, width: number, x0: number, y0: number, x1: number, y1: number) => {
+      if (alpha < 0.04) return;
+      const a = Math.min(7, Math.floor(alpha * 8));
+      const wStep = Math.min(9, Math.max(1, Math.round(width / 0.4)));
+      const key = colourIds.get(colour)! * 1000 + a * 10 + wStep;
+      let p = batches.get(key);
+      if (!p) { p = new Path2D(); batches.set(key, p); }
+      p.moveTo(x0, y0);
+      p.lineTo(x1 + (x1 === x0 && y1 === y0 ? 0.01 : 0), y1);
+    };
+
     function frame(now: number) {
       raf = 0;
       if (!w) return;
@@ -337,44 +383,33 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
       const c = ctx!;
       c.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      // The long exposure: fade what is there rather than wiping it.
+      // The long exposure: fade what is there rather than wiping it, so each
+      // frame's segments build into tapered trails.
       c.globalCompositeOperation = "destination-out";
       c.globalAlpha = 1 - Math.pow(TRAIL_KEEP, dt * 60);
       c.fillStyle = "#000";
       c.fillRect(0, 0, w, h);
       c.globalCompositeOperation = "source-over";
+      c.lineCap = "round";
+      batches.clear();
 
-      // Rockets: a bright gold head, slowing as it climbs, shedding embers.
+      // Rockets: a glittering gold tail that wobbles a little as it climbs,
+      // slowing, then coasting to a near stop before the break.
       for (let i = rockets.length - 1; i >= 0; i--) {
         const r = rockets[i];
+        r.px = r.x; r.py = r.y;
+        r.t += dt;
         r.vy += ROCKET_GRAVITY * dt;
-        r.x += r.vx * dt;
+        r.x += (r.vx + Math.sin(r.t * 18) * 9) * dt;
         r.y += r.vy * dt;
-        if (Math.random() < 0.7) {
-          addStar({
-            x: r.x, y: r.y + 2, vx: rand(-16, 16), vy: rand(10, 36), life: 0.32, max: 0.32,
-            palette: GOLD, size: 0.8, drag: 3, gravity: 40,
-            twinkle: true, glitter: false, strobe: false, popAt: 0, split: false,
-          });
+        segment(SPARK, 1, 1.6, r.px, r.py, r.x, r.y);
+        if (Math.random() < 0.75) {
+          addStar(star(r.x, r.y + 1, rand(-12, 12), rand(8, 30), rand(0.25, 0.4), { palette: GOLD, width: 0.9, drag: 3.2, gravity: 42, head: false, twinkle: true }));
         }
-        c.globalAlpha = 1;
-        c.drawImage(sprite(GOLD.main), r.x - 4.5, r.y - 4.5, 9, 9);
-        c.drawImage(sprite(WHITE), r.x - 1.6, r.y - 1.6, 3.2, 3.2);
-        if (r.y <= r.apex || r.vy >= -10) {
+        if (r.y <= r.apex || r.vy >= -18) {
           burst(r.x, r.y, r.kind, r.palette, r.depth);
           rockets.splice(i, 1);
         }
-      }
-
-      // The bloom of each burst.
-      for (let i = flashes.length - 1; i >= 0; i--) {
-        const f = flashes[i];
-        f.life -= dt;
-        if (f.life <= 0) { flashes.splice(i, 1); continue; }
-        const k = f.life / 0.16;
-        c.globalAlpha = 0.5 * k;
-        const r = f.radius * (1.2 - 0.4 * k);
-        c.drawImage(sprite(f.colour), f.x - r, f.y - r, r * 2, r * 2);
       }
 
       // Stars.
@@ -389,59 +424,74 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
             // Crossette: four stars off at right angles to its course.
             const base = Math.atan2(p.vy, p.vx) + Math.PI / 4;
             for (let j = 0; j < 4; j++) {
-              const a = base + (j * Math.PI) / 2, v = rand(70, 95);
-              const max = rand(0.55, 0.75);
-              addStar({
-                x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: max, max,
-                palette: p.palette, size: p.size * 0.75, drag: 2.8, gravity: 50,
-                twinkle: false, glitter: false, strobe: false, popAt: 0, split: false,
-              });
+              const a = base + (j * Math.PI) / 2, v = rand(85, 115);
+              addStar(star(p.x, p.y, Math.cos(a) * v, Math.sin(a) * v, rand(0.55, 0.75), { palette: p.palette, width: p.width * 0.75, drag: 3, gravity: 50 }));
             }
           } else {
-            // Crackle: three or four gold flecks, and it is gone.
+            // Crackle: a few bright flecks, a pop of light, and it is gone.
             const n = Math.random() < 0.5 ? 3 : 4;
             for (let j = 0; j < n; j++) {
-              const a = rand(0, Math.PI * 2), v = rand(30, 60);
-              addStar({
-                x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: rand(0.09, 0.16), max: 0.16,
-                palette: GOLD, size: 1.05, drag: 6, gravity: 20,
-                twinkle: true, glitter: false, strobe: false, popAt: 0, split: false,
-              });
+              const a = rand(0, Math.PI * 2), v = rand(40, 75);
+              addStar(star(p.x, p.y, Math.cos(a) * v, Math.sin(a) * v, rand(0.08, 0.15), { palette: GOLD, width: 1.1, drag: 7, gravity: 20, twinkle: true }));
             }
+            flashes.push({ x: p.x, y: p.y, life: 0.06, radius: 5, colour: SPARK });
           }
           stars.splice(i, 1);
           continue;
         }
 
+        p.px = p.x; p.py = p.y;
         const drag = Math.exp(-p.drag * dt);
         p.vx *= drag;
         p.vy = p.vy * drag + p.gravity * dt;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
 
-        // Glitter sheds tiny gold sparks that fall away.
-        if (p.glitter && f > 0.2 && Math.random() < 0.22) {
-          addStar({
-            x: p.x, y: p.y, vx: rand(-8, 8), vy: rand(4, 18), life: 0.28, max: 0.28,
-            palette: GOLD, size: 0.7, drag: 4, gravity: 30,
-            twinkle: true, glitter: false, strobe: false, popAt: 0, split: false,
-          });
+        // Glitter: tiny gold sparks shed along the way, falling off it.
+        if (p.glitter && f > 0.15 && Math.random() < 0.3) {
+          addStar(star(p.x, p.y, rand(-7, 7), rand(4, 16), rand(0.25, 0.45), { palette: GOLD, width: 0.8, drag: 4, gravity: 36, head: false, twinkle: true }));
         }
 
-        let alpha = f < 0.3 ? f / 0.3 : 1;
-        if (p.twinkle && f < 0.55) alpha *= rand(0.25, 1);
-        if (p.strobe && f < 0.5 && Math.floor(now / 55 + p.max * 97) % 2) alpha *= 0.06;
-        if (alpha < 0.02) continue;
-        // Burning colour, then the burn-out colour, then an ember.
-        const colour = f > 0.45 ? p.palette.main : f > 0.18 ? p.palette.tip : EMBER;
-        const g = p.size * 3.2;
-        c.globalAlpha = alpha;
-        c.drawImage(sprite(colour), p.x - g, p.y - g, g * 2, g * 2);
-        if (f > 0.3) {
-          const core = p.size;
-          c.globalAlpha = alpha * Math.min(1, (f - 0.3) / 0.2);
-          c.drawImage(sprite(WHITE), p.x - core, p.y - core, core * 2, core * 2);
-        }
+        let alpha = f < 0.28 ? f / 0.28 : 1;
+        if (p.twinkle && f < 0.5) alpha *= rand(0.2, 1);
+        if (p.strobe && f < 0.5 && Math.floor(now / 60 + p.max * 97) % 2) alpha = 0;
+        if (alpha <= 0.02) continue;
+        // It burns its colour, changes (for shells that do), then dies as an ember.
+        const colour = f < 0.2 ? p.palette.ember : p.shift && f < 0.55 ? p.palette.tip : p.palette.main;
+        segment(colour, alpha, p.width, p.px, p.py, p.x, p.y);
+      }
+
+      // Stroke the batches.
+      for (const [key, path] of batches) {
+        c.globalAlpha = ((Math.floor(key / 10) % 100) + 1) / 8;
+        c.strokeStyle = colourOf[Math.floor(key / 1000)];
+        c.lineWidth = (key % 10) * 0.4;
+        c.stroke(path);
+      }
+
+      // White-hot heads on the burning stars, and on the rockets.
+      for (const p of stars) {
+        const f = p.life / p.max;
+        if (!p.head || f < 0.3) continue;
+        if (p.strobe && f < 0.5 && Math.floor(now / 60 + p.max * 97) % 2) continue;
+        const r = p.width * 1.7;
+        c.globalAlpha = Math.min(1, (f - 0.3) / 0.2);
+        c.drawImage(head(p.shift && f < 0.55 ? p.palette.tip : p.palette.main), p.x - r, p.y - r, r * 2, r * 2);
+      }
+      for (const r of rockets) {
+        c.globalAlpha = 1;
+        c.drawImage(head(SPARK), r.x - 2.6, r.y - 2.6, 5.2, 5.2);
+      }
+
+      // The flash of each break.
+      for (let i = flashes.length - 1; i >= 0; i--) {
+        const fl = flashes[i];
+        fl.life -= dt;
+        if (fl.life <= 0) { flashes.splice(i, 1); continue; }
+        const k = fl.life / 0.13;
+        const r = fl.radius * (1.25 - 0.45 * k);
+        c.globalAlpha = Math.min(1, k * 0.9);
+        c.drawImage(bloom(fl.colour), fl.x - r, fl.y - r, r * 2, r * 2);
       }
       c.globalAlpha = 1;
 
@@ -471,7 +521,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
     const onDown = (e: PointerEvent) => {
       if (!running()) return;
       at(e);
-      burst(pointer.x, pointer.y, pick(["chrysanthemum", "peony", "crackle", "strobe"] as const), pick(PALETTES), 1.1);
+      burst(pointer.x, pointer.y, pick(["peony", "pistil", "chrysanthemum", "crackle", "strobe"] as const), pick(SHELL_COLOURS), 1.1);
       quietFor = 0;
       loop();
     };
