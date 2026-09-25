@@ -212,7 +212,9 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
     });
 
     function burst(x: number, y: number, kind: Kind, pal: Palette, depth: number) {
-      // Speeds are for a 112px-tall card; a burst's radius is speed / drag.
+      // Speeds are for a 112px-tall card; a burst's radius is speed / drag,
+      // about 50px for the main shells: big, but whole on the canvas, whose
+      // top is only 20px above the card.
       // Every star of a burst fades in over its first 0.07s. Real stars leave
       // from the rim of a shell casing, so a real burst has a dark, hollow
       // centre with the streaks starting a little way out; drawn from the
@@ -235,22 +237,22 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
 
       switch (kind) {
         case "peony":
-          shell(84, 205 * k, { life: [1.2, 1.6], shift: true });
+          shell(84, 175 * k, { life: [1.2, 1.6], shift: true });
           break;
         case "pistil":
           // A peony with an inner core of a second colour.
-          shell(76, 205 * k, { life: [1.2, 1.6] });
-          shell(26, 92 * k, { life: [0.9, 1.2], palette: pick(SHELL_COLOURS.filter((p) => p !== pal)), width: 1.0 });
+          shell(76, 175 * k, { life: [1.2, 1.6] });
+          shell(26, 80 * k, { life: [0.9, 1.2], palette: pick(SHELL_COLOURS.filter((p) => p !== pal)), width: 1.0 });
           break;
         case "chrysanthemum":
-          shell(80, 200 * k, { life: [1.4, 1.8], glitter: true });
+          shell(80, 172 * k, { life: [1.4, 1.8], glitter: true });
           break;
         case "willow":
-          shell(72, 150 * k, { life: [2.6, 3.4], palette: GOLD, drag: 2.1, gravity: 34, width: 1.0, glitter: true, twinkle: true });
+          shell(72, 130 * k, { life: [2.6, 3.4], palette: GOLD, drag: 2.1, gravity: 34, width: 1.0, glitter: true, twinkle: true });
           break;
         case "ring": {
           // A flat ring tilted away from the viewer, with a small heart.
-          const n = 60, squash = rand(0.35, 0.7), tilt = rand(0, Math.PI), speed = 210 * k;
+          const n = 60, squash = rand(0.35, 0.7), tilt = rand(0, Math.PI), speed = 180 * k;
           for (let i = 0; i < n; i++) {
             const a = (i / n) * Math.PI * 2;
             const ex = Math.cos(a) * speed, ey = Math.sin(a) * speed * squash;
@@ -262,27 +264,27 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
           break;
         }
         case "crackle":
-          shell(70, 195 * k, { life: [1.1, 1.35], popAt: rand(0.4, 0.52) });
+          shell(70, 168 * k, { life: [1.1, 1.35], popAt: rand(0.4, 0.52) });
           break;
         case "palm": {
           // A few thick comet arms that glitter as they droop, and a fine core.
           const arms = 8 + Math.floor(rand(0, 3));
           for (let i = 0; i < arms; i++) {
             const a = (i / arms) * Math.PI * 2 + rand(-0.12, 0.12);
-            const v = 230 * k * rand(0.92, 1.05);
+            const v = 195 * k * rand(0.92, 1.05);
             addStar(star(x, y, Math.cos(a) * v, Math.sin(a) * v, rand(1.6, 2.0), {
               palette: GOLD, width: 1.9 * depth, drag: 2.8, gravity: 70 * k, glitter: true, fadeIn: true,
             }));
           }
-          shell(40, 100 * k, { life: [0.9, 1.2], width: 0.85, twinkle: true });
+          shell(40, 86 * k, { life: [0.9, 1.2], width: 0.85, twinkle: true });
           break;
         }
         case "crossette":
           // Fewer, heavier stars that each split in four halfway.
-          shell(24, 160 * k, { life: [1.3, 1.5], width: 1.5, popAt: rand(0.5, 0.6), split: true });
+          shell(24, 140 * k, { life: [1.3, 1.5], width: 1.5, popAt: rand(0.5, 0.6), split: true });
           break;
         case "strobe":
-          shell(80, 195 * k, { life: [1.4, 1.8], strobe: true });
+          shell(80, 168 * k, { life: [1.4, 1.8], strobe: true });
           break;
       }
       const colour = kind === "willow" || kind === "palm" ? GOLD.main : pal.main;
@@ -294,7 +296,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
       // From the card's foot, or just beside the card, to burst in its upper
       // half or just above its rim, so the show spills out into the page.
       const x = tx ?? rand(card.x - 20, card.x + card.w + 36);
-      const apex = ty ?? rand(card.y - 10, card.y + 0.5 * card.h);
+      const apex = ty ?? rand(card.y - 4, card.y + 0.55 * card.h);
       const y = card.y + card.h;
       const vy = -Math.sqrt(2 * ROCKET_GRAVITY * Math.max(8, y - apex)) * 1.03;
       const sx = tx === undefined ? x : x + rand(-10, 10);
