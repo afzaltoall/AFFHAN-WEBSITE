@@ -59,9 +59,11 @@ function makeDrops() {
 const PLACEMENT = {
   // left-10 is the lockup's own xl:left-10, so the two share an edge.
   headline: "absolute left-10 top-1/2 hidden -translate-y-1/2 2xl:block",
-  // right-12 rather than right-0: pulled in off the container edge so it sits
-  // inside the hero's rhythm instead of against its margin.
-  badge: "absolute right-12 top-1/2 hidden -translate-y-1/2 lg:block 2xl:hidden",
+  // right-12 rather than right-0 from xl: pulled in off the container edge so
+  // it sits inside the hero's rhythm instead of against its margin. Flush on
+  // lg, because there is no room for the inset: at 1024px the centred badge
+  // ends at 685 and right-12 would start the pill at 656, on top of it.
+  badge: "absolute right-0 xl:right-12 top-1/2 hidden -translate-y-1/2 lg:block 2xl:hidden",
 } as const;
 
 export function ShippingBar({ placement = "badge" }: { placement?: keyof typeof PLACEMENT }) {

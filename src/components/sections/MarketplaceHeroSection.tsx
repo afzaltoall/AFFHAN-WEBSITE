@@ -156,7 +156,12 @@ export function MarketplaceHeroSection({
         {/* Animated intro headline — a morphing category word gives the opening
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
-          <div className="relative mb-3 flex justify-center">
+          {/* 2xl:mb-7 is room for the shipping pill, which from 2xl sits under
+              the Affhan.com lockup, centred on the headline. The lockup is 47px
+              and the pill 58px, and at mb-3 the two rows' centres are 50px
+              apart, so the pill ran into the lockup's tagline. 16px more
+              leaves a 14px gap between them. */}
+          <div className="relative mb-3 flex justify-center 2xl:mb-7">
             <AffhanBrandBar />
             <ShippingBar />
             <style dangerouslySetInnerHTML={{
