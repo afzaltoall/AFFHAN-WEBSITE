@@ -31,12 +31,16 @@ import { useEffect, useRef } from "react";
  * frame fades the last instead of wiping it, so the segments build into
  * tapered trails the way a long-exposure photograph shows them.
  *
- * The colours are deep and saturated, and lean cool (blue, emerald, teal,
- * fuchsia), because the picture is bright and warm and the page around it is
- * pale: pale sparks, and additive light, vanish on both.
+ * The colours follow what is behind each spark. The picture has dark parts
+ * and light ones, and the page around the card is pale; a deep colour sinks
+ * into the dark and a pale one vanishes on the light. So the show reads a
+ * coarse brightness map of the picture, and a spark over a dark part of it is
+ * drawn in a bright tint of its colour, glowing the way a firework does
+ * against the night, while one over a light part, or out on the page, keeps
+ * the deep, saturated colour that stays visible there.
  *
  * The show reaches past the card into the page (44px to the left, stopping 8px
- * short of the hero headline; 64px to the right; 20px up and 16px down, short
+ * short of the hero headline; 64px to the right; 20px up and 10px down, short
  * of the navbar and the search row), and feathers out at its edge.
  *
  * What it costs: it starts only once the page has loaded and gone idle, runs
@@ -59,6 +63,19 @@ const TEAL: Palette = { main: "#0891b2", tip: "#0d9488", ember: "#134e4a" };
 const GOLD: Palette = { main: "#d97706", tip: "#b45309", ember: "#78350f" };
 const SPARK = "#f59e0b"; // glitter, rocket tails, crackle flecks
 
+// The bright tint of each colour, for a spark over a dark part of the picture.
+const LIT: Readonly<Record<string, string>> = {
+  "#e11d48": "#fb7185", "#f97316": "#fdba74", "#9a3412": "#fb923c",
+  "#059669": "#34d399", "#65a30d": "#bef264", "#3f6212": "#84cc16",
+  "#2563eb": "#60a5fa", "#7c3aed": "#c4b5fd", "#4c1d95": "#8b5cf6",
+  "#c026d3": "#f0abfc", "#db2777": "#f9a8d4", "#831843": "#ec4899",
+  "#0891b2": "#67e8f9", "#0d9488": "#5eead4", "#134e4a": "#14b8a6",
+  "#d97706": "#fcd34d", "#b45309": "#fbbf24", "#78350f": "#f59e0b",
+  [SPARK]: "#fde68a",
+};
+/** Below this brightness (of 255), a part of the picture counts as dark. */
+const DARK_BELOW = 115;
+
 // Cool colours come up more often: they are the ones that show on a warm picture.
 const SHELL_COLOURS: readonly Palette[] = [CRIMSON, EMERALD, EMERALD, ROYAL, ROYAL, FUCHSIA, TEAL, TEAL];
 
@@ -69,9 +86,9 @@ const KINDS: readonly (readonly [Kind, number])[] = [
 ];
 
 /** Where the canvas reaches past the card, in CSS px. Measured on the hero,
- *  where the card has 52px to the headline, 24px to the navbar, 27px to the
+ *  where the card has 68px to the headline, 24px to the navbar, 18px to the
  *  search row, and open page to its right. */
-const SPILL = { left: 44, right: 64, top: 20, bottom: 16 } as const;
+const SPILL = { left: 44, right: 64, top: 20, bottom: 10 } as const;
 const MAX_STARS = 1000;
 const ROCKET_GRAVITY = 300; // px/s²: a rocket slows as it climbs
 const TRAIL_KEEP = 0.88;    // share of the last frame kept, per 60th of a second
@@ -179,10 +196,42 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
     // and width step. Brightness is in 8 steps, width in 0.4px steps.
     const colourIds = new Map<string, number>();
     const colourOf: string[] = [];
-    for (const p of [CRIMSON, EMERALD, ROYAL, FUCHSIA, TEAL, GOLD]) {
-      for (const c of [p.main, p.tip, p.ember]) if (!colourIds.has(c)) { colourIds.set(c, colourOf.length); colourOf.push(c); }
+    for (const c of [...Object.keys(LIT), ...Object.values(LIT)]) {
+      if (!colourIds.has(c)) { colourIds.set(c, colourOf.length); colourOf.push(c); }
     }
-    if (!colourIds.has(SPARK)) { colourIds.set(SPARK, colourOf.length); colourOf.push(SPARK); }
+
+    // A coarse brightness map of the picture, so a spark over a dark part of
+    // it is drawn in its bright tint (see LIT). It maps straight onto the card
+    // because the picture fills it at its own shape. The image is the site's
+    // own, so reading it back is allowed; if that ever fails, the map stays
+    // empty and every spark keeps its deep colour.
+    const GW = 64, GH = 24;
+    let lumGrid: Uint8Array | null = null;
+    const img = box.querySelector("img");
+    const sample = () => {
+      if (!img || !img.complete || !img.naturalWidth) return;
+      try {
+        const off = document.createElement("canvas");
+        off.width = GW; off.height = GH;
+        const g = off.getContext("2d", { willReadFrequently: true });
+        if (!g) return;
+        g.drawImage(img, 0, 0, GW, GH);
+        const d = g.getImageData(0, 0, GW, GH).data;
+        const grid = new Uint8Array(GW * GH);
+        for (let i = 0; i < grid.length; i++) grid[i] = 0.2126 * d[i * 4] + 0.7152 * d[i * 4 + 1] + 0.0722 * d[i * 4 + 2];
+        lumGrid = grid;
+      } catch {
+        lumGrid = null;
+      }
+    };
+    sample();
+    img?.addEventListener("load", sample);
+    const shade = (colour: string, x: number, y: number) => {
+      if (!lumGrid) return colour;
+      const u = (x - card.x) / card.w, v = (y - card.y) / card.h;
+      if (u < 0 || u >= 1 || v < 0 || v >= 1) return colour; // out on the page, which is pale
+      return lumGrid[Math.floor(v * GH) * GW + Math.floor(u * GW)] < DARK_BELOW ? LIT[colour] ?? colour : colour;
+    };
 
     const size = () => {
       const r = canvas.getBoundingClientRect();
@@ -287,7 +336,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
           shell(80, 168 * k, { life: [1.4, 1.8], strobe: true });
           break;
       }
-      const colour = kind === "willow" || kind === "palm" ? GOLD.main : pal.main;
+      const colour = shade(kind === "willow" || kind === "palm" ? GOLD.main : pal.main, x, y);
       flashes.push({ x, y, life: 0.09, radius: 10 * k, colour });
     }
 
@@ -412,7 +461,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         r.vy += ROCKET_GRAVITY * dt;
         r.x += (r.vx + Math.sin(r.t * 18) * 9) * dt;
         r.y += r.vy * dt;
-        segment(SPARK, 1, 1.6, r.px, r.py, r.x, r.y);
+        segment(shade(SPARK, r.x, r.y), 1, 1.6, r.px, r.py, r.x, r.y);
         if (Math.random() < 0.75) {
           addStar(star(r.x, r.y + 1, rand(-12, 12), rand(8, 30), rand(0.25, 0.4), { palette: GOLD, width: 0.9, drag: 3.2, gravity: 42, head: false, twinkle: true }));
         }
@@ -444,7 +493,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
               const a = rand(0, Math.PI * 2), v = rand(40, 75);
               addStar(star(p.x, p.y, Math.cos(a) * v, Math.sin(a) * v, rand(0.08, 0.15), { palette: GOLD, width: 1.1, drag: 7, gravity: 20, twinkle: true }));
             }
-            flashes.push({ x: p.x, y: p.y, life: 0.06, radius: 5, colour: SPARK });
+            flashes.push({ x: p.x, y: p.y, life: 0.06, radius: 5, colour: shade(SPARK, p.x, p.y) });
           }
           stars.splice(i, 1);
           continue;
@@ -469,7 +518,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         if (alpha <= 0.02) continue;
         // It burns its colour, changes (for shells that do), then dies as an ember.
         const colour = f < 0.2 ? p.palette.ember : p.shift && f < 0.55 ? p.palette.tip : p.palette.main;
-        segment(colour, alpha, p.width, p.px, p.py, p.x, p.y);
+        segment(shade(colour, p.x, p.y), alpha, p.width, p.px, p.py, p.x, p.y);
       }
 
       // Stroke the batches.
@@ -487,11 +536,11 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         if (p.strobe && f < 0.5 && Math.floor(now / 60 + p.max * 97) % 2) continue;
         const r = p.width * 1.6;
         c.globalAlpha = Math.min(1, (f - 0.3) / 0.2);
-        c.drawImage(head(p.shift && f < 0.55 ? p.palette.tip : p.palette.main), p.x - r, p.y - r, r * 2, r * 2);
+        c.drawImage(head(shade(p.shift && f < 0.55 ? p.palette.tip : p.palette.main, p.x, p.y)), p.x - r, p.y - r, r * 2, r * 2);
       }
       for (const r of rockets) {
         c.globalAlpha = 1;
-        c.drawImage(head(SPARK), r.x - 2.6, r.y - 2.6, 5.2, 5.2);
+        c.drawImage(head(shade(SPARK, r.x, r.y)), r.x - 2.6, r.y - 2.6, 5.2, 5.2);
       }
 
       // The flash of each break.
@@ -582,6 +631,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
       ro.disconnect();
       document.removeEventListener("visibilitychange", update);
       reduced.removeEventListener("change", update);
+      img?.removeEventListener("load", sample);
     };
   }, []);
 

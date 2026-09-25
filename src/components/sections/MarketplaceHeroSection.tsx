@@ -166,25 +166,27 @@ export function MarketplaceHeroSection({
             {/* The China trip banner, top right, mirroring the pill on the
                 left: the same 40px inset from the edge, and its top on the
                 pill's top (the pill is 58px, centred on this line, so its top
-                is 29px above the centre). 336x112 keeps the picture's 3:1
-                uncropped, and leaves 52px to the end of the headline and 20px
-                or more to the search row below.
+                is 29px above the centre). 320x120 is the picture's own 8:3,
+                so nothing of it is cropped, and leaves 68px to the end of the
+                headline and 18px to the search row below.
                 From 1600px only: narrower, the headline comes closer than 40px
-                (at 1536 the gap would be 20px), and below about 1500 they
+                (at 1536 the gap would be 36px), and below about 1460 they
                 overlap.
-                Cut from the owner's public/china-trip.png (2172x724, 2.4MB) to
-                672x224 WebP, 45KB, for the 2x screens this width implies.
+                Cut from the owner's public/china-trip.png (2048x768, 2.5MB) to
+                640x240 WebP, 51KB, for the 2x screens this width implies. If
+                the picture changes shape, change this box to match, or
+                object-cover will crop it.
                 A fireworks show plays over it by itself, and comes to the
                 pointer on hover; the card, its lift and the rounded frame are
                 FireworksCard's. */}
             <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] min-[1600px]:block">
-              <FireworksCard className="h-[112px] w-[336px]">
+              <FireworksCard className="h-[120px] w-[320px]">
                 <Image
                   src="/china-trip-hero.webp"
                   alt="China trip"
-                  width={672}
-                  height={224}
-                  sizes="336px"
+                  width={640}
+                  height={240}
+                  sizes="320px"
                   loading="lazy"
                   fetchPriority="low"
                   className="h-full w-full object-cover"
