@@ -85,6 +85,8 @@ interface Star {
   head: boolean; twinkle: boolean; glitter: boolean; strobe: boolean; shift: boolean;
   /** The share of its life left at which it pops (crackle) or splits (crossette); 0 for neither. */
   popAt: number; split: boolean;
+  /** Fades in over its first 0.07s: see burst(). */
+  fadeIn: boolean;
 }
 interface Rocket {
   x: number; y: number; px: number; py: number; vx: number; vy: number; t: number;
@@ -95,7 +97,7 @@ interface ShellOptions {
   life: readonly [number, number];
   palette?: Palette; width?: number; drag?: number; gravity?: number;
   head?: boolean; twinkle?: boolean; glitter?: boolean; strobe?: boolean; shift?: boolean;
-  popAt?: number; split?: boolean;
+  popAt?: number; split?: boolean; fadeIn?: boolean;
 }
 
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
@@ -206,10 +208,16 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
       palette: o.palette, width: o.width ?? 1.15, drag: o.drag ?? 3.4, gravity: o.gravity ?? 64,
       head: o.head ?? true, twinkle: o.twinkle ?? false, glitter: o.glitter ?? false,
       strobe: o.strobe ?? false, shift: o.shift ?? false, popAt: o.popAt ?? 0, split: o.split ?? false,
+      fadeIn: o.fadeIn ?? false,
     });
 
     function burst(x: number, y: number, kind: Kind, pal: Palette, depth: number) {
       // Speeds are for a 112px-tall card; a burst's radius is speed / drag.
+      // Every star of a burst fades in over its first 0.07s. Real stars leave
+      // from the rim of a shell casing, so a real burst has a dark, hollow
+      // centre with the streaks starting a little way out; drawn from the
+      // very middle, eighty lines merge into a solid ball there, which is
+      // what made an earlier version read as lights.
       const k = depth * (card.h / 112);
       const shell = (n: number, speed: number, o: ShellOptions) => {
         for (let i = 0; i < n; i++) {
@@ -220,41 +228,41 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
             palette: o.palette ?? pal, width: (o.width ?? 1.15) * depth, drag: o.drag ?? 3.4,
             gravity: (o.gravity ?? 64) * k, head: o.head ?? true, twinkle: o.twinkle ?? Math.random() < 0.25,
             glitter: o.glitter ?? false, strobe: o.strobe ?? false, shift: o.shift ?? false,
-            popAt: o.popAt ?? 0, split: o.split ?? false,
+            popAt: o.popAt ?? 0, split: o.split ?? false, fadeIn: true,
           }));
         }
       };
 
       switch (kind) {
         case "peony":
-          shell(110, 205 * k, { life: [1.2, 1.6], shift: true });
+          shell(84, 205 * k, { life: [1.2, 1.6], shift: true });
           break;
         case "pistil":
           // A peony with an inner core of a second colour.
-          shell(96, 205 * k, { life: [1.2, 1.6] });
-          shell(30, 92 * k, { life: [0.9, 1.2], palette: pick(SHELL_COLOURS.filter((p) => p !== pal)), width: 1.0 });
+          shell(76, 205 * k, { life: [1.2, 1.6] });
+          shell(26, 92 * k, { life: [0.9, 1.2], palette: pick(SHELL_COLOURS.filter((p) => p !== pal)), width: 1.0 });
           break;
         case "chrysanthemum":
-          shell(96, 200 * k, { life: [1.4, 1.8], glitter: true });
+          shell(80, 200 * k, { life: [1.4, 1.8], glitter: true });
           break;
         case "willow":
-          shell(84, 150 * k, { life: [2.6, 3.4], palette: GOLD, drag: 2.1, gravity: 34, width: 1.0, glitter: true, twinkle: true });
+          shell(72, 150 * k, { life: [2.6, 3.4], palette: GOLD, drag: 2.1, gravity: 34, width: 1.0, glitter: true, twinkle: true });
           break;
         case "ring": {
           // A flat ring tilted away from the viewer, with a small heart.
-          const n = 70, squash = rand(0.35, 0.7), tilt = rand(0, Math.PI), speed = 210 * k;
+          const n = 60, squash = rand(0.35, 0.7), tilt = rand(0, Math.PI), speed = 210 * k;
           for (let i = 0; i < n; i++) {
             const a = (i / n) * Math.PI * 2;
             const ex = Math.cos(a) * speed, ey = Math.sin(a) * speed * squash;
             addStar(star(x, y, ex * Math.cos(tilt) - ey * Math.sin(tilt), ex * Math.sin(tilt) + ey * Math.cos(tilt), rand(1.1, 1.4), {
-              palette: pal, width: 1.2 * depth, drag: 3.5, gravity: 56 * k,
+              palette: pal, width: 1.2 * depth, drag: 3.5, gravity: 56 * k, fadeIn: true,
             }));
           }
           shell(22, 70 * k, { life: [0.8, 1.1], width: 0.9 });
           break;
         }
         case "crackle":
-          shell(84, 195 * k, { life: [1.1, 1.35], popAt: rand(0.4, 0.52) });
+          shell(70, 195 * k, { life: [1.1, 1.35], popAt: rand(0.4, 0.52) });
           break;
         case "palm": {
           // A few thick comet arms that glitter as they droop, and a fine core.
@@ -263,7 +271,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
             const a = (i / arms) * Math.PI * 2 + rand(-0.12, 0.12);
             const v = 230 * k * rand(0.92, 1.05);
             addStar(star(x, y, Math.cos(a) * v, Math.sin(a) * v, rand(1.6, 2.0), {
-              palette: GOLD, width: 1.9 * depth, drag: 2.8, gravity: 70 * k, glitter: true,
+              palette: GOLD, width: 1.9 * depth, drag: 2.8, gravity: 70 * k, glitter: true, fadeIn: true,
             }));
           }
           shell(40, 100 * k, { life: [0.9, 1.2], width: 0.85, twinkle: true });
@@ -274,7 +282,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
           shell(24, 160 * k, { life: [1.3, 1.5], width: 1.5, popAt: rand(0.5, 0.6), split: true });
           break;
         case "strobe":
-          shell(100, 195 * k, { life: [1.4, 1.8], strobe: true });
+          shell(80, 195 * k, { life: [1.4, 1.8], strobe: true });
           break;
       }
       const colour = kind === "willow" || kind === "palm" ? GOLD.main : pal.main;
@@ -453,6 +461,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         }
 
         let alpha = f < 0.28 ? f / 0.28 : 1;
+        if (p.fadeIn) alpha *= Math.min(1, (p.max - p.life) / 0.07);
         if (p.twinkle && f < 0.5) alpha *= rand(0.2, 1);
         if (p.strobe && f < 0.5 && Math.floor(now / 60 + p.max * 97) % 2) alpha = 0;
         if (alpha <= 0.02) continue;
@@ -472,7 +481,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
       // White-hot heads on the burning stars, and on the rockets.
       for (const p of stars) {
         const f = p.life / p.max;
-        if (!p.head || f < 0.3) continue;
+        if (!p.head || f < 0.3 || (p.fadeIn && p.max - p.life < 0.07)) continue;
         if (p.strobe && f < 0.5 && Math.floor(now / 60 + p.max * 97) % 2) continue;
         const r = p.width * 1.6;
         c.globalAlpha = Math.min(1, (f - 0.3) / 0.2);
