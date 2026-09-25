@@ -89,6 +89,7 @@ function startLoader(root: HTMLElement) {
     }
   };
   const kick = () => {
+    root.dataset.cxReady = "";
     if ("requestIdleCallback" in window) window.requestIdleCallback(() => void run(), { timeout: 2500 });
     else setTimeout(() => void run(), 600);
   };

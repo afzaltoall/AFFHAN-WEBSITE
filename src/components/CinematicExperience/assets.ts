@@ -23,18 +23,23 @@ export interface FilmAsset {
   h: number;
   /** Width of the phone copy, for srcset. */
   phoneW: number;
+  /** In-between sizes, where one matters (the opening picture on a 2x phone). */
+  more?: ReadonlyArray<{ src: string; w: number }>;
 }
 
-const asset = (file: string, w: number, h: number, phoneW = 960): FilmAsset => ({
+const asset = (file: string, w: number, h: number, phoneW = 960, more: number[] = []): FilmAsset => ({
   src: `${DIR}/${file}.webp`,
   phone: `${DIR}/${file}-960.webp`,
   w,
   h,
   phoneW,
+  more: more.map((mw) => ({ src: `${DIR}/${file}-${mw}.webp`, w: mw })),
 });
 
 export const ASSETS = {
-  traveler: asset("01-human-suitcase", 1600, 901),
+  // A 2x phone shows the opening picture about 1200px wide: without the
+  // 1200 copy it would take the 1600 one (242 KB rather than 158 KB).
+  traveler: asset("01-human-suitcase", 1600, 901, 960, [1200]),
   passport: asset("02-passport", 1600, 902),
   boardingPass: asset("03-boarding-pass", 1600, 903),
   airplane: asset("04-airplane", 1600, 900),
@@ -52,7 +57,8 @@ export const ASSETS = {
 
 export type AssetKey = keyof typeof ASSETS;
 
-export const srcSetOf = (a: FilmAsset) => `${a.phone} ${a.phoneW}w, ${a.src} ${a.w}w`;
+export const srcSetOf = (a: FilmAsset) =>
+  [`${a.phone} ${a.phoneW}w`, ...(a.more ?? []).map((m) => `${m.src} ${m.w}w`), `${a.src} ${a.w}w`].join(", ");
 
 /**
  * Points inside the pictures that the choreography aims at, as fractions of

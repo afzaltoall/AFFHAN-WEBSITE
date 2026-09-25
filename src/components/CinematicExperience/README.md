@@ -64,7 +64,8 @@ new table, no schema change.
 ## Pictures
 
 `public/free-china-trip/`, WebP, each at full size and as a `-960` phone
-copy chosen by `srcset`: 3.2 MB and 1.4 MB for the two sets, from 25 MB of
+copy chosen by `srcset` (the opening picture also at 1200px, for 2x phones):
+3.2 MB and 1.4 MB for the two sets, from 25 MB of
 PNG. The source PNGs are not shipped. Only the opening picture loads with the
 page; the rest are fed in after load, in film order (`CinematicExperience.tsx`).
 To replace a picture, keep its file name and update `w`/`h` in `assets.ts`;

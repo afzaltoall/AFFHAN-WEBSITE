@@ -154,8 +154,10 @@
 }
 
 /* The boarding pass's light sweep is clipped to the pass itself: the mask is
-   the pass's own picture, so the light only lands on paper. */
-.cx-mask-boarding {
+   the pass's own picture, so the light only lands on paper. Only once the
+   page has loaded (data-cx-ready), so the mask is not one more download
+   competing with the opening frame. */
+[data-cx-ready] .cx-mask-boarding {
   -webkit-mask-image: url("/free-china-trip/03-boarding-pass-960.webp");
   mask-image: url("/free-china-trip/03-boarding-pass-960.webp");
   -webkit-mask-size: 100% 100%;

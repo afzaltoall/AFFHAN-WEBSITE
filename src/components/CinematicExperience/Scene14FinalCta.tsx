@@ -20,7 +20,7 @@ import { Scene15CtaToForm } from "./Scene15CtaToForm";
  *
  * Desktop: host bottom-left at --host-h tall; the copy's left edge is set from
  * the same variable, so it stays by his palm at every width (the palm sits
- * about 85% across and a third of the way down the picture). Below lg he
+ * about 88% across and 29% of the way down the picture). Below lg he
  * stands above the headline at a smaller scale, the same order of events.
  */
 export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAnchorElement>) => void }) {
@@ -54,7 +54,7 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
         </div>
 
         {/* The offer, beside his open hand. */}
-        <div className="absolute inset-x-6 top-[56svh] z-[30] lg:inset-x-auto lg:bottom-[calc(var(--host-h)*0.67-8rem)] lg:left-[calc(7vw+var(--host-h)*0.61)] lg:right-[5vw] lg:top-auto">
+        <div className="absolute inset-x-6 top-[56svh] z-[30] lg:inset-x-auto lg:bottom-[calc(var(--host-h)*0.71-8rem)] lg:left-[calc(7vw+var(--host-h)*0.61)] lg:right-[5vw] lg:top-auto">
           <h2
             id="cx-cta-title"
             data-cx="cta-headline"
