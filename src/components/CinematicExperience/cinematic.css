@@ -30,6 +30,11 @@
   /* clip, not hidden: hidden would make this a scroll container and break the
      position: sticky stages inside it. */
   overflow-x: clip;
+  /* No scroll anchoring. The film and the final stage grow from one screen to
+     their full length when the script runs; with anchoring on, a section that
+     happened to be on screen below them is followed down the page, and the
+     view is dragged thousands of pixels from where the reader was. */
+  overflow-anchor: none;
 }
 
 .cx ::selection {

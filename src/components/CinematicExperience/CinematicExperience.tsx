@@ -113,24 +113,11 @@ export function CinematicExperience() {
 
   // The site scrolls smoothly by default (globals.css). Lenis needs that off,
   // and so does reduced motion, where an anchor jump should simply jump.
-  //
-  // Scroll restoration is manual while the film is mounted, so a refresh
-  // reopens it at the first frame. The film only gets its full length from
-  // script; a restored position would land in the one-screen server render
-  // (on the form) and then jump. The setting is stored on the history entry,
-  // so once set here it is already in force when that entry is reloaded: no
-  // inline script is needed, which React would refuse to run on a client
-  // render anyway. Put back on the way out, so every other page restores as
-  // normal.
+  // (Scroll restoration is handled with the timelines, below.)
   useEffect(() => {
     const html = document.documentElement;
     html.classList.add(SCROLL_BEHAVIOR_CLASS);
-    const restoration = "scrollRestoration" in history;
-    if (restoration) history.scrollRestoration = "manual";
-    return () => {
-      html.classList.remove(SCROLL_BEHAVIOR_CLASS);
-      if (restoration) history.scrollRestoration = "auto";
-    };
+    return () => html.classList.remove(SCROLL_BEHAVIOR_CLASS);
   }, []);
 
   /** "Apply" buttons: glide through the transition beat, or cut straight to the form. */
@@ -163,6 +150,16 @@ export function CinematicExperience() {
   useGSAP(
     () => {
       registerGsap();
+      // A refresh reopens the film at its first frame. The film only gets its
+      // full length from script, so a restored scroll position would land in
+      // the one-screen server render (on the form) and then jump.
+      // history.scrollRestoration is stored on the history entry, so setting
+      // it here is already in force when this entry is refreshed. It is set
+      // through ScrollTrigger, not directly: ScrollTrigger remembers the value
+      // it first saw and writes it back after every refresh, so a direct
+      // "manual" lasted only until the timelines refreshed. "auto" again on
+      // the way out, for every other page.
+      ScrollTrigger.clearScrollMemory("manual");
       const root = rootRef.current;
       if (!root) return;
       const film = root.querySelector<HTMLElement>("[data-cx-film]");
@@ -273,6 +270,7 @@ export function CinematicExperience() {
         near.disconnect();
         loader.cancel();
         mm.revert();
+        ScrollTrigger.clearScrollMemory("auto");
       };
     },
     { scope: rootRef },
