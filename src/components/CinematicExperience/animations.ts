@@ -138,7 +138,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.to($("gold-back"), { autoAlpha: 0, duration: 0.35 }, 2.1);
   // Silk crossing the frame in front.
   tl.fromTo($("silk-front"), { autoAlpha: 0, x: X(95, 120), y: vh(-30), rotation: 10, scale: 0.9 },
-    { autoAlpha: 0.85, x: X(-5, -10), y: vh(-27), rotation: -4, scale: 1, ease: "power1.inOut", duration: 0.9 }, 1.0);
+    { autoAlpha: 0.6, x: X(-5, -10), y: vh(-30), rotation: -4, scale: 0.85, ease: "power1.inOut", duration: 0.9 }, 1.0);
   tl.to($("silk-front"), { x: X(-110, -150), y: vh(-34), rotation: -10, autoAlpha: 0, ease: "power1.in", duration: 0.55 }, 1.9);
   caption("cap-passport", 1.15, 2.0);
 
