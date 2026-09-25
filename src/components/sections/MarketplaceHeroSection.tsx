@@ -162,6 +162,27 @@ export function MarketplaceHeroSection({
                 for when it comes back: render it here again, and move the pill
                 back to the right (see the note in ShippingBar). */}
             <ShippingBar />
+            {/* The China trip banner, top right, mirroring the pill on the
+                left: the same 40px inset from the edge, and its top on the
+                pill's top (the pill is 58px, centred on this line, so its top
+                is 29px above the centre). 100px tall takes it to the foot of
+                the headline, and 300px keeps the picture's 3:1 uncropped.
+                From 2xl only: narrower, it runs into the headline (at 1440 the
+                headline ends at 1060, and a 300px banner would start at 1068).
+                Cut from the owner's public/china-trip.png (2172x724, 2.4MB) to
+                600x200 WebP, 38KB, for the 2x screens this width implies. */}
+            <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] 2xl:block">
+              <Image
+                src="/china-trip-hero.webp"
+                alt="China trip"
+                width={600}
+                height={200}
+                sizes="300px"
+                loading="lazy"
+                fetchPriority="low"
+                className="h-[100px] w-[300px] rounded-2xl object-cover shadow-md ring-1 ring-brand/20"
+              />
+            </div>
             <style dangerouslySetInnerHTML={{
               __html: `
               /* One tile's worth of travel, as a transform. background-position
