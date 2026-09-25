@@ -51,6 +51,13 @@ export default function FreeChinaTripPage() {
   return (
     <>
       <main className={`${displayFont.variable} cx pt-16`}>
+        {/* A refresh opens the film at its first frame. Left to itself the
+            browser restores the old scroll position into the server-rendered
+            page, which is only one screen of film tall until the script gives
+            the film its real length: it lands on the form, then jumps. This
+            runs while the page is parsed, before any restore happens.
+            CinematicExperience puts it back to "auto" when you leave. */}
+        <script dangerouslySetInnerHTML={{ __html: "try{history.scrollRestoration='manual'}catch(e){}" }} />
         <RevealNoScriptFallback />
         <CinematicExperience />
       </main>

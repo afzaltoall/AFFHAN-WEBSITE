@@ -113,10 +113,20 @@ export function CinematicExperience() {
 
   // The site scrolls smoothly by default (globals.css). Lenis needs that off,
   // and so does reduced motion, where an anchor jump should simply jump.
+  //
+  // Scroll restoration stays manual while the film is mounted (page.tsx sets
+  // it before the first paint, for refreshes): the film is rebuilt at its full
+  // length by script, so a restored position would land somewhere else. Put
+  // back on the way out, so every other page restores as normal.
   useEffect(() => {
     const html = document.documentElement;
     html.classList.add(SCROLL_BEHAVIOR_CLASS);
-    return () => html.classList.remove(SCROLL_BEHAVIOR_CLASS);
+    const restoration = "scrollRestoration" in history;
+    if (restoration) history.scrollRestoration = "manual";
+    return () => {
+      html.classList.remove(SCROLL_BEHAVIOR_CLASS);
+      if (restoration) history.scrollRestoration = "auto";
+    };
   }, []);
 
   /** "Apply" buttons: glide through the transition beat, or cut straight to the form. */
@@ -233,6 +243,15 @@ export function CinematicExperience() {
         // Web fonts change the height of the text sections, and so where the
         // later triggers start.
         void document.fonts?.ready.then(() => ScrollTrigger.refresh());
+
+        // A link to the form (…/free-china-trip/#apply) was scrolled to while
+        // the film was one screen tall; the form has since moved down by the
+        // film's length. Go to where it is now.
+        if (window.location.hash === "#apply") {
+          const form = document.getElementById("apply");
+          if (form && lenis) lenis.scrollTo(form, { immediate: true, force: true });
+          else form?.scrollIntoView({ block: "start" });
+        }
 
         return () => {
           ScrollTrigger.removeEventListener("refresh", relayout);

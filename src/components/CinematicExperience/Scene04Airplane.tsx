@@ -19,13 +19,13 @@ export function Scene04Airplane() {
             className="absolute inset-0 opacity-0"
             style={{ transform: "translate3d(-8%, 4%, 0) scaleX(1.16)", filter: "blur(10px)" }}
           >
-            <FilmImage asset={ASSETS.airplane} alt="" sizes="(min-width: 768px) 60vw, 132vw" />
+            <FilmImage asset={ASSETS.airplane} alt="" sizes="(min-width: 768px) 60vw, 132vw" className="cx-feather-l" />
           </div>
           <FilmImage
             asset={ASSETS.airplane}
             alt="An airliner climbing, trailing gold light"
             sizes="(min-width: 768px) 60vw, 132vw"
-            className="relative"
+            className="cx-feather-l relative"
           />
         </div>
       </div>

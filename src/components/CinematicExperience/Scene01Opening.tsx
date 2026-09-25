@@ -29,7 +29,7 @@ export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchor
       {/* Red silk entering from the frame edge, soft, as a foreground element. */}
       <div data-cx="hero-silk" aria-hidden className="pointer-events-none absolute -left-[30vw] top-[2svh] z-[62] w-[120vw] md:-left-[12vw] md:top-[-6vh] md:w-[62vw]">
         <div className="cx-enter-silk">
-          <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 768px) 62vw, 120vw" eager className="opacity-80 blur-[3px] md:blur-[5px]" />
+          <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 768px) 62vw, 120vw" eager className="cx-feather-x opacity-80 blur-[3px] md:blur-[5px]" />
         </div>
       </div>
 

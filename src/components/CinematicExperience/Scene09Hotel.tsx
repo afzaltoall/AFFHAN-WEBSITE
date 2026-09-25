@@ -19,7 +19,7 @@ export function Scene09Hotel() {
             asset={ASSETS.hotel}
             alt="A traveller with a suitcase walking into a warmly lit hotel entrance"
             sizes="(min-width: 768px) 76vw, 150vw"
-            className="cx-feather-xb"
+            className="cx-feather-all"
           />
         </div>
       </div>

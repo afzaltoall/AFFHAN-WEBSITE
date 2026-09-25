@@ -36,7 +36,7 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
 
         {/* The gold trail, sweeping in behind him. */}
         <div data-cx="cta-gold" data-cx-hide aria-hidden className="pointer-events-none absolute left-[-40vw] top-[10svh] z-[8] w-[170vw] lg:left-[-14vw] lg:top-[40svh] lg:w-[92vw]">
-          <FilmImage asset={ASSETS.gold} alt="" sizes="(min-width: 1024px) 92vw, 170vw" />
+          <FilmImage asset={ASSETS.gold} alt="" sizes="(min-width: 1024px) 92vw, 170vw" className="cx-feather-x" />
         </div>
 
         {/* The host. */}
@@ -50,7 +50,7 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
 
         {/* Red silk, low and in front. */}
         <div data-cx="cta-silk" data-cx-hide aria-hidden className="pointer-events-none absolute bottom-[-6svh] right-[-36vw] z-[40] w-[150vw] lg:bottom-[-10svh] lg:right-[-12vw] lg:w-[78vw]">
-          <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 1024px) 78vw, 150vw" className="opacity-90" />
+          <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 1024px) 78vw, 150vw" className="cx-feather-x opacity-90" />
         </div>
 
         {/* The offer, beside his open hand; above the silk, so nothing crosses the words. */}

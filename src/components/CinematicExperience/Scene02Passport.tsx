@@ -17,6 +17,7 @@ export function Scene02Passport() {
             asset={ASSETS.passport}
             alt="A passport with boarding passes tucked inside, wrapped in red silk and gold light"
             sizes="(min-width: 768px) 74vw, 150vw"
+            className="cx-feather-all"
           />
         </div>
       </div>
