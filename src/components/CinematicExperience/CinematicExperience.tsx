@@ -114,10 +114,14 @@ export function CinematicExperience() {
   // The site scrolls smoothly by default (globals.css). Lenis needs that off,
   // and so does reduced motion, where an anchor jump should simply jump.
   //
-  // Scroll restoration stays manual while the film is mounted (page.tsx sets
-  // it before the first paint, for refreshes): the film is rebuilt at its full
-  // length by script, so a restored position would land somewhere else. Put
-  // back on the way out, so every other page restores as normal.
+  // Scroll restoration is manual while the film is mounted, so a refresh
+  // reopens it at the first frame. The film only gets its full length from
+  // script; a restored position would land in the one-screen server render
+  // (on the form) and then jump. The setting is stored on the history entry,
+  // so once set here it is already in force when that entry is reloaded: no
+  // inline script is needed, which React would refuse to run on a client
+  // render anyway. Put back on the way out, so every other page restores as
+  // normal.
   useEffect(() => {
     const html = document.documentElement;
     html.classList.add(SCROLL_BEHAVIOR_CLASS);
