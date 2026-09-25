@@ -1,0 +1,78 @@
+# /free-china-trip/ — the cinematic page
+
+A single scroll-driven film (chapters 01–11), then How it works, Terms &
+Conditions, the host's call to action (14–15) and the four-step application
+(16) with its success state (17). Route: `src/app/free-china-trip/page.tsx`.
+
+| File | What it holds |
+| --- | --- |
+| `content.ts` | **Every word on the page.** Swap copy here; no animation code changes. |
+| `animations.ts` | Every timeline: the film, How it works, the final CTA, the form heading. Positions are scroll distances. |
+| `assets.ts` | The 14 pictures (`public/free-china-trip/`), and the points inside them the choreography aims at. |
+| `Scene01Opening.tsx` … `Scene17Success.tsx` | One file per scene: markup only. |
+| `Motifs.tsx` | The red silk and gold trail layers that recur through the film, and the atmosphere. |
+| `particles.ts`, `GoldDust.tsx` | The FREE particles (scroll-driven, no loop) and the ambient gold dust (on screen only). |
+| `cinematic.css` | Palette tokens, the opening's CSS entrance, masks and gradients. Scoped to `.cx`. |
+
+## Must be settled before launch
+
+1. **Terms & Conditions: all seven sections are placeholders** (`TERMS` in
+   `content.ts`): Eligibility, Application Requirements, Selection Process,
+   Travel & Visa Responsibilities, Required Documents, Cancellation & Changes,
+   Other Applicable Conditions. Each shows a visible "Placeholder" tag, and a
+   notice says the terms are not yet binding. The wording must come from
+   Affhan; none was invented.
+2. **The boarding-pass artwork (`03-boarding-pass`) prints a flight number,
+   CA528, and a date, 18 OCT 2024**, twice. Both are baked into the
+   flattened image, and the date is in the past. They read as the trip's
+   flight and date, which nobody has confirmed. The artwork needs to be
+   regenerated without them.
+3. **"China Trip Experience"** (What's included, row 4): what it includes is
+   not stated. The row says so and is tagged Placeholder.
+4. **"Get Selected"** (How it works, step 2): how applicants are chosen, and
+   when they hear back, is not stated. Tagged Placeholder.
+5. **The homepage banner and this page disagree.** The banner picture lists
+   "Business visits & meetings" and "Guided support"; the brief's confirmed
+   inclusions (used here) are Round-Trip Flight, Hotel Stay, Local Transport
+   and China Trip Experience. One of them needs to change.
+6. **The host (`14-host-presenter`) is uncaptioned on purpose.** No name or
+   title was supplied. If Affhan wants him named, add it to `FINAL_CTA` in
+   `content.ts` and render it in `Scene14FinalCta.tsx`.
+
+## Worth confirming
+
+- **The four cities** (Shanghai, Beijing, Guangzhou, Yiwu) appear as a travel
+  montage. The page never says the trip visits them, because the itinerary is
+  not confirmed. If it does visit them, that can be said; if it does not,
+  consider whether to show them at all.
+- **Application step 4 (Travel & documents)** asks one question: whether the
+  applicant holds a valid passport (yes / being issued or renewed / not yet),
+  plus optional notes. The real process may need more, such as passport expiry
+  or previous China visas. Passport numbers and document uploads are
+  deliberately not collected on a public form.
+- **The hero line** ("Your round-trip flight, hotel stay and local transport in
+  China, covered.") restates three confirmed inclusions and adds nothing.
+
+## Where applications go
+
+`POST /api/contact/`, the Contact Us endpoint: each application arrives in the
+admin console's **Contact messages**, with the applicant's customer number,
+and its message starts with `FREE CHINA BUSINESS TRIP: application`. Role,
+business category, city, passport status and notes follow in the message. No
+new table, no schema change.
+
+## Pictures
+
+`public/free-china-trip/`, WebP, each at full size and as a `-960` phone
+copy chosen by `srcset`: 3.2 MB and 1.4 MB for the two sets, from 25 MB of
+PNG. The source PNGs are not shipped. Only the opening picture loads with the
+page; the rest are fed in after load, in film order (`CinematicExperience.tsx`).
+To replace a picture, keep its file name and update `w`/`h` in `assets.ts`;
+if its subject moves, update `ANCHORS` there too.
+
+## Reduced motion
+
+With `prefers-reduced-motion: reduce`: no smooth scrolling, no entrances, no
+parallax, travel, zoom or blur. Each chapter dissolves to the next at its
+resting composition; the host simply fades in where he stands. Every word,
+both calls to action and the form are unchanged.

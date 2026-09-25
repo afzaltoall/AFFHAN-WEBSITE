@@ -1,0 +1,199 @@
+/*
+ * The /free-china-trip/ film. Everything is scoped under .cx, the page root, so
+ * nothing here can reach the navbar, the footer or any other page.
+ *
+ * Layout and type are Tailwind classes in the scene files. This file holds only
+ * what utility classes cannot say cleanly: the palette tokens, the opening's
+ * load-time entrance (CSS, so it runs on the first paint without waiting for
+ * JavaScript), the feathered edges of the cut-outs, and the gradient layers.
+ *
+ * The page is dark by design, in both colour schemes: it is one cinematic
+ * world, like a film title sequence, so there is no light variant.
+ */
+
+.cx {
+  --cx-ink: #070608;
+  --cx-char: #111014;
+  --cx-char-2: #1a181c;
+  --cx-crimson: #a3162c;
+  --cx-crimson-hi: #d42a41;
+  --cx-gold: #d6a84e;
+  --cx-gold-hi: #f2d38e;
+  --cx-gold-deep: #8e6a26;
+  --cx-white: #f4efe6;
+  --cx-mute: rgb(244 239 230 / 0.66);
+  --cx-faint: rgb(244 239 230 / 0.14);
+  /* Errors: a light coral, because the crimson accent is under 4.5:1 on ink. */
+  --cx-error: #ff8292;
+  background: var(--cx-ink);
+  color: var(--cx-white);
+  /* clip, not hidden: hidden would make this a scroll container and break the
+     position: sticky stages inside it. */
+  overflow-x: clip;
+}
+
+.cx ::selection {
+  background: var(--cx-gold);
+  color: var(--cx-ink);
+}
+
+/* ---- Film objects that are not in the first frame -------------------------
+   Hidden until the timeline brings them in, so the first paint (before
+   JavaScript) is the opening frame and nothing else. GSAP's autoAlpha writes
+   inline visibility/opacity, which wins over this. */
+.cx [data-cx-hide] {
+  visibility: hidden;
+  opacity: 0;
+}
+
+/* ---- 01 Opening: the load-time entrance ------------------------------------
+   The brief's push-in (scale 0.82 -> 1, y 60px -> 0) plays once as the page
+   paints. It is on an inner wrapper; the scroll timeline moves the outer one,
+   so the two never write the same transform. */
+@keyframes cx-push-in {
+  from { opacity: 0; transform: translate3d(0, 60px, 0) scale(0.82); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cx-rise {
+  from { opacity: 0; transform: translate3d(0, 22px, 0); filter: blur(10px); }
+  to { opacity: 1; transform: none; filter: blur(0); }
+}
+@keyframes cx-glow-in {
+  from { opacity: 0; transform: scale(0.55); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cx-silk-in {
+  from { opacity: 0; transform: translate3d(-34vw, 6vh, 0) rotate(-10deg); }
+  to { opacity: 1; transform: none; }
+}
+.cx-enter-push { animation: cx-push-in 1.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.cx-enter-glow { animation: cx-glow-in 2.4s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; }
+.cx-enter-silk { animation: cx-silk-in 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both; }
+.cx-enter-rise { animation: cx-rise 1.2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+/* The scroll cue: a thin line that fills and empties, compositor-only. */
+@keyframes cx-cue {
+  0% { transform: scaleY(0); transform-origin: top; }
+  45% { transform: scaleY(1); transform-origin: top; }
+  55% { transform: scaleY(1); transform-origin: bottom; }
+  100% { transform: scaleY(0); transform-origin: bottom; }
+}
+.cx-cue { animation: cx-cue 2.6s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+
+/* The host's idle breathing once he has settled: a few pixels, no more.
+   Switched on only while the final stage is on screen (data-idle). */
+@keyframes cx-breathe {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -5px, 0); }
+}
+.cx [data-idle="on"] .cx-breathe { animation: cx-breathe 6.5s ease-in-out infinite; }
+
+/* ---- Light and haze ------------------------------------------------------------ */
+.cx-haze-warm {
+  background:
+    radial-gradient(60% 55% at 68% 48%, rgb(214 168 78 / 0.18), transparent 70%),
+    radial-gradient(40% 40% at 20% 80%, rgb(163 22 44 / 0.12), transparent 70%);
+}
+.cx-haze-crimson {
+  background:
+    radial-gradient(55% 60% at 50% 55%, rgb(163 22 44 / 0.22), transparent 72%),
+    radial-gradient(35% 35% at 82% 18%, rgb(214 168 78 / 0.08), transparent 70%);
+}
+.cx-haze-deep {
+  background: radial-gradient(70% 60% at 50% 50%, rgb(40 32 44 / 0.55), transparent 75%);
+}
+.cx-vignette {
+  background: radial-gradient(120% 90% at 50% 50%, transparent 55%, rgb(0 0 0 / 0.7) 100%);
+}
+.cx-glow-gold {
+  background: radial-gradient(closest-side, rgb(242 211 142 / 0.5), rgb(214 168 78 / 0.18) 45%, transparent 100%);
+}
+.cx-glow-crimson {
+  background: radial-gradient(closest-side, rgb(212 42 65 / 0.42), rgb(163 22 44 / 0.14) 50%, transparent 100%);
+}
+.cx-horizon {
+  background: radial-gradient(60% 100% at 50% 100%, rgb(214 168 78 / 0.26), rgb(163 22 44 / 0.08) 45%, transparent 75%);
+}
+
+/* A band of light for the sweeps. Blended with color-dodge, which leaves black
+   black: it can only brighten what is already lit, so it reads as light
+   travelling across the object rather than a stripe across the frame. */
+.cx-sweep {
+  background: linear-gradient(100deg, transparent 30%, rgb(255 240 205 / 0.55) 48%, rgb(255 255 255 / 0.85) 50%, rgb(255 240 205 / 0.55) 52%, transparent 70%);
+  mix-blend-mode: color-dodge;
+}
+
+/* ---- Feathered edges -------------------------------------------------------------
+   The cut-outs end in hard edges where the artwork stops. On black those
+   edges read as rectangles; a short feather lets them fade into the dark. */
+.cx-feather-x {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+.cx-feather-b {
+  -webkit-mask-image: linear-gradient(180deg, #000 78%, transparent);
+  mask-image: linear-gradient(180deg, #000 78%, transparent);
+}
+.cx-feather-xb {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent), linear-gradient(180deg, #000 80%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent), linear-gradient(180deg, #000 80%, transparent);
+  mask-composite: intersect;
+}
+/* The hero composite runs to the left edge of its frame; on desktop the copy
+   sits there, so the picture fades out under it. */
+.cx-feather-hero {
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%);
+  mask-image: linear-gradient(90deg, transparent 0%, #000 26%);
+}
+@media (max-width: 767px) {
+  .cx-feather-hero {
+    -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent);
+    mask-image: linear-gradient(180deg, #000 70%, transparent);
+  }
+}
+
+/* The boarding pass's light sweep is clipped to the pass itself: the mask is
+   the pass's own picture, so the light only lands on paper. */
+.cx-mask-boarding {
+  -webkit-mask-image: url("/free-china-trip/03-boarding-pass-960.webp");
+  mask-image: url("/free-china-trip/03-boarding-pass-960.webp");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+/* ---- The FREE word ------------------------------------------------------------ */
+.cx-free-word {
+  color: var(--cx-white);
+  background: linear-gradient(180deg, #fff8e8 0%, #f4e2b4 48%, #d6a84e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.cx-free-hi {
+  background: linear-gradient(180deg, #ffffff 0%, #fff6dc 60%, #f2d38e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.cx-free-blur {
+  color: var(--cx-gold-hi);
+  filter: blur(22px);
+}
+.cx-free-glow {
+  background: radial-gradient(closest-side, rgb(242 211 142 / 0.34), rgb(214 168 78 / 0.12) 55%, transparent 100%);
+}
+
+/* ---- Reduced motion ---------------------------------------------------------------
+   No entrances and no idle movement. The film itself switches to plain
+   dissolves in animations.ts. */
+@media (prefers-reduced-motion: reduce) {
+  .cx-enter-push,
+  .cx-enter-glow,
+  .cx-enter-silk,
+  .cx-enter-rise,
+  .cx-cue,
+  .cx [data-idle="on"] .cx-breathe {
+    animation: none;
+  }
+}
