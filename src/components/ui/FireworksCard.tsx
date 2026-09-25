@@ -74,7 +74,7 @@ const KINDS: readonly (readonly [Kind, number])[] = [
 const SPILL = { left: 44, right: 64, top: 20, bottom: 16 } as const;
 const MAX_STARS = 1000;
 const ROCKET_GRAVITY = 300; // px/s²: a rocket slows as it climbs
-const TRAIL_KEEP = 0.86;    // share of the last frame kept, per 60th of a second
+const TRAIL_KEEP = 0.88;    // share of the last frame kept, per 60th of a second
 
 interface Star {
   x: number; y: number; px: number; py: number; vx: number; vy: number;
@@ -203,7 +203,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
     }
     const star = (x: number, y: number, vx: number, vy: number, life: number, o: Partial<Star> & { palette: Palette }): Star => ({
       x, y, px: x, py: y, vx, vy, life, max: life,
-      palette: o.palette, width: o.width ?? 1.4, drag: o.drag ?? 3.4, gravity: o.gravity ?? 56,
+      palette: o.palette, width: o.width ?? 1.15, drag: o.drag ?? 3.4, gravity: o.gravity ?? 64,
       head: o.head ?? true, twinkle: o.twinkle ?? false, glitter: o.glitter ?? false,
       strobe: o.strobe ?? false, shift: o.shift ?? false, popAt: o.popAt ?? 0, split: o.split ?? false,
     });
@@ -217,8 +217,8 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
           const u = rand(-1, 1), phi = rand(0, Math.PI * 2), r = Math.sqrt(1 - u * u);
           const v = speed * rand(0.9, 1.05);
           addStar(star(x, y, Math.cos(phi) * r * v, Math.sin(phi) * r * v, rand(o.life[0], o.life[1]), {
-            palette: o.palette ?? pal, width: (o.width ?? 1.4) * depth, drag: o.drag ?? 3.4,
-            gravity: (o.gravity ?? 56) * k, head: o.head ?? true, twinkle: o.twinkle ?? Math.random() < 0.25,
+            palette: o.palette ?? pal, width: (o.width ?? 1.15) * depth, drag: o.drag ?? 3.4,
+            gravity: (o.gravity ?? 64) * k, head: o.head ?? true, twinkle: o.twinkle ?? Math.random() < 0.25,
             glitter: o.glitter ?? false, strobe: o.strobe ?? false, shift: o.shift ?? false,
             popAt: o.popAt ?? 0, split: o.split ?? false,
           }));
@@ -232,13 +232,13 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         case "pistil":
           // A peony with an inner core of a second colour.
           shell(96, 205 * k, { life: [1.2, 1.6] });
-          shell(30, 92 * k, { life: [0.9, 1.2], palette: pick(SHELL_COLOURS.filter((p) => p !== pal)), width: 1.2 });
+          shell(30, 92 * k, { life: [0.9, 1.2], palette: pick(SHELL_COLOURS.filter((p) => p !== pal)), width: 1.0 });
           break;
         case "chrysanthemum":
           shell(96, 200 * k, { life: [1.4, 1.8], glitter: true });
           break;
         case "willow":
-          shell(84, 150 * k, { life: [2.6, 3.4], palette: GOLD, drag: 2.1, gravity: 30, width: 1.2, glitter: true, twinkle: true });
+          shell(84, 150 * k, { life: [2.6, 3.4], palette: GOLD, drag: 2.1, gravity: 34, width: 1.0, glitter: true, twinkle: true });
           break;
         case "ring": {
           // A flat ring tilted away from the viewer, with a small heart.
@@ -247,10 +247,10 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
             const a = (i / n) * Math.PI * 2;
             const ex = Math.cos(a) * speed, ey = Math.sin(a) * speed * squash;
             addStar(star(x, y, ex * Math.cos(tilt) - ey * Math.sin(tilt), ex * Math.sin(tilt) + ey * Math.cos(tilt), rand(1.1, 1.4), {
-              palette: pal, width: 1.5 * depth, drag: 3.5, gravity: 50 * k,
+              palette: pal, width: 1.2 * depth, drag: 3.5, gravity: 56 * k,
             }));
           }
-          shell(22, 70 * k, { life: [0.8, 1.1], width: 1.1 });
+          shell(22, 70 * k, { life: [0.8, 1.1], width: 0.9 });
           break;
         }
         case "crackle":
@@ -263,22 +263,22 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
             const a = (i / arms) * Math.PI * 2 + rand(-0.12, 0.12);
             const v = 230 * k * rand(0.92, 1.05);
             addStar(star(x, y, Math.cos(a) * v, Math.sin(a) * v, rand(1.6, 2.0), {
-              palette: GOLD, width: 2.4 * depth, drag: 2.8, gravity: 64 * k, glitter: true,
+              palette: GOLD, width: 1.9 * depth, drag: 2.8, gravity: 70 * k, glitter: true,
             }));
           }
-          shell(40, 100 * k, { life: [0.9, 1.2], width: 1.0, twinkle: true });
+          shell(40, 100 * k, { life: [0.9, 1.2], width: 0.85, twinkle: true });
           break;
         }
         case "crossette":
           // Fewer, heavier stars that each split in four halfway.
-          shell(24, 160 * k, { life: [1.3, 1.5], width: 1.9, popAt: rand(0.5, 0.6), split: true });
+          shell(24, 160 * k, { life: [1.3, 1.5], width: 1.5, popAt: rand(0.5, 0.6), split: true });
           break;
         case "strobe":
           shell(100, 195 * k, { life: [1.4, 1.8], strobe: true });
           break;
       }
       const colour = kind === "willow" || kind === "palm" ? GOLD.main : pal.main;
-      flashes.push({ x, y, life: 0.13, radius: 22 * k, colour });
+      flashes.push({ x, y, life: 0.09, radius: 10 * k, colour });
     }
 
     function launch(tx?: number, ty?: number, kind?: Kind) {
@@ -449,7 +449,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
 
         // Glitter: tiny gold sparks shed along the way, falling off it.
         if (p.glitter && f > 0.15 && Math.random() < 0.3) {
-          addStar(star(p.x, p.y, rand(-7, 7), rand(4, 16), rand(0.25, 0.45), { palette: GOLD, width: 0.8, drag: 4, gravity: 36, head: false, twinkle: true }));
+          addStar(star(p.x, p.y, rand(-7, 7), rand(4, 16), rand(0.25, 0.45), { palette: GOLD, width: 0.7, drag: 4, gravity: 40, head: false, twinkle: true }));
         }
 
         let alpha = f < 0.28 ? f / 0.28 : 1;
@@ -474,7 +474,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         const f = p.life / p.max;
         if (!p.head || f < 0.3) continue;
         if (p.strobe && f < 0.5 && Math.floor(now / 60 + p.max * 97) % 2) continue;
-        const r = p.width * 1.7;
+        const r = p.width * 1.6;
         c.globalAlpha = Math.min(1, (f - 0.3) / 0.2);
         c.drawImage(head(p.shift && f < 0.55 ? p.palette.tip : p.palette.main), p.x - r, p.y - r, r * 2, r * 2);
       }
@@ -488,7 +488,7 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         const fl = flashes[i];
         fl.life -= dt;
         if (fl.life <= 0) { flashes.splice(i, 1); continue; }
-        const k = fl.life / 0.13;
+        const k = fl.life / 0.09;
         const r = fl.radius * (1.25 - 0.45 * k);
         c.globalAlpha = Math.min(1, k * 0.9);
         c.drawImage(bloom(fl.colour), fl.x - r, fl.y - r, r * 2, r * 2);
