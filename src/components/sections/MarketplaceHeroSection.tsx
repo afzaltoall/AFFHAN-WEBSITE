@@ -456,36 +456,43 @@ export function MarketplaceHeroSection({
           <h1 className="sr-only">
             Global B2B Sourcing Company, Sourcing Agent and Freight Forwarder
           </h1>
-          <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
-            <span>Source</span>
-            {/* Fixed width, and the gap either side of a short word is the
-                deliberate cost of it.
-                This was briefly changed to size to its content, which removed
-                the gap — and put a layout shift on every word change, forever.
-                Measured on production: four recurring shifts attributed to
-                `DIV.flex.justify-center.shrink-0 , SPAN` at 8.7s, 10.9s, 13.1s
-                and 15.3s, one per 2.2s rotation. Individually tiny, but they
-                never stop, and CLS is cumulative.
-                240px fits the longest word ("Home & Living"); anything shorter
-                is centred in it. A visible gap beats a metric that degrades for
-                as long as the tab is open. */}
-            {/* The gap and the layout shift are the same problem seen from two
-                sides: a centred line cannot hold a variable-width word without
-                something moving. Sizing the box to its content removed the gap
-                and added a shift on every rotation; a box sized for the longest
-                word removes the shift and leaves a gap beside the short ones.
-                So the fix is to stop the words varying so much. These are all
-                8-11 characters, against 6 ("Beauty") to 13 ("Home & Living")
-                before, which lets the box be 190px instead of 240px. Worst-case
-                gap drops from roughly 130px to under 30px, and CLS stays at 0. */}
-            <div className="flex justify-center w-[120px] sm:w-[150px] lg:w-[190px] shrink-0">
-              <TextMorph
-                words={["Electronics", "Machinery", "Auto Parts", "Furniture", "Textiles", "Packaging"]}
-                interval={2200}
-                className="text-brand whitespace-nowrap"
-              />
+          {/* relative for the shipping pill, which sits beside the headline on
+              a wide window (see ShippingBar). Beside the line rather than in
+              it: the line is aria-hidden, and a link inside it would be
+              focusable but never announced. */}
+          <div className="relative">
+            <ShippingBar placement="headline" />
+            <div aria-hidden="true" className="text-xl sm:text-2xl lg:text-[2rem] font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2">
+              <span>Source</span>
+              {/* Fixed width, and the gap either side of a short word is the
+                  deliberate cost of it.
+                  This was briefly changed to size to its content, which removed
+                  the gap — and put a layout shift on every word change, forever.
+                  Measured on production: four recurring shifts attributed to
+                  `DIV.flex.justify-center.shrink-0 , SPAN` at 8.7s, 10.9s, 13.1s
+                  and 15.3s, one per 2.2s rotation. Individually tiny, but they
+                  never stop, and CLS is cumulative.
+                  240px fits the longest word ("Home & Living"); anything shorter
+                  is centred in it. A visible gap beats a metric that degrades for
+                  as long as the tab is open. */}
+              {/* The gap and the layout shift are the same problem seen from two
+                  sides: a centred line cannot hold a variable-width word without
+                  something moving. Sizing the box to its content removed the gap
+                  and added a shift on every rotation; a box sized for the longest
+                  word removes the shift and leaves a gap beside the short ones.
+                  So the fix is to stop the words varying so much. These are all
+                  8-11 characters, against 6 ("Beauty") to 13 ("Home & Living")
+                  before, which lets the box be 190px instead of 240px. Worst-case
+                  gap drops from roughly 130px to under 30px, and CLS stays at 0. */}
+              <div className="flex justify-center w-[120px] sm:w-[150px] lg:w-[190px] shrink-0">
+                <TextMorph
+                  words={["Electronics", "Machinery", "Auto Parts", "Furniture", "Textiles", "Packaging"]}
+                  interval={2200}
+                  className="text-brand whitespace-nowrap"
+                />
+              </div>
+              <span>from one trusted partner</span>
             </div>
-            <span>from one trusted partner</span>
           </div>
         </div>
 
