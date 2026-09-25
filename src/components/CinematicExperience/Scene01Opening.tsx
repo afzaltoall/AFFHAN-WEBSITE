@@ -62,7 +62,7 @@ export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchor
         >
           {HERO.titleLines.map((line, i) => (
             <span key={line} className={`block ${i === 0 ? "text-(--cx-gold-hi)" : "text-(--cx-white)"}`}>
-              {line}
+              {line}{" "}
             </span>
           ))}
           <span className="sr-only">{HERO.titleSrTail}</span>
