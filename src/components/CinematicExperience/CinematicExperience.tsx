@@ -178,7 +178,9 @@ export function CinematicExperience() {
       const setBar = hudBar ? gsap.quickSetter(hudBar, "scaleX") : () => undefined;
 
       const mm = gsap.matchMedia();
-      mm.add({ desktop: "(min-width: 768px)", reduce: "(prefers-reduced-motion: reduce)" }, (ctx) => {
+      // gsap.matchMedia runs this only while at least one query matches, so
+      // desktop and phone are both named: one of the two is always true.
+      mm.add({ desktop: "(min-width: 768px)", phone: "(max-width: 767.98px)", reduce: "(prefers-reduced-motion: reduce)" }, (ctx) => {
         const { desktop, reduce } = ctx.conditions as { desktop: boolean; reduce: boolean };
         const starts = reduce ? FILM_REDUCED_STARTS : FILM_CHAPTER_STARTS;
         let chapter = -1;
