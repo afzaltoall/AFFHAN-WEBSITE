@@ -13,6 +13,7 @@ import { HeroSearchSection } from "./HeroSearchSection";
 import { TextMorph } from "@/components/ui/text-morph-wrapper";
 import { buildCategoryTree, getCategoryIcon, type CategoryTreeNode } from "@/lib/categoryTree";
 import { ShippingBar } from "@/components/ui/ShippingBar";
+import { HoverFireworks } from "@/components/ui/HoverFireworks";
 import { loadAllCategories } from "@/lib/categoriesClient";
 
 /** The two small slices the first screen needs, in place of all 668 rows. */
@@ -172,18 +173,22 @@ export function MarketplaceHeroSection({
                 (at 1536 the gap would be 20px), and below about 1500 they
                 overlap.
                 Cut from the owner's public/china-trip.png (2172x724, 2.4MB) to
-                672x224 WebP, 45KB, for the 2x screens this width implies. */}
+                672x224 WebP, 45KB, for the 2x screens this width implies.
+                Hovering it sets off fireworks inside the card; the card, the
+                lift and the rounded frame are HoverFireworks'. */}
             <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] min-[1600px]:block">
-              <Image
-                src="/china-trip-hero.webp"
-                alt="China trip"
-                width={672}
-                height={224}
-                sizes="336px"
-                loading="lazy"
-                fetchPriority="low"
-                className="h-[112px] w-[336px] rounded-2xl object-cover shadow-md ring-1 ring-brand/20"
-              />
+              <HoverFireworks className="h-[112px] w-[336px]">
+                <Image
+                  src="/china-trip-hero.webp"
+                  alt="China trip"
+                  width={672}
+                  height={224}
+                  sizes="336px"
+                  loading="lazy"
+                  fetchPriority="low"
+                  className="h-full w-full object-cover"
+                />
+              </HoverFireworks>
             </div>
             <style dangerouslySetInnerHTML={{
               __html: `
