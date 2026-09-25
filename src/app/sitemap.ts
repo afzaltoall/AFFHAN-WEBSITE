@@ -50,6 +50,7 @@ const UPDATED = {
   about: '2026-09-15',
   contact: '2026-09-15',
   shipping: '2026-09-16',
+  chinaTrip: '2026-09-25',
   careers: '2026-09-17',
   /** Every role page is generated from lib/careerRoles.ts, so they share its date. */
   careerRoles: '2026-09-17',
@@ -143,6 +144,13 @@ export default function sitemap(): MetadataRoute.Sitemap {
       // indexable, just missing from the map.
       url: `${baseUrl}/shipping/`,
       lastModified: UPDATED.shipping,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      // The free China business trip the homepage banner leads to.
+      url: `${baseUrl}/free-china-trip/`,
+      lastModified: UPDATED.chinaTrip,
       changeFrequency: 'monthly',
       priority: 0.7,
     },

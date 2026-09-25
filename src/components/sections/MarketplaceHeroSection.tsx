@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { Star, ChevronRight } from "lucide-react";
 import dynamic from 'next/dynamic';
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then(mod => mod.InquiryModal), { ssr: false });
@@ -178,19 +179,27 @@ export function MarketplaceHeroSection({
                 object-cover will crop it.
                 A fireworks show plays over it by itself, and comes to the
                 pointer on hover; the card, its lift and the rounded frame are
-                FireworksCard's. */}
+                FireworksCard's. It links to the trip's own page, and a press
+                still bursts a shell where it lands before the page opens.
+                The link's name says where it goes, so the picture is alt="". */}
             <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] min-[1600px]:block">
               <FireworksCard className="h-[120px] w-[320px]">
-                <Image
-                  src="/china-trip-hero.webp"
-                  alt="China trip"
-                  width={640}
-                  height={240}
-                  sizes="320px"
-                  loading="lazy"
-                  fetchPriority="low"
-                  className="h-full w-full object-cover"
-                />
+                <Link
+                  href="/free-china-trip/"
+                  aria-label="Free China business trip: what's included, and how to apply"
+                  className="block h-full w-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#176579]"
+                >
+                  <Image
+                    src="/china-trip-hero.webp"
+                    alt=""
+                    width={640}
+                    height={240}
+                    sizes="320px"
+                    loading="lazy"
+                    fetchPriority="low"
+                    className="h-full w-full object-cover"
+                  />
+                </Link>
               </FireworksCard>
             </div>
             <style dangerouslySetInnerHTML={{
