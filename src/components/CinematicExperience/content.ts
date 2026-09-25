@@ -138,7 +138,7 @@ export const FINAL_CTA = {
   line: "Your China business journey starts with one application.",
   button: "Apply for the Trip",
   note: "Takes a few minutes to complete.",
-  hostAlt: "A presenter in a navy suit, one hand open towards the application",
+  hostAlt: "A presenter in a burgundy suit, one hand open towards the application",
 } as const;
 
 // ---- 16 Registration form -----------------------------------------------------------------------------

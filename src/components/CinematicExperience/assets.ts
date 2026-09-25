@@ -52,7 +52,7 @@ export const ASSETS = {
   guangzhou: asset("11-guangzhou", 1600, 800),
   yiwu: asset("12-yiwu", 1600, 800),
   hotel: asset("13-hotel", 1600, 900),
-  host: asset("14-host-presenter", 1024, 1536, 640),
+  host: asset("14-host-presenter", 992, 1586, 640),
 } as const;
 
 export type AssetKey = keyof typeof ASSETS;

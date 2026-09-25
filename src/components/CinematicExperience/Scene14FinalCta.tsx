@@ -40,7 +40,7 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
         </div>
 
         {/* The host. */}
-        <div className="pointer-events-none absolute left-[6vw] top-[9svh] z-[20] aspect-[2/3] h-[44svh] lg:bottom-0 lg:left-[7vw] lg:top-auto lg:h-(--host-h)">
+        <div className="pointer-events-none absolute left-[6vw] top-[9svh] z-[20] aspect-[992/1586] h-[44svh] lg:bottom-0 lg:left-[7vw] lg:top-auto lg:h-(--host-h)">
           <div data-cx="cta-host" data-cx-hide className="h-full w-full">
             <div className="cx-breathe h-full w-full">
               <FilmImage asset={ASSETS.host} alt={FINAL_CTA.hostAlt} sizes="(min-width: 1024px) 34vw, 30svh" className="h-full w-full object-contain" />
@@ -54,7 +54,7 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
         </div>
 
         {/* The offer, beside his open hand; above the silk, so nothing crosses the words. */}
-        <div className="absolute inset-x-6 top-[56svh] z-[45] lg:inset-x-auto lg:bottom-[calc(var(--host-h)*0.71-8rem)] lg:left-[calc(7vw+var(--host-h)*0.66)] lg:right-[5vw] lg:top-auto">
+        <div className="absolute inset-x-6 top-[56svh] z-[45] lg:inset-x-auto lg:bottom-[calc(var(--host-h)*0.71-8rem)] lg:left-[calc(7vw+var(--host-h)*0.64)] lg:right-[5vw] lg:top-auto">
           <h2
             id="cx-cta-title"
             data-cx="cta-headline"
