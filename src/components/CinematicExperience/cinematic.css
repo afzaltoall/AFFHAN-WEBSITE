@@ -328,19 +328,23 @@
   font-weight: 400;
   line-height: 1;
   letter-spacing: 0.01em;
-  background: linear-gradient(180deg, #fffaf0 0%, #f4e6c8 55%, #d6a84e 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--cx-white);
 }
 @media (min-width: 768px) {
   .cx-count-num { font-size: clamp(150px, 22vw, 330px); }
 }
-/* Fixed-width digit slots: the number never shifts sideways as it changes. */
+/* Fixed-width digit slots: the number never shifts sideways as it changes.
+   The gold is on each digit, not on the row: the row is moved with a
+   transform, and gradient text clipped on an ancestor of a transformed
+   element paints nothing (that is how the count was invisible). */
 .cx-count-slot {
   display: inline-block;
   width: 0.64em;
   text-align: center;
+  background: linear-gradient(180deg, #fffaf0 0%, #f4e6c8 55%, #d6a84e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 /* Near-invisible film grain: static, one paint. */
 .cx-grain {
