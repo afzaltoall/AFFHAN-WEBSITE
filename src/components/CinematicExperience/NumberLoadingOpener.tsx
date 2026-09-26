@@ -80,27 +80,34 @@ const easeInv = (y: number) => {
 };
 const T_HOLD = RUN_MS * easeInv(HOLD_AT / 100);
 
-/**
- * The stylesheet's half of the count: one keyframe per number, stepped.
- *
- * The keyframes step a custom property per reel (--cx-t, --cx-u), which the
- * reel's transform reads. Not transform keyframes: those run on the
- * compositor, one animation per reel, and Chrome presented stale frames of one
- * reel against the other (a 94 would flash as 91). A custom property animates
- * on the main thread, so both reels move in the same frame, every frame.
- * Unregistered, so it steps discretely: exactly what a counter needs.
- */
-function countSheet(): string {
+/** When the stylesheet shows each number, in ms from its start: AT[n]. */
+const AT: number[] = (() => {
   const at: number[] = [];
   for (let n = 0; n <= HOLD_AT; n++) at[n] = Math.round(RUN_MS * easeInv(n / 100));
   for (const [n, after] of CREEP) at[n] = Math.round(T_HOLD) + after;
-  const frame = (ms: number, prop: string, digit: number) => `${((ms * 100) / SHEET_MS).toFixed(3)}%{${prop}:${digit}}`;
-  const units = at.map((ms, n) => frame(ms, "--cx-u", n % 10)).join("") + frame(SHEET_MS, "--cx-u", 9);
-  const tens = at.flatMap((ms, n) => (n % 10 === 0 ? [frame(ms, "--cx-t", n / 10)] : [])).join("") + frame(SHEET_MS, "--cx-t", 9);
+  return at;
+})();
+/** The number the stylesheet shows at a moment of its count. */
+const sheetAt = (ms: number) => {
+  let n = 0;
+  while (n < 99 && AT[n + 1] <= ms) n++;
+  return n;
+};
+
+/**
+ * The stylesheet's half of the count: one keyframe per number, stepped.
+ * Transforms, so the compositor runs them: the count keeps its pace while the
+ * page is busy hydrating. Both reels share one start time, so they change in
+ * the same frame.
+ */
+function countSheet(): string {
+  const frame = (ms: number, digit: number) => `${((ms * 100) / SHEET_MS).toFixed(3)}%{transform:translateY(${-digit}em)}`;
+  const units = AT.map((ms, n) => frame(ms, n % 10)).join("") + frame(SHEET_MS, 9);
+  const tens = AT.flatMap((ms, n) => (n % 10 === 0 ? [frame(ms, n / 10)] : [])).join("") + frame(SHEET_MS, 9);
   return (
     `@keyframes cx-count-units{${units}}@keyframes cx-count-tens{${tens}}` +
-    `.cx-count-reel[data-reel=tens]{transform:translateY(calc(var(--cx-t,0)*-1em));animation:cx-count-tens ${SHEET_MS}ms steps(1,end) both}` +
-    `.cx-count-reel[data-reel=units]{transform:translateY(calc(var(--cx-u,0)*-1em));animation:cx-count-units ${SHEET_MS}ms steps(1,end) both}` +
+    `.cx-count-reel[data-reel=tens]{animation:cx-count-tens ${SHEET_MS}ms steps(1,end) both}` +
+    `.cx-count-reel[data-reel=units]{animation:cx-count-units ${SHEET_MS}ms steps(1,end) both}` +
     `.cx-count-ring-in{animation:cx-count-ring ${RUN_MS}ms cubic-bezier(0.65,0,0.35,1) both}` +
     `.cx-counter{animation:cx-count-failsafe .6s ease-out ${FAILSAFE_S}s forwards}` +
     `@media (prefers-reduced-motion:reduce){.cx-count-ring-in{animation:none;transform:none;opacity:.9}}`
@@ -251,7 +258,9 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
 
     /** Take the reels over from the stylesheet and finish its curve to 100. */
     const finish = (now: number) => {
-      const v0 = Math.min(99, readSheet());
+      // The compositor can be a frame or two ahead of what this thread reads;
+      // take the later of the two, so the hand-over never steps backwards.
+      const v0 = Math.min(99, Math.max(readSheet(), sheet ? sheetAt(now - t0 + 34) : 0));
       tens.style.animation = "none";
       units.style.animation = "none";
       show(v0);
