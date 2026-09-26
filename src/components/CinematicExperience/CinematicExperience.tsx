@@ -41,6 +41,8 @@ import { Scene14FinalCta } from "./Scene14FinalCta";
 import { Scene16Countdown } from "./Scene16Countdown";
 import { FilmImage } from "./parts";
 import { Starfield } from "./Starfield";
+import { WarpField } from "./warp";
+import { WarpToYiwu } from "./WarpToYiwu";
 
 /**
  * The free China business trip, as one scroll-driven film.
@@ -272,14 +274,21 @@ export function CinematicExperience() {
           particles = new GatherField(canvas, word, desktop ? 1500 : 700);
           void particles.layout();
         }
-        const relayout = () => void particles?.layout();
+        // The jump to Yiwu: gold streaks drawn from the film's progress.
+        const warpCanvas = stage.querySelector<HTMLCanvasElement>("[data-cx='warp']");
+        const warp = !reduce && warpCanvas ? new WarpField(warpCanvas, desktop ? 260 : 140) : null;
+        warp?.layout();
+        const relayout = () => {
+          void particles?.layout();
+          warp?.layout();
+        };
         ScrollTrigger.addEventListener("refresh", relayout);
 
         const stars = root.querySelector<HTMLElement>("[data-cx='stars']");
         const starsDim = root.querySelector<HTMLElement>("[data-cx='stars-dim']");
         if (stars) buildStars(root, stars, reduce);
         if (reduce) buildFilmReduced(film, stage, desktop, { onProgress });
-        else buildFilm(film, stage, desktop, particles, { onProgress, starsDim });
+        else buildFilm(film, stage, desktop, particles, { onProgress, starsDim, warp: warp ? (p) => warp.render(p) : undefined });
         buildSteps(steps, desktop, reduce);
         buildCta(cta, ctaStage, desktop, reduce);
 
@@ -291,6 +300,7 @@ export function CinematicExperience() {
         return () => {
           ScrollTrigger.removeEventListener("refresh", relayout);
           particles?.clear();
+          warp?.clear();
           if (tick) gsap.ticker.remove(tick);
           lenis?.destroy();
           lenisRef.current = null;
@@ -352,6 +362,7 @@ export function CinematicExperience() {
           <Scene05Globe />
           <Scene06ChinaMap />
           <Scene07CityJourney />
+          <WarpToYiwu />
           <Scene08YiwuArrival />
           <Scene09Hotel />
           <Scene10FreeReveal />

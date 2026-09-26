@@ -18,6 +18,7 @@ the application, its own page: `/free-china-trip/apply/`
 | `NumberLoadingOpener.tsx` | The opening count: CSS-driven from the first frame, finished by script. |
 | `Scene01Opening.tsx` … `Scene16Countdown.tsx` | One file per scene: markup only (the countdown also keeps its own clock). |
 | `Motifs.tsx` | The red silk and gold trail layers that recur through the film, and the atmosphere. |
+| `warp.ts`, `WarpToYiwu.tsx` | The jump from Guangzhou to Yiwu: gold streaks out of a vanishing point, drawn from the film's progress (scrolls back too), and the coordinates readout. |
 | `particles.ts`, `GoldDust.tsx` | The FREE particles (scroll-driven, no loop) and the ambient gold dust (on screen only). |
 | `cinematic.css` | Palette tokens, the opening's CSS entrance, masks and gradients. Scoped to `.cx`. |
 

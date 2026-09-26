@@ -2,6 +2,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { GatherField } from "./particles";
 import { ROUTE_POINTS } from "./Scene05Globe";
+import { warpTravel } from "./warp";
 
 /**
  * Every timeline on /free-china-trip/, and nothing else.
@@ -43,8 +44,8 @@ export const BEAT = 78;
 export const BEAT_REDUCED = 62;
 
 /** Where each film chapter starts, in timeline units; the chapter readout uses it. */
-export const FILM_CHAPTER_STARTS = [0, 0.55, 1.95, 3.1, 4.5, 6.5, 8.5, 11.75, 13.3, 15.65, 18.3];
-export const FILM_END = 21.0;
+export const FILM_CHAPTER_STARTS = [0, 0.55, 1.95, 3.1, 4.5, 6.5, 8.5, 12.0, 14.5, 16.85, 19.5];
+export const FILM_END = 22.2;
 export const FILM_REDUCED_STARTS = [0, 0.85, 1.95, 2.95, 3.95, 4.95, 5.95, 8.65, 9.55, 10.45, 11.45];
 const FILM_REDUCED_END = 12.3;
 
@@ -81,8 +82,10 @@ function pinnedTimeline(section: HTMLElement, end: number, scrub: number | boole
 export interface FilmHooks {
   /** time: timeline units; progress: 0..1. Called on every scroll update. */
   onProgress: (time: number, progress: number) => void;
-  /** The night sky's dimmer (Starfield.tsx): lowered under the FREE reveal. */
+  /** The night sky's dimmer (Starfield.tsx): lowered under the jump and the FREE reveal. */
   starsDim?: HTMLElement | null;
+  /** Draws the jump to Yiwu (warp.ts) for its progress, 0..1. */
+  warp?: (p: number) => void;
 }
 
 /* =============================================================================
@@ -223,16 +226,17 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   // Each city rises from depth, holds while the camera glides, then rushes past
   // the lens as the next one emerges behind it. Shanghai rises from where its
   // marker was on the map.
-  const city = (key: string, at: number, from: string, rest: string, glide: string, exit: string) => {
+  const city = (key: string, at: number, from: string, rest: string, glide: string, exit: string, exitScale = 2.2) => {
     tl.fromTo($(`city-${key}`), { autoAlpha: 0, scale: 0.22, x: from, y: vh(2), filter: "blur(14px)" },
       { autoAlpha: 1, scale: d ? 0.94 : 1, x: rest, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.8 }, at);
     tl.to($(`city-${key}`), { scale: d ? 1.06 : 1.12, x: glide, duration: 0.5 }, at + 0.8);
-    tl.to($(`city-${key}`), { scale: 2.2, x: exit, y: vh(4), autoAlpha: 0, filter: "blur(16px)", ease: "power2.in", duration: 0.6 }, at + 1.3);
+    tl.to($(`city-${key}`), { scale: exitScale, x: exit, y: vh(4), autoAlpha: 0, filter: "blur(16px)", ease: "power2.in", duration: 0.6 }, at + 1.3);
     caption(`cap-${key}`, at + 0.5, at + 1.3);
   };
   city("shanghai", 8.5, X(19, 37), X(2, 0), X(-3, -4), X(-46, -60));
   city("beijing", 9.6, X(14, 20), X(-1, 0), X(-5, -5), X(-50, -64));
-  city("guangzhou", 10.7, X(12, 18), X(0, 0), X(-4, -5), X(-48, -62));
+  // Guangzhou is flown straight into: it becomes the jump's vanishing point.
+  city("guangzhou", 10.7, X(12, 18), X(0, 0), X(-4, -5), X(0, 0), 3.4);
   // Silk weaves between Shanghai and Beijing, gold between Beijing and Guangzhou.
   tl.fromTo($("silk-back"), { autoAlpha: 0, x: X(90, 120), y: vh(-14), rotation: 12, scale: 0.8 },
     { autoAlpha: 0.8, x: X(0, 0), y: vh(-2), rotation: 3, ease: "power1.out", duration: 0.5 }, 9.3);
@@ -241,75 +245,104 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
     { autoAlpha: 0.8, x: X(0, 0), y: vh(4), rotation: -2, ease: "power1.out", duration: 0.4 }, 10.4);
   tl.to($("gold-front"), { autoAlpha: 0, x: X(-120, -160), y: vh(12), rotation: 6, ease: "power1.in", duration: 0.4 }, 10.8);
 
-  // ---- 08 YIWU: arrival, and the camera gently approaches ------------------------
-  tl.fromTo($("city-yiwu"), { autoAlpha: 0, scale: 0.26, x: X(12, 16), y: vh(3), filter: "blur(14px) brightness(1)" },
-    { autoAlpha: 1, scale: d ? 0.98 : 1.06, x: 0, y: 0, filter: "blur(0px) brightness(1)", ease: "power3.out", duration: 1.0 }, 11.75);
-  tl.to($("city-yiwu"), { scale: d ? 1.1 : 1.18, y: vh(1), duration: 1.05 }, 12.75);
-  caption("cap-yiwu", 12.3, 13.4);
+  // ---- 07 → 08 THE JUMP TO YIWU: light speed, out of a vanishing point --------
+  // Gold streaks pour out of the centre (warp.ts draws them from the jump's
+  // progress, so scrolling back plays it backwards), the readout's
+  // coordinates run from Guangzhou's to Yiwu's, the sky dims so the light
+  // owns the frame, and the centre flares as Yiwu comes out of it.
+  const jump = { p: 0 };
+  const [warpLine] = $("warp-line");
+  const [warpDot] = $("warp-dot");
+  const [warpCoords] = $("warp-coords");
+  const onJump = () => {
+    hooks.warp?.(jump.p);
+    const e = warpTravel(jump.p);
+    if (warpLine) warpLine.style.transform = `scaleX(${e.toFixed(4)})`;
+    if (warpDot) warpDot.style.left = `${(e * 100).toFixed(2)}%`;
+    if (warpCoords) {
+      const text = `${(23.13 + 6.18 * e).toFixed(2)}° N · ${(113.26 + 6.82 * e).toFixed(2)}° E`;
+      if (warpCoords.textContent !== text) warpCoords.textContent = text;
+    }
+  };
+  tl.fromTo($("warp"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.12 }, 11.95);
+  tl.fromTo(jump, { p: 0 }, { p: 1, ease: "none", duration: 1.2, onUpdate: onJump }, 12.0);
+  tl.to($("warp"), { autoAlpha: 0, duration: 0.2 }, 13.1);
+  tl.fromTo($("warp-readout"), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.25 }, 12.1);
+  tl.to($("warp-readout"), { autoAlpha: 0, y: -10, duration: 0.2 }, 12.95);
+  if (hooks.starsDim) {
+    tl.to(hooks.starsDim, { opacity: 0.25, duration: 0.3 }, 12.0);
+    tl.to(hooks.starsDim, { opacity: 1, duration: 0.4 }, 13.1);
+  }
+
+  // ---- 08 YIWU: out of the light, and the camera gently approaches ----------
+  tl.fromTo($("city-yiwu"), { autoAlpha: 0, scale: 0.06, x: 0, y: vh(-3), filter: "blur(20px) brightness(1.6)" },
+    { autoAlpha: 1, scale: d ? 0.98 : 1.06, y: 0, filter: "blur(0px) brightness(1)", ease: "expo.out", duration: 1.0 }, 12.8);
+  tl.to($("city-yiwu"), { scale: d ? 1.1 : 1.18, y: vh(1), duration: 1.05 }, 13.8);
+  caption("cap-yiwu", 13.5, 14.6);
 
   // ---- 09 HOTEL: darken, gold, silk, then the hotel ---------------------------------
-  tl.fromTo($("veil"), { autoAlpha: 0 }, { autoAlpha: 0.6, duration: 0.6 }, 13.35);
-  tl.to($("city-yiwu"), { filter: "blur(6px) brightness(0.55)", duration: 0.6 }, 13.35);
+  tl.fromTo($("veil"), { autoAlpha: 0 }, { autoAlpha: 0.6, duration: 0.6 }, 14.55);
+  tl.to($("city-yiwu"), { filter: "blur(6px) brightness(0.55)", duration: 0.6 }, 14.55);
   tl.fromTo($("gold-front"), { autoAlpha: 0, x: X(-110, -150), y: vh(10), rotation: 8, scale: 1 },
-    { autoAlpha: 0.9, x: X(0, 0), y: vh(0), rotation: 0, ease: "power1.out", duration: 0.4 }, 13.55);
-  tl.to($("gold-front"), { autoAlpha: 0, x: X(110, 150), y: vh(-10), rotation: -8, ease: "power1.in", duration: 0.4 }, 13.95);
+    { autoAlpha: 0.9, x: X(0, 0), y: vh(0), rotation: 0, ease: "power1.out", duration: 0.4 }, 14.75);
+  tl.to($("gold-front"), { autoAlpha: 0, x: X(110, 150), y: vh(-10), rotation: -8, ease: "power1.in", duration: 0.4 }, 15.15);
   tl.fromTo($("silk-front"), { autoAlpha: 0, x: X(110, 150), y: vh(16), rotation: 12, scale: 1.2 },
-    { autoAlpha: 1, x: X(0, 0), y: vh(4), rotation: 2, ease: "power1.out", duration: 0.4 }, 13.8);
-  tl.to($("silk-front"), { autoAlpha: 0, x: X(-120, -160), y: vh(-10), rotation: -10, ease: "power1.in", duration: 0.4 }, 14.2);
-  tl.to($("city-yiwu"), { autoAlpha: 0, duration: 0.45 }, 14.05);
-  tl.to($("veil"), { autoAlpha: 0.25, duration: 0.5 }, 14.1);
+    { autoAlpha: 1, x: X(0, 0), y: vh(4), rotation: 2, ease: "power1.out", duration: 0.4 }, 15);
+  tl.to($("silk-front"), { autoAlpha: 0, x: X(-120, -160), y: vh(-10), rotation: -10, ease: "power1.in", duration: 0.4 }, 15.4);
+  tl.to($("city-yiwu"), { autoAlpha: 0, duration: 0.45 }, 15.25);
+  tl.to($("veil"), { autoAlpha: 0.25, duration: 0.5 }, 15.3);
   tl.fromTo($("hotel"), { autoAlpha: 0, scale: 1.18, filter: "blur(12px)" },
-    { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.85 }, 14.0);
-  tl.to($("hotel"), { scale: 1.06, duration: 0.9 }, 14.85);
-  tl.fromTo($("hotel-glow"), { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 0.9, scale: 1, duration: 0.9 }, 14.2);
-  tl.to($("haze-crimson"), { autoAlpha: 0, duration: 0.6 }, 13.9);
-  tl.to($("haze-warm"), { autoAlpha: 1, duration: 0.6 }, 13.9);
-  caption("cap-hotel", 14.45, 15.5);
+    { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.85 }, 15.2);
+  tl.to($("hotel"), { scale: 1.06, duration: 0.9 }, 16.05);
+  tl.fromTo($("hotel-glow"), { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 0.9, scale: 1, duration: 0.9 }, 15.4);
+  tl.to($("haze-crimson"), { autoAlpha: 0, duration: 0.6 }, 15.1);
+  tl.to($("haze-warm"), { autoAlpha: 1, duration: 0.6 }, 15.1);
+  caption("cap-hotel", 15.65, 16.7);
 
   // ---- 10 FREE: everything goes dark; particles gather; the word resolves --
-  tl.to($("hotel"), { autoAlpha: 0, scale: 1.14, filter: "blur(12px)", ease: "power2.in", duration: 0.6 }, 15.7);
-  tl.to($("hotel-glow"), { autoAlpha: 0, duration: 0.5 }, 15.7);
-  tl.to($("veil"), { autoAlpha: 0, duration: 0.4 }, 15.9);
-  tl.to($("haze-warm"), { autoAlpha: 0, duration: 0.5 }, 15.7);
+  tl.to($("hotel"), { autoAlpha: 0, scale: 1.14, filter: "blur(12px)", ease: "power2.in", duration: 0.6 }, 16.9);
+  tl.to($("hotel-glow"), { autoAlpha: 0, duration: 0.5 }, 16.9);
+  tl.to($("veil"), { autoAlpha: 0, duration: 0.4 }, 17.1);
+  tl.to($("haze-warm"), { autoAlpha: 0, duration: 0.5 }, 16.9);
   // The sky dims too: FREE owns the frame.
   if (hooks.starsDim) {
-    tl.to(hooks.starsDim, { opacity: 0.3, duration: 0.6 }, 15.7);
-    tl.to(hooks.starsDim, { opacity: 1, duration: 0.6 }, 18.3);
+    tl.to(hooks.starsDim, { opacity: 0.3, duration: 0.6 }, 16.9);
+    tl.to(hooks.starsDim, { opacity: 1, duration: 0.6 }, 19.5);
   }
   // Silk and gold keep moving through the dark, framing the word.
   tl.fromTo($("silk-back"), { autoAlpha: 0, x: X(70, 90), y: vh(26), rotation: 8, scale: 1.1 },
-    { autoAlpha: 0.42, x: X(8, 0), y: vh(30), rotation: 2, scale: 1.15, ease: "power1.out", duration: 1.0 }, 15.8);
-  tl.to($("silk-back"), { x: X(-20, -30), y: vh(32), rotation: -3, duration: 1.5 }, 16.8);
+    { autoAlpha: 0.42, x: X(8, 0), y: vh(30), rotation: 2, scale: 1.15, ease: "power1.out", duration: 1.0 }, 17);
+  tl.to($("silk-back"), { x: X(-20, -30), y: vh(32), rotation: -3, duration: 1.5 }, 18);
   tl.fromTo($("gold-back"), { autoAlpha: 0, x: X(-70, -90), y: vh(-24), rotation: -8, scale: 1 },
-    { autoAlpha: 0.45, x: X(-4, 0), y: vh(-30), rotation: -2, scale: 1.1, ease: "power1.out", duration: 1.0 }, 15.9);
-  tl.to($("gold-back"), { x: X(16, 24), y: vh(-32), rotation: 3, duration: 1.4 }, 16.9);
+    { autoAlpha: 0.45, x: X(-4, 0), y: vh(-30), rotation: -2, scale: 1.1, ease: "power1.out", duration: 1.0 }, 17.1);
+  tl.to($("gold-back"), { x: X(16, 24), y: vh(-32), rotation: 3, duration: 1.4 }, 18.1);
   // Particles gather into the shape of the word.
   const dust = { gather: 0, fade: 0 };
   const draw = () => particles?.render(dust.gather, dust.fade);
-  tl.fromTo($("free-particles"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1 }, 16.0);
-  tl.fromTo(dust, { gather: 0 }, { gather: 1, ease: "power1.inOut", duration: 1.0, onUpdate: draw }, 16.0);
+  tl.fromTo($("free-particles"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1 }, 17.2);
+  tl.fromTo(dust, { gather: 0 }, { gather: 1, ease: "power1.inOut", duration: 1.0, onUpdate: draw }, 17.2);
   // The word: blur -> sharp, a slow settle, glow, then the particles dissolve into it.
-  tl.fromTo($("free-lockup"), { autoAlpha: 0, scale: 1.06 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: 1.1 }, 16.55);
-  tl.fromTo($("free-blur"), { autoAlpha: 0 }, { autoAlpha: 0.9, duration: 0.4 }, 16.6);
-  tl.fromTo($("free-word"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 16.8);
-  tl.to($("free-blur"), { autoAlpha: 0, duration: 0.45 }, 17.05);
-  tl.fromTo($("free-glow"), { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: 0.7 }, 16.75);
-  tl.fromTo(dust, { fade: 0 }, { fade: 1, duration: 0.5, onUpdate: draw }, 16.85);
-  tl.to($("free-particles"), { autoAlpha: 0, duration: 0.1 }, 17.4);
+  tl.fromTo($("free-lockup"), { autoAlpha: 0, scale: 1.06 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: 1.1 }, 17.75);
+  tl.fromTo($("free-blur"), { autoAlpha: 0 }, { autoAlpha: 0.9, duration: 0.4 }, 17.8);
+  tl.fromTo($("free-word"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 18);
+  tl.to($("free-blur"), { autoAlpha: 0, duration: 0.45 }, 18.25);
+  tl.fromTo($("free-glow"), { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: 0.7 }, 17.95);
+  tl.fromTo(dust, { fade: 0 }, { fade: 1, duration: 0.5, onUpdate: draw }, 18.05);
+  tl.to($("free-particles"), { autoAlpha: 0, duration: 0.1 }, 18.6);
   // One sweep of light across the letters.
-  tl.fromTo($("free-sweep"), { xPercent: -100 }, { xPercent: 416.667, ease: "power1.inOut", duration: 0.65 }, 17.2);
-  tl.fromTo($("free-sweep-inner"), { xPercent: 24 }, { xPercent: -100, ease: "power1.inOut", duration: 0.65 }, 17.2);
+  tl.fromTo($("free-sweep"), { xPercent: -100 }, { xPercent: 416.667, ease: "power1.inOut", duration: 0.65 }, 18.4);
+  tl.fromTo($("free-sweep-inner"), { xPercent: 24 }, { xPercent: -100, ease: "power1.inOut", duration: 0.65 }, 18.4);
   // CHINA BUSINESS TRIP, letter by letter.
   tl.fromTo($("free-sub-char"), { autoAlpha: 0, y: 14, filter: "blur(8px)" },
-    { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.3, stagger: 0.022 }, 17.35);
+    { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.3, stagger: 0.022 }, 18.55);
 
   // ---- 11 WHAT'S INCLUDED: the lockup rises; four rows arrive in turn ------
-  tl.to($("free-lockup"), { y: vh(d ? -31 : -30), scale: d ? 0.36 : 0.5, ease: "power3.inOut", duration: 0.75 }, 18.3);
-  tl.to($("free-glow"), { autoAlpha: 0.4, duration: 0.6 }, 18.3);
-  tl.to($("silk-back", "gold-back"), { autoAlpha: 0.22, duration: 0.6 }, 18.3);
-  tl.fromTo($("inc-eyebrow"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.3 }, 18.85);
+  tl.to($("free-lockup"), { y: vh(d ? -31 : -30), scale: d ? 0.36 : 0.5, ease: "power3.inOut", duration: 0.75 }, 19.5);
+  tl.to($("free-glow"), { autoAlpha: 0.4, duration: 0.6 }, 19.5);
+  tl.to($("silk-back", "gold-back"), { autoAlpha: 0.22, duration: 0.6 }, 19.5);
+  tl.fromTo($("inc-eyebrow"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.3 }, 20.05);
   $("inc-row").forEach((row, i) => {
-    const at = 18.95 + i * 0.36;
+    const at = 20.15 + i * 0.36;
     tl.fromTo(row.querySelector("[data-cx='inc-line']"), { scaleX: 0 }, { scaleX: 1, ease: "power2.inOut", duration: 0.55 }, at - 0.08);
     tl.fromTo(row, { autoAlpha: 0, y: 34, filter: "blur(8px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.42 }, at);
   });
