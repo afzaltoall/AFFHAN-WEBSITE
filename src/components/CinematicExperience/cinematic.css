@@ -350,6 +350,13 @@
   opacity: 0.045;
 }
 
+/* The flying passport is cut from a composite (its own plane, silk and
+   blossom are painted around it): a soft oval keeps only the passport. */
+.cx-ghost-passport {
+  -webkit-mask-image: radial-gradient(30% 40% at 48% 60%, #000 62%, transparent 100%);
+  mask-image: radial-gradient(30% 40% at 48% 60%, #000 62%, transparent 100%);
+}
+
 /* Gold dust: a few motes drifting, compositor-only. */
 .cx-mote {
   position: absolute;
