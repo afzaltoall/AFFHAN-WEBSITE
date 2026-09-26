@@ -14,7 +14,7 @@ import { DISPLAY, EYEBROW, PlaceholderTag } from "./parts";
  */
 export function Scene13Terms() {
   return (
-    <section id="terms" aria-labelledby="cx-terms-title" className="relative bg-(--cx-char) py-24 md:py-32">
+    <section id="terms" aria-labelledby="cx-terms-title" className="relative bg-(--cx-char)/92 py-24 md:py-32">
       <div className="mx-auto grid max-w-[1180px] gap-12 px-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] md:gap-20 md:px-12">
         <div>
           <p className={EYEBROW}>{TERMS.eyebrow}</p>

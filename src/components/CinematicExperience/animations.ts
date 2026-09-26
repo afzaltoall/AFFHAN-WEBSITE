@@ -82,6 +82,8 @@ function pinnedTimeline(section: HTMLElement, end: number, scrub: number | boole
 export interface FilmHooks {
   /** time: timeline units; progress: 0..1. Called on every scroll update. */
   onProgress: (time: number, progress: number) => void;
+  /** The night sky's dimmer (Starfield.tsx): lowered under the FREE reveal. */
+  starsDim?: HTMLElement | null;
 }
 
 /* =============================================================================
@@ -270,6 +272,11 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.to($("hotel-glow"), { autoAlpha: 0, duration: 0.5 }, 15.7);
   tl.to($("veil"), { autoAlpha: 0, duration: 0.4 }, 15.9);
   tl.to($("haze-warm"), { autoAlpha: 0, duration: 0.5 }, 15.7);
+  // The sky dims too: FREE owns the frame.
+  if (hooks.starsDim) {
+    tl.to(hooks.starsDim, { opacity: 0.3, duration: 0.6 }, 15.7);
+    tl.to(hooks.starsDim, { opacity: 1, duration: 0.6 }, 18.3);
+  }
   // Silk and gold keep moving through the dark, framing the word.
   tl.fromTo($("silk-back"), { autoAlpha: 0, x: X(70, 90), y: vh(26), rotation: 8, scale: 1.1 },
     { autoAlpha: 0.42, x: X(8, 0), y: vh(30), rotation: 2, scale: 1.15, ease: "power1.out", duration: 1.0 }, 15.8);
@@ -459,6 +466,39 @@ export function buildApplyHeading(head: HTMLElement, reduced: boolean) {
       ease: "power3.out",
       clearProps: "filter",
       scrollTrigger: { trigger: head, start: "top 88%", once: true },
+    },
+  );
+}
+
+/* =============================================================================
+ * 4. THE SKY — not pinned
+ * The star layers drift at different speeds as the page scrolls (depth: the
+ * nearer, the faster), and the whole sky leaves with the end of the page, so
+ * the fixed layer never sits over the footer.
+ * ============================================================================= */
+export function buildStars(page: HTMLElement, stars: HTMLElement, reduced: boolean) {
+  const $ = picker(stars);
+  // THE SKY'S drift ScrollTrigger: the whole page, gently smoothed. None
+  // under reduced motion: the stars simply stay where they are.
+  if (!reduced) {
+    gsap
+      .timeline({
+        defaults: { ease: "none" },
+        scrollTrigger: { trigger: page, start: "top top", end: "bottom bottom", scrub: 1, invalidateOnRefresh: true },
+      })
+      .to($("stars-far"), { yPercent: -3 }, 0)
+      .to($("stars-mid", "stars-mid2"), { yPercent: -7 }, 0)
+      .to($("stars-bright"), { yPercent: -11 }, 0);
+  }
+  // THE SKY'S exit ScrollTrigger: as the footer arrives, the sky moves up
+  // exactly as far as the page does, its bottom edge on the page's.
+  gsap.fromTo(
+    stars,
+    { y: 0 },
+    {
+      y: () => -window.innerHeight,
+      ease: "none",
+      scrollTrigger: { trigger: page, start: "bottom bottom", end: "bottom top", scrub: true, invalidateOnRefresh: true },
     },
   );
 }

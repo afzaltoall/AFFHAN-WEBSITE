@@ -12,6 +12,7 @@ import {
   buildCta,
   buildFilm,
   buildFilmReduced,
+  buildStars,
   buildSteps,
   FILM_CHAPTER_STARTS,
   FILM_REDUCED_STARTS,
@@ -36,6 +37,7 @@ import { Scene12HowItWorks } from "./Scene12HowItWorks";
 import { Scene13Terms } from "./Scene13Terms";
 import { Scene14FinalCta } from "./Scene14FinalCta";
 import { Scene16Registration } from "./Scene16Registration";
+import { Starfield } from "./Starfield";
 
 /**
  * The free China business trip, as one scroll-driven film.
@@ -234,8 +236,11 @@ export function CinematicExperience() {
         const relayout = () => void particles?.layout();
         ScrollTrigger.addEventListener("refresh", relayout);
 
+        const stars = root.querySelector<HTMLElement>("[data-cx='stars']");
+        const starsDim = root.querySelector<HTMLElement>("[data-cx='stars-dim']");
+        if (stars) buildStars(root, stars, reduce);
         if (reduce) buildFilmReduced(film, stage, desktop, { onProgress });
-        else buildFilm(film, stage, desktop, particles, { onProgress });
+        else buildFilm(film, stage, desktop, particles, { onProgress, starsDim });
         buildSteps(steps, desktop, reduce);
         buildCta(cta, ctaStage, desktop, reduce);
         buildApplyHeading(applyHead, reduce);
@@ -278,10 +283,13 @@ export function CinematicExperience() {
 
   return (
     <div ref={rootRef}>
+      {/* The night sky, behind every section below (fixed; see Starfield.tsx). */}
+      <Starfield />
+
       {/* THE FILM: a sticky stage inside a section as tall as the scroll (set by
           animations.ts). Server-rendered as one screen: the opening frame. */}
       <section data-cx-film aria-label="The journey" className="relative h-[100svh]">
-        <div data-cx-stage className="sticky top-0 h-[100svh] overflow-hidden bg-(--cx-ink)">
+        <div data-cx-stage className="sticky top-0 h-[100svh] overflow-hidden">
           <Motifs />
           <Scene01Opening onApply={jump} />
           <Scene02Passport />

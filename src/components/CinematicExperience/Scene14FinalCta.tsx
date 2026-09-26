@@ -26,7 +26,7 @@ import { Scene15CtaToForm } from "./Scene15CtaToForm";
 export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAnchorElement>) => void }) {
   return (
     <section data-cx-cta aria-labelledby="cx-cta-title" className="relative h-[100svh]">
-      <div data-cx-cta-stage data-idle="off" className="sticky top-0 h-[100svh] overflow-hidden bg-(--cx-ink) [--host-h:min(80svh,50vw)]">
+      <div data-cx-cta-stage data-idle="off" className="sticky top-0 h-[100svh] overflow-hidden [--host-h:min(80svh,50vw)]">
         {/* Starts as the terms section's charcoal and darkens to ink. */}
         <div data-cx="cta-bg" aria-hidden className="absolute inset-0 bg-(--cx-char)" />
         <div aria-hidden className="cx-haze-crimson absolute inset-0 opacity-80" />

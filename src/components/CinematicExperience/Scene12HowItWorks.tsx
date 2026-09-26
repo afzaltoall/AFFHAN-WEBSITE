@@ -11,7 +11,7 @@ import { DISPLAY, EYEBROW, PlaceholderTag } from "./parts";
  */
 export function Scene12HowItWorks() {
   return (
-    <section data-cx-steps aria-labelledby="cx-steps-title" className="relative bg-(--cx-ink) py-24 md:py-36">
+    <section data-cx-steps aria-labelledby="cx-steps-title" className="relative py-24 md:py-36">
       <div className="mx-auto max-w-[1360px] px-6 md:px-12">
         <p className={EYEBROW}>{STEPS_HEADING.eyebrow}</p>
         <h2 id="cx-steps-title" className={`${DISPLAY} mt-4 text-balance text-[clamp(38px,9vw,64px)] leading-[1] md:text-[clamp(48px,5vw,88px)]`}>

@@ -240,8 +240,10 @@ export function Scene16Registration() {
   const sending = phase === "sending";
 
   return (
-    <section id="apply" aria-labelledby="cx-apply-title" className="relative bg-(--cx-ink) pb-28 pt-24 md:pb-40 md:pt-32">
-      {/* The horizon the final stage ends on, continued: the seam is invisible. */}
+    <section id="apply" aria-labelledby="cx-apply-title" className="relative pb-28 pt-24 md:pb-40 md:pt-32">
+      {/* The final stage ends on black with a warm horizon; the form opens on the
+          same black, fading to the night sky, and the same horizon. No seam. */}
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[44svh] bg-linear-to-b from-(--cx-ink) to-transparent" />
       <div aria-hidden className="cx-horizon pointer-events-none absolute inset-x-0 top-0 h-[42svh] rotate-180" />
       <div className="relative mx-auto max-w-[920px] px-6 md:px-12">
         <div ref={headRef} data-cx="apply-head">
