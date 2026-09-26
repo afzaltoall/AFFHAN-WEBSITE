@@ -113,19 +113,25 @@ export class GatherField {
     const ox = run.left - stage.left - pad;
     const oy = run.top - stage.top - pad;
 
-    // Every ink point, fine enough to find the hairlines, split into the
-    // letters' outlines (ink with no ink a few pixels away on some side) and
-    // their fill.
-    const step = size > 300 ? 2 : 1;
+    // Every ink pixel, split into the letters' outlines (ink with no ink a
+    // few pixels away on some side) and their fill. Every row and column, and
+    // faint (anti-aliased) ink too: the display cut's hairline serifs are a
+    // pixel thin at this size, and sampling every other row, or only solid
+    // ink, skipped them, so the dots' F had no serifs.
+    const step = 1;
     const e = Math.max(2, Math.round(size / 150));
-    const inkAt = (x: number, y: number) => x >= 0 && y >= 0 && x < ow && y < oh && px[(y * ow + x) * 4 + 3] > 110;
+    const inkAt = (x: number, y: number) => x >= 0 && y >= 0 && x < ow && y < oh && px[(y * ow + x) * 4 + 3] > 48;
     const edge: Array<[number, number]> = [];
     const fill: Array<[number, number]> = [];
+    // A hairline is all edge but only a pixel wide, so per length it would
+    // get a third of the dots a thick stroke's outline gets: count it thrice.
+    const hairline = (x: number, y: number) => (!inkAt(x, y - 2) && !inkAt(x, y + 2)) || (!inkAt(x - 2, y) && !inkAt(x + 2, y));
     for (let y = 0; y < oh; y += step) {
       for (let x = 0; x < ow; x += step) {
         if (!inkAt(x, y)) continue;
         const pt: [number, number] = [x + ox, y + oy];
         if (inkAt(x - e, y) && inkAt(x + e, y) && inkAt(x, y - e) && inkAt(x, y + e)) fill.push(pt);
+        else if (hairline(x, y)) edge.push(pt, pt, pt);
         else edge.push(pt);
       }
     }
