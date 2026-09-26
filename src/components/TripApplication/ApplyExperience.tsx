@@ -227,8 +227,9 @@ export function ApplyExperience() {
       indicatorShown.current = true;
       tl.fromTo($("indicator"), { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0);
     }
-    // The new step's title takes focus, so keyboards and readers start there.
-    document.getElementById("ax-step-title")?.focus({ preventScroll: true });
+    // The new step's title takes focus (once visible: hidden things can't),
+    // so keyboards and readers start there.
+    tl.call(() => document.getElementById("ax-step-title")?.focus({ preventScroll: true }), [], 0.05);
     return () => void tl.kill();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, step]);
@@ -328,19 +329,21 @@ export function ApplyExperience() {
   /** Red silk, then darkness: the moment before APPLICATION RECEIVED. */
   const intoDarkness = () =>
     new Promise<void>((resolve) => {
-      const tl = track(gsap.timeline({ onComplete: resolve }));
+      const tl = track(gsap.timeline());
       if (reduce.current) {
-        tl.to($("send-dark"), { autoAlpha: 1, duration: 0.4 }, 0);
+        tl.to($("send-dark"), { autoAlpha: 1, duration: 0.4, onComplete: resolve }, 0);
         return;
       }
       const s = $("send-silk");
       tl.set(s, { xPercent: -110, rotation: -6, autoAlpha: 0 }, 0);
-      tl.to(s, { xPercent: 100, rotation: 3, duration: 1.8, ease: "power2.inOut" }, 0);
-      tl.to(s, { autoAlpha: 0.95, duration: 0.5 }, 0);
-      tl.to(s, { autoAlpha: 0, duration: 0.6 }, 1.2);
-      tl.to($("send-dark"), { autoAlpha: 1, duration: 0.8, ease: "power2.inOut" }, 0.35);
-      tl.to($("send-point"), { autoAlpha: 0, scale: 0.4, duration: 0.5 }, 0.3);
-      tl.to($("send-light"), { autoAlpha: 0.4, scale: 1.25, duration: 1.2, ease: "power1.inOut" }, 0.3);
+      tl.to(s, { xPercent: 100, rotation: 3, duration: 1.5, ease: "power2.inOut" }, 0);
+      tl.to(s, { autoAlpha: 0.95, duration: 0.4 }, 0);
+      tl.to(s, { autoAlpha: 0, duration: 0.5 }, 1.0);
+      tl.to($("send-dark"), { autoAlpha: 1, duration: 0.6, ease: "power2.inOut" }, 0.25);
+      tl.to($("send-point"), { autoAlpha: 0, scale: 0.4, duration: 0.4 }, 0.2);
+      tl.to($("send-light"), { autoAlpha: 0.4, scale: 1.25, duration: 1.1, ease: "power1.inOut" }, 0.2);
+      // Dark enough: the reveal can begin while the silk finishes its pass.
+      tl.call(resolve, [], 0.9);
     });
 
   /** Undo the button's collapse (for another attempt, or the review). */
@@ -376,6 +379,8 @@ export function ApplyExperience() {
     setPhase("sending");
 
     const request = submitApplication(toPayload(app.state));
+    // One frame for the pinned frame to be in place before anything is measured.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await playSending(fromButton ?? root.current?.querySelector<HTMLElement>("[data-ax-submit]") ?? null);
     let result: SubmitResult | null = await Promise.race([request, sleep(40)]);
     if (!result) {
@@ -425,24 +430,24 @@ export function ApplyExperience() {
       tl.set($("host"), { ...HOST.done, autoAlpha: 0 }, 0.3);
       tl.to($("host"), { autoAlpha: HOST.done.autoAlpha, duration: 0.6 }, 0.35);
     } else {
-      tl.fromTo($("send-line"), { autoAlpha: 1, scaleX: 0 }, { scaleX: 1, duration: 1.05, ease: "power3.inOut" }, 0.1);
-      tl.set($("done-title"), { autoAlpha: 1 }, 0.75);
-      tl.fromTo($("done-title"), { yPercent: 110 }, { yPercent: 0, duration: 1.1 }, 0.75);
-      tl.fromTo($("done-eyebrow"), { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.7 }, 1.15);
-      tl.set(details, { autoAlpha: 1 }, 1.3);
-      tl.fromTo(items, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.8, stagger: 0.12 }, 1.3);
-      tl.fromTo($("done-host"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 1 }, 0.9);
-      tl.to($("send-dark"), { autoAlpha: 0.2, duration: 1.6, ease: "power1.inOut" }, 1.1);
-      tl.set($("host"), { ...HOST.done, x: 40, autoAlpha: 0 }, 1.2);
-      tl.to($("host"), { x: 0, autoAlpha: HOST.done.autoAlpha, duration: 1.5 }, 1.2);
-      if (spin.current) tl.to(spin.current, { timeScale: 0.3, duration: 1.6, ease: "power1.out" }, 1.0);
-      tl.to($("send-line"), { autoAlpha: 0.35, duration: 1.2 }, 1.6);
+      tl.fromTo($("send-line"), { autoAlpha: 1, scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "power3.inOut" }, 0);
+      tl.set($("done-title"), { autoAlpha: 1 }, 0.5);
+      tl.fromTo($("done-title"), { yPercent: 110 }, { yPercent: 0, duration: 1.0 }, 0.5);
+      tl.fromTo($("done-eyebrow"), { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.6 }, 0.85);
+      tl.set(details, { autoAlpha: 1 }, 0.95);
+      tl.fromTo(items, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.7, stagger: 0.1 }, 0.95);
+      tl.fromTo($("done-host"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.9 }, 0.6);
+      tl.to($("send-dark"), { autoAlpha: 0.2, duration: 1.5, ease: "power1.inOut" }, 0.8);
+      tl.set($("host"), { ...HOST.done, x: 40, autoAlpha: 0 }, 0.9);
+      tl.to($("host"), { x: 0, autoAlpha: HOST.done.autoAlpha, duration: 1.4 }, 0.9);
+      if (spin.current) tl.to(spin.current, { timeScale: 0.3, duration: 1.5, ease: "power1.out" }, 0.7);
+      tl.to($("send-line"), { autoAlpha: 0.35, duration: 1.2 }, 1.3);
       // Silk passes once more, slowly, behind everything.
       const bg = $("silk");
-      tl.set(bg, { xPercent: -80, rotation: -3, autoAlpha: 0 }, 1.6);
-      tl.to(bg, { xPercent: 30, rotation: 2, duration: 4, ease: "power1.inOut" }, 1.6);
-      tl.to(bg, { autoAlpha: 0.22, duration: 1.2 }, 1.6);
-      tl.to(bg, { autoAlpha: 0, duration: 1.4 }, 4.2);
+      tl.set(bg, { xPercent: -80, rotation: -3, autoAlpha: 0 }, 1.3);
+      tl.to(bg, { xPercent: 30, rotation: 2, duration: 4, ease: "power1.inOut" }, 1.3);
+      tl.to(bg, { autoAlpha: 0.22, duration: 1.2 }, 1.3);
+      tl.to(bg, { autoAlpha: 0, duration: 1.4 }, 3.9);
     }
     tl.call(
       () => {
@@ -451,7 +456,7 @@ export function ApplyExperience() {
         busy.current = false;
       },
       [],
-      reduce.current ? 0.5 : 1.9,
+      reduce.current ? 0.5 : 1.4,
     );
     return () => void tl.kill();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -515,8 +520,8 @@ export function ApplyExperience() {
               <StepIndicator step={step} />
               <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title" className="mt-10 md:mt-14">
                 <header className="mb-10 md:mb-12">
-                  <p className={EYEBROW}>Step {STEPS[step].number}</p>
-                  <h2 id="ax-step-title" tabIndex={-1} className={`${DISPLAY} mt-3 text-[clamp(36px,9vw,48px)] font-normal uppercase leading-[0.98] text-(--cx-white) outline-none md:text-[clamp(44px,4.4vw,64px)]`}>
+                  <p className={`${EYEBROW} hidden md:block`}>Step {STEPS[step].number}</p>
+                  <h2 id="ax-step-title" tabIndex={-1} className={`${DISPLAY} text-[clamp(36px,9vw,48px)] md:mt-3 font-normal uppercase leading-[0.98] text-(--cx-white) outline-none md:text-[clamp(44px,4.4vw,64px)]`}>
                     {STEPS[step].title}
                   </h2>
                   <p className="mt-4 max-w-[30rem] text-[16px] leading-relaxed text-(--cx-mute)">{STEPS[step].lede}</p>
@@ -529,7 +534,7 @@ export function ApplyExperience() {
         </div>
       </div>
 
-      <SubmitStage active={phase === "sending" || phase === "failed" || phase === "received"} reference={reference} failure={failure} onRetry={retry} onReview={backToReview} />
+      <SubmitStage active={phase === "sending" || phase === "failed" || phase === "received"} pinned={covered} reference={reference} failure={failure} onRetry={retry} onReview={backToReview} />
     </div>
   );
 }

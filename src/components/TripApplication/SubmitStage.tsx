@@ -35,12 +35,15 @@ const TEXT_BUTTON =
  */
 export function SubmitStage({
   active,
+  pinned,
   reference,
   failure,
   onRetry,
   onReview,
 }: {
   active: boolean;
+  /** While sending or failed: fixed to the screen, over everything but the navbar. */
+  pinned: boolean;
   reference: string | null;
   failure: string;
   onRetry: () => void;
@@ -48,7 +51,10 @@ export function SubmitStage({
 }) {
   return (
     <div data-ax="send" className={`absolute inset-0 z-30 ${active ? "" : "pointer-events-none"}`} aria-hidden={active ? undefined : true}>
-      <div className="sticky top-16 flex h-[calc(100svh-4rem)] flex-col items-center justify-center overflow-hidden px-6 text-center">
+      {/* Fixed while the sequence plays, so it fills the screen and covers the
+          footer wherever the review was scrolled to; sticky once received, so
+          the page (and its footer) scroll normally again. */}
+      <div className={`${pinned ? "fixed inset-x-0 bottom-0 top-16" : "sticky top-16 h-[calc(100svh-4rem)]"} flex flex-col items-center justify-center overflow-hidden px-6 text-center`}>
         <div data-ax="send-dark" className="absolute inset-0 bg-(--ax-base) opacity-0" />
         <div data-ax="send-silk" className="pointer-events-none absolute left-[-10%] top-[30%] w-[120%] opacity-0">
           <FilmImage asset={ASSETS.silk} alt="" sizes="120vw" eager className="cx-feather-x" />
