@@ -227,8 +227,9 @@
 }
 
 /* ---- The night sky (Starfield.tsx) ---------------------------------------------
-   Drawn once; twinkles by fading two star layers in and out of phase, which the
-   compositor does without the main thread. */
+   Drawn once; the two middle layers fade in and out of phase, seventy stars
+   blink on their own rhythms, the bright ones sparkle: all transform and
+   opacity, which the compositor runs without the main thread. */
 .cx-stars {
   opacity: 0;
   transition: opacity 1.4s ease;
@@ -245,14 +246,50 @@
 }
 @keyframes cx-twinkle-a {
   0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  50% { opacity: 0.28; }
 }
 @keyframes cx-twinkle-b {
-  0%, 100% { opacity: 0.45; }
+  0%, 100% { opacity: 0.3; }
   50% { opacity: 1; }
 }
-.cx-twinkle-a { animation: cx-twinkle-a 5.6s ease-in-out infinite; }
-.cx-twinkle-b { animation: cx-twinkle-b 7.3s ease-in-out infinite; }
+.cx-twinkle-a { animation: cx-twinkle-a 4.6s ease-in-out infinite; }
+.cx-twinkle-b { animation: cx-twinkle-b 6.1s ease-in-out infinite; }
+
+/* The blinking stars: each rests dim, then scintillates (a flare, a flicker,
+   a second flare) and fades, on its own rhythm (--dur, --delay). Some carry
+   a four-point sparkle, which flares with them. */
+.cx-blink {
+  position: absolute;
+  width: var(--s);
+  height: var(--s);
+  margin: calc(var(--s) / -2) 0 0 calc(var(--s) / -2);
+  border-radius: 9999px;
+  background: rgb(var(--c));
+  box-shadow: 0 0 calc(var(--s) * 2.6) calc(var(--s) * 0.6) rgb(var(--c) / 0.55);
+  opacity: 0.2;
+  animation: cx-blink var(--dur) ease-in-out var(--delay) infinite;
+}
+.cx-blink[data-cross]::before,
+.cx-blink[data-cross]::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--s) * 7);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(var(--c) / 0.85), transparent);
+  transform: translate(-50%, -50%);
+}
+.cx-blink[data-cross]::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+}
+@keyframes cx-blink {
+  0%, 58%, 100% { opacity: 0.16; transform: scale(0.7); }
+  66% { opacity: 1; transform: scale(1.35); }
+  70% { opacity: 0.45; transform: scale(0.95); }
+  74% { opacity: 0.95; transform: scale(1.2); }
+  84% { opacity: 0.22; transform: scale(0.75); }
+}
 
 /* The bright stars: a soft core and, on some, a faint cross of light. */
 .cx-star {
@@ -279,9 +316,12 @@
 .cx-star[data-cross]::after {
   transform: translate(-50%, -50%) rotate(90deg);
 }
+/* A slow breath with a sparkle at its height. */
 @keyframes cx-star-pulse {
   0%, 100% { opacity: 0.3; transform: scale(0.72); }
-  50% { opacity: 1; transform: scale(1); }
+  44% { opacity: 0.85; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.22) rotate(8deg); }
+  56% { opacity: 0.8; transform: scale(0.95); }
 }
 
 /* Shooting stars: a thin streak, head first, visible for a moment of a long cycle. */
@@ -306,8 +346,12 @@
 @media (prefers-reduced-motion: reduce) {
   .cx-twinkle-a,
   .cx-twinkle-b,
-  .cx-star {
+  .cx-star,
+  .cx-blink {
     animation: none;
+  }
+  .cx-blink {
+    opacity: 0.5;
   }
   .cx-shoot {
     display: none;
@@ -499,4 +543,33 @@ html:has(.cx-counter[data-lock]) {
   margin: -0.89em 0 0 -0.89em;
   overflow: visible;
   pointer-events: none;
+}
+
+/* ---- 15 Into time: the warm field the countdown stands in -------------------------
+   Gold at the centre, crimson low, a little bronze from above: the frame
+   warms after the call instead of going dark. */
+.cx-time-ground {
+  background:
+    radial-gradient(46% 40% at 50% 50%, rgb(214 168 78 / 0.2), transparent 72%),
+    radial-gradient(70% 55% at 50% 100%, rgb(163 22 44 / 0.3), transparent 72%),
+    radial-gradient(60% 45% at 50% 0%, rgb(142 106 38 / 0.16), transparent 70%);
+}
+
+/* ---- Words that wipe in (textfx.ts "wipe") ------------------------------------------
+   Revealed left to right by one custom property, with a thin gold edge riding
+   the reveal. */
+.cx-wipe {
+  position: relative;
+  clip-path: inset(-0.2em calc(100% - var(--wipe, 100%)) -0.2em -0.2em);
+}
+.cx-wipe::after {
+  content: "";
+  position: absolute;
+  top: 0.08em;
+  bottom: 0.08em;
+  left: calc(var(--wipe, 100%) - 2px);
+  width: 2px;
+  background: linear-gradient(180deg, transparent, #fff4d6, var(--cx-gold), transparent);
+  box-shadow: 0 0 12px 2px rgb(242 211 142 / 0.7);
+  opacity: calc(1 - var(--wipe-done, 0));
 }

@@ -13,7 +13,7 @@ export function Scene08YiwuArrival() {
     <div data-cx-scene="yiwu">
       <CitySkyline city={yiwu} alt="Yiwu at night, lit up under a clear sky" />
       <CityCaption city={yiwu}>
-        <p className={`${DISPLAY} mt-4 text-[clamp(20px,2.2vw,32px)] text-(--cx-mute)`}>{CAPTIONS.yiwu.title}</p>
+        <p data-cx-part="line" className={`${DISPLAY} mt-4 text-[clamp(20px,2.2vw,32px)] text-(--cx-mute)`}>{CAPTIONS.yiwu.title}</p>
       </CityCaption>
     </div>
   );

@@ -10,11 +10,15 @@ import { DISPLAY, EYEBROW } from "./parts";
  * 16 The countdown: where the page ends. The time left until COUNTDOWN.target
  * (1 December 2026, midnight IST), live to the second.
  *
+ * A layer inside the final stage (Scene14), not a section of its own: the
+ * stage's scroll timeline (buildCta) carries the call to action into it (15,
+ * into time) and assembles it inside the clock face, so there is no black gap
+ * between them. Its figures are live from the moment the page opens.
+ *
  *  - Real from the first frame: the true time left is drawn before the clock
- *    is ever seen, and it counts from the moment the page opens. As the clock
- *    comes into view it rises into place, already showing the real figures
- *    (never a zero that isn't true). Beneath it, today's date and time in
- *    India, live to the second.
+ *    is ever seen, and it counts from the moment the page opens; the scroll
+ *    reveals it already showing the real figures (never a zero that isn't
+ *    true). Beneath it, today's date and time in India, live to the second.
  *  - Then it ticks: each figure that changes rolls down out of its window
  *    while the next falls in from above (a countdown falls), with a trace of
  *    blur; the colons flash on each second; and a ring around the seconds
@@ -142,7 +146,7 @@ function SecondsRing({ s, motion }: { s: number; motion: Motion }) {
 function Unit({ value, digits, label, motion, ring }: { value: number; digits: number; label: string; motion: Motion; ring?: boolean }) {
   const chars = String(value).padStart(digits, "0").split("");
   return (
-    <div data-cx-hide className="flex flex-col items-center">
+    <div data-cx="cd-unit" data-cx-hide className="flex flex-col items-center">
       <div className="relative flex py-[0.42em]">
         {ring && <SecondsRing s={value} motion={motion} />}
         {chars.map((c, i) => (
@@ -172,7 +176,7 @@ function nowInIndia(at: number): string {
 }
 
 export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnchorElement>) => void }) {
-  const root = useRef<HTMLElement>(null);
+  const root = useRef<HTMLDivElement>(null);
   // The real time left from the first render in the browser. The server
   // can't know when the page will be read, so it draws empty windows (no
   // figures, nothing to mismatch) and the browser fills them with the true
@@ -206,32 +210,7 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
     setMotion(reduce ? "still" : "tick");
     tick();
 
-    // Arrival: the clock rises into place as it comes into view, already
-    // showing the true time left (hidden until then, never shown at zero).
-    const face = root.current?.querySelector<HTMLElement>("[data-cx-clock-face]");
-    let io: IntersectionObserver | null = null;
-    if (face) {
-      io = new IntersectionObserver(
-        (entries) => {
-          if (!entries.some((e) => e.isIntersecting)) return;
-          io?.disconnect();
-          const parts = Array.from(face.children);
-          if (reduce) gsap.set(parts, { autoAlpha: 1 });
-          else
-            gsap.fromTo(
-              parts,
-              { autoAlpha: 0, y: 26, filter: "blur(10px)" },
-              { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 1.1, stagger: 0.08, ease: "power3.out", clearProps: "filter,transform" },
-            );
-        },
-        { threshold: 0.2 },
-      );
-      io.observe(face);
-    }
-    return () => {
-      window.clearTimeout(timer);
-      io?.disconnect();
-    };
+    return () => window.clearTimeout(timer);
   }, []);
 
   // The colons flash with each second.
@@ -246,27 +225,31 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
   // A plain element (not a component made during render), so the same
   // colons stay in the page from second to second and can flash.
   const sep = (
-    <span data-cx-sep data-cx-hide aria-hidden className="cx-cd-sep py-[0.42em]">
-      :
+    <span data-cx="cd-sep" data-cx-hide aria-hidden className="cx-cd-sep py-[0.42em]">
+      {/* The flash is on the colon itself; the scroll reveals its box. */}
+      <span data-cx-sep>:</span>
     </span>
   );
 
   return (
-    <section
+    <div
       ref={root}
       data-cx-countdown
-      aria-labelledby="cx-countdown-title"
-      className="relative flex min-h-[100svh] flex-col items-center justify-center overflow-hidden px-5 pb-24 pt-28 text-center md:pb-28 md:pt-32"
+      className="pointer-events-none absolute inset-0 z-[50] flex flex-col items-center justify-center px-5 pb-[4svh] pt-[10svh] text-center"
     >
-      {/* The warm horizon the final stage leaves at its lower edge, continued. */}
-      <div aria-hidden className="cx-horizon pointer-events-none absolute inset-x-0 top-0 h-[42svh] -scale-y-100" />
-
-      <p className={`${EYEBROW} relative`}>{COUNTDOWN.eyebrow}</p>
-      <h2 id="cx-countdown-title" className={`${DISPLAY} relative mt-4 text-[clamp(34px,8.5vw,48px)] font-normal uppercase leading-none tracking-[0.02em] text-(--cx-white) md:text-[clamp(44px,4.4vw,70px)]`}>
+      <p data-cx="cd-eyebrow" data-cx-hide className={EYEBROW}>
+        {COUNTDOWN.eyebrow}
+      </p>
+      <h2
+        id="cx-countdown-title"
+        data-cx="cd-title"
+        data-cx-hide
+        className={`${DISPLAY} mt-3 text-[clamp(30px,8vw,44px)] font-normal uppercase leading-none tracking-[0.02em] text-(--cx-white) md:mt-4 md:text-[clamp(40px,4vw,64px)]`}
+      >
         {COUNTDOWN.title}
       </h2>
 
-      <div data-cx-clock role="timer" aria-labelledby="cx-countdown-title" className="relative mt-10 md:mt-14">
+      <div data-cx-clock role="timer" aria-labelledby="cx-countdown-title" className="mt-8 md:mt-12">
         <p className="sr-only">{spoken}</p>
         <div data-cx-clock-face aria-hidden className={`${DISPLAY} cx-cd-num flex items-start justify-center`}>
           <Unit value={left.d} digits={dayDigits} label={dL} motion={motion} />
@@ -280,21 +263,23 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
       </div>
 
       {/* Today, live: so the countdown is plainly counting from now. */}
-      <p className="relative mt-8 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-(--cx-mute) md:mt-10">
+      <p data-cx="cd-now" data-cx-hide className="mt-7 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-(--cx-mute) md:mt-9">
         <span className="text-[11px] font-semibold uppercase tracking-[0.3em]">{COUNTDOWN.now}</span>
         <span className="min-h-[1.5em] text-[14px] tabular-nums tracking-[0.02em] text-(--cx-white)/85 md:text-[15px]">{now}</span>
       </p>
 
-      <a
-        href={APPLY_HREF}
-        onClick={onApply}
-        className="group relative mt-12 inline-flex items-center gap-3 rounded-full bg-(--cx-gold) py-3.5 pl-7 pr-3.5 text-[16px] font-semibold text-(--cx-ink) shadow-[0_14px_50px_-12px_rgb(214_168_78/0.75)] transition-colors duration-300 hover:bg-(--cx-gold-hi) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white) md:mt-14 lg:text-[17px]"
-      >
-        {COUNTDOWN.button}
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-(--cx-ink)/10">
-          <ArrowRight size={18} aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5" />
-        </span>
-      </a>
-    </section>
+      <div data-cx="cd-apply" data-cx-hide className="pointer-events-auto mt-9 md:mt-11">
+        <a
+          href={APPLY_HREF}
+          onClick={onApply}
+          className="group inline-flex items-center gap-3 rounded-full bg-(--cx-gold) py-3.5 pl-7 pr-3.5 text-[16px] font-semibold text-(--cx-ink) shadow-[0_14px_50px_-12px_rgb(214_168_78/0.75)] transition-colors duration-300 hover:bg-(--cx-gold-hi) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white) lg:text-[17px]"
+        >
+          {COUNTDOWN.button}
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-(--cx-ink)/10">
+            <ArrowRight size={18} aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5" />
+          </span>
+        </a>
+      </div>
+    </div>
   );
 }

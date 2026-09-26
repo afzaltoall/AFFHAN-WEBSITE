@@ -93,6 +93,8 @@ export function ApplyExperience() {
   const indicatorShown = useRef(false);
   const spin = useRef<gsap.core.Tween | null>(null);
   const introTl = useRef<gsap.core.Timeline | null>(null);
+  /** The step being printed, so a quick Continue can finish it at once. */
+  const enterTl = useRef<gsap.core.Timeline | null>(null);
   const running = useRef(new Set<gsap.core.Animation>());
 
   const track = <T extends gsap.core.Animation>(a: T) => {
@@ -242,9 +244,11 @@ export function ApplyExperience() {
     if (phase !== "form") return;
     const view = root.current?.querySelector<HTMLElement>("[data-ax-view='step']");
     if (!view) return;
-    const tl = track(gsap.timeline({ onComplete: () => void (busy.current = false) }));
+    const tl = track(gsap.timeline());
+    enterTl.current = tl;
     if (reduce.current) {
       tl.fromTo(view, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
+      tl.call(() => void (busy.current = false), [], 0.15);
     } else {
       const fwd = dir.current > 0;
       const rows = stepRows(view);
@@ -262,14 +266,17 @@ export function ApplyExperience() {
         const t = fwd ? depth[i] : 1 - depth[i];
         tl.fromTo(row, { autoAlpha: 0, y: fwd ? 18 : -18, filter: "blur(6px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 0.6, ease: "expo.out", clearProps: "transform,filter" }, 0.03 + t * PRINT * 0.9);
       });
+      // Ready for the next click once the first lines are down; a Continue
+      // pressed during the print finishes it at once (go, below).
+      tl.call(() => void (busy.current = false), [], Math.min(0.5, PRINT * 0.55));
     }
     if (!indicatorShown.current) {
       indicatorShown.current = true;
       tl.fromTo([$("indicator"), $("step-head")], { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.08, ease: "power2.out" }, 0);
     }
-    // The new step's title takes focus (it is always on screen), so keyboards
-    // and readers start there.
-    tl.call(() => document.getElementById("ax-step-title")?.focus({ preventScroll: true }), [], 0.05);
+    // The new step's title takes focus, once it can be seen (hidden things
+    // can't take focus; on the first step the heading is still fading in).
+    tl.call(() => document.getElementById("ax-step-title")?.focus({ preventScroll: true }), [], 0.3);
     return () => void tl.kill();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, step]);
@@ -284,6 +291,8 @@ export function ApplyExperience() {
   const go = async (to: number, editingNext = false) => {
     if (busy.current || to === step) return;
     busy.current = true;
+    // A step still being printed is finished at once (no callbacks fire).
+    enterTl.current?.progress(1).kill();
     const from = step;
     const fwd = to > from;
     dir.current = fwd ? 1 : -1;

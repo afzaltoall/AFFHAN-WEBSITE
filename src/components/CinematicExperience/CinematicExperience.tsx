@@ -38,9 +38,9 @@ import { Scene11WhatsIncluded } from "./Scene11WhatsIncluded";
 import { Scene12HowItWorks } from "./Scene12HowItWorks";
 import { Scene13Terms } from "./Scene13Terms";
 import { Scene14FinalCta } from "./Scene14FinalCta";
-import { Scene16Countdown } from "./Scene16Countdown";
 import { FilmImage } from "./parts";
 import { Starfield } from "./Starfield";
+import { revertTextFx } from "./textfx";
 import { WarpField } from "./warp";
 import { WarpToYiwu } from "./WarpToYiwu";
 
@@ -49,7 +49,8 @@ import { WarpToYiwu } from "./WarpToYiwu";
  *
  * Page order: the film (a pinned stage, chapters 01–11) -> How it works ->
  * Terms & Conditions -> the final call to action (a second pinned stage,
- * 14–15) -> the countdown (16), where the page ends: no footer. Every "Apply
+ * 14–16: the call, then into time, then the countdown, all in the one
+ * stage) -> the end of the page: no footer. Every "Apply
  * for the Trip" opens the application, its own page (/free-china-trip/apply/),
  * through goApply's transition. It mounts below
  * the site's navbar, which it does not touch: the page is padded 64px for
@@ -290,7 +291,7 @@ export function CinematicExperience() {
         if (reduce) buildFilmReduced(film, stage, desktop, { onProgress });
         else buildFilm(film, stage, desktop, particles, { onProgress, starsDim, warp: warp ? (p) => warp.render(p) : undefined });
         buildSteps(steps, desktop, reduce);
-        buildCta(cta, ctaStage, desktop, reduce);
+        buildCta(cta, ctaStage, desktop, reduce, starsDim);
 
         ScrollTrigger.refresh();
         // Web fonts change the height of the text sections, and so where the
@@ -301,6 +302,7 @@ export function CinematicExperience() {
           ScrollTrigger.removeEventListener("refresh", relayout);
           particles?.clear();
           warp?.clear();
+          revertTextFx();
           if (tick) gsap.ticker.remove(tick);
           lenis?.destroy();
           lenisRef.current = null;
@@ -392,7 +394,6 @@ export function CinematicExperience() {
       <div data-cx-scene="cta">
         <Scene14FinalCta onApply={goApply} />
       </div>
-      <Scene16Countdown onApply={goApply} />
     </div>
   );
 }

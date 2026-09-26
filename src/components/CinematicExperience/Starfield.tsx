@@ -8,21 +8,28 @@ import { useEffect, useRef, type CSSProperties } from "react";
  * One fixed layer under every section, so the sky stays put while the story
  * scrolls past it (the stages and sections above it are transparent where the
  * sky should show; Terms keeps a near-opaque ground, for reading). Built to
- * cost nothing while nobody is looking at it:
+ * cost next to nothing:
  *
  *  - The small stars are drawn ONCE into three canvases (far, and two middle
  *    layers) and redrawn only when the width changes. No animation loop.
- *  - They twinkle because the two middle layers fade in and out of phase with
- *    each other: CSS opacity, which the compositor runs off the main thread.
- *  - A handful of bright stars with a soft cross, and two shooting stars on
- *    long, uneven cycles: also CSS, transform and opacity only.
+ *  - The two middle layers fade in and out of phase with each other (CSS
+ *    opacity, run by the compositor off the main thread).
+ *  - Seventy stars blink on their own: each one scintillates on its own
+ *    rhythm (a flare, a flicker, a fade), some with a four-point sparkle, in
+ *    warm white, pale gold or a cool blue-white. Also CSS, transform and
+ *    opacity only.
+ *  - Two dozen bright stars sparkle, and four shooting stars cross on long,
+ *    uneven cycles.
  *  - Depth: animations.ts drifts the layers at different speeds as the page
- *    scrolls (buildStars), dims the sky under the FREE reveal, and slides the
- *    whole sky up with the end of the page so it never covers the footer.
+ *    scrolls (buildStars) and dims the sky under the jump, the FREE reveal
+ *    and the countdown; and with a mouse the sky leans gently with the
+ *    pointer, the far stars least and the bright ones most (it moves only
+ *    while the pointer does; never on touch).
  *
- * Reduced motion: the stars are drawn and simply stay still (cinematic.css).
- * Every position comes from a seeded generator, so the sky is the same on
- * every visit, and the server and browser render the same bright stars.
+ * Reduced motion: the stars are drawn and simply stay still (cinematic.css),
+ * and the sky does not follow the pointer. Every position comes from a
+ * seeded generator, so the sky is the same on every visit, and the server
+ * and browser render the same stars.
  */
 
 function mulberry32(seed: number) {
@@ -81,7 +88,7 @@ function paint(canvas: HTMLCanvasElement, w: number, h: number, dpr: number, lay
   }
 }
 
-/** The bright stars: fixed positions (as % of the screen), size, twinkle timing. */
+/** The bright stars: fixed positions (as % of the screen), size, sparkle timing. */
 const BRIGHT = (() => {
   const rnd = mulberry32(2026);
   return Array.from({ length: 24 }, (_, i) => ({
@@ -94,10 +101,26 @@ const BRIGHT = (() => {
   }));
 })();
 
-/** Two shooting stars, on long cycles that never line up. */
+/** The blinking stars: each its own place, size, colour and rhythm. */
+const BLINKS = (() => {
+  const rnd = mulberry32(1201);
+  return Array.from({ length: 70 }, (_, i) => ({
+    left: 1 + rnd() * 98,
+    top: 2 + rnd() * 94,
+    size: 1.6 + Math.pow(rnd(), 1.6) * 2.4,
+    dur: 2.6 + rnd() * 4.4,
+    delay: -rnd() * 7,
+    color: tint(rnd()).split(",").join(" "),
+    cross: i % 5 === 0,
+  }));
+})();
+
+/** Four shooting stars, on long cycles that never line up. */
 const SHOOTING = [
   { x: "18%", y: "14%", rot: "24deg", len: "38vw", dur: "13s", delay: "4s" },
   { x: "70%", y: "10%", rot: "148deg", len: "30vw", dur: "19s", delay: "11s" },
+  { x: "6%", y: "34%", rot: "12deg", len: "26vw", dur: "17s", delay: "8s" },
+  { x: "86%", y: "24%", rot: "166deg", len: "34vw", dur: "23s", delay: "16s" },
 ] as const;
 
 export function Starfield() {
@@ -129,47 +152,97 @@ export function Starfield() {
       timer = window.setTimeout(draw, 180);
     };
 
+    // The sky leans with the pointer: each depth by its own amount, eased,
+    // and only while there is somewhere to ease to (no loop at rest).
+    const depths = Array.from(root.querySelectorAll<HTMLElement>("[data-depth]"));
+    const lean = window.matchMedia("(pointer: fine)").matches && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    const target = { x: 0, y: 0 };
+    const now = { x: 0, y: 0 };
+    const step = () => {
+      now.x += (target.x - now.x) * 0.06;
+      now.y += (target.y - now.y) * 0.06;
+      for (const el of depths) {
+        const d = Number(el.dataset.depth);
+        el.style.transform = `translate3d(${(now.x * d).toFixed(2)}px, ${(now.y * d).toFixed(2)}px, 0)`;
+      }
+      raf = Math.abs(target.x - now.x) + Math.abs(target.y - now.y) > 0.002 ? requestAnimationFrame(step) : 0;
+    };
+    const onPointer = (e: PointerEvent) => {
+      target.x = e.clientX / window.innerWidth - 0.5;
+      target.y = e.clientY / window.innerHeight - 0.5;
+      if (!raf) raf = requestAnimationFrame(step);
+    };
+
     draw();
     window.addEventListener("resize", onResize);
+    if (lean) window.addEventListener("pointermove", onPointer, { passive: true });
     return () => {
       window.clearTimeout(timer);
       window.removeEventListener("resize", onResize);
+      window.removeEventListener("pointermove", onPointer);
+      cancelAnimationFrame(raf);
     };
   }, []);
 
   return (
     <div ref={ref} data-cx="stars" aria-hidden className="cx-stars pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      {/* Dimmed by the film under the FREE reveal; the root itself fades in and follows the page end. */}
+      {/* Dimmed by the film (the jump, FREE) and the countdown; the root itself fades in and follows the page end. */}
       <div data-cx="stars-dim" className="absolute inset-0">
-      {/* Calmed while the application is on screen: fewer bright points behind the fields. */}
-      <div data-cx="stars-calm" className="absolute inset-0">
-      <canvas data-layer="far" data-cx="stars-far" className="cx-stars-layer" />
-      <canvas data-layer="mid" data-cx="stars-mid" className="cx-stars-layer cx-twinkle-a" />
-      <canvas data-layer="mid" data-cx="stars-mid2" className="cx-stars-layer cx-twinkle-b" />
-      <div data-cx="stars-bright" className="cx-stars-layer">
-        {BRIGHT.map((s, i) => (
-          <span
-            key={i}
-            className="cx-star"
-            data-cross={s.cross ? "" : undefined}
-            style={{
-              left: `${s.left.toFixed(2)}%`,
-              top: `${(s.top / OVERSCAN).toFixed(2)}%`,
-              "--s": `${s.size.toFixed(1)}px`,
-              "--dur": `${s.dur.toFixed(2)}s`,
-              "--delay": `${s.delay.toFixed(2)}s`,
-            } as CSSProperties}
-          />
-        ))}
-      </div>
-      {SHOOTING.map((s, i) => (
-        <span
-          key={i}
-          className="cx-shoot"
-          style={{ "--x": s.x, "--y": s.y, "--rot": s.rot, "--len": s.len, "--dur": s.dur, "--delay": s.delay } as CSSProperties}
-        />
-      ))}
-      </div>
+        <div data-cx="stars-calm" className="absolute inset-0">
+          {/* Far: leans least. */}
+          <div data-depth="5" className="absolute inset-0">
+            <canvas data-layer="far" data-cx="stars-far" className="cx-stars-layer" />
+          </div>
+          {/* Middle: the two twinkling layers and the blinking stars. */}
+          <div data-depth="10" className="absolute inset-0">
+            <canvas data-layer="mid" data-cx="stars-mid" className="cx-stars-layer cx-twinkle-a" />
+            <canvas data-layer="mid" data-cx="stars-mid2" className="cx-stars-layer cx-twinkle-b" />
+            <div data-cx="stars-blink" className="cx-stars-layer">
+              {BLINKS.map((s, i) => (
+                <span
+                  key={i}
+                  className="cx-blink"
+                  data-cross={s.cross ? "" : undefined}
+                  style={{
+                    left: `${s.left.toFixed(2)}%`,
+                    top: `${(s.top / OVERSCAN).toFixed(2)}%`,
+                    "--s": `${s.size.toFixed(2)}px`,
+                    "--c": s.color,
+                    "--dur": `${s.dur.toFixed(2)}s`,
+                    "--delay": `${s.delay.toFixed(2)}s`,
+                  } as CSSProperties}
+                />
+              ))}
+            </div>
+          </div>
+          {/* Near: the bright stars and the shooting stars lean most. */}
+          <div data-depth="16" className="absolute inset-0">
+            <div data-cx="stars-bright" className="cx-stars-layer">
+              {BRIGHT.map((s, i) => (
+                <span
+                  key={i}
+                  className="cx-star"
+                  data-cross={s.cross ? "" : undefined}
+                  style={{
+                    left: `${s.left.toFixed(2)}%`,
+                    top: `${(s.top / OVERSCAN).toFixed(2)}%`,
+                    "--s": `${s.size.toFixed(1)}px`,
+                    "--dur": `${s.dur.toFixed(2)}s`,
+                    "--delay": `${s.delay.toFixed(2)}s`,
+                  } as CSSProperties}
+                />
+              ))}
+            </div>
+            {SHOOTING.map((s, i) => (
+              <span
+                key={i}
+                className="cx-shoot"
+                style={{ "--x": s.x, "--y": s.y, "--rot": s.rot, "--len": s.len, "--dur": s.dur, "--delay": s.delay } as CSSProperties}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

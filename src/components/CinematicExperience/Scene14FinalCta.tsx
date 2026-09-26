@@ -5,6 +5,7 @@ import { APPLY_HREF, FINAL_CTA } from "./content";
 import { GoldDust } from "./GoldDust";
 import { DISPLAY, FilmImage } from "./parts";
 import { Scene15CtaToCountdown } from "./Scene15CtaToCountdown";
+import { Scene16Countdown } from "./Scene16Countdown";
 
 /**
  * 14 Final call to action, presented by the host.
@@ -84,6 +85,7 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
         </div>
 
         <Scene15CtaToCountdown />
+        <Scene16Countdown onApply={onApply} />
       </div>
     </section>
   );

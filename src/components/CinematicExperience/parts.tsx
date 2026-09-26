@@ -92,8 +92,8 @@ export function Caption({
 }) {
   return (
     <div data-cx={cx} data-cx-hide className={`pointer-events-none absolute z-40 max-w-[min(34rem,88vw)] ${className}`}>
-      <p className={EYEBROW}>{eyebrow}</p>
-      <p className={`${DISPLAY} mt-3 text-balance text-[clamp(30px,4.2vw,64px)] leading-[1.02] tracking-[-0.01em] text-(--cx-white)`}>
+      <p data-cx-part="eyebrow" className={EYEBROW}>{eyebrow}</p>
+      <p data-cx-part="title" className={`${DISPLAY} mt-3 text-balance text-[clamp(30px,4.2vw,64px)] leading-[1.02] tracking-[-0.01em] text-(--cx-white)`}>
         {title}
       </p>
       {children}

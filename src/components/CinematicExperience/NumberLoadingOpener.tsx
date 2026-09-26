@@ -136,7 +136,8 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
     const numerals = root.querySelector<HTMLElement>("[data-count-numerals]");
     const caption = root.querySelector<HTMLElement>("[data-count-caption]");
     const glow = root.querySelector<HTMLElement>("[data-count-glow]");
-    if (!tens || !units || !hundred || !group || !ring || !numerals || !caption || !glow) return;
+    const sweep = root.querySelector<HTMLElement>("[data-count-sweep]");
+    if (!tens || !units || !hundred || !group || !ring || !numerals || !caption || !glow || !sweep) return;
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const tweens: Array<gsap.core.Animation> = [];
@@ -230,30 +231,37 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
       const tl = gsap.timeline({ onComplete: () => setGone(true) });
       tweens.push(tl);
       if (reduce) {
+        // 100, held long enough to read, then the black simply fades.
         gsap.set(group, { xPercent: 0 });
         tl.add(() => {
           unlock();
           reveal.current();
-        }, 0.35);
-        tl.to(root, { autoAlpha: 0, duration: 0.6, ease: "power1.out" }, 0.35);
+        }, 0.7);
+        tl.to(root, { autoAlpha: 0, duration: 0.6, ease: "power1.out" }, 0.7);
         return;
       }
-      // The "1" resolves on the left as the row settles to centre.
-      tl.to(group, { xPercent: 0, duration: 0.42, ease: "power3.out" }, 0);
-      tl.fromTo(hundred, { autoAlpha: 0, filter: "blur(6px)" }, { autoAlpha: 1, filter: "blur(0px)", duration: 0.42, ease: "power2.out" }, 0);
-      tl.fromTo(glow, { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 0.9, scale: 1, duration: 0.4, ease: "power2.out" }, 0.06);
-      tl.to(glow, { autoAlpha: 0, scale: 1.6, duration: 0.7, ease: "power2.in" }, 0.5);
-      // The ring gives a last turn, flares and opens outwards...
-      tl.to(ring, { rotation: "+=14", duration: 0.38, ease: "power2.out" }, 0);
-      tl.to(ring, { scale: 3, opacity: 0, duration: 0.95, ease: "power2.in" }, 0.42);
-      tl.to(caption, { autoAlpha: 0, duration: 0.3 }, 0.36);
-      tl.to(numerals, { scale: 1.1, autoAlpha: 0, filter: "blur(12px)", duration: 0.6, ease: "power2.in" }, 0.5);
-      // ...and the black opens from the centre behind it, onto the hero.
-      tl.fromTo(root, { "--hole": "-18vmax" }, { "--hole": "150vmax", duration: 1.1, ease: "power2.inOut" }, 0.5);
+      // 100 ARRIVES: the "1" drops into its window as the row settles to the
+      // centre, the ring takes its last turn.
+      tl.to(group, { xPercent: 0, duration: 0.5, ease: "power3.out" }, 0);
+      tl.fromTo(hundred, { autoAlpha: 0, yPercent: -70, filter: "blur(8px)" }, { autoAlpha: 1, yPercent: 0, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, 0);
+      tl.to(ring, { rotation: "+=18", duration: 0.7, ease: "power2.out" }, 0);
+      // ...AND HOLDS, LIT: the warm glow swells behind it and a band of light
+      // crosses the figures (colour-dodge: it only brightens the gold).
+      tl.fromTo(glow, { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 0.95, scale: 1, duration: 0.55, ease: "power2.out" }, 0.08);
+      tl.fromTo(sweep, { xPercent: -130, autoAlpha: 1 }, { xPercent: 330, duration: 0.75, ease: "power2.inOut" }, 0.38);
+      tl.set(sweep, { autoAlpha: 0 }, 1.13);
+      // THEN IT OPENS: the ring flares outwards, the figures lift and blur,
+      // and the black opens from the centre behind them, onto the hero.
+      const OPEN = 1.1;
+      tl.to(caption, { autoAlpha: 0, duration: 0.3 }, OPEN - 0.2);
+      tl.to(ring, { scale: 3, opacity: 0, duration: 0.95, ease: "power2.in" }, OPEN - 0.1);
+      tl.to(glow, { autoAlpha: 0, scale: 1.6, duration: 0.7, ease: "power2.in" }, OPEN);
+      tl.to(numerals, { scale: 1.08, autoAlpha: 0, filter: "blur(12px)", duration: 0.6, ease: "power2.in" }, OPEN);
+      tl.fromTo(root, { "--hole": "-18vmax" }, { "--hole": "150vmax", duration: 1.1, ease: "power2.inOut" }, OPEN);
       tl.add(() => {
         unlock();
         reveal.current();
-      }, 0.6);
+      }, OPEN + 0.1);
     };
 
     /** Take the reels over from the stylesheet and finish its curve to 100. */
@@ -331,6 +339,8 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
 
       {/* The numerals: three fixed-width slots, so nothing shifts as they change. */}
       <div data-count-numerals className={`${DISPLAY} cx-count-num relative`}>
+        {/* The light that crosses 100 as it holds (colour-dodge: black stays black). */}
+        <span data-count-sweep aria-hidden className="cx-sweep pointer-events-none absolute inset-y-[-12%] left-0 z-10 w-[42%] opacity-0" />
         <div className="cx-count-enter">
           <span data-count-group className="cx-count-group">
             <span data-count-hundred className="cx-count-slot cx-count-ink" />

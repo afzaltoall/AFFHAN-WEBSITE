@@ -3,6 +3,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { GatherField } from "./particles";
 import { ROUTE_POINTS } from "./Scene05Globe";
 import { warpTravel } from "./warp";
+import { SplitText } from "gsap/SplitText";
+import { textIn, type TextFx } from "./textfx";
 
 /**
  * Every timeline on /free-china-trip/, and nothing else.
@@ -16,8 +18,8 @@ import { warpTravel } from "./warp";
  *      cities), is continuous; there is no seam between sections to hide.
  *   2. HOW IT WORKS (buildSteps): not pinned; gold fills the line joining the
  *      three steps as the section passes.
- *   3. THE FINAL CALL TO ACTION (buildCta): the second pinned stage, the host,
- *      then the beat that carries you on to the countdown (chapters 14–15).
+ *   3. THE FINAL CALL TO ACTION (buildCta): the second pinned stage: the host
+ *      and the call, then into time, then the countdown (14–16).
  *
  * PINNING is CSS position: sticky, not ScrollTrigger's pin. The stage is a
  * sticky child of a tall section whose height is the length of the scroll:
@@ -114,8 +116,25 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   // how far through `film` the page is and scrubs every chapter below.
   const tl = pinnedTimeline(film, FILM_END, 0.6, { onUpdate: (self) => hooks.onProgress(self.progress * FILM_END, self.progress) });
 
-  const caption = (key: string, inAt: number, outAt: number) => {
-    tl.fromTo($(key), { autoAlpha: 0, y: 26, filter: "blur(8px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.32 }, inAt);
+  /**
+   * A chapter's caption. Named effects (textfx.ts) give each its own entrance,
+   * like the lines of a title sequence: {part: effect}, parts being the
+   * data-cx-part names inside it. Without them it fades up out of a blur.
+   */
+  const caption = (key: string, inAt: number, outAt: number, fx?: Record<string, TextFx | "fade">) => {
+    const [box] = $(key);
+    if (!fx || !box) {
+      tl.fromTo($(key), { autoAlpha: 0, y: 26, filter: "blur(8px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.32 }, inAt);
+    } else {
+      tl.fromTo(box, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.06 }, inAt);
+      const span = Math.min(0.6, (outAt - inAt) * 0.62);
+      Object.entries(fx).forEach(([part, effect], i) => {
+        const el = box.querySelector(`[data-cx-part="${part}"]`);
+        const at = inAt + i * 0.08;
+        if (effect === "fade") tl.fromTo(el, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.3 }, at);
+        else textIn(tl, el, effect, at, part === "eyebrow" || part === "coords" ? Math.min(0.4, span) : span);
+      });
+    }
     tl.to($(key), { autoAlpha: 0, y: -18, filter: "blur(6px)", ease: "power1.in", duration: 0.25 }, outAt);
   };
 
@@ -144,7 +163,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("silk-front"), { autoAlpha: 0, x: X(95, 120), y: vh(-30), rotation: 10, scale: 0.9 },
     { autoAlpha: 0.6, x: X(-5, -10), y: vh(-30), rotation: -4, scale: 0.85, ease: "power1.inOut", duration: 0.9 }, 1.0);
   tl.to($("silk-front"), { x: X(-110, -150), y: vh(-34), rotation: -10, autoAlpha: 0, ease: "power1.in", duration: 0.55 }, 1.9);
-  caption("cap-passport", 1.15, 2.0);
+  caption("cap-passport", 1.15, 2.0, { eyebrow: "words", title: "rise" });
 
   // ---- 03 BOARDING PASS: small behind the passport, then the hero ------------
   tl.fromTo($("boarding"), { autoAlpha: 0, scale: 0.34, x: X(24, 22), y: vh(-20), rotation: 9, rotationY: -26, filter: "blur(10px)" },
@@ -155,7 +174,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   // The light sweep across the paper.
   tl.fromTo($("boarding-sweep"), { xPercent: -110 }, { xPercent: 110, ease: "power1.inOut", duration: 0.7 }, 2.55);
   tl.to($("boarding"), { autoAlpha: 0, scale: 0.72, x: X(30, 40), y: vh(-26), rotation: 7, filter: "blur(10px)", ease: "power2.in", duration: 0.6 }, 3.6);
-  caption("cap-boarding", 2.6, 3.5);
+  caption("cap-boarding", 2.6, 3.5, { eyebrow: "scramble", title: "scramble" });
 
   // ---- 04 AIRPLANE: enters from below left, becomes the hero, carries on ----
   tl.fromTo($("plane"), { autoAlpha: 0, scale: 0.36, x: X(-46, -60), y: vh(36), rotation: -5, filter: "blur(12px)" },
@@ -174,7 +193,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("gold-back"), { autoAlpha: 0, x: X(-60, -80), y: vh(30), rotation: -18, scale: 0.8 },
     { autoAlpha: 0.85, x: X(-34, -44), y: vh(14), rotation: -14, scale: 0.95, ease: "power1.out", duration: 0.8 }, 3.3);
   tl.to($("gold-back"), { x: X(-26, -34), y: vh(8), rotation: -12, duration: 1.0 }, 4.1);
-  caption("cap-plane", 3.9, 4.9);
+  caption("cap-plane", 3.9, 4.9, { eyebrow: "words", title: "rush" });
   tl.to($("haze-crimson"), { autoAlpha: 0, duration: 0.6 }, 4.4);
   tl.fromTo($("haze-deep"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 4.4);
 
@@ -198,7 +217,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.to($("route-head"), { opacity: 0, duration: 0.1 }, 6.2);
   tl.fromTo($("route-end-b"), { opacity: 0, scale: 0.4, transformOrigin: "50% 50%" }, { opacity: 1, scale: 1, duration: 0.2 }, 6.15);
   tl.fromTo($("route-label-b"), { autoAlpha: 0, x: -8 }, { autoAlpha: 1, x: 0, duration: 0.25 }, 6.15);
-  caption("cap-globe", 5.3, 6.35);
+  caption("cap-globe", 5.3, 6.35, { eyebrow: "words", title: "flip" });
   // Push into China. Zooming about a point off-centre is scale plus the
   // translate that keeps the point still: -(s1 - s0) x its offset from centre
   // (China is 12% right of and 19% above the globe's centre).
@@ -218,7 +237,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("gold-front"), { autoAlpha: 0, x: X(-130, -170), y: vh(-30), rotation: 12, scale: 1 },
     { autoAlpha: 0.9, x: X(0, -10), y: vh(-26), rotation: 2, scale: 1, ease: "power2.out", duration: 0.55 }, 6.35);
   tl.to($("gold-front"), { x: X(130, 170), y: vh(-22), rotation: -8, autoAlpha: 0, ease: "power2.in", duration: 0.55 }, 6.9);
-  caption("cap-map", 7.2, 8.2);
+  caption("cap-map", 7.2, 8.2, { eyebrow: "words", title: "wipe" });
   // Dive into the Shanghai marker (30% right of centre): the city pass starts there.
   tl.to($("map"), { scale: 3.6, xPercent: -(3.6 - 1.05) * 30, autoAlpha: 0, filter: "blur(10px)", ease: "power2.in", duration: 0.8 }, 8.35);
 
@@ -231,7 +250,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
       { autoAlpha: 1, scale: d ? 0.94 : 1, x: rest, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.8 }, at);
     tl.to($(`city-${key}`), { scale: d ? 1.06 : 1.12, x: glide, duration: 0.5 }, at + 0.8);
     tl.to($(`city-${key}`), { scale: exitScale, x: exit, y: vh(4), autoAlpha: 0, filter: "blur(16px)", ease: "power2.in", duration: 0.6 }, at + 1.3);
-    caption(`cap-${key}`, at + 0.5, at + 1.3);
+    caption(`cap-${key}`, at + 0.5, at + 1.3, { hanzi: "fade", coords: "scramble", name: "track" });
   };
   city("shanghai", 8.5, X(19, 37), X(2, 0), X(-3, -4), X(-46, -60));
   city("beijing", 9.6, X(14, 20), X(-1, 0), X(-5, -5), X(-50, -64));
@@ -278,7 +297,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("city-yiwu"), { autoAlpha: 0, scale: 0.06, x: 0, y: vh(-3), filter: "blur(20px) brightness(1.6)" },
     { autoAlpha: 1, scale: d ? 0.98 : 1.06, y: 0, filter: "blur(0px) brightness(1)", ease: "expo.out", duration: 1.0 }, 12.8);
   tl.to($("city-yiwu"), { scale: d ? 1.1 : 1.18, y: vh(1), duration: 1.05 }, 13.8);
-  caption("cap-yiwu", 13.5, 14.6);
+  caption("cap-yiwu", 13.5, 14.6, { hanzi: "fade", coords: "scramble", name: "track", line: "type" });
 
   // ---- 09 HOTEL: darken, gold, silk, then the hotel ---------------------------------
   tl.fromTo($("veil"), { autoAlpha: 0 }, { autoAlpha: 0.6, duration: 0.6 }, 14.55);
@@ -297,7 +316,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("hotel-glow"), { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 0.9, scale: 1, duration: 0.9 }, 15.4);
   tl.to($("haze-crimson"), { autoAlpha: 0, duration: 0.6 }, 15.1);
   tl.to($("haze-warm"), { autoAlpha: 1, duration: 0.6 }, 15.1);
-  caption("cap-hotel", 15.65, 16.7);
+  caption("cap-hotel", 15.65, 16.7, { eyebrow: "words", title: "words" });
 
   // ---- 10 FREE: everything goes dark; particles gather; the word resolves --
   tl.to($("hotel"), { autoAlpha: 0, scale: 1.14, filter: "blur(12px)", ease: "power2.in", duration: 0.6 }, 16.9);
@@ -425,12 +444,13 @@ export function buildSteps(section: HTMLElement, desktop: boolean, reduced: bool
 }
 
 /* =============================================================================
- * 3. THE FINAL CALL TO ACTION — second pinned stage, chapters 14–15
+ * 3. THE FINAL CALL TO ACTION — second pinned stage: the call (14), into
+ *    time (15) and the countdown (16), where the page ends
  * ============================================================================= */
-export const CTA_END = 3.4;
-const CTA_REDUCED_END = 2.2;
+export const CTA_END = 5.6;
+const CTA_REDUCED_END = 3.2;
 
-export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: boolean, reduced: boolean) {
+export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: boolean, reduced: boolean, starsDim?: HTMLElement | null) {
   const $ = picker(stage);
   const X = (desk: number, phone: number) => `${desktop ? desk : phone}vw`;
   const END = reduced ? CTA_REDUCED_END : CTA_END;
@@ -447,8 +467,13 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
     tl.to($("cta-bg"), { autoAlpha: 0, duration: 0.3 }, 0);
     tl.fromTo($("cta-dust", "cta-silk", "cta-gold", "cta-host"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 0.1);
     tl.fromTo($("cta-headline", "cta-line", "cta-button", "cta-note"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 0.45);
-    tl.fromTo($("cta-dark"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.6);
-    tl.fromTo($("cta-horizon"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.2 }, 1.85);
+    // 15–16: the call gives way to the countdown, in place.
+    tl.to($("cta-host", "cta-headline", "cta-line", "cta-button", "cta-note"), { autoAlpha: 0, duration: 0.3 }, 1.6);
+    tl.fromTo($("time-ground"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.7);
+    tl.fromTo($("time-ring"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.8);
+    tl.set($("time-arc"), { strokeDashoffset: 0 }, 1.8);
+    tl.set($("time-tick"), { opacity: 1 }, 1.8);
+    tl.fromTo($("cd-eyebrow", "cd-title", "cd-unit", "cd-sep", "cd-now", "cd-apply"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 2.0);
     return tl;
   }
 
@@ -463,21 +488,45 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
   tl.fromTo($("cta-host"), { autoAlpha: 0, scale: 0.9, y: "3vh", filter: "blur(10px)", transformOrigin: "50% 100%" },
     { autoAlpha: 1, scale: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.85 }, 0.35);
   // Just after he settles, the offer appears by his open hand.
-  tl.fromTo($("cta-headline"), { autoAlpha: 0, scale: 0.96, filter: "blur(10px)", transformOrigin: "0% 50%" },
-    { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.45 }, 1.15);
-  tl.fromTo($("cta-line"), { autoAlpha: 0, y: 14, filter: "blur(6px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.4 }, 1.3);
+  tl.set($("cta-headline"), { autoAlpha: 1 }, 1.15);
+  textIn(tl, $("cta-headline")[0], "rise", 1.15, 0.5);
+  tl.fromTo($("cta-headline"), { scale: 0.96, filter: "blur(6px)", transformOrigin: "0% 50%" },
+    { scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.45 }, 1.15);
+  tl.set($("cta-line"), { autoAlpha: 1 }, 1.3);
+  textIn(tl, $("cta-line")[0], "words", 1.3, 0.45);
   tl.fromTo($("cta-button"), { autoAlpha: 0, scale: 0.9, filter: "blur(8px)", transformOrigin: "0% 50%" },
     { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.4 }, 1.45);
   tl.fromTo($("cta-note"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.6);
 
-  // 15: CTA -> countdown. The button swells, gold floods out, the frame goes
-  // dark, and a horizon of warm light is left for the countdown to pick up.
+  // 15: INTO TIME. The button swells and its gold floods the frame; the
+  // frame warms instead of going dark; the call dissolves; the silk settles
+  // low and the gold trail curls into an orbit; the sky quiets.
   tl.to($("cta-button"), { scale: 1.08, ease: "power1.inOut", duration: 0.4 }, 2.4);
-  tl.fromTo($("cta-flood"), { autoAlpha: 0, scale: 0.15 }, { autoAlpha: 1, scale: 3.6, ease: "power2.in", duration: 0.55 }, 2.5);
-  tl.to($("cta-host", "cta-headline", "cta-line", "cta-note"), { autoAlpha: 0, filter: "blur(10px)", duration: 0.4 }, 2.6);
-  tl.to($("cta-silk", "cta-gold"), { autoAlpha: 0, duration: 0.4 }, 2.6);
-  tl.fromTo($("cta-dark"), { autoAlpha: 0 }, { autoAlpha: 1, ease: "power1.in", duration: 0.4 }, 2.85);
-  tl.fromTo($("cta-horizon"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 3.05);
+  tl.fromTo($("cta-flood"), { autoAlpha: 0, scale: 0.15 }, { autoAlpha: 1, scale: 2.8, ease: "power2.in", duration: 0.55 }, 2.5);
+  tl.to($("cta-flood"), { autoAlpha: 0, scale: 3.6, ease: "power1.out", duration: 0.6 }, 3.05);
+  tl.fromTo($("time-ground"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 2.85);
+  tl.to($("cta-host", "cta-headline", "cta-line", "cta-note", "cta-button"), { autoAlpha: 0, filter: "blur(10px)", duration: 0.4 }, 2.6);
+  tl.to($("cta-silk"), { x: X(-6, -10), y: "9vh", rotation: -3, autoAlpha: 0.8, ease: "power2.inOut", duration: 1.0 }, 2.7);
+  tl.to($("cta-gold"), { rotation: 16, scale: 1.12, autoAlpha: 0.55, ease: "power2.inOut", duration: 1.2 }, 2.7);
+  if (starsDim) tl.to(starsDim, { opacity: 0.55, duration: 0.6 }, 2.7);
+  // A clock face pulls in from beyond the screen, turning; its ticks light in turn.
+  tl.fromTo($("time-ring"), { autoAlpha: 0, scale: 3.4, rotation: -40 }, { autoAlpha: 1, scale: 1, rotation: 0, ease: "power3.out", duration: 1.1 }, 2.95);
+  tl.fromTo($("time-arc"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, ease: "power2.inOut", duration: 0.9 }, 3.1);
+  tl.fromTo($("time-tick"), { opacity: 0 }, { opacity: 1, duration: 0.12, stagger: 0.012 }, 3.15);
+
+  // 16: THE COUNTDOWN assembles inside it: the date, then each figure out of
+  // the camera (large and blurred, to its place), then today in India and
+  // the way in. The figures are live already (Scene16Countdown).
+  tl.set($("cd-eyebrow", "cd-title"), { autoAlpha: 1 }, 3.45);
+  textIn(tl, $("cd-eyebrow")[0], "type", 3.45, 0.3);
+  textIn(tl, $("cd-title")[0], "scramble", 3.5, 0.5);
+  tl.fromTo($("cd-unit"), { autoAlpha: 0, scale: 1.7, filter: "blur(16px)" }, { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power3.out", duration: 0.6, stagger: 0.16 }, 3.7);
+  tl.fromTo($("cd-sep"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, stagger: 0.16 }, 3.85);
+  tl.fromTo($("cd-now"), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.4 }, 4.35);
+  tl.fromTo($("cd-apply"), { autoAlpha: 0, y: 16, scale: 0.94 }, { autoAlpha: 1, y: 0, scale: 1, ease: "power2.out", duration: 0.45 }, 4.5);
+  // Then it holds on the live clock, the face still turning slowly with the scroll.
+  tl.to($("time-ring"), { rotation: 14, ease: "none", duration: 1.55 }, 4.05);
+  tl.to($("cta-gold"), { rotation: 26, ease: "none", duration: 1.55 }, 4.05);
   return tl;
 }
 
@@ -501,14 +550,6 @@ export function buildStars(page: HTMLElement, stars: HTMLElement, reduced: boole
       .to($("stars-mid", "stars-mid2"), { yPercent: -7 }, 0)
       .to($("stars-bright"), { yPercent: -11 }, 0);
   }
-  // THE SKY'S calm ScrollTrigger: half strength behind the countdown, so the
-  // figures read cleanly. (A change of brightness, not of position, so it
-  // applies under reduced motion too.)
-  const countdown = page.querySelector<HTMLElement>("[data-cx-countdown]");
-  const calm = $("stars-calm");
-  if (countdown && calm.length) {
-    gsap.fromTo(calm, { opacity: 1 }, { opacity: 0.45, ease: "none", scrollTrigger: { trigger: countdown, start: "top 75%", end: "top 25%", scrub: true, invalidateOnRefresh: true } });
-  }
   // THE SKY'S exit ScrollTrigger: as the footer arrives, the sky moves up
   // exactly as far as the page does, its bottom edge on the page's.
   gsap.fromTo(
@@ -524,5 +565,5 @@ export function buildStars(page: HTMLElement, stars: HTMLElement, reduced: boole
 
 /** Register once, client-side only. */
 export function registerGsap() {
-  gsap.registerPlugin(ScrollTrigger);
+  gsap.registerPlugin(ScrollTrigger, SplitText);
 }
