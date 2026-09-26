@@ -3,22 +3,24 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { GatherField } from "./particles";
 import { ROUTE_POINTS } from "./Scene05Globe";
 import { warpTravel } from "./warp";
+import { createBoard } from "./board";
 import { SplitText } from "gsap/SplitText";
 import { textIn, type TextFx } from "./textfx";
 
 /**
  * Every timeline on /free-china-trip/, and nothing else.
  *
- * SCROLL IS THE CAMERA. There are only three scroll-driven timelines on the
- * page:
+ * SCROLL IS THE CAMERA. The page's scroll-driven timelines, in page order:
  *
  *   1. THE FILM (buildFilm*): one pinned stage, one scrubbed timeline, chapters
  *      01–11, from the traveller to What's included. One timeline so that the
  *      silk and the gold, and every hand-off (plane -> globe -> map -> the
  *      cities), is continuous; there is no seam between sections to hide.
- *   2. HOW IT WORKS (buildSteps): not pinned; gold fills the line joining the
- *      three steps as the section passes.
- *   3. THE FINAL CALL TO ACTION (buildCta): the second pinned stage: the host
+ *   2. HOW IT WORKS (buildSteps): a short pinned stage: a comet flies the
+ *      route through the three steps and each one is written as it lands.
+ *   3. TERMS & CONDITIONS (buildTerms): not pinned; the clause at the reading
+ *      line lights, a departure board sets it, a gold thread fills.
+ *   4. THE FINAL CALL TO ACTION (buildCta): the last pinned stage: the host
  *      and the call, then into time, then the countdown (14–16).
  *
  * PINNING is CSS position: sticky, not ScrollTrigger's pin. The stage is a
@@ -131,7 +133,9 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
       Object.entries(fx).forEach(([part, effect], i) => {
         const el = box.querySelector(`[data-cx-part="${part}"]`);
         const at = inAt + i * 0.08;
-        if (effect === "fade") tl.fromTo(el, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.3 }, at);
+        // Every part holds its first frame from the start (immediateRender), so
+        // nothing shows whole before its own entrance and then plays in again.
+        if (effect === "fade") tl.fromTo(el, { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.3, immediateRender: true }, at);
         else textIn(tl, el, effect, at, part === "eyebrow" || part === "coords" ? Math.min(0.4, span) : span);
       });
     }
@@ -419,32 +423,309 @@ export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop:
   return tl;
 }
 
-/* =============================================================================
- * 2. HOW IT WORKS — not pinned; gold fills the line as the section passes
- * ============================================================================= */
-export function buildSteps(section: HTMLElement, desktop: boolean, reduced: boolean) {
-  const fill = section.querySelector<HTMLElement>("[data-cx='steps-fill']");
-  const steps = section.querySelectorAll<HTMLElement>("[data-cx='step']");
-  const list = section.querySelector("ol");
-  if (!fill || !list) return;
-  const axis = desktop ? "scaleX" : "scaleY";
-  if (reduced) {
-    gsap.set(fill, { [axis]: 1 });
-    return;
-  }
-  // HOW IT WORKS ScrollTrigger: scrubbed over the list's passage up the screen.
-  const tl = gsap.timeline({
-    defaults: { ease: "none" },
-    scrollTrigger: { trigger: list, start: "top 78%", end: "bottom 58%", scrub: 0.6, invalidateOnRefresh: true },
-  });
-  tl.fromTo(fill, { [axis]: 0 }, { [axis]: 1, duration: 1 }, 0);
-  steps.forEach((step, i) => {
-    tl.fromTo(step, { autoAlpha: 0.2, y: 26 }, { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.24 }, i * 0.36);
-  });
+/**
+ * A ring of light that swells and fades, as a pure function of the playhead,
+ * so it plays the same both ways and is invisible before and after.
+ */
+function pulse(tl: gsap.core.Timeline, el: Element | null | undefined, at: number, dur: number, to: number) {
+  if (!(el instanceof HTMLElement)) return;
+  const s = { p: 0 };
+  const draw = () => {
+    const p = s.p;
+    el.style.opacity = p <= 0 || p >= 1 ? "0" : (Math.min(1, p / 0.08) * (1 - p) * 0.9).toFixed(3);
+    el.style.transform = `scale(${(1 + (to - 1) * (1 - (1 - p) * (1 - p))).toFixed(3)})`;
+  };
+  tl.fromTo(s, { p: 0 }, { p: 1, ease: "none", duration: dur, onUpdate: draw, immediateRender: false }, at);
 }
 
 /* =============================================================================
- * 3. THE FINAL CALL TO ACTION — second pinned stage: the call (14), into
+ * 2. HOW IT WORKS — the route: a short pinned stage (sticky)
+ * The heading is written in; the planned route appears, dashed, through the
+ * three stops; a comet flies it leg by leg, the route turning gold behind it;
+ * each stop ignites as the comet reaches it and its words are written; at
+ * China, light runs the whole route once. Not pinned when the stage does not
+ * fit the screen (it plays as it passes); still under reduced motion.
+ * ============================================================================= */
+export const STEPS_END = 3.0;
+
+export function buildSteps(section: HTMLElement, desktop: boolean, reduced: boolean, short: boolean): () => void {
+  const $ = picker(section);
+  const [content] = $("steps-content") as HTMLElement[];
+  const [svg] = $("steps-svg");
+  const [track] = $("steps-track");
+  const [glint] = $("steps-glint");
+  const [comet] = $("steps-comet") as HTMLElement[];
+  const legs = $("steps-seg") as SVGPathElement[];
+  const nodes = $("step-node");
+  const steps = $("step");
+  if (!content || !svg || !track || !glint || !comet || legs.length !== 3 || nodes.length !== 3 || steps.length !== 3) return () => undefined;
+
+  // THE ROUTE'S SHAPE, from where the three stops really are: flight arcs
+  // between them on a desktop, a gentle sway down the left on a phone.
+  // Redrawn before every refresh (fonts, resizes), so it always meets them.
+  const f1 = (v: number) => v.toFixed(1);
+  let lens = [0, 0, 0];
+  const layout = () => {
+    const o = svg.getBoundingClientRect();
+    const at = nodes.map((n) => {
+      const r = n.getBoundingClientRect();
+      return { x: r.left + r.width / 2 - o.left, y: r.top + r.height / 2 - o.top };
+    });
+    const from = desktop ? { x: at[0].x - 96, y: at[0].y + 46 } : { x: at[0].x, y: at[0].y - 26 };
+    const pts = [from, ...at];
+    const curves = at.map((b, i) => {
+      const a = pts[i];
+      if (desktop) {
+        const dx = b.x - a.x;
+        const lift = i === 0 ? 0 : -Math.min(44, dx * 0.1);
+        return `C${f1(a.x + dx * 0.42)} ${f1(a.y + lift)} ${f1(b.x - dx * 0.42)} ${f1(b.y + lift)} ${f1(b.x)} ${f1(b.y)}`;
+      }
+      const dy = b.y - a.y;
+      const sway = i === 0 ? 0 : -14;
+      return `C${f1(a.x + sway)} ${f1(a.y + dy * 0.42)} ${f1(b.x + sway)} ${f1(b.y - dy * 0.42)} ${f1(b.x)} ${f1(b.y)}`;
+    });
+    legs.forEach((p, i) => p.setAttribute("d", `M${f1(pts[i].x)} ${f1(pts[i].y)} ${curves[i]}`));
+    const whole = `M${f1(from.x)} ${f1(from.y)} ${curves.join(" ")}`;
+    track.setAttribute("d", whole);
+    glint.setAttribute("d", whole);
+    lens = legs.map((p) => p.getTotalLength());
+  };
+
+  // THE COMET: one number, ride (0..3: which leg, and how far along it),
+  // draws the legs behind it and places it, so line and light never part.
+  const ride = { s: 0 };
+  const draw = () => {
+    legs.forEach((leg, k) => {
+      const len = lens[k];
+      const f = Math.max(0, Math.min(1, ride.s - k));
+      leg.style.strokeDasharray = `${f1(len)} ${f1(len + 2)}`;
+      leg.style.strokeDashoffset = f1((1 - f) * len);
+    });
+    const k = Math.min(2, Math.floor(ride.s));
+    const leg = legs[k];
+    const d = Math.max(0, Math.min(1, ride.s - k)) * lens[k];
+    const p = leg.getPointAtLength(d);
+    const back = leg.getPointAtLength(Math.max(0, d - 4));
+    const ahead = leg.getPointAtLength(Math.min(lens[k], d + 4));
+    const turn = Math.atan2(ahead.y - back.y, ahead.x - back.x);
+    comet.style.transform = `translate(${f1(p.x)}px, ${f1(p.y)}px) rotate(${turn.toFixed(3)}rad)`;
+  };
+  const relayout = () => {
+    layout();
+    draw();
+  };
+  relayout();
+  ScrollTrigger.addEventListener("refreshInit", relayout);
+
+  const undo = () => {
+    ScrollTrigger.removeEventListener("refreshInit", relayout);
+    section.removeAttribute("data-flow");
+    section.style.height = "";
+    legs.forEach((p) => {
+      p.style.strokeDasharray = "";
+      p.style.strokeDashoffset = "";
+    });
+    comet.style.transform = "";
+    section.querySelectorAll<HTMLElement>("[data-cx='step-ring'],[data-cx='step-ring2']").forEach((r) => {
+      r.style.opacity = "";
+      r.style.transform = "";
+    });
+  };
+
+  // Pinned only if the stage fits between the navbar and the bottom of the screen.
+  const pinned = !reduced && !short && content.offsetHeight <= window.innerHeight - 88;
+  section.toggleAttribute("data-flow", !pinned);
+
+  if (reduced) {
+    // The route drawn, every stop lit, every word in place.
+    ride.s = 3;
+    draw();
+    gsap.set($("step-core"), { scale: 1 });
+    return undo;
+  }
+
+  // HOW IT WORKS ScrollTrigger: pinned, it starts as the stage comes up the
+  // screen, so the heading is written while it rises; unpinned, it plays over
+  // the section's passage.
+  let tl: gsap.core.Timeline;
+  if (pinned) {
+    sizePinned(section, STEPS_END, BEAT);
+    tl = pinnedTimeline(section, STEPS_END, 0.6, { start: "top 62%" });
+  } else {
+    tl = gsap.timeline({
+      defaults: { ease: "none", immediateRender: false },
+      scrollTrigger: { trigger: section, start: "top 72%", end: "bottom 55%", scrub: 0.6, invalidateOnRefresh: true },
+    });
+    tl.set({}, {}, STEPS_END);
+  }
+
+  // 0: the heading, typed and then drawn across like a route.
+  textIn(tl, $("steps-eyebrow")[0], "type", 0, 0.28);
+  textIn(tl, $("steps-title")[0], "wipe", 0.06, 0.5);
+  // 0.3: the planned route, dashed, and its three stops.
+  tl.fromTo(track, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25, immediateRender: true }, 0.3);
+  tl.fromTo(nodes, { autoAlpha: 0, scale: 0.2 }, { autoAlpha: 1, scale: 1, ease: "back.out(2.2)", duration: 0.18, stagger: 0.07, immediateRender: true }, 0.34);
+  // 0.56: the comet sets off; it rests at each stop while the stop is written.
+  tl.fromTo(comet, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.05, immediateRender: true }, 0.56);
+  const LEGS: Array<[number, number]> = [[0.56, 0.3], [1.22, 0.48], [2.0, 0.48]];
+  LEGS.forEach(([at, dur], k) => tl.fromTo(ride, { s: k }, { s: k + 1, ease: "power1.inOut", duration: dur, onUpdate: draw }, at));
+  const IGNITE = [0.86, 1.7, 2.48];
+  steps.forEach((li, i) => {
+    const at = IGNITE[i];
+    const q = (key: string) => li.querySelector<HTMLElement>(`[data-cx='${key}']`);
+    tl.fromTo(q("step-core"), { scale: 0 }, { scale: 1, ease: "back.out(3)", duration: 0.12, immediateRender: true }, at);
+    pulse(tl, q("step-ring"), at, 0.42, 3.6);
+    textIn(tl, q("step-num"), "rise", at + 0.02, 0.32);
+    textIn(tl, q("step-title"), "type", at + 0.1, 0.26);
+    textIn(tl, q("step-detail"), "words", at + 0.16, 0.3);
+    const tag = q("step-tag");
+    if (tag) tl.fromTo(tag, { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.12, immediateRender: true }, at + 0.34);
+  });
+  // 2.48: China. The comet becomes the stop; a wider ring; light runs the route.
+  tl.fromTo(comet, { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.08 }, IGNITE[2]);
+  pulse(tl, steps[2].querySelector("[data-cx='step-ring2']"), IGNITE[2] + 0.04, 0.6, 6);
+  tl.fromTo(glint, { opacity: 0 }, { opacity: 1, duration: 0.04, immediateRender: true }, 2.56);
+  tl.fromTo(glint, { strokeDashoffset: 0.07 }, { strokeDashoffset: -1, ease: "power1.inOut", duration: 0.34, immediateRender: true }, 2.56);
+  tl.fromTo(glint, { opacity: 1 }, { opacity: 0, duration: 0.06 }, 2.86);
+  return undo;
+}
+
+/* =============================================================================
+ * 3. TERMS & CONDITIONS — not pinned; the fine print, read under a lamp
+ * The clause at the reading line lights and the departure board (board.ts)
+ * sets it; a gold thread fills with the reading; each clause arrives as it
+ * is reached. Under reduced motion nothing moves; the lighting and the board
+ * still follow the reading.
+ * ============================================================================= */
+export function buildTerms(section: HTMLElement, reduced: boolean): () => void {
+  const $ = picker(section);
+  const rows = $("term") as HTMLElement[];
+  const [list] = $("terms-list") as HTMLElement[];
+  const [side] = $("terms-side") as HTMLElement[];
+  const [boardEl] = $("terms-board") as HTMLElement[];
+  const [fill] = $("terms-thread");
+  const [bead] = $("terms-bead");
+  const [endCore] = $("terms-end-core");
+  const [endRing] = $("terms-end-ring");
+  if (!list || !rows.length) return () => undefined;
+
+  const board = boardEl ? createBoard(boardEl, rows.map((r) => r.dataset.title ?? ""), reduced) : null;
+
+  // WHICH CLAUSE IS BEING READ: the last one whose top has passed the reading
+  // line (the lamp, just above the middle of the screen).
+  let current = -1;
+  const setCurrent = (k: number) => {
+    if (k === current) return;
+    current = k;
+    rows.forEach((r, j) => {
+      r.toggleAttribute("data-active", j === k);
+      r.toggleAttribute("data-read", k >= 0 && j <= k);
+    });
+    if (k >= 0) board?.show(k);
+  };
+  const readAt = () => {
+    const line = window.innerHeight * 0.52;
+    let k = -1;
+    rows.forEach((r, j) => {
+      if (r.getBoundingClientRect().top <= line) k = j;
+    });
+    return k;
+  };
+  // TERMS READING ScrollTrigger: follows the reading line down the list.
+  ScrollTrigger.create({
+    trigger: list,
+    start: "top 80%",
+    end: "bottom top",
+    onUpdate: () => setCurrent(readAt()),
+    onRefresh: () => setCurrent(readAt()),
+    onLeaveBack: () => setCurrent(-1),
+  });
+
+  const undo = () => {
+    board?.kill();
+    gsap.killTweensOf([boardEl, endRing].filter(Boolean));
+    rows.forEach((r) => {
+      r.removeAttribute("data-active");
+      r.removeAttribute("data-read");
+    });
+  };
+
+  if (reduced) {
+    gsap.set(fill, { scaleY: 1 });
+    gsap.set(bead, { autoAlpha: 0 });
+    gsap.set(endCore, { scale: 1 });
+    return undo;
+  }
+
+  // THE BOARD switches on as it comes into view and sets the clause; it
+  // clears again if the reader goes back above it. Its trigger is the
+  // column beside the list (not the sticky part, whose position moves).
+  if (board && boardEl && side) {
+    gsap.set(boardEl, { autoAlpha: 0, y: 24 });
+    board.blank();
+    ScrollTrigger.create({
+      trigger: side,
+      start: () => `top+=${boardEl.offsetTop + 40} 90%`,
+      onEnter: () => {
+        gsap.to(boardEl, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power2.out", overwrite: true });
+        board.show(Math.max(0, current));
+      },
+      onLeaveBack: () => {
+        gsap.to(boardEl, { autoAlpha: 0, y: 24, duration: 0.4, ease: "power1.in", overwrite: true });
+        board.blank();
+      },
+    });
+  }
+
+  // THE HEADING ScrollTrigger: the eyebrow is set like a board, the title
+  // rises out of its masks, the notice's rule draws down and its words follow.
+  const head = gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { trigger: section, start: "top 82%", end: "top 28%", scrub: 0.5 } });
+  textIn(head, $("terms-eyebrow")[0], "scramble", 0, 0.3);
+  textIn(head, $("terms-title")[0], "rise", 0.06, 0.5);
+  head.fromTo($("terms-notice-rule"), { scaleY: 0 }, { scaleY: 1, ease: "power2.inOut", duration: 0.3 }, 0.42);
+  head.fromTo($("terms-notice-tag"), { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.14 }, 0.46);
+  textIn(head, $("terms-notice-text")[0], "words", 0.5, 0.4);
+  head.set({}, {}, 1);
+
+  // THE THREAD ScrollTrigger: gold fills down it with the reading line, a bead
+  // of light at its head; the last stop lights when the reading gets there.
+  gsap.set(bead, { xPercent: -50, yPercent: -50 });
+  const thread = gsap.timeline({
+    defaults: { ease: "none" },
+    scrollTrigger: {
+      trigger: list,
+      start: "top 52%",
+      end: "bottom 52%",
+      scrub: 0.4,
+      invalidateOnRefresh: true,
+      onLeave: () => {
+        gsap.fromTo(endRing, { scale: 1, opacity: 0.9 }, { scale: 4.2, opacity: 0, duration: 0.9, ease: "power2.out", overwrite: true });
+      },
+    },
+  });
+  thread.fromTo(fill, { scaleY: 0 }, { scaleY: 1, duration: 1 }, 0);
+  thread.fromTo(bead, { y: 0 }, { y: () => list.offsetHeight, duration: 1 }, 0);
+  thread.fromTo(bead, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01 }, 0);
+  thread.fromTo(bead, { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.02, immediateRender: false }, 0.98);
+  thread.fromTo(endCore, { scale: 0 }, { scale: 1, ease: "back.out(3)", duration: 0.02 }, 0.98);
+
+  // EACH CLAUSE ScrollTrigger: as it comes up the screen its rule draws
+  // across, its number rises, its title is typed and its words follow.
+  rows.forEach((row) => {
+    const q = (key: string) => row.querySelector<HTMLElement>(`[data-cx='${key}']`);
+    const rtl = gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { trigger: row, start: "top 90%", end: "top 58%", scrub: 0.5 } });
+    rtl.fromTo(q("term-rule"), { scaleX: 0 }, { scaleX: 1, ease: "power2.inOut", duration: 0.7 }, 0);
+    textIn(rtl, q("term-num"), "rise", 0.08, 0.5);
+    textIn(rtl, q("term-title"), "type", 0.16, 0.45);
+    textIn(rtl, q("term-text"), "words", 0.3, 0.55);
+    rtl.fromTo(q("term-tag"), { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.15 }, 0.82);
+    rtl.set({}, {}, 1);
+  });
+  return undo;
+}
+
+/* =============================================================================
+ * 4. THE FINAL CALL TO ACTION — the last pinned stage: the call (14), into
  *    time (15) and the countdown (16), where the page ends
  * ============================================================================= */
 export const CTA_END = 5.6;
@@ -531,7 +812,7 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
 }
 
 /* =============================================================================
- * 4. THE SKY — not pinned
+ * 5. THE SKY — not pinned
  * The star layers drift at different speeds as the page scrolls (depth: the
  * nearer, the faster), and the whole sky leaves with the end of the page, so
  * the fixed layer never sits over the footer.

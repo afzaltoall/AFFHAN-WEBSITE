@@ -43,14 +43,14 @@ export function CityCaption({ city, children }: { city: (typeof CITIES)[number];
     <div
       data-cx={`cap-${city.key}`}
       data-cx-hide
-      className="pointer-events-none absolute bottom-[8svh] left-6 z-40 flex items-end gap-4 md:bottom-[9svh] md:left-[6vw] md:gap-6"
+      className="cx-city-cap pointer-events-none absolute bottom-[8svh] left-6 z-40 flex items-end gap-4 md:bottom-[9svh] md:left-[6vw] md:gap-6"
     >
       <span data-cx-part="hanzi" aria-hidden className={`${DISPLAY} text-[clamp(22px,3vw,46px)] leading-none tracking-[0.18em] text-(--cx-gold) [writing-mode:vertical-rl]`}>
         {city.hanzi}
       </span>
       <div>
         <p data-cx-part="coords" className={`${EYEBROW} tabular-nums`}>{city.coords}</p>
-        <p data-cx-part="name" className={`${DISPLAY} mt-2 text-[clamp(50px,12vw,170px)] uppercase leading-[0.84] tracking-[0.01em] md:text-[clamp(64px,9.4vw,170px)]`}>
+        <p data-cx-part="name" className={`${DISPLAY} cx-city-name mt-2 text-[clamp(50px,12vw,170px)] uppercase leading-[0.84] tracking-[0.01em] md:text-[clamp(64px,9.4vw,170px)]`}>
           {city.name}
         </p>
         {children}

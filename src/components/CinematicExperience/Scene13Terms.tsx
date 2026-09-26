@@ -1,44 +1,160 @@
-import { Reveal } from "@/components/ui/Reveal";
+import { boardLines, BOARD_COLS } from "./board";
 import { TERMS } from "./content";
+import { GoldDust } from "./GoldDust";
 import { DISPLAY, EYEBROW, PlaceholderTag } from "./parts";
 
 /**
- * 13 Terms & Conditions. The film's intensity drops here on purpose:
- * readability over spectacle. A lighter charcoal ground, body text at a
- * comfortable measure and line height, hairline dividers, and no motion beyond
- * the site's own gentle fade-up (Reveal, which does nothing at all under
- * reduced motion).
+ * 13 Terms & Conditions: the fine print, read under a lamp at the departure
+ * gate. Readability first; everything that moves is light, not layout.
  *
- * Every section is a placeholder and says so, visibly. Nothing here states a
- * date, fee, criterion or guarantee; the wording must come from Affhan.
+ *  - The sky stays: a veil darkens it behind the words and fades into it at
+ *    every edge, so the stars frame the text without crossing a line of it.
+ *  - A reading lamp: a warm pool of light, with dust drifting in it, rests at
+ *    the reading line (sticky), and each clause lights as it passes through.
+ *  - The title stays beside the list while it is read, with a departure
+ *    board under it that sets the clause being read (board.ts) as a flight
+ *    is set: 01 ELIGIBILITY, 02 APPLICATION REQUIREMENTS... (wide screens).
+ *  - A gold thread runs down the clauses, filling with the reading, a bead
+ *    of light at its head and a stop at each clause.
+ *  - Each clause arrives as it is reached: its rule draws across, its number
+ *    rises, its title is typed, its words follow.
+ *
+ * buildTerms (animations.ts) runs it; under reduced motion nothing moves and
+ * the board simply shows the clause. Every section is a placeholder and says
+ * so, visibly. Nothing here states a date, fee, criterion or guarantee; the
+ * wording must come from Affhan.
  */
 export function Scene13Terms() {
+  const [before, after] = TERMS.title.split("&");
   return (
-    <section id="terms" aria-labelledby="cx-terms-title" className="relative bg-(--cx-char)/92 py-24 md:py-32">
-      <div className="mx-auto grid max-w-[1180px] gap-12 px-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] md:gap-20 md:px-12">
-        <div>
-          <p className={EYEBROW}>{TERMS.eyebrow}</p>
-          <h2 id="cx-terms-title" className={`${DISPLAY} mt-4 text-[clamp(36px,8vw,56px)] leading-[1.02] md:text-[clamp(44px,4vw,68px)]`}>
-            {TERMS.title}
-          </h2>
-          <p role="note" className="mt-8 border-l border-(--cx-gold)/60 pl-5 text-[15px] leading-[1.75] text-(--cx-mute)">
-            <PlaceholderTag className="mb-2 ml-0" />
-            <br />
-            {TERMS.notice}
-          </p>
+    <section id="terms" data-cx-terms aria-labelledby="cx-terms-title" className="relative py-28 md:py-40">
+      <div aria-hidden className="cx-terms-veil pointer-events-none absolute inset-0" />
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="cx-terms-lamp sticky top-0 h-[100svh] overflow-hidden">
+          <GoldDust className="h-full w-full" density={0.5} />
         </div>
-        <dl className="border-t border-(--cx-faint)">
-          {TERMS.sections.map((s) => (
-            <Reveal key={s.id} className="grid gap-2 border-b border-(--cx-faint) py-7 md:grid-cols-[minmax(0,15rem)_minmax(0,1fr)] md:gap-8">
-              <dt className="text-[16px] font-semibold text-(--cx-white)">{s.title}</dt>
-              <dd className="text-[16px] leading-[1.75] text-(--cx-mute)">
-                {s.body}
-                <PlaceholderTag />
-              </dd>
-            </Reveal>
-          ))}
-        </dl>
+      </div>
+
+      <div className="relative mx-auto grid max-w-[1180px] gap-14 px-6 md:px-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)] lg:gap-20">
+        <div data-cx="terms-side">
+          <div className="lg:sticky lg:top-24">
+            <p data-cx="terms-eyebrow" className={EYEBROW}>
+              {TERMS.eyebrow}
+            </p>
+            <h2 id="cx-terms-title" data-cx="terms-title" className={`${DISPLAY} cx-terms-title mt-4 text-[clamp(38px,9vw,60px)] leading-[1.02] text-(--cx-white) lg:text-[clamp(44px,4vw,68px)]`}>
+              {before}
+              <span className="text-(--cx-gold)">&amp;</span>
+              {after}
+            </h2>
+            <div className="relative mt-8 pl-5">
+              <span aria-hidden data-cx="terms-notice-rule" className="absolute bottom-0 left-0 top-0 w-px origin-top bg-(--cx-gold)/60" />
+              <p role="note" className="text-[15px] leading-[1.75] text-(--cx-mute)">
+                <span data-cx="terms-notice-tag" className="mb-2 block">
+                  <PlaceholderTag className="ml-0" />
+                </span>
+                <span data-cx="terms-notice-text">{TERMS.notice}</span>
+              </p>
+            </div>
+            <DepartureBoard />
+          </div>
+        </div>
+
+        <div className="relative pl-(--g) [--g:2.5rem] md:[--g:3.5rem]">
+          {/* The reading thread: gold fills down it, a bead of light at its head. */}
+          <span aria-hidden className="absolute bottom-0 left-[7px] top-0 w-px bg-(--cx-faint)" />
+          <span aria-hidden data-cx="terms-thread" className="cx-thread absolute bottom-0 left-[7px] top-0 w-px origin-top" />
+          <span aria-hidden data-cx="terms-bead" className="cx-bead absolute left-[7.5px] top-0" />
+          <span aria-hidden data-cx="terms-end" className="cx-terms-end absolute bottom-0 left-[7.5px]">
+            <span data-cx="terms-end-core" className="cx-step-core" />
+            <span data-cx="terms-end-ring" className="cx-step-ring" />
+          </span>
+
+          <ol data-cx="terms-list">
+            {TERMS.sections.map((s, i) => (
+              <li key={s.id} data-cx="term" data-title={s.title} className="cx-term relative py-8 md:py-9">
+                <span aria-hidden data-cx="term-rule" className="absolute inset-x-0 top-0 h-px origin-left bg-(--cx-faint)" />
+                <span aria-hidden className="cx-term-lit absolute inset-x-0 top-0 h-px origin-left" />
+                <span aria-hidden className="cx-term-dot absolute left-[calc(3px-var(--g))] top-[calc(2rem+8px)] md:top-[calc(2.25rem+9px)]" />
+                <div className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-baseline gap-x-3 md:grid-cols-[3.75rem_minmax(0,1fr)] md:gap-x-4">
+                  <span aria-hidden data-cx="term-num" className={`${DISPLAY} cx-term-num block text-[26px] leading-none text-(--cx-gold) md:text-[32px]`}>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <h3 className="cx-term-title text-[18px] font-semibold tracking-[-0.01em] md:text-[20px]">
+                    <span className="sr-only">Clause {i + 1}: </span>
+                    <span data-cx="term-title">{s.title}</span>
+                  </h3>
+                  <p className="cx-term-body col-start-2 mt-2.5 text-[15px] leading-[1.75] md:text-[16px]">
+                    <span data-cx="term-text">{s.body}</span>
+                    <span data-cx="term-tag" className="inline-block">
+                      <PlaceholderTag />
+                    </span>
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     </section>
+  );
+}
+
+/**
+ * The board, as the server renders it: clause 01 already set, so it reads
+ * correctly before (and without) JavaScript. Decorative: every word on it is
+ * in the list, so it is hidden from screen readers.
+ */
+function DepartureBoard() {
+  const text = boardLines(TERMS.sections[0].title);
+  const count = String(TERMS.sections.length).padStart(2, "0");
+  return (
+    <div data-cx="terms-board" aria-hidden className="cx-board mt-10 hidden lg:block">
+      <div className="flex items-center justify-between">
+        <span className="cx-board-label">Clause</span>
+        <span className="flex gap-1">
+          {TERMS.sections.map((s, i) => (
+            <i key={s.id} data-cx="board-seg" className="cx-board-seg" {...(i === 0 ? { "data-on": "", "data-now": "" } : {})} />
+          ))}
+        </span>
+      </div>
+      <div className="mt-3 flex items-end gap-3">
+        <span className="flex gap-[3px]">
+          <Flap kind="digit" ch="0" />
+          <Flap kind="digit" ch="1" />
+        </span>
+        <span className="cx-board-of">/ {count}</span>
+      </div>
+      <div className="mt-4 grid gap-[3px]">
+        {text.map((row, r) => (
+          <div key={r} className="grid gap-[2px]" style={{ gridTemplateColumns: `repeat(${BOARD_COLS}, minmax(0, 1fr))` }}>
+            {Array.from(row).map((ch, c) => (
+              <Flap key={c} kind="letter" ch={ch} />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** One split-flap tile: static top and bottom halves, and the two leaves that turn. */
+function Flap({ kind, ch }: { kind: "digit" | "letter"; ch: string }) {
+  return (
+    <span data-flap={kind} data-ch={ch} className={`cx-flap cx-flap-${kind}`}>
+      <span className="cx-flap-t">
+        <b>{ch}</b>
+      </span>
+      <span className="cx-flap-b">
+        <b>{ch}</b>
+      </span>
+      <span className="cx-flap-lt">
+        <b>{ch}</b>
+        <i />
+      </span>
+      <span className="cx-flap-lb">
+        <b>{ch}</b>
+        <i />
+      </span>
+    </span>
   );
 }

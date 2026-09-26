@@ -14,6 +14,7 @@ import {
   buildFilmReduced,
   buildStars,
   buildSteps,
+  buildTerms,
   FILM_CHAPTER_STARTS,
   FILM_REDUCED_STARTS,
   registerGsap,
@@ -210,6 +211,7 @@ export function CinematicExperience() {
       const film = root.querySelector<HTMLElement>("[data-cx-film]");
       const stage = root.querySelector<HTMLElement>("[data-cx-stage]");
       const steps = root.querySelector<HTMLElement>("[data-cx-steps]");
+      const terms = root.querySelector<HTMLElement>("[data-cx-terms]");
       const cta = root.querySelector<HTMLElement>("[data-cx-cta]");
       const ctaStage = root.querySelector<HTMLElement>("[data-cx-cta-stage]");
       if (!film || !stage || !steps || !cta || !ctaStage) return;
@@ -236,8 +238,9 @@ export function CinematicExperience() {
       const mm = gsap.matchMedia();
       // gsap.matchMedia runs this only while at least one query matches, so
       // desktop and phone are both named: one of the two is always true.
-      mm.add({ desktop: "(min-width: 768px)", phone: "(max-width: 767.98px)", reduce: "(prefers-reduced-motion: reduce)" }, (ctx) => {
-        const { desktop, reduce } = ctx.conditions as { desktop: boolean; reduce: boolean };
+      // short: How it works is only pinned on screens tall enough to hold it.
+      mm.add({ desktop: "(min-width: 768px)", phone: "(max-width: 767.98px)", reduce: "(prefers-reduced-motion: reduce)", short: "(max-height: 620px)" }, (ctx) => {
+        const { desktop, reduce, short } = ctx.conditions as { desktop: boolean; reduce: boolean; short: boolean };
         const starts = reduce ? FILM_REDUCED_STARTS : FILM_CHAPTER_STARTS;
         let chapter = -1;
         const onProgress = (time: number, progress: number) => {
@@ -290,7 +293,8 @@ export function CinematicExperience() {
         if (stars) buildStars(root, stars, reduce);
         if (reduce) buildFilmReduced(film, stage, desktop, { onProgress });
         else buildFilm(film, stage, desktop, particles, { onProgress, starsDim, warp: warp ? (p) => warp.render(p) : undefined });
-        buildSteps(steps, desktop, reduce);
+        const undoSteps = buildSteps(steps, desktop, reduce, short);
+        const undoTerms = terms ? buildTerms(terms, reduce) : () => undefined;
         buildCta(cta, ctaStage, desktop, reduce, starsDim);
 
         ScrollTrigger.refresh();
@@ -302,6 +306,8 @@ export function CinematicExperience() {
           ScrollTrigger.removeEventListener("refresh", relayout);
           particles?.clear();
           warp?.clear();
+          undoSteps();
+          undoTerms();
           revertTextFx();
           if (tick) gsap.ticker.remove(tick);
           lenis?.destroy();
