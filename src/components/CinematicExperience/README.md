@@ -1,15 +1,22 @@
 # /free-china-trip/ — the cinematic page
 
-A single scroll-driven film (chapters 01–11), then How it works, Terms &
-Conditions, the host's call to action (14–15) and the four-step application
-(16) with its success state (17). Route: `src/app/free-china-trip/page.tsx`.
+An opening count (00 → 100, on every load), a single scroll-driven film
+(chapters 01–11), then How it works, Terms & Conditions, the host's call to
+action (14–15) and a live countdown to 1 December (16), where the page ends:
+no footer, on the owner's request. Route: `src/app/free-china-trip/page.tsx`.
+
+Every "Apply for the Trip" (hero, film readout, final call, countdown) opens
+the application, its own page: `/free-china-trip/apply/`
+(`components/TripApplication/`), through a gold and silk transition
+(`goApply` in `CinematicExperience.tsx`).
 
 | File | What it holds |
 | --- | --- |
 | `content.ts` | **Every word on the page.** Swap copy here; no animation code changes. |
-| `animations.ts` | Every timeline: the film, How it works, the final CTA, the form heading. Positions are scroll distances. |
+| `animations.ts` | Every scroll timeline: the film, How it works, the final CTA, the sky. Positions are scroll distances. |
 | `assets.ts` | The 14 pictures (`public/free-china-trip/`), and the points inside them the choreography aims at. |
-| `Scene01Opening.tsx` … `Scene17Success.tsx` | One file per scene: markup only. |
+| `NumberLoadingOpener.tsx` | The opening count: CSS-driven from the first frame, finished by script. |
+| `Scene01Opening.tsx` … `Scene16Countdown.tsx` | One file per scene: markup only (the countdown also keeps its own clock). |
 | `Motifs.tsx` | The red silk and gold trail layers that recur through the film, and the atmosphere. |
 | `particles.ts`, `GoldDust.tsx` | The FREE particles (scroll-driven, no loop) and the ambient gold dust (on screen only). |
 | `cinematic.css` | Palette tokens, the opening's CSS entrance, masks and gradients. Scoped to `.cx`. |
@@ -45,21 +52,22 @@ Conditions, the host's call to action (14–15) and the four-step application
   montage. The page never says the trip visits them, because the itinerary is
   not confirmed. If it does visit them, that can be said; if it does not,
   consider whether to show them at all.
-- **Application step 4 (Travel & documents)** asks one question: whether the
-  applicant holds a valid passport (yes / being issued or renewed / not yet),
-  plus optional notes. The real process may need more, such as passport expiry
-  or previous China visas. Passport numbers and document uploads are
-  deliberately not collected on a public form.
+- **What 1 December means.** The countdown (`COUNTDOWN` in `content.ts`)
+  runs to 1 December 2026, midnight IST, as asked, but what happens then
+  (applications close? the trip departs?) is not confirmed, so the page gives
+  only the date. Say it in the eyebrow once confirmed. At zero it rests at
+  00 00 00 00.
+- **The application's own placeholders** (interest categories, travel
+  documents, terms) are listed in `components/TripApplication/README.md`.
 - **The hero line** ("Your round-trip flight, hotel stay and local transport in
   China, covered.") restates three confirmed inclusions and adds nothing.
 
 ## Where applications go
 
-`POST /api/contact/`, the Contact Us endpoint: each application arrives in the
-admin console's **Contact messages**, with the applicant's customer number,
-and its message starts with `FREE CHINA BUSINESS TRIP: application`. Role,
-business category, city, passport status and notes follow in the message. No
-new table, no schema change.
+To `/free-china-trip/apply/`, which posts to `POST /api/trip-applications/`:
+each one is stored in the `TripApplication` table with a reference number
+(`TRIP-26-00001`) and the applicant's customer number, and shown to the team
+at **Admin → Leads → Trip applications**.
 
 ## Pictures
 
@@ -75,5 +83,6 @@ if its subject moves, update `ANCHORS` there too.
 
 With `prefers-reduced-motion: reduce`: no smooth scrolling, no entrances, no
 parallax, travel, zoom or blur. Each chapter dissolves to the next at its
-resting composition; the host simply fades in where he stands. Every word,
-both calls to action and the form are unchanged.
+resting composition; the host simply fades in where he stands. Every word
+and every call to action are unchanged; the countdown's figures change in
+place (no roll, no wind-up) and the Apply transition is a plain fade.

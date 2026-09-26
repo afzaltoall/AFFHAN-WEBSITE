@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
 import { ArrowRight } from "lucide-react";
 import { ASSETS } from "./assets";
-import { HERO } from "./content";
+import { APPLY_HREF, HERO } from "./content";
 import { DISPLAY, EYEBROW, FilmImage } from "./parts";
 
 /**
@@ -81,7 +81,7 @@ export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchor
         </p>
         <div className="cx-enter-rise mt-7 flex items-center gap-7 md:mt-10" style={{ animationDelay: "0.7s" }}>
           <a
-            href="#apply"
+            href={APPLY_HREF}
             onClick={onApply}
             className="group inline-flex items-center gap-3 rounded-full bg-(--cx-gold) py-3 pl-6 pr-3 text-[15px] font-semibold tracking-[0.01em] text-(--cx-ink) shadow-[0_10px_40px_-12px_rgb(214_168_78/0.7)] transition-colors duration-300 hover:bg-(--cx-gold-hi) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white) md:text-[16px]"
           >

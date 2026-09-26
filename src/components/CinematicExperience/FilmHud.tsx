@@ -1,5 +1,5 @@
 import type { MouseEvent } from "react";
-import { CHAPTERS } from "./content";
+import { APPLY_HREF, CHAPTERS } from "./content";
 
 /**
  * The film's chapter mark, bottom right: "03 / 11  Boarding", a thin progress
@@ -25,7 +25,7 @@ export function FilmHud({ onSkip }: { onSkip: (e: MouseEvent<HTMLAnchorElement>)
         </span>
       </span>
       <a
-        href="#apply"
+        href={APPLY_HREF}
         onClick={onSkip}
         className="pointer-events-auto rounded-full border border-(--cx-white)/20 px-4 py-2 text-(--cx-white) transition-colors hover:border-(--cx-gold) hover:text-(--cx-gold-hi) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--cx-white)"
       >

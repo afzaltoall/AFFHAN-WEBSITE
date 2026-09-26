@@ -7,7 +7,7 @@ import { ROUTE_POINTS } from "./Scene05Globe";
  * Every timeline on /free-china-trip/, and nothing else.
  *
  * SCROLL IS THE CAMERA. There are only three scroll-driven timelines on the
- * page, plus one one-shot reveal:
+ * page:
  *
  *   1. THE FILM (buildFilm*): one pinned stage, one scrubbed timeline, chapters
  *      01–11, from the traveller to What's included. One timeline so that the
@@ -16,8 +16,7 @@ import { ROUTE_POINTS } from "./Scene05Globe";
  *   2. HOW IT WORKS (buildSteps): not pinned; gold fills the line joining the
  *      three steps as the section passes.
  *   3. THE FINAL CALL TO ACTION (buildCta): the second pinned stage, the host,
- *      then the beat that carries you into the form (chapters 14–15).
- *   +  The form's heading resolves once when it arrives (buildApplyHeading).
+ *      then the beat that carries you on to the countdown (chapters 14–15).
  *
  * PINNING is CSS position: sticky, not ScrollTrigger's pin. The stage is a
  * sticky child of a tall section whose height is the length of the scroll:
@@ -438,8 +437,8 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
     { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.4 }, 1.45);
   tl.fromTo($("cta-note"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.6);
 
-  // 15: CTA -> form. The button swells, gold floods out, the frame goes dark,
-  // and a horizon of warm light is left for the form to pick up.
+  // 15: CTA -> countdown. The button swells, gold floods out, the frame goes
+  // dark, and a horizon of warm light is left for the countdown to pick up.
   tl.to($("cta-button"), { scale: 1.08, ease: "power1.inOut", duration: 0.4 }, 2.4);
   tl.fromTo($("cta-flood"), { autoAlpha: 0, scale: 0.15 }, { autoAlpha: 1, scale: 3.6, ease: "power2.in", duration: 0.55 }, 2.5);
   tl.to($("cta-host", "cta-headline", "cta-line", "cta-note"), { autoAlpha: 0, filter: "blur(10px)", duration: 0.4 }, 2.6);
@@ -447,27 +446,6 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
   tl.fromTo($("cta-dark"), { autoAlpha: 0 }, { autoAlpha: 1, ease: "power1.in", duration: 0.4 }, 2.85);
   tl.fromTo($("cta-horizon"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 3.05);
   return tl;
-}
-
-/* =============================================================================
- * +  The form heading resolves once, as it arrives (one-shot, not scrubbed)
- * ============================================================================= */
-export function buildApplyHeading(head: HTMLElement, reduced: boolean) {
-  if (reduced) return;
-  gsap.fromTo(
-    Array.from(head.children),
-    { autoAlpha: 0, y: 26, filter: "blur(10px)" },
-    {
-      autoAlpha: 1,
-      y: 0,
-      filter: "blur(0px)",
-      duration: 1,
-      stagger: 0.12,
-      ease: "power3.out",
-      clearProps: "filter",
-      scrollTrigger: { trigger: head, start: "top 88%", once: true },
-    },
-  );
 }
 
 /* =============================================================================
@@ -490,13 +468,13 @@ export function buildStars(page: HTMLElement, stars: HTMLElement, reduced: boole
       .to($("stars-mid", "stars-mid2"), { yPercent: -7 }, 0)
       .to($("stars-bright"), { yPercent: -11 }, 0);
   }
-  // THE SKY'S calm ScrollTrigger: half strength behind the application, so
-  // the fields read cleanly. (A change of brightness, not of position, so
-  // it applies under reduced motion too.)
-  const form = page.querySelector<HTMLElement>("#apply");
+  // THE SKY'S calm ScrollTrigger: half strength behind the countdown, so the
+  // figures read cleanly. (A change of brightness, not of position, so it
+  // applies under reduced motion too.)
+  const countdown = page.querySelector<HTMLElement>("[data-cx-countdown]");
   const calm = $("stars-calm");
-  if (form && calm.length) {
-    gsap.fromTo(calm, { opacity: 1 }, { opacity: 0.45, ease: "none", scrollTrigger: { trigger: form, start: "top 75%", end: "top 25%", scrub: true, invalidateOnRefresh: true } });
+  if (countdown && calm.length) {
+    gsap.fromTo(calm, { opacity: 1 }, { opacity: 0.45, ease: "none", scrollTrigger: { trigger: countdown, start: "top 75%", end: "top 25%", scrub: true, invalidateOnRefresh: true } });
   }
   // THE SKY'S exit ScrollTrigger: as the footer arrives, the sky moves up
   // exactly as far as the page does, its bottom edge on the page's.

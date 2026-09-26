@@ -147,75 +147,29 @@ export const FINAL_CTA = {
   hostAlt: "A presenter in a burgundy suit, one hand open towards the application",
 } as const;
 
-// ---- 16 Registration form -----------------------------------------------------------------------------
-export const FORM = {
-  eyebrow: "Application",
-  heading: "Apply for the China Business Trip",
-  intro: "Four short steps. Fields marked * are required.",
-  steps: ["Personal", "Business", "Location", "Travel & documents"],
-  labels: {
-    fullName: "Full name",
-    email: "Email",
-    phone: "Mobile number",
-    companyName: "Company",
-    role: "Your role",
-    category: "Business category",
-    city: "City",
-    country: "Country",
-    passport: "Do you hold a valid passport?",
-    notes: "Anything we should know?",
-  },
-  placeholders: {
-    fullName: "Your full name",
-    email: "you@company.com",
-    phone: "9876543210",
-    companyName: "Company name",
-    role: "e.g. Owner, purchasing manager",
-    category: "e.g. Electronics, garments, furniture",
-    city: "e.g. Chennai",
-    notes: "Dates that don't work for you, questions, anything else",
-  },
-  /**
-   * The only document question asked, because it is the only one the trip
-   * certainly needs. PROVISIONAL: the real process may need more (passport
-   * expiry, previous China visas). Passport numbers and uploads are
-   * deliberately not collected on a public form.
-   */
-  passportOptions: [
-    { value: "yes", label: "Yes, a valid passport" },
-    { value: "in-progress", label: "Being issued or renewed" },
-    { value: "no", label: "Not yet" },
-  ],
-  next: "Continue",
-  back: "Back",
-  submit: "Submit application",
-  sending: "Sending…",
-  privacy: "Your details are used to process your application.",
-  privacyLink: { href: "/privacy-policy/", label: "Privacy policy" },
-  errors: {
-    fullName: "Enter your full name.",
-    email: "Enter your email.",
-    emailShape: "That email doesn't look complete.",
-    phone: "Enter your mobile number.",
-    phoneShape: (code: string) => `That isn't a valid mobile number for ${code}.`,
-    companyName: "Enter your company's name.",
-    role: "Tell us your role.",
-    category: "Tell us what your business deals in.",
-    city: "Enter your city.",
-    country: "Choose your country.",
-    passport: "Choose one.",
-    network: "We couldn't reach Affhan. Check your connection and try again; everything you typed is still here.",
-    server: "That didn't go through. Please try again.",
-  },
-} as const;
+/** Where every "Apply for the Trip" goes: the application, its own page. */
+export const APPLY_HREF = "/free-china-trip/apply/";
 
-// ---- 17 Success --------------------------------------------------------------------------------------------
-export const SUCCESS = {
-  title: "Application received",
-  line: "Thank you for applying. We'll be in touch with the next steps.",
+// ---- 16 The countdown --------------------------------------------------------------------------------
+/**
+ * The page ends on the time left until 1 December 2026, midnight in India
+ * (IST, UTC+05:30), counting live.
+ *
+ * PLACEHOLDER: what happens on that date (applications close? the trip
+ * departs?) has not been confirmed, so the words give the date and nothing
+ * more. When it is, say it in the eyebrow (e.g. "Applications close in").
+ */
+export const COUNTDOWN = {
+  /** The moment the clock reaches zero, with its time zone. */
+  target: "2026-12-01T00:00:00+05:30",
+  eyebrow: "Counting down to",
+  title: "1 December 2026",
+  zone: "India Standard Time",
+  units: ["Days", "Hours", "Minutes", "Seconds"],
+  /** Read by screen readers (updated each minute, never announced). */
+  spoken: "Time left until 1 December 2026:",
+  button: "Apply for the Trip",
 } as const;
 
 /** Visible tag text for any placeholder entry. */
 export const PLACEHOLDER_TAG = "Placeholder";
-/** First line of the message the team reads in the admin console's Contact messages. */
-export const MESSAGE_HEADER = "FREE CHINA BUSINESS TRIP: application (from affhan.com/free-china-trip/)";

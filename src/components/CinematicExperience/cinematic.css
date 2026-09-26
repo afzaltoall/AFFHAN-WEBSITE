@@ -442,3 +442,61 @@ html:has(.cx-counter[data-lock]) {
 .cx [data-intro="counting"] :is(.cx-enter-push, .cx-enter-glow, .cx-enter-silk, .cx-enter-rise) {
   animation-play-state: paused;
 }
+
+/* ---- 16 The countdown (Scene16Countdown) ---------------------------------------------
+   Large numerals in one-line windows; each figure is its own element so a
+   change can roll one out while the next rolls in. Optical size 11, as the
+   opening count: the display cut draws a 4 like a 1 at these sizes. */
+.cx-cd-num {
+  font-size: clamp(44px, 12.5vw, 72px);
+  font-weight: 400;
+  font-variation-settings: "opsz" 11;
+  line-height: 1;
+  color: var(--cx-white);
+}
+@media (min-width: 768px) {
+  .cx-cd-num { font-size: clamp(84px, 8.6vw, 150px); }
+}
+.cx-cd-slot {
+  position: relative;
+  display: inline-block;
+  width: 0.62em;
+  height: 1em;
+  overflow: hidden;
+}
+@supports (overflow: clip) {
+  .cx-cd-slot {
+    overflow: visible;
+    overflow-y: clip;
+  }
+}
+/* The gold is on the figure itself (the moving element), never on an
+   ancestor of it: see the opening count's note. */
+.cx-cd-glyph {
+  position: absolute;
+  inset: 0;
+  text-align: center;
+  background: linear-gradient(180deg, #fffaf0 0%, #f4e6c8 55%, #d6a84e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  will-change: transform;
+}
+.cx-cd-sep {
+  display: inline-block;
+  width: 0.34em;
+  text-align: center;
+  color: var(--cx-gold);
+  opacity: 0.4;
+}
+/* The seconds' clock face, centred on the two figures. */
+.cx-cd-ring {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1.78em;
+  height: 1.78em;
+  margin: -0.89em 0 0 -0.89em;
+  overflow: visible;
+  pointer-events: none;
+}

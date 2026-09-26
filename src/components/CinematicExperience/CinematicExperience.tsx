@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -8,7 +9,6 @@ import Lenis from "lenis";
 import "lenis/dist/lenis.css";
 import "./cinematic.css";
 import {
-  buildApplyHeading,
   buildCta,
   buildFilm,
   buildFilmReduced,
@@ -18,7 +18,8 @@ import {
   FILM_REDUCED_STARTS,
   registerGsap,
 } from "./animations";
-import { CHAPTERS, INCLUDED, INCLUDED_EYEBROW } from "./content";
+import { ASSETS } from "./assets";
+import { APPLY_HREF, CHAPTERS, INCLUDED, INCLUDED_EYEBROW } from "./content";
 import { FilmHud } from "./FilmHud";
 import { Motifs } from "./Motifs";
 import { NumberLoadingOpener } from "./NumberLoadingOpener";
@@ -37,7 +38,8 @@ import { Scene11WhatsIncluded } from "./Scene11WhatsIncluded";
 import { Scene12HowItWorks } from "./Scene12HowItWorks";
 import { Scene13Terms } from "./Scene13Terms";
 import { Scene14FinalCta } from "./Scene14FinalCta";
-import { Scene16Registration } from "./Scene16Registration";
+import { Scene16Countdown } from "./Scene16Countdown";
+import { FilmImage } from "./parts";
 import { Starfield } from "./Starfield";
 
 /**
@@ -45,7 +47,9 @@ import { Starfield } from "./Starfield";
  *
  * Page order: the film (a pinned stage, chapters 01–11) -> How it works ->
  * Terms & Conditions -> the final call to action (a second pinned stage,
- * 14–15) -> the application (16) and its success state (17). It mounts below
+ * 14–15) -> the countdown (16), where the page ends: no footer. Every "Apply
+ * for the Trip" opens the application, its own page (/free-china-trip/apply/),
+ * through goApply's transition. It mounts below
  * the site's navbar, which it does not touch: the page is padded 64px for
  * the fixed bar (app/free-china-trip/page.tsx), exactly as other pages are.
  *
@@ -61,6 +65,8 @@ import { Starfield } from "./Starfield";
  */
 
 const SCROLL_BEHAVIOR_CLASS = "scroll-behavior-auto";
+/** Heights (% of the screen) of the gold sparks that follow the exit's silk. */
+const EXIT_SPARKS = [31, 36, 39, 44, 47, 52, 55, 60, 42, 50];
 /** data-cx-scene names, in chapter order (matches CHAPTERS). */
 const SCENE_ORDER = ["opening", "passport", "boarding", "plane", "globe", "map", "cities", "yiwu", "hotel", "free", "included"];
 
@@ -126,39 +132,69 @@ export function CinematicExperience() {
     return () => html.classList.remove(SCROLL_BEHAVIOR_CLASS);
   }, []);
 
-  /** "Apply" buttons: glide through the transition beat, or cut straight to the form. */
-  const toApply = useCallback(
-    (glide: boolean) => (e: MouseEvent<HTMLAnchorElement>) => {
+  const router = useRouter();
+  const leaving = useRef(false);
+
+  // The application is one click away from anywhere on the page: have it
+  // ready. Old links to the in-page form (…/free-china-trip/#apply) now open
+  // the application itself.
+  useEffect(() => {
+    router.prefetch(APPLY_HREF);
+    if (window.location.hash === "#apply") router.replace(APPLY_HREF);
+  }, [router]);
+
+  /**
+   * Every "Apply for the Trip" (hero, film readout, final call, countdown):
+   * the button glows and gives a little, gold light radiates from it, red silk
+   * sweeps across with gold sparks in its trail, the page falls to black, and
+   * the application opens (its intro starts from black, so there is no white
+   * flash and no seam). Under a second; transform and opacity only. The navbar
+   * stays. Ctrl, ⌘, Shift or middle click still open a new tab, as links do.
+   */
+  const goApply = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
-      const target = document.getElementById("apply");
-      if (!target) return;
-      const land = () => document.getElementById("cx-apply-title")?.focus({ preventScroll: true });
-      const lenis = lenisRef.current;
-      if (lenis && glide) {
-        lenis.scrollTo(target, {
-          duration: 2.2,
-          easing: (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
-          onComplete: land,
-        });
-      } else if (lenis) {
-        lenis.scrollTo(target, { immediate: true, force: true });
-        requestAnimationFrame(land);
-      } else {
-        target.scrollIntoView({ block: "start" });
-        land();
+      if (leaving.current) return;
+      leaving.current = true;
+      lenisRef.current?.stop();
+      const go = () => router.push(APPLY_HREF);
+      const exit = rootRef.current?.querySelector<HTMLElement>("[data-cx='exit']");
+      if (!exit) return go();
+      const q = (key: string) => exit.querySelector<HTMLElement>(`[data-cx='${key}']`);
+      const tl = gsap.timeline({ onComplete: go });
+      tl.set(exit, { display: "block" });
+      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        tl.fromTo(q("exit-black"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
+        return;
       }
+      const btn = e.currentTarget;
+      const b = btn.getBoundingClientRect();
+      const box = exit.getBoundingClientRect();
+      tl.set(q("exit-light"), { left: b.left + b.width / 2 - box.left, top: b.top + b.height / 2 - box.top });
+      // The button gives a little and glows...
+      tl.to(btn, { scale: 0.95, duration: 0.16, ease: "power2.out" }, 0);
+      tl.fromTo(q("exit-light"), { scale: 0.04, autoAlpha: 0 }, { scale: 0.16, autoAlpha: 1, duration: 0.16, ease: "power2.out" }, 0);
+      // ...and the light radiates out from it.
+      tl.to(q("exit-light"), { scale: 1, duration: 0.62, ease: "power2.out" }, 0.14);
+      // Red silk sweeps across, gold following in its trail.
+      tl.fromTo(q("exit-silk"), { xPercent: -100, rotation: -6, autoAlpha: 0 }, { xPercent: 40, rotation: 2, duration: 0.82, ease: "power2.inOut" }, 0.1);
+      tl.to(q("exit-silk"), { autoAlpha: 1, duration: 0.24 }, 0.1);
+      const sparks = Array.from(exit.querySelectorAll<HTMLElement>("[data-cx='exit-spark']"));
+      tl.fromTo(sparks, { x: "-30vw" }, { x: "70vw", duration: 0.72, ease: "power2.in", stagger: 0.025 }, 0.18);
+      tl.fromTo(sparks, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.14, stagger: 0.025 }, 0.18);
+      // The page falls to black.
+      tl.fromTo(q("exit-black"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.42, ease: "power1.in" }, 0.5);
     },
-    [],
+    [router],
   );
-  const jump = toApply(false);
-  const glide = toApply(true);
 
   useGSAP(
     () => {
       registerGsap();
       // A refresh reopens the film at its first frame. The film only gets its
       // full length from script, so a restored scroll position would land in
-      // the one-screen server render (on the form) and then jump.
+      // the one-screen server render (on the countdown) and then jump.
       // history.scrollRestoration is stored on the history entry, so setting
       // it here is already in force when this entry is refreshed. It is set
       // through ScrollTrigger, not directly: ScrollTrigger remembers the value
@@ -173,8 +209,7 @@ export function CinematicExperience() {
       const steps = root.querySelector<HTMLElement>("[data-cx-steps]");
       const cta = root.querySelector<HTMLElement>("[data-cx-cta]");
       const ctaStage = root.querySelector<HTMLElement>("[data-cx-cta-stage]");
-      const applyHead = root.querySelector<HTMLElement>("[data-cx='apply-head']");
-      if (!film || !stage || !steps || !cta || !ctaStage || !applyHead) return;
+      if (!film || !stage || !steps || !cta || !ctaStage) return;
 
       const loader = startLoader(root);
 
@@ -247,21 +282,11 @@ export function CinematicExperience() {
         else buildFilm(film, stage, desktop, particles, { onProgress, starsDim });
         buildSteps(steps, desktop, reduce);
         buildCta(cta, ctaStage, desktop, reduce);
-        buildApplyHeading(applyHead, reduce);
 
         ScrollTrigger.refresh();
         // Web fonts change the height of the text sections, and so where the
         // later triggers start.
         void document.fonts?.ready.then(() => ScrollTrigger.refresh());
-
-        // A link to the form (…/free-china-trip/#apply) was scrolled to while
-        // the film was one screen tall; the form has since moved down by the
-        // film's length. Go to where it is now.
-        if (window.location.hash === "#apply") {
-          const form = document.getElementById("apply");
-          if (form && lenis) lenis.scrollTo(form, { immediate: true, force: true });
-          else form?.scrollIntoView({ block: "start" });
-        }
 
         return () => {
           ScrollTrigger.removeEventListener("refresh", relayout);
@@ -291,6 +316,27 @@ export function CinematicExperience() {
           document so it is in the very first paint of every load. */}
       <NumberLoadingOpener onReveal={onReveal} />
 
+      {/* The way out to the application (goApply): fixed below the navbar,
+          hidden until an Apply button is pressed. */}
+      <div data-cx="exit" aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 top-16 z-[90] hidden overflow-hidden">
+        <div
+          data-cx="exit-light"
+          className="absolute -ml-[60vmax] -mt-[60vmax] h-[120vmax] w-[120vmax] rounded-full bg-[radial-gradient(closest-side,rgb(255_244_214/0.9),rgb(242_211_142/0.55)_22%,rgb(214_168_78/0.18)_50%,transparent_72%)] opacity-0"
+        />
+        <div data-cx="exit-silk" className="absolute left-[-15%] top-[28%] w-[130%] opacity-0">
+          <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 768px) 62vw, 120vw" eager className="cx-feather-x" />
+        </div>
+        {EXIT_SPARKS.map((top, i) => (
+          <span
+            key={i}
+            data-cx="exit-spark"
+            className="absolute left-[18%] h-1.5 w-1.5 rounded-full bg-(--cx-gold-hi) opacity-0 shadow-[0_0_10px_3px_rgb(242_211_142/0.6)]"
+            style={{ top: `${top}%` }}
+          />
+        ))}
+        <div data-cx="exit-black" className="absolute inset-0 bg-[#050505] opacity-0" />
+      </div>
+
       {/* The night sky, behind every section below (fixed; see Starfield.tsx). */}
       <Starfield />
 
@@ -299,7 +345,7 @@ export function CinematicExperience() {
       <section data-cx-film aria-label="The journey" className="relative h-[100svh]">
         <div data-cx-stage data-intro={intro} className="sticky top-0 h-[100svh] overflow-hidden">
           <Motifs />
-          <Scene01Opening onApply={jump} />
+          <Scene01Opening onApply={goApply} />
           <Scene02Passport />
           <Scene03BoardingPass />
           <Scene04Airplane />
@@ -310,7 +356,7 @@ export function CinematicExperience() {
           <Scene09Hotel />
           <Scene10FreeReveal />
           <Scene11WhatsIncluded />
-          <FilmHud onSkip={jump} />
+          <FilmHud onSkip={goApply} />
         </div>
       </section>
 
@@ -333,9 +379,9 @@ export function CinematicExperience() {
       <Scene12HowItWorks />
       <Scene13Terms />
       <div data-cx-scene="cta">
-        <Scene14FinalCta onApply={glide} />
+        <Scene14FinalCta onApply={goApply} />
       </div>
-      <Scene16Registration />
+      <Scene16Countdown onApply={goApply} />
     </div>
   );
 }
