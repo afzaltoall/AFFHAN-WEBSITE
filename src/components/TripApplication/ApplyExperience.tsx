@@ -3,7 +3,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import gsap from "gsap";
 import { validateAll, type FieldErrors } from "@/lib/trip-application";
-import { DISPLAY, EYEBROW } from "@/components/CinematicExperience/parts";
 import "@/components/CinematicExperience/cinematic.css";
 import "./apply.css";
 import { ApplicationIntro } from "./ApplicationIntro";
@@ -11,6 +10,7 @@ import { Atmosphere, Host, type Mood } from "./Atmosphere";
 import { FAILURE, PAGE_TITLE, STEPS, SUBMIT, SUCCESS } from "./content";
 import { StepAboutYou } from "./StepAboutYou";
 import { StepBusiness } from "./StepBusiness";
+import { StepHeader } from "./StepHeader";
 import { StepIndicator } from "./StepIndicator";
 import { StepNav } from "./StepNav";
 import { StepProfile } from "./StepProfile";
@@ -56,16 +56,18 @@ const LAST = STEPS.length - 1;
 
 /**
  * Where the host stands in each chapter, on a desktop: large in the intro,
- * smaller through 01–02, cropped and set back in 03, turned towards the travel
- * picture in 04, receding in 05, gone while sending, back to one side after.
+ * smaller through 01–02, set back into the dark in 03, turned towards the
+ * travel picture in 04, receding in 05, gone while sending, back to one side
+ * after. Always whole on screen (the owner saw him pushed off the edge as a
+ * fault): depth is scale, dimming and a little blur.
  */
 const HOST: Record<string, gsap.TweenVars> = {
-  "0": { xPercent: 12, yPercent: 5, scale: 0.8, autoAlpha: 1 },
-  "1": { xPercent: 18, yPercent: 7, scale: 0.74, autoAlpha: 0.92 },
-  "2": { xPercent: 52, yPercent: 9, scale: 0.9, autoAlpha: 0.42 },
-  "3": { xPercent: 24, yPercent: 3, scale: 0.72, autoAlpha: 0.82 },
-  "4": { xPercent: 34, yPercent: 14, scale: 0.6, autoAlpha: 0.22 },
-  done: { xPercent: 30, yPercent: 6, scale: 0.72, autoAlpha: 0.7 },
+  "0": { xPercent: 6, yPercent: 4, scale: 0.8, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
+  "1": { xPercent: 2, yPercent: 5, scale: 0.76, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
+  "2": { xPercent: 8, yPercent: 8, scale: 0.7, autoAlpha: 0.62, filter: "blur(2px) brightness(0.72)" },
+  "3": { xPercent: -4, yPercent: 3, scale: 0.74, autoAlpha: 0.95, filter: "blur(0px) brightness(1)" },
+  "4": { xPercent: 6, yPercent: 10, scale: 0.64, autoAlpha: 0.4, filter: "blur(1px) brightness(0.85)" },
+  done: { xPercent: 8, yPercent: 5, scale: 0.74, autoAlpha: 0.75, filter: "blur(0px) brightness(1)" },
 };
 
 const sleep = (ms: number) => new Promise<null>((resolve) => window.setTimeout(() => resolve(null), ms));
@@ -76,6 +78,9 @@ export function ApplyExperience() {
   const liveRef = useRef<HTMLParagraphElement>(null);
   const [phase, setPhase] = useState<Phase>("intro");
   const [step, setStep] = useState(0);
+  /** The heading and progress change at once; the fields follow the light. */
+  const [headerStep, setHeaderStep] = useState(0);
+  const [headerDir, setHeaderDir] = useState(1);
   const [editing, setEditing] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const [failure, setFailure] = useState("");
@@ -114,7 +119,7 @@ export function ApplyExperience() {
   const silk = (tl: gsap.core.Timeline, at: number, kind: "subtle" | "partial" | "brief") => {
     const el = $("silk");
     if (!el) return;
-    const k = { subtle: { peak: 0.32, from: -65, to: 35, d: 1.4 }, partial: { peak: 0.55, from: -95, to: -30, d: 1.2 }, brief: { peak: 0.45, from: -45, to: 55, d: 0.85 } }[kind];
+    const k = { subtle: { peak: 0.55, from: -65, to: 35, d: 1.4 }, partial: { peak: 0.72, from: -95, to: -30, d: 1.2 }, brief: { peak: 0.62, from: -45, to: 55, d: 0.9 } }[kind];
     tl.set(el, { xPercent: k.from, rotation: -3, autoAlpha: 0 }, at);
     tl.to(el, { xPercent: k.to, rotation: 2, duration: k.d, ease: "power2.inOut" }, at);
     tl.to(el, { autoAlpha: k.peak, duration: k.d * 0.4, ease: "power1.out" }, at);
@@ -147,6 +152,7 @@ export function ApplyExperience() {
   // ---- The intro: plays on arrival, however the visitor arrived ----------------
   useIsoLayoutEffect(() => {
     reduce.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    gsap.set($("host"), { filter: "blur(0px) brightness(1)" });
     const lines = $$("intro-line");
     const tl = track(gsap.timeline({ defaults: { ease: "power3.out" } }));
     introTl.current = tl;
@@ -215,34 +221,78 @@ export function ApplyExperience() {
     setPhase("form");
   };
 
-  // ---- A step arrives: from the right going forward, from the left going back
+  /** The step's lines, top to bottom: its fields (or review sections), then its buttons. */
+  const stepRows = (view: HTMLElement) => {
+    const body = view.firstElementChild as HTMLElement | null;
+    const nav = view.lastElementChild as HTMLElement | null;
+    const rows = body ? (Array.from(body.children) as HTMLElement[]) : [];
+    if (nav && nav !== body) rows.push(nav);
+    return rows;
+  };
+  /** How far down the step each line sits, 0 (top) to 1 (bottom). */
+  const depthOf = (view: HTMLElement, rows: HTMLElement[]) => {
+    const r = view.getBoundingClientRect();
+    return rows.map((row) => Math.min(1, Math.max(0, (row.getBoundingClientRect().top - r.top) / Math.max(1, r.height))));
+  };
+
+  // ---- A step arrives: a line of light prints it, one line at a time ------------
+  // Downwards going forward, upwards going back. The heading has already rolled
+  // (StepHeader); the progress comet is already travelling.
   useIsoLayoutEffect(() => {
     if (phase !== "form") return;
     const view = root.current?.querySelector<HTMLElement>("[data-ax-view='step']");
     if (!view) return;
     const tl = track(gsap.timeline({ onComplete: () => void (busy.current = false) }));
-    if (reduce.current) tl.fromTo(view, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
-    else tl.fromTo(view, { autoAlpha: 0, x: 30 * dir.current, filter: "blur(4px)" }, { autoAlpha: 1, x: 0, filter: "blur(0px)", duration: 0.65, ease: "expo.out", clearProps: "transform,filter" });
+    if (reduce.current) {
+      tl.fromTo(view, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
+    } else {
+      const fwd = dir.current > 0;
+      const rows = stepRows(view);
+      const depth = depthOf(view, rows);
+      const H = view.offsetHeight;
+      // A longer step takes a little longer to print.
+      const PRINT = Math.min(0.95, 0.5 + H / 2400);
+      gsap.set(view, { autoAlpha: 1 });
+      gsap.set(rows, { autoAlpha: 0 });
+      const scan = $("scan");
+      tl.fromTo(scan, { y: fwd ? 0 : H, autoAlpha: 0 }, { y: fwd ? H : 0, duration: PRINT, ease: "power1.inOut" }, 0);
+      tl.to(scan, { autoAlpha: 1, duration: 0.1 }, 0);
+      tl.to(scan, { autoAlpha: 0, duration: 0.25 }, PRINT - 0.12);
+      rows.forEach((row, i) => {
+        const t = fwd ? depth[i] : 1 - depth[i];
+        tl.fromTo(row, { autoAlpha: 0, y: fwd ? 18 : -18, filter: "blur(6px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 0.6, ease: "expo.out", clearProps: "transform,filter" }, 0.03 + t * PRINT * 0.9);
+      });
+    }
     if (!indicatorShown.current) {
       indicatorShown.current = true;
-      tl.fromTo($("indicator"), { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0);
+      tl.fromTo([$("indicator"), $("step-head")], { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.08, ease: "power2.out" }, 0);
     }
-    // The new step's title takes focus (once visible: hidden things can't),
-    // so keyboards and readers start there.
+    // The new step's title takes focus (it is always on screen), so keyboards
+    // and readers start there.
     tl.call(() => document.getElementById("ax-step-title")?.focus({ preventScroll: true }), [], 0.05);
     return () => void tl.kill();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, step]);
 
-  /** Leave this step (to the left going forward), with the chapter's motion. */
+  /**
+   * Leave this step. The heading rolls to the next at once; a line of light
+   * reads down the page (up it, going back) and lifts each line away as it
+   * passes; light crosses the host as he takes his place for the next step;
+   * the ground changes colour, and at the chapter's own moments silk or the
+   * gold trail crosses. Then the next step is printed (the effect above).
+   */
   const go = async (to: number, editingNext = false) => {
     if (busy.current || to === step) return;
     busy.current = true;
     const from = step;
-    dir.current = to > from ? 1 : -1;
+    const fwd = to > from;
+    dir.current = fwd ? 1 : -1;
+    setHeaderDir(dir.current);
+    setHeaderStep(to);
     const view = root.current?.querySelector<HTMLElement>("[data-ax-view='step']") ?? null;
     const tl = track(gsap.timeline());
     const key = String(to);
+    let lifted = 0.2;
     if (reduce.current) {
       tl.to(view, { autoAlpha: 0, duration: 0.2 }, 0);
       tl.to($("host"), { autoAlpha: 0, duration: 0.2 }, 0);
@@ -251,10 +301,30 @@ export function ApplyExperience() {
       toMood(tl, key as Mood, 0, 0.4);
       tl.to($("travel"), { autoAlpha: to === 3 ? 0.35 : 0, duration: 0.4 }, 0);
     } else {
-      tl.to(view, { autoAlpha: 0, x: -30 * dir.current, filter: "blur(4px)", duration: 0.42, ease: "power2.in" }, 0);
+      const rows = view ? stepRows(view) : [];
+      const depth = view ? depthOf(view, rows) : [];
+      const H = view?.offsetHeight ?? 0;
+      const READ = Math.min(0.7, 0.36 + H / 3000);
+      lifted = READ + 0.08;
+      // The button that asked glows as it is pressed.
+      const pressed = fwd ? view?.querySelector<HTMLElement>("button[type=submit] [data-ax-glow]") : null;
+      if (pressed) tl.fromTo(pressed, { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1.12, duration: 0.3, ease: "power2.out" }, 0);
+      // The light reads the page; every line it passes is lifted away.
+      const scan = $("scan");
+      tl.fromTo(scan, { y: fwd ? 0 : H, autoAlpha: 0 }, { y: fwd ? H : 0, duration: READ, ease: "power1.inOut" }, 0);
+      tl.to(scan, { autoAlpha: 1, duration: 0.08 }, 0);
+      tl.to(scan, { autoAlpha: 0, duration: 0.1 }, READ - 0.04);
+      rows.forEach((row, i) => {
+        const t = fwd ? depth[i] : 1 - depth[i];
+        tl.to(row, { autoAlpha: 0, y: fwd ? -16 : 16, filter: "blur(6px)", duration: 0.26, ease: "power2.in" }, 0.02 + t * READ * 0.92);
+      });
+      // Light crosses the host (left to right going forward) as he moves.
+      tl.to($("host"), { ...HOST[key], duration: 1.1, ease: "power3.inOut" }, 0.05);
+      tl.set($("host-sheen"), { autoAlpha: 1 }, 0.1);
+      tl.fromTo($("host-band"), { xPercent: fwd ? 222 : -100 }, { xPercent: fwd ? -100 : 222, duration: 1.0, ease: "power2.inOut" }, 0.1);
+      tl.to($("host-sheen"), { autoAlpha: 0, duration: 0.25 }, 0.95);
       toMood(tl, key as Mood, 0.1);
-      tl.to($("host"), { ...HOST[key], duration: 0.95, ease: "power3.inOut" }, 0.05);
-      if (to === 3) tl.fromTo($("travel"), { autoAlpha: 0, xPercent: 8, scale: 0.94 }, { autoAlpha: 0.38, xPercent: 0, scale: 1, duration: 1.2, ease: "power2.out" }, 0.2);
+      if (to === 3) tl.fromTo($("travel"), { autoAlpha: 0, xPercent: 8, scale: 0.94 }, { autoAlpha: 0.42, xPercent: 0, scale: 1, duration: 1.2, ease: "power2.out" }, 0.2);
       else if (from === 3) tl.to($("travel"), { autoAlpha: 0, duration: 0.6 }, 0);
       // The motifs cross only going forward, at the chapter's own moments.
       if (from === 0 && to === 1) silk(tl, 0.05, "subtle");
@@ -262,7 +332,7 @@ export function ApplyExperience() {
       if (from === 2 && to === 3) trail(tl, 0.05, -6);
       if (from === 3 && to === 4) silk(tl, 0.05, "brief");
     }
-    await new Promise<void>((resolve) => tl.call(resolve, [], reduce.current ? 0.2 : 0.42));
+    await new Promise<void>((resolve) => tl.call(resolve, [], lifted));
     toTop(reduce.current);
     setEditing(editingNext);
     setStep(to);
@@ -408,6 +478,8 @@ export function ApplyExperience() {
       app.setErrors(fields);
       dir.current = -1;
       setEditing(true);
+      setHeaderDir(-1);
+      setHeaderStep(first ? STEP_OF[first] : LAST);
       setStep(first ? STEP_OF[first] : LAST);
       setPhase("form");
       return;
@@ -517,18 +589,18 @@ export function ApplyExperience() {
 
           {phase !== "intro" && phase !== "received" && (
             <div inert={covered}>
-              <StepIndicator step={step} />
-              <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title" className="mt-10 md:mt-14">
-                <header className="mb-10 md:mb-12">
-                  <p className={`${EYEBROW} hidden md:block`}>Step {STEPS[step].number}</p>
-                  <h2 id="ax-step-title" tabIndex={-1} className={`${DISPLAY} text-[clamp(36px,9vw,48px)] md:mt-3 font-normal uppercase leading-[0.98] text-(--cx-white) outline-none md:text-[clamp(44px,4.4vw,64px)]`}>
-                    {STEPS[step].title}
-                  </h2>
-                  <p className="mt-4 max-w-[30rem] text-[16px] leading-relaxed text-(--cx-mute)">{STEPS[step].lede}</p>
-                </header>
-                {step === LAST ? <StepReview app={app} onEdit={(i) => void go(i, true)} /> : <Step app={app} />}
-                <StepNav step={step} last={LAST} editing={editing} onBack={() => void go(step - 1)} />
-              </form>
+              <StepIndicator step={headerStep} />
+              <div data-ax="step-head" data-ax-hide>
+                <StepHeader step={headerStep} dir={headerDir} />
+              </div>
+              <div className="relative mt-10 md:mt-12">
+                {/* The line of light that lifts one step away and prints the next. */}
+                <span data-ax="scan" aria-hidden className="ax-scan pointer-events-none absolute -inset-x-4 top-0 z-10 block h-px opacity-0 md:-inset-x-8" />
+                <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title">
+                  {step === LAST ? <StepReview app={app} onEdit={(i) => void go(i, true)} /> : <Step app={app} />}
+                  <StepNav step={step} last={LAST} editing={editing} onBack={() => void go(step - 1)} />
+                </form>
+              </div>
             </div>
           )}
         </div>

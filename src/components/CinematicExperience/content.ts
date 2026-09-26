@@ -164,7 +164,8 @@ export const COUNTDOWN = {
   target: "2026-12-01T00:00:00+05:30",
   eyebrow: "Counting down to",
   title: "1 December 2026",
-  zone: "India Standard Time",
+  /** Beside the live date and time in India, under the clock. */
+  now: "Now in India",
   units: ["Days", "Hours", "Minutes", "Seconds"],
   /** Read by screen readers (updated each minute, never announced). */
   spoken: "Time left until 1 December 2026:",

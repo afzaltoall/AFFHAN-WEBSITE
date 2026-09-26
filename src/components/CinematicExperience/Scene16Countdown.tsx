@@ -10,8 +10,11 @@ import { DISPLAY, EYEBROW } from "./parts";
  * 16 The countdown: where the page ends. The time left until COUNTDOWN.target
  * (1 December 2026, midnight IST), live to the second.
  *
- *  - Arrival: as the clock comes into view every figure winds up from 00 to
- *    the time left, fast then settling, and lands on the second.
+ *  - Real from the first frame: the true time left is drawn before the clock
+ *    is ever seen, and it counts from the moment the page opens. As the clock
+ *    comes into view it rises into place, already showing the real figures
+ *    (never a zero that isn't true). Beneath it, today's date and time in
+ *    India, live to the second.
  *  - Then it ticks: each figure that changes rolls down out of its window
  *    while the next falls in from above (a countdown falls), with a trace of
  *    blur; the colons flash on each second; and a ring around the seconds
@@ -21,10 +24,10 @@ import { DISPLAY, EYEBROW } from "./parts";
  *  - At zero it rests at 00 00 00 00.
  *
  * The figures are drawn on the client only (the server can't know the time
- * the page will be read), from a first frame of zeros, so there is nothing to
+ * the page will be read): its windows are empty, so there is nothing to
  * mismatch. Screen readers get one sentence, updated each minute and never
  * announced (role="timer"). Under reduced motion the figures change in place:
- * no roll, no wind-up, no ring movement. The numerals use optical size 11, so
+ * no roll, no rise, no ring movement. The numerals use optical size 11, so
  * a 4 never reads as a 1 (see cinematic.css).
  */
 
@@ -39,8 +42,8 @@ function leftAt(now: number): Left {
   return { d: Math.floor(total / 86400), h: Math.floor((total % 86400) / 3600), m: Math.floor((total % 3600) / 60), s: total % 60 };
 }
 
-/** still: change in place. wind: the arrival (figures rise). tick: live (figures fall). */
-type Motion = "still" | "wind" | "tick";
+/** still: change in place. tick: live (figures fall). */
+type Motion = "still" | "tick";
 
 /** One numeral in a one-line window. The numerals are this component's own
  *  DOM (the window is empty to React), so a change can roll out the old one
@@ -61,11 +64,6 @@ function Digit({ value, motion }: { value: number; motion: Motion }) {
     el.appendChild(next);
     if (first || motion === "still") {
       olds.forEach((o) => o.remove());
-      return;
-    }
-    if (motion === "wind") {
-      gsap.fromTo(next, { yPercent: 100 }, { yPercent: 0, duration: 0.12, ease: "none" });
-      olds.forEach((o) => gsap.to(o, { yPercent: -100, duration: 0.12, ease: "none", onComplete: () => o.remove() }));
       return;
     }
     gsap.fromTo(next, { yPercent: -100, autoAlpha: 0, filter: "blur(3px)" }, { yPercent: 0, autoAlpha: 1, filter: "blur(0px)", duration: 0.6, ease: "power3.out", clearProps: "filter" });
@@ -144,7 +142,7 @@ function SecondsRing({ s, motion }: { s: number; motion: Motion }) {
 function Unit({ value, digits, label, motion, ring }: { value: number; digits: number; label: string; motion: Motion; ring?: boolean }) {
   const chars = String(value).padStart(digits, "0").split("");
   return (
-    <div className="flex flex-col items-center">
+    <div data-cx-hide className="flex flex-col items-center">
       <div className="relative flex py-[0.42em]">
         {ring && <SecondsRing s={value} motion={motion} />}
         {chars.map((c, i) => (
@@ -156,18 +154,37 @@ function Unit({ value, digits, label, motion, ring }: { value: number; digits: n
   );
 }
 
+/** The date and time in India now, to the second: "Saturday 26 September 2026 · 11:42:07". */
+const IST = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kolkata",
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+function nowInIndia(at: number): string {
+  const p = Object.fromEntries(IST.formatToParts(at).map((x) => [x.type, x.value]));
+  return `${p.weekday} ${p.day} ${p.month} ${p.year} · ${p.hour}:${p.minute}:${p.second}`;
+}
+
 export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnchorElement>) => void }) {
   const root = useRef<HTMLElement>(null);
-  const [left, setLeft] = useState<Left>(ZERO);
+  // The real time left from the first render in the browser. The server
+  // can't know when the page will be read, so it draws empty windows (no
+  // figures, nothing to mismatch) and the browser fills them with the true
+  // figures before it first paints them. Never a zero that isn't real.
+  const [left, setLeft] = useState<Left>(() => (typeof window === "undefined" ? ZERO : leftAt(Date.now())));
   const [motion, setMotion] = useState<Motion>("still");
+  const [now, setNow] = useState("");
   const [spoken, setSpoken] = useState("");
 
   useEffect(() => {
-    const clock = root.current?.querySelector<HTMLElement>("[data-cx-clock]");
-    if (!clock) return;
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     let timer = 0;
-    let wind: gsap.core.Tween | null = null;
     let minute = -1;
     const say = (l: Left) => {
       const key = l.d * 1440 + l.h * 60 + l.m;
@@ -175,43 +192,45 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
       minute = key;
       setSpoken(`${COUNTDOWN.spoken} ${l.d} days, ${l.h} hours, ${l.m} minutes.`);
     };
+    // Live from the moment the page opens, whether or not anyone has scrolled
+    // this far: every second read from the clock, just after it turns.
     const tick = () => {
-      const l = leftAt(Date.now());
+      const t = Date.now();
+      const l = leftAt(t);
       setLeft(l);
+      setNow(nowInIndia(t));
       say(l);
       if (l.d + l.h + l.m + l.s === 0) return; // Reached: the clock rests at zero.
       timer = window.setTimeout(tick, 1000 - (Date.now() % 1000) + 12);
     };
-    const live = () => {
-      setMotion(reduce ? "still" : "tick");
-      tick();
-    };
-    say(leftAt(Date.now()));
+    setMotion(reduce ? "still" : "tick");
+    tick();
 
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        io.disconnect();
-        if (reduce) return live();
-        // The wind-up: every figure spins up from zero and lands on the second.
-        const land = leftAt(Date.now() + 1500);
-        const p = { ...ZERO };
-        setMotion("wind");
-        wind = gsap.to(p, {
-          ...land,
-          duration: 1.45,
-          ease: "power3.out",
-          onUpdate: () => setLeft({ d: Math.round(p.d), h: Math.round(p.h), m: Math.round(p.m), s: Math.round(p.s) }),
-          onComplete: live,
-        });
-      },
-      { threshold: 0.3 },
-    );
-    io.observe(clock);
+    // Arrival: the clock rises into place as it comes into view, already
+    // showing the true time left (hidden until then, never shown at zero).
+    const face = root.current?.querySelector<HTMLElement>("[data-cx-clock-face]");
+    let io: IntersectionObserver | null = null;
+    if (face) {
+      io = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((e) => e.isIntersecting)) return;
+          io?.disconnect();
+          const parts = Array.from(face.children);
+          if (reduce) gsap.set(parts, { autoAlpha: 1 });
+          else
+            gsap.fromTo(
+              parts,
+              { autoAlpha: 0, y: 26, filter: "blur(10px)" },
+              { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 1.1, stagger: 0.08, ease: "power3.out", clearProps: "filter,transform" },
+            );
+        },
+        { threshold: 0.2 },
+      );
+      io.observe(face);
+    }
     return () => {
-      io.disconnect();
       window.clearTimeout(timer);
-      wind?.kill();
+      io?.disconnect();
     };
   }, []);
 
@@ -227,7 +246,7 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
   // A plain element (not a component made during render), so the same
   // colons stay in the page from second to second and can flash.
   const sep = (
-    <span data-cx-sep aria-hidden className="cx-cd-sep py-[0.42em]">
+    <span data-cx-sep data-cx-hide aria-hidden className="cx-cd-sep py-[0.42em]">
       :
     </span>
   );
@@ -249,7 +268,7 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
 
       <div data-cx-clock role="timer" aria-labelledby="cx-countdown-title" className="relative mt-10 md:mt-14">
         <p className="sr-only">{spoken}</p>
-        <div aria-hidden className={`${DISPLAY} cx-cd-num flex items-start justify-center`}>
+        <div data-cx-clock-face aria-hidden className={`${DISPLAY} cx-cd-num flex items-start justify-center`}>
           <Unit value={left.d} digits={dayDigits} label={dL} motion={motion} />
           {sep}
           <Unit value={left.h} digits={2} label={hL} motion={motion} />
@@ -260,7 +279,11 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
         </div>
       </div>
 
-      <p className="relative mt-8 text-[11px] font-semibold uppercase tracking-[0.3em] text-(--cx-mute) md:mt-10">{COUNTDOWN.zone}</p>
+      {/* Today, live: so the countdown is plainly counting from now. */}
+      <p className="relative mt-8 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-(--cx-mute) md:mt-10">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.3em]">{COUNTDOWN.now}</span>
+        <span className="min-h-[1.5em] text-[14px] tabular-nums tracking-[0.02em] text-(--cx-white)/85 md:text-[15px]">{now}</span>
+      </p>
 
       <a
         href={APPLY_HREF}

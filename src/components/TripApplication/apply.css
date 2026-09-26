@@ -80,3 +80,78 @@
   -webkit-box-shadow: 0 0 0 1000px var(--ax-base) inset;
   transition: background-color 9999s ease-out 0s;
 }
+
+/* ---- The step change -------------------------------------------------------------------
+   Rolling words (Roll.tsx): one grid cell holds the leaving and the arriving
+   text, clipped top and bottom with a little room for ascenders and tails. */
+.ax-roll {
+  display: inline-grid;
+  overflow: hidden;
+  padding-block: 0.1em;
+  margin-block: -0.1em;
+}
+.ax-roll.grid {
+  display: grid;
+}
+.ax-roll > .ax-roll-item {
+  grid-area: 1 / 1;
+}
+/* The step's numeral: large, gold, optical size 11 (a 4 must read as a 4). */
+.ax-step-num {
+  font-size: clamp(60px, 16vw, 84px);
+  font-weight: 400;
+  font-variation-settings: "opsz" 11;
+  line-height: 1;
+  letter-spacing: 0.01em;
+}
+@media (min-width: 768px) {
+  .ax-step-num { font-size: clamp(84px, 7.2vw, 124px); }
+}
+.ax-num-ink {
+  background: linear-gradient(180deg, #fffaf0 0%, #f4e6c8 52%, #d6a84e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+/* The scanning light: lifts the old fields away and prints the new ones. */
+.ax-scan {
+  background: linear-gradient(90deg, transparent, var(--cx-gold) 14%, #fff4d6 50%, var(--cx-gold) 86%, transparent);
+  box-shadow: 0 0 22px 4px rgb(242 211 142 / 0.45), 0 0 2px 0 rgb(255 244 214 / 0.9);
+}
+/* The progress line: gold fills to the next number, a small comet at its head. */
+.ax-seg {
+  transition: width 0.95s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.ax-seg::after {
+  content: "";
+  position: absolute;
+  right: -3.5px;
+  top: -3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: #fff4d6;
+  box-shadow: 0 0 12px 4px rgb(242 211 142 / 0.75);
+  opacity: 0;
+}
+.ax-seg[data-filled]::after {
+  animation: ax-comet 1.15s ease-out;
+}
+@keyframes ax-comet {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-seg { transition: none; }
+  .ax-seg[data-filled]::after { animation: none; }
+}
+/* A band of light across the host, cut to his silhouette by his own picture
+   (mirrored with him). Only ever seen while a step changes. */
+.ax-host-sheen {
+  -webkit-mask: url("/free-china-trip/14-host-presenter.webp") center / 100% 100% no-repeat;
+  mask: url("/free-china-trip/14-host-presenter.webp") center / 100% 100% no-repeat;
+}
+.ax-host-band {
+  background: linear-gradient(100deg, transparent 0%, rgb(255 244 214 / 0.05) 25%, rgb(255 244 214 / 0.62) 50%, rgb(255 244 214 / 0.05) 75%, transparent 100%);
+  mix-blend-mode: screen;
+}

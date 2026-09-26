@@ -3,7 +3,8 @@ import { STEPS } from "./content";
 /**
  * Where the applicant is: 01 ─── 02 ─── 03 ─── 04 ─── 05 on a desktop, "STEP
  * 01 OF 05" on a phone. The gold line between numbers fills as each step is
- * passed (a CSS transition; none under reduced motion). No numbered cards.
+ * passed, a small comet of light at its head (CSS; none under reduced
+ * motion). No numbered cards.
  */
 export function StepIndicator({ step }: { step: number }) {
   const last = STEPS.length - 1;
@@ -39,11 +40,9 @@ export function StepIndicator({ step }: { step: number }) {
               </span>
             </span>
             {i < last && (
-              <span aria-hidden className="relative mx-4 h-px w-[clamp(28px,4.2vw,72px)] overflow-hidden bg-(--cx-white)/15">
-                <span
-                  className="absolute inset-0 origin-left bg-(--cx-gold) transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
-                  style={{ transform: `scaleX(${i < step ? 1 : 0})` }}
-                />
+              <span aria-hidden className="relative mx-4 h-px w-[clamp(28px,4.2vw,72px)] bg-(--cx-white)/15">
+                {/* Width, not scale, so the comet at its head rides the edge. */}
+                <span className="ax-seg absolute inset-y-0 left-0 bg-(--cx-gold)" data-filled={i < step ? "" : undefined} style={{ width: i < step ? "100%" : "0%" }} />
               </span>
             )}
           </li>
