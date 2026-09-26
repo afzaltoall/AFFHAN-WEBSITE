@@ -1,6 +1,5 @@
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ANCHORS } from "./assets";
 import type { GatherField } from "./particles";
 import { ROUTE_POINTS } from "./Scene05Globe";
 
@@ -10,11 +9,10 @@ import { ROUTE_POINTS } from "./Scene05Globe";
  * SCROLL IS THE CAMERA. There are only three scroll-driven timelines on the
  * page, plus one one-shot reveal:
  *
- *   1. THE FILM (buildFilm*): one pinned stage, one scrubbed timeline: first
- *      the time opener (00, buildOpener: spark, clock, orbit, globe, China,
- *      silk, plane, into the hero), then chapters 01–11, from the traveller to
- *      What's included. One timeline so that the silk and the gold, and every
- *      hand-off, is continuous; there is no seam between sections to hide.
+ *   1. THE FILM (buildFilm*): one pinned stage, one scrubbed timeline, chapters
+ *      01–11, from the traveller to What's included. One timeline so that the
+ *      silk and the gold, and every hand-off (plane -> globe -> map -> the
+ *      cities), is continuous; there is no seam between sections to hide.
  *   2. HOW IT WORKS (buildSteps): not pinned; gold fills the line joining the
  *      three steps as the section passes.
  *   3. THE FINAL CALL TO ACTION (buildCta): the second pinned stage, the host,
@@ -50,19 +48,6 @@ export const FILM_CHAPTER_STARTS = [0, 0.55, 1.95, 3.1, 4.5, 6.5, 8.5, 11.75, 13
 export const FILM_END = 21.0;
 export const FILM_REDUCED_STARTS = [0, 0.85, 1.95, 2.95, 3.95, 4.95, 5.95, 8.65, 9.55, 10.45, 11.45];
 const FILM_REDUCED_END = 12.3;
-
-/**
- * THE OPENER'S LENGTH, in vh of scrolling: the one number to tune after
- * feeling it live (500–800 is the sensible range). Every beat in buildOpener
- * is placed as a fraction of it, so changing this changes nothing else.
- */
-export const OPENER_SCROLL_VH = 600;
-const OPENER_UNITS = OPENER_SCROLL_VH / BEAT;
-/** Reduced motion: the same beats as dissolves, over a shorter scroll. */
-const OPENER_REDUCED_UNITS = 3.2;
-
-/** A point and a width inside a picture, as fractions of it (see ANCHORS). */
-type Anchor = { cx: number; cy: number; w: number };
 
 type Target = HTMLElement | SVGElement;
 
@@ -102,212 +87,6 @@ export interface FilmHooks {
 }
 
 /* =============================================================================
- * 0. THE TIME OPENER — the first stretch of the film's master timeline
- * TIME -> CLOCK -> ORBIT -> GLOBE -> CHINA -> RED SILK -> GOLD TRAIL ->
- * AIRPLANE -> TRAVELLER -> the hero. Built into the same pinned stage and the
- * same scrubbed timeline as the film (no second trigger, no second pin), and
- * placed in fractions of its own length O, so OPENER_SCROLL_VH retunes it
- * without touching a beat. Labels on the master mark each beat; at
- * "heroComplete" the hero stands exactly as it did before the opener existed.
- * ============================================================================= */
-
-const OPENER_LABELS: ReadonlyArray<[string, number]> = [
-  ["timeStart", 0],
-  ["clockOpen", 0.12],
-  ["orbit", 0.25],
-  ["globe", 0.4],
-  ["china", 0.52],
-  ["silk", 0.65],
-  ["flight", 0.75],
-  ["heroReveal", 0.9],
-  ["heroComplete", 1],
-];
-
-/**
- * The match cut. Returns the x / y / scale that land the picture `key` so its
- * point `own` sits on the point `inHero` of the hero composite, at the same
- * width. Measured with transforms cleared, so it is the resting geometry
- * whatever the timeline has done; as functions, so ScrollTrigger re-measures
- * on every refresh (resize, rotation).
- */
-function landOnHero(stage: HTMLElement, key: string, own: Anchor, inHero: Anchor) {
-  const rest = (el: HTMLElement | null) => {
-    if (!el) return null;
-    const prev = el.style.transform;
-    el.style.transform = "none";
-    const r = el.getBoundingClientRect();
-    el.style.transform = prev;
-    return r;
-  };
-  const get = () => {
-    const hero = rest(stage.querySelector<HTMLElement>("[data-cx='hero-img']"));
-    const el = rest(stage.querySelector<HTMLElement>(`[data-cx='${key}']`));
-    if (!hero || !el || !el.width) return { x: 0, y: 0, scale: 1 };
-    const scale = (inHero.w * hero.width) / (own.w * el.width);
-    const tx = hero.left + inHero.cx * hero.width;
-    const ty = hero.top + inHero.cy * hero.height;
-    // Scale works about the element's centre; the point `own` sits
-    // (own - 0.5) of the element's size away from it.
-    return {
-      x: tx - (el.left + el.width / 2) - (own.cx - 0.5) * el.width * scale,
-      y: ty - (el.top + el.height / 2) - (own.cy - 0.5) * el.height * scale,
-      scale,
-    };
-  };
-  return { x: () => get().x, y: () => get().y, scale: () => get().scale };
-}
-
-function buildOpener(tl: gsap.core.Timeline, stage: HTMLElement, d: boolean, O: number, starsDim: HTMLElement | null) {
-  const $ = picker(stage);
-  const at = (p: number) => p * O;
-  const len = (p: number) => p * O;
-  const X = (desk: number, phone: number) => `${d ? desk : phone}vw`;
-  const vh = (n: number) => `${n}vh`;
-  for (const [name, p] of OPENER_LABELS) tl.addLabel(name, at(p));
-
-  // The first frame: black, a spark, and a sky barely there yet.
-  gsap.set($("op-orb", "op-orb-front"), { transformPerspective: 1600 });
-  if (starsDim) gsap.set(starsDim, { opacity: 0.12 });
-  const reveal = { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power3.out" };
-  const hidden = { autoAlpha: 0, y: 30, filter: "blur(8px)" };
-
-  // ---- 0.00 timeStart: the first spark ---------------------------------------
-  tl.to($("op-cue"), { autoAlpha: 0, duration: len(0.06) }, at(0.02));
-  tl.to($("op-spark"), { scale: 2.6, ease: "power1.in", duration: len(0.1) }, at(0.02));
-  tl.fromTo($("op-core"), { autoAlpha: 0, scale: 0.2 }, { autoAlpha: 0.85, scale: 0.55, ease: "power2.out", duration: len(0.12) }, at(0.04));
-  tl.fromTo($("op-warm"), { opacity: 0.4 }, { opacity: 1, duration: len(0.3) }, at(0));
-
-  // ---- 0.12 clockOpen: the spark becomes a clock ---------------------------------
-  tl.fromTo($("op-orb"), { autoAlpha: 0, scale: 0.5, filter: "blur(8px)" }, { autoAlpha: 1, scale: 0.85, filter: "blur(0px)", ease: "power2.out", duration: len(0.1) }, at(0.1));
-  tl.fromTo($("op-ticks"), { autoAlpha: 0 }, { autoAlpha: 1, duration: len(0.08) }, at(0.12));
-  tl.fromTo($("op-hand"), { autoAlpha: 0 }, { autoAlpha: 1, duration: len(0.06) }, at(0.13));
-  tl.fromTo($("op-hand"), { rotation: -30 }, { rotation: 40, duration: len(0.13) }, at(0.12));
-  tl.to($("op-spark"), { scale: 0.8, ease: "power2.out", duration: len(0.08) }, at(0.12));
-  // TIME MOVES. / SO SHOULD YOU.: each line rises out of its mask, blur to sharp.
-  [1, 2].forEach((n, i) => {
-    const t = at(0.13 + i * 0.055);
-    tl.fromTo($(`op-word-${n}`), { autoAlpha: 0, y: 30, filter: "blur(8px)" }, { ...reveal, duration: len(0.07) }, t);
-    tl.fromTo($(`op-word-${n}-in`), { yPercent: 105 }, { yPercent: 0, ease: "power3.out", duration: len(0.07) }, t);
-  });
-  tl.to($("op-word-1", "op-word-2"), { autoAlpha: 0, y: -24, filter: "blur(8px)", ease: "power1.in", duration: len(0.06) }, at(0.3));
-
-  // ---- 0.25 orbit: the clock stops being a clock ----------------------------------
-  tl.to($("op-hand"), { rotation: 760, ease: "power2.in", duration: len(0.15) }, at(0.25));
-  tl.to($("op-hand"), { autoAlpha: 0, duration: len(0.05) }, at(0.35));
-  tl.to($("op-ticks"), { autoAlpha: 0, scale: 1.06, duration: len(0.08) }, at(0.25));
-  tl.to($("op-orb"), { scale: 1.4, rotationX: 72, ease: "power2.inOut", duration: len(0.16) }, at(0.26));
-  tl.fromTo($("op-orb-front"), { scale: 0.85, rotationX: 0 }, { scale: 1.4, rotationX: 72, ease: "power2.inOut", duration: len(0.16) }, at(0.26));
-  tl.fromTo($("op-orb-front"), { autoAlpha: 0 }, { autoAlpha: 1, duration: len(0.06) }, at(0.33));
-  // The light sweep: the bright part of the ring travels round it.
-  tl.fromTo($("op-orb-spin"), { rotation: 0 }, { rotation: 320, duration: len(0.38) }, at(0.24));
-  // The centre glows into a small world, and the sky arrives with it.
-  tl.to($("op-core"), { scale: 1.25, duration: len(0.14) }, at(0.26));
-  tl.to($("op-spark"), { autoAlpha: 0, scale: 0.3, duration: len(0.06) }, at(0.3));
-  if (starsDim) tl.fromTo(starsDim, { opacity: 0.12 }, { opacity: 1, duration: len(0.16) }, at(0.3));
-
-  // ---- 0.40 globe: the world out of the glow; the camera pushes to Asia ------------
-  tl.fromTo($("op-globe"), { autoAlpha: 0, scale: 0.35, xPercent: 0, yPercent: 0, filter: "blur(14px)" }, { autoAlpha: 1, scale: 0.75, filter: "blur(0px)", ease: "power2.out", duration: len(0.12) }, at(0.31));
-  tl.to($("op-core"), { autoAlpha: 0, duration: len(0.08) }, at(0.38));
-  tl.to($("op-globe"), { scale: 1.15, xPercent: -6, yPercent: 9, ease: "power1.inOut", duration: len(0.11) }, at(0.42));
-  tl.to($("op-orb", "op-orb-front"), { scale: 1.7, duration: len(0.1) }, at(0.42));
-  // The route: the gold trail laid over India to China and drawn on.
-  tl.set($("op-trail"), { x: X(-6, -8), y: vh(-4), rotation: -18, scale: d ? 0.42 : 0.5, filter: "brightness(1)" }, at(0.46));
-  tl.fromTo($("op-trail"), { autoAlpha: 0 }, { autoAlpha: 1, duration: len(0.02) }, at(0.47));
-  tl.fromTo($("op-trail-window"), { xPercent: -100 }, { xPercent: 0, ease: "power1.inOut", duration: len(0.1) }, at(0.47));
-  tl.fromTo($("op-trail-img"), { xPercent: 100 }, { xPercent: 0, ease: "power1.inOut", duration: len(0.1) }, at(0.47));
-
-  // ---- 0.52 china: dive into China; the map rises out of the dive ------------------
-  // Zooming about the China hub: the translate that keeps it still is
-  // -(s1 - s0) x its offset from centre (12% right, 19% up).
-  const dive = 2.8;
-  tl.to($("op-globe"), { scale: dive, xPercent: -6 - (dive - 1.15) * 12, yPercent: 9 + (dive - 1.15) * 19, autoAlpha: 0, filter: "blur(12px)", ease: "power2.in", duration: len(0.11) }, at(0.53));
-  tl.to($("op-orb", "op-orb-front"), { autoAlpha: 0, scale: 2.4, duration: len(0.09) }, at(0.52));
-  tl.fromTo($("op-map"), { autoAlpha: 0, scale: 0.9, filter: "blur(10px)" }, { autoAlpha: 1, scale: 1.05, filter: "blur(0px)", ease: "power2.out", duration: len(0.1) }, at(0.56));
-  tl.to($("op-map"), { scale: 1.2, duration: len(0.06) }, at(0.66));
-  tl.fromTo($("op-map-glow"), { autoAlpha: 0, scale: 0.6 }, { autoAlpha: 1, scale: 1, duration: len(0.1) }, at(0.56));
-  // The trail lifts off the globe and turns into the flight path.
-  tl.to($("op-trail"), { x: X(-4, -6), y: vh(4), rotation: -14, scale: 1, ease: "power2.inOut", duration: len(0.13) }, at(0.6));
-
-  // ---- 0.65 silk: the hero's own silk sweeps in on a curve ---------------------------
-  // x and y on different eases: that is what bends the path.
-  tl.fromTo($("hero-silk"), { autoAlpha: 0, x: X(70, 90), rotation: 16, scale: 1.3, filter: "blur(10px)" }, { autoAlpha: 1, x: X(26, 30), rotation: -4, scale: 1.1, filter: "blur(3px)", ease: "power2.out", duration: len(0.12) }, at(0.63));
-  tl.fromTo($("hero-silk"), { y: vh(46) }, { y: vh(24), ease: "sine.inOut", duration: len(0.12) }, at(0.63));
-  tl.to($("op-map"), { autoAlpha: 0, scale: 1.32, filter: "blur(8px)", ease: "power1.in", duration: len(0.09) }, at(0.72));
-  tl.to($("op-map-glow"), { autoAlpha: 0, duration: len(0.09) }, at(0.72));
-
-  // ---- 0.75 flight: the trail brightens; the plane rides it --------------------------
-  tl.fromTo($("op-trail"), { filter: "brightness(1)" }, { filter: "brightness(1.7)", duration: len(0.07) }, at(0.73));
-  const plane = landOnHero(stage, "op-plane", ANCHORS.planeInOwn, ANCHORS.heroPlane);
-  tl.fromTo($("op-plane"), { autoAlpha: 0, x: X(-72, -80), y: vh(28), scale: 0.26, rotation: 7, filter: "blur(8px)" },
-    { autoAlpha: 1, x: X(-16, -14), y: vh(8), scale: 0.5, rotation: 3, filter: "blur(2px)", ease: "power1.out", duration: len(0.08) }, at(0.74));
-  // ...and lands on the plane painted in the hero, at its size and angle.
-  tl.to($("op-plane"), { x: plane.x, y: plane.y, scale: plane.scale, rotation: 2.6, filter: "blur(0px)", ease: "power2.inOut", duration: len(0.1) }, at(0.82));
-  tl.fromTo($("op-plane-smear"), { autoAlpha: 0 }, { autoAlpha: 0.45, duration: len(0.04) }, at(0.75));
-  tl.to($("op-plane-smear"), { autoAlpha: 0, duration: len(0.05) }, at(0.86));
-  // The silk drifts on to exactly its hero pose.
-  tl.to($("hero-silk"), { x: 0, rotation: 0, scale: 1, filter: "blur(0px)", ease: "power2.inOut", duration: len(0.16) }, at(0.82));
-  tl.to($("hero-silk"), { y: 0, ease: "sine.in", duration: len(0.16) }, at(0.82));
-
-  // ---- 0.90 heroReveal: the hero reassembles under the plane ---------------------------
-  tl.fromTo($("hero-img"), { autoAlpha: 0, scale: 0.92, filter: "blur(10px)" }, { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: len(0.13) }, at(0.86));
-  tl.fromTo($("hero-glow"), { autoAlpha: 0, scale: 0.6 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: len(0.14) }, at(0.86));
-  tl.to($("op-plane"), { autoAlpha: 0, duration: len(0.06) }, at(0.93));
-  tl.to($("op-trail"), { autoAlpha: 0, duration: len(0.08) }, at(0.88));
-  // The passport and the boarding pass fly in and settle onto the ones painted there.
-  ([
-    ["op-ghost-passport", ANCHORS.passportInOwn, ANCHORS.heroPassport, -10, 14, 0],
-    ["op-ghost-tickets", ANCHORS.ticketsInOwn, ANCHORS.heroTickets, 12, -8, 0.015],
-  ] as const).forEach(([key, own, inHero, r0, r1, lag]) => {
-    const to = landOnHero(stage, key, own, inHero);
-    tl.fromTo($(key), { autoAlpha: 0, x: X(-4, 0), y: vh(12), scale: 0.5, rotation: r0, filter: "blur(8px)" },
-      { autoAlpha: 0.95, x: X(4, 4), y: vh(6), scale: 0.75, rotation: r0 / 2, filter: "blur(2px)", ease: "power2.out", duration: len(0.05) }, at(0.84 + lag));
-    tl.to($(key), { x: to.x, y: to.y, scale: to.scale, rotation: r1, filter: "blur(0px)", ease: "power2.inOut", duration: len(0.08) }, at(0.89 + lag));
-    tl.to($(key), { autoAlpha: 0, duration: len(0.04) }, at(0.94 + lag));
-  });
-  // The copy, line by line: eyebrow, the three title lines out of their masks,
-  // the sentence, the button.
-  tl.fromTo($("hero-copy"), { autoAlpha: 0 }, { autoAlpha: 1, duration: len(0.01) }, at(0.9));
-  tl.fromTo($("hero-eyebrow"), hidden, { ...reveal, duration: len(0.05) }, at(0.9));
-  tl.fromTo($("hero-line"), { yPercent: 110 }, { yPercent: 0, ease: "power3.out", duration: len(0.05), stagger: len(0.02) }, at(0.91));
-  tl.fromTo($("hero-lede"), hidden, { ...reveal, duration: len(0.04) }, at(0.95));
-  tl.fromTo($("hero-actions"), hidden, { ...reveal, duration: len(0.04) }, at(0.96));
-  tl.to($("op-atmos"), { autoAlpha: 0, duration: len(0.1) }, at(0.86));
-  tl.to($("op-skip"), { autoAlpha: 0, duration: len(0.04) }, at(0.86));
-}
-
-/** The opener under reduced motion: the same beats, each a dissolve at rest. */
-function buildOpenerReduced(tl: gsap.core.Timeline, stage: HTMLElement, O: number, starsDim: HTMLElement | null) {
-  const $ = picker(stage);
-  const at = (p: number) => p * O;
-  const len = (p: number) => p * O;
-  for (const [name, p] of OPENER_LABELS) tl.addLabel(name, at(p));
-  const fade = (keys: string[], inAt: number, outAt?: number) => {
-    tl.fromTo($(...keys), { autoAlpha: 0 }, { autoAlpha: 1, duration: len(0.05) }, at(inAt));
-    if (outAt !== undefined) tl.to($(...keys), { autoAlpha: 0, duration: len(0.05) }, at(outAt));
-  };
-  if (starsDim) gsap.set(starsDim, { opacity: 0.12 });
-  gsap.set($("op-hand"), { rotation: 40 });
-  gsap.set($("op-orb"), { scale: 0.85 });
-  gsap.set($("op-globe"), { scale: 0.9 });
-
-  tl.to($("op-cue"), { autoAlpha: 0, duration: len(0.05) }, at(0.02));
-  fade(["op-core"], 0.06, 0.36);
-  fade(["op-orb", "op-ticks", "op-hand"], 0.1, 0.34);
-  tl.to($("op-spark"), { autoAlpha: 0, duration: len(0.05) }, at(0.3));
-  fade(["op-word-1"], 0.14, 0.3);
-  fade(["op-word-2"], 0.19, 0.3);
-  if (starsDim) tl.fromTo(starsDim, { opacity: 0.12 }, { opacity: 1, duration: len(0.08) }, at(0.36));
-  fade(["op-globe"], 0.36, 0.52);
-  fade(["op-map", "op-map-glow"], 0.52, 0.72);
-  // The plane appears where the hero's own plane is, and gives way to it.
-  const plane = landOnHero(stage, "op-plane", ANCHORS.planeInOwn, ANCHORS.heroPlane);
-  tl.set($("op-plane"), { x: plane.x, y: plane.y, scale: plane.scale, rotation: 2.6 }, at(0.71));
-  fade(["op-plane"], 0.72, 0.93);
-  fade(["hero-img", "hero-glow", "hero-silk", "hero-copy"], 0.86);
-  tl.to($("op-atmos", "op-skip"), { autoAlpha: 0, duration: len(0.05) }, at(0.86));
-}
-
-/* =============================================================================
  * 1. THE FILM — pinned stage, chapters 01–11 (motion)
  * ============================================================================= */
 export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolean, particles: GatherField | null, hooks: FilmHooks) {
@@ -317,9 +96,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   const X = (desk: number, phone: number) => `${d ? desk : phone}vw`;
   const vh = (n: number) => `${n}vh`;
 
-  const O = OPENER_UNITS;
-  const TOTAL = O + FILM_END;
-  sizePinned(film, TOTAL, BEAT);
+  sizePinned(film, FILM_END, BEAT);
 
   // Resting states the tweens below start from.
   gsap.set($("hero-img", "hero-copy", "hero-glow", "hero-silk"), { filter: "blur(0px)" });
@@ -332,15 +109,8 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   gsap.set($("free-sweep-inner"), { xPercent: 24 });
 
   // THE FILM'S ScrollTrigger: the stage is sticky inside `film`; this reads
-  // how far through `film` the page is and scrubs ONE master timeline: the
-  // time opener first (0 -> O), then every chapter below (O -> O + FILM_END).
-  // onProgress reports film time, so it is negative during the opener.
-  const master = pinnedTimeline(film, TOTAL, 0.6, { onUpdate: (self) => hooks.onProgress(self.progress * TOTAL - O, self.progress) });
-  // 00 THE TIME OPENER, labelled timeStart ... heroComplete on the master.
-  buildOpener(master, stage, d, O, hooks.starsDim ?? null);
-  // 01–11 THE FILM, nested at O so its positions read as they always did:
-  // film time 0 is the hero at rest, exactly where the opener leaves it.
-  const tl = gsap.timeline({ defaults: { ease: "none", immediateRender: false } });
+  // how far through `film` the page is and scrubs every chapter below.
+  const tl = pinnedTimeline(film, FILM_END, 0.6, { onUpdate: (self) => hooks.onProgress(self.progress * FILM_END, self.progress) });
 
   const caption = (key: string, inAt: number, outAt: number) => {
     tl.fromTo($(key), { autoAlpha: 0, y: 26, filter: "blur(8px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.32 }, inAt);
@@ -546,9 +316,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   });
   tl.to($("hud"), { autoAlpha: 0, duration: 0.3 }, FILM_END - 0.45);
 
-  master.add(tl, O);
-  master.addLabel("journey", O);
-  return master;
+  return tl;
 }
 
 /* =============================================================================
@@ -559,10 +327,8 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
  * ============================================================================= */
 export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop: boolean, hooks: FilmHooks) {
   const $ = picker(stage);
-  const O = OPENER_REDUCED_UNITS;
   const END = FILM_REDUCED_END;
-  const TOTAL = O + END;
-  sizePinned(film, TOTAL, BEAT_REDUCED);
+  sizePinned(film, END, BEAT_REDUCED);
 
   // The route and the FREE lockup appear finished, not drawn.
   gsap.set($("route-dot", "route-end-a", "route-end-b"), { opacity: 1 });
@@ -571,11 +337,8 @@ export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop:
   gsap.set($("free-blur"), { autoAlpha: 0 });
   gsap.set($("inc-line"), { scaleX: 1 });
 
-  // THE FILM'S ScrollTrigger, reduced: same stage, straight scrub, one master
-  // timeline: the opener as dissolves (0 -> O), then the film (O -> O + END).
-  const master = pinnedTimeline(film, TOTAL, true, { onUpdate: (self) => hooks.onProgress(self.progress * TOTAL - O, self.progress) });
-  buildOpenerReduced(master, stage, O, hooks.starsDim ?? null);
-  const tl = gsap.timeline({ defaults: { ease: "none", immediateRender: false } });
+  // THE FILM'S ScrollTrigger, reduced: same stage, straight scrub.
+  const tl = pinnedTimeline(film, END, true, { onUpdate: (self) => hooks.onProgress(self.progress * END, self.progress) });
   const fade = (keys: string[], inAt: number, outAt?: number) => {
     tl.fromTo($(...keys), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25 }, inAt);
     if (outAt !== undefined) tl.to($(...keys), { autoAlpha: 0, duration: 0.25 }, outAt);
@@ -602,9 +365,7 @@ export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop:
   tl.set($("free-lockup"), { y: `${desktop ? -31 : -30}vh`, scale: desktop ? 0.36 : 0.5 }, s[10] - 0.05);
   fade(["free-lockup", "inc-eyebrow", "inc-row"], s[10]);
   tl.to($("hud"), { autoAlpha: 0, duration: 0.2 }, END - 0.3);
-  master.add(tl, O);
-  master.addLabel("journey", O);
-  return master;
+  return tl;
 }
 
 /* =============================================================================

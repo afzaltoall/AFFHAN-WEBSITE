@@ -70,16 +70,4 @@ export const ANCHORS = {
   globeChina: { x: 0.62, y: 0.31 },
   /** China map: the Shanghai marker, which the camera dives into. */
   mapShanghai: { x: 0.8, y: 0.5 },
-  /**
-   * The opener's match cut into the hero: where things sit inside the hero
-   * composite (01) and inside their own pictures, as a centre and a width,
-   * each a fraction of that picture. The opener lands each element on the
-   * same thing already painted in the hero, then cross-fades.
-   */
-  heroPlane: { cx: 0.8, cy: 0.14, w: 0.36 },
-  heroPassport: { cx: 0.745, cy: 0.6, w: 0.2 },
-  heroTickets: { cx: 0.8, cy: 0.52, w: 0.16 },
-  planeInOwn: { cx: 0.5, cy: 0.53, w: 0.94 },
-  passportInOwn: { cx: 0.48, cy: 0.6, w: 0.42 },
-  ticketsInOwn: { cx: 0.5, cy: 0.42, w: 0.78 },
 } as const;

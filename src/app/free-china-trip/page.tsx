@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { preload } from "react-dom";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { RevealNoScriptFallback } from "@/components/ui/Reveal";
 import { CinematicExperience } from "@/components/CinematicExperience/CinematicExperience";
+import { ASSETS, srcSetOf } from "@/components/CinematicExperience/assets";
 import { displayFont } from "@/components/CinematicExperience/fonts";
 
 /**
@@ -9,10 +11,9 @@ import { displayFont } from "@/components/CinematicExperience/fonts";
  * advertises and leads to: a scroll-driven film, then the application.
  *
  * Everything lives in components/CinematicExperience/ (see its README.md for
- * what is still placeholder copy). This file is the route: metadata, and the
- * 64px of padding the site's fixed navbar needs on every page. (No image
- * preload: the first frame is the time opener, drawn in code; the pictures
- * follow in the order the opener needs them.) The navbar itself comes from the root layout
+ * what is still placeholder copy). This file is the route: metadata, the one
+ * preload the first frame needs, and the 64px of padding the site's fixed
+ * navbar needs on every page. The navbar itself comes from the root layout
  * and is not touched.
  */
 
@@ -37,12 +38,20 @@ export const metadata: Metadata = {
 };
 
 export default function FreeChinaTripPage() {
+  // The opening frame's picture, requested with the document rather than
+  // after the stylesheet and scripts. Same srcset and sizes as its <img>, so
+  // the browser reuses this response instead of fetching twice.
+  preload(ASSETS.traveler.src, {
+    as: "image",
+    fetchPriority: "high",
+    imageSrcSet: srcSetOf(ASSETS.traveler),
+    imageSizes: "(min-width: 768px) 68vw, 156vw",
+  });
+
   return (
     <>
       <main className={`${displayFont.variable} cx pt-16`}>
         <RevealNoScriptFallback />
-        {/* Without JavaScript the opener cannot play: skip it and show the hero. */}
-        <noscript dangerouslySetInnerHTML={{ __html: "<style>[data-cx-opener]{display:none!important}[data-cx-hero]{visibility:visible!important;opacity:1!important}</style>" }} />
         <CinematicExperience />
       </main>
       <FooterSection />

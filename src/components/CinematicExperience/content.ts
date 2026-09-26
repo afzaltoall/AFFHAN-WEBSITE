@@ -20,14 +20,6 @@ export interface Placeholderable {
   placeholder?: boolean;
 }
 
-// ---- 00 Time opener (ChinaTripOpener) -------------------------------------------
-/** Two lines, in turn, while the clock runs; then the clock becomes the world. */
-export const OPENER = {
-  lines: ["Time moves.", "So should you."],
-  scrollCue: "Scroll",
-  skip: "Skip intro",
-} as const;
-
 // ---- 01 Opening --------------------------------------------------------------
 export const HERO = {
   eyebrow: "Affhan International presents",

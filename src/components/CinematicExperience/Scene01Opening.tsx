@@ -7,13 +7,12 @@ import { DISPLAY, EYEBROW, FilmImage } from "./parts";
 /**
  * 01 Opening. The traveller, the page's only <h1>, and the first call to action.
  *
- * The time opener (ChinaTripOpener) ends by building this frame: its plane
- * lands on the plane painted here, the silk sweeps into place, the traveller
- * resolves from a blur, and the copy rises line by line. So every element
- * starts hidden (data-cx-hide) and the opener's timeline brings it in; at the
- * opener's last frame ("heroComplete") this is exactly the hero it was before
- * the opener existed: same words, same layout, same positions. (data-cx-hero
- * lets the no-JavaScript fallback in page.tsx show it at once.)
+ * This is the frame the server paints, so it carries everything the first
+ * viewport needs and nothing else: the traveller composite is the one eager,
+ * high-priority image on the page. Its entrance (the push-in, the silk from
+ * the frame edge, the gold glow forming behind him) is CSS and plays on the
+ * first paint without waiting for JavaScript; the scroll timeline then takes
+ * over the outer wrappers (data-cx).
  *
  * On desktop the copy sits in the left half and the picture fades out under
  * it; on phones the picture takes the top of the frame and the copy the
@@ -22,25 +21,28 @@ import { DISPLAY, EYEBROW, FilmImage } from "./parts";
 export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchorElement>) => void }) {
   return (
     <div data-cx-scene="opening">
-      {/* Gold glow behind the traveller. */}
-      <div data-cx="hero-glow" data-cx-hide data-cx-hero aria-hidden className="pointer-events-none absolute inset-0 z-[29]">
-        <div className="cx-glow-gold absolute left-[54%] top-[30%] h-[120vw] w-[120vw] -translate-x-1/2 -translate-y-1/2 md:left-[64%] md:top-[54%] md:h-[min(64vw,118vh)] md:w-[min(64vw,118vh)]" />
+      {/* Gold glow forming behind the traveller. */}
+      <div data-cx="hero-glow" aria-hidden className="pointer-events-none absolute inset-0 z-[29]">
+        <div className="cx-enter-glow cx-glow-gold absolute left-[54%] top-[30%] h-[120vw] w-[120vw] -translate-x-1/2 -translate-y-1/2 md:left-[64%] md:top-[54%] md:h-[min(64vw,118vh)] md:w-[min(64vw,118vh)]" />
       </div>
 
-      {/* Red silk, soft, as a foreground element. The opener sweeps it in. */}
-      <div data-cx="hero-silk" data-cx-hide data-cx-hero aria-hidden className="pointer-events-none absolute -left-[30vw] top-[2svh] z-[62] w-[120vw] md:-left-[12vw] md:top-[-6vh] md:w-[62vw]">
-        <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 768px) 62vw, 120vw" eager className="cx-feather-x opacity-80 blur-[3px] md:blur-[5px]" />
+      {/* Red silk entering from the frame edge, soft, as a foreground element. */}
+      <div data-cx="hero-silk" aria-hidden className="pointer-events-none absolute -left-[30vw] top-[2svh] z-[62] w-[120vw] md:-left-[12vw] md:top-[-6vh] md:w-[62vw]">
+        <div className="cx-enter-silk">
+          <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 768px) 62vw, 120vw" eager className="cx-feather-x opacity-80 blur-[3px] md:blur-[5px]" />
+        </div>
       </div>
 
       {/* The traveller. */}
       <div className="pointer-events-none absolute inset-0 z-[30] flex items-start justify-center pt-[8svh] md:items-center md:justify-end md:pt-16">
-        <div data-cx="hero-img" data-cx-hide data-cx-hero className="relative left-[7vw] w-[156vw] max-w-none shrink-0 md:left-auto md:mr-[-2vw] md:w-[min(68vw,124vh)]">
-          <div className="cx-feather-hero">
+        <div data-cx="hero-img" className="relative left-[7vw] w-[156vw] max-w-none shrink-0 md:left-auto md:mr-[-2vw] md:w-[min(68vw,124vh)]">
+          <div className="cx-enter-push cx-feather-hero">
             <FilmImage
               asset={ASSETS.traveler}
               alt="A traveller with a backpack and suitcase, red silk and cherry blossom around them, a plane climbing overhead"
               sizes="(min-width: 768px) 68vw, 156vw"
               eager
+              priority
             />
           </div>
         </div>
@@ -48,10 +50,7 @@ export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchor
 
       {/* Title, line and the first call to action. */}
       <div
-        id="hero"
         data-cx="hero-copy"
-        data-cx-hide
-        data-cx-hero
         className="absolute inset-x-0 bottom-0 z-[70] px-6 pb-[calc(4rem+max(3svh,18px))] md:inset-y-0 md:right-auto md:flex md:w-[52vw] md:flex-col md:justify-center md:pb-0 md:pl-[6vw] md:pr-6 md:pt-16"
       >
         {/* A soft falloff of dark behind the words, so no star sits bright
@@ -60,27 +59,27 @@ export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchor
           aria-hidden
           className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(75%_60%_at_45%_62%,rgb(7_6_8/0.82),rgb(7_6_8/0.45)_55%,transparent_85%)] md:bg-[radial-gradient(62%_46%_at_38%_54%,rgb(7_6_8/0.78),rgb(7_6_8/0.4)_55%,transparent_85%)]"
         />
-        <p data-cx="hero-eyebrow" className={EYEBROW}>
+        <p className={`${EYEBROW} cx-enter-rise`} style={{ animationDelay: "0.25s" }}>
           {HERO.eyebrow}
         </p>
         <h1
-          className={`${DISPLAY} mt-4 text-[clamp(46px,13vw,76px)] font-normal uppercase leading-[0.9] tracking-[0.005em] md:mt-6 md:text-[clamp(60px,6.4vw,122px)]`}
+          className={`${DISPLAY} cx-enter-rise mt-4 text-[clamp(46px,13vw,76px)] font-normal uppercase leading-[0.9] tracking-[0.005em] md:mt-6 md:text-[clamp(60px,6.4vw,122px)]`}
+          style={{ animationDelay: "0.4s" }}
         >
           {HERO.titleLines.map((line, i) => (
-            // Each line rises out of its own mask. The padding and matching
-            // negative margin give descenders room without moving the lines.
-            <span key={line} className="-mb-[0.06em] block overflow-hidden pb-[0.06em]">
-              <span data-cx="hero-line" className={`block ${i === 0 ? "text-(--cx-gold-hi)" : "text-(--cx-white)"}`}>
-                {line}{" "}
-              </span>
+            <span key={line} className={`block ${i === 0 ? "text-(--cx-gold-hi)" : "text-(--cx-white)"}`}>
+              {line}{" "}
             </span>
           ))}
           <span className="sr-only">{HERO.titleSrTail}</span>
         </h1>
-        <p data-cx="hero-lede" className="mt-5 max-w-[30rem] text-[15px] leading-relaxed text-(--cx-mute) md:mt-7 md:text-[18px]">
+        <p
+          className="cx-enter-rise mt-5 max-w-[30rem] text-[15px] leading-relaxed text-(--cx-mute) md:mt-7 md:text-[18px]"
+          style={{ animationDelay: "0.55s" }}
+        >
           {HERO.line}
         </p>
-        <div data-cx="hero-actions" className="mt-7 flex items-center gap-7 md:mt-10">
+        <div className="cx-enter-rise mt-7 flex items-center gap-7 md:mt-10" style={{ animationDelay: "0.7s" }}>
           <a
             href="#apply"
             onClick={onApply}

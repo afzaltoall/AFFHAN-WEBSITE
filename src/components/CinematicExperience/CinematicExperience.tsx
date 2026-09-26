@@ -20,7 +20,6 @@ import {
 } from "./animations";
 import { CHAPTERS, INCLUDED, INCLUDED_EYEBROW } from "./content";
 import { FilmHud } from "./FilmHud";
-import { ChinaTripOpener } from "./ChinaTripOpener";
 import { Motifs } from "./Motifs";
 import { GatherField } from "./particles";
 import { Scene01Opening } from "./Scene01Opening";
@@ -113,8 +112,6 @@ function startLoader(root: HTMLElement) {
 export function CinematicExperience() {
   const rootRef = useRef<HTMLDivElement>(null);
   const lenisRef = useRef<Lenis | null>(null);
-  /** The film's master timeline (opener + chapters), for "Skip intro". */
-  const filmRef = useRef<gsap.core.Timeline | null>(null);
 
   // The site scrolls smoothly by default (globals.css). Lenis needs that off,
   // and so does reduced motion, where an anchor jump should simply jump.
@@ -152,17 +149,6 @@ export function CinematicExperience() {
   const jump = toApply(false);
   const glide = toApply(true);
 
-  /** "Skip intro": straight to the hero, where the opener ends (label heroComplete). */
-  const skipIntro = useCallback((e: MouseEvent<HTMLAnchorElement>) => {
-    e.preventDefault();
-    const y = filmRef.current?.scrollTrigger?.labelToScroll("heroComplete");
-    if (y === undefined) return;
-    const lenis = lenisRef.current;
-    if (lenis) lenis.scrollTo(y, { immediate: true, force: true });
-    else window.scrollTo(0, y);
-    requestAnimationFrame(() => document.getElementById("hero")?.querySelector<HTMLElement>("a")?.focus({ preventScroll: true }));
-  }, []);
-
   useGSAP(
     () => {
       registerGsap();
@@ -187,9 +173,6 @@ export function CinematicExperience() {
       if (!film || !stage || !steps || !cta || !ctaStage || !applyHead) return;
 
       const loader = startLoader(root);
-      // The opener is the first thing anyone scrolls through: its pictures
-      // start now, ahead of the queue.
-      loader.prioritise("opener");
 
       // The final stage's pictures, as it comes within a screen and a half.
       const near = new IntersectionObserver(
@@ -256,9 +239,8 @@ export function CinematicExperience() {
         const stars = root.querySelector<HTMLElement>("[data-cx='stars']");
         const starsDim = root.querySelector<HTMLElement>("[data-cx='stars-dim']");
         if (stars) buildStars(root, stars, reduce);
-        filmRef.current = reduce
-          ? buildFilmReduced(film, stage, desktop, { onProgress, starsDim })
-          : buildFilm(film, stage, desktop, particles, { onProgress, starsDim });
+        if (reduce) buildFilmReduced(film, stage, desktop, { onProgress });
+        else buildFilm(film, stage, desktop, particles, { onProgress, starsDim });
         buildSteps(steps, desktop, reduce);
         buildCta(cta, ctaStage, desktop, reduce);
         buildApplyHeading(applyHead, reduce);
@@ -309,7 +291,6 @@ export function CinematicExperience() {
       <section data-cx-film aria-label="The journey" className="relative h-[100svh]">
         <div data-cx-stage className="sticky top-0 h-[100svh] overflow-hidden">
           <Motifs />
-          <ChinaTripOpener onSkip={skipIntro} />
           <Scene01Opening onApply={jump} />
           <Scene02Passport />
           <Scene03BoardingPass />
