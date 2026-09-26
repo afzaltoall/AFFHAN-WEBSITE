@@ -343,9 +343,15 @@
 html:has(.cx-counter[data-lock]) {
   scrollbar-color: #070608 #070608;
 }
+/* A fixed optical size, not the automatic one. At these sizes "auto" picks
+   the font's display cut (opsz 96), whose hairlines are finer than a pixel:
+   the 4 loses its diagonal and crossbar and reads as a 1, so 40 to 49 looked
+   like the count falling back to 10 to 19 (and the 1 loses its foot). 11 keeps
+   every numeral whole, on a phone as well, and still reads as a Didone. */
 .cx-count-num {
   font-size: clamp(96px, 30vw, 170px);
   font-weight: 400;
+  font-variation-settings: "opsz" 11;
   line-height: 1;
   letter-spacing: 0.01em;
   color: var(--cx-white);
