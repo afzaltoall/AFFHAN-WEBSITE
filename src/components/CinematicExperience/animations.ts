@@ -767,10 +767,18 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
 
   gsap.set($("cta-host", "cta-headline", "cta-line", "cta-button"), { filter: "blur(0px)" });
 
-  // 14: silk, gold and dust come back, over the sky, as the stage rises.
-  tl.fromTo($("cta-dust"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 0.15);
-  tl.fromTo($("cta-silk"), { autoAlpha: 0, x: X(40, 60), y: "8vh", rotation: 6 }, { autoAlpha: 1, x: 0, y: 0, rotation: 0, ease: "power2.out", duration: 0.9 }, 0.1);
-  tl.fromTo($("cta-gold"), { autoAlpha: 0, x: X(-50, -70), rotation: -8, scale: 0.9 }, { autoAlpha: 0.9, x: 0, rotation: 0, scale: 1, ease: "power2.out", duration: 0.9 }, 0.2);
+  // 14: silk, gold and dust come back, over the sky, as the stage rises. The
+  // stage keeps them low in its frame, which is still below the screen while
+  // it rises, so they start raised within it (counter to the scroll: their
+  // lift shrinks exactly as the stage comes up) and hold on screen, sweeping
+  // in from their sides; they are in place as it pins. RISE is how much of
+  // the timeline the rise takes (72svh of the scroll, from "top 72%").
+  const RISE = (72 * END) / (END * BEAT + 72);
+  tl.fromTo($("cta-dust"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.45 }, 0.02);
+  tl.fromTo($("cta-silk"), { y: "-62vh" }, { y: 0, ease: "none", duration: RISE }, 0);
+  tl.fromTo($("cta-silk"), { autoAlpha: 0, x: X(40, 60), rotation: 6 }, { autoAlpha: 1, x: 0, rotation: 0, ease: "power2.out", duration: 0.9 }, 0.02);
+  tl.fromTo($("cta-gold"), { y: "-58vh" }, { y: 0, ease: "none", duration: RISE }, 0);
+  tl.fromTo($("cta-gold"), { autoAlpha: 0, x: X(-50, -70), rotation: -8, scale: 0.9 }, { autoAlpha: 0.9, x: 0, rotation: 0, scale: 1, ease: "power2.out", duration: 0.9 }, 0.05);
   // The host steps out of the glow: a slow push, blur to sharp.
   tl.fromTo($("cta-host"), { autoAlpha: 0, scale: 0.9, y: "3vh", filter: "blur(10px)", transformOrigin: "50% 100%" },
     { autoAlpha: 1, scale: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.85 }, 0.35);
