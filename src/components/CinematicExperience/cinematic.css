@@ -318,21 +318,24 @@
    The whole screen, over the navbar, from the first frame. A black field that
    opens from the centre like an iris: the hole's radius is one custom
    property, tweened once, at the end.
-   It is also a scroll container a hair taller than itself (see the spacer in
-   the component) with its overscroll contained, so a wheel or swipe made
-   before the script arrives stops here instead of scrolling the page below.
    The count's keyframes are generated in the component, from its curve. */
 .cx-counter {
   --hole: -18vmax;
   background: var(--cx-ink);
   -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 18vmax));
   mask-image: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 18vmax));
+}
+/* The wheel trap: an empty scroller over the count, 2px of travel, its
+   overscroll contained, so input made before the script arrives goes nowhere.
+   (The count itself is not the scroller: its turning ring reaches past the
+   screen's edges, which would give it far more than 2px to travel.) */
+.cx-count-trap {
   overflow-x: hidden;
   overflow-y: scroll;
   overscroll-behavior: contain;
   scrollbar-width: none;
 }
-.cx-counter::-webkit-scrollbar {
+.cx-count-trap::-webkit-scrollbar {
   display: none;
 }
 /* The page's own scrollbar goes dark while the count holds the screen, so the

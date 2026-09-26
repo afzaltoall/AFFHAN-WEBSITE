@@ -281,12 +281,9 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
       data-cx-counter
       data-lock=""
       aria-hidden
-      className="cx-counter fixed inset-0 z-[200] flex select-none items-center justify-center"
+      className="cx-counter fixed inset-0 z-[200] flex select-none items-center justify-center overflow-hidden"
     >
       <style dangerouslySetInnerHTML={{ __html: COUNT_SHEET }} />
-      {/* A hair of extra height makes the black a scroll container, so a wheel
-          or swipe before the script arrives stops here (see .cx-counter). */}
-      <div className="pointer-events-none absolute left-0 top-0 h-[calc(100%+2px)] w-px" />
       <div className="cx-grain pointer-events-none absolute inset-0" />
       <div className="cx-vignette pointer-events-none absolute inset-0" />
 
@@ -335,6 +332,14 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
       >
         <span className="cx-count-enter cx-count-enter-late inline-block">{COUNTER.caption}</span>
       </p>
+
+      {/* On top of everything, invisible: a scroller a hair taller than the
+          screen with its overscroll contained, so a wheel or swipe made before
+          the script arrives stops here instead of scrolling the page below.
+          Only this empty layer moves (2px), never the count. */}
+      <div className="cx-count-trap absolute inset-0">
+        <div className="h-[calc(100%+2px)]" />
+      </div>
     </div>
   );
 }
