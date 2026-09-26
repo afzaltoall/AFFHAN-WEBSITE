@@ -276,7 +276,7 @@ export function CinematicExperience() {
         }
         // The jump to Yiwu: gold streaks drawn from the film's progress.
         const warpCanvas = stage.querySelector<HTMLCanvasElement>("[data-cx='warp']");
-        const warp = !reduce && warpCanvas ? new WarpField(warpCanvas, desktop ? 260 : 140) : null;
+        const warp = !reduce && warpCanvas ? new WarpField(warpCanvas, desktop ? 420 : 220) : null;
         warp?.layout();
         const relayout = () => {
           void particles?.layout();

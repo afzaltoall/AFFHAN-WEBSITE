@@ -38,7 +38,7 @@ export class WarpField {
     };
     for (let i = 0; i < count; i++) {
       const a = rnd() * Math.PI * 2;
-      this.streaks.push({ cos: Math.cos(a), sin: Math.sin(a), r0: rnd(), width: 0.5 + rnd() * 1.3, pale: rnd() < 0.25 });
+      this.streaks.push({ cos: Math.cos(a), sin: Math.sin(a), r0: rnd(), width: 0.8 + rnd() * 1.6, pale: rnd() < 0.25 });
     }
   }
 
@@ -73,8 +73,8 @@ export class WarpField {
     for (const s of this.streaks) {
       const u = (s.r0 + travel * 2.4) % 1;
       const r = R * u * u;
-      const len = 4 + R * 0.34 * speed * u;
-      const a = envelope * (0.12 + 0.88 * u) * (0.35 + 0.65 * speed);
+      const len = 6 + R * 0.5 * speed * u;
+      const a = envelope * (0.2 + 0.8 * u) * (0.45 + 0.55 * speed);
       if (a < 0.01) continue;
       ctx.strokeStyle = s.pale ? `rgba(255,244,214,${a.toFixed(3)})` : `rgba(242,211,142,${(a * 0.9).toFixed(3)})`;
       ctx.lineWidth = s.width * (0.4 + 1.2 * u);
@@ -84,11 +84,17 @@ export class WarpField {
       ctx.stroke();
     }
 
-    // The vanishing point, flaring as Yiwu comes out of it.
+    // The frame warms with the speed...
+    const wash = ctx.createRadialGradient(cx, cy, 0, cx, cy, R);
+    wash.addColorStop(0, `rgba(242,211,142,${(0.16 * speed * envelope).toFixed(3)})`);
+    wash.addColorStop(1, "rgba(214,168,78,0)");
+    ctx.fillStyle = wash;
+    ctx.fillRect(0, 0, w, h);
+    // ...and the vanishing point burns, flaring as Yiwu comes out of it.
     const flare = Math.exp(-((p - 0.72) ** 2) / 0.012);
-    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.32);
-    glow.addColorStop(0, `rgba(255,244,214,${Math.min(1, 0.35 * speed + 0.6 * flare).toFixed(3)})`);
-    glow.addColorStop(0.35, `rgba(242,211,142,${(0.12 * speed + 0.24 * flare).toFixed(3)})`);
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.38);
+    glow.addColorStop(0, `rgba(255,244,214,${Math.min(1, 0.55 * speed + 0.6 * flare).toFixed(3)})`);
+    glow.addColorStop(0.35, `rgba(242,211,142,${(0.2 * speed + 0.28 * flare).toFixed(3)})`);
     glow.addColorStop(1, "rgba(214,168,78,0)");
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, w, h);

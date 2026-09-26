@@ -270,7 +270,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("warp-readout"), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.25 }, 12.1);
   tl.to($("warp-readout"), { autoAlpha: 0, y: -10, duration: 0.2 }, 12.95);
   if (hooks.starsDim) {
-    tl.to(hooks.starsDim, { opacity: 0.25, duration: 0.3 }, 12.0);
+    tl.to(hooks.starsDim, { opacity: 0.6, duration: 0.3 }, 12.0);
     tl.to(hooks.starsDim, { opacity: 1, duration: 0.4 }, 13.1);
   }
 
