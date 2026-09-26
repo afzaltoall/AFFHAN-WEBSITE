@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, type MouseEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -21,6 +21,7 @@ import {
 import { CHAPTERS, INCLUDED, INCLUDED_EYEBROW } from "./content";
 import { FilmHud } from "./FilmHud";
 import { Motifs } from "./Motifs";
+import { NumberLoadingOpener } from "./NumberLoadingOpener";
 import { GatherField } from "./particles";
 import { Scene01Opening } from "./Scene01Opening";
 import { Scene02Passport } from "./Scene02Passport";
@@ -112,6 +113,9 @@ function startLoader(root: HTMLElement) {
 export function CinematicExperience() {
   const rootRef = useRef<HTMLDivElement>(null);
   const lenisRef = useRef<Lenis | null>(null);
+  // The opening count holds the hero's entrance until it opens onto it.
+  const [intro, setIntro] = useState<"counting" | "done">("counting");
+  const onReveal = useCallback(() => setIntro("done"), []);
 
   // The site scrolls smoothly by default (globals.css). Lenis needs that off,
   // and so does reduced motion, where an anchor jump should simply jump.
@@ -289,7 +293,8 @@ export function CinematicExperience() {
       {/* THE FILM: a sticky stage inside a section as tall as the scroll (set by
           animations.ts). Server-rendered as one screen: the opening frame. */}
       <section data-cx-film aria-label="The journey" className="relative h-[100svh]">
-        <div data-cx-stage className="sticky top-0 h-[100svh] overflow-hidden">
+        <div data-cx-stage data-intro={intro} className="sticky top-0 h-[100svh] overflow-hidden">
+          <NumberLoadingOpener onReveal={onReveal} />
           <Motifs />
           <Scene01Opening onApply={jump} />
           <Scene02Passport />

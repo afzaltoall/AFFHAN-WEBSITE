@@ -52,6 +52,9 @@ export default function FreeChinaTripPage() {
     <>
       <main className={`${displayFont.variable} cx pt-16`}>
         <RevealNoScriptFallback />
+        {/* Without JavaScript the count cannot run: no counter, and the hero's
+            entrance plays at once. */}
+        <noscript dangerouslySetInnerHTML={{ __html: "<style>[data-cx-counter]{display:none!important}[data-intro] .cx-enter-push,[data-intro] .cx-enter-glow,[data-intro] .cx-enter-silk,[data-intro] .cx-enter-rise{animation-play-state:running!important}</style>" }} />
         <CinematicExperience />
       </main>
       <FooterSection />

@@ -20,6 +20,12 @@ export interface Placeholderable {
   placeholder?: boolean;
 }
 
+// ---- 00 The opening count (NumberLoadingOpener) --------------------------------
+export const COUNTER = {
+  /** A whisper under the numerals: what the count is counting down to. */
+  caption: "Free China Business Trip",
+} as const;
+
 // ---- 01 Opening --------------------------------------------------------------
 export const HERO = {
   eyebrow: "Affhan International presents",
