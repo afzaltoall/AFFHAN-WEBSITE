@@ -211,9 +211,7 @@ function buildOpener(tl: gsap.core.Timeline, stage: HTMLElement, d: boolean, O: 
   tl.to($("op-globe"), { scale: 1.15, xPercent: -6, yPercent: 9, ease: "power1.inOut", duration: len(0.11) }, at(0.42));
   tl.to($("op-orb", "op-orb-front"), { scale: 1.7, duration: len(0.1) }, at(0.42));
   // The route: the gold trail laid over India to China and drawn on.
-  // Laid along the line from southern India to the hub over China (about
-  // -26°, a little above the globe's centre), at roughly that length.
-  tl.set($("op-trail"), { x: X(-2.7, -3), y: vh(-3), rotation: -26, scale: 0.22, filter: "brightness(1)" }, at(0.46));
+  tl.set($("op-trail"), { x: X(-6, -8), y: vh(-4), rotation: -18, scale: d ? 0.42 : 0.5, filter: "brightness(1)" }, at(0.46));
   tl.fromTo($("op-trail"), { autoAlpha: 0 }, { autoAlpha: 1, duration: len(0.02) }, at(0.47));
   tl.fromTo($("op-trail-window"), { xPercent: -100 }, { xPercent: 0, ease: "power1.inOut", duration: len(0.1) }, at(0.47));
   tl.fromTo($("op-trail-img"), { xPercent: 100 }, { xPercent: 0, ease: "power1.inOut", duration: len(0.1) }, at(0.47));
@@ -263,9 +261,8 @@ function buildOpener(tl: gsap.core.Timeline, stage: HTMLElement, d: boolean, O: 
     const to = landOnHero(stage, key, own, inHero);
     tl.fromTo($(key), { autoAlpha: 0, x: X(-4, 0), y: vh(12), scale: 0.5, rotation: r0, filter: "blur(8px)" },
       { autoAlpha: 0.95, x: X(4, 4), y: vh(6), scale: 0.75, rotation: r0 / 2, filter: "blur(2px)", ease: "power2.out", duration: len(0.05) }, at(0.84 + lag));
-    // Arrives first, then dissolves into the painted one: never mid-flight.
-    tl.to($(key), { x: to.x, y: to.y, scale: to.scale, rotation: r1, filter: "blur(0px)", ease: "power2.inOut", duration: len(0.05) }, at(0.88 + lag));
-    tl.to($(key), { autoAlpha: 0, duration: len(0.035) }, at(0.935 + lag));
+    tl.to($(key), { x: to.x, y: to.y, scale: to.scale, rotation: r1, filter: "blur(0px)", ease: "power2.inOut", duration: len(0.08) }, at(0.89 + lag));
+    tl.to($(key), { autoAlpha: 0, duration: len(0.04) }, at(0.94 + lag));
   });
   // The copy, line by line: eyebrow, the three title lines out of their masks,
   // the sentence, the button.

@@ -14,7 +14,7 @@ export function HeroReveal() {
     <>
       <div aria-hidden className="pointer-events-none absolute inset-0 z-[31] flex items-center justify-center">
         <div data-cx="op-ghost-passport" data-cx-hide className="w-[60vw] max-w-none shrink-0 md:w-[min(30vw,54vh)]">
-          <FilmImage asset={ASSETS.passport} alt="" sizes="(min-width: 768px) 30vw, 60vw" className="cx-ghost-passport" />
+          <FilmImage asset={ASSETS.passport} alt="" sizes="(min-width: 768px) 30vw, 60vw" className="cx-feather-all" />
         </div>
       </div>
       <div aria-hidden className="pointer-events-none absolute inset-0 z-[31] flex items-center justify-center">
