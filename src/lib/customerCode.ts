@@ -78,7 +78,7 @@ export interface Contactable {
 export async function ensureCustomerCode(
   row: Contactable,
   firstContactAt: Date,
-  source: "INQUIRY" | "CONTACT" | "SHIPPING",
+  source: "INQUIRY" | "CONTACT" | "SHIPPING" | "TRIP",
   db: Db = prisma,
 ): Promise<string | null> {
   const key = customerKeyOf(row);

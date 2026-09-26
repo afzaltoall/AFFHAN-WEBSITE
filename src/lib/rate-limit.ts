@@ -129,3 +129,30 @@ export async function checkPasswordResetRateLimit(req: NextRequest) {
     return { success: true };
   }
 }
+
+// ============================================================================
+// Free China trip applications (5 per hour per IP)
+// ============================================================================
+// Public and unauthenticated, like the contact form, but each application is
+// a long record a person reads in the console: a few genuine attempts an hour
+// is plenty, and a script is stopped before it fills the list.
+const tripApplicationLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "60 m"),
+      analytics: false,
+    })
+  : null;
+
+export async function checkTripApplicationRateLimit(req: NextRequest) {
+  if (!tripApplicationLimiter) return { success: true };
+  try {
+    const ip = getClientIp(req);
+    const { success } = await tripApplicationLimiter.limit(`trip:${ip}`);
+    return { success };
+  } catch (error) {
+    console.error("Redis Trip Application RateLimit Error:", error);
+    // Fail safely (open) if Redis is down.
+    return { success: true };
+  }
+}

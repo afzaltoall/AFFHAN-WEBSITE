@@ -547,6 +547,8 @@ model MobileUser {
   webInquiries Inquiry[]
   // Freight quotes from /shipping/, for the account's My Shipments page.
   shipmentInquiries ShipmentInquiry[]
+  // Applications for the free China business trip, sent while signed in.
+  tripApplications TripApplication[]
   productViews ProductView[]
   favourites   ProductFavourite[]
   changes      AccountChange[]
@@ -1051,4 +1053,74 @@ model CustomerCode {
   createdAt DateTime @default(now())
 
   @@index([firstContactAt])
+}
+
+/// An application for the free China business trip, from the five-step form
+/// at /free-china-trip/apply/. The admin console lists them under Leads.
+///
+/// What is here is exactly what the form asks, and nothing it does not. The
+/// travel step asks three questions only (nationality, passport held, been to
+/// China before): passport numbers, expiry dates, visa status and document
+/// uploads are NOT collected, because the trip's process has not confirmed it
+/// needs them, and a public form should not hold them until it does.
+model TripApplication {
+  id String @id @default(uuid())
+
+  /// TRIP-26-00001: ShipmentInquiry.referenceNo's pattern, and for its
+  /// reason (written by the column's DEFAULT, never by the application, so
+  /// two applications in the same second cannot share a number). The
+  /// sequence, trip_ref_seq, is created before this table.
+  referenceNo String @unique @default(dbgenerated("((('TRIP-'::text || to_char((now() AT TIME ZONE 'Asia/Kolkata'::text), 'YY'::text)) || '-'::text) || lpad((nextval('trip_ref_seq'::regclass))::text, 5, '0'::text))"))
+
+  // 01 About you
+  fullName   String
+  email      String
+  /// With its dial code, "+91 9876543210", as ContactMessage stores it.
+  phone      String
+  country    String
+  city       String
+  /// Website or LinkedIn, optional.
+  profileUrl String?
+
+  // 02 Your business
+  companyName         String
+  role                String
+  businessCategory    String
+  companyWebsite      String?
+  /// A band, as the form offers it: "Under 1", "1-3", "3-5", "5-10", "10+".
+  yearsInBusiness     String
+  businessDescription String  @db.Text
+
+  // 03 Business profile
+  /// Chosen from the form's list (a placeholder list until the business
+  /// approves one; see TripApplication README).
+  interests          String[]
+  productsOfInterest String   @db.Text
+  exploreNotes       String?  @db.Text
+
+  // 04 Travel profile
+  nationality      String
+  hasPassport      Boolean
+  travelledToChina Boolean
+
+  // 05 Consent: both boxes are required to submit; recorded as given.
+  consentAccuracy Boolean
+  consentTerms    Boolean
+
+  source    String   @default("Free China Trip Application")
+  /// new | handled | spam | deleted: ContactMessage's triage.
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+
+  /// customerKeyOf({ phone, email }), as on every other lead.
+  customerKey String?
+
+  /// The account that sent it, when the applicant was signed in. SetNull: a
+  /// deleted account must not take the application with it.
+  userId String?
+  user   MobileUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([customerKey])
 }
