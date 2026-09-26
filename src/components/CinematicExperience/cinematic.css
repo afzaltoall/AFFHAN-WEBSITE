@@ -557,21 +557,39 @@ html:has(.cx-counter[data-lock]) {
 
 /* ---- Words that wipe in (textfx.ts "wipe") ------------------------------------------
    Revealed left to right by one custom property, with a thin gold edge riding
-   the reveal. */
+   the reveal. The fallbacks are the first frame (hidden, no edge): a
+   ScrollTrigger refresh can delete the properties (GSAP cannot save a custom
+   property's inline value), and a deleted value must never show the words. */
 .cx-wipe {
   position: relative;
-  clip-path: inset(-0.2em calc(100% - var(--wipe, 100%)) -0.2em -0.2em);
+  clip-path: inset(-0.2em calc(100% - var(--wipe, 0%)) -0.2em -0.2em);
 }
 .cx-wipe::after {
   content: "";
   position: absolute;
   top: 0.08em;
   bottom: 0.08em;
-  left: calc(var(--wipe, 100%) - 2px);
+  left: calc(var(--wipe, 0%) - 2px);
   width: 2px;
   background: linear-gradient(180deg, transparent, #fff4d6, var(--cx-gold), transparent);
   box-shadow: 0 0 12px 2px rgb(242 211 142 / 0.7);
-  opacity: calc(1 - var(--wipe-done, 0));
+  opacity: calc(var(--wipe-on, 0) * (1 - var(--wipe-done, 0)));
+}
+
+/* ---- 01 The headline's turns (HeroTurns.tsx) ------------------------------------------
+   Each line is one mask with every pair's word stacked in the same cell, so
+   the line is as wide as its widest word and nothing moves around it. The
+   mask reaches a little past the line (cancelled by the margin) so no serif
+   or hyphen is clipped at rest. */
+.cx-turn-line {
+  display: grid;
+  overflow: clip;
+  padding: 0.06em 0.1em 0.12em 0;
+  margin: -0.06em -0.1em -0.12em 0;
+}
+.cx-turn {
+  grid-area: 1 / 1;
+  white-space: nowrap;
 }
 
 /* ---- Letters rising out of their masks (textfx.ts "rise") ----------------------------
@@ -585,11 +603,12 @@ html:has(.cx-counter[data-lock]) {
 
 /* ---- 07/08 City captions: legible over any photograph -----------------------------
    At these sizes the display cut's hairlines (opsz 96, chosen automatically)
-   are finer than a pixel: the W and U of YIWU lost their thin strokes over
-   the picture. A text cut keeps them. And a soft shade behind the caption, so
+   are finer than a pixel (0.2–0.3px measured): the W and U of YIWU lost their
+   thin strokes over the picture. The text cut, opsz 11 (as the page's other
+   numerals), keeps them at 2–3px. And a soft shade behind the caption, so
    a sign in the photograph (Yiwu's reads YIWU CHINA) never competes with it. */
 .cx-city-name {
-  font-variation-settings: "opsz" 28;
+  font-variation-settings: "opsz" 11;
 }
 .cx-city-cap::before {
   content: "";
@@ -675,7 +694,7 @@ html:has(.cx-counter[data-lock]) {
   pointer-events: none;
 }
 .cx-step-num {
-  font-variation-settings: "opsz" 28;
+  font-variation-settings: "opsz" 11;
 }
 
 /* ---- 13 Terms: the veil, the lamp, the thread, the clauses, the board ----------------
@@ -683,11 +702,11 @@ html:has(.cx-counter[data-lock]) {
 .cx-terms-veil {
   background: rgb(15 14 18 / 0.84);
   -webkit-mask-image:
-    linear-gradient(to bottom, transparent, #000 200px, #000 calc(100% - 200px), transparent),
+    linear-gradient(to bottom, transparent, #000 200px, #000 calc(100% - 150px), transparent),
     linear-gradient(to right, transparent, #000 9%, #000 91%, transparent);
   -webkit-mask-composite: source-in;
   mask-image:
-    linear-gradient(to bottom, transparent, #000 200px, #000 calc(100% - 200px), transparent),
+    linear-gradient(to bottom, transparent, #000 200px, #000 calc(100% - 150px), transparent),
     linear-gradient(to right, transparent, #000 9%, #000 91%, transparent);
   mask-composite: intersect;
 }
@@ -747,7 +766,7 @@ html:has(.cx-counter[data-lock]) {
   opacity: 0.35;
 }
 .cx-term-num {
-  font-variation-settings: "opsz" 28;
+  font-variation-settings: "opsz" 11;
   opacity: 0.5;
   transition: opacity 0.6s, text-shadow 0.6s;
 }

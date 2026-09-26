@@ -140,8 +140,16 @@ export function textIn(tl: gsap.core.Timeline, el: Element | null | undefined, f
       return;
     }
     case "wipe": {
+      // Driven by custom properties whose stylesheet fallbacks ARE the first
+      // frame (hidden, no edge): a ScrollTrigger refresh reverts the timelines,
+      // and GSAP cannot save a custom property's inline value, so a revert
+      // deletes it. With these fallbacks a deleted value can only hide.
       el.classList.add("cx-wipe");
-      undo.add(() => el.classList.remove("cx-wipe"));
+      undo.add(() => {
+        el.classList.remove("cx-wipe");
+        ["--wipe", "--wipe-on", "--wipe-done"].forEach((p) => el.style.removeProperty(p));
+      });
+      hold(tl, el, { "--wipe-on": 0 }, { "--wipe-on": 1, duration: 0.001 }, at);
       hold(tl, el, { "--wipe": "0%" }, { "--wipe": "100%", ease: "power2.inOut", duration: dur }, at);
       // The gold edge goes once the words are whole.
       hold(tl, el, { "--wipe-done": 0 }, { "--wipe-done": 1, duration: dur * 0.25 }, at + dur * 0.85);

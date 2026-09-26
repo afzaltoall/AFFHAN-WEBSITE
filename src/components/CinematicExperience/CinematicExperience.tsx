@@ -275,7 +275,7 @@ export function CinematicExperience() {
         const canvas = stage.querySelector<HTMLCanvasElement>("[data-cx='free-particles']");
         const word = stage.querySelector<HTMLElement>("[data-cx='free-word']");
         if (!reduce && canvas && word) {
-          particles = new GatherField(canvas, word, desktop ? 1500 : 700);
+          particles = new GatherField(canvas, word, desktop ? 2400 : 1100);
           void particles.layout();
         }
         // The jump to Yiwu: gold streaks drawn from the film's progress.
@@ -363,7 +363,7 @@ export function CinematicExperience() {
       <section data-cx-film aria-label="The journey" className="relative h-[100svh]">
         <div data-cx-stage data-intro={intro} className="sticky top-0 h-[100svh] overflow-hidden">
           <Motifs />
-          <Scene01Opening onApply={goApply} />
+          <Scene01Opening onApply={goApply} play={intro === "done"} />
           <Scene02Passport />
           <Scene03BoardingPass />
           <Scene04Airplane />

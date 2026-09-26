@@ -339,22 +339,26 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("gold-back"), { autoAlpha: 0, x: X(-70, -90), y: vh(-24), rotation: -8, scale: 1 },
     { autoAlpha: 0.45, x: X(-4, 0), y: vh(-30), rotation: -2, scale: 1.1, ease: "power1.out", duration: 1.0 }, 17.1);
   tl.to($("gold-back"), { x: X(16, 24), y: vh(-32), rotation: 3, duration: 1.4 }, 18.1);
-  // Particles gather into the shape of the word.
+  // Particles gather into the letterforms themselves (particles.ts samples
+  // the page's own type: its face, size, spacing and baseline) and land.
   const dust = { gather: 0, fade: 0 };
   const draw = () => particles?.render(dust.gather, dust.fade);
   tl.fromTo($("free-particles"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.1 }, 17.2);
-  tl.fromTo(dust, { gather: 0 }, { gather: 1, ease: "power1.inOut", duration: 1.0, onUpdate: draw }, 17.2);
-  // The word: blur -> sharp, a slow settle, glow, then the particles dissolve into it.
-  tl.fromTo($("free-lockup"), { autoAlpha: 0, scale: 1.06 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: 1.1 }, 17.75);
-  tl.fromTo($("free-blur"), { autoAlpha: 0 }, { autoAlpha: 0.9, duration: 0.4 }, 17.8);
-  tl.fromTo($("free-word"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 18);
-  tl.to($("free-blur"), { autoAlpha: 0, duration: 0.45 }, 18.25);
-  tl.fromTo($("free-glow"), { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: 0.7 }, 17.95);
-  tl.fromTo(dust, { fade: 0 }, { fade: 1, duration: 0.5, onUpdate: draw }, 18.05);
-  tl.to($("free-particles"), { autoAlpha: 0, duration: 0.1 }, 18.6);
-  // One sweep of light across the letters.
-  tl.fromTo($("free-sweep"), { xPercent: -100 }, { xPercent: 416.667, ease: "power1.inOut", duration: 0.65 }, 18.4);
-  tl.fromTo($("free-sweep-inner"), { xPercent: 24 }, { xPercent: -100, ease: "power1.inOut", duration: 0.65 }, 18.4);
+  tl.fromTo(dust, { gather: 0 }, { gather: 1, ease: "power1.inOut", duration: 0.95, onUpdate: draw }, 17.2);
+  // The word forms under the landed dots, exactly in their place: the lockup
+  // does not scale here (it did, and the letters then came in larger than
+  // the shape the dots had made). Its light blooms first, then the type,
+  // then the dots dissolve into it.
+  tl.fromTo($("free-lockup"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.05 }, 17.75);
+  tl.fromTo($("free-glow"), { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: 0.7 }, 17.8);
+  tl.fromTo($("free-blur"), { autoAlpha: 0 }, { autoAlpha: 0.85, duration: 0.3 }, 17.95);
+  tl.fromTo($("free-word"), { autoAlpha: 0 }, { autoAlpha: 1, ease: "power1.inOut", duration: 0.4 }, 18.1);
+  tl.fromTo(dust, { fade: 0 }, { fade: 1, ease: "power1.in", duration: 0.45 }, 18.2);
+  tl.to($("free-blur"), { autoAlpha: 0, duration: 0.4 }, 18.3);
+  tl.to($("free-particles"), { autoAlpha: 0, duration: 0.1 }, 18.62);
+  // One sweep of light across the letters, once the dots have gone into them.
+  tl.fromTo($("free-sweep"), { xPercent: -100 }, { xPercent: 416.667, ease: "power1.inOut", duration: 0.65 }, 18.5);
+  tl.fromTo($("free-sweep-inner"), { xPercent: 24 }, { xPercent: -100, ease: "power1.inOut", duration: 0.65 }, 18.5);
   // CHINA BUSINESS TRIP, letter by letter.
   tl.fromTo($("free-sub-char"), { autoAlpha: 0, y: 14, filter: "blur(8px)" },
     { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.3, stagger: 0.022 }, 18.55);
@@ -737,15 +741,18 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
   const END = reduced ? CTA_REDUCED_END : CTA_END;
   sizePinned(section, END, reduced ? BEAT_REDUCED : BEAT);
 
-  // FINAL CTA ScrollTrigger: the stage is sticky inside `section`. While it is
-  // on screen the host is allowed to breathe (data-idle, CSS).
+  // FINAL CTA ScrollTrigger: the stage is sticky inside `section`. It starts
+  // as the stage comes up the screen, not once it is pinned, so the host,
+  // the silk, the gold and the dust are already arriving as it rises: there
+  // is no empty screen between the terms and the call. While it is on screen
+  // the host is allowed to breathe (data-idle, CSS).
   const tl = pinnedTimeline(section, END, reduced ? true : 0.6, {
+    start: "top 72%",
     onToggle: (self) => { stage.dataset.idle = self.isActive ? "on" : "off"; },
   });
 
   if (reduced) {
     // The host fades in at his final position; nothing moves.
-    tl.to($("cta-bg"), { autoAlpha: 0, duration: 0.3 }, 0);
     tl.fromTo($("cta-dust", "cta-silk", "cta-gold", "cta-host"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 0.1);
     tl.fromTo($("cta-headline", "cta-line", "cta-button", "cta-note"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 0.45);
     // 15–16: the call gives way to the countdown, in place.
@@ -760,8 +767,7 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
 
   gsap.set($("cta-host", "cta-headline", "cta-line", "cta-button"), { filter: "blur(0px)" });
 
-  // 14: the frame darkens; silk, gold and dust come back.
-  tl.to($("cta-bg"), { autoAlpha: 0, duration: 0.6 }, 0);
+  // 14: silk, gold and dust come back, over the sky, as the stage rises.
   tl.fromTo($("cta-dust"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 0.15);
   tl.fromTo($("cta-silk"), { autoAlpha: 0, x: X(40, 60), y: "8vh", rotation: 6 }, { autoAlpha: 1, x: 0, y: 0, rotation: 0, ease: "power2.out", duration: 0.9 }, 0.1);
   tl.fromTo($("cta-gold"), { autoAlpha: 0, x: X(-50, -70), rotation: -8, scale: 0.9 }, { autoAlpha: 0.9, x: 0, rotation: 0, scale: 1, ease: "power2.out", duration: 0.9 }, 0.2);

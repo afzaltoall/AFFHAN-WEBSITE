@@ -32,6 +32,18 @@ export const HERO = {
   /** Set in capitals by CSS; the sr-only tail gives search and screen readers the destination. */
   titleLines: ["Free", "Business", "Trip"],
   titleSrTail: " to China",
+  /**
+   * Under FREE, the headline's second and third lines take turns through
+   * what the offer covers, in the words of `line` below and nothing more
+   * (HeroTurns.tsx). The first pair is the title itself. Decorative: the
+   * <h1> always reads titleLines.
+   */
+  turns: [
+    ["Business", "Trip"],
+    ["Round-trip", "Flight"],
+    ["Hotel", "Stay"],
+    ["Local", "Transport"],
+  ],
   line: "Your round-trip flight, hotel stay and local transport in China, covered.",
   cta: "Apply for the Trip",
   scrollHint: "Scroll to begin the journey",

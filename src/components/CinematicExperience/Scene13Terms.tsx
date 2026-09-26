@@ -27,7 +27,7 @@ import { DISPLAY, EYEBROW, PlaceholderTag } from "./parts";
 export function Scene13Terms() {
   const [before, after] = TERMS.title.split("&");
   return (
-    <section id="terms" data-cx-terms aria-labelledby="cx-terms-title" className="relative py-28 md:py-40">
+    <section id="terms" data-cx-terms aria-labelledby="cx-terms-title" className="relative pb-20 pt-28 md:pb-28 md:pt-40">
       <div aria-hidden className="cx-terms-veil pointer-events-none absolute inset-0" />
       <div aria-hidden className="pointer-events-none absolute inset-0">
         <div className="cx-terms-lamp sticky top-0 h-[100svh] overflow-hidden">

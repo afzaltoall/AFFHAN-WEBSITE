@@ -2,6 +2,7 @@ import type { MouseEvent } from "react";
 import { ArrowRight } from "lucide-react";
 import { ASSETS } from "./assets";
 import { APPLY_HREF, HERO } from "./content";
+import { HeroTurns } from "./HeroTurns";
 import { DISPLAY, EYEBROW, FilmImage } from "./parts";
 
 /**
@@ -18,7 +19,7 @@ import { DISPLAY, EYEBROW, FilmImage } from "./parts";
  * it; on phones the picture takes the top of the frame and the copy the
  * bottom, pushed up by the navbar's 64px so the button is above the fold.
  */
-export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchorElement>) => void }) {
+export function Scene01Opening({ onApply, play }: { onApply: (e: MouseEvent<HTMLAnchorElement>) => void; play: boolean }) {
   return (
     <div data-cx-scene="opening">
       {/* Gold glow forming behind the traveller. */}
@@ -62,16 +63,17 @@ export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchor
         <p className={`${EYEBROW} cx-enter-rise`} style={{ animationDelay: "0.25s" }}>
           {HERO.eyebrow}
         </p>
+        {/* The title reads one way for search and screen readers (sr-only);
+            what the eye sees turns through what the trip covers (HeroTurns). */}
         <h1
-          className={`${DISPLAY} cx-enter-rise mt-4 text-[clamp(46px,13vw,76px)] font-normal uppercase leading-[0.9] tracking-[0.005em] md:mt-6 md:text-[clamp(60px,6.4vw,122px)]`}
+          className={`${DISPLAY} cx-enter-rise mt-4 text-[clamp(46px,13vw,76px)] font-normal uppercase leading-[0.9] tracking-[0.005em] md:mt-6 md:text-[clamp(52px,6.4vw,122px)]`}
           style={{ animationDelay: "0.4s" }}
         >
-          {HERO.titleLines.map((line, i) => (
-            <span key={line} className={`block ${i === 0 ? "text-(--cx-gold-hi)" : "text-(--cx-white)"}`}>
-              {line}{" "}
-            </span>
-          ))}
-          <span className="sr-only">{HERO.titleSrTail}</span>
+          <span className="sr-only">
+            {HERO.titleLines.join(" ")}
+            {HERO.titleSrTail}
+          </span>
+          <HeroTurns play={play} />
         </h1>
         <p
           className="cx-enter-rise mt-5 max-w-[30rem] text-[15px] leading-relaxed text-(--cx-mute) md:mt-7 md:text-[18px]"

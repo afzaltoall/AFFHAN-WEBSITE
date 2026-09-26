@@ -28,8 +28,8 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
   return (
     <section data-cx-cta aria-labelledby="cx-cta-title" className="relative h-[100svh]">
       <div data-cx-cta-stage data-idle="off" className="sticky top-0 h-[100svh] overflow-hidden [--host-h:min(80svh,50vw)]">
-        {/* Starts as the terms section's charcoal and darkens to ink. */}
-        <div data-cx="cta-bg" aria-hidden className="absolute inset-0 bg-(--cx-char)" />
+        {/* No backdrop of its own: the night sky runs on from the terms, unbroken
+            (a charcoal panel here made a hard edge and a whole empty screen). */}
         <div aria-hidden className="cx-haze-crimson absolute inset-0 opacity-80" />
         <div data-cx="cta-dust" data-cx-hide aria-hidden className="absolute inset-0 z-[5]">
           <GoldDust className="h-full w-full" />

@@ -8,8 +8,12 @@
  * the rest of the time.
  *
  * The word's shape is sampled from the page's own type: the target points are
- * taken from the FREE element's actual font, size and position, so the dots
- * land where the letters then appear.
+ * taken from the FREE element's actual font, size, spacing and position, so
+ * the dots land on the letters and the letters then form under them. Where
+ * the page draws the letters is read from the text run itself (a Range), and
+ * the baseline from the font's own ascent, not estimated. Half the dots trace
+ * the letters' outlines, so Bodoni's hairlines and serifs are formed too, not
+ * only its thick stems.
  */
 
 interface Dot {
@@ -70,47 +74,72 @@ export class GatherField {
       /* sample with whatever face is available */
     }
 
-    // Resting box of the word, relative to the canvas.
+    // Where the page draws the letters: the text run's own box, with the
+    // lockup's transform cleared (the timeline may have it moved or scaled at
+    // this moment; the dots aim for its resting geometry). A text run's box is
+    // the font's ascent over its descent, whatever the line-height.
     const lockup = this.word.closest<HTMLElement>("[data-cx='free-lockup']");
     const prev = lockup?.style.transform ?? "";
     if (lockup) lockup.style.transform = "none";
-    const box = this.word.getBoundingClientRect();
+    const range = document.createRange();
+    range.selectNodeContents(this.word);
+    const run = range.getBoundingClientRect();
     if (lockup) lockup.style.transform = prev;
-    const cx = box.left - stage.left + box.width / 2;
-    const cy = box.top - stage.top + box.height / 2;
+    if (!run.width) return;
 
-    // Draw the word off-screen and read back which pixels are ink.
-    const text = (this.word.textContent ?? "").toUpperCase();
+    // Draw the word off-screen exactly as the page sets it (same face, size,
+    // spacing, case; origin at the run's left, on its baseline) and read back
+    // which pixels are ink.
+    const raw = this.word.textContent ?? "";
+    const text = cs.textTransform === "uppercase" ? raw.toUpperCase() : raw;
     const size = parseFloat(cs.fontSize);
+    const pad = Math.ceil(size * 0.3);
+    const ow = Math.ceil(run.width + pad * 2);
+    const oh = Math.ceil(run.height + pad * 2);
     const off = document.createElement("canvas");
-    const ow = Math.ceil(box.width + size * 0.4);
-    const oh = Math.ceil(box.height + size * 0.4);
     off.width = ow;
     off.height = oh;
     const o = off.getContext("2d", { willReadFrequently: true });
     if (!o) return;
     o.font = font;
-    o.textAlign = "center";
-    o.textBaseline = "middle";
     const spacing = parseFloat(cs.letterSpacing);
     if ("letterSpacing" in o && Number.isFinite(spacing)) (o as unknown as { letterSpacing: string }).letterSpacing = `${spacing}px`;
+    o.textAlign = "left";
+    o.textBaseline = "alphabetic";
+    const ascent = o.measureText(text).fontBoundingBoxAscent;
     o.fillStyle = "#fff";
-    o.fillText(text, ow / 2, oh / 2 + size * 0.04);
+    o.fillText(text, pad, pad + ascent);
     const px = o.getImageData(0, 0, ow, oh).data;
+    const ox = run.left - stage.left - pad;
+    const oy = run.top - stage.top - pad;
 
-    const ink: Array<[number, number]> = [];
-    const step = Math.max(2, Math.round(size / 70));
+    // Every ink point, fine enough to find the hairlines, split into the
+    // letters' outlines (ink with no ink a few pixels away on some side) and
+    // their fill.
+    const step = size > 300 ? 2 : 1;
+    const e = Math.max(2, Math.round(size / 150));
+    const inkAt = (x: number, y: number) => x >= 0 && y >= 0 && x < ow && y < oh && px[(y * ow + x) * 4 + 3] > 110;
+    const edge: Array<[number, number]> = [];
+    const fill: Array<[number, number]> = [];
     for (let y = 0; y < oh; y += step) {
       for (let x = 0; x < ow; x += step) {
-        if (px[(y * ow + x) * 4 + 3] > 140) ink.push([x - ow / 2 + cx, y - oh / 2 + cy]);
+        if (!inkAt(x, y)) continue;
+        const pt: [number, number] = [x + ox, y + oy];
+        if (inkAt(x - e, y) && inkAt(x + e, y) && inkAt(x, y - e) && inkAt(x, y + e)) fill.push(pt);
+        else edge.push(pt);
       }
     }
-    if (!ink.length) return;
+    if (!edge.length) return;
 
     const rnd = mulberry32(2026);
-    const n = Math.min(this.budget, ink.length * 2);
+    const n = Math.min(this.budget, (edge.length + fill.length) * 2);
     this.dots = Array.from({ length: n }, (_, i) => {
-      const [tx, ty] = ink[Math.floor(rnd() * ink.length)];
+      // Half on the outlines, half in the fill; nudged within their sample
+      // cell so the letters read as scattered light, not a grid.
+      const pool = i % 2 === 0 || !fill.length ? edge : fill;
+      const [px0, py0] = pool[Math.floor(rnd() * pool.length)];
+      const tx = px0 + (rnd() - 0.5) * step;
+      const ty = py0 + (rnd() - 0.5) * step;
       // Start anywhere in the frame, weighted outwards, so they come in from the dark.
       const a = rnd() * Math.PI * 2;
       const r = (0.45 + rnd() * 0.75) * Math.hypot(this.w, this.h) * 0.5;
