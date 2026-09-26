@@ -40,9 +40,9 @@ const OVERSCAN = 1.16;
 
 /** Star layers: one star per `per` square pixels; radius and alpha ranges. */
 const LAYERS = [
-  { seed: 101, per: 4200, rMin: 0.3, rMax: 0.85, aMin: 0.18, aMax: 0.5, glowAt: 9 },
-  { seed: 202, per: 15000, rMin: 0.5, rMax: 1.2, aMin: 0.35, aMax: 0.85, glowAt: 0.95 },
-  { seed: 303, per: 15000, rMin: 0.5, rMax: 1.2, aMin: 0.35, aMax: 0.85, glowAt: 0.95 },
+  { seed: 101, per: 3400, rMin: 0.3, rMax: 0.9, aMin: 0.22, aMax: 0.62, glowAt: 9 },
+  { seed: 202, per: 12000, rMin: 0.5, rMax: 1.3, aMin: 0.4, aMax: 0.95, glowAt: 0.95 },
+  { seed: 303, per: 12000, rMin: 0.5, rMax: 1.3, aMin: 0.4, aMax: 0.95, glowAt: 0.95 },
 ] as const;
 
 /** Warm white most of the time, pale gold sometimes, a few cool blue-whites. */
@@ -84,7 +84,7 @@ function paint(canvas: HTMLCanvasElement, w: number, h: number, dpr: number, lay
 /** The bright stars: fixed positions (as % of the screen), size, twinkle timing. */
 const BRIGHT = (() => {
   const rnd = mulberry32(2026);
-  return Array.from({ length: 18 }, (_, i) => ({
+  return Array.from({ length: 24 }, (_, i) => ({
     left: 3 + rnd() * 94,
     top: 4 + rnd() * 88,
     size: 7 + rnd() * 9,
