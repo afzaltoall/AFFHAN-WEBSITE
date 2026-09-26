@@ -53,6 +53,12 @@ export function Scene01Opening({ onApply }: { onApply: (e: MouseEvent<HTMLAnchor
         data-cx="hero-copy"
         className="absolute inset-x-0 bottom-0 z-[70] px-6 pb-[calc(4rem+max(3svh,18px))] md:inset-y-0 md:right-auto md:flex md:w-[52vw] md:flex-col md:justify-center md:pb-0 md:pl-[6vw] md:pr-6 md:pt-16"
       >
+        {/* A soft falloff of dark behind the words, so no star sits bright
+            behind a letter. A gradient, not a panel: it has no edge. */}
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(75%_60%_at_45%_62%,rgb(7_6_8/0.82),rgb(7_6_8/0.45)_55%,transparent_85%)] md:bg-[radial-gradient(62%_46%_at_38%_54%,rgb(7_6_8/0.78),rgb(7_6_8/0.4)_55%,transparent_85%)]"
+        />
         <p className={`${EYEBROW} cx-enter-rise`} style={{ animationDelay: "0.25s" }}>
           {HERO.eyebrow}
         </p>

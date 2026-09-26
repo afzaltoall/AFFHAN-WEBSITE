@@ -490,6 +490,14 @@ export function buildStars(page: HTMLElement, stars: HTMLElement, reduced: boole
       .to($("stars-mid", "stars-mid2"), { yPercent: -7 }, 0)
       .to($("stars-bright"), { yPercent: -11 }, 0);
   }
+  // THE SKY'S calm ScrollTrigger: half strength behind the application, so
+  // the fields read cleanly. (A change of brightness, not of position, so
+  // it applies under reduced motion too.)
+  const form = page.querySelector<HTMLElement>("#apply");
+  const calm = $("stars-calm");
+  if (form && calm.length) {
+    gsap.fromTo(calm, { opacity: 1 }, { opacity: 0.45, ease: "none", scrollTrigger: { trigger: form, start: "top 75%", end: "top 25%", scrub: true, invalidateOnRefresh: true } });
+  }
   // THE SKY'S exit ScrollTrigger: as the footer arrives, the sky moves up
   // exactly as far as the page does, its bottom edge on the page's.
   gsap.fromTo(

@@ -141,6 +141,8 @@ export function Starfield() {
     <div ref={ref} data-cx="stars" aria-hidden className="cx-stars pointer-events-none fixed inset-0 z-0 overflow-hidden">
       {/* Dimmed by the film under the FREE reveal; the root itself fades in and follows the page end. */}
       <div data-cx="stars-dim" className="absolute inset-0">
+      {/* Calmed while the application is on screen: fewer bright points behind the fields. */}
+      <div data-cx="stars-calm" className="absolute inset-0">
       <canvas data-layer="far" data-cx="stars-far" className="cx-stars-layer" />
       <canvas data-layer="mid" data-cx="stars-mid" className="cx-stars-layer cx-twinkle-a" />
       <canvas data-layer="mid" data-cx="stars-mid2" className="cx-stars-layer cx-twinkle-b" />
@@ -167,6 +169,7 @@ export function Starfield() {
           style={{ "--x": s.x, "--y": s.y, "--rot": s.rot, "--len": s.len, "--dur": s.dur, "--delay": s.delay } as CSSProperties}
         />
       ))}
+      </div>
       </div>
     </div>
   );
