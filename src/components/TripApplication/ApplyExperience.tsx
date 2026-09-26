@@ -1,0 +1,535 @@
+"use client";
+
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import gsap from "gsap";
+import { validateAll, type FieldErrors } from "@/lib/trip-application";
+import { DISPLAY, EYEBROW } from "@/components/CinematicExperience/parts";
+import "@/components/CinematicExperience/cinematic.css";
+import "./apply.css";
+import { ApplicationIntro } from "./ApplicationIntro";
+import { Atmosphere, Host, type Mood } from "./Atmosphere";
+import { FAILURE, PAGE_TITLE, STEPS, SUBMIT, SUCCESS } from "./content";
+import { StepAboutYou } from "./StepAboutYou";
+import { StepBusiness } from "./StepBusiness";
+import { StepIndicator } from "./StepIndicator";
+import { StepNav } from "./StepNav";
+import { StepProfile } from "./StepProfile";
+import { StepReview } from "./StepReview";
+import { StepTravel } from "./StepTravel";
+import { SubmitStage } from "./SubmitStage";
+import { submitApplication, type SubmitResult } from "./submitApplication";
+import { toPayload, useApplication } from "./useApplication";
+
+/**
+ * /free-china-trip/apply/: the application as the next chapter of the film.
+ *
+ *   intro ──Start──▶ 01 ⇄ 02 ⇄ 03 ⇄ 04 ⇄ 05 ──Submit──▶ sending ──▶ received
+ *                                                          └──▶ failed ──▶ (try again | review)
+ *
+ * The intro always plays first, whether the visitor came through the landing
+ * page's transition or opened this address directly. All state lives in
+ * useApplication; Back never erases, forward validates, Edit on the review
+ * returns to a step and back. The request starts the moment Submit is
+ * pressed and the animation runs alongside it; success is shown only when
+ * the server has confirmed it.
+ *
+ * Motion is GSAP on transform, opacity and a little filter, all of it here,
+ * so the choreography reads in one place. Reduced motion keeps every screen
+ * and every function with fades in place of movement.
+ */
+
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
+type Phase = "intro" | "form" | "sending" | "failed" | "received";
+
+/** Which step asks for each answer, in the order the form asks them. */
+const STEP_OF = {
+  fullName: 0, email: 0, phone: 0, country: 0, city: 0, profileUrl: 0,
+  companyName: 1, role: 1, businessCategory: 1, companyWebsite: 1, yearsInBusiness: 1, businessDescription: 1,
+  interests: 2, productsOfInterest: 2, exploreNotes: 2,
+  nationality: 3, hasPassport: 3, travelledToChina: 3,
+  accuracy: 4, terms: 4,
+} as const;
+const FIELD_ORDER = Object.keys(STEP_OF) as Array<keyof typeof STEP_OF>;
+const STEP_KEYS = ["personal", "business", "profile", "travel", "consent"] as const;
+const LAST = STEPS.length - 1;
+
+/**
+ * Where the host stands in each chapter, on a desktop: large in the intro,
+ * smaller through 01–02, cropped and set back in 03, turned towards the travel
+ * picture in 04, receding in 05, gone while sending, back to one side after.
+ */
+const HOST: Record<string, gsap.TweenVars> = {
+  "0": { xPercent: 12, yPercent: 5, scale: 0.8, autoAlpha: 1 },
+  "1": { xPercent: 18, yPercent: 7, scale: 0.74, autoAlpha: 0.92 },
+  "2": { xPercent: 52, yPercent: 9, scale: 0.9, autoAlpha: 0.42 },
+  "3": { xPercent: 24, yPercent: 3, scale: 0.72, autoAlpha: 0.82 },
+  "4": { xPercent: 34, yPercent: 14, scale: 0.6, autoAlpha: 0.22 },
+  done: { xPercent: 30, yPercent: 6, scale: 0.72, autoAlpha: 0.7 },
+};
+
+const sleep = (ms: number) => new Promise<null>((resolve) => window.setTimeout(() => resolve(null), ms));
+
+export function ApplyExperience() {
+  const app = useApplication();
+  const root = useRef<HTMLDivElement>(null);
+  const liveRef = useRef<HTMLParagraphElement>(null);
+  const [phase, setPhase] = useState<Phase>("intro");
+  const [step, setStep] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [reference, setReference] = useState<string | null>(null);
+  const [failure, setFailure] = useState("");
+
+  /** A transition is playing: further clicks wait for it. */
+  const busy = useRef(true);
+  /** Direction of the last step change, for the entering step (1 or -1). */
+  const dir = useRef(1);
+  const reduce = useRef(false);
+  const indicatorShown = useRef(false);
+  const spin = useRef<gsap.core.Tween | null>(null);
+  const introTl = useRef<gsap.core.Timeline | null>(null);
+  const running = useRef(new Set<gsap.core.Animation>());
+
+  const track = <T extends gsap.core.Animation>(a: T) => {
+    running.current.add(a);
+    return a;
+  };
+  const $ = (key: string) => root.current?.querySelector<HTMLElement>(`[data-ax="${key}"]`) ?? null;
+  const $$ = (key: string) => Array.from(root.current?.querySelectorAll<HTMLElement>(`[data-ax="${key}"]`) ?? []);
+
+  const announce = (text: string) => {
+    const el = liveRef.current;
+    if (!el) return;
+    el.textContent = "";
+    window.setTimeout(() => {
+      el.textContent = text;
+    }, 60);
+  };
+
+  const toMood = (tl: gsap.core.Timeline, mood: Mood, at: number, duration = 1.1) => {
+    for (const el of $$("mood")) tl.to(el, { autoAlpha: el.dataset.mood === mood ? 1 : 0, duration, ease: "power1.inOut" }, at);
+  };
+
+  /** Red silk across the screen: only ever during a transition. */
+  const silk = (tl: gsap.core.Timeline, at: number, kind: "subtle" | "partial" | "brief") => {
+    const el = $("silk");
+    if (!el) return;
+    const k = { subtle: { peak: 0.32, from: -65, to: 35, d: 1.4 }, partial: { peak: 0.55, from: -95, to: -30, d: 1.2 }, brief: { peak: 0.45, from: -45, to: 55, d: 0.85 } }[kind];
+    tl.set(el, { xPercent: k.from, rotation: -3, autoAlpha: 0 }, at);
+    tl.to(el, { xPercent: k.to, rotation: 2, duration: k.d, ease: "power2.inOut" }, at);
+    tl.to(el, { autoAlpha: k.peak, duration: k.d * 0.4, ease: "power1.out" }, at);
+    tl.to(el, { autoAlpha: 0, duration: k.d * 0.5, ease: "power1.in" }, at + k.d * 0.5);
+  };
+
+  /** The gold light trail, as a moving transition (never left on screen). */
+  const trail = (tl: gsap.core.Timeline, at: number, tilt: number) => {
+    const el = $("trail");
+    if (!el) return;
+    tl.set(el, { xPercent: -70, scaleX: 0.6, rotation: tilt - 4, autoAlpha: 0 }, at);
+    tl.to(el, { xPercent: 25, scaleX: 1.1, rotation: tilt, duration: 1.15, ease: "power2.inOut" }, at);
+    tl.to(el, { autoAlpha: 0.9, duration: 0.35, ease: "power1.out" }, at);
+    tl.to(el, { autoAlpha: 0, duration: 0.5, ease: "power1.in" }, at + 0.65);
+  };
+
+  /** Back to the top of the chapter, if the visitor had scrolled down it. */
+  const toTop = (instant: boolean) => {
+    const el = root.current;
+    if (!el) return;
+    const top = el.getBoundingClientRect().top + window.scrollY - 64;
+    if (window.scrollY > top + 4) window.scrollTo({ top, behavior: instant ? "instant" : "smooth" });
+  };
+
+  const focusFirst = (errors: FieldErrors) => {
+    const key = FIELD_ORDER.find((k) => errors[k]);
+    if (key) document.getElementById(`ax-${key}`)?.focus();
+  };
+
+  // ---- The intro: plays on arrival, however the visitor arrived ----------------
+  useIsoLayoutEffect(() => {
+    reduce.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const lines = $$("intro-line");
+    const tl = track(gsap.timeline({ defaults: { ease: "power3.out" } }));
+    introTl.current = tl;
+    // The way in works as soon as it can be seen.
+    tl.call(() => void (busy.current = false), [], reduce.current ? 0.2 : 1.6);
+    if (reduce.current) {
+      tl.to([$("intro-host-m"), $("host"), $("intro-eyebrow"), ...lines, $("intro-support"), $("intro-body"), $("intro-cta")], { autoAlpha: 1, duration: 0.6, stagger: 0.04 }, 0);
+      tl.to($("dust"), { autoAlpha: 1, duration: 0.8 }, 0);
+      tl.to($("rule"), { autoAlpha: 0.45, duration: 0.8 }, 0);
+    } else {
+      tl.to($("dust"), { autoAlpha: 1, duration: 2.6, ease: "power1.out" }, 0);
+      tl.fromTo($("rule"), { autoAlpha: 1, scaleX: 0 }, { scaleX: 1, duration: 1.4, ease: "power3.inOut" }, 0.15);
+      tl.to($("rule"), { autoAlpha: 0.45, duration: 1.2 }, 1.6);
+      tl.fromTo($("host"), { autoAlpha: 0, x: 100, scale: 0.96 }, { autoAlpha: 1, x: 0, scale: 1, duration: 1.5 }, 0.45);
+      tl.fromTo($("intro-host-m"), { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 1.1 }, 0.3);
+      tl.fromTo($("intro-eyebrow"), { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: 0.7 }, 0.5);
+      tl.fromTo(lines, { autoAlpha: 0, y: 40, filter: "blur(12px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 1.2, stagger: 0.14, clearProps: "filter" }, 0.62);
+      tl.fromTo($("intro-support"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.1);
+      tl.fromTo($("intro-body"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.25);
+      tl.fromTo($("intro-cta"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.5);
+    }
+    return () => void tl.kill();
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Everything still moving stops when the page goes.
+  useEffect(() => {
+    const set = running.current;
+    return () => {
+      set.forEach((a) => a.kill());
+      spin.current?.kill();
+    };
+  }, []);
+
+  /** Start application: the button glows, a gold trail passes, the intro leaves, 01 arrives. */
+  const start = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    // Anything of the intro still arriving arrives now, then everything leaves.
+    introTl.current?.progress(1).kill();
+    const btn = root.current?.querySelector<HTMLElement>("[data-ax-start]");
+    const leaving = [$("intro-host-m"), $("intro-eyebrow"), ...$$("intro-line"), $("intro-support"), $("intro-body"), $("intro-cta")];
+    const tl = track(gsap.timeline());
+    if (reduce.current) {
+      tl.to([...leaving, $("rule")], { autoAlpha: 0, duration: 0.3 }, 0);
+      tl.to($("host"), { autoAlpha: 0, duration: 0.25 }, 0);
+      tl.set($("host"), { ...HOST["0"], autoAlpha: 0 }, 0.25);
+      tl.to($("host"), { autoAlpha: HOST["0"].autoAlpha, duration: 0.35 }, 0.3);
+      toMood(tl, "0", 0, 0.5);
+      tl.to($("dust"), { autoAlpha: 0.45, duration: 0.5 }, 0);
+    } else {
+      tl.fromTo(btn?.querySelector("[data-ax-glow]") ?? null, { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1.12, duration: 0.35, ease: "power2.out" }, 0);
+      tl.to(btn ?? null, { scale: 0.97, duration: 0.16, ease: "power2.out" }, 0);
+      tl.to(btn ?? null, { scale: 1, duration: 0.3, ease: "power2.out" }, 0.16);
+      trail(tl, 0.12, -2);
+      tl.to(leaving, { autoAlpha: 0, y: -24, filter: "blur(6px)", duration: 0.5, stagger: 0.035, ease: "power2.in" }, 0.28);
+      tl.to($("rule"), { autoAlpha: 0, duration: 0.6 }, 0.3);
+      tl.to($("host"), { ...HOST["0"], x: 0, duration: 1.05, ease: "power3.inOut" }, 0.3);
+      toMood(tl, "0", 0.35);
+      tl.to($("dust"), { autoAlpha: 0.45, duration: 1.2 }, 0.4);
+    }
+    await new Promise<void>((resolve) => tl.call(resolve, [], reduce.current ? 0.3 : 0.85));
+    dir.current = 1;
+    setStep(0);
+    setPhase("form");
+  };
+
+  // ---- A step arrives: from the right going forward, from the left going back
+  useIsoLayoutEffect(() => {
+    if (phase !== "form") return;
+    const view = root.current?.querySelector<HTMLElement>("[data-ax-view='step']");
+    if (!view) return;
+    const tl = track(gsap.timeline({ onComplete: () => void (busy.current = false) }));
+    if (reduce.current) tl.fromTo(view, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
+    else tl.fromTo(view, { autoAlpha: 0, x: 30 * dir.current, filter: "blur(4px)" }, { autoAlpha: 1, x: 0, filter: "blur(0px)", duration: 0.65, ease: "expo.out", clearProps: "transform,filter" });
+    if (!indicatorShown.current) {
+      indicatorShown.current = true;
+      tl.fromTo($("indicator"), { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0);
+    }
+    // The new step's title takes focus, so keyboards and readers start there.
+    document.getElementById("ax-step-title")?.focus({ preventScroll: true });
+    return () => void tl.kill();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, step]);
+
+  /** Leave this step (to the left going forward), with the chapter's motion. */
+  const go = async (to: number, editingNext = false) => {
+    if (busy.current || to === step) return;
+    busy.current = true;
+    const from = step;
+    dir.current = to > from ? 1 : -1;
+    const view = root.current?.querySelector<HTMLElement>("[data-ax-view='step']") ?? null;
+    const tl = track(gsap.timeline());
+    const key = String(to);
+    if (reduce.current) {
+      tl.to(view, { autoAlpha: 0, duration: 0.2 }, 0);
+      tl.to($("host"), { autoAlpha: 0, duration: 0.2 }, 0);
+      tl.set($("host"), { ...HOST[key], autoAlpha: 0 }, 0.2);
+      tl.to($("host"), { autoAlpha: HOST[key].autoAlpha, duration: 0.3 }, 0.25);
+      toMood(tl, key as Mood, 0, 0.4);
+      tl.to($("travel"), { autoAlpha: to === 3 ? 0.35 : 0, duration: 0.4 }, 0);
+    } else {
+      tl.to(view, { autoAlpha: 0, x: -30 * dir.current, filter: "blur(4px)", duration: 0.42, ease: "power2.in" }, 0);
+      toMood(tl, key as Mood, 0.1);
+      tl.to($("host"), { ...HOST[key], duration: 0.95, ease: "power3.inOut" }, 0.05);
+      if (to === 3) tl.fromTo($("travel"), { autoAlpha: 0, xPercent: 8, scale: 0.94 }, { autoAlpha: 0.38, xPercent: 0, scale: 1, duration: 1.2, ease: "power2.out" }, 0.2);
+      else if (from === 3) tl.to($("travel"), { autoAlpha: 0, duration: 0.6 }, 0);
+      // The motifs cross only going forward, at the chapter's own moments.
+      if (from === 0 && to === 1) silk(tl, 0.05, "subtle");
+      if (from === 1 && to === 2) silk(tl, 0.05, "partial");
+      if (from === 2 && to === 3) trail(tl, 0.05, -6);
+      if (from === 3 && to === 4) silk(tl, 0.05, "brief");
+    }
+    await new Promise<void>((resolve) => tl.call(resolve, [], reduce.current ? 0.2 : 0.42));
+    toTop(reduce.current);
+    setEditing(editingNext);
+    setStep(to);
+  };
+
+  /** Continue: this step's rules first. On the review, it sends. */
+  const onStepSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (busy.current) return;
+    if (step === LAST) {
+      void send((e.nativeEvent as SubmitEvent).submitter as HTMLElement | null);
+      return;
+    }
+    const { ok, errors } = app.check(STEP_KEYS[step]);
+    if (!ok) {
+      focusFirst(errors);
+      return;
+    }
+    void go(editing ? LAST : step + 1);
+  };
+
+  // ---- Sending --------------------------------------------------------------------
+  /** The button becomes a point; light, an orbit, particles on it. */
+  const playSending = (btn: HTMLElement | null) =>
+    new Promise<void>((resolve) => {
+      const point = $("send-point");
+      const row = $("send-row");
+      spin.current?.kill();
+      spin.current = track(gsap.to($("send-orbiters"), { rotation: 360, duration: 7, ease: "none", repeat: -1, paused: true }));
+      const tl = track(gsap.timeline({ onComplete: resolve }));
+      tl.set([$("send-caption"), $("done-details")], { autoAlpha: 0 }, 0);
+      tl.set($("send-ring"), { strokeDashoffset: 1 }, 0);
+      tl.set($$("send-orbiter"), { autoAlpha: 0, scale: 0 }, 0);
+      tl.set($("send-orbiters"), { rotation: 0 }, 0);
+      tl.to($("host"), { autoAlpha: 0, duration: 0.6, ease: "power1.out" }, 0);
+      if (reduce.current) {
+        tl.to($("send-dark"), { autoAlpha: 0.85, duration: 0.4 }, 0);
+        tl.set([$("send-orbit"), ...$$("send-orbiter")], { autoAlpha: 1, scale: 1 }, 0.2);
+        tl.set($("send-ring"), { strokeDashoffset: 0 }, 0.2);
+        tl.to($("send-light"), { autoAlpha: 0.6, scale: 1, duration: 0.4 }, 0.2);
+        return;
+      }
+      if (btn && point && row) {
+        const b = btn.getBoundingClientRect();
+        const r = row.getBoundingClientRect();
+        const dx = b.left + b.width / 2 - (r.left + r.width / 2);
+        const dy = b.top + b.height / 2 - (r.top + r.height / 2);
+        tl.to(Array.from(btn.children).slice(1), { autoAlpha: 0, duration: 0.18 }, 0);
+        tl.to(btn, { scaleX: b.height / b.width, duration: 0.34, ease: "power3.in" }, 0.05);
+        tl.to(btn, { scale: 0.14, autoAlpha: 0, duration: 0.26, ease: "power3.in" }, 0.37);
+        tl.fromTo(point, { x: dx, y: dy, scale: 0.5, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.18, ease: "power2.out" }, 0.52);
+        tl.to(point, { x: 0, y: 0, duration: 0.75, ease: "power3.inOut" }, 0.66);
+      } else {
+        tl.fromTo(point, { x: 0, y: 0, scale: 0, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4 }, 0.3);
+      }
+      tl.to($("send-dark"), { autoAlpha: 0.75, duration: 0.9, ease: "power1.inOut" }, 0.4);
+      tl.fromTo($("send-light"), { scale: 0, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.95, ease: "power2.out" }, 1.3);
+      tl.set($("send-orbit"), { autoAlpha: 1 }, 1.4);
+      tl.to($("send-ring"), { strokeDashoffset: 0, duration: 1.0, ease: "power2.inOut" }, 1.4);
+      tl.to($$("send-orbiter"), { autoAlpha: 1, scale: 1, duration: 0.45, stagger: 0.06, ease: "power2.out" }, 1.85);
+      tl.call(() => void spin.current?.play(), [], 1.85);
+    });
+
+  /** Red silk, then darkness: the moment before APPLICATION RECEIVED. */
+  const intoDarkness = () =>
+    new Promise<void>((resolve) => {
+      const tl = track(gsap.timeline({ onComplete: resolve }));
+      if (reduce.current) {
+        tl.to($("send-dark"), { autoAlpha: 1, duration: 0.4 }, 0);
+        return;
+      }
+      const s = $("send-silk");
+      tl.set(s, { xPercent: -110, rotation: -6, autoAlpha: 0 }, 0);
+      tl.to(s, { xPercent: 100, rotation: 3, duration: 1.8, ease: "power2.inOut" }, 0);
+      tl.to(s, { autoAlpha: 0.95, duration: 0.5 }, 0);
+      tl.to(s, { autoAlpha: 0, duration: 0.6 }, 1.2);
+      tl.to($("send-dark"), { autoAlpha: 1, duration: 0.8, ease: "power2.inOut" }, 0.35);
+      tl.to($("send-point"), { autoAlpha: 0, scale: 0.4, duration: 0.5 }, 0.3);
+      tl.to($("send-light"), { autoAlpha: 0.4, scale: 1.25, duration: 1.2, ease: "power1.inOut" }, 0.3);
+    });
+
+  /** Undo the button's collapse (for another attempt, or the review). */
+  const restoreSubmit = () => {
+    const btn = root.current?.querySelector<HTMLElement>("[data-ax-submit]");
+    if (btn) gsap.set([btn, ...Array.from(btn.children)], { clearProps: "all" });
+  };
+
+  /** The overlay lifts off the form (the review, or a step the server questioned). */
+  const lift = (tl: gsap.core.Timeline) => {
+    spin.current?.pause();
+    tl.to([$("send-dark"), $("send-light"), $("send-orbit"), $("send-point"), $("send-caption"), $("fail"), $("send-line")], { autoAlpha: 0, duration: reduce.current ? 0.2 : 0.45 }, 0);
+    restoreSubmit();
+  };
+
+  const send = async (fromButton: HTMLElement | null) => {
+    if (busy.current) return;
+    const consent = app.check("consent");
+    if (!consent.ok) {
+      focusFirst(consent.errors);
+      return;
+    }
+    // Every step again: a draft restored from this session never skipped a rule.
+    const all = validateAll(toPayload(app.state), app.phoneOk);
+    const firstBad = FIELD_ORDER.find((k) => all[k]);
+    if (firstBad) {
+      app.setErrors(all);
+      void go(STEP_OF[firstBad], true);
+      return;
+    }
+    busy.current = true;
+    setFailure("");
+    setPhase("sending");
+
+    const request = submitApplication(toPayload(app.state));
+    await playSending(fromButton ?? root.current?.querySelector<HTMLElement>("[data-ax-submit]") ?? null);
+    let result: SubmitResult | null = await Promise.race([request, sleep(40)]);
+    if (!result) {
+      // Still recording: say so quietly and keep the orbit turning.
+      track(gsap.to($("send-caption"), { autoAlpha: 1, duration: 0.6 }));
+      announce(`${SUBMIT.holding}…`);
+      result = await request;
+      track(gsap.to($("send-caption"), { autoAlpha: 0, duration: 0.3 }));
+    }
+
+    if (result.ok) {
+      setReference(result.referenceNo);
+      app.clearDraft();
+      await intoDarkness();
+      toTop(true);
+      setPhase("received");
+      return;
+    }
+    if (result.reason === "invalid") {
+      // The server questioned an answer: lift the overlay, go to that step.
+      const fields = result.fields;
+      const first = FIELD_ORDER.find((k) => fields[k]);
+      const tl = track(gsap.timeline());
+      lift(tl);
+      app.setErrors(fields);
+      dir.current = -1;
+      setEditing(true);
+      setStep(first ? STEP_OF[first] : LAST);
+      setPhase("form");
+      return;
+    }
+    setFailure(result.reason === "limited" ? result.message || FAILURE.limited : "");
+    setPhase("failed");
+  };
+
+  // ---- Received: the line draws across and the words rise out of it --------------
+  useIsoLayoutEffect(() => {
+    if (phase !== "received") return;
+    const details = $("done-details");
+    const items = Array.from(details?.children ?? []).filter((el) => reference || (el as HTMLElement).dataset.ax !== "done-ref");
+    const tl = track(gsap.timeline({ defaults: { ease: "power3.out" } }));
+    toMood(tl, "done", 0);
+    if (reduce.current) {
+      tl.to([$("done-eyebrow"), $("done-title"), details, $("done-host")], { autoAlpha: 1, duration: 0.5, stagger: 0.05 }, 0);
+      tl.set(items, { autoAlpha: 1 }, 0);
+      tl.to($("send-dark"), { autoAlpha: 0.25, duration: 0.8 }, 0.3);
+      tl.set($("host"), { ...HOST.done, autoAlpha: 0 }, 0.3);
+      tl.to($("host"), { autoAlpha: HOST.done.autoAlpha, duration: 0.6 }, 0.35);
+    } else {
+      tl.fromTo($("send-line"), { autoAlpha: 1, scaleX: 0 }, { scaleX: 1, duration: 1.05, ease: "power3.inOut" }, 0.1);
+      tl.set($("done-title"), { autoAlpha: 1 }, 0.75);
+      tl.fromTo($("done-title"), { yPercent: 110 }, { yPercent: 0, duration: 1.1 }, 0.75);
+      tl.fromTo($("done-eyebrow"), { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.7 }, 1.15);
+      tl.set(details, { autoAlpha: 1 }, 1.3);
+      tl.fromTo(items, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.8, stagger: 0.12 }, 1.3);
+      tl.fromTo($("done-host"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 1 }, 0.9);
+      tl.to($("send-dark"), { autoAlpha: 0.2, duration: 1.6, ease: "power1.inOut" }, 1.1);
+      tl.set($("host"), { ...HOST.done, x: 40, autoAlpha: 0 }, 1.2);
+      tl.to($("host"), { x: 0, autoAlpha: HOST.done.autoAlpha, duration: 1.5 }, 1.2);
+      if (spin.current) tl.to(spin.current, { timeScale: 0.3, duration: 1.6, ease: "power1.out" }, 1.0);
+      tl.to($("send-line"), { autoAlpha: 0.35, duration: 1.2 }, 1.6);
+      // Silk passes once more, slowly, behind everything.
+      const bg = $("silk");
+      tl.set(bg, { xPercent: -80, rotation: -3, autoAlpha: 0 }, 1.6);
+      tl.to(bg, { xPercent: 30, rotation: 2, duration: 4, ease: "power1.inOut" }, 1.6);
+      tl.to(bg, { autoAlpha: 0.22, duration: 1.2 }, 1.6);
+      tl.to(bg, { autoAlpha: 0, duration: 1.4 }, 4.2);
+    }
+    tl.call(
+      () => {
+        $("done-title")?.focus({ preventScroll: true });
+        announce(`${SUCCESS.title}. ${reference ? `${SUCCESS.reference} ${reference}.` : ""}`);
+        busy.current = false;
+      },
+      [],
+      reduce.current ? 0.5 : 1.9,
+    );
+    return () => void tl.kill();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, reference]);
+
+  // ---- Failed: the orbit goes out, the message comes up, the answers wait ----------
+  useIsoLayoutEffect(() => {
+    if (phase !== "failed") return;
+    spin.current?.pause();
+    const tl = track(gsap.timeline());
+    tl.to([$("send-point"), $("send-light"), $("send-orbit"), $("send-caption")], { autoAlpha: 0, duration: reduce.current ? 0.2 : 0.5 }, 0);
+    tl.to($("send-dark"), { autoAlpha: 0.92, duration: 0.5 }, 0);
+    tl.fromTo($("fail"), { autoAlpha: 0, y: reduce.current ? 0 : 16 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power3.out" }, reduce.current ? 0.1 : 0.35);
+    tl.call(
+      () => {
+        $("fail-title")?.focus({ preventScroll: true });
+        announce(`${FAILURE.title}. ${FAILURE.kept}`);
+        busy.current = false;
+      },
+      [],
+      reduce.current ? 0.3 : 0.8,
+    );
+    return () => void tl.kill();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
+  const retry = () => {
+    if (busy.current) return;
+    track(gsap.to($("fail"), { autoAlpha: 0, duration: 0.35 }));
+    void send(root.current?.querySelector<HTMLElement>("[data-ax-retry]") ?? null);
+  };
+
+  const backToReview = () => {
+    if (busy.current) return;
+    busy.current = true;
+    const tl = track(gsap.timeline());
+    lift(tl);
+    tl.call(() => {
+      dir.current = -1;
+      setPhase("form");
+    }, [], reduce.current ? 0.2 : 0.45);
+  };
+
+  const Step = [StepAboutYou, StepBusiness, StepProfile, StepTravel][step];
+  const covered = phase === "sending" || phase === "failed";
+
+  return (
+    <div ref={root} className="ax relative isolate min-h-[calc(100svh-4rem)] overflow-clip">
+      <h1 className="sr-only">{PAGE_TITLE}</h1>
+      <p ref={liveRef} aria-live="polite" className="sr-only" />
+
+      <Atmosphere />
+      <Host />
+
+      <div className={`relative z-20 mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1320px] px-5 sm:px-8 lg:px-12 ${phase === "intro" ? "items-center" : "items-start"}`}>
+        <div className="w-full py-12 md:py-16 lg:w-[45%] lg:py-20">
+          {phase === "intro" && <ApplicationIntro onStart={start} />}
+
+          {phase !== "intro" && phase !== "received" && (
+            <div inert={covered}>
+              <StepIndicator step={step} />
+              <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title" className="mt-10 md:mt-14">
+                <header className="mb-10 md:mb-12">
+                  <p className={EYEBROW}>Step {STEPS[step].number}</p>
+                  <h2 id="ax-step-title" tabIndex={-1} className={`${DISPLAY} mt-3 text-[clamp(36px,9vw,48px)] font-normal uppercase leading-[0.98] text-(--cx-white) outline-none md:text-[clamp(44px,4.4vw,64px)]`}>
+                    {STEPS[step].title}
+                  </h2>
+                  <p className="mt-4 max-w-[30rem] text-[16px] leading-relaxed text-(--cx-mute)">{STEPS[step].lede}</p>
+                </header>
+                {step === LAST ? <StepReview app={app} onEdit={(i) => void go(i, true)} /> : <Step app={app} />}
+                <StepNav step={step} last={LAST} editing={editing} onBack={() => void go(step - 1)} />
+              </form>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <SubmitStage active={phase === "sending" || phase === "failed" || phase === "received"} reference={reference} failure={failure} onRetry={retry} onReview={backToReview} />
+    </div>
+  );
+}

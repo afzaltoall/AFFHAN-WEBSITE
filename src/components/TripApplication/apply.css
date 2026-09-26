@@ -1,0 +1,82 @@
+/* /free-china-trip/apply/ (ApplyExperience). Tokens come from the film's
+   .cx block in CinematicExperience/cinematic.css; this file adds the
+   application's ground, its chapter moods, and the hidden first frame. */
+
+.ax {
+  --ax-base: #050505;
+  background: var(--ax-base);
+}
+
+/* Every piece the timelines reveal starts hidden in the first frame, so the
+   page never flashes its end state before the intro plays. The <noscript>
+   in page.tsx lifts this when there is no script to reveal them. */
+.ax [data-ax-hide] {
+  visibility: hidden;
+  opacity: 0;
+}
+
+/* One ground per chapter, crossfaded by opacity: the same gold / red / black
+   family throughout, never a different visual identity. */
+.ax-mood-intro {
+  background:
+    radial-gradient(55% 60% at 74% 44%, rgb(214 168 78 / 0.1), transparent 70%),
+    radial-gradient(40% 40% at 12% 88%, rgb(163 22 44 / 0.08), transparent 70%),
+    var(--ax-base);
+}
+/* 01: dark blue-gold */
+.ax-mood-0 {
+  background:
+    radial-gradient(70% 60% at 82% 18%, rgb(22 44 86 / 0.55), transparent 70%),
+    radial-gradient(45% 45% at 8% 92%, rgb(214 168 78 / 0.1), transparent 70%),
+    #05060a;
+}
+/* 02: dark burgundy-gold */
+.ax-mood-1 {
+  background:
+    radial-gradient(70% 60% at 80% 26%, rgb(92 14 34 / 0.55), transparent 70%),
+    radial-gradient(45% 45% at 12% 88%, rgb(214 168 78 / 0.1), transparent 70%),
+    #07040a;
+}
+/* 03: deep black, warm red */
+.ax-mood-2 {
+  background:
+    radial-gradient(60% 50% at 76% 92%, rgb(163 22 44 / 0.34), transparent 72%),
+    radial-gradient(40% 40% at 20% 10%, rgb(90 20 18 / 0.18), transparent 70%),
+    #040304;
+}
+/* 04: deep black, travel gold */
+.ax-mood-3 {
+  background:
+    radial-gradient(60% 55% at 80% 22%, rgb(214 168 78 / 0.2), transparent 70%),
+    radial-gradient(40% 40% at 10% 90%, rgb(142 106 38 / 0.12), transparent 70%),
+    #040404;
+}
+/* 05: near-black, clean gold */
+.ax-mood-4 {
+  background:
+    radial-gradient(80% 40% at 50% 0%, rgb(214 168 78 / 0.12), transparent 72%),
+    #060606;
+}
+/* Received: near-black, warm gold */
+.ax-mood-done {
+  background:
+    radial-gradient(55% 55% at 50% 48%, rgb(214 168 78 / 0.16), transparent 70%),
+    radial-gradient(45% 35% at 50% 100%, rgb(163 22 44 / 0.12), transparent 75%),
+    #050404;
+}
+
+/* The thin gold line: the intro's horizon, and the line APPLICATION RECEIVED
+   rises from. Brightest in the middle, gone at the edges. */
+.ax-rule {
+  background: linear-gradient(90deg, transparent, var(--cx-gold) 18%, var(--cx-gold-hi) 50%, var(--cx-gold) 82%, transparent);
+}
+
+/* Autofill keeps the dark ground and the light text. */
+.ax input:-webkit-autofill,
+.ax input:-webkit-autofill:hover,
+.ax input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--cx-white);
+  caret-color: var(--cx-gold);
+  -webkit-box-shadow: 0 0 0 1000px var(--ax-base) inset;
+  transition: background-color 9999s ease-out 0s;
+}
