@@ -6,45 +6,100 @@ import { COUNTER } from "./content";
 import { DISPLAY } from "./parts";
 
 /**
- * The opening count: 00 to 100 in large editorial numerals, played by itself
- * the moment the page loads (no scroll), then opened from the centre like an
- * iris onto the hero, whose own entrance plays through the opening.
+ * The opening count: 00 to 100 in large editorial numerals over the whole
+ * screen, on every arrival (a first visit, a refresh, a link back to the
+ * page), then opened from the centre like an iris onto the hero, whose own
+ * entrance plays through the opening.
  *
- * Load-driven, not scroll-driven, and kept apart from every ScrollTrigger:
- *  - The number follows what the first frame really needs (the hero picture,
- *    its silk, the fonts, the page's load event) but on a cinematic clock: it
- *    takes at least MIN_MS, eases in and out, and never waits past CAP_MS
- *    whatever the network is doing; the pictures carry on loading behind.
- *  - It never jumps and never visibly stops: it follows its target smoothly
- *    and never moves slower than CRAWL.
- *  - Digits change with a short blur-in, not a flip: no odometer, no bounce.
- *  - One thin gold ring tightens and turns as it climbs. It is not a progress
- *    bar: nothing fills. At 100 it flares and opens outwards, and the black
- *    opens behind it (a radial mask), so the hero appears through the ring.
- *  - Once per session (sessionStorage). Scrolling, a click or a key hurries it
- *    to 100. Under reduced motion there is no count at all, only a fade.
- *  - aria-hidden, nothing focusable: it never traps a keyboard or a reader.
+ * It counts from the very first frame, before any script has run:
+ *  - The tens and the units are reels (0 to 9 in one column) in slots that
+ *    show one line, stepped by CSS keyframes generated below from the same
+ *    curve the script uses. Stepped transforms run on the compositor, so the
+ *    count keeps its pace while the page is still downloading and hydrating;
+ *    there is never a frozen "00" waiting for JavaScript.
+ *  - The stylesheet counts to HOLD_AT on the curve, then creeps (97, 98, 99
+ *    over the next seconds) and waits. The script takes the reels over from
+ *    there once the first frame's pictures and fonts are in, and finishes the
+ *    same curve to 100, so the hand-over does not show. It never waits past
+ *    CAP_MS; a wheel, swipe, key or click hurries it.
+ *  - It never jumps backwards and never visibly stops.
  *
- * The server paints "00" in the first frame, so the page opens on the count
- * rather than flashing the hero first. Until onReveal the hero's CSS entrance
- * waits (data-intro="counting" on the stage; see cinematic.css).
+ * While it counts nothing underneath scrolls (a wheel or swipe hurries the
+ * count instead), and the hero's CSS entrance holds its first frame
+ * (data-intro="counting" on the stage; see cinematic.css).
+ *
+ * Under reduced motion the numbers still count (digits changing are not
+ * movement); the ring holds still and the black simply fades.
+ * aria-hidden, nothing focusable: it never traps a keyboard or a reader.
+ * Without JavaScript it is not shown (the noscript style in page.tsx); if the
+ * script never arrives, the black lets go by itself after FAILSAFE_S.
  */
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
-/** Seen once in this tab's session: never again until the session ends. */
-const SEEN_KEY = "affhan:trip-count";
-/** From navigation start: at least this long, and never longer than CAP_MS. */
-const MIN_MS = 1800;
-const CAP_MS = 2500;
-/** If the page took long to become interactive, still count for at least this long. */
-const MIN_COUNT_MS = 1000;
-const CAP_COUNT_MS = 1300;
-/** Never slower than this share of the count per second: a stall never shows. */
-const CRAWL = 0.14;
+/** The whole curve, 00 to 100, from the first frame (ms). */
+const RUN_MS = 1800;
+/** The stylesheet counts to here on the curve, then waits for the page... */
+const HOLD_AT = 96;
+/** ...creeping on while it waits: [number, ms after reaching HOLD_AT]. */
+const CREEP: ReadonlyArray<readonly [number, number]> = [
+  [97, 1200],
+  [98, 3200],
+  [99, 6500],
+];
+/** Length of the stylesheet's count; it holds 99 after this. */
+const SHEET_MS = 10000;
+/** However the pictures are doing, the count finishes by this (ms from the first frame). */
+const CAP_MS = 2600;
+/** Hurrying never makes the count shorter than this (ms from the first frame)... */
+const EARLIEST_MS = 600;
+/** ...and a hurried finish takes at most this long. */
+const HURRY_MS = 450;
+/** If the script never arrives, the black lets go by itself (s). */
+const FAILSAFE_S = 20;
 
-const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
-const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+/**
+ * Ease-in-out cubic, and the moment it first reaches a value. Plain arithmetic
+ * only (no Math.pow or Math.cbrt, whose last digit may differ between engines),
+ * so the keyframes the server writes are exactly the ones the browser checks.
+ */
+const ease = (x: number) => {
+  if (x < 0.5) return 4 * x * x * x;
+  const u = 2 - 2 * x;
+  return 1 - (u * u * u) / 2;
+};
+const easeInv = (y: number) => {
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (ease(mid) < y) lo = mid;
+    else hi = mid;
+  }
+  return hi;
+};
+const T_HOLD = RUN_MS * easeInv(HOLD_AT / 100);
+
+/** The stylesheet's half of the count: one keyframe per number, stepped. */
+function countSheet(): string {
+  const at: number[] = [];
+  for (let n = 0; n <= HOLD_AT; n++) at[n] = Math.round(RUN_MS * easeInv(n / 100));
+  for (const [n, after] of CREEP) at[n] = Math.round(T_HOLD) + after;
+  const frame = (ms: number, digit: number) => `${((ms * 100) / SHEET_MS).toFixed(3)}%{transform:translateY(${-digit}em)}`;
+  const units = at.map((ms, n) => frame(ms, n % 10)).join("") + frame(SHEET_MS, 9);
+  const tens = at.flatMap((ms, n) => (n % 10 === 0 ? [frame(ms, n / 10)] : [])).join("") + frame(SHEET_MS, 9);
+  return (
+    `@keyframes cx-count-units{${units}}@keyframes cx-count-tens{${tens}}` +
+    `.cx-count-reel[data-reel=tens]{animation:cx-count-tens ${SHEET_MS}ms steps(1,end) both}` +
+    `.cx-count-reel[data-reel=units]{animation:cx-count-units ${SHEET_MS}ms steps(1,end) both}` +
+    `.cx-count-ring-in{animation:cx-count-ring ${RUN_MS}ms cubic-bezier(0.65,0,0.35,1) both}` +
+    `.cx-counter{animation:cx-count-failsafe .6s ease-out ${FAILSAFE_S}s forwards}` +
+    `@media (prefers-reduced-motion:reduce){.cx-count-ring-in{animation:none;transform:none;opacity:.9}}`
+  );
+}
+const COUNT_SHEET = countSheet();
+
+const SCROLL_KEYS = new Set([" ", "Spacebar", "PageDown", "PageUp", "ArrowDown", "ArrowUp", "Home", "End"]);
 
 export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -57,177 +112,162 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
   useIsoLayoutEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const digits = Array.from(root.querySelectorAll<HTMLElement>("[data-digit]"));
+    const tens = root.querySelector<HTMLElement>("[data-reel='tens']");
+    const units = root.querySelector<HTMLElement>("[data-reel='units']");
+    const hundred = root.querySelector<HTMLElement>("[data-count-hundred]");
     const group = root.querySelector<HTMLElement>("[data-count-group]");
     const ring = root.querySelector<HTMLElement>("[data-count-ring]");
     const numerals = root.querySelector<HTMLElement>("[data-count-numerals]");
     const caption = root.querySelector<HTMLElement>("[data-count-caption]");
     const glow = root.querySelector<HTMLElement>("[data-count-glow]");
-    if (digits.length !== 3 || !group || !ring || !numerals || !caption || !glow) return;
+    if (!tens || !units || !hundred || !group || !ring || !numerals || !caption || !glow) return;
 
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const tweens: Array<gsap.core.Animation> = [];
     const cleanups: Array<() => void> = [];
     let raf = 0;
 
-    let seen = false;
-    try {
-      seen = sessionStorage.getItem(SEEN_KEY) === "1";
-    } catch {
-      /* storage blocked: count as a first visit */
-    }
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // The row is GSAP's from here: two digits centred until the "1" arrives.
+    gsap.set(group, { x: 0, xPercent: -100 / 6 });
 
-    // Already seen this session, or reduced motion: no count, only a fade.
-    if (seen || reduce) {
-      reveal.current();
-      tweens.push(gsap.to(root, { autoAlpha: 0, duration: reduce ? 0.5 : 0.35, ease: "power1.out", onComplete: () => setGone(true) }));
-      return () => tweens.forEach((t) => t.kill());
-    }
+    // The clock is the stylesheet's: its count started with the first frame
+    // (with this element, on a visit made inside the site).
+    const sheet = units.getAnimations?.().find((a) => (a as CSSAnimation).animationName === "cx-count-units");
+    const t0 = typeof sheet?.startTime === "number" ? sheet.startTime : performance.now();
 
-    // ---- What the first frame really waits for --------------------------------
-    const parts = { hero: 0, silk: 0, fonts: 0, load: 0 };
-    let real = 0;
-    const recompute = () => {
-      real = parts.hero * 0.4 + parts.silk * 0.1 + parts.fonts * 0.2 + parts.load * 0.3;
-    };
-    const stage = root.closest<HTMLElement>("[data-cx-stage]");
-    const watch = (selector: string, key: "hero" | "silk") => {
+    // ---- What the first frame needs before the black opens -------------------------
+    let heroIn = false;
+    let silkIn = false;
+    let fontsIn = !document.fonts;
+    const stage = document.querySelector<HTMLElement>("[data-cx-stage]");
+    const watch = (selector: string, done: () => void) => {
       const img = stage?.querySelector<HTMLImageElement>(selector);
-      if (!img || (img.complete && img.naturalWidth > 0)) {
-        parts[key] = 1;
-        return;
-      }
-      const onDone = () => {
-        parts[key] = 1;
-        recompute();
-      };
-      img.addEventListener("load", onDone, { once: true });
-      img.addEventListener("error", onDone, { once: true });
+      // complete: loaded, or failed (then nothing more is coming either).
+      if (!img || img.complete) return done();
+      img.addEventListener("load", done, { once: true });
+      img.addEventListener("error", done, { once: true });
       cleanups.push(() => {
-        img.removeEventListener("load", onDone);
-        img.removeEventListener("error", onDone);
+        img.removeEventListener("load", done);
+        img.removeEventListener("error", done);
       });
     };
-    watch("[data-cx='hero-img'] img", "hero");
-    watch("[data-cx='hero-silk'] img", "silk");
-    if (document.fonts) {
-      void document.fonts.ready.then(() => {
-        parts.fonts = 1;
-        recompute();
-      });
-    } else parts.fonts = 1;
-    if (document.readyState === "complete") parts.load = 1;
-    else {
-      const onLoad = () => {
-        parts.load = 1;
-        recompute();
+    watch("[data-cx='hero-img'] img", () => (heroIn = true));
+    watch("[data-cx='hero-silk'] img", () => (silkIn = true));
+    if (document.fonts) void document.fonts.ready.then(() => (fontsIn = true));
+
+    // ---- Nothing scrolls underneath; impatience hurries the count ------------------
+    let hurried = false;
+    const hurry = () => {
+      hurried = true;
+    };
+    const block = (e: Event) => {
+      if (e.cancelable) e.preventDefault();
+      // Capture phase on window: nothing after this sees it, Lenis included.
+      e.stopPropagation();
+      hurry();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))) return;
+      if (SCROLL_KEYS.has(e.key)) e.preventDefault();
+      hurry();
+    };
+    window.addEventListener("wheel", block, { capture: true, passive: false });
+    window.addEventListener("touchmove", block, { capture: true, passive: false });
+    window.addEventListener("keydown", onKey, { capture: true });
+    root.addEventListener("pointerdown", hurry);
+    const release = () => {
+      window.removeEventListener("wheel", block, { capture: true });
+      window.removeEventListener("touchmove", block, { capture: true });
+      window.removeEventListener("keydown", onKey, { capture: true });
+      root.removeEventListener("pointerdown", hurry);
+    };
+    cleanups.push(release);
+    const unlock = () => {
+      root.removeAttribute("data-lock");
+      release();
+    };
+
+    // ---- The reels ---------------------------------------------------------------
+    let shown = -1;
+    const show = (v: number) => {
+      if (v === shown) return;
+      shown = v;
+      tens.style.transform = `translateY(${-(Math.floor(v / 10) % 10)}em)`;
+      units.style.transform = `translateY(${-(v % 10)}em)`;
+    };
+    /** The number the stylesheet is showing right now. */
+    const readSheet = () => {
+      const digit = (el: HTMLElement) => {
+        const cs = getComputedStyle(el);
+        if (!cs.transform || cs.transform === "none") return 0;
+        const em = parseFloat(cs.fontSize) || 1;
+        return Math.min(9, Math.max(0, Math.round(-new DOMMatrixReadOnly(cs.transform).m42 / em)));
       };
-      window.addEventListener("load", onLoad, { once: true });
-      cleanups.push(() => window.removeEventListener("load", onLoad));
-    }
-    recompute();
-
-    // ---- The clock ----------------------------------------------------------------
-    // On a fresh load "00" has been on screen since the first paint, so the
-    // minimum and the cap count from navigation start; arriving later in a
-    // session (a client-side visit), they count from now.
-    const now0 = performance.now();
-    const origin = now0 < 4000 ? 0 : now0;
-    const minEnd = Math.max(origin + MIN_MS, now0 + MIN_COUNT_MS);
-    const capEnd = Math.max(origin + CAP_MS, now0 + CAP_COUNT_MS);
-    let shown = 0;
-    let value = 0;
-    let last = now0;
-    let hurry = 0;
-    let finished = false;
-    const blurIns: Array<Animation | null> = [null, null, null];
-
-    const render = (v: number) => {
-      if (v === value) return;
-      value = v;
-      // Two digits until 100; the "1" is brought in by the finale.
-      const chars = v >= 100 ? ["", "0", "0"] : ["", String(Math.floor(v / 10)), String(v % 10)];
-      chars.forEach((ch, i) => {
-        const el = digits[i];
-        if (el.textContent === ch) return;
-        el.textContent = ch;
-        if (!ch) return;
-        blurIns[i]?.cancel();
-        blurIns[i] = el.animate(
-          [
-            { opacity: 0.35, filter: "blur(3px)" },
-            { opacity: 1, filter: "blur(0px)" },
-          ],
-          { duration: 170, easing: "cubic-bezier(0.22, 1, 0.36, 1)" },
-        );
-      });
+      return digit(tens) * 10 + digit(units);
     };
 
-    const finish = () => {
-      try {
-        sessionStorage.setItem(SEEN_KEY, "1");
-      } catch {
-        /* nothing to remember with */
-      }
-      digits[0].textContent = "1";
+    // ---- 100, and the opening --------------------------------------------------------
+    const finale = () => {
+      show(0);
+      hundred.textContent = "1";
       const tl = gsap.timeline({ onComplete: () => setGone(true) });
-      // 100: the "1" resolves on the left as the group settles to centre.
-      tl.to(group, { xPercent: 0, duration: 0.42, ease: "power3.out" }, 0);
-      tl.fromTo(digits[0], { autoAlpha: 0, filter: "blur(6px)" }, { autoAlpha: 1, filter: "blur(0px)", duration: 0.42, ease: "power2.out" }, 0);
-      tl.fromTo(glow, { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 0.9, scale: 1, duration: 0.4, ease: "power2.out" }, 0.06);
-      tl.to(glow, { autoAlpha: 0, scale: 1.6, duration: 0.7, ease: "power2.in" }, 0.55);
-      // The ring draws true, flares, and opens outwards...
-      tl.to(ring, { scale: 1, rotation: "+=14", opacity: 1, duration: 0.38, ease: "power2.out" }, 0);
-      tl.to(ring, { scale: 3, opacity: 0, duration: 0.95, ease: "power2.in" }, 0.52);
-      tl.to(caption, { autoAlpha: 0, duration: 0.3 }, 0.46);
-      tl.to(numerals, { scale: 1.1, autoAlpha: 0, filter: "blur(12px)", duration: 0.6, ease: "power2.in" }, 0.6);
-      // ...and the black opens from the centre behind it, onto the hero.
-      tl.fromTo(root, { "--hole": "-18vmax" }, { "--hole": "150vmax", duration: 1.15, ease: "power2.inOut" }, 0.62);
-      tl.add(() => reveal.current(), 0.72);
       tweens.push(tl);
-    };
-
-    const tick = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const timeP = easeInOut(clamp01((now - now0) / (minEnd - now0)));
-      const capP = clamp01((now - now0) / (capEnd - now0));
-      let target = Math.max(Math.min(timeP, real), capP);
-      if (hurry) target = Math.max(target, clamp01((now - hurry) / 420));
-      const follow = (target - shown) * (1 - Math.exp(-dt * 9));
-      shown = Math.min(1, shown + Math.max(follow, CRAWL * dt));
-      if (now >= capEnd + 220 || (hurry && now >= hurry + 520)) shown = 1;
-      render(Math.min(100, Math.floor(shown * 100 + 1e-6)));
-      // The ring tightens and turns with the count; nothing fills.
-      ring.style.transform = `scale(${(1.26 - 0.26 * shown).toFixed(4)}) rotate(${(shown * 110).toFixed(2)}deg)`;
-      ring.style.opacity = (0.45 + 0.55 * shown).toFixed(3);
-      if (shown >= 1) {
-        finished = true;
-        finish();
+      if (reduce) {
+        gsap.set(group, { xPercent: 0 });
+        tl.add(() => {
+          unlock();
+          reveal.current();
+        }, 0.35);
+        tl.to(root, { autoAlpha: 0, duration: 0.6, ease: "power1.out" }, 0.35);
         return;
       }
-      raf = requestAnimationFrame(tick);
+      // The "1" resolves on the left as the row settles to centre.
+      tl.to(group, { xPercent: 0, duration: 0.42, ease: "power3.out" }, 0);
+      tl.fromTo(hundred, { autoAlpha: 0, filter: "blur(6px)" }, { autoAlpha: 1, filter: "blur(0px)", duration: 0.42, ease: "power2.out" }, 0);
+      tl.fromTo(glow, { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 0.9, scale: 1, duration: 0.4, ease: "power2.out" }, 0.06);
+      tl.to(glow, { autoAlpha: 0, scale: 1.6, duration: 0.7, ease: "power2.in" }, 0.5);
+      // The ring gives a last turn, flares and opens outwards...
+      tl.to(ring, { rotation: "+=14", duration: 0.38, ease: "power2.out" }, 0);
+      tl.to(ring, { scale: 3, opacity: 0, duration: 0.95, ease: "power2.in" }, 0.42);
+      tl.to(caption, { autoAlpha: 0, duration: 0.3 }, 0.36);
+      tl.to(numerals, { scale: 1.1, autoAlpha: 0, filter: "blur(12px)", duration: 0.6, ease: "power2.in" }, 0.5);
+      // ...and the black opens from the centre behind it, onto the hero.
+      tl.fromTo(root, { "--hole": "-18vmax" }, { "--hole": "150vmax", duration: 1.1, ease: "power2.inOut" }, 0.5);
+      tl.add(() => {
+        unlock();
+        reveal.current();
+      }, 0.6);
     };
-    raf = requestAnimationFrame(tick);
 
-    // Any sign of impatience hurries it to 100.
-    const onHurry = () => {
-      if (!hurry && !finished) hurry = performance.now();
+    /** Take the reels over from the stylesheet and finish its curve to 100. */
+    const finish = (now: number) => {
+      const v0 = Math.min(99, readSheet());
+      tens.style.animation = "none";
+      units.style.animation = "none";
+      show(v0);
+      const x0 = easeInv(v0 / 100);
+      const natural = (1 - x0) * RUN_MS;
+      const dur = Math.max(140, hurried ? Math.min(HURRY_MS, natural) : natural);
+      const run = (n: number) => {
+        const p = Math.min(1, (n - now) / dur);
+        if (p >= 1) return finale();
+        show(Math.max(v0, Math.min(99, Math.floor(100 * ease(x0 + (1 - x0) * p) + 1e-9))));
+        raf = requestAnimationFrame(run);
+      };
+      raf = requestAnimationFrame(run);
     };
-    root.addEventListener("pointerdown", onHurry);
-    window.addEventListener("wheel", onHurry, { passive: true });
-    window.addEventListener("touchstart", onHurry, { passive: true });
-    window.addEventListener("keydown", onHurry);
-    cleanups.push(() => {
-      root.removeEventListener("pointerdown", onHurry);
-      window.removeEventListener("wheel", onHurry);
-      window.removeEventListener("touchstart", onHurry);
-      window.removeEventListener("keydown", onHurry);
-    });
+
+    const wait = (now: number) => {
+      const t = now - t0;
+      const ready = heroIn && silkIn && fontsIn;
+      if (t >= EARLIEST_MS && (hurried || t >= CAP_MS || (ready && t >= T_HOLD))) return finish(now);
+      raf = requestAnimationFrame(wait);
+    };
+    raf = requestAnimationFrame(wait);
 
     return () => {
       cancelAnimationFrame(raf);
-      blurIns.forEach((a) => a?.cancel());
       tweens.forEach((t) => t.kill());
       cleanups.forEach((fn) => fn());
     };
@@ -239,29 +279,36 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
     <div
       ref={rootRef}
       data-cx-counter
+      data-lock=""
       aria-hidden
-      className="cx-counter absolute inset-0 z-[95] flex select-none items-center justify-center overflow-hidden"
+      className="cx-counter fixed inset-0 z-[200] flex select-none items-center justify-center"
     >
-      <div aria-hidden className="cx-grain pointer-events-none absolute inset-0" />
-      <div aria-hidden className="cx-vignette pointer-events-none absolute inset-0" />
+      <style dangerouslySetInnerHTML={{ __html: COUNT_SHEET }} />
+      {/* A hair of extra height makes the black a scroll container, so a wheel
+          or swipe before the script arrives stops here (see .cx-counter). */}
+      <div className="pointer-events-none absolute left-0 top-0 h-[calc(100%+2px)] w-px" />
+      <div className="cx-grain pointer-events-none absolute inset-0" />
+      <div className="cx-vignette pointer-events-none absolute inset-0" />
 
       {/* One thin gold ring, tightening and turning as the count climbs. */}
-      <div data-count-ring className="pointer-events-none absolute aspect-square w-[min(66vh,86vw)]" style={{ transform: "scale(1.26)", opacity: 0.45 }}>
-        <svg viewBox="-100 -100 200 200" className="h-full w-full overflow-visible">
-          <defs>
-            <linearGradient id="cx-count-ring" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#d6a84e" stopOpacity="0.12" />
-              <stop offset="0.6" stopColor="#d6a84e" stopOpacity="0.5" />
-              <stop offset="0.86" stopColor="#fff4d6" stopOpacity="0.95" />
-              <stop offset="1" stopColor="#f2d38e" stopOpacity="0.35" />
-            </linearGradient>
-          </defs>
-          <circle r="96" fill="none" stroke="url(#cx-count-ring)" strokeWidth="0.45" />
-          <circle r="99.5" fill="none" stroke="#d6a84e" strokeOpacity="0.12" strokeWidth="0.25" />
-          {[0, 90, 180, 270].map((a) => (
-            <line key={a} x1="0" y1="-92.5" x2="0" y2="-96" stroke="#f2d38e" strokeOpacity="0.7" strokeWidth="0.5" transform={`rotate(${a})`} />
-          ))}
-        </svg>
+      <div data-count-ring className="pointer-events-none absolute aspect-square w-[min(66vh,86vw)]">
+        <div className="cx-count-ring-in h-full w-full">
+          <svg viewBox="-100 -100 200 200" className="h-full w-full overflow-visible">
+            <defs>
+              <linearGradient id="cx-count-ring" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#d6a84e" stopOpacity="0.12" />
+                <stop offset="0.6" stopColor="#d6a84e" stopOpacity="0.5" />
+                <stop offset="0.86" stopColor="#fff4d6" stopOpacity="0.95" />
+                <stop offset="1" stopColor="#f2d38e" stopOpacity="0.35" />
+              </linearGradient>
+            </defs>
+            <circle r="96" fill="none" stroke="url(#cx-count-ring)" strokeWidth="0.45" />
+            <circle r="99.5" fill="none" stroke="#d6a84e" strokeOpacity="0.12" strokeWidth="0.25" />
+            {[0, 90, 180, 270].map((a) => (
+              <line key={a} x1="0" y1="-92.5" x2="0" y2="-96" stroke="#f2d38e" strokeOpacity="0.7" strokeWidth="0.5" transform={`rotate(${a})`} />
+            ))}
+          </svg>
+        </div>
       </div>
 
       {/* The warm light the numerals flare into at 100. */}
@@ -269,15 +316,24 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
 
       {/* The numerals: three fixed-width slots, so nothing shifts as they change. */}
       <div data-count-numerals className={`${DISPLAY} cx-count-num relative`}>
-        <span data-count-group className="inline-flex" style={{ transform: "translateX(-16.667%)" }}>
-          <span data-digit className="cx-count-slot" />
-          <span data-digit className="cx-count-slot">0</span>
-          <span data-digit className="cx-count-slot">0</span>
-        </span>
+        <div className="cx-count-enter">
+          <span data-count-group className="cx-count-group">
+            <span data-count-hundred className="cx-count-slot cx-count-ink" />
+            <span className="cx-count-slot">
+              <span data-reel="tens" className="cx-count-reel" />
+            </span>
+            <span className="cx-count-slot">
+              <span data-reel="units" className="cx-count-reel" />
+            </span>
+          </span>
+        </div>
       </div>
 
-      <p data-count-caption className="absolute inset-x-0 bottom-[8svh] text-center text-[10px] font-semibold uppercase tracking-[0.42em] text-(--cx-gold) md:text-[11px]">
-        {COUNTER.caption}
+      <p
+        data-count-caption
+        className="absolute inset-x-0 bottom-[8svh] text-center text-[10px] font-semibold uppercase tracking-[0.42em] text-(--cx-gold) md:text-[11px]"
+      >
+        <span className="cx-count-enter cx-count-enter-late inline-block">{COUNTER.caption}</span>
       </p>
     </div>
   );

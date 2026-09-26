@@ -287,6 +287,10 @@ export function CinematicExperience() {
 
   return (
     <div ref={rootRef}>
+      {/* The opening count: fixed over the whole screen, and first in the
+          document so it is in the very first paint of every load. */}
+      <NumberLoadingOpener onReveal={onReveal} />
+
       {/* The night sky, behind every section below (fixed; see Starfield.tsx). */}
       <Starfield />
 
@@ -294,7 +298,6 @@ export function CinematicExperience() {
           animations.ts). Server-rendered as one screen: the opening frame. */}
       <section data-cx-film aria-label="The journey" className="relative h-[100svh]">
         <div data-cx-stage data-intro={intro} className="sticky top-0 h-[100svh] overflow-hidden">
-          <NumberLoadingOpener onReveal={onReveal} />
           <Motifs />
           <Scene01Opening onApply={jump} />
           <Scene02Passport />

@@ -315,13 +315,30 @@
 }
 
 /* ---- 00 The opening count (NumberLoadingOpener) ------------------------------------
-   A black field that opens from the centre like an iris: the hole's radius is
-   one custom property, tweened once, at the end. */
+   The whole screen, over the navbar, from the first frame. A black field that
+   opens from the centre like an iris: the hole's radius is one custom
+   property, tweened once, at the end.
+   It is also a scroll container a hair taller than itself (see the spacer in
+   the component) with its overscroll contained, so a wheel or swipe made
+   before the script arrives stops here instead of scrolling the page below.
+   The count's keyframes are generated in the component, from its curve. */
 .cx-counter {
   --hole: -18vmax;
   background: var(--cx-ink);
   -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 18vmax));
   mask-image: radial-gradient(circle at 50% 50%, transparent var(--hole), #000 calc(var(--hole) + 18vmax));
+  overflow-x: hidden;
+  overflow-y: scroll;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.cx-counter::-webkit-scrollbar {
+  display: none;
+}
+/* The page's own scrollbar goes dark while the count holds the screen, so the
+   black reaches the edge. */
+html:has(.cx-counter[data-lock]) {
+  scrollbar-color: #070608 #070608;
 }
 .cx-count-num {
   font-size: clamp(96px, 30vw, 170px);
@@ -333,18 +350,78 @@
 @media (min-width: 768px) {
   .cx-count-num { font-size: clamp(150px, 22vw, 330px); }
 }
-/* Fixed-width digit slots: the number never shifts sideways as it changes.
-   The gold is on each digit, not on the row: the row is moved with a
-   transform, and gradient text clipped on an ancestor of a transformed
-   element paints nothing (that is how the count was invisible). */
+/* The row of three slots. Two digits are centred until the "1" arrives: the
+   script moves the row from here with GSAP. */
+.cx-count-group {
+  display: inline-flex;
+  transform: translateX(-16.667%);
+}
+/* Fixed-width slots one line tall: the number never shifts as it changes.
+   Clipped top and bottom only, so a wide numeral keeps its serifs. */
 .cx-count-slot {
   display: inline-block;
   width: 0.64em;
+  height: 1em;
   text-align: center;
-  background: linear-gradient(180deg, #fffaf0 0%, #f4e6c8 55%, #d6a84e 100%);
+  vertical-align: top;
+  overflow: hidden;
+}
+@supports (overflow: clip) {
+  .cx-count-slot {
+    overflow: visible;
+    overflow-y: clip;
+  }
+}
+/* A reel: the ten numerals in one column, one em apart, moved in whole ems.
+   Generated content, so the page's text never reads "0123456789". */
+.cx-count-reel {
+  display: block;
+  will-change: transform;
+}
+.cx-count-reel::before {
+  content: "0\A 1\A 2\A 3\A 4\A 5\A 6\A 7\A 8\A 9";
+  display: block;
+  white-space: pre;
+  text-align: center;
+}
+/* The gold is on the glyphs themselves, never on an ancestor of something
+   moved with a transform: gradient text clipped on an ancestor of a
+   transformed element paints nothing (that is how the count was once
+   invisible). One em of gradient, repeated, so every numeral on a reel wears
+   the same light. */
+.cx-count-ink,
+.cx-count-reel::before {
+  background: linear-gradient(180deg, #fffaf0 0%, #f4e6c8 55%, #d6a84e 100%) 0 0 / 100% 1em repeat-y;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+/* The count's own arrival: the numerals and caption come out of the dark.
+   backwards, never forwards: afterwards the finale's tweens own them. */
+.cx-count-enter {
+  animation: cx-count-enter 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.cx-count-enter-late {
+  animation: cx-count-enter 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+}
+@keyframes cx-count-enter {
+  from { opacity: 0; filter: blur(8px); }
+}
+@keyframes cx-count-ring {
+  from { transform: scale(1.26) rotate(0deg); opacity: 0.45; }
+  to { transform: scale(1) rotate(110deg); opacity: 1; }
+}
+@keyframes cx-count-failsafe {
+  to { opacity: 0; visibility: hidden; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-count-enter,
+  .cx-count-enter-late {
+    animation-name: cx-count-fade;
+  }
+}
+@keyframes cx-count-fade {
+  from { opacity: 0; }
 }
 /* Near-invisible film grain: static, one paint. */
 .cx-grain {
