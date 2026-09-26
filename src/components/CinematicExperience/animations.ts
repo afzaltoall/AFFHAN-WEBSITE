@@ -5,7 +5,7 @@ import { ROUTE_POINTS } from "./Scene05Globe";
 import { warpTravel } from "./warp";
 import { createBoard } from "./board";
 import { SplitText } from "gsap/SplitText";
-import { textIn, type TextFx } from "./textfx";
+import { hold, textIn, type TextFx } from "./textfx";
 
 /**
  * Every timeline on /free-china-trip/, and nothing else.
@@ -564,7 +564,7 @@ export function buildSteps(section: HTMLElement, desktop: boolean, reduced: bool
   textIn(tl, $("steps-title")[0], "wipe", 0.06, 0.5);
   // 0.3: the planned route, dashed, and its three stops.
   tl.fromTo(track, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.25, immediateRender: true }, 0.3);
-  tl.fromTo(nodes, { autoAlpha: 0, scale: 0.2 }, { autoAlpha: 1, scale: 1, ease: "back.out(2.2)", duration: 0.18, stagger: 0.07, immediateRender: true }, 0.34);
+  hold(tl, nodes, { autoAlpha: 0, scale: 0.2 }, { autoAlpha: 1, scale: 1, ease: "back.out(2.2)", duration: 0.18, stagger: 0.07 }, 0.34);
   // 0.56: the comet sets off; it rests at each stop while the stop is written.
   tl.fromTo(comet, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.05, immediateRender: true }, 0.56);
   const LEGS: Array<[number, number]> = [[0.56, 0.3], [1.22, 0.48], [2.0, 0.48]];

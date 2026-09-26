@@ -18,10 +18,12 @@ import { SplitText } from "gsap/SplitText";
  *   words     word by word, soft, out of a blur (the hotel, lines of copy)
  *
  * Three rules every effect keeps:
- *  - Its first frame is set when it is built (immediateRender), not when the
- *    playhead reaches it. The film's timelines default to immediateRender
- *    false, so without this a word stood whole on screen until its effect
- *    began and then snapped back to play in: seen twice.
+ *  - Its first frame is set on every piece when it is built (hold), not when
+ *    the playhead reaches it. The film's timelines default to immediateRender
+ *    false, so a word stood whole on screen until its effect began and then
+ *    snapped back to play in: seen twice. And immediateRender is not enough
+ *    for a staggered effect: it sets only the pieces that start at once (the
+ *    first letter), so the rest showed early on a first pass down the page.
  *  - Letters are split inside their words, so a line only ever breaks
  *    between words ("journe / y" came from splitting letters alone).
  *  - Screen readers get the words once, plainly: a visually hidden copy sits
@@ -76,8 +78,15 @@ const UPPER = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const LOWER = "abcdefghijklmnopqrstuvwxyz";
 const DIGITS = "0123456789";
 
-/** Its first frame, from the moment it is built. */
-const NOW = { immediateRender: true } as const;
+/**
+ * A fromTo whose first frame is on every target from the moment it is built:
+ * set here, explicitly, because a staggered tween's immediateRender reaches
+ * only the targets whose stagger starts at once.
+ */
+export function hold(tl: gsap.core.Timeline, targets: gsap.TweenTarget, from: gsap.TweenVars, to: gsap.TweenVars, at: number) {
+  gsap.set(targets, from);
+  tl.fromTo(targets, from, { ...to, immediateRender: false }, at);
+}
 
 /** Add `el`'s entrance to `tl` at `at`, lasting about `dur` (timeline units). */
 export function textIn(tl: gsap.core.Timeline, el: Element | null | undefined, fx: TextFx, at: number, dur: number) {
@@ -88,20 +97,20 @@ export function textIn(tl: gsap.core.Timeline, el: Element | null | undefined, f
       const each = (dur * 0.35) / Math.max(1, chars.length);
       // 140%: clear of the mask's padding (cinematic.css), which is there so
       // descenders and serifs are never clipped once the letters have landed.
-      tl.fromTo(chars, { yPercent: 140 }, { yPercent: 0, ease: "power3.out", duration: dur * 0.65, stagger: { each, from: "center" }, ...NOW }, at);
+      hold(tl, chars, { yPercent: 140 }, { yPercent: 0, ease: "power3.out", duration: dur * 0.65, stagger: { each, from: "center" } }, at);
       return;
     }
     case "flip": {
       const { chars, words } = split(el, "chars");
       gsap.set(words, { perspective: 700 });
       const each = (dur * 0.4) / Math.max(1, chars.length);
-      tl.fromTo(chars, { rotationX: -100, autoAlpha: 0, transformOrigin: "50% 50% -0.35em" }, { rotationX: 0, autoAlpha: 1, ease: "power2.out", duration: dur * 0.6, stagger: { each, from: "center" }, ...NOW }, at);
+      hold(tl, chars, { rotationX: -100, autoAlpha: 0, transformOrigin: "50% 50% -0.35em" }, { rotationX: 0, autoAlpha: 1, ease: "power2.out", duration: dur * 0.6, stagger: { each, from: "center" } }, at);
       return;
     }
     case "rush": {
       const { words } = split(el, "words");
       const each = (dur * 0.3) / Math.max(1, words.length);
-      tl.fromTo(words, { x: "38vw", skewX: -16, autoAlpha: 0, filter: "blur(10px)" }, { x: 0, skewX: 0, autoAlpha: 1, filter: "blur(0px)", ease: "power3.out", duration: dur * 0.7, stagger: each, ...NOW }, at);
+      hold(tl, words, { x: "38vw", skewX: -16, autoAlpha: 0, filter: "blur(10px)" }, { x: 0, skewX: 0, autoAlpha: 1, filter: "blur(0px)", ease: "power3.out", duration: dur * 0.7, stagger: each }, at);
       return;
     }
     case "track": {
@@ -110,32 +119,32 @@ export function textIn(tl: gsap.core.Timeline, el: Element | null | undefined, f
       const { chars } = split(el, "chars");
       const mid = (chars.length - 1) / 2;
       const em = parseFloat(getComputedStyle(el).fontSize) || 16;
-      tl.fromTo(chars, { x: (i: number) => (i - mid) * em * 0.34 }, { x: 0, ease: "power3.out", duration: dur, ...NOW }, at);
-      tl.fromTo(chars, { autoAlpha: 0 }, { autoAlpha: 1, ease: "power1.out", duration: dur * 0.45, ...NOW }, at);
+      hold(tl, chars, { x: (i: number) => (i - mid) * em * 0.34 }, { x: 0, ease: "power3.out", duration: dur }, at);
+      hold(tl, chars, { autoAlpha: 0 }, { autoAlpha: 1, ease: "power1.out", duration: dur * 0.45 }, at);
       return;
     }
     case "type": {
       const { chars } = split(el, "chars");
       const each = dur / Math.max(1, chars.length);
-      tl.fromTo(chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, stagger: each, ...NOW }, at);
+      hold(tl, chars, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.001, stagger: each }, at);
       const ink = getComputedStyle(el).color;
       // Once landed, the colour is the stylesheet's again (clearProps), so a
       // heading that lights up when it is being read (Terms) can still change.
-      tl.fromTo(chars, { color: "#f2d38e" }, { color: ink, duration: each * 4, stagger: each, ease: "power1.out", clearProps: "color", ...NOW }, at);
+      hold(tl, chars, { color: "#f2d38e" }, { color: ink, duration: each * 4, stagger: each, ease: "power1.out", clearProps: "color" }, at);
       return;
     }
     case "words": {
       const { words } = split(el, "words");
       const each = (dur * 0.45) / Math.max(1, words.length);
-      tl.fromTo(words, { autoAlpha: 0, y: 12, filter: "blur(8px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: dur * 0.55, stagger: each, ...NOW }, at);
+      hold(tl, words, { autoAlpha: 0, y: 12, filter: "blur(8px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: dur * 0.55, stagger: each }, at);
       return;
     }
     case "wipe": {
       el.classList.add("cx-wipe");
       undo.add(() => el.classList.remove("cx-wipe"));
-      tl.fromTo(el, { "--wipe": "0%" }, { "--wipe": "100%", ease: "power2.inOut", duration: dur, ...NOW }, at);
+      hold(tl, el, { "--wipe": "0%" }, { "--wipe": "100%", ease: "power2.inOut", duration: dur }, at);
       // The gold edge goes once the words are whole.
-      tl.fromTo(el, { "--wipe-done": 0 }, { "--wipe-done": 1, duration: dur * 0.25, ...NOW }, at + dur * 0.85);
+      hold(tl, el, { "--wipe-done": 0 }, { "--wipe-done": 1, duration: dur * 0.25 }, at + dur * 0.85);
       return;
     }
     case "scramble": {
