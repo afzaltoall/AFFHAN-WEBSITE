@@ -192,8 +192,9 @@ export function ApplyExperience() {
         // The light the plane left behind opens out, and its contrail carries on across.
         const arrive = $("arrive");
         gsap.set(arrive, { autoAlpha: 1 });
-        tl.to(arrive, { autoAlpha: 0, duration: 1.0, ease: "power2.out" }, 0.05);
-        tl.fromTo(arrive?.firstElementChild ?? null, { scale: 1 }, { scale: 1.3, duration: 1.0, ease: "power2.out" }, 0.05);
+        // It holds a moment at full, exactly as the take-off left it, then opens.
+        tl.to(arrive, { autoAlpha: 0, duration: 1.1, ease: "power1.inOut" }, 0.14);
+        tl.fromTo(arrive?.firstElementChild ?? null, { scale: 1 }, { scale: 1.3, duration: 1.1, ease: "power1.inOut" }, 0.14);
         trail(tl, 0.1, 6);
       }
       tl.to($("dust"), { autoAlpha: 1, duration: 2.6, ease: "power1.out" }, 0);

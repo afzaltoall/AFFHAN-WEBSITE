@@ -23,8 +23,10 @@ export const ARRIVAL_KEY = "cx-arrive";
 
 export function takeOff(btn: HTMLElement, layer: HTMLElement, reduced: boolean, done: () => void) {
   const q = <T extends Element = HTMLElement>(key: string) => layer.querySelector<T>(`[data-cx='${key}']`);
+  // Shown now, not on the timeline's first tick: the flight is measured from
+  // it below (hidden, it measured 0 wide, and the plane flew to the top left).
+  gsap.set(layer, { display: "block" });
   const tl = gsap.timeline({ onComplete: done });
-  tl.set(layer, { display: "block" });
   if (reduced) {
     tl.fromTo(q("exit-black"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
     return tl;
