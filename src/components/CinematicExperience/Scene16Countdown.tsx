@@ -2,8 +2,8 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import gsap from "gsap";
-import { ArrowRight } from "lucide-react";
-import { APPLY_HREF, COUNTDOWN } from "./content";
+import { ApplyButton } from "./ApplyButton";
+import { COUNTDOWN } from "./content";
 import { DISPLAY, EYEBROW } from "./parts";
 
 /**
@@ -269,16 +269,9 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
       </p>
 
       <div data-cx="cd-apply" data-cx-hide className="pointer-events-auto mt-9 md:mt-11">
-        <a
-          href={APPLY_HREF}
-          onClick={onApply}
-          className="group inline-flex items-center gap-3 rounded-full bg-(--cx-gold) py-3.5 pl-7 pr-3.5 text-[16px] font-semibold text-(--cx-ink) shadow-[0_14px_50px_-12px_rgb(214_168_78/0.75)] transition-colors duration-300 hover:bg-(--cx-gold-hi) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white) lg:text-[17px]"
-        >
+        <ApplyButton onClick={onApply} size="lg">
           {COUNTDOWN.button}
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-(--cx-ink)/10">
-            <ArrowRight size={18} aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5" />
-          </span>
-        </a>
+        </ApplyButton>
       </div>
     </div>
   );

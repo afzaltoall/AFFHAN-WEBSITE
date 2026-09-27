@@ -1,7 +1,7 @@
 import type { MouseEvent } from "react";
-import { ArrowRight } from "lucide-react";
 import { ASSETS } from "./assets";
-import { APPLY_HREF, HERO } from "./content";
+import { ApplyButton } from "./ApplyButton";
+import { HERO } from "./content";
 import { HeroTurns } from "./HeroTurns";
 import { DISPLAY, EYEBROW, FilmImage } from "./parts";
 
@@ -82,16 +82,7 @@ export function Scene01Opening({ onApply, play }: { onApply: (e: MouseEvent<HTML
           {HERO.line}
         </p>
         <div className="cx-enter-rise mt-7 flex items-center gap-7 md:mt-10" style={{ animationDelay: "0.7s" }}>
-          <a
-            href={APPLY_HREF}
-            onClick={onApply}
-            className="group inline-flex items-center gap-3 rounded-full bg-(--cx-gold) py-3 pl-6 pr-3 text-[15px] font-semibold tracking-[0.01em] text-(--cx-ink) shadow-[0_10px_40px_-12px_rgb(214_168_78/0.7)] transition-colors duration-300 hover:bg-(--cx-gold-hi) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white) md:text-[16px]"
-          >
-            {HERO.cta}
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-(--cx-ink)/10">
-              <ArrowRight size={16} aria-hidden className="transition-transform duration-300 group-hover:translate-x-0.5" />
-            </span>
-          </a>
+          <ApplyButton onClick={onApply}>{HERO.cta}</ApplyButton>
           <span aria-hidden className="hidden items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-(--cx-mute) md:flex">
             <span className="relative h-10 w-px overflow-hidden bg-(--cx-faint)">
               <span className="cx-cue absolute inset-0 bg-(--cx-gold)" />

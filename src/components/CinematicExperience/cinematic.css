@@ -950,3 +950,193 @@ html:has(.cx-counter[data-lock]) {
     transition: none;
   }
 }
+
+/* ---- "Apply for the Trip" (ApplyButton.tsx) ------------------------------------------------
+   A piece of gold: a polished face with the words pressed in, a spark running
+   round the rim, a glint every few seconds (clipped to the button, so it never
+   lights anything behind it), a warm glow breathing underneath. Hovered it
+   lifts and leans towards the pointer (--mx/--my, set by the component), the
+   spark races, the glint crosses at once, and a plane takes off where the
+   arrow was. */
+@property --cx-rim {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.cx-apply {
+  --port: 34px;
+  font-size: 15px;
+  -webkit-tap-highlight-color: transparent;
+}
+.cx-apply-lg {
+  --port: 38px;
+  font-size: 16px;
+}
+@media (min-width: 768px) {
+  .cx-apply { font-size: 16px; }
+  .cx-apply-lg { font-size: 17px; }
+}
+.cx-apply-body {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 12px 12px 26px;
+  border-radius: 9999px;
+  transform: translate(var(--mx, 0px), calc(var(--my, 0px) + var(--lift, 0px))) scale(var(--press, 1));
+  transition: transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.cx-apply-lg .cx-apply-body {
+  padding: 14px 14px 14px 30px;
+  gap: 16px;
+}
+.cx-apply:hover .cx-apply-body {
+  --lift: -2px;
+}
+.cx-apply:active .cx-apply-body {
+  --press: 0.97;
+  transition-duration: 0.12s;
+}
+/* The warm glow underneath, breathing. */
+.cx-apply-body::after {
+  content: "";
+  position: absolute;
+  z-index: -2;
+  inset: 22% 4% -34%;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgb(242 211 142 / 0.8), rgb(214 168 78 / 0.3) 60%, transparent);
+  filter: blur(16px);
+  opacity: 0.55;
+  animation: cx-apply-breathe 3.8s ease-in-out infinite alternate;
+  transition: opacity 0.4s;
+}
+.cx-apply:hover .cx-apply-body::after {
+  opacity: 0.95;
+}
+@keyframes cx-apply-breathe {
+  from { opacity: 0.45; }
+  to { opacity: 0.8; }
+}
+/* The rim: a thin ring with one spark of light running round it. */
+.cx-apply-rim {
+  position: absolute;
+  z-index: -1;
+  inset: -2px;
+  padding: 2px;
+  border-radius: 9999px;
+  background: conic-gradient(from var(--cx-rim), rgb(160 118 44 / 0.55) 0deg 250deg, #f2d38e 300deg, #fffaf0 318deg, #f2d38e 332deg, rgb(160 118 44 / 0.55) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: cx-rim 5s linear infinite;
+}
+.cx-apply:hover .cx-apply-rim {
+  animation-duration: 1.8s;
+}
+@keyframes cx-rim {
+  to { --cx-rim: 360deg; }
+}
+/* The metal. */
+.cx-apply-face {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #f8e6b0 0%, #e6c273 38%, #cf9d45 63%, #e8c97d 100%);
+  box-shadow:
+    inset 0 1px 0 rgb(255 251 238 / 0.85),
+    inset 0 -3px 8px rgb(110 72 18 / 0.35),
+    0 1px 0 rgb(60 40 10 / 0.4);
+  transition: filter 0.4s;
+}
+.cx-apply:hover .cx-apply-face {
+  filter: brightness(1.07) saturate(1.05);
+}
+/* The glint: clipped to the face. */
+.cx-apply-sheen {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+.cx-apply-sheen::before {
+  content: "";
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  left: 0;
+  width: 32%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.65) 50%, transparent);
+  transform: translateX(-190%) skewX(-18deg);
+  animation: cx-apply-glint 6s ease-in-out 1.6s infinite;
+}
+.cx-apply:hover .cx-apply-sheen::before {
+  animation: cx-apply-glint-now 0.85s ease-out both;
+}
+@keyframes cx-apply-glint {
+  0%, 70% { transform: translateX(-190%) skewX(-18deg); }
+  88%, 100% { transform: translateX(430%) skewX(-18deg); }
+}
+@keyframes cx-apply-glint-now {
+  from { transform: translateX(-190%) skewX(-18deg); }
+  to { transform: translateX(430%) skewX(-18deg); }
+}
+/* The words, pressed into the gold. */
+.cx-apply-label {
+  position: relative;
+  z-index: 1;
+  color: #1b1307;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  text-shadow: 0 1px 0 rgb(255 246 222 / 0.55);
+}
+/* The porthole: the arrow departs, a plane takes off into its place. */
+.cx-apply-port {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: var(--port);
+  height: var(--port);
+  overflow: hidden;
+  border-radius: 9999px;
+  color: var(--cx-gold-hi);
+  background: radial-gradient(circle at 34% 28%, #3d2c11, #140d05 72%);
+  box-shadow: inset 0 0 0 1px rgb(242 211 142 / 0.4), 0 2px 6px rgb(60 40 10 / 0.35);
+}
+.cx-apply-arrow,
+.cx-apply-plane {
+  grid-area: 1 / 1;
+  width: 46%;
+  height: 46%;
+  transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1), opacity 0.35s;
+}
+.cx-apply-plane {
+  width: 50%;
+  height: 50%;
+  opacity: 0;
+  transform: translate(-150%, 150%);
+}
+.cx-apply:hover .cx-apply-arrow {
+  opacity: 0;
+  transform: translateX(170%);
+}
+.cx-apply:hover .cx-apply-plane {
+  opacity: 1;
+  transform: translate(0, 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-apply-body::after,
+  .cx-apply-rim,
+  .cx-apply-sheen::before {
+    animation: none;
+  }
+  .cx-apply-body,
+  .cx-apply-arrow,
+  .cx-apply-plane {
+    transition: none;
+  }
+}
