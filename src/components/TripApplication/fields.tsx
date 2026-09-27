@@ -74,7 +74,7 @@ export function TextArea({ id, value, onChange, error, placeholder, maxLength, r
     <div className="relative">
       <textarea
         id={id}
-        rows={3}
+        rows={2}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
