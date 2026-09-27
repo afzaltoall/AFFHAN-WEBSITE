@@ -64,7 +64,7 @@ export function TextInput({ id, value, onChange, error, placeholder, maxLength, 
       aria-required={required || undefined}
       aria-invalid={error ? true : undefined}
       aria-describedby={error ? `${id}-error` : undefined}
-      className={`${LINE} h-14 ${lineState(!!error)}`}
+      className={`${LINE} h-[3.25rem] ${lineState(!!error)}`}
     />
   );
 }
@@ -176,7 +176,7 @@ function CountryPicker({
         aria-label={label ? `${label}${value ? `, ${value.name} ${value.dial}` : ""}` : undefined}
         aria-invalid={invalid || undefined}
         aria-describedby={describedBy}
-        className={`${LINE} flex h-14 items-center gap-3 text-left ${lineState(!!invalid)} focus-visible:border-(--cx-gold)`}
+        className={`${LINE} flex h-[3.25rem] items-center gap-3 text-left ${lineState(!!invalid)} focus-visible:border-(--cx-gold)`}
       >
         {value ? (
           <>
@@ -289,7 +289,7 @@ export function PhoneField({
         aria-required
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`${LINE} h-14 min-w-0 flex-1 ${lineState(!!error)}`}
+        className={`${LINE} h-[3.25rem] min-w-0 flex-1 ${lineState(!!error)}`}
       />
     </div>
   );
@@ -359,7 +359,7 @@ export function SearchSelect({
             setOpen(false);
           }
         }}
-        className={`${LINE} h-14 pr-8 ${lineState(!!error)} ${value && !open ? "" : "placeholder:text-(--cx-white)/35"}`}
+        className={`${LINE} h-[3.25rem] pr-8 ${lineState(!!error)} ${value && !open ? "" : "placeholder:text-(--cx-white)/35"}`}
       />
       <ChevronDown size={16} aria-hidden className={`pointer-events-none absolute right-0 top-5 text-(--cx-mute) transition-transform ${open ? "rotate-180" : ""}`} />
       {open && (

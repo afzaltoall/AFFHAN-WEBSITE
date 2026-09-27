@@ -41,7 +41,7 @@ export function GoldButton({ children, className = "", ...rest }: ButtonHTMLAttr
 export function StepNav({ step, last, editing, onBack }: { step: number; last: number; editing: boolean; onBack: () => void }) {
   const primary = step === last ? NAV.submit : editing ? NAV.toReview : NAV.next;
   return (
-    <div className="mt-10 flex flex-col-reverse items-stretch gap-5 border-t border-(--cx-white)/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
+    <div className="mt-8 flex flex-col-reverse items-stretch gap-5 border-t border-(--cx-white)/10 pt-6 sm:flex-row sm:items-center sm:justify-between">
       {step > 0 && !editing ? (
         <button
           type="button"

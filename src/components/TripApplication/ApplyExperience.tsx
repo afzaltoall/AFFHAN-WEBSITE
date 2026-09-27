@@ -65,12 +65,12 @@ const LAST = STEPS.length - 1;
  * fault): depth is scale, dimming and a little blur.
  */
 const HOST: Record<string, gsap.TweenVars> = {
-  "0": { xPercent: 6, yPercent: 4, scale: 0.8, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
-  "1": { xPercent: 2, yPercent: 5, scale: 0.76, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
-  "2": { xPercent: 8, yPercent: 8, scale: 0.7, autoAlpha: 0.62, filter: "blur(2px) brightness(0.72)" },
-  "3": { xPercent: -4, yPercent: 3, scale: 0.74, autoAlpha: 0.95, filter: "blur(0px) brightness(1)" },
-  "4": { xPercent: 6, yPercent: 10, scale: 0.64, autoAlpha: 0.4, filter: "blur(1px) brightness(0.85)" },
-  done: { xPercent: 8, yPercent: 5, scale: 0.74, autoAlpha: 0.75, filter: "blur(0px) brightness(1)" },
+  "0": { xPercent: 6, yPercent: 0, scale: 0.8, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
+  "1": { xPercent: 2, yPercent: 0, scale: 0.76, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
+  "2": { xPercent: 8, yPercent: 0, scale: 0.7, autoAlpha: 0.62, filter: "blur(2px) brightness(0.72)" },
+  "3": { xPercent: -4, yPercent: 0, scale: 0.74, autoAlpha: 0.95, filter: "blur(0px) brightness(1)" },
+  "4": { xPercent: 6, yPercent: 0, scale: 0.64, autoAlpha: 0.4, filter: "blur(1px) brightness(0.85)" },
+  done: { xPercent: 8, yPercent: 0, scale: 0.74, autoAlpha: 0.75, filter: "blur(0px) brightness(1)" },
 };
 
 const sleep = (ms: number) => new Promise<null>((resolve) => window.setTimeout(() => resolve(null), ms));
@@ -644,7 +644,7 @@ export function ApplyExperience() {
       </div>
 
       <div className={`relative z-20 mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1320px] px-5 sm:px-8 lg:px-12 ${phase === "intro" ? "items-center" : "items-start"}`}>
-        <div className="w-full py-12 md:py-16 lg:w-[45%] lg:py-20">
+        <div className="w-full py-10 md:py-14 lg:w-[45%] lg:pb-16 lg:pt-12">
           {phase === "intro" && <ApplicationIntro onStart={start} />}
 
           {phase !== "intro" && phase !== "received" && (
@@ -653,7 +653,7 @@ export function ApplyExperience() {
               <div data-ax="step-head" data-ax-hide>
                 <StepHeader step={headerStep} dir={headerDir} />
               </div>
-              <div className="relative mt-10 md:mt-12">
+              <div className="relative mt-8 md:mt-10">
                 {/* The line of light that lifts one step away and prints the next. */}
                 <span data-ax="scan" aria-hidden className="ax-scan pointer-events-none absolute -inset-x-4 top-0 z-10 block h-px opacity-0 md:-inset-x-8" />
                 <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title">

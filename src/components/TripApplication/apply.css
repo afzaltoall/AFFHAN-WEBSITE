@@ -105,7 +105,7 @@
   letter-spacing: 0.01em;
 }
 @media (min-width: 768px) {
-  .ax-step-num { font-size: clamp(84px, 7.2vw, 124px); }
+  .ax-step-num { font-size: clamp(64px, 5.4vw, 92px); }
 }
 .ax-num-ink {
   background: linear-gradient(180deg, #fffaf0 0%, #f4e6c8 52%, #d6a84e 100%);

@@ -14,21 +14,21 @@ import { Roll } from "./Roll";
 export function StepHeader({ step, dir }: { step: number; dir: number }) {
   const s = STEPS[step];
   return (
-    <header className="mt-10 flex items-start gap-5 md:mt-14 md:gap-8">
+    <header className="mt-8 flex items-center gap-5 md:mt-10 md:gap-8">
       <span aria-hidden className={`${DISPLAY} ax-step-num flex shrink-0`}>
         <Roll text={s.number[0]} dir={dir} itemClassName="ax-num-ink" delay={0.1} />
         <Roll text={s.number[1]} dir={dir} itemClassName="ax-num-ink" delay={0.1} />
       </span>
-      <div className="min-w-0 flex-1 pt-[0.35em] md:pt-[0.6em]">
+      <div className="min-w-0 flex-1">
         <h2
           id="ax-step-title"
           tabIndex={-1}
-          className={`${DISPLAY} text-[clamp(32px,8vw,44px)] font-normal uppercase leading-[0.98] text-(--cx-white) outline-none md:text-[clamp(40px,4vw,60px)]`}
+          className={`${DISPLAY} text-[clamp(22px,6.4vw,30px)] font-normal uppercase leading-[0.98] text-(--cx-white) outline-none md:text-[34px] lg:text-[clamp(28px,2.5vw,42px)]`}
         >
           <span className="sr-only">Step {s.number} of {String(STEPS.length).padStart(2, "0")}: </span>
           <Roll text={s.title} dir={dir} className="grid" />
         </h2>
-        <p className="mt-3 max-w-[30rem] text-[16px] leading-relaxed text-(--cx-mute)">
+        <p className="mt-2 max-w-[30rem] text-[15px] leading-relaxed text-(--cx-mute) md:text-[16px]">
           <Roll text={s.lede} dir={dir} className="grid" delay={0.24} />
         </p>
       </div>

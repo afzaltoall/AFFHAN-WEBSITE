@@ -27,7 +27,7 @@ export function ApplicationIntro({ onStart }: { onStart: () => void }) {
       </p>
       <h2
         data-ax="intro-heading"
-        className={`${DISPLAY} mt-5 text-[clamp(44px,11.5vw,64px)] font-normal uppercase leading-[0.92] tracking-[0.005em] text-(--cx-white) md:text-[clamp(60px,6vw,104px)]`}
+        className={`${DISPLAY} mt-5 text-[clamp(34px,11vw,64px)] font-normal uppercase leading-[0.92] tracking-[0.005em] text-(--cx-white) md:text-[clamp(56px,7.4vw,70px)] lg:text-[min(70px,calc((min(100vw,1320px)-96px)*0.057))]`}
       >
         {INTRO.heading.map((line, i) => (
           <span key={line} data-ax="intro-line" data-ax-hide className={`block ${i === 0 ? "text-(--cx-gold-hi)" : ""}`}>
