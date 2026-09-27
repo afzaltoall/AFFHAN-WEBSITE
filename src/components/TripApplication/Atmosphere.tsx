@@ -50,8 +50,11 @@ export function Atmosphere() {
 }
 
 /**
- * The host, on a desktop only: the approved picture (never regenerated),
- * mirrored so his open hand presents towards the words on the left. It moves
+ * The host, Jamil, on a desktop only: the owner's picture (jamil.png, never
+ * regenerated). He already faces left, his raised arm towards the words, so
+ * he is not mirrored. He is wide (an arm up and a leg out to the left), so
+ * his height is also held to the room between the column of words and the
+ * right edge (the calc below): his arm never reaches the words. It moves
  * only at the defined moments (large in the intro, smaller through 01 and 02,
  * set back in 03, turned towards the travel picture in 04,
  * receding in 05, returning gently on success). Always whole on screen: depth
@@ -63,9 +66,9 @@ export function Atmosphere() {
 export function Host() {
   return (
     <div aria-hidden className="pointer-events-none absolute right-0 top-0 hidden h-[calc(100svh-4rem)] w-[55%] lg:block">
-      <div data-ax="host" data-ax-hide className="absolute bottom-0 right-[6%] aspect-[992/1586] h-[min(94%,960px)] origin-bottom">
-        <FilmImage asset={ASSETS.host} alt="" sizes="(min-width: 1024px) 34vw, 1px" eager priority className="-scale-x-100 drop-shadow-[0_30px_60px_rgb(0_0_0/0.55)]" />
-        <div data-ax="host-sheen" className="ax-host-sheen absolute inset-0 -scale-x-100 overflow-hidden opacity-0">
+      <div data-ax="host" data-ax-hide className="absolute bottom-0 right-[4%] aspect-[982/1186] h-[min(88%,900px,calc(61.9vw-52px))] origin-bottom">
+        <FilmImage asset={ASSETS.jamil} alt="" sizes="(min-width: 1024px) 42vw, 1px" eager priority className="drop-shadow-[0_30px_60px_rgb(0_0_0/0.55)]" />
+        <div data-ax="host-sheen" className="ax-host-sheen absolute inset-0 overflow-hidden opacity-0">
           <div data-ax="host-band" className="ax-host-band absolute inset-y-0 left-0 w-[45%]" />
         </div>
       </div>

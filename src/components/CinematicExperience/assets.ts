@@ -11,7 +11,9 @@
  *
  * 01–03 are flattened composites (silk, plane and tickets are baked in) and
  * are animated whole. 05–13 are clean cut-outs. 14, the host, is used in the
- * final call to action and nowhere else.
+ * final call to action. 15, Jamil, is the application page's host (made
+ * 2026-09-27 from the owner's jamil.png, cropped to the figure: 982 × 1186;
+ * the phone copy is 640 wide, named -960 like the others).
  */
 
 const DIR = "/free-china-trip";
@@ -53,6 +55,7 @@ export const ASSETS = {
   yiwu: asset("12-yiwu", 1600, 800),
   hotel: asset("13-hotel", 1600, 900),
   host: asset("14-host-presenter", 992, 1586, 640),
+  jamil: asset("15-jamil", 982, 1186, 640),
 } as const;
 
 export type AssetKey = keyof typeof ASSETS;

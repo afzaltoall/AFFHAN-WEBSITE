@@ -1,25 +1,33 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plane } from "lucide-react";
 import { NAV } from "./content";
 
 /**
- * The page's gold pill: the same call to action as the landing page's "Apply
- * for the Trip", so the application reads as the next chapter of the film.
- * `data-ax-glow` is the light it gives off when pressed (animated by the
- * page, opacity and scale only).
+ * The page's gold button: the same piece of gold as the landing page's
+ * "Apply for the Trip" (ApplyButton; the .cx-apply styles in cinematic.css):
+ * a polished face, a spark running round the rim, a glint now and then, and
+ * on hover a plane taking off where the arrow was. So the application reads
+ * as the next chapter of the film. `data-ax-glow` is the light it gives off
+ * when pressed (animated by the page, opacity and scale only).
  */
 export function GoldButton({ children, className = "", ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { children: ReactNode }) {
   return (
     <button
       {...rest}
-      className={`group relative inline-flex min-h-[3.25rem] items-center justify-between gap-4 rounded-full bg-(--cx-gold) py-2.5 pl-7 pr-2.5 text-[13px] font-semibold uppercase tracking-[0.16em] text-(--cx-ink) shadow-[0_14px_50px_-12px_rgb(214_168_78/0.75)] transition-colors duration-300 hover:bg-(--cx-gold-hi) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white) ${className}`}
+      className={`cx-apply cx-apply-lg group relative inline-flex rounded-full focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white) ${className}`}
     >
       <span aria-hidden data-ax-glow className="pointer-events-none absolute -inset-4 rounded-full bg-[radial-gradient(closest-side,rgb(242_211_142/0.6),transparent)] opacity-0" />
-      <span data-ax-label className="relative">
-        {children}
-      </span>
-      <span aria-hidden className="relative flex h-9 w-9 items-center justify-center rounded-full bg-(--cx-ink)/10 transition-transform duration-300 group-hover:translate-x-0.5">
-        <ArrowRight size={17} />
+      <span className="cx-apply-body min-h-[3.25rem] w-full justify-between">
+        <span aria-hidden className="cx-apply-rim" />
+        <span aria-hidden className="cx-apply-face" />
+        <span aria-hidden className="cx-apply-sheen" />
+        <span data-ax-label className="cx-apply-label cx-apply-caps">
+          {children}
+        </span>
+        <span aria-hidden className="cx-apply-port">
+          <ArrowRight className="cx-apply-arrow" strokeWidth={2.2} />
+          <Plane className="cx-apply-plane" strokeWidth={1.9} />
+        </span>
       </span>
     </button>
   );

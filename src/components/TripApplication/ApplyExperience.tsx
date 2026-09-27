@@ -2,7 +2,10 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import gsap from "gsap";
+import { SplitText } from "gsap/SplitText";
 import { validateAll, type FieldErrors } from "@/lib/trip-application";
+import { ARRIVAL_KEY } from "@/components/CinematicExperience/takeoff";
+import { revertTextFx, textIn } from "@/components/CinematicExperience/textfx";
 import "@/components/CinematicExperience/cinematic.css";
 import "./apply.css";
 import { ApplicationIntro } from "./ApplicationIntro";
@@ -93,6 +96,10 @@ export function ApplyExperience() {
   const indicatorShown = useRef(false);
   const spin = useRef<gsap.core.Tween | null>(null);
   const introTl = useRef<gsap.core.Timeline | null>(null);
+  /** Opened through the landing page's take-off: decided once (the flag is
+   *  read and cleared), kept here so a development re-run of the intro
+   *  effect opens the same way. */
+  const fromLightRef = useRef<boolean | null>(null);
   /** The step being printed, so a quick Continue can finish it at once. */
   const enterTl = useRef<gsap.core.Timeline | null>(null);
   const running = useRef(new Set<gsap.core.Animation>());
@@ -154,29 +161,67 @@ export function ApplyExperience() {
   // ---- The intro: plays on arrival, however the visitor arrived ----------------
   useIsoLayoutEffect(() => {
     reduce.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    gsap.registerPlugin(SplitText);
+    // Came through the landing page's take-off (takeoff.ts)? Then open out of
+    // its light: the frame it ended on is the frame this page starts on.
+    if (fromLightRef.current === null) {
+      fromLightRef.current = false;
+      try {
+        const at = Number(sessionStorage.getItem(ARRIVAL_KEY));
+        sessionStorage.removeItem(ARRIVAL_KEY);
+        fromLightRef.current = !reduce.current && at > 0 && Date.now() - at < 8000;
+      } catch {
+        /* no storage: the intro opens from dark */
+      }
+    }
+    const fromLight = fromLightRef.current;
     gsap.set($("host"), { filter: "blur(0px) brightness(1)" });
     const lines = $$("intro-line");
     const tl = track(gsap.timeline({ defaults: { ease: "power3.out" } }));
     introTl.current = tl;
+    // Everything a beat later when opening out of the light.
+    const o = fromLight ? 0.22 : 0;
     // The way in works as soon as it can be seen.
-    tl.call(() => void (busy.current = false), [], reduce.current ? 0.2 : 1.6);
+    tl.call(() => void (busy.current = false), [], reduce.current ? 0.2 : 1.6 + o);
     if (reduce.current) {
       tl.to([$("intro-host-m"), $("host"), $("intro-eyebrow"), ...lines, $("intro-support"), $("intro-body"), $("intro-cta")], { autoAlpha: 1, duration: 0.6, stagger: 0.04 }, 0);
       tl.to($("dust"), { autoAlpha: 1, duration: 0.8 }, 0);
       tl.to($("rule"), { autoAlpha: 0.45, duration: 0.8 }, 0);
     } else {
+      if (fromLight) {
+        // The light the plane left behind opens out, and its contrail carries on across.
+        const arrive = $("arrive");
+        gsap.set(arrive, { autoAlpha: 1 });
+        tl.to(arrive, { autoAlpha: 0, duration: 1.0, ease: "power2.out" }, 0.05);
+        tl.fromTo(arrive?.firstElementChild ?? null, { scale: 1 }, { scale: 1.3, duration: 1.0, ease: "power2.out" }, 0.05);
+        trail(tl, 0.1, 6);
+      }
       tl.to($("dust"), { autoAlpha: 1, duration: 2.6, ease: "power1.out" }, 0);
-      tl.fromTo($("rule"), { autoAlpha: 1, scaleX: 0 }, { scaleX: 1, duration: 1.4, ease: "power3.inOut" }, 0.15);
-      tl.to($("rule"), { autoAlpha: 0.45, duration: 1.2 }, 1.6);
-      tl.fromTo($("host"), { autoAlpha: 0, x: 100, scale: 0.96 }, { autoAlpha: 1, x: 0, scale: 1, duration: 1.5 }, 0.45);
-      tl.fromTo($("intro-host-m"), { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 1.1 }, 0.3);
-      tl.fromTo($("intro-eyebrow"), { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: 0.7 }, 0.5);
-      tl.fromTo(lines, { autoAlpha: 0, y: 40, filter: "blur(12px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 1.2, stagger: 0.14, clearProps: "filter" }, 0.62);
-      tl.fromTo($("intro-support"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.1);
-      tl.fromTo($("intro-body"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.25);
-      tl.fromTo($("intro-cta"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.5);
+      tl.fromTo($("rule"), { autoAlpha: 1, scaleX: 0 }, { scaleX: 1, duration: 1.4, ease: "power3.inOut" }, 0.15 + o);
+      tl.to($("rule"), { autoAlpha: 0.45, duration: 1.2 }, 1.6 + o);
+      // The host comes in from the right, out of the light (blur to sharp),
+      // and light passes across him, cut to his silhouette, as he settles.
+      tl.fromTo($("host"), { autoAlpha: 0, x: 120, scale: 0.94, filter: "blur(10px) brightness(1.35)" }, { autoAlpha: 1, x: 0, scale: 1, filter: "blur(0px) brightness(1)", duration: 1.4 }, 0.4 + o);
+      tl.set($("host-sheen"), { autoAlpha: 1 }, 1.25 + o);
+      tl.fromTo($("host-band"), { xPercent: -100 }, { xPercent: 222, duration: 1.0, ease: "power2.inOut" }, 1.25 + o);
+      tl.to($("host-sheen"), { autoAlpha: 0, duration: 0.3 }, 2.15 + o);
+      tl.fromTo($("intro-host-m"), { autoAlpha: 0, y: 24 }, { autoAlpha: 1, y: 0, duration: 1.1 }, 0.3 + o);
+      // The words: the eyebrow typed, the heading's letters rising out of
+      // their lines, the line and the paragraph word by word (textfx.ts, the
+      // same hand as the film's titles). Each piece holds its first frame
+      // from now, so the containers can show at once.
+      const words = [$("intro-eyebrow"), ...lines, $("intro-support"), $("intro-body")];
+      textIn(tl, $("intro-eyebrow"), "type", 0.45 + o, 0.5);
+      lines.forEach((line, i) => textIn(tl, line, "rise", 0.62 + o + i * 0.16, 0.9));
+      textIn(tl, $("intro-support"), "words", 1.1 + o, 0.6);
+      textIn(tl, $("intro-body"), "words", 1.25 + o, 0.7);
+      gsap.set(words, { autoAlpha: 1 });
+      tl.fromTo($("intro-cta"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.8 }, 1.5 + o);
     }
-    return () => void tl.kill();
+    return () => {
+      tl.kill();
+      revertTextFx();
+    };
     // Once, on arrival.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -591,6 +636,11 @@ export function ApplyExperience() {
 
       <Atmosphere />
       <Host />
+      {/* The light the landing page's take-off ended on (takeoff.ts): shown in
+          the first frame only when the visitor came through it, then opened. */}
+      <div data-ax="arrive" aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 top-16 z-[95] overflow-hidden opacity-0">
+        <div className="cx-bloom" />
+      </div>
 
       <div className={`relative z-20 mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1320px] px-5 sm:px-8 lg:px-12 ${phase === "intro" ? "items-center" : "items-start"}`}>
         <div className="w-full py-12 md:py-16 lg:w-[45%] lg:py-20">

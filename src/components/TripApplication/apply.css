@@ -148,8 +148,8 @@
 /* A band of light across the host, cut to his silhouette by his own picture
    (mirrored with him). Only ever seen while a step changes. */
 .ax-host-sheen {
-  -webkit-mask: url("/free-china-trip/14-host-presenter.webp") center / 100% 100% no-repeat;
-  mask: url("/free-china-trip/14-host-presenter.webp") center / 100% 100% no-repeat;
+  -webkit-mask: url("/free-china-trip/15-jamil.webp") center / 100% 100% no-repeat;
+  mask: url("/free-china-trip/15-jamil.webp") center / 100% 100% no-repeat;
 }
 .ax-host-band {
   background: linear-gradient(100deg, transparent 0%, rgb(255 244 214 / 0.05) 25%, rgb(255 244 214 / 0.62) 50%, rgb(255 244 214 / 0.05) 75%, transparent 100%);

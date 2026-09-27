@@ -19,7 +19,6 @@ import {
   FILM_REDUCED_STARTS,
   registerGsap,
 } from "./animations";
-import { ASSETS } from "./assets";
 import { APPLY_HREF, CHAPTERS, INCLUDED, INCLUDED_EYEBROW } from "./content";
 import { FilmHud } from "./FilmHud";
 import { Motifs } from "./Motifs";
@@ -39,8 +38,9 @@ import { Scene11WhatsIncluded } from "./Scene11WhatsIncluded";
 import { Scene12HowItWorks } from "./Scene12HowItWorks";
 import { Scene13Terms } from "./Scene13Terms";
 import { Scene14FinalCta } from "./Scene14FinalCta";
-import { FilmImage } from "./parts";
 import { Starfield } from "./Starfield";
+import { ARRIVAL_KEY, takeOff } from "./takeoff";
+import { TakeOffLayer } from "./TakeOffLayer";
 import { revertTextFx } from "./textfx";
 import { WarpField } from "./warp";
 import { WarpToYiwu } from "./WarpToYiwu";
@@ -69,8 +69,6 @@ import { WarpToYiwu } from "./WarpToYiwu";
  */
 
 const SCROLL_BEHAVIOR_CLASS = "scroll-behavior-auto";
-/** Heights (% of the screen) of the gold sparks that follow the exit's silk. */
-const EXIT_SPARKS = [31, 36, 39, 44, 47, 52, 55, 60, 42, 50];
 /** data-cx-scene names, in chapter order (matches CHAPTERS). */
 const SCENE_ORDER = ["opening", "passport", "boarding", "plane", "globe", "map", "cities", "yiwu", "hotel", "free", "included"];
 
@@ -149,11 +147,12 @@ export function CinematicExperience() {
 
   /**
    * Every "Apply for the Trip" (hero, film readout, final call, countdown):
-   * the button glows and gives a little, gold light radiates from it, red silk
-   * sweeps across with gold sparks in its trail, the page falls to black, and
-   * the application opens (its intro starts from black, so there is no white
-   * flash and no seam). Under a second; transform and opacity only. The navbar
-   * stays. Ctrl, ⌘, Shift or middle click still open a new tab, as links do.
+   * the trip takes off from the button pressed (takeoff.ts: the plane leaves
+   * its porthole, draws a gold contrail up and out of the top right corner,
+   * and light blooms where it leaves), and the application opens out of that
+   * same light: ARRIVAL_KEY tells it to start from this frame. Transform,
+   * opacity and a stroke's dash only. The navbar stays. Ctrl, ⌘, Shift or
+   * middle click still open a new tab, as links do.
    */
   const goApply = useCallback(
     (e: MouseEvent<HTMLAnchorElement>) => {
@@ -162,33 +161,20 @@ export function CinematicExperience() {
       if (leaving.current) return;
       leaving.current = true;
       lenisRef.current?.stop();
-      const go = () => router.push(APPLY_HREF);
-      const exit = rootRef.current?.querySelector<HTMLElement>("[data-cx='exit']");
-      if (!exit) return go();
-      const q = (key: string) => exit.querySelector<HTMLElement>(`[data-cx='${key}']`);
-      const tl = gsap.timeline({ onComplete: go });
-      tl.set(exit, { display: "block" });
-      if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        tl.fromTo(q("exit-black"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
-        return;
-      }
-      const btn = e.currentTarget;
-      const b = btn.getBoundingClientRect();
-      const box = exit.getBoundingClientRect();
-      tl.set(q("exit-light"), { left: b.left + b.width / 2 - box.left, top: b.top + b.height / 2 - box.top });
-      // The button gives a little and glows...
-      tl.to(btn, { scale: 0.95, duration: 0.16, ease: "power2.out" }, 0);
-      tl.fromTo(q("exit-light"), { scale: 0.04, autoAlpha: 0 }, { scale: 0.16, autoAlpha: 1, duration: 0.16, ease: "power2.out" }, 0);
-      // ...and the light radiates out from it.
-      tl.to(q("exit-light"), { scale: 1, duration: 0.62, ease: "power2.out" }, 0.14);
-      // Red silk sweeps across, gold following in its trail.
-      tl.fromTo(q("exit-silk"), { xPercent: -100, rotation: -6, autoAlpha: 0 }, { xPercent: 40, rotation: 2, duration: 0.82, ease: "power2.inOut" }, 0.1);
-      tl.to(q("exit-silk"), { autoAlpha: 1, duration: 0.24 }, 0.1);
-      const sparks = Array.from(exit.querySelectorAll<HTMLElement>("[data-cx='exit-spark']"));
-      tl.fromTo(sparks, { x: "-30vw" }, { x: "70vw", duration: 0.72, ease: "power2.in", stagger: 0.025 }, 0.18);
-      tl.fromTo(sparks, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.14, stagger: 0.025 }, 0.18);
-      // The page falls to black.
-      tl.fromTo(q("exit-black"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.42, ease: "power1.in" }, 0.5);
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const go = () => {
+        if (!reduced) {
+          try {
+            sessionStorage.setItem(ARRIVAL_KEY, String(Date.now()));
+          } catch {
+            /* the application simply opens from dark */
+          }
+        }
+        router.push(APPLY_HREF);
+      };
+      const layer = rootRef.current?.querySelector<HTMLElement>("[data-cx='exit']");
+      if (!layer) return go();
+      takeOff(e.currentTarget, layer, reduced, go);
     },
     [router],
   );
@@ -334,26 +320,8 @@ export function CinematicExperience() {
           document so it is in the very first paint of every load. */}
       <NumberLoadingOpener onReveal={onReveal} />
 
-      {/* The way out to the application (goApply): fixed below the navbar,
-          hidden until an Apply button is pressed. */}
-      <div data-cx="exit" aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 top-16 z-[90] hidden overflow-hidden">
-        <div
-          data-cx="exit-light"
-          className="absolute -ml-[60vmax] -mt-[60vmax] h-[120vmax] w-[120vmax] rounded-full bg-[radial-gradient(closest-side,rgb(255_244_214/0.9),rgb(242_211_142/0.55)_22%,rgb(214_168_78/0.18)_50%,transparent_72%)] opacity-0"
-        />
-        <div data-cx="exit-silk" className="absolute left-[-15%] top-[28%] w-[130%] opacity-0">
-          <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 768px) 62vw, 120vw" eager className="cx-feather-x" />
-        </div>
-        {EXIT_SPARKS.map((top, i) => (
-          <span
-            key={i}
-            data-cx="exit-spark"
-            className="absolute left-[18%] h-1.5 w-1.5 rounded-full bg-(--cx-gold-hi) opacity-0 shadow-[0_0_10px_3px_rgb(242_211_142/0.6)]"
-            style={{ top: `${top}%` }}
-          />
-        ))}
-        <div data-cx="exit-black" className="absolute inset-0 bg-[#050505] opacity-0" />
-      </div>
+      {/* The way out to the application (goApply, takeoff.ts). */}
+      <TakeOffLayer />
 
       {/* The night sky, behind every section below (fixed; see Starfield.tsx). */}
       <Starfield />
