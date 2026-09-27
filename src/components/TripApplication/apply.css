@@ -118,6 +118,44 @@
   background: linear-gradient(90deg, transparent, var(--cx-gold) 14%, #fff4d6 50%, var(--cx-gold) 86%, transparent);
   box-shadow: 0 0 22px 4px rgb(242 211 142 / 0.45), 0 0 2px 0 rgb(255 244 214 / 0.9);
 }
+/* Two slow washes of light over the chapter's colour (Atmosphere): gold high
+   on the right, crimson low on the left, drifting on long loops. Blurred once,
+   then only moved (transform), so they cost the compositor, not the page. */
+.ax-nebula {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(40px);
+  will-change: transform;
+}
+.ax-nebula-a {
+  right: -18vmax;
+  top: -24vmax;
+  width: 62vmax;
+  height: 62vmax;
+  background: radial-gradient(closest-side, rgb(214 168 78 / 0.3), rgb(214 168 78 / 0.08) 55%, transparent);
+  animation: ax-drift-a 38s ease-in-out infinite alternate;
+}
+.ax-nebula-b {
+  left: -28vmax;
+  bottom: -32vmax;
+  width: 72vmax;
+  height: 72vmax;
+  background: radial-gradient(closest-side, rgb(163 22 44 / 0.3), rgb(163 22 44 / 0.08) 55%, transparent);
+  animation: ax-drift-b 46s ease-in-out infinite alternate;
+}
+@keyframes ax-drift-a {
+  from { transform: translate(0, 0) scale(1); }
+  to { transform: translate(-9vmax, 7vmax) scale(1.14); }
+}
+@keyframes ax-drift-b {
+  from { transform: translate(0, 0) scale(1.06); }
+  to { transform: translate(8vmax, -6vmax) scale(0.94); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ax-nebula {
+    animation: none;
+  }
+}
 /* The light catching a new page as it lands (after a page turn). */
 .ax-gleam {
   background: linear-gradient(100deg, transparent, rgb(255 244 214 / 0.1) 40%, rgb(255 244 214 / 0.22) 50%, rgb(255 244 214 / 0.1) 60%, transparent);

@@ -33,7 +33,7 @@ export const STEPS = [
 
 export const NAV = {
   back: "Back",
-  next: "Continue",
+  next: "Next",
   toReview: "Save & return to review",
   submit: "Submit application",
 } as const;

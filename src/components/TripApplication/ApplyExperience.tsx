@@ -383,13 +383,14 @@ export function ApplyExperience() {
       // The button that asked glows as it is pressed.
       const pressed = fwd ? view?.querySelector<HTMLElement>("button[type=submit] [data-ax-glow]") : null;
       if (pressed) tl.fromTo(pressed, { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1.12, duration: 0.3, ease: "power2.out" }, 0);
-      // THE PAGE TURNS, as a passport's does: it swings away on its spine (the
-      // left edge going forward, the right going back), its far edge towards
-      // you, until it is edge-on. Only then does the next page come in (the
+      // THE PAGE TURNS: it swings away on its spine (the left edge going
+      // forward, the right going back), its free edge going into the screen,
+      // until it is edge-on. Away, never towards you: towards you, perspective
+      // magnified the page mid-turn. Only then does the next page come in (the
       // effect above), so the two never overlap and nothing is redrawn in view.
       if (view) {
         tl.set(view, { transformPerspective: TURN_PERSPECTIVE, transformOrigin: fwd ? "0% 50%" : "100% 50%" }, 0);
-        tl.to(view, { rotationY: fwd ? -90 : 90, duration: 0.46, ease: "power2.in" }, 0.04);
+        tl.to(view, { rotationY: fwd ? 90 : -90, duration: 0.46, ease: "power2.in" }, 0.04);
         tl.to(view, { autoAlpha: 0, duration: 0.14, ease: "power1.in" }, 0.36);
       }
       lifted = 0.5;
