@@ -118,6 +118,11 @@
   background: linear-gradient(90deg, transparent, var(--cx-gold) 14%, #fff4d6 50%, var(--cx-gold) 86%, transparent);
   box-shadow: 0 0 22px 4px rgb(242 211 142 / 0.45), 0 0 2px 0 rgb(255 244 214 / 0.9);
 }
+/* The light catching a new page as it lands (after a page turn). */
+.ax-gleam {
+  background: linear-gradient(100deg, transparent, rgb(255 244 214 / 0.1) 40%, rgb(255 244 214 / 0.22) 50%, rgb(255 244 214 / 0.1) 60%, transparent);
+  mix-blend-mode: screen;
+}
 /* The progress line: gold fills to the next number, a small comet at its head. */
 .ax-seg {
   transition: width 0.95s cubic-bezier(0.22, 1, 0.36, 1);

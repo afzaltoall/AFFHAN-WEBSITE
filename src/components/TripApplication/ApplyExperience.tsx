@@ -58,20 +58,23 @@ const STEP_KEYS = ["personal", "business", "profile", "travel", "consent"] as co
 const LAST = STEPS.length - 1;
 
 /**
- * Where the host stands in each chapter, on a desktop: large in the intro,
- * smaller through 01–02, set back into the dark in 03, turned towards the
- * travel picture in 04, receding in 05, gone while sending, back to one side
- * after. Always whole on screen (the owner saw him pushed off the edge as a
- * fault): depth is scale, dimming and a little blur.
+ * Where the host stands, on a desktop: large in the intro, then one steady
+ * place beside the form for all five steps, whole, sharp and bright. (He used
+ * to change size, blur and dim at every step, which read as the picture
+ * reloading each time.) At each page turn he leans towards the page and light
+ * passes across him (go, below); gone while sending; back beside it after.
  */
+const STEADY: gsap.TweenVars = { xPercent: 4, yPercent: 0, scale: 0.8, autoAlpha: 1, filter: "blur(0px) brightness(1)" };
 const HOST: Record<string, gsap.TweenVars> = {
-  "0": { xPercent: 6, yPercent: 0, scale: 0.8, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
-  "1": { xPercent: 2, yPercent: 0, scale: 0.76, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
-  "2": { xPercent: 8, yPercent: 0, scale: 0.7, autoAlpha: 0.62, filter: "blur(2px) brightness(0.72)" },
-  "3": { xPercent: -4, yPercent: 0, scale: 0.74, autoAlpha: 0.95, filter: "blur(0px) brightness(1)" },
-  "4": { xPercent: 6, yPercent: 0, scale: 0.64, autoAlpha: 0.4, filter: "blur(1px) brightness(0.85)" },
+  "0": STEADY,
+  "1": STEADY,
+  "2": STEADY,
+  "3": STEADY,
+  "4": STEADY,
   done: { xPercent: 8, yPercent: 0, scale: 0.74, autoAlpha: 0.75, filter: "blur(0px) brightness(1)" },
 };
+/** Perspective for the page turn: deep enough that a page edge-on is a line, not a smear. */
+const TURN_PERSPECTIVE = 1400;
 
 const sleep = (ms: number) => new Promise<null>((resolve) => window.setTimeout(() => resolve(null), ms));
 
@@ -102,6 +105,8 @@ export function ApplyExperience() {
   const fromLightRef = useRef<boolean | null>(null);
   /** The step being printed, so a quick Continue can finish it at once. */
   const enterTl = useRef<gsap.core.Timeline | null>(null);
+  /** A page has just turned away (1 forward, -1 back): the next one settles in on the same spine. */
+  const turnIn = useRef(0);
   const running = useRef(new Set<gsap.core.Animation>());
 
   const track = <T extends gsap.core.Animation>(a: T) => {
@@ -283,9 +288,11 @@ export function ApplyExperience() {
     return rows.map((row) => Math.min(1, Math.max(0, (row.getBoundingClientRect().top - r.top) / Math.max(1, r.height))));
   };
 
-  // ---- A step arrives: a line of light prints it, one line at a time ------------
-  // Downwards going forward, upwards going back. The heading has already rolled
-  // (StepHeader); the progress comet is already travelling.
+  // ---- A step arrives ---------------------------------------------------------------
+  // After a page turn (go), the next page settles in on the same spine. The
+  // first step, arriving from the intro, is printed by a line of light, one
+  // line at a time. The heading has already rolled (StepHeader); the progress
+  // comet is already travelling.
   useIsoLayoutEffect(() => {
     if (phase !== "form") return;
     const view = root.current?.querySelector<HTMLElement>("[data-ax-view='step']");
@@ -293,8 +300,25 @@ export function ApplyExperience() {
     const tl = track(gsap.timeline());
     enterTl.current = tl;
     if (reduce.current) {
+      turnIn.current = 0;
       tl.fromTo(view, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
       tl.call(() => void (busy.current = false), [], 0.15);
+    } else if (turnIn.current) {
+      // THE NEXT PAGE settles in on the spine the last one turned on: from a
+      // little way round, flat into place, and the light catches it as it lands.
+      const fwd = turnIn.current > 0;
+      turnIn.current = 0;
+      tl.fromTo(
+        view,
+        { transformPerspective: TURN_PERSPECTIVE, transformOrigin: fwd ? "0% 50%" : "100% 50%", rotationY: fwd ? 30 : -30, x: fwd ? 28 : -28, autoAlpha: 0 },
+        { rotationY: 0, x: 0, autoAlpha: 1, duration: 0.66, ease: "power3.out", clearProps: "transform,transformPerspective,transformOrigin" },
+        0,
+      );
+      const gleam = $("gleam");
+      tl.fromTo(gleam, { xPercent: fwd ? -130 : 330, autoAlpha: 0 }, { xPercent: fwd ? 330 : -130, duration: 0.8, ease: "power2.inOut" }, 0.06);
+      tl.to(gleam, { autoAlpha: 1, duration: 0.18 }, 0.06);
+      tl.to(gleam, { autoAlpha: 0, duration: 0.24 }, 0.62);
+      tl.call(() => void (busy.current = false), [], 0.32);
     } else {
       const fwd = dir.current > 0;
       const rows = stepRows(view);
@@ -356,25 +380,23 @@ export function ApplyExperience() {
       toMood(tl, key as Mood, 0, 0.4);
       tl.to($("travel"), { autoAlpha: to === 3 ? 0.35 : 0, duration: 0.4 }, 0);
     } else {
-      const rows = view ? stepRows(view) : [];
-      const depth = view ? depthOf(view, rows) : [];
-      const H = view?.offsetHeight ?? 0;
-      const READ = Math.min(0.7, 0.36 + H / 3000);
-      lifted = READ + 0.08;
       // The button that asked glows as it is pressed.
       const pressed = fwd ? view?.querySelector<HTMLElement>("button[type=submit] [data-ax-glow]") : null;
       if (pressed) tl.fromTo(pressed, { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1.12, duration: 0.3, ease: "power2.out" }, 0);
-      // The light reads the page; every line it passes is lifted away.
-      const scan = $("scan");
-      tl.fromTo(scan, { y: fwd ? 0 : H, autoAlpha: 0 }, { y: fwd ? H : 0, duration: READ, ease: "power1.inOut" }, 0);
-      tl.to(scan, { autoAlpha: 1, duration: 0.08 }, 0);
-      tl.to(scan, { autoAlpha: 0, duration: 0.1 }, READ - 0.04);
-      rows.forEach((row, i) => {
-        const t = fwd ? depth[i] : 1 - depth[i];
-        tl.to(row, { autoAlpha: 0, y: fwd ? -16 : 16, filter: "blur(6px)", duration: 0.26, ease: "power2.in" }, 0.02 + t * READ * 0.92);
-      });
-      // Light crosses the host (left to right going forward) as he moves.
-      tl.to($("host"), { ...HOST[key], duration: 1.1, ease: "power3.inOut" }, 0.05);
+      // THE PAGE TURNS, as a passport's does: it swings away on its spine (the
+      // left edge going forward, the right going back), its far edge towards
+      // you, until it is edge-on. Only then does the next page come in (the
+      // effect above), so the two never overlap and nothing is redrawn in view.
+      if (view) {
+        tl.set(view, { transformPerspective: TURN_PERSPECTIVE, transformOrigin: fwd ? "0% 50%" : "100% 50%" }, 0);
+        tl.to(view, { rotationY: fwd ? -90 : 90, duration: 0.46, ease: "power2.in" }, 0.04);
+        tl.to(view, { autoAlpha: 0, duration: 0.14, ease: "power1.in" }, 0.36);
+      }
+      lifted = 0.5;
+      // The host leans towards the turning page and back, keeping his place
+      // and size, and light passes across him (left to right going forward).
+      tl.to($("host"), { x: fwd ? -18 : 18, rotation: fwd ? -0.8 : 0.8, transformOrigin: "50% 100%", duration: 0.4, ease: "power2.out" }, 0.02);
+      tl.to($("host"), { ...HOST[key], x: 0, rotation: 0, duration: 0.8, ease: "power2.inOut" }, 0.42);
       tl.set($("host-sheen"), { autoAlpha: 1 }, 0.1);
       tl.fromTo($("host-band"), { xPercent: fwd ? 222 : -100 }, { xPercent: fwd ? -100 : 222, duration: 1.0, ease: "power2.inOut" }, 0.1);
       tl.to($("host-sheen"), { autoAlpha: 0, duration: 0.25 }, 0.95);
@@ -389,6 +411,7 @@ export function ApplyExperience() {
     }
     await new Promise<void>((resolve) => tl.call(resolve, [], lifted));
     toTop(reduce.current);
+    if (!reduce.current) turnIn.current = fwd ? 1 : -1;
     setEditing(editingNext);
     setStep(to);
   };
@@ -656,6 +679,10 @@ export function ApplyExperience() {
               <div className="relative mt-8 md:mt-10">
                 {/* The line of light that lifts one step away and prints the next. */}
                 <span data-ax="scan" aria-hidden className="ax-scan pointer-events-none absolute -inset-x-4 top-0 z-10 block h-px opacity-0 md:-inset-x-8" />
+                {/* The light that catches each new page as it lands; clipped to the page. */}
+                <span aria-hidden className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+                  <span data-ax="gleam" className="ax-gleam absolute inset-y-0 left-0 block w-[34%] opacity-0" />
+                </span>
                 <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title">
                   {step === LAST ? <StepReview app={app} onEdit={(i) => void go(i, true)} /> : <Step app={app} />}
                   <StepNav step={step} last={LAST} editing={editing} onBack={() => void go(step - 1)} />
