@@ -668,7 +668,7 @@ export function ApplyExperience() {
       </div>
 
       <div className={`relative z-20 mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1320px] px-5 sm:px-8 lg:px-12 ${phase === "intro" ? "items-center" : "items-start"}`}>
-        <div className="w-full py-10 md:py-14 lg:w-[45%] lg:pb-12 lg:pt-8">
+        <div className="w-full py-10 md:py-14 lg:w-[45%] lg:pb-6 lg:pt-8">
           {phase === "intro" && <ApplicationIntro onStart={start} />}
 
           {phase !== "intro" && phase !== "received" && (
