@@ -82,7 +82,7 @@ export function TextArea({ id, value, onChange, error, placeholder, maxLength, r
         aria-required={required || undefined}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className={`${LINE} max-h-48 min-h-[6.5rem] resize-y py-3 leading-relaxed ${lineState(!!error)}`}
+        className={`${LINE} max-h-48 min-h-[5.25rem] resize-y py-2.5 leading-relaxed ${lineState(!!error)}`}
       />
       <span aria-hidden className="pointer-events-none absolute bottom-2 right-0 text-[11px] tabular-nums text-(--cx-mute)">
         {value.length}/{maxLength}

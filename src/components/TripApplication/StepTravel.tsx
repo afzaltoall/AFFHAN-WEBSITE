@@ -13,7 +13,7 @@ export function StepTravel({ app }: { app: ApplicationApi }) {
   const e = app.errors;
   const set = (patch: Partial<ApplicationState["travel"]>) => app.update("travel", patch);
   return (
-    <div className="grid gap-y-7">
+    <div className="grid gap-y-6">
       <div className="max-w-md">
         <Field id="ax-nationality" label={LABELS.nationality} error={e.nationality}>
           <CountryField id="ax-nationality" value={t.nationality} onChange={(v) => set({ nationality: v })} error={e.nationality} />

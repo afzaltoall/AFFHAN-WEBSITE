@@ -14,7 +14,7 @@ import { Roll } from "./Roll";
 export function StepHeader({ step, dir }: { step: number; dir: number }) {
   const s = STEPS[step];
   return (
-    <header className="mt-8 flex items-center gap-5 md:mt-10 md:gap-8">
+    <header className="mt-7 flex items-center gap-5 md:mt-7 md:gap-8">
       <span aria-hidden className={`${DISPLAY} ax-step-num flex shrink-0`}>
         <Roll text={s.number[0]} dir={dir} itemClassName="ax-num-ink" delay={0.1} />
         <Roll text={s.number[1]} dir={dir} itemClassName="ax-num-ink" delay={0.1} />

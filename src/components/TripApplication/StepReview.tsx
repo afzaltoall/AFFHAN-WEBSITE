@@ -5,11 +5,14 @@ import { Consent } from "./fields";
 import type { ApplicationApi } from "./useApplication";
 
 /**
- * Step 05, Review & submit: an editorial summary, one section per step with
- * an Edit link back to it, then the two consents.
+ * Step 05, Review & submit: the whole application on one screen, like the
+ * details on a ticket. Four blocks in a 2 × 2 grid (one per step, each with
+ * an Edit link back to it), the answers set as a few lines of flowing text
+ * rather than a tall list of labels, then the two consents and Submit. It
+ * used to run 1,550px tall, far below the fold; now the page stays still.
  *
  * Nothing sensitive is collected (no passport number, expiry or document:
- * see TRAVEL_DOCUMENTS), so the travel section shows plain Yes/No. If those
+ * see TRAVEL_DOCUMENTS), so the travel block shows plain Yes/No. If those
  * questions are ever switched on, show them here as "Provided" or masked
  * (********1234), never in full.
  */
@@ -18,40 +21,34 @@ export function StepReview({ app, onEdit }: { app: ApplicationApi; onEdit: (step
   const e = app.errors;
   const yesNo = (v: boolean | null) => (v === null ? "" : v ? "Yes" : "No");
   const setConsent = (patch: Partial<typeof c>) => app.update("consent", patch);
+  const join = (parts: string[], sep = " · ") => parts.filter(Boolean).join(sep);
 
   return (
-    <div className="grid gap-12">
-      <Section index={0} title={REVIEW.groups.personal} onEdit={onEdit}>
-        <Item label={LABELS.fullName} value={p.fullName} wide />
-        <Item label={LABELS.email} value={p.email} />
-        <Item label={LABELS.phone} value={p.phone ? `${p.phoneCode} ${p.phone}` : ""} />
-        <Item label={LABELS.country} value={p.country} />
-        <Item label={LABELS.city} value={p.city} />
-        <Item label={LABELS.profileUrl} value={p.profileUrl} wide />
-      </Section>
+    <div className="grid gap-7">
+      <div className="grid gap-x-7 gap-y-6 sm:grid-cols-2">
+        <Block index={0} title={REVIEW.groups.personal} onEdit={onEdit} lead={p.fullName}>
+          <Line>{p.email}</Line>
+          <Line>{p.phone ? `${p.phoneCode} ${p.phone}` : ""}</Line>
+          <Line>{join([p.city, p.country], ", ")}</Line>
+          <Line muted>{p.profileUrl}</Line>
+        </Block>
+        <Block index={1} title={REVIEW.groups.business} onEdit={onEdit} lead={b.companyName}>
+          <Line>{join([b.role, b.businessCategory])}</Line>
+          <Line>{b.yearsInBusiness ? `${b.yearsInBusiness} ${REVIEW.brief.inBusiness}` : ""}</Line>
+          <Line muted>{b.companyWebsite}</Line>
+          <Line muted clamp>{b.businessDescription}</Line>
+        </Block>
+        <Block index={2} title={REVIEW.groups.profile} onEdit={onEdit} lead={join(f.interests)}>
+          <Line>{f.productsOfInterest}</Line>
+          <Line muted clamp>{f.exploreNotes}</Line>
+        </Block>
+        <Block index={3} title={REVIEW.groups.travel} onEdit={onEdit} lead={t.nationality ? `${LABELS.nationality}: ${t.nationality}` : ""}>
+          <Line>{t.hasPassport === null ? "" : `${REVIEW.brief.passport}: ${yesNo(t.hasPassport)}`}</Line>
+          <Line>{t.travelledToChina === null ? "" : `${REVIEW.brief.travelled}: ${yesNo(t.travelledToChina)}`}</Line>
+        </Block>
+      </div>
 
-      <Section index={1} title={REVIEW.groups.business} onEdit={onEdit}>
-        <Item label={LABELS.companyName} value={b.companyName} />
-        <Item label={LABELS.role} value={b.role} />
-        <Item label={LABELS.businessCategory} value={b.businessCategory} />
-        <Item label={LABELS.yearsInBusiness} value={b.yearsInBusiness} />
-        <Item label={LABELS.companyWebsite} value={b.companyWebsite} wide />
-        <Item label={LABELS.businessDescription} value={b.businessDescription} wide />
-      </Section>
-
-      <Section index={2} title={REVIEW.groups.profile} onEdit={onEdit}>
-        <Item label={LABELS.interests} value={f.interests.join(" · ")} wide />
-        <Item label={LABELS.productsOfInterest} value={f.productsOfInterest} wide />
-        <Item label={LABELS.exploreNotes} value={f.exploreNotes} wide />
-      </Section>
-
-      <Section index={3} title={REVIEW.groups.travel} onEdit={onEdit}>
-        <Item label={LABELS.nationality} value={t.nationality} />
-        <Item label={LABELS.hasPassport} value={yesNo(t.hasPassport)} />
-        <Item label={LABELS.travelledToChina} value={yesNo(t.travelledToChina)} />
-      </Section>
-
-      <div className="grid gap-5 border-t border-(--cx-white)/10 pt-8">
+      <div className="grid gap-3.5 border-t border-(--cx-white)/10 pt-5">
         <Consent id="ax-accuracy" checked={c.accuracy} onChange={(v) => setConsent({ accuracy: v })} error={e.accuracy}>
           {REVIEW.accuracy}
         </Consent>
@@ -64,37 +61,36 @@ export function StepReview({ app, onEdit }: { app: ApplicationApi; onEdit: (step
   );
 }
 
-function Section({ index, title, onEdit, children }: { index: number; title: string; onEdit: (step: number) => void; children: ReactNode }) {
+/** One step's answers: its number, title and Edit, then its first answer in full weight and the rest as lines. */
+function Block({ index, title, onEdit, lead, children }: { index: number; title: string; onEdit: (step: number) => void; lead: string; children: ReactNode }) {
   return (
-    <section aria-labelledby={`ax-review-${index}`}>
-      <div className="flex items-baseline justify-between gap-4 border-b border-(--cx-white)/10 pb-3">
-        <h3 id={`ax-review-${index}`} className="flex items-baseline gap-3">
+    <section aria-labelledby={`ax-review-${index}`} className="min-w-0 border-t border-(--cx-white)/12 pt-3">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id={`ax-review-${index}`} className="flex min-w-0 items-baseline gap-2.5">
           <span className="text-[11px] font-semibold tabular-nums tracking-[0.24em] text-(--cx-gold)">{STEPS[index].number}</span>
-          <span className={`${DISPLAY} text-[22px] leading-none text-(--cx-white) md:text-[26px]`}>{title}</span>
+          <span className={`${DISPLAY} truncate text-[19px] leading-none text-(--cx-white)`}>{title}</span>
         </h3>
         <button
           type="button"
           onClick={() => onEdit(index)}
-          className="min-h-11 px-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-(--cx-gold) underline-offset-[6px] transition-colors hover:text-(--cx-gold-hi) hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--cx-white)"
+          className="min-h-9 shrink-0 px-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-(--cx-gold) underline-offset-[6px] transition-colors hover:text-(--cx-gold-hi) hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--cx-white)"
         >
           {REVIEW.edit}
           <span className="sr-only"> {title}</span>
         </button>
       </div>
-      <dl className="mt-5 grid gap-x-8 gap-y-5 sm:grid-cols-2">{children}</dl>
+      <div className="mt-1.5 grid gap-1 text-[14px] leading-snug">
+        <p className={`break-words font-semibold ${lead ? "text-(--cx-white)" : "text-(--cx-white)/35"}`}>{lead || REVIEW.notGiven}</p>
+        {children}
+      </div>
     </section>
   );
 }
 
-function Item({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
-  return (
-    <div className={`min-w-0 ${wide ? "sm:col-span-2" : ""}`}>
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-(--cx-mute)">{label}</dt>
-      <dd className={`mt-1.5 whitespace-pre-line break-words text-[16px] leading-relaxed ${value ? "text-(--cx-white)" : "text-(--cx-white)/35"}`}>
-        {value || "Not given"}
-      </dd>
-    </div>
-  );
+/** One answer as a line; nothing at all when it was left empty (it was optional). */
+function Line({ children, muted = false, clamp = false }: { children: string; muted?: boolean; clamp?: boolean }) {
+  if (!children) return null;
+  return <p className={`break-words ${muted ? "text-(--cx-mute)" : "text-(--cx-white)/82"} ${clamp ? "line-clamp-2" : ""}`}>{children}</p>;
 }
 
 /** The real legal pages, in a new tab so the application isn't lost. */

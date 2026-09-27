@@ -9,7 +9,7 @@ export function StepBusiness({ app }: { app: ApplicationApi }) {
   const e = app.errors;
   const set = (patch: Partial<ApplicationState["business"]>) => app.update("business", patch);
   return (
-    <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+    <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
       <Field id="ax-companyName" label={LABELS.companyName} error={e.companyName}>
         <TextInput id="ax-companyName" value={b.companyName} onChange={(v) => set({ companyName: v })} error={e.companyName} placeholder={PLACEHOLDERS.companyName} maxLength={LIMITS.company} autoComplete="organization" />
       </Field>

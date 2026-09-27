@@ -9,7 +9,7 @@ export function StepProfile({ app }: { app: ApplicationApi }) {
   const e = app.errors;
   const set = (patch: Partial<ApplicationState["profile"]>) => app.update("profile", patch);
   return (
-    <div className="grid gap-y-7">
+    <div className="grid gap-y-6">
       <Chips id="ax-interests" label={LABELS.interests} values={f.interests} options={INTERESTS} onChange={(v) => set({ interests: v })} error={e.interests} />
       <Field id="ax-productsOfInterest" label={LABELS.productsOfInterest} error={e.productsOfInterest}>
         <TextArea id="ax-productsOfInterest" value={f.productsOfInterest} onChange={(v) => set({ productsOfInterest: v })} error={e.productsOfInterest} placeholder={PLACEHOLDERS.productsOfInterest} maxLength={LIMITS.products} />

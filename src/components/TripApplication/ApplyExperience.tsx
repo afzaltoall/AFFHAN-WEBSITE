@@ -668,7 +668,7 @@ export function ApplyExperience() {
       </div>
 
       <div className={`relative z-20 mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1320px] px-5 sm:px-8 lg:px-12 ${phase === "intro" ? "items-center" : "items-start"}`}>
-        <div className="w-full py-10 md:py-14 lg:w-[45%] lg:pb-16 lg:pt-12">
+        <div className="w-full py-10 md:py-14 lg:w-[45%] lg:pb-12 lg:pt-8">
           {phase === "intro" && <ApplicationIntro onStart={start} />}
 
           {phase !== "intro" && phase !== "received" && (
@@ -677,7 +677,7 @@ export function ApplyExperience() {
               <div data-ax="step-head" data-ax-hide>
                 <StepHeader step={headerStep} dir={headerDir} />
               </div>
-              <div className="relative mt-8 md:mt-10">
+              <div className="relative mt-7 md:mt-8">
                 {/* The line of light that lifts one step away and prints the next. */}
                 <span data-ax="scan" aria-hidden className="ax-scan pointer-events-none absolute -inset-x-4 top-0 z-10 block h-px opacity-0 md:-inset-x-8" />
                 {/* The light that catches each new page as it lands; clipped to the page. */}

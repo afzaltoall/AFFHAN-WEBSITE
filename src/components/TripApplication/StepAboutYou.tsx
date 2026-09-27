@@ -9,7 +9,7 @@ export function StepAboutYou({ app }: { app: ApplicationApi }) {
   const e = app.errors;
   const set = (patch: Partial<ApplicationState["personal"]>) => app.update("personal", patch);
   return (
-    <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2">
+    <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
       <div className="sm:col-span-2">
         <Field id="ax-fullName" label={LABELS.fullName} error={e.fullName}>
           <TextInput id="ax-fullName" value={p.fullName} onChange={(v) => set({ fullName: v })} error={e.fullName} placeholder={PLACEHOLDERS.fullName} maxLength={LIMITS.name} autoComplete="name" />

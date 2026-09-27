@@ -77,6 +77,9 @@ export const PLACEHOLDERS = {
 export const REVIEW = {
   groups: { personal: "About you", business: "Your business", profile: "Business profile", travel: "Travel profile" },
   edit: "Edit",
+  notGiven: "Not given",
+  /** Short forms for the review's lines (the questions are long). */
+  brief: { passport: "Passport", travelled: "Travelled to China", inBusiness: "in business" },
   accuracy: "I confirm the information provided is accurate.",
   termsBefore: "I agree to the",
   terms: { href: "/terms-conditions/", label: "Terms & Conditions" },
