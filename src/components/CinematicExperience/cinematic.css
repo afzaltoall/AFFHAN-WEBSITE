@@ -579,13 +579,13 @@ html:has(.cx-counter[data-lock]) {
 /* ---- 01 The headline's turns (HeroTurns.tsx) ------------------------------------------
    Each line is one mask with every pair's word stacked in the same cell, so
    the line is as wide as its widest word and nothing moves around it. The
-   mask reaches a little past the line (cancelled by the margin) so no serif
-   or hyphen is clipped at rest. */
+   mask reaches past the line (cancelled by the margin, so nothing moves) so
+   no serif, hyphen or landing glow is clipped into a hard edge. */
 .cx-turn-line {
   display: grid;
   overflow: clip;
-  padding: 0.06em 0.1em 0.12em 0;
-  margin: -0.06em -0.1em -0.12em 0;
+  padding: 0.12em 0.12em 0.16em 0;
+  margin: -0.12em -0.12em -0.16em 0;
 }
 .cx-turn {
   grid-area: 1 / 1;

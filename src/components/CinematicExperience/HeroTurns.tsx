@@ -9,10 +9,15 @@ import { HERO } from "./content";
  * through what the offer covers, in HERO.line's own words (HERO.turns):
  * BUSINESS TRIP, ROUND-TRIP FLIGHT, HOTEL STAY, LOCAL TRANSPORT, and round.
  *
- * At each turn FREE catches the light first; then the old words' letters
- * lift out of their lines, one after another, and the new ones rise in,
- * landing in gold and cooling to white, while a streak of light crosses the
- * words. Every letter is masked by its line, so nothing ever overlaps.
+ * At each turn FREE catches the light first, letter by letter; then the old
+ * words' letters lift out of their lines, one after another, and the new
+ * ones rise in, each landing gold and glowing and cooling to white, so the
+ * landing itself is the light crossing the words. Every letter is masked by
+ * its line, so nothing ever overlaps.
+ *
+ * The light lives in the letters (their colour and glow), never in a layer
+ * over them: an overlaid streak brightens whatever is under it, and one ran
+ * on past the words across the traveller's photograph.
  *
  * Time-based and polite: it starts once the opening count has opened onto
  * the frame, turns only while the headline is on screen and the tab is
@@ -24,6 +29,9 @@ import { HERO } from "./content";
 const FIRST = 2.4; // seconds after the reveal before the first turn
 const HOLD = 2.6; // seconds each pair rests between turns
 const GOLD = "#f2d38e";
+const GLOW = "0px 0px 16px rgba(242, 211, 142, 0.75)";
+const GLOW_HI = "0px 0px 26px rgba(255, 236, 190, 0.85)";
+const NO_GLOW = "0px 0px 0px rgba(242, 211, 142, 0)";
 
 export function HeroTurns({ play }: { play: boolean }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -32,11 +40,10 @@ export function HeroTurns({ play }: { play: boolean }) {
     const root = ref.current;
     if (!play || !root || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const copy = root.closest<HTMLElement>("[data-cx='hero-copy']");
+    const free = Array.from(root.querySelectorAll<HTMLElement>("[data-turn-free] > span"));
     const lines = Array.from(root.querySelectorAll<HTMLElement>("[data-turn-line]"));
     const alt = (line: HTMLElement, k: number) => line.children[k] as HTMLElement;
     const letters = (el: HTMLElement) => Array.from(el.children) as HTMLElement[];
-    const sweep = root.querySelector<HTMLElement>("[data-turn-sweep]");
-    const flare = root.querySelector<HTMLElement>("[data-turn-flare]");
     const ink = getComputedStyle(lines[0]).color;
     const n = HERO.turns.length;
     let cur = 0;
@@ -54,7 +61,9 @@ export function HeroTurns({ play }: { play: boolean }) {
 
     const turn = (a: number, b: number) => {
       const t = gsap.timeline();
-      if (flare) t.fromTo(flare, { xPercent: -160, autoAlpha: 1 }, { xPercent: 360, ease: "power2.inOut", duration: 0.8 }, 0);
+      // FREE catches the light, letter by letter, and lets it go.
+      t.to(free, { color: "#fff4d6", textShadow: GLOW_HI, ease: "power1.out", duration: 0.22, stagger: 0.07 }, 0);
+      t.to(free, { color: GOLD, textShadow: NO_GLOW, ease: "power1.in", duration: 0.5, stagger: 0.07, clearProps: "color,textShadow" }, 0.22);
       lines.forEach((line, i) => {
         const out = alt(line, a);
         const inn = alt(line, b);
@@ -62,18 +71,15 @@ export function HeroTurns({ play }: { play: boolean }) {
         const ic = letters(inn);
         const d = 0.12 + i * 0.09;
         const gone = d + 0.42 + 0.02 * oc.length;
-        t.set(ic, { yPercent: 125, color: GOLD }, d);
+        // Hidden below the line and unlit; they gather their glow as they rise.
+        t.set(ic, { yPercent: 125, color: GOLD, textShadow: NO_GLOW }, d);
         t.set(inn, { visibility: "visible" }, d);
         t.to(oc, { yPercent: -125, ease: "power3.in", duration: 0.42, stagger: 0.02 }, d);
-        t.to(ic, { yPercent: 0, ease: "power3.out", duration: 0.62, stagger: 0.03 }, d + 0.16);
-        t.to(ic, { color: ink, ease: "power1.out", duration: 0.7, stagger: 0.03, clearProps: "color" }, d + 0.55);
+        t.to(ic, { yPercent: 0, textShadow: GLOW, ease: "power3.out", duration: 0.62, stagger: 0.03 }, d + 0.16);
+        t.to(ic, { color: ink, textShadow: NO_GLOW, ease: "power1.out", duration: 0.7, stagger: 0.03, clearProps: "color,textShadow" }, d + 0.55);
         t.set(out, { visibility: "hidden" }, gone);
         t.set(oc, { yPercent: 0 }, gone + 0.01);
       });
-      if (sweep) {
-        t.fromTo(sweep, { xPercent: -160, autoAlpha: 1 }, { xPercent: 420, ease: "power2.inOut", duration: 0.95 }, 0.2);
-        t.set(sweep, { autoAlpha: 0 }, 1.16);
-      }
       return t;
     };
 
@@ -96,25 +102,27 @@ export function HeroTurns({ play }: { play: boolean }) {
       wait?.kill();
       tl?.kill();
       // Back to the first pair, as the server drew it.
+      gsap.set(free, { clearProps: "color,textShadow" });
       lines.forEach((line) =>
         Array.from(line.children).forEach((el, k) => {
           const e = el as HTMLElement;
           e.style.visibility = k === 0 ? "" : "hidden";
-          gsap.set(letters(e), { clearProps: "transform,color" });
+          gsap.set(letters(e), { clearProps: "transform,color,textShadow" });
         }),
       );
-      if (sweep) gsap.set(sweep, { autoAlpha: 0 });
-      if (flare) gsap.set(flare, { autoAlpha: 0 });
     };
   }, [play]);
 
   return (
     <span ref={ref} aria-hidden className="block">
-      <span className="relative block overflow-hidden text-(--cx-gold-hi)">
-        {HERO.titleLines[0]}
-        <span data-turn-flare className="cx-sweep pointer-events-none absolute inset-y-0 left-0 w-[34%] opacity-0" />
+      <span data-turn-free className="block text-(--cx-gold-hi)">
+        {Array.from(HERO.titleLines[0]).map((ch, i) => (
+          <span key={i} className="inline-block">
+            {ch}
+          </span>
+        ))}
       </span>
-      <span className="relative block text-(--cx-white)">
+      <span className="block text-(--cx-white)">
         {[0, 1].map((line) => (
           <span key={line} data-turn-line className="cx-turn-line">
             {HERO.turns.map((pair, k) => (
@@ -128,7 +136,6 @@ export function HeroTurns({ play }: { play: boolean }) {
             ))}
           </span>
         ))}
-        <span data-turn-sweep className="cx-sweep pointer-events-none absolute inset-y-0 left-0 z-10 w-[30%] opacity-0" />
       </span>
     </span>
   );
