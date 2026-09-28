@@ -14,12 +14,12 @@ export function ApplicationIntro({ onStart }: { onStart: () => void }) {
   return (
     <div data-ax-view="intro" className="relative max-w-[36rem]">
       {/* Phones and tablets: the host above the heading, cropped to head and
-          shoulders (his head is at 61–78% across the picture, so the picture
-          is drawn at 210% and moved left to centre it) and faded into the
-          dark; never the whole screen. */}
+          shoulders (his head is at 50–75% across the picture, centred at
+          63%, so the picture is drawn at 210% and moved left to centre it)
+          and faded into the dark; never the whole screen. */}
       <div data-ax="intro-host-m" data-ax-hide aria-hidden className="relative mb-6 h-[min(30svh,250px)] w-[min(52vw,210px)] overflow-hidden [mask-image:linear-gradient(to_bottom,black_68%,transparent)] lg:hidden">
-        <div className="absolute left-[-95%] top-0 w-[210%]">
-          <FilmImage asset={ASSETS.jamil} alt="" sizes="110vw" eager priority />
+        <div className="absolute left-[-82%] top-0 w-[210%]">
+          <FilmImage asset={ASSETS.afzalKhan} alt="" sizes="110vw" eager priority />
         </div>
       </div>
       <p data-ax="intro-eyebrow" data-ax-hide className={EYEBROW}>

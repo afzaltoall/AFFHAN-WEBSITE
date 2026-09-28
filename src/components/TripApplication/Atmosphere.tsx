@@ -63,8 +63,8 @@ export function Atmosphere() {
 }
 
 /**
- * The host, Jamil, on a desktop only: the owner's picture (jamil.png, never
- * regenerated). He already faces left, his raised arm towards the words, so
+ * The host, Afzal Khan, on a desktop only: the owner's picture ("Afzal
+ * Khan.png", never regenerated). He already faces left, his raised arm towards the words, so
  * he is not mirrored. He stands centred in the room to the right of the
  * words, on the bottom, 76% of the screen's height; he is wide (an arm up
  * and a leg out to the left), so his height is also held to that room (the
@@ -81,8 +81,8 @@ export function Atmosphere() {
 export function Host() {
   return (
     <div aria-hidden className="pointer-events-none fixed bottom-0 right-0 top-16 hidden w-[55%] items-end justify-center lg:flex">
-      <div data-ax="host" data-ax-hide className="relative aspect-[982/1186] h-[min(76%,780px,calc(61.9vw-52px))] origin-bottom">
-        <FilmImage asset={ASSETS.jamil} alt="" sizes="(min-width: 1024px) 42vw, 1px" eager priority className="drop-shadow-[0_30px_60px_rgb(0_0_0/0.55)]" />
+      <div data-ax="host" data-ax-hide className="relative aspect-[1004/1390] h-[min(76%,780px,calc(61.9vw-52px))] origin-bottom">
+        <FilmImage asset={ASSETS.afzalKhan} alt="" sizes="(min-width: 1024px) 42vw, 1px" eager priority className="drop-shadow-[0_30px_60px_rgb(0_0_0/0.55)]" />
         <div data-ax="host-sheen" className="ax-host-sheen absolute inset-0 overflow-hidden opacity-0">
           <div data-ax="host-band" className="ax-host-band absolute inset-y-0 left-0 w-[45%]" />
         </div>
