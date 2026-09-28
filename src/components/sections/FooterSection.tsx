@@ -98,13 +98,21 @@ export function FooterSection() {
                     Gate No : 3, Royapuram, Chennai - 600 013
                   </p>
                   <p className="mt-4">TAMIL NADU, INDIA</p>
+                  {/* Real links, not plain text: click-to-call browser extensions
+                      rewrite a plain number into a link before React hydrates,
+                      which broke hydration; a number that is already a link is
+                      left alone (and can be tapped to call). */}
                   <p className="mt-4">
                     <span className="font-semibold text-[#61deff]">Office:</span>{" "}
-                    044 - 4743 2777
+                    <a href="tel:+914447432777" className="underline-offset-4 hover:underline">
+                      044 - 4743 2777
+                    </a>
                   </p>
                   <p className="mt-4">
                     <span className="font-semibold text-[#61deff]">Email:</span>{" "}
-                    info@affhan.com
+                    <a href="mailto:info@affhan.com" className="underline-offset-4 hover:underline">
+                      info@affhan.com
+                    </a>
                   </p>
                 </>
               }

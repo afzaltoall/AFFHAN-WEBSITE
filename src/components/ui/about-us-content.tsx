@@ -471,7 +471,9 @@ export default function AboutUsContent() {
             <p>
               Anything not answered here, ask us directly &mdash;{" "}
               <a href="/contact/" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">contact the Chennai office</a>{" "}
-              on +91 90920 09044, or email info@affhan.com.
+              on{" "}
+              <a href="tel:+919092009044" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">+91 90920 09044</a>, or email{" "}
+              <a href="mailto:info@affhan.com" className="underline decoration-[#d4a373] decoration-2 underline-offset-4 hover:text-black">info@affhan.com</a>.
             </p>
           </div>
         </div>
