@@ -115,7 +115,7 @@ export function TrustBadges() {
     >
       <div
         ref={rowRef}
-        className="relative flex items-center gap-3 sm:gap-5 xl:gap-7 py-1"
+        className="relative flex items-center gap-2 min-[360px]:gap-3 sm:gap-5 xl:gap-7 py-1"
       >
         {/* Sliding blue highlight box */}
         {box && box.width > 0 && (
@@ -153,10 +153,14 @@ export function TrustBadges() {
                   left edge by construction, whichever of them is wider.
 
                   2.25 stroke, 18px: at 16px/2 the glyph was lighter than the
-                  bold text beside it and the pair looked mismatched. */}
+                  bold text beside it and the pair looked mismatched.
+
+                  Not below 420px: with the icons the row is ~384px, wider than
+                  a 390px phone's 358px column, and it ran past the page's
+                  margins to the screen edge. Without them it is ~306px. */}
               <Icon
                 strokeWidth={2.25}
-                className={`w-[18px] h-[18px] shrink-0 transition-colors duration-500 ${
+                className={`hidden min-[420px]:block w-[18px] h-[18px] shrink-0 transition-colors duration-500 ${
                   isActive ? "text-brand" : "text-slate-500"
                 }`}
               />
@@ -167,7 +171,7 @@ export function TrustBadges() {
                     be believed on. Leading is pinned tight because the default
                     1.43 padded a 20px line box around 14px text and opened a
                     gap the caption then had to jump. */}
-                <span className="text-sm sm:text-[15px] font-bold leading-[1.1] tracking-tight text-slate-900 whitespace-nowrap">
+                <span className="text-[13px] min-[360px]:text-sm sm:text-[15px] font-bold leading-[1.1] tracking-tight text-slate-900 whitespace-nowrap">
                   {b.value}
                 </span>
                 {/* Never lighter than slate-600 here, and this is slate-700.

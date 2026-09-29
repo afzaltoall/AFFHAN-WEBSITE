@@ -134,15 +134,17 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
         ref={ref}
         href="/shipping/"
         {...hover}
-        className="group relative flex h-full items-center gap-4 overflow-hidden rounded-2xl bg-white/85 px-4 pb-8 pt-5 shadow-md ring-1 ring-brand/20 backdrop-blur-sm transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:gap-5 sm:px-6 md:pb-9"
+        className="group relative flex h-full items-center gap-4 overflow-hidden rounded-2xl bg-white/85 px-5 pb-8 pt-5 shadow-md ring-1 ring-brand/20 backdrop-blur-sm transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579] motion-reduce:transition-none motion-reduce:hover:translate-y-0 md:pb-9 lg:gap-5 lg:px-6"
       >
         {splash}
         {sea("h-7 md:h-9")}
         <span aria-hidden="true" className="relative flex shrink-0 items-center animate-float-medium">
-          <Image {...SHIP_MARK_HERO} alt="" sizes="64px" className="block h-12 w-auto object-contain sm:h-14 md:h-16" />
+          <Image {...SHIP_MARK_HERO} alt="" sizes="64px" className="block h-12 w-auto object-contain lg:h-16" />
         </span>
         <span className="relative flex min-w-0 flex-1 flex-col">
-          <span className="block bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[14px] font-extrabold uppercase leading-none tracking-[0.18em] text-transparent sm:text-[16px]">
+          {/* One line always: at 768 the card's text column is ~190px, and at
+              16px / 0.18em the name broke into AFFHAN / SHIPPING. */}
+          <span className="block whitespace-nowrap bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[14px] font-extrabold uppercase leading-none tracking-[0.14em] text-transparent lg:text-[16px] lg:tracking-[0.18em]">
             AFFHAN Shipping
           </span>
           {/* The shipping page's own summary of what it offers, not new copy. */}
@@ -152,7 +154,7 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
         </span>
         <span
           aria-hidden="true"
-          className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-dark text-white shadow-sm transition-transform duration-300 group-hover:translate-x-0.5"
+          className="relative hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-dark text-white shadow-sm transition-transform duration-300 group-hover:translate-x-0.5 min-[360px]:flex"
         >
           <ArrowRight size={16} />
         </span>
