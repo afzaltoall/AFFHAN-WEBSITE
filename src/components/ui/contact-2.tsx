@@ -218,6 +218,10 @@ export const Contact2 = ({
           background-clip: text;
           color: transparent;
         }
+        /* Centred (below lg), "N" leaves 0.055em of empty side bearing on the
+           right that "A" does not leave on the left, so the word's letters sat
+           1-1.5px left of centre. A left margin moves them right by half. */
+        @media (max-width: 1023.98px) { .contact-word-accent { margin-left: 0.06em; } }
         .contact-rule {
           animation: contact-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
           transform-origin: center;
