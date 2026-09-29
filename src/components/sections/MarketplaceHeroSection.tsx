@@ -208,8 +208,10 @@ export function MarketplaceHeroSection({
           {/* A column below lg: the shipping pill gets its own line above the
               badge, since beside it there is no room. From lg it is taken out
               of the flow again (absolute, in ShippingBar) and the line is the
-              badge alone, centred. */}
-          <div className="relative mb-3 flex flex-col items-center gap-3 lg:flex-row lg:justify-center lg:gap-0">
+              badge alone, centred. The pill is 58px on a 34px line, so it
+              reaches 12px below it; lg:mb-6 keeps that clear of the headline,
+              which at 1280-1439 starts under the pill's right end. */}
+          <div className="relative mb-3 flex flex-col items-center gap-3 lg:mb-6 lg:flex-row lg:justify-center lg:gap-0">
             {/* The Affhan.com lockup (components/ui/AffhanBrandBar) sat at the
                 left of this line until 2026-09-25, when the owner took it out
                 and gave its place to the shipping pill. The component is kept
@@ -229,6 +231,10 @@ export function MarketplaceHeroSection({
                 the size it was designed at). Below 1280 there is no room here
                 at any size, and the same card is shown full width under the
                 search instead (TripBanner, further down).
+                min-[1536px] rather than 2xl, on purpose: Tailwind emits the
+                named breakpoints after the arbitrary min-[...] ones, so a 2xl
+                size beat min-[1600px] everywhere above 1600 (measured: 280px
+                wide at 1920). All-arbitrary, they sort by width.
                 Cut from the owner's public/china-trip.png (2048x768, 2.5MB) to
                 640x240 WebP, 51KB, for the 2x screens this width implies. If
                 the picture changes shape, change this box to match, or
@@ -240,7 +246,7 @@ export function MarketplaceHeroSection({
                 The link's name says where it goes, so the picture is alt="". */}
             <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] xl:block">
               <TripBanner
-                className="h-[75px] w-[200px] min-[1440px]:h-[90px] min-[1440px]:w-[240px] 2xl:h-[105px] 2xl:w-[280px] min-[1600px]:h-[120px] min-[1600px]:w-[320px]"
+                className="h-[75px] w-[200px] min-[1440px]:h-[90px] min-[1440px]:w-[240px] min-[1536px]:h-[105px] min-[1536px]:w-[280px] min-[1600px]:h-[120px] min-[1600px]:w-[320px]"
                 src="/china-trip-hero.webp"
                 width={640}
                 height={240}
