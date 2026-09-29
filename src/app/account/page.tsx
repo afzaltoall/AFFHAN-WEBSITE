@@ -259,7 +259,7 @@ export default function AccountPage() {
 
       <p className="mt-4 flex items-start gap-2 px-1 text-[12px] leading-relaxed text-slate-400">
         <ShieldCheck size={14} className="mt-px shrink-0" />
-        Your details are used to answer your inquiries. Affhan does not sell or share them.
+        Your details are used to answer your inquiries. AFFHAN does not sell or share them.
       </p>
     </Fade>
   );

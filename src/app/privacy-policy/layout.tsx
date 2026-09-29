@@ -1,24 +1,24 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy | Affhan",
+  title: "Privacy Policy | AFFHAN",
   description:
-    "How Affhan International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
+    "How AFFHAN International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
   alternates: { canonical: "https://affhan.com/privacy-policy/" },
   openGraph: {
-    title: "Privacy Policy | Affhan",
+    title: "Privacy Policy | AFFHAN",
     description:
-      "How Affhan International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
+      "How AFFHAN International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
     url: "https://affhan.com/privacy-policy/",
     type: "website",
-    siteName: "Affhan",
+    siteName: "AFFHAN",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Privacy Policy | Affhan",
+    title: "Privacy Policy | AFFHAN",
     description:
-      "How Affhan International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
+      "How AFFHAN International collects, uses and protects the information you share when requesting a quote or contacting our sourcing team.",
   },
 };
 

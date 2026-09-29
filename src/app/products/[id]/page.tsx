@@ -23,7 +23,7 @@ function parseImages(allImages: unknown): string[] {
 
 /** Google shows about this much of a title before cutting it off. */
 const TITLE_MAX = 60;
-const TITLE_SUFFIX = " | Affhan";
+const TITLE_SUFFIX = " | AFFHAN";
 /** Below this there is no room left to say what the thing actually is. */
 const MIN_NAME = 24;
 const DESC_MAX = 155;
@@ -82,7 +82,7 @@ function productDescription(
   ].join(" · ");
   if (summary.trim()) return clip(summary, DESC_MAX);
   return clip(
-    `Source ${name} through Affhan — request a quote and our team handles sourcing, quality control, and global shipping.`,
+    `Source ${name} through AFFHAN — request a quote and our team handles sourcing, quality control, and global shipping.`,
     DESC_MAX,
   );
 }
@@ -129,7 +129,7 @@ export async function generateMetadata({
       description: desc,
       url: `https://affhan.com/products/${product.id}/`,
       type: "website",
-      siteName: "Affhan",
+      siteName: "AFFHAN",
       images: product.imageUrl ? [product.imageUrl] : undefined,
     },
     twitter: {

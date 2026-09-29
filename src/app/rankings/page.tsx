@@ -19,24 +19,24 @@ import { getCachedRankings, DEFAULT_GROUP_LIMIT } from "@/lib/rankings";
 // Everything past the first page still goes through the API from the client.
 
 export const metadata: Metadata = {
-  title: "Top Ranking | Affhan",
+  title: "Top Ranking | AFFHAN",
   description:
-    "The most-stocked categories in Affhan's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
+    "The most-stocked categories in AFFHAN's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
   alternates: { canonical: "https://affhan.com/rankings/" },
   openGraph: {
-    title: "Top Ranking | Affhan",
+    title: "Top Ranking | AFFHAN",
     description:
-      "The most-stocked categories in Affhan's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
+      "The most-stocked categories in AFFHAN's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
     url: "https://affhan.com/rankings/",
     type: "website",
-    siteName: "Affhan",
+    siteName: "AFFHAN",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Top Ranking | Affhan",
+    title: "Top Ranking | AFFHAN",
     description:
-      "The most-stocked categories in Affhan's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
+      "The most-stocked categories in AFFHAN's sourcing catalogue, with a sample of products from each. Request a quote on anything you see.",
   },
 };
 

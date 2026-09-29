@@ -39,24 +39,24 @@ export async function generateMetadata({
   // own worth indexing separately.
   if (!category) {
     return {
-      title: "Product Catalog | Affhan",
+      title: "Product Catalog | AFFHAN",
       description:
-        "Browse Affhan's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
+        "Browse AFFHAN's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
       alternates: { canonical: `${SITE}/products/` },
       openGraph: {
-        title: "Product Catalog | Affhan",
+        title: "Product Catalog | AFFHAN",
         description:
-          "Browse Affhan's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
+          "Browse AFFHAN's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
         url: `${SITE}/products/`,
         type: "website",
-        siteName: "Affhan",
+        siteName: "AFFHAN",
         images: [{ url: "/images/logo.png", width: 800, height: 600 }],
       },
       twitter: {
         card: "summary_large_image",
-        title: "Product Catalog | Affhan",
+        title: "Product Catalog | AFFHAN",
         description:
-          "Browse Affhan's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
+          "Browse AFFHAN's global sourcing catalog across hundreds of categories. Find a product like what you need and request a quote — we source, QC and ship it.",
       },
     };
   }
@@ -65,16 +65,16 @@ export async function generateMetadata({
   const description =
     `Source ${category.name} in bulk from verified China suppliers. Browse ${count}+ ` +
     `${category.name} products, request quotes, and get factory-direct pricing through ` +
-    `Affhan's global sourcing network.`;
+    `AFFHAN's global sourcing network.`;
 
   return {
-    title: `${category.name} — Wholesale Suppliers & Bulk Sourcing | Affhan`,
+    title: `${category.name} — Wholesale Suppliers & Bulk Sourcing | AFFHAN`,
     description,
     // Self-referencing, so each category is its own page rather than 509
     // duplicates of /products/.
     alternates: { canonical: `${SITE}/products/?categoryId=${category.id}` },
     openGraph: {
-      title: `${category.name} — Wholesale Suppliers & Bulk Sourcing | Affhan`,
+      title: `${category.name} — Wholesale Suppliers & Bulk Sourcing | AFFHAN`,
       description,
       url: `${SITE}/products/?categoryId=${category.id}`,
     },

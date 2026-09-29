@@ -28,7 +28,7 @@ export const COUNTER = {
 
 // ---- 01 Opening --------------------------------------------------------------
 export const HERO = {
-  eyebrow: "Affhan International presents",
+  eyebrow: "AFFHAN International presents",
   /** Set in capitals by CSS; the sr-only tail gives search and screen readers the destination. */
   titleLines: ["Free", "Business", "Trip"],
   titleSrTail: " to China",

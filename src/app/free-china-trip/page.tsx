@@ -17,9 +17,9 @@ import { displayFont } from "@/components/CinematicExperience/fonts";
  * the countdown.
  */
 
-const TITLE = "Free China Business Trip | Affhan";
+const TITLE = "Free China Business Trip | AFFHAN";
 const DESCRIPTION =
-  "A free China business trip with Affhan: round-trip flight, hotel stay, local transport and the China trip experience. Apply online in a few minutes.";
+  "A free China business trip with AFFHAN: round-trip flight, hotel stay, local transport and the China trip experience. Apply online in a few minutes.";
 const PAGE_URL = "https://affhan.com/free-china-trip/";
 
 export const metadata: Metadata = {
@@ -31,8 +31,8 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     url: PAGE_URL,
     type: "website",
-    siteName: "Affhan",
-    images: [{ url: "/china-trip-og.jpg", width: 1200, height: 450, alt: "Affhan's free China business trip" }],
+    siteName: "AFFHAN",
+    images: [{ url: "/china-trip-og.jpg", width: 1200, height: 450, alt: "AFFHAN's free China business trip" }],
   },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION, images: ["/china-trip-og.jpg"] },
 };

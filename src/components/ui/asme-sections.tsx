@@ -124,7 +124,7 @@ function Section1Hero() {
           className="mb-6 max-w-lg px-4 text-sm leading-relaxed text-[#5a6e77] sm:mb-8 sm:text-base"
           style={reveal(at(0.34))}
         >
-          Get Affhan&apos;s newest openings and team stories delivered to your inbox. No spam &mdash; just opportunities to build a career without borders.
+          Get AFFHAN&apos;s newest openings and team stories delivered to your inbox. No spam &mdash; just opportunities to build a career without borders.
         </p>
 
         {/* The job-alerts email field used to sit here. It was a second
@@ -140,7 +140,7 @@ function Section1Hero() {
           style={reveal(at(0.56))}
           className="mt-6 flex items-center gap-2 rounded-full bg-[#08222e] px-8 py-3 text-sm font-medium text-[#FAFAF7] transition-colors hover:bg-[#0d3243] sm:mt-8"
         >
-          Life at Affhan
+          Life at AFFHAN
         </Link>
 
         {/* Social Icons Footer — Affhan's official channels. mt-14 is a chosen
@@ -292,7 +292,7 @@ function Section4Philosophy() {
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl text-slate-900 tracking-tight mb-16 md:mb-24 text-center sm:text-left"
         >
-          <span className={cn("italic font-light text-slate-400", instrument.className)}>Careers</span> x Affhan
+          <span className={cn("italic font-light text-slate-400", instrument.className)}>Careers</span> x AFFHAN
         </motion.h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">

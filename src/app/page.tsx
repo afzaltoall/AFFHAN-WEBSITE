@@ -34,15 +34,15 @@ const websiteSchema = {
   url: `${SITE_URL}/`,
   // WebSite.name and og:site_name are the SAME signal to Google — both feed
   // the site name shown above a result — so they cannot be allowed to
-  // disagree, or Google picks between them on its own. og:site_name now says
-  // "Affhan" on all thirteen pages that set one, so this does too. Title
-  // case rather than all-caps is a brand-style decision taken on 2026-09-15;
-  // the legal entity keeps its capitals, here and in the Organization node.
+  // disagree, or Google picks between them on its own. og:site_name says
+  // "AFFHAN" on every page that sets one, so this does too. All-caps is the
+  // brand style again from 2026-09-29, reversing the title-case decision of
+  // 2026-09-15; Dubai and Chennai had already gone back on 2026-09-21.
   //
-  // This is the one schema value that moved. Organization.name in the root
-  // layout still reads AFFHAN International Pvt Ltd, and alternateName below
-  // keeps the registered name attached to the site itself.
-  name: "Affhan",
+  // Organization.name in the root layout reads AFFHAN International Pvt Ltd,
+  // and alternateName below keeps the registered name attached to the site
+  // itself.
+  name: "AFFHAN",
   alternateName: "AFFHAN International Pvt Ltd",
   inLanguage: "en",
   publisher: { "@id": ORG_ID },

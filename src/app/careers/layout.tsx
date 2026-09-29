@@ -7,9 +7,9 @@ import type { Metadata } from "next";
 // sourcing-company-in-<city> pages describe themselves — the careers page was
 // quietly bidding for their queries with a page that has no service on it. The
 // roles come first now, and the cities sit in their own sentence.
-const PAGE_TITLE = "Careers at Affhan | Sourcing, QC and Freight Jobs";
+const PAGE_TITLE = "Careers at AFFHAN | Sourcing, QC and Freight Jobs";
 const PAGE_DESCRIPTION =
-  "Jobs at Affhan International. Open roles in sourcing, quality control, freight and account management. Hiring in Chennai, Guangzhou, London and Dubai.";
+  "Jobs at AFFHAN International. Open roles in sourcing, quality control, freight and account management. Hiring in Chennai, Guangzhou, London and Dubai.";
 
 // Applies to /careers/ and is inherited by /careers/<role>/, which is why each
 // role page sets its own title, description, canonical and OG card in full.
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     title: PAGE_TITLE,
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/careers/",
-    siteName: "Affhan",
+    siteName: "AFFHAN",
     type: "website",
     images: [
       {

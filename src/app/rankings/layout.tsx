@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Top Ranking | Affhan",
+  title: "Top Ranking | AFFHAN",
   description:
-    "Explore top-ranking and popular products across Affhan's global sourcing categories. Find what's trending and request a quote.",
+    "Explore top-ranking and popular products across AFFHAN's global sourcing categories. Find what's trending and request a quote.",
   alternates: { canonical: "https://affhan.com/rankings/" },
 };
 

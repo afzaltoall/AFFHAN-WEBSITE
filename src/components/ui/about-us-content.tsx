@@ -265,7 +265,7 @@ export default function AboutUsContent() {
                 <div className="relative">
                   <span className="absolute -left-6 md:-left-10 -top-2 text-4xl md:text-6xl text-[#c7a461] font-serif leading-none">“</span>
                   <blockquote className="text-lg md:text-2xl lg:text-[1.75rem] font-light leading-[1.6] italic text-white/95">
-                    Affhan was never built by one person&apos;s effort. It is built by the hard work and dedication of every single person who calls this company home. There is no finish line for us, no end point to growth. Our vision is simple to build a platform big enough to carry the ambitions of every business we serve, and strong enough to help them succeed.
+                    AFFHAN was never built by one person&apos;s effort. It is built by the hard work and dedication of every single person who calls this company home. There is no finish line for us, no end point to growth. Our vision is simple to build a platform big enough to carry the ambitions of every business we serve, and strong enough to help them succeed.
                   </blockquote>
                 </div>
 
@@ -388,7 +388,7 @@ export default function AboutUsContent() {
               How the group is put together
             </h3>
             <p>
-              Affhan is not one company with agents abroad. Each country we work in has its own
+              AFFHAN is not one company with agents abroad. Each country we work in has its own
               registered entity and its own staff: AFFHAN INTERNATIONAL PVT LTD in Chennai,
               GUANGZHOU AFFHAN INTERNATIONAL CO., LTD in Guangdong, AFFHAN INTERNATIONAL PTE.
               LTD. in Singapore, AFFHAN INTERNATIONAL SDN. BHD. in Melaka, AFFHAN SHIPPING LLC
@@ -420,7 +420,7 @@ export default function AboutUsContent() {
               Who you will be dealing with
             </h3>
             <p>
-              Afzal Khan founded Affhan and still runs it as Founder and CEO. Mohamed Yacoob is
+              Afzal Khan founded AFFHAN and still runs it as Founder and CEO. Mohamed Yacoob is
               Chief Operating Officer, Jamil Ahamed Chief Marketing Officer, Iliyas Ahmed Chief
               Financial Officer and Jafeer Ahamed Chief Technology Officer. Operations overseas
               are run by people who live there: Nandhinee in the UAE, Anis Dawood in the United

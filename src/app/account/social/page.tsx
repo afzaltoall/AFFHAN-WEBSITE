@@ -79,7 +79,7 @@ export default function SocialPage() {
     <Fade>
       <SectionHeader
         title="Social pages"
-        subtitle="Where Affhan posts, and what each channel is for."
+        subtitle="Where AFFHAN posts, and what each channel is for."
       />
 
       <div className="grid gap-3 sm:grid-cols-2">

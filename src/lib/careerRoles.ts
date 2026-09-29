@@ -139,17 +139,17 @@ export const ROLES: CareerRole[] = [
     title: "Sourcing Specialist",
     offices: ["guangzhou", "chennai"],
     blurb:
-      "Find the factory, agree the price, and hold the supplier to it — the buying end of every order Affhan ships.",
+      "Find the factory, agree the price, and hold the supplier to it — the buying end of every order AFFHAN ships.",
     context:
-      "Affhan's catalogue runs to more than 10 lakh items across 500+ categories, but nothing on the site carries a price, because nothing on it is stock. Every job starts as an inquiry: a photograph, a specification, a quantity and a destination. Turning that into a named factory and a landed cost is this role.",
+      "AFFHAN's catalogue runs to more than 10 lakh items across 500+ categories, but nothing on the site carries a price, because nothing on it is stock. Every job starts as an inquiry: a photograph, a specification, a quantity and a destination. Turning that into a named factory and a landed cost is this role.",
     features: [
       "Build and manage Chinese supplier relationships",
       "Negotiate pricing, MOQs and lead times",
       "Source products to match client requirements",
     ],
-    metaTitle: "Sourcing Specialist Job | Affhan Guangzhou & Chennai",
+    metaTitle: "Sourcing Specialist Job | AFFHAN Guangzhou & Chennai",
     metaDescription:
-      "Sourcing Specialist role at Affhan International in Guangzhou or Chennai. Find factories, negotiate pricing and MOQs, and source to client specification.",
+      "Sourcing Specialist role at AFFHAN International in Guangzhou or Chennai. Find factories, negotiate pricing and MOQs, and source to client specification.",
   },
   {
     id: "02",
@@ -159,15 +159,15 @@ export const ROLES: CareerRole[] = [
     blurb:
       "Stand in the factory before the container is sealed, and say whether it ships.",
     context:
-      "Most of what Affhan moves is made to a customer's specification rather than pulled off a shelf, and the customer is usually several thousand miles from the line it is made on. The inspection in Guangdong is the only point at which a problem is still cheap to fix.",
+      "Most of what AFFHAN moves is made to a customer's specification rather than pulled off a shelf, and the customer is usually several thousand miles from the line it is made on. The inspection in Guangdong is the only point at which a problem is still cheap to fix.",
     features: [
       "Conduct on-site factory inspections and audits",
       "Enforce international compliance standards",
       "Document defects and drive corrective action",
     ],
-    metaTitle: "Quality Control Inspector Job in Guangzhou | Affhan",
+    metaTitle: "Quality Control Inspector Job in Guangzhou | AFFHAN",
     metaDescription:
-      "QC Inspector role at Affhan International in Guangzhou, China. Run on-site factory inspections and audits, enforce compliance and drive corrective action.",
+      "QC Inspector role at AFFHAN International in Guangzhou, China. Run on-site factory inspections and audits, enforce compliance and drive corrective action.",
   },
   {
     id: "03",
@@ -177,7 +177,7 @@ export const ROLES: CareerRole[] = [
     blurb:
       "Route it, book it, clear it, and know where it is when someone asks.",
     context:
-      "Affhan is an NVOCC as well as a forwarder, so the choice between LCL and FCL, sea and air, and one routing and another is made in-house rather than handed to a carrier. Customs paperwork is handled at both ends, which is why this role sits in Chennai and Dubai rather than at a single desk.",
+      "AFFHAN is an NVOCC as well as a forwarder, so the choice between LCL and FCL, sea and air, and one routing and another is made in-house rather than handed to a carrier. Customs paperwork is handled at both ends, which is why this role sits in Chennai and Dubai rather than at a single desk.",
     features: [
       "Oversee end-to-end freight and forwarding",
       "Optimise sea, air and multimodal routing",
@@ -185,7 +185,7 @@ export const ROLES: CareerRole[] = [
     ],
     metaTitle: "Freight & Logistics Coordinator Job | Chennai, Dubai",
     metaDescription:
-      "Logistics & Freight Coordinator role at Affhan International in Chennai or Dubai. Sea and air routing, LCL and FCL, customs clearance and documentation.",
+      "Logistics & Freight Coordinator role at AFFHAN International in Chennai or Dubai. Sea and air routing, LCL and FCL, customs clearance and documentation.",
   },
   {
     id: "04",
@@ -201,9 +201,9 @@ export const ROLES: CareerRole[] = [
       "Turn quote requests into sourced orders",
       "Grow accounts across global markets",
     ],
-    metaTitle: "B2B Account Manager Job | Affhan London & Singapore",
+    metaTitle: "B2B Account Manager Job | AFFHAN London & Singapore",
     metaDescription:
-      "B2B Account Manager role at Affhan International in London or Singapore. Own client accounts from the first quote request to the delivered container.",
+      "B2B Account Manager role at AFFHAN International in London or Singapore. Own client accounts from the first quote request to the delivered container.",
   },
 ];
 

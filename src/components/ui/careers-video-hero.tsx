@@ -180,11 +180,11 @@ export function CareersVideoHero() {
               instrument.className
             )}>
               Grow <em className="not-italic text-[hsl(var(--muted-foreground))]/88">without limits</em>,{" "}
-              with <em className="not-italic text-[hsl(var(--muted-foreground))]/88">Affhan</em>.
+              with <em className="not-italic text-[hsl(var(--muted-foreground))]/88">AFFHAN</em>.
             </h1>
 
             <p className="animate-fade-rise-delay text-[hsl(var(--muted-foreground))]/92 text-base sm:text-lg max-w-2xl mt-8 leading-relaxed font-[family-name:var(--font-geist-sans)]">
-              From Chennai to Guangzhou, London to Dubai, Affhan sources, inspects and moves the world&apos;s goods across 190+ markets. Join the team that turns global trade into everyday craft &mdash; and build a career without borders.
+              From Chennai to Guangzhou, London to Dubai, AFFHAN sources, inspects and moves the world&apos;s goods across 190+ markets. Join the team that turns global trade into everyday craft &mdash; and build a career without borders.
             </p>
 
             <button

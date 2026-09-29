@@ -377,7 +377,7 @@ export function ShippingQuoteSection() {
       setFailure("Your request didn't go through. Everything you typed is still here, so send it again in a moment.");
     } catch {
       setPhase({ kind: "editing" });
-      setFailure("We couldn't reach Affhan. Check your connection and send it again; everything you typed is still here.");
+      setFailure("We couldn't reach AFFHAN. Check your connection and send it again; everything you typed is still here.");
     }
   }
 

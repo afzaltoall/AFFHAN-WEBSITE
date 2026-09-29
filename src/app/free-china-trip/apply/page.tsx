@@ -16,8 +16,8 @@ import { NO_SCRIPT } from "@/components/TripApplication/content";
  * Not indexed: it is a form, and /free-china-trip/ is the page to find.
  */
 
-const TITLE = "Apply | Free China Business Trip | Affhan";
-const DESCRIPTION = "Apply for Affhan's Free China Business Trip: tell us about yourself and your business in a few minutes.";
+const TITLE = "Apply | Free China Business Trip | AFFHAN";
+const DESCRIPTION = "Apply for AFFHAN's Free China Business Trip: tell us about yourself and your business in a few minutes.";
 
 export const metadata: Metadata = {
   title: TITLE,

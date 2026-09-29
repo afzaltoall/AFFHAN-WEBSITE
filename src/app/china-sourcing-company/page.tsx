@@ -16,7 +16,7 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 export const revalidate = 3600;
 
 // 62 chars — inside Google's ~65 char truncation point.
-const PAGE_TITLE = "China Sourcing Company & Import Export Agent | Affhan";
+const PAGE_TITLE = "China Sourcing Company & Import Export Agent | AFFHAN";
 
 // 154 chars. Carries both target phrases without reading like a keyword list.
 const PAGE_DESCRIPTION =
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/china-sourcing-company/",
     type: "website",
-    siteName: "Affhan",
+    siteName: "AFFHAN",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: { card: "summary_large_image", title: PAGE_TITLE, description: PAGE_DESCRIPTION },
@@ -338,7 +338,7 @@ export default async function ChinaSourcingCompanyPage() {
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10 lg:mb-12">
             <h2 className="text-[1.75rem] sm:text-4xl font-semibold tracking-[-0.018em] leading-[1.12] text-balance text-slate-900 mb-3">
-              Why choose Affhan as your China sourcing company
+              Why choose AFFHAN as your China sourcing company
             </h2>
             <p className="text-slate-600 max-w-2xl mx-auto text-sm sm:text-base leading-[1.65] text-pretty">
               Four things separate a sourcing partner from a broker, and all four only show up on the day something goes wrong.
@@ -348,7 +348,7 @@ export default async function ChinaSourcingCompanyPage() {
             {[
               {
                 h: "Our own team, not outsourced",
-                p: "The buyers negotiating your price and the inspectors walking the factory floor are Affhan staff. Nothing is handed to a third-party agent whose interests you cannot see.",
+                p: "The buyers negotiating your price and the inspectors walking the factory floor are AFFHAN staff. Nothing is handed to a third-party agent whose interests you cannot see.",
               },
               {
                 h: "Inspection before payment",

@@ -110,7 +110,7 @@ export function ShippingContent() {
             <div>
               <Reveal>
                 <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">
-                  Why Affhan
+                  Why AFFHAN
                 </span>
                 <h2 className="mt-4 text-4xl font-medium tracking-tight sm:text-5xl lg:text-[4vw] leading-[1.1] tracking-[-0.02em]">
                   One company for the goods and the freight

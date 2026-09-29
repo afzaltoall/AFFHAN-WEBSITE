@@ -30,7 +30,7 @@ export const SHIPPING_FAQS = [
   {
     question: "What is the difference between a freight forwarder and an NVOCC?",
     answer:
-      "A forwarder arranges carriage on your behalf and the contract sits between you and the shipping line. An NVOCC takes the contract itself and issues its own bill of lading, then buys the space from the line. Affhan is an NVOCC, so the booking is ours to answer for — if something moves, you are dealing with the company that holds the contract rather than being passed to the carrier.",
+      "A forwarder arranges carriage on your behalf and the contract sits between you and the shipping line. An NVOCC takes the contract itself and issues its own bill of lading, then buys the space from the line. AFFHAN is an NVOCC, so the booking is ours to answer for — if something moves, you are dealing with the company that holds the contract rather than being passed to the carrier.",
   },
   {
     question: "Do you handle customs clearance at both ends?",

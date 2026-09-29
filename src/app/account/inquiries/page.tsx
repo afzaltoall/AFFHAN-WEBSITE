@@ -391,7 +391,7 @@ export default function InquiriesPage() {
                     <div className="mt-2.5 rounded-xl border border-brand/15 bg-brand/[0.04] px-3.5 py-3">
                       <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-brand-dark">
                         <BadgeCheck size={13} className="shrink-0" />
-                        Message from the Affhan team
+                        Message from the AFFHAN team
                       </p>
                       <p className="text-[13.5px] font-medium leading-relaxed text-slate-800">
                         {row.message}

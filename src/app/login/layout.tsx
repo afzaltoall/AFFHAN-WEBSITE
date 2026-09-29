@@ -11,25 +11,25 @@ import type { Metadata } from "next";
  * of the company, and nothing to do with a sign-in form.
  */
 export const metadata: Metadata = {
-  title: "Sign in | Affhan",
+  title: "Sign in | AFFHAN",
   description:
-    "Sign in to your Affhan account with the email and password you registered, or create one to save products and follow up on your quote requests.",
+    "Sign in to your AFFHAN account with the email and password you registered, or create one to save products and follow up on your quote requests.",
   robots: { index: false, follow: true },
   alternates: { canonical: "https://affhan.com/login/" },
   openGraph: {
-    title: "Sign in | Affhan",
+    title: "Sign in | AFFHAN",
     description:
-      "Sign in to your Affhan account with the email and password you registered, or create one to save products and follow up on your quote requests.",
+      "Sign in to your AFFHAN account with the email and password you registered, or create one to save products and follow up on your quote requests.",
     url: "https://affhan.com/login/",
     type: "website",
-    siteName: "Affhan",
+    siteName: "AFFHAN",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Sign in | Affhan",
+    title: "Sign in | AFFHAN",
     description:
-      "Sign in to your Affhan account with the email and password you registered, or create one to save products and follow up on your quote requests.",
+      "Sign in to your AFFHAN account with the email and password you registered, or create one to save products and follow up on your quote requests.",
   },
 };
 

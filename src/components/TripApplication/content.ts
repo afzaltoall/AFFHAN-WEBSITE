@@ -10,11 +10,11 @@ export const PAGE_TITLE = "Apply for the Free China Business Trip";
 /** Without JavaScript the application can't run; say so, and offer a way. */
 export const NO_SCRIPT = {
   line: "This application needs JavaScript switched on in your browser.",
-  contact: { href: "/contact/", label: "Contact Affhan instead" },
+  contact: { href: "/contact/", label: "Contact AFFHAN instead" },
 } as const;
 
 export const INTRO = {
-  eyebrow: "Affhan International presents",
+  eyebrow: "AFFHAN International presents",
   heading: ["Your journey", "starts here"],
   line: "Apply for the Free China Business Trip.",
   body: "Tell us a little about yourself and your business so we can review your application and understand your travel profile.",
@@ -92,12 +92,12 @@ export const SUBMIT = {
 } as const;
 
 export const SUCCESS = {
-  eyebrow: "Affhan International",
+  eyebrow: "AFFHAN International",
   title: "Application received",
   line: "Thank you for applying to the Free China Business Trip.",
   next: "Your application has been recorded. We'll be in touch with the next steps.",
   reference: "Your reference",
-  home: { href: "/", label: "Back to Affhan" },
+  home: { href: "/", label: "Back to AFFHAN" },
   trip: { href: "/free-china-trip/", label: "View trip details" },
 } as const;
 

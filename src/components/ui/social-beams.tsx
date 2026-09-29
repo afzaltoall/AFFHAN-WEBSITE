@@ -193,7 +193,7 @@ export function SocialBeams() {
         ref={centerRef}
         className="z-10 flex size-28 sm:size-36 items-center justify-center rounded-full border border-brand/30 bg-white p-4 shadow-[0_10px_50px_-12px_rgba(23,101,121,0.6)] ring-4 ring-brand/10"
       >
-        <Image src="/logo.png" alt="Affhan" width={140} height={140} className="object-contain" />
+        <Image src="/logo.png" alt="AFFHAN" width={140} height={140} className="object-contain" />
       </div>
 
       {/* Right social column */}

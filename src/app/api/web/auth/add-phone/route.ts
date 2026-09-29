@@ -46,7 +46,7 @@ export async function POST(request: Request) {
     });
     if (owner && owner.id !== user.id) {
       return NextResponse.json(
-        { error: "That number is already on another Affhan account." },
+        { error: "That number is already on another AFFHAN account." },
         { status: 409 }
       );
     }

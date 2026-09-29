@@ -141,7 +141,7 @@ function ThinkingSteps({ complete = false }: { complete?: boolean }) {
         <div className="affhan-drift shrink-0" aria-hidden="true">
           <Image
             src="/affhan-robot.webp"
-            alt="Affhan Assistant"
+            alt="AFFHAN Assistant"
             width={72}
             height={71}
             className="size-16 object-contain drop-shadow-[0_8px_18px_rgba(39,168,196,0.35)] sm:size-[72px]"
@@ -158,7 +158,7 @@ function ThinkingSteps({ complete = false }: { complete?: boolean }) {
             <div className="mb-1 flex items-center gap-1.5">
               <Sparkles size={13} className="text-[#27a8c4]" />
               <span className="text-[11px] font-bold uppercase tracking-wider text-[#176579]">
-                Affhan AI Sourcing
+                AFFHAN AI Sourcing
               </span>
             </div>
             <p key={quote} className="text-sm font-medium leading-relaxed text-slate-700 motion-safe:animate-[fadeIn_450ms_ease-out]">

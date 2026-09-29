@@ -14,7 +14,7 @@ import type { EmailMessage } from "@/lib/email";
 // against. Text first, a little inline CSS, no images, no links to click.
 // ---------------------------------------------------------------------------
 
-const BRAND = "Affhan Group";
+const BRAND = "AFFHAN Group";
 const SUPPORT = "https://affhan.com/contact/";
 
 const TTL_MINUTES = Math.round(OTP_TTL_MS / 60000);

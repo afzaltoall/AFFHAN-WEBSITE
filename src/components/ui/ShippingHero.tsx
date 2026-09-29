@@ -171,7 +171,7 @@ export function ShippingHero({ officeCount }: { officeCount: number }) {
                 transition={{ duration: 1 }}
                 className="text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]"
               >
-                Affhan Shipping
+                AFFHAN Shipping
               </motion.span>
 
               <motion.h1

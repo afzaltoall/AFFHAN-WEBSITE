@@ -16,9 +16,9 @@ import type { Metadata } from "next";
  * worse than an absent one — and on a noindex page a self-canonical adds
  * nothing the directive has not already said.
  */
-const TITLE = "Reset your password | Affhan";
+const TITLE = "Reset your password | AFFHAN";
 const DESCRIPTION =
-  "Reset the password on your Affhan account. We email you a code to confirm it is you, then you choose a new password and sign back in.";
+  "Reset the password on your AFFHAN account. We email you a code to confirm it is you, then you choose a new password and sign back in.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     url: "https://affhan.com/forgot-password/",
     type: "website",
-    siteName: "Affhan",
+    siteName: "AFFHAN",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: {

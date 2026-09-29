@@ -15,10 +15,10 @@ const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").
 
 export const revalidate = 3600;
 
-const PAGE_TITLE = "Sourcing Company in France | China Sourcing Agent | Affhan";
+const PAGE_TITLE = "Sourcing Company in France | China Sourcing Agent | AFFHAN";
 
 const PAGE_DESCRIPTION =
-  "Affhan is a China sourcing agent in France handling factory sourcing, inspection, EU customs clearance and freight into Le Havre, Marseille and Fos.";
+  "AFFHAN is a China sourcing agent in France handling factory sourcing, inspection, EU customs clearance and freight into Le Havre, Marseille and Fos.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     description: PAGE_DESCRIPTION,
     url: "https://affhan.com/sourcing-company-france/",
     type: "website",
-    siteName: "Affhan",
+    siteName: "AFFHAN",
     images: [{ url: "/images/logo.png", width: 800, height: 600 }],
   },
   twitter: { card: "summary_large_image", title: PAGE_TITLE, description: PAGE_DESCRIPTION },
@@ -114,7 +114,7 @@ const schema = {
       foundingDate: FOUNDING_DATE,
       sameAs: [...SOCIAL_PROFILES],
       description:
-        "Affhan is a China sourcing agent in France handling factory sourcing, inspection, EU customs clearance and freight into Le Havre, Marseille and Fos.",
+        "AFFHAN is a China sourcing agent in France handling factory sourcing, inspection, EU customs clearance and freight into Le Havre, Marseille and Fos.",
       // Confirmed by the company on 2026-09-16. Before that this office had no
       // published number anywhere and brand.ts carried no telephone for it.
       telephone: OFFICES.france.telephone,
@@ -180,14 +180,14 @@ export default async function SourcingCompanyFrancePage() {
                 Sourcing Company &amp; China Sourcing Agent in France — <span className="text-[#1d7e93]">AFFHAN Group</span>
               </h1>
               <p className="hero-rise hero-rise-2 max-w-2xl mx-auto text-base sm:text-[17px] text-slate-600 mb-9 sm:mb-10 leading-[1.65] tracking-[-0.004em] text-pretty">
-                Affhan has been buying out of China since {FOUNDED_YEAR}, and now runs seven offices — one of them in Paris. For a French buyer that means one company standing at both ends of the shipment: our people in Guangzhou choose the factory and inspect what comes off the line, and our people in Europe handle the paperwork that gets the container off the quay at <strong className="text-slate-800">Le Havre</strong>.
+                AFFHAN has been buying out of China since {FOUNDED_YEAR}, and now runs seven offices — one of them in Paris. For a French buyer that means one company standing at both ends of the shipment: our people in Guangzhou choose the factory and inspect what comes off the line, and our people in Europe handle the paperwork that gets the container off the quay at <strong className="text-slate-800">Le Havre</strong>.
               </p>
               <div className="hero-rise hero-rise-3 flex justify-center">
                 <Link
                   href="/"
                   className="cta-sheen group inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300/80 bg-white/70 px-8 py-3.5 text-[15px] font-medium tracking-[-0.01em] text-slate-800 shadow-[0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm transition-all duration-300 ease-out hover:border-brand/45 hover:bg-white hover:text-[#176579] hover:shadow-[0_2px_10px_rgba(15,23,42,0.07),0_10px_30px_-10px_rgba(39,168,196,0.5)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-offset-2 motion-safe:hover:scale-[1.02] motion-safe:active:scale-[0.98]"
                 >
-                  Visit Affhan Website
+                  Visit AFFHAN Website
                   <span aria-hidden="true" className="transition-transform duration-300 ease-out motion-safe:group-hover:translate-x-1">→</span>
                 </Link>
               </div>

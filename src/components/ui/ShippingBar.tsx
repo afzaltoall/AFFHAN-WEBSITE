@@ -147,7 +147,7 @@ export function ShippingBar() {
             and the letter-spacing opens slightly, letting the name carry the
             whole width the two lines used to fill. */}
         <span className="relative block bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[15px] font-extrabold uppercase leading-none tracking-[0.18em] text-transparent">
-          Affhan Shipping
+          AFFHAN Shipping
         </span>
 
         <ArrowRight

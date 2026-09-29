@@ -55,7 +55,7 @@ export async function generateMetadata({
       title: role.metaTitle,
       description: role.metaDescription,
       url,
-      siteName: "Affhan",
+      siteName: "AFFHAN",
       type: "website",
       images: [
         {
@@ -91,7 +91,7 @@ function jobPostingSchema(role: CareerRole) {
       `<p>What you will do:</p><ul>`,
       role.features.map((f) => `<li>${f}</li>`).join(""),
       `</ul>`,
-      `<p>Affhan International has sourced, inspected and shipped goods out of China since 2000, from seven offices across Asia, the Middle East and Europe.</p>`,
+      `<p>AFFHAN International has sourced, inspected and shipped goods out of China since 2000, from seven offices across Asia, the Middle East and Europe.</p>`,
     ].join(""),
     datePosted: ROLES_CONFIRMED_ON,
     // Both added after Search Console flagged them as missing optional fields
@@ -174,7 +174,7 @@ export default async function RolePage({
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-slate-400">Team</dt>
-              <dd className="mt-1 font-semibold text-slate-800">Affhan International</dd>
+              <dd className="mt-1 font-semibold text-slate-800">AFFHAN International</dd>
             </div>
             <div>
               <dt className="text-xs font-semibold uppercase tracking-wider text-slate-400">Listed</dt>
@@ -253,7 +253,7 @@ export default async function RolePage({
         </section>
 
         <section className="mt-12">
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">About Affhan</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900">About AFFHAN</h2>
           <p className="mt-4 text-base leading-relaxed text-slate-700">
             AFFHAN International Pvt Ltd has traded since 2000 from a head office in Royapuram,
             Chennai, with its own registered company and staff in China, Singapore, Malaysia, the
@@ -305,7 +305,7 @@ export default async function RolePage({
             href="/careers/"
             className="mt-6 inline-block text-sm font-semibold text-brand-dark hover:text-brand-deep"
           >
-            ← All careers at Affhan
+            ← All careers at AFFHAN
           </Link>
         </section>
       </div>
