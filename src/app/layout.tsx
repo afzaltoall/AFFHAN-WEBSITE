@@ -79,8 +79,9 @@ const organizationSchema = {
   name: "AFFHAN International Pvt Ltd",
   // The names this company is actually searched for and written as. Google
   // uses alternateName for entity matching, and "AFFHAN" alone is how the
-  // brand appears in most of the site's own titles.
-  alternateName: ["AFFHAN", "Affhan Group", "AFFHAN Group"],
+  // brand appears in most of the site's own titles. One entry per name: a
+  // title-case "Affhan Group" beside "AFFHAN Group" was the same name twice.
+  alternateName: ["AFFHAN", "AFFHAN Group"],
   legalName: OFFICES.chennai.legalName,
   image: LOGO_URL,
   logo: LOGO_URL,
