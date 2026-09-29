@@ -35,7 +35,7 @@ export function Scene01Opening({ onApply, play }: { onApply: (e: MouseEvent<HTML
       </div>
 
       {/* The traveller. */}
-      <div className="pointer-events-none absolute inset-0 z-[30] flex items-start justify-center pt-[8svh] md:items-center md:justify-end md:pt-16">
+      <div className="cx-hero-art pointer-events-none absolute inset-0 z-[30] flex items-start justify-center pt-[8svh] md:items-center md:justify-end md:pt-16">
         <div data-cx="hero-img" className="relative left-[7vw] w-[156vw] max-w-none shrink-0 md:left-auto md:mr-[-2vw] md:w-[min(68vw,124vh)]">
           <div className="cx-enter-push cx-feather-hero">
             <FilmImage
@@ -66,7 +66,7 @@ export function Scene01Opening({ onApply, play }: { onApply: (e: MouseEvent<HTML
         {/* The title reads one way for search and screen readers (sr-only);
             what the eye sees turns through what the trip covers (HeroTurns). */}
         <h1
-          className={`${DISPLAY} cx-enter-rise mt-4 text-[clamp(46px,13vw,76px)] font-normal uppercase leading-[0.9] tracking-[0.005em] md:mt-6 md:text-[clamp(52px,6.4vw,122px)]`}
+          className={`${DISPLAY} cx-hero-title cx-enter-rise mt-4 text-[clamp(46px,13vw,76px)] font-normal uppercase leading-[0.9] tracking-[0.005em] md:mt-6 md:text-[clamp(52px,6.4vw,122px)]`}
           style={{ animationDelay: "0.4s" }}
         >
           <span className="sr-only">
@@ -76,12 +76,12 @@ export function Scene01Opening({ onApply, play }: { onApply: (e: MouseEvent<HTML
           <HeroTurns play={play} />
         </h1>
         <p
-          className="cx-enter-rise mt-5 max-w-[30rem] text-[15px] leading-relaxed text-(--cx-mute) md:mt-7 md:text-[18px]"
+          className="cx-hero-lede cx-enter-rise mt-5 max-w-[30rem] text-[15px] leading-relaxed text-(--cx-mute) md:mt-7 md:text-[18px]"
           style={{ animationDelay: "0.55s" }}
         >
           {HERO.line}
         </p>
-        <div className="cx-enter-rise mt-7 flex items-center gap-7 md:mt-10" style={{ animationDelay: "0.7s" }}>
+        <div className="cx-hero-cta cx-enter-rise mt-7 flex items-center gap-7 md:mt-10" style={{ animationDelay: "0.7s" }}>
           <ApplyButton onClick={onApply}>{HERO.cta}</ApplyButton>
           <span aria-hidden className="hidden items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-(--cx-mute) md:flex">
             <span className="relative h-10 w-px overflow-hidden bg-(--cx-faint)">

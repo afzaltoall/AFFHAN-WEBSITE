@@ -153,7 +153,10 @@ function Unit({ value, digits, label, motion, ring }: { value: number; digits: n
           <Digit key={chars.length - i} value={Number(c)} motion={motion} />
         ))}
       </div>
-      <p className="mt-1 font-sans text-[11px] font-semibold uppercase tracking-[0.3em] text-(--cx-mute) md:mt-2 md:text-[12px] md:tracking-[0.34em]">{label}</p>
+      {/* 0.12em below 360px: at 0.3em SECONDS is 76px, wider than its figures, and
+          on a 320px screen the row needed 349px of 280, so it squeezed and the
+          labels ran under the colons and off the edge. */}
+      <p className="mt-1 font-sans text-[11px] font-semibold uppercase tracking-[0.12em] text-(--cx-mute) min-[360px]:tracking-[0.3em] md:mt-2 md:text-[12px] md:tracking-[0.34em]">{label}</p>
     </div>
   );
 }

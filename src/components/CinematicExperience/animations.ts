@@ -90,6 +90,9 @@ export interface FilmHooks {
   starsDim?: HTMLElement | null;
   /** Draws the jump to Yiwu (warp.ts) for its progress, 0..1. */
   warp?: (p: number) => void;
+  /** A landscape phone or any screen under 540px tall: the FREE lockup has to
+   *  get smaller and higher to leave the included rows their room. */
+  squat?: boolean;
 }
 
 /* =============================================================================
@@ -364,7 +367,8 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
     { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.3, stagger: 0.022 }, 18.55);
 
   // ---- 11 WHAT'S INCLUDED: the lockup rises; four rows arrive in turn ------
-  tl.to($("free-lockup"), { y: vh(d ? -31 : -30), scale: d ? 0.36 : 0.5, ease: "power3.inOut", duration: 0.75 }, 19.5);
+  const sq = !!hooks.squat;
+  tl.to($("free-lockup"), { y: vh(sq ? -37 : d ? -31 : -30), scale: sq ? (d ? 0.26 : 0.3) : d ? 0.36 : 0.5, ease: "power3.inOut", duration: 0.75 }, 19.5);
   tl.to($("free-glow"), { autoAlpha: 0.4, duration: 0.6 }, 19.5);
   tl.to($("silk-back", "gold-back"), { autoAlpha: 0.22, duration: 0.6 }, 19.5);
   tl.fromTo($("inc-eyebrow"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.3 }, 20.05);
@@ -421,7 +425,8 @@ export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop:
   tl.to($("haze-crimson"), { autoAlpha: 0, duration: 0.25 }, s[9] - 0.3);
   fade(["free-lockup"], s[9], s[10] - 0.35);
   // Moved to its small position while invisible, so nothing is seen to move.
-  tl.set($("free-lockup"), { y: `${desktop ? -31 : -30}vh`, scale: desktop ? 0.36 : 0.5 }, s[10] - 0.05);
+  const sq = !!hooks.squat;
+  tl.set($("free-lockup"), { y: `${sq ? -37 : desktop ? -31 : -30}vh`, scale: sq ? (desktop ? 0.26 : 0.3) : desktop ? 0.36 : 0.5 }, s[10] - 0.05);
   fade(["free-lockup", "inc-eyebrow", "inc-row"], s[10]);
   tl.to($("hud"), { autoAlpha: 0, duration: 0.2 }, END - 0.3);
   return tl;

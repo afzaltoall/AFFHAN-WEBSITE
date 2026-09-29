@@ -225,8 +225,11 @@ export function CinematicExperience() {
       // gsap.matchMedia runs this only while at least one query matches, so
       // desktop and phone are both named: one of the two is always true.
       // short: How it works is only pinned on screens tall enough to hold it.
-      mm.add({ desktop: "(min-width: 768px)", phone: "(max-width: 767.98px)", reduce: "(prefers-reduced-motion: reduce)", short: "(max-height: 620px)" }, (ctx) => {
-        const { desktop, reduce, short } = ctx.conditions as { desktop: boolean; reduce: boolean; short: boolean };
+      // squat: a landscape phone (under 540px tall), which gets its own
+      // arrangement of the hero, the included rows and the countdown
+      // (cinematic.css) and a smaller, higher FREE lockup (animations.ts).
+      mm.add({ desktop: "(min-width: 768px)", phone: "(max-width: 767.98px)", reduce: "(prefers-reduced-motion: reduce)", short: "(max-height: 620px)", squat: "(max-height: 540px) and (orientation: landscape)" }, (ctx) => {
+        const { desktop, reduce, short, squat } = ctx.conditions as { desktop: boolean; reduce: boolean; short: boolean; squat: boolean };
         const starts = reduce ? FILM_REDUCED_STARTS : FILM_CHAPTER_STARTS;
         let chapter = -1;
         const onProgress = (time: number, progress: number) => {
@@ -277,8 +280,8 @@ export function CinematicExperience() {
         const stars = root.querySelector<HTMLElement>("[data-cx='stars']");
         const starsDim = root.querySelector<HTMLElement>("[data-cx='stars-dim']");
         if (stars) buildStars(root, stars, reduce);
-        if (reduce) buildFilmReduced(film, stage, desktop, { onProgress });
-        else buildFilm(film, stage, desktop, particles, { onProgress, starsDim, warp: warp ? (p) => warp.render(p) : undefined });
+        if (reduce) buildFilmReduced(film, stage, desktop, { onProgress, squat });
+        else buildFilm(film, stage, desktop, particles, { onProgress, starsDim, squat, warp: warp ? (p) => warp.render(p) : undefined });
         const undoSteps = buildSteps(steps, desktop, reduce, short);
         const undoTerms = terms ? buildTerms(terms, reduce) : () => undefined;
         buildCta(cta, ctaStage, desktop, reduce, starsDim);
