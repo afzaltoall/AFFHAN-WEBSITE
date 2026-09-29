@@ -136,17 +136,20 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
       // units (the card is an inline-size container), so it scales with the
       // card: a 288px cell at 640px, 504px from 1261px. The container is the
       // wrapper, so the card's own padding can be in container units too.
+      // Padding, gap, emblem and arrow are N·cqw − M·px, so they give way at
+      // the narrow end (the subtitle needs a 195px column for two lines at
+      // 11px) and not at the wide one.
       <div className="@container relative w-full">
       <Link
         ref={ref}
         href="/shipping/"
         {...hover}
-        className="group relative flex min-h-24 w-full items-center gap-[clamp(8px,3cqw,20px)] overflow-hidden rounded-2xl bg-white/85 px-[clamp(12px,4.5cqw,26px)] pb-[clamp(18px,6.5cqw,34px)] pt-[clamp(8px,2.5cqw,14px)] shadow-md ring-1 ring-brand/20 backdrop-blur-sm transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:absolute sm:inset-0 sm:min-h-0"
+        className="group relative flex min-h-24 w-full items-center gap-[clamp(6px,4.5cqw_-_6px,20px)] overflow-hidden rounded-2xl bg-white/85 px-[clamp(10px,6cqw_-_7px,26px)] pb-[clamp(18px,6.5cqw,34px)] pt-[clamp(8px,2.5cqw,14px)] shadow-md ring-1 ring-brand/20 backdrop-blur-sm transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:absolute sm:inset-0 sm:min-h-0"
       >
         {splash}
         {sea("h-[clamp(16px,6cqw,32px)]")}
         <span aria-hidden="true" className="relative flex shrink-0 items-center animate-float-medium">
-          <Image {...SHIP_MARK_HERO} alt="" sizes="64px" className="block h-[clamp(32px,11cqw,60px)] w-auto object-contain" />
+          <Image {...SHIP_MARK_HERO} alt="" sizes="64px" className="block h-[clamp(26px,13cqw_-_10px,60px)] w-auto object-contain" />
         </span>
         <span className="relative flex min-w-0 flex-1 flex-col">
           <span className="block truncate bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[clamp(12px,3.4cqw,17px)] font-extrabold uppercase leading-[1.15] tracking-[0.14em] text-transparent">
@@ -159,7 +162,7 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
         </span>
         <span
           aria-hidden="true"
-          className="relative flex size-[clamp(26px,7.5cqw,38px)] shrink-0 items-center justify-center rounded-full bg-brand-dark text-white shadow-sm transition-transform duration-300 group-hover:translate-x-0.5"
+          className="relative flex size-[clamp(24px,9cqw_-_2px,38px)] shrink-0 items-center justify-center rounded-full bg-brand-dark text-white shadow-sm transition-transform duration-300 group-hover:translate-x-0.5"
         >
           <ArrowRight className="size-[45%]" />
         </span>
