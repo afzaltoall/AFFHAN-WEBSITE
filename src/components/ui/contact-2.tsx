@@ -10,6 +10,8 @@ import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile } from "@/lib/phone";
 interface Contact2Props {
   title?: string;
+  /** Set on a second line of the heading, in the brand teal ("Contact" / "AFFHAN"). */
+  titleAccent?: string;
   description?: string;
   phone?: string;
   email?: string;
@@ -31,7 +33,8 @@ const MailIcon = () => (
 
 export const Contact2 = ({
   title = "Contact Us",
-  description = "We'd love to hear from you. Reach out for inquiries, support, or partnerships.",
+  titleAccent,
+  description ="We'd love to hear from you. Reach out for inquiries, support, or partnerships.",
   phone = "(123) 34567890",
   email = "email@example.com",
 }: Contact2Props) => {
@@ -183,6 +186,52 @@ export const Contact2 = ({
             transform: none !important;
           }
         }
+
+        /* The heading lockup. Each line rises out of its own mask; the mask is
+           padded (and the padding cancelled by a negative margin) so it clips
+           the rise, never a letter's edge. */
+        .contact-line {
+          display: block;
+          overflow: hidden;
+          padding: 0.06em 0.08em 0.08em;
+          margin: -0.06em -0.08em -0.08em;
+        }
+        .contact-word {
+          display: inline-block;
+          animation: contact-rise 0.9s cubic-bezier(0.16, 1, 0.3, 1) both;
+        }
+        /* "C" carries 0.033em of side bearing that "A" does not; without this
+           the first line starts 2px to the right of the second at 60px. */
+        .contact-word-first { margin-left: -0.033em; }
+        .contact-word-accent {
+          animation-delay: 0.12s, 0.95s;
+          animation-name: contact-rise, contact-sheen;
+          animation-duration: 0.9s, 1.5s;
+          animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1), cubic-bezier(0.45, 0, 0.2, 1);
+          letter-spacing: 0.012em;
+          /* At rest the first 40% of this shows: #176579 into #1d7e93, both
+             above 4.5:1 on this background. The pale band only passes. */
+          background-image: linear-gradient(100deg, #176579 0%, #1d7e93 40%, #7fd3e4 50%, #1d7e93 60%, #176579 100%);
+          background-size: 250% 100%;
+          background-position: 0% 0;
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+        }
+        .contact-rule {
+          animation: contact-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.45s both;
+          transform-origin: center;
+        }
+        @media (min-width: 1024px) { .contact-rule { transform-origin: left; } }
+        @keyframes contact-rise { from { transform: translateY(108%); } to { transform: none; } }
+        @keyframes contact-sheen { from { background-position: 100% 0; } to { background-position: 0% 0; } }
+        @keyframes contact-draw { from { transform: scaleX(0); } to { transform: none; } }
+        @media (prefers-reduced-motion: reduce) {
+          .contact-word, .contact-word-accent, .contact-rule { animation: none; }
+        }
+        @media (forced-colors: active) {
+          .contact-word-accent { background: none; color: CanvasText; }
+        }
       `}} />
       {/* Background radial glow */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(39,168,196,0.06),transparent_40%),radial-gradient(circle_at_70%_70%,rgba(241,245,249,0.6),transparent_40%)] pointer-events-none" />
@@ -193,14 +242,28 @@ export const Contact2 = ({
           {/* Info Side */}
           <div className="flex flex-col justify-start gap-8 lg:w-5/12">
             <div className="text-center lg:text-left">
-              <span className="text-xs font-semibold uppercase tracking-[0.26em] text-[#176579] block mb-3">
+              {/* pl balances the tracking that follows the last letter, so the
+                  centred label is centred; left-aligned from lg, it goes. */}
+              <span className="text-xs font-semibold uppercase tracking-[0.26em] pl-[0.26em] lg:pl-0 text-[#176579] block mb-3">
                 GET IN TOUCH
               </span>
-              <h1 className="mb-4 text-4xl font-extrabold tracking-tight lg:mb-3 lg:text-6xl text-[#081f2a]">
-                {title}
-              </h1>
+              {titleAccent ? (
+                // Two lines at every width. On one line the heading ran from
+                // 479px wide (nearly the whole column, wider than the text
+                // under it) to wrapping on its own between 1024 and 1440px.
+                // The space between the lines keeps the heading's text
+                // "Contact AFFHAN" for search and screen readers.
+                <h1 className="mb-4 text-[40px] leading-[1.04] font-extrabold tracking-tight md:text-5xl lg:text-6xl text-[#081f2a]">
+                  <span className="contact-line"><span className="contact-word contact-word-first">{title}</span></span>{" "}
+                  <span className="contact-line"><span className="contact-word contact-word-accent">{titleAccent}</span></span>
+                </h1>
+              ) : (
+                <h1 className="mb-4 text-4xl font-extrabold tracking-tight lg:mb-3 lg:text-6xl text-[#081f2a]">
+                  {title}
+                </h1>
+              )}
               {/* Vertical line divider */}
-              <div className="h-[3.5px] w-14 bg-[#27a8c4] rounded-full mx-auto lg:mx-0 mb-6" />
+              <div className={`h-[3.5px] w-14 bg-[#27a8c4] rounded-full mx-auto lg:mx-0 mb-6${titleAccent ? " contact-rule" : ""}`} />
               <p className="text-slate-600 text-sm leading-relaxed sm:text-base max-w-md mx-auto lg:mx-0">
                 {description}
               </p>
