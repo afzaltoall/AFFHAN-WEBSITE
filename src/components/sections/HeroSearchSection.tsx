@@ -114,12 +114,20 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
       className={`w-full flex flex-col items-center justify-center pt-4 lg:pt-5 pb-8 lg:pb-10 relative z-[60] transition-opacity duration-300 ${isMegaMenuOpen ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
     >
-      {/* Search stays centered; the Top Ranking / Full Catalog quick links sit
-          on the RIGHT via balanced flex-1 spacers, so the search doesn't shift
-          off-centre. On mobile everything stacks and centres. */}
-      <div className="w-full flex flex-col items-center gap-4 lg:flex-row lg:items-center lg:justify-center">
+      {/* One line from 1360px: search centred, the trust badges on the left and
+          the Top Ranking / Full Catalog quick links on the right via balanced
+          flex-1 spacers, so the search doesn't shift off-centre. Together they
+          need ~1240px (badges ~425, search 440+, links ~300, gaps), and from
+          lg to 1359 there was not that much: at 1044 the links ran off the
+          right edge and "Full Catalog" was cut. So between lg and 1360 the
+          badges take their own line and the search and links share the next;
+          below lg everything stacks and centres. */}
+      <div className="w-full flex flex-col items-center gap-4 min-[1360px]:flex-row min-[1360px]:items-center min-[1360px]:justify-center">
         {/* Trust badges: auto-sliding ticker on mobile, spotlight row on desktop */}
         <TrustBadges />
+        {/* The search and the links: a row of their own from lg, and from 1360
+            `contents`, so they become items of the one line above again. */}
+        <div className="flex w-full flex-col items-center gap-4 lg:flex-row lg:justify-center lg:gap-3 min-[1360px]:contents">
         {/* z-50 is load-bearing and not decoration. Focusing the input applies
               scale-[1.01], and a transform creates a stacking context — which
               traps the suggestions panel's own z-50 inside this wrapper. The
@@ -242,9 +250,10 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
         </div>
 
         {/* Right-side quick entry points — Top Ranking / Full Catalog */}
-        <div className="flex items-center justify-center gap-2.5 lg:flex-1 lg:justify-start">
+        <div className="flex shrink-0 items-center justify-center gap-2.5 min-[1360px]:flex-1 min-[1360px]:justify-start">
           <QuickLinkPill href="/rankings/" icon="/top-1.jpg" label="Top Ranking" hoverTextClass="hover:text-amber-600" />
           <QuickLinkPill href="/products/" icon="/cata.jpg" label="Full Catalog" />
+        </div>
         </div>
       </div>
     </div>

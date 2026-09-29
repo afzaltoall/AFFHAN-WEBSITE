@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useMemo } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,6 +16,57 @@ import { buildCategoryTree, getCategoryIcon, type CategoryTreeNode } from "@/lib
 import { ShippingBar } from "@/components/ui/ShippingBar";
 import { FireworksCard } from "@/components/ui/FireworksCard";
 import { loadAllCategories } from "@/lib/categoriesClient";
+
+/**
+ * The grid's column count at each width, and whether the category sidebar
+ * takes the first cell (lg and up). The class hides a card in that range;
+ * written out whole so Tailwind finds it.
+ */
+const GRID_STEPS = [
+  { cols: 2, sidebar: false, hide: "max-md:hidden" },
+  { cols: 3, sidebar: false, hide: "md:max-lg:hidden" },
+  { cols: 4, sidebar: true, hide: "lg:max-xl:hidden" },
+  { cols: 5, sidebar: true, hide: "xl:max-2xl:hidden" },
+  { cols: 6, sidebar: true, hide: "2xl:hidden" },
+] as const;
+
+/**
+ * The classes that hide card `index` of `count` wherever it would fall past
+ * the last whole row. With the sidebar in the first cell, row one holds
+ * cols - 1 cards and every row after it holds cols.
+ */
+function beyondWholeRows(index: number, count: number): string {
+  return GRID_STEPS.filter(({ cols, sidebar }) => {
+    const lead = sidebar ? cols - 1 : 0;
+    const whole = count <= lead ? count : lead + Math.floor((count - lead) / cols) * cols;
+    return index >= whole;
+  })
+    .map((s) => s.hide)
+    .join(" ");
+}
+
+/** The China trip banner: the owner's picture on a fireworks card, linking to the trip. */
+function TripBanner({ className, src, width, height }: { className: string; src: string; width: number; height: number }) {
+  return (
+    <FireworksCard className={className}>
+      <Link
+        href="/free-china-trip/"
+        aria-label="Free China business trip: what's included, and how to apply"
+        className="block h-full w-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#176579]"
+      >
+        <Image
+          src={src}
+          alt=""
+          width={width}
+          height={height}
+          loading="lazy"
+          fetchPriority="low"
+          className="h-full w-full object-cover"
+        />
+      </Link>
+    </FireworksCard>
+  );
+}
 
 /** The two small slices the first screen needs, in place of all 668 rows. */
 export interface SidebarCategory { id: string; name: string; }
@@ -140,15 +191,12 @@ export function MarketplaceHeroSection({
   // nothing left to page in — it previously fetched /api/products on scroll
   // and grew the grid to 198.
 
-  // The desktop grid is 6 columns with the sidebar occupying col 1 of the
-  // first row only, so 5 products sit beside it in row 1 and everything
-  // after flows 6-per-row. Trim the tail to whole rows of 6 so the grid
-  // never ends on a ragged partial row (the "2-3 products left" empty gap).
-  const displayProducts = useMemo(() => {
-    if (products.length <= 5) return products;
-    const whole = 5 + Math.floor((products.length - 5) / 6) * 6;
-    return products.slice(0, whole);
-  }, [products]);
+  // Every product is rendered; the ones past the last whole row at the
+  // current column count are hidden by beyondWholeRows (below the
+  // component), so the grid never ends on a ragged partial row (the "2-3
+  // products left" empty gap) at any width. Trimming once for 6 columns, as
+  // this used to, left ragged ends at 2, 3, 4 and 5.
+  const displayProducts = products;
 
   return (
     <section className="pt-24 pb-12 bg-slate-50 min-h-screen">
@@ -157,7 +205,11 @@ export function MarketplaceHeroSection({
         {/* Animated intro headline — a morphing category word gives the opening
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
-          <div className="relative mb-3 flex justify-center">
+          {/* A column below lg: the shipping pill gets its own line above the
+              badge, since beside it there is no room. From lg it is taken out
+              of the flow again (absolute, in ShippingBar) and the line is the
+              badge alone, centred. */}
+          <div className="relative mb-3 flex flex-col items-center gap-3 lg:flex-row lg:justify-center lg:gap-0">
             {/* The Affhan.com lockup (components/ui/AffhanBrandBar) sat at the
                 left of this line until 2026-09-25, when the owner took it out
                 and gave its place to the shipping pill. The component is kept
@@ -170,9 +222,13 @@ export function MarketplaceHeroSection({
                 is 29px above the centre). 320x120 is the picture's own 8:3,
                 so nothing of it is cropped, and leaves 68px to the end of the
                 headline and 18px to the search row below.
-                From 1600px only: narrower, the headline comes closer than 40px
-                (at 1536 the gap would be 36px), and below about 1460 they
-                overlap.
+                It steps down with the width so it always keeps clear of the
+                headline, whose right end sits 340px right of centre (the
+                morphing word's box is fixed): 200x75 from 1280 (28px gap),
+                240x90 from 1440, 280x105 from 1536, 320x120 from 1600 (68px,
+                the size it was designed at). Below 1280 there is no room here
+                at any size, and the same card is shown full width under the
+                search instead (TripBanner, further down).
                 Cut from the owner's public/china-trip.png (2048x768, 2.5MB) to
                 640x240 WebP, 51KB, for the 2x screens this width implies. If
                 the picture changes shape, change this box to match, or
@@ -182,25 +238,13 @@ export function MarketplaceHeroSection({
                 FireworksCard's. It links to the trip's own page, and a press
                 still bursts a shell where it lands before the page opens.
                 The link's name says where it goes, so the picture is alt="". */}
-            <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] min-[1600px]:block">
-              <FireworksCard className="h-[120px] w-[320px]">
-                <Link
-                  href="/free-china-trip/"
-                  aria-label="Free China business trip: what's included, and how to apply"
-                  className="block h-full w-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#176579]"
-                >
-                  <Image
-                    src="/china-trip-hero.webp"
-                    alt=""
-                    width={640}
-                    height={240}
-                    sizes="320px"
-                    loading="lazy"
-                    fetchPriority="low"
-                    className="h-full w-full object-cover"
-                  />
-                </Link>
-              </FireworksCard>
+            <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] xl:block">
+              <TripBanner
+                className="h-[75px] w-[200px] min-[1440px]:h-[90px] min-[1440px]:w-[240px] 2xl:h-[105px] 2xl:w-[280px] min-[1600px]:h-[120px] min-[1600px]:w-[320px]"
+                src="/china-trip-hero.webp"
+                width={640}
+                height={240}
+              />
             </div>
             <style dangerouslySetInnerHTML={{
               __html: `
@@ -535,13 +579,31 @@ export function MarketplaceHeroSection({
         {/* Large Hero Search Section */}
         <HeroSearchSection categories={searchCategories} />
 
+        {/* The China trip banner where the top-right corner has no room for
+            it (below 1280): full width under the search on a phone, capped so
+            it stays a banner rather than a poster on a tablet or small laptop.
+            The same card, at the picture's own 8:3, from a 1280px cut so a 3x
+            phone gets real detail rather than the corner's 640px file. */}
+        <div className="mx-auto -mt-2 mb-6 w-full max-w-[480px] md:max-w-[560px] xl:hidden">
+          <TripBanner
+            className="aspect-[8/3] w-full"
+            src="/china-trip-hero-1280.webp"
+            width={1280}
+            height={480}
+          />
+        </div>
+
         {/* Mobile Fallback Header */}
         <div className="flex lg:hidden items-end pt-2 pb-4">
           <h2 className="text-xl font-black text-slate-900">Explore the Latest Global Inventory</h2>
         </div>
 
         {/* Unified Responsive Grid */}
-        <div className="hero-product-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 xl:gap-5 pb-8 relative">
+        {/* 2 / 3 / 4 / 5 / 6 columns, so a card is ~228px wide at the start of
+            every step from md up. It used to jump straight from 3 to 6 at
+            1024, which made cards 150px wide there: "Inquire Now" broke onto
+            two lines and category labels were cut. */}
+        <div className="hero-product-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 xl:gap-5 pb-8 relative">
 
           {/* Sidebar — spans a single grid row so it's exactly one product
                 card tall (its background fills the cell with no leftover grey
@@ -614,7 +676,7 @@ export function MarketplaceHeroSection({
           {/* Products */}
           {loading ? (
             [...Array(23)].map((_, i) => (
-              <div key={i} className="col-span-1">
+              <div key={i} className={`col-span-1 ${beyondWholeRows(i, 23)}`}>
                 <div className="h-[300px] bg-slate-200 animate-pulse rounded-xl w-full" />
               </div>
             ))
@@ -632,7 +694,7 @@ export function MarketplaceHeroSection({
                CPU hydration itself finishes at 4.5-6.3s, so the effect runs
                after the first paint no matter when it is scheduled. */
             displayProducts.map((product, idx) => (
-              <div key={idx} className="col-span-1 flex items-start">
+              <div key={idx} className={`col-span-1 flex items-start ${beyondWholeRows(idx, displayProducts.length)}`}>
                 {/* One priority image. Marking the whole leading row instead
                     was measured and was not better; neither was freezing the
                     leading cards so the LCP image could not be swapped. Both

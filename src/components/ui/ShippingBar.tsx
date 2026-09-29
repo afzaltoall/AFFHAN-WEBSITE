@@ -17,9 +17,12 @@ import { SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
  * and impossible to guess at. Out here it carries its own name, which is what
  * makes it a destination rather than an ornament.
  *
- * Absolutely positioned so the badge beside it stays centred on the line and
- * nothing else in the hero moves. Desktop only: at narrow widths it would sit
- * on top of the badge, and the mobile drawer already has a named Shipping row.
+ * From lg, absolutely positioned so the badge beside it stays centred on the
+ * line and nothing else in the hero moves. Below lg there is no room beside
+ * the badge, so it sits in the flow on its own line above it, centred (the
+ * hero makes that line a column there) — a step smaller on a phone. It was
+ * hidden below lg until 2026-09-29, which left phones and tablets with no
+ * way to the shipping side from the hero at all.
  */
 
 interface Splash {
@@ -78,13 +81,13 @@ export function ShippingBar() {
     // left-10 from xl is the lockup's own inset, so the pill sits exactly
     // where it did. Flush on lg, where there is no room for an inset: at 1024px
     // the centred badge starts at 339, and the pill is 288px wide.
-    <div className="absolute left-0 xl:left-10 top-1/2 hidden -translate-y-1/2 lg:block">
+    <div className="relative lg:absolute lg:left-0 xl:left-10 lg:top-1/2 lg:-translate-y-1/2">
       <Link
         ref={ref}
         href="/shipping/"
         onMouseEnter={(e) => splashAt(e.clientX, e.clientY)}
         onMouseMove={(e) => splashAt(e.clientX, e.clientY)}
-        className="group relative flex items-center gap-3 overflow-hidden rounded-full border border-brand/30 bg-white/75 py-2 pl-2.5 pr-5 shadow-md backdrop-blur-sm transition-all hover:border-brand/60 hover:bg-white hover:shadow-lg"
+        className="group relative flex items-center gap-2.5 overflow-hidden rounded-full border border-brand/30 bg-white/75 py-1.5 pl-2 pr-4 shadow-md backdrop-blur-sm transition-all hover:border-brand/60 hover:bg-white hover:shadow-lg sm:gap-3 sm:py-2 sm:pl-2.5 sm:pr-5"
       >
         {/* The splash layer. Clipped to the pill and inert, so it can never take
             a click meant for the link underneath it. */}
@@ -138,7 +141,7 @@ export function ShippingBar() {
                floating above it — asked for with the container-ship mark, and
                kept for the emblem. On the Image rather than the span, because
                the span carries animate-float-medium and owns its own transform. */
-            className="block h-10 w-auto translate-y-[4px] object-contain"
+            className="block h-8 w-auto translate-y-[4px] object-contain sm:h-10"
           />
         </span >
 
@@ -146,7 +149,7 @@ export function ShippingBar() {
             centre, which a stacked pair did not — so the type goes up a step
             and the letter-spacing opens slightly, letting the name carry the
             whole width the two lines used to fill. */}
-        <span className="relative block bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[15px] font-extrabold uppercase leading-none tracking-[0.18em] text-transparent">
+        <span className="relative block bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[13px] font-extrabold uppercase leading-none tracking-[0.16em] text-transparent sm:text-[15px] sm:tracking-[0.18em]">
           AFFHAN Shipping
         </span>
 

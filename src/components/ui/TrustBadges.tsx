@@ -105,11 +105,13 @@ export function TrustBadges() {
 
   const box = rects[active];
 
+  // Left of the search on one line from 1360px (see HeroSearchSection);
+  // centred on a line of its own below that.
   return (
     <div
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className="w-full lg:flex-1 flex justify-center lg:justify-start"
+      className="w-full min-[1360px]:flex-1 flex justify-center min-[1360px]:justify-start"
     >
       <div
         ref={rowRef}
