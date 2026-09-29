@@ -292,18 +292,18 @@ export function CinematicExperience() {
           trigger: film,
           start: "top top",
           end: "bottom bottom",
-          onToggle: (self) => root_.toggleAttribute("data-cx-film", self.isActive),
+          onToggle: (self) => root_.toggleAttribute("data-film-on", self.isActive),
         });
 
         ScrollTrigger.refresh();
-        root_.toggleAttribute("data-cx-film", dock.isActive);
+        root_.toggleAttribute("data-film-on", dock.isActive);
         // Web fonts change the height of the text sections, and so where the
         // later triggers start.
         void document.fonts?.ready.then(() => ScrollTrigger.refresh());
 
         return () => {
           ScrollTrigger.removeEventListener("refresh", relayout);
-          root_.removeAttribute("data-cx-film");
+          root_.removeAttribute("data-film-on");
           particles?.clear();
           warp?.clear();
           undoSteps();

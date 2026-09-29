@@ -1179,13 +1179,13 @@ html:has(.cx-counter[data-lock]) {
 }
 
 /* The site's floating dock (WhatsAppButton, data-site-dock) steps aside while
-   the film holds the screen: CinematicExperience sets data-cx-film on <html>
+   the film holds the screen: CinematicExperience sets data-film-on on <html>
    for exactly that stretch. On a phone the dock otherwise sits on the city
    names and the HUD. visibility waits for the fade, so it never blinks. */
 [data-site-dock] {
   transition: opacity 0.35s ease, visibility 0s linear 0s;
 }
-html[data-cx-film] [data-site-dock] {
+html[data-film-on] [data-site-dock] {
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.35s ease, visibility 0s linear 0.35s;
