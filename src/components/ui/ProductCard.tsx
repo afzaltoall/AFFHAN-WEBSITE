@@ -246,10 +246,10 @@ export function ProductCard({ product, onClick, priority, eager }: ProductCardPr
       <div className="px-3 pb-3 sm:px-4 sm:pb-4 pt-2.5 sm:pt-3 mt-auto">
         <button
           onClick={onClick}
-          className="relative overflow-hidden flex items-center justify-center gap-1.5 text-[11px] sm:text-[12px] font-bold text-[#176579] bg-white/70 backdrop-blur-sm border border-white/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)] px-3 py-2 sm:py-2.5 rounded-xl group-hover:border-[#27a8c4] group-hover:text-white group-hover:shadow-[0_8px_16px_rgba(39,168,196,0.25)] transition-all duration-300 w-full cursor-pointer"
+          className="relative overflow-hidden flex items-center justify-center gap-1.5 text-[11px] sm:text-[12px] font-bold text-[#176579] bg-white/70 backdrop-blur-sm border border-white/80 shadow-[0_2px_8px_rgba(0,0,0,0.04)] px-2 min-[360px]:px-3 py-2 sm:py-2.5 rounded-xl group-hover:border-[#27a8c4] group-hover:text-white group-hover:shadow-[0_8px_16px_rgba(39,168,196,0.25)] transition-all duration-300 w-full cursor-pointer"
         >
           <span className="absolute inset-0 bg-[#27a8c4] -translate-x-full group-hover:translate-x-0 transition-transform duration-400 ease-out z-0"></span>
-          <span className="relative z-10 flex items-center gap-1.5">
+          <span className="relative z-10 flex items-center gap-1.5 whitespace-nowrap">
             Inquire Now
             <svg className="w-3.5 h-3.5 opacity-80 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" /></svg>
           </span>
