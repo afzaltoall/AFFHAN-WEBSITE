@@ -23,7 +23,7 @@ export function WarpToYiwu() {
         data-cx-hide
         className="pointer-events-none absolute inset-x-0 bottom-[22svh] z-[45] flex flex-col items-center gap-3 px-6 md:bottom-[17svh]"
       >
-        <div className="flex w-full max-w-[27rem] items-center gap-4 text-[10px] font-semibold uppercase tracking-[0.34em] text-(--cx-gold) md:text-[11px]">
+        <div className="flex w-full max-w-[27rem] items-center gap-4 text-[11px] font-semibold uppercase tracking-[0.34em] text-(--cx-gold)">
           <span>{from.name}</span>
           <span className="relative h-px flex-1 bg-(--cx-white)/15">
             <span data-cx="warp-line" className="absolute inset-0 origin-left scale-x-0 bg-(--cx-gold)" />

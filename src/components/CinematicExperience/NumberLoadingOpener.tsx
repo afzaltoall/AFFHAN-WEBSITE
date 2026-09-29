@@ -356,7 +356,7 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
 
       <p
         data-count-caption
-        className="absolute inset-x-0 bottom-[8svh] text-center text-[10px] font-semibold uppercase tracking-[0.42em] text-(--cx-gold) md:text-[11px]"
+        className="absolute inset-x-0 bottom-[8svh] text-center text-[11px] font-semibold uppercase tracking-[0.42em] text-(--cx-gold)"
       >
         <span className="cx-count-enter cx-count-enter-late inline-block">{COUNTER.caption}</span>
       </p>

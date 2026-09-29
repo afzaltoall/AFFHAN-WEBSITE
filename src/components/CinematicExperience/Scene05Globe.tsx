@@ -71,14 +71,14 @@ export function Scene05Globe() {
           <span
             data-cx="route-label-a"
             data-cx-hide
-            className="absolute right-[67%] top-[44%] -translate-y-1/2 whitespace-nowrap text-[clamp(10px,1.3vw,17px)] font-semibold uppercase tracking-[0.3em] text-(--cx-gold-hi)"
+            className="absolute right-[67%] top-[44%] -translate-y-1/2 whitespace-nowrap text-[clamp(11px,1.3vw,17px)] font-semibold uppercase tracking-[0.3em] text-(--cx-gold-hi)"
           >
             {CAPTIONS.globe.from}
           </span>
           <span
             data-cx="route-label-b"
             data-cx-hide
-            className="absolute left-[64%] top-[31%] -translate-y-[160%] whitespace-nowrap text-[clamp(10px,1.3vw,17px)] font-semibold uppercase tracking-[0.3em] text-(--cx-gold-hi)"
+            className="absolute left-[64%] top-[31%] -translate-y-[160%] whitespace-nowrap text-[clamp(11px,1.3vw,17px)] font-semibold uppercase tracking-[0.3em] text-(--cx-gold-hi)"
           >
             {CAPTIONS.globe.to}
           </span>

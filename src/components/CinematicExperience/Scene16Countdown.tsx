@@ -153,7 +153,7 @@ function Unit({ value, digits, label, motion, ring }: { value: number; digits: n
           <Digit key={chars.length - i} value={Number(c)} motion={motion} />
         ))}
       </div>
-      <p className="mt-1 font-sans text-[10px] font-semibold uppercase tracking-[0.3em] text-(--cx-mute) md:mt-2 md:text-[12px] md:tracking-[0.34em]">{label}</p>
+      <p className="mt-1 font-sans text-[11px] font-semibold uppercase tracking-[0.3em] text-(--cx-mute) md:mt-2 md:text-[12px] md:tracking-[0.34em]">{label}</p>
     </div>
   );
 }

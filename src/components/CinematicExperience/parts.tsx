@@ -66,7 +66,7 @@ export function FilmImage({
 export function PlaceholderTag({ className = "" }: { className?: string }) {
   return (
     <span
-      className={`ml-2 inline-flex translate-y-[-0.15em] items-center rounded-full border border-dashed border-(--cx-gold)/60 px-2 py-[2px] align-middle font-sans text-[10px] font-semibold uppercase tracking-[0.18em] text-(--cx-gold) ${className}`}
+      className={`ml-2 inline-flex translate-y-[-0.15em] items-center rounded-full border border-dashed border-(--cx-gold)/60 px-2 py-[2px] align-middle font-sans text-[11px] font-semibold uppercase tracking-[0.18em] text-(--cx-gold) ${className}`}
     >
       {PLACEHOLDER_TAG}
     </span>
