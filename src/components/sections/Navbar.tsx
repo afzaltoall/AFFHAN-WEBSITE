@@ -360,7 +360,7 @@ export function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center flex-shrink-0 z-10 mr-4">
               <div className="relative w-12 h-12 lg:w-14 lg:h-14">
-                <Image src="/logo.png" alt="Affhan Group Logo" width={140} height={140} priority fetchPriority="high" className="w-full h-full object-contain" />
+                <Image src="/logo.png" alt="AFFHAN Group Logo" width={140} height={140} priority fetchPriority="high" className="w-full h-full object-contain" />
               </div>
             </Link>
 
@@ -610,10 +610,10 @@ export function Navbar() {
                 </button>
                 <div className="flex items-center gap-3">
                   <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white shadow-md">
-                    <Image src="/logo.png" alt="Affhan" width={34} height={34} className="object-contain" />
+                    <Image src="/logo.png" alt="AFFHAN" width={34} height={34} className="object-contain" />
                   </span>
                   <div className="leading-tight">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">Affhan Sourcing</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-white/70">AFFHAN Sourcing</p>
                     <p className="text-lg font-black tracking-tight">Menu</p>
                   </div>
                 </div>
