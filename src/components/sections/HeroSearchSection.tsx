@@ -29,6 +29,17 @@ export interface SearchShortcutCategory {
 export function HeroSearchSection({ categories = [] }: { categories?: SearchShortcutCategory[] }) {
   const [query, setQuery] = useState("");
   const [isFocused, setIsFocused] = useState(false);
+  // The long placeholder needs ~200px of input, which a phone's pill does not
+  // have (~145px at 360), so below sm it says less. The server and the first
+  // render use the long one, so hydration matches; phones switch after mount.
+  const [placeholder, setPlaceholder] = useState("What are you sourcing today?");
+  useEffect(() => {
+    const narrow = window.matchMedia("(max-width: 639.98px)");
+    const update = () => setPlaceholder(narrow.matches ? "Search products" : "What are you sourcing today?");
+    update();
+    narrow.addEventListener("change", update);
+    return () => narrow.removeEventListener("change", update);
+  }, []);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const [popularCats, setPopularCats] = useState<CatMatch[]>([]);
@@ -136,31 +147,40 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
               open dropdown. An explicit z-index here lifts the whole wrapper
               instead, so the panel clears them. */}
           <div className={`relative z-50 col-span-2 w-full max-w-2xl justify-self-center transition-all duration-300 lg:col-span-1 lg:col-start-2 lg:row-start-1 ${isFocused ? "scale-[1.01]" : ""}`} ref={containerRef}>
+          {/* The pill: icon, input, camera, Search, in one row that can never
+              be wider than the pill. The input is the only part that gives
+              way (flex-1 min-w-0); it had no min-w-0, so its intrinsic width
+              held, and at 360px the Search button ran ~23px out of the pill.
+              6px inner padding below sm (4px from sm, as before), and the
+              Search button takes the pill's full inner height. overflow-hidden
+              below sm only: from sm the camera's hover tooltip hangs below the
+              pill and would be clipped by it (its panels are portals). */}
           <form
             onSubmit={(e) => { e.preventDefault(); runSearch(); }}
-            className={`flex items-center w-full h-11 md:h-12 liquid-glass-card hover:!transform-none !rounded-full transition-colors ${isFocused ? "shadow-[0_4px_16px_rgba(39,168,196,0.12)]" : "shadow-sm"}`}
+            className={`box-border flex h-11 w-full min-w-0 items-center gap-2 p-1.5 max-sm:overflow-hidden sm:p-1 md:h-12 liquid-glass-card hover:!transform-none !rounded-full transition-colors ${isFocused ? "shadow-[0_4px_16px_rgba(39,168,196,0.12)]" : "shadow-sm"}`}
           >
             {/* slate-500, not slate-400. Measured against the pill's white
                 background: slate-400 is 2.56:1 and slate-300 is 1.48:1, so
                 both miss WCAG AA — 4.5:1 for the placeholder and label text,
                 3:1 for icons as non-text controls. slate-500 is 4.76:1 and
                 clears both. */}
-            <div className="pl-5 pr-2 text-slate-500"><Search size={18} className={isFocused ? "text-brand" : ""} /></div>
+            <div className="shrink-0 pl-2 text-slate-500 sm:pl-4"><Search size={18} className={isFocused ? "text-brand" : ""} /></div>
             <input
               type="text"
-              className="flex-1 h-full bg-transparent outline-none text-slate-700 text-sm md:text-base font-medium placeholder:text-slate-500 placeholder:font-normal"
-              placeholder="What are you sourcing today?"
+              className="h-full min-w-0 flex-1 text-ellipsis bg-transparent outline-none text-slate-700 text-sm md:text-base font-medium placeholder:text-slate-500 placeholder:font-normal"
+              placeholder={placeholder}
+              aria-label="Search products"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setIsFocused(true)}
             />
             {query && (
-              <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="p-1 text-slate-500 hover:text-slate-700"><X size={16} /></button>
+              <button type="button" onClick={() => setQuery("")} aria-label="Clear search" className="shrink-0 p-1 text-slate-500 hover:text-slate-700"><X size={16} /></button>
             )}
             {/* Search by photo. Sits inside the pill so it reads as part of
                 the search control rather than a separate feature. */}
-            <ImageSearchButton className="mr-2" />
-            <button type="submit" className="h-[calc(100%-8px)] px-5 md:px-6 mr-1 bg-brand-dark hover:bg-brand-deep text-white rounded-full font-bold text-sm transition-colors">
+            <ImageSearchButton />
+            <button type="submit" className="h-full shrink-0 px-4 sm:px-5 md:px-6 bg-brand-dark hover:bg-brand-deep text-white rounded-full font-bold text-sm transition-colors">
               Search
             </button>
           </form>

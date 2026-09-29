@@ -141,25 +141,25 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
         ref={ref}
         href="/shipping/"
         {...hover}
-        className="group relative flex min-h-24 w-full items-center gap-[clamp(10px,3cqw,20px)] overflow-hidden rounded-2xl bg-white/85 px-[clamp(14px,4.5cqw,26px)] pb-[clamp(18px,6.5cqw,34px)] pt-[clamp(8px,2.5cqw,14px)] shadow-md ring-1 ring-brand/20 backdrop-blur-sm transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:absolute sm:inset-0 sm:min-h-0"
+        className="group relative flex min-h-24 w-full items-center gap-[clamp(8px,3cqw,20px)] overflow-hidden rounded-2xl bg-white/85 px-[clamp(12px,4.5cqw,26px)] pb-[clamp(18px,6.5cqw,34px)] pt-[clamp(8px,2.5cqw,14px)] shadow-md ring-1 ring-brand/20 backdrop-blur-sm transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:absolute sm:inset-0 sm:min-h-0"
       >
         {splash}
         {sea("h-[clamp(16px,6cqw,32px)]")}
         <span aria-hidden="true" className="relative flex shrink-0 items-center animate-float-medium">
-          <Image {...SHIP_MARK_HERO} alt="" sizes="64px" className="block h-[clamp(36px,11cqw,60px)] w-auto object-contain" />
+          <Image {...SHIP_MARK_HERO} alt="" sizes="64px" className="block h-[clamp(32px,11cqw,60px)] w-auto object-contain" />
         </span>
         <span className="relative flex min-w-0 flex-1 flex-col">
           <span className="block truncate bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[clamp(12px,3.4cqw,17px)] font-extrabold uppercase leading-[1.15] tracking-[0.14em] text-transparent">
             AFFHAN Shipping
           </span>
           {/* The shipping page's own summary of what it offers, not new copy. */}
-          <span className="mt-[clamp(3px,1.2cqw,7px)] line-clamp-2 text-[clamp(11.5px,2.85cqw,14px)] leading-snug text-slate-600">
+          <span className="mt-[clamp(3px,1.2cqw,7px)] line-clamp-2 text-[clamp(11px,2.85cqw,14px)] leading-snug text-slate-600">
             Sea and air freight, customs clearance and door-to-door delivery.
           </span>
         </span>
         <span
           aria-hidden="true"
-          className="relative flex size-[clamp(28px,7.5cqw,38px)] shrink-0 items-center justify-center rounded-full bg-brand-dark text-white shadow-sm transition-transform duration-300 group-hover:translate-x-0.5"
+          className="relative flex size-[clamp(26px,7.5cqw,38px)] shrink-0 items-center justify-center rounded-full bg-brand-dark text-white shadow-sm transition-transform duration-300 group-hover:translate-x-0.5"
         >
           <ArrowRight className="size-[45%]" />
         </span>

@@ -884,7 +884,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
           // the label read as one object rather than a pale chip with an
           // unrelated black box under it. focus-visible mirrors hover, so the
           // keyboard path gets the same state and not just a ring.
-            className="inline-flex size-8 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-all duration-200 hover:bg-[#081f2a] hover:text-white hover:shadow-[0_4px_14px_rgba(8,31,42,0.35)] focus-visible:bg-[#081f2a] focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 motion-safe:hover:scale-105 motion-safe:active:scale-95 md:size-9"
+            className="inline-flex size-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-all duration-200 hover:bg-[#081f2a] hover:text-white hover:shadow-[0_4px_14px_rgba(8,31,42,0.35)] focus-visible:bg-[#081f2a] focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 motion-safe:hover:scale-105 motion-safe:active:scale-95 md:size-9"
           >
             <Camera size={16} className="md:size-[18px]" />
           </button>
