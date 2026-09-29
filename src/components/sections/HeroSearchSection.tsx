@@ -121,9 +121,8 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
           buttons are the same width, so the space either side of the search
           is identical and the search sits on the page's centre. Below lg the
           search takes the full width and the two buttons pair up, centred,
-          under it, in two equal columns. Below xl a third button, AFFHAN
-          Shipping, sits centred beneath them; from xl shipping is the pill on
-          the badge line instead (ShippingBar). */}
+          under it, in two equal columns. The promo grid below this section
+          (MarketplaceHeroSection) takes its edges from this row. */}
       <div className="w-full flex flex-col items-center gap-4">
         {/* Trust badges: auto-sliding ticker on mobile, spotlight row on desktop */}
         <TrustBadges />
@@ -266,14 +265,6 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
           label="Top Ranking"
           hoverTextClass="hover:text-amber-600"
           className="w-full max-w-[11.25rem] justify-center justify-self-start max-[359px]:px-3 lg:col-start-3 lg:row-start-1"
-        />
-        {/* Below xl only: the way to the shipping side, in the same button. */}
-        <QuickLinkPill
-          href="/shipping/"
-          icon="/affhan-ship-nav.webp"
-          iconFit="mark"
-          label="AFFHAN Shipping"
-          className="col-span-2 min-w-[11.25rem] justify-center justify-self-center lg:col-span-1 lg:col-start-2 lg:row-start-2 xl:hidden"
         />
         </div>
       </div>

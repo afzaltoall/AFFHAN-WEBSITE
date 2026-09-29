@@ -20,9 +20,6 @@ interface QuickLinkPillProps {
   hoverTextClass?: string;
   /** Hide the label below sm, keeping just the icon, where space is tight. */
   labelHiddenOnMobile?: boolean;
-  /** "photo" (default) crops the framed photo icons as described above;
-   *  "mark" shows a transparent emblem whole (the AFFHAN Shipping ship). */
-  iconFit?: "photo" | "mark";
   className?: string;
 }
 
@@ -32,7 +29,6 @@ export function QuickLinkPill({
   label,
   hoverTextClass = "hover:text-brand-dark",
   labelHiddenOnMobile = false,
-  iconFit = "photo",
   className = "",
 }: QuickLinkPillProps) {
   return (
@@ -48,7 +44,7 @@ export function QuickLinkPill({
         width={20}
         height={20}
         style={{ width: 20, height: 20 }}
-        className={iconFit === "mark" ? "object-contain scale-[1.3]" : "object-contain scale-[1.8] [clip-path:inset(20%)]"}
+        className="object-contain scale-[1.8] [clip-path:inset(20%)]"
       />
       <span className={labelHiddenOnMobile ? "hidden sm:inline" : undefined}>{label}</span>
     </Link>

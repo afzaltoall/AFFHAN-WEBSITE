@@ -46,7 +46,7 @@ function beyondWholeRows(index: number, count: number): string {
 }
 
 /** The China trip banner: the owner's picture on a fireworks card, linking to the trip. */
-function TripBanner({ className, src, width, height, contained = false }: { className: string; src: string; width: number; height: number; contained?: boolean }) {
+function TripBanner({ className, src, width, height, sizes, contained = false }: { className: string; src: string; width: number; height: number; sizes: string; contained?: boolean }) {
   return (
     <FireworksCard className={className} contained={contained}>
       <Link
@@ -59,6 +59,7 @@ function TripBanner({ className, src, width, height, contained = false }: { clas
           alt=""
           width={width}
           height={height}
+          sizes={sizes}
           loading="lazy"
           fetchPriority="low"
           className="h-full w-full object-cover"
@@ -250,6 +251,7 @@ export function MarketplaceHeroSection({
                 src="/china-trip-hero.webp"
                 width={640}
                 height={240}
+                sizes="320px"
               />
             </div>
             <style dangerouslySetInnerHTML={{
@@ -585,18 +587,30 @@ export function MarketplaceHeroSection({
         {/* Large Hero Search Section */}
         <HeroSearchSection categories={searchCategories} />
 
-        {/* The China trip banner below xl (from xl it is the corner card on
-            the badge line), centred under the AFFHAN Shipping button that
-            ends the search section: min(100%, 560px) wide, so the full column
-            on a phone and 560px from a tablet up, at the picture's own 8:3.
-            `contained` keeps its fireworks inside its frame. From a 1280px
-            cut, so a 3x phone gets real detail. */}
-        <div className="-mt-2 mb-6 flex justify-center xl:hidden">
+        {/* The promo grid, below xl only (from xl the shipping pill sits on
+            the badge line and the banner in the top-right corner). AFFHAN
+            Shipping left, the China trip right, in two equal 1fr columns.
+            The row's height is the banner's, from its 620/232 aspect ratio;
+            the shipping card is absolute in its cell from sm (ShippingBar),
+            so it adds nothing to the row and fills it exactly.
+            Its edges are the search row's outer edges above it:
+            - from lg, Full Catalog's left to Top Ranking's right. The search
+              row is 1fr | minmax(0,640px) | 1fr with 12px gaps and 180px
+              buttons at the inner edges, so those edges sit at
+              max(0, content/2 - 512) in from each side: the pair spans
+              min(content, 1024px), centred. Hence max-w-[1024px].
+            - from sm to lg, the search box's own edges (max-w-2xl, 672px):
+              there the two buttons sit as a small pair under it, 372px
+              across, too narrow for two cards side by side.
+            - below sm, one column, shipping first, max 560px, centred. */}
+        <div className="-mt-2 mb-6 mx-auto grid w-full max-w-[560px] grid-cols-1 items-stretch gap-4 sm:max-w-2xl sm:grid-cols-2 lg:max-w-[1024px] xl:hidden">
+          <ShippingBar variant="card" />
           <TripBanner
-            className="aspect-[8/3] w-[min(100%,560px)]"
+            className="aspect-[620/232] w-full"
             src="/china-trip-hero-1280.webp"
             width={1280}
             height={480}
+            sizes="(min-width: 640px) 50vw, 100vw"
             contained
           />
         </div>

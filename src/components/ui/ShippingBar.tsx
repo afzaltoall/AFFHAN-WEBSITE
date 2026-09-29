@@ -4,19 +4,21 @@ import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
+import { SHIP_MARK_HERO, SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
 
 /**
- * The way through to the shipping side, from xl: at the left of the hero's
- * badge line, in the place the Affhan.com lockup had until the owner removed
- * it (2026-09-25), absolutely positioned so the badge beside it stays centred
- * on the line and nothing else in the hero moves. If the lockup comes back,
- * this goes back to the right end of the line: `right-12` in place of
- * `left-10` below.
+ * The way through to the shipping side. Two forms over one set of water:
  *
- * Below xl there is no room beside the badge (stacked above it, as it briefly
- * was on 2026-09-29, it crowded the badge and half covered it at 933px), so
- * shipping is a quick-link button under the search there (HeroSearchSection).
+ * "pill" (from xl): at the left of the hero's badge line, in the place the
+ * Affhan.com lockup had until the owner removed it (2026-09-25), absolutely
+ * positioned so the badge beside it stays centred on the line and nothing
+ * else in the hero moves. If the lockup comes back, this goes back to the
+ * right end of the line: `right-12` in place of `left-10` below.
+ *
+ * "card" (below xl): the left cell of the hero's promo grid, beside the China
+ * trip banner (MarketplaceHeroSection). There is no room beside the badge
+ * below xl; stacked above it, as it briefly was on 2026-09-29, it crowded the
+ * badge and half covered it at 933px.
  *
  * It used to be a bare sail in the navbar's link row — decorative, unlabelled,
  * and impossible to guess at. Out here it carries its own name, which is what
@@ -49,7 +51,7 @@ function makeDrops() {
   });
 }
 
-export function ShippingBar() {
+export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" }) {
   const ref = useRef<HTMLAnchorElement | null>(null);
   const [splashes, setSplashes] = useState<Splash[]>([]);
   const nextId = useRef(0);
@@ -123,10 +125,52 @@ export function ShippingBar() {
     onMouseMove: (e: React.MouseEvent) => splashAt(e.clientX, e.clientY),
   };
 
+  if (variant === "card") {
+    return (
+      // The left cell of the hero's promo grid, beside the China trip banner.
+      // Same frame as the banner's card (FireworksCard): rounded-2xl,
+      // shadow-md, the brand ring, the same lift on hover. From sm it is
+      // absolute in its cell, so the row's height is the banner's alone
+      // (aspect 620/232) and this fills it exactly; below sm it is in the
+      // flow, at least 96px tall. Everything inside is sized in container
+      // units (the card is an inline-size container), so it scales with the
+      // card: a 288px cell at 640px, 504px from 1261px. The container is the
+      // wrapper, so the card's own padding can be in container units too.
+      <div className="@container relative w-full">
+      <Link
+        ref={ref}
+        href="/shipping/"
+        {...hover}
+        className="group relative flex min-h-24 w-full items-center gap-[clamp(10px,3cqw,20px)] overflow-hidden rounded-2xl bg-white/85 px-[clamp(14px,4.5cqw,26px)] pb-[clamp(18px,6.5cqw,34px)] pt-[clamp(8px,2.5cqw,14px)] shadow-md ring-1 ring-brand/20 backdrop-blur-sm transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579] motion-reduce:transition-none motion-reduce:hover:translate-y-0 sm:absolute sm:inset-0 sm:min-h-0"
+      >
+        {splash}
+        {sea("h-[clamp(16px,6cqw,32px)]")}
+        <span aria-hidden="true" className="relative flex shrink-0 items-center animate-float-medium">
+          <Image {...SHIP_MARK_HERO} alt="" sizes="64px" className="block h-[clamp(36px,11cqw,60px)] w-auto object-contain" />
+        </span>
+        <span className="relative flex min-w-0 flex-1 flex-col">
+          <span className="block truncate bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[clamp(12px,3.4cqw,17px)] font-extrabold uppercase leading-[1.15] tracking-[0.14em] text-transparent">
+            AFFHAN Shipping
+          </span>
+          {/* The shipping page's own summary of what it offers, not new copy. */}
+          <span className="mt-[clamp(3px,1.2cqw,7px)] line-clamp-2 text-[clamp(11.5px,2.85cqw,14px)] leading-snug text-slate-600">
+            Sea and air freight, customs clearance and door-to-door delivery.
+          </span>
+        </span>
+        <span
+          aria-hidden="true"
+          className="relative flex size-[clamp(28px,7.5cqw,38px)] shrink-0 items-center justify-center rounded-full bg-brand-dark text-white shadow-sm transition-transform duration-300 group-hover:translate-x-0.5"
+        >
+          <ArrowRight className="size-[45%]" />
+        </span>
+      </Link>
+      </div>
+    );
+  }
+
   return (
     // left-10 is the lockup's own inset, so the pill sits exactly where it
-    // did. From xl only: below that, shipping is a button under the search
-    // (HeroSearchSection).
+    // did. From xl only: below that it is the card, in the promo grid.
     <div className="absolute left-10 top-1/2 hidden -translate-y-1/2 xl:block">
       <Link
         ref={ref}
