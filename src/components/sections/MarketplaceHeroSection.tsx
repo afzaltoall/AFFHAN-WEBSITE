@@ -206,11 +206,11 @@ export function MarketplaceHeroSection({
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
           {/* The badge alone, centred. From xl the shipping pill joins it on the
-              left, out of the flow (absolute, in ShippingBar); below xl the
-              pill is a card in the promo row under the search instead. The
-              pill is 58px on a 34px line, so it reaches 12px below it; xl:mb-6
-              keeps that clear of the headline, which at 1280-1439 starts under
-              the pill's right end. */}
+              left, out of the flow (absolute, in ShippingBar); below xl
+              shipping is a button under the search instead (HeroSearchSection).
+              The pill is 58px on a 34px line, so it reaches 12px below it;
+              xl:mb-6 keeps that clear of the headline, which at 1280-1439
+              starts under the pill's right end. */}
           <div className="relative mb-3 flex justify-center xl:mb-6">
             {/* The Affhan.com lockup (components/ui/AffhanBrandBar) sat at the
                 left of this line until 2026-09-25, when the owner took it out
@@ -585,28 +585,20 @@ export function MarketplaceHeroSection({
         {/* Large Hero Search Section */}
         <HeroSearchSection categories={searchCategories} />
 
-        {/* The promo row, below xl: the two ways off the catalogue as one
-            matched pair of cards — shipping, and the China trip. From xl they
-            have their own places on the badge line (the pill left, the banner
-            top right); below it there is no room there, and dropping them into
-            the stack one by one (a pill crowding the badge, a lone banner
-            floating over the grid) read as clutter.
-            Phones: stacked, the banner first at its 8:3 and full width, the
-            shipping card under it. From md: one row, the card taking the
-            width left over by the banner, whose height sets the row's —
-            clamp(128px, 15vw, 172px), so 128px at 768 and 157px at 1045 —
-            and the card stretches to match it. The banner is `contained`: its
-            fireworks stay inside its frame instead of drifting over the card.
-            From a 1280px cut, so a 3x phone gets real detail. */}
-        <div className="-mt-2 mb-6 grid w-full gap-4 md:grid-cols-[minmax(0,1fr)_auto] xl:hidden">
+        {/* The China trip banner below xl (from xl it is the corner card on
+            the badge line), centred under the AFFHAN Shipping button that
+            ends the search section: min(100%, 560px) wide, so the full column
+            on a phone and 560px from a tablet up, at the picture's own 8:3.
+            `contained` keeps its fireworks inside its frame. From a 1280px
+            cut, so a 3x phone gets real detail. */}
+        <div className="-mt-2 mb-6 flex justify-center xl:hidden">
           <TripBanner
-            className="aspect-[8/3] w-full md:order-2 md:h-[clamp(128px,15vw,172px)] md:w-auto"
+            className="aspect-[8/3] w-[min(100%,560px)]"
             src="/china-trip-hero-1280.webp"
             width={1280}
             height={480}
             contained
           />
-          <ShippingBar variant="card" />
         </div>
 
         {/* Mobile Fallback Header */}

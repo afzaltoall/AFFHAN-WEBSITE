@@ -4,21 +4,19 @@ import { useCallback, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { SHIP_MARK_HERO, SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
+import { SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
 
 /**
- * The way through to the shipping side. Two forms, one set of water:
+ * The way through to the shipping side, from xl: at the left of the hero's
+ * badge line, in the place the Affhan.com lockup had until the owner removed
+ * it (2026-09-25), absolutely positioned so the badge beside it stays centred
+ * on the line and nothing else in the hero moves. If the lockup comes back,
+ * this goes back to the right end of the line: `right-12` in place of
+ * `left-10` below.
  *
- * "pill" (from xl): at the left of the hero's badge line, in the place the
- * Affhan.com lockup had until the owner removed it (2026-09-25), absolutely
- * positioned so the badge beside it stays centred on the line and nothing
- * else in the hero moves. If the lockup comes back, this goes back to the
- * right end of the line: `right-12` in place of `left-10` below.
- *
- * "card" (below xl): one of the hero's two promo cards, beside the China trip
- * banner (MarketplaceHeroSection). There is no room for the pill beside the
- * badge below xl, and stacked above it, as it briefly was on 2026-09-29, it
- * crowded the badge and half covered it at 933px.
+ * Below xl there is no room beside the badge (stacked above it, as it briefly
+ * was on 2026-09-29, it crowded the badge and half covered it at 933px), so
+ * shipping is a quick-link button under the search there (HeroSearchSection).
  *
  * It used to be a bare sail in the navbar's link row — decorative, unlabelled,
  * and impossible to guess at. Out here it carries its own name, which is what
@@ -51,7 +49,7 @@ function makeDrops() {
   });
 }
 
-export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" }) {
+export function ShippingBar() {
   const ref = useRef<HTMLAnchorElement | null>(null);
   const [splashes, setSplashes] = useState<Splash[]>([]);
   const nextId = useRef(0);
@@ -125,46 +123,10 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
     onMouseMove: (e: React.MouseEvent) => splashAt(e.clientX, e.clientY),
   };
 
-  if (variant === "card") {
-    return (
-      // The same frame as the China trip card beside it (FireworksCard): white,
-      // rounded-2xl, a brand ring, and the same lift on hover, so the two read
-      // as a pair. The text sits clear of the water, which runs along the foot.
-      <Link
-        ref={ref}
-        href="/shipping/"
-        {...hover}
-        className="group relative flex h-full items-center gap-4 overflow-hidden rounded-2xl bg-white/85 px-5 pb-8 pt-5 shadow-md ring-1 ring-brand/20 backdrop-blur-sm transition-[translate,box-shadow] duration-300 ease-out hover:-translate-y-0.5 hover:shadow-xl hover:ring-brand/40 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#176579] motion-reduce:transition-none motion-reduce:hover:translate-y-0 md:pb-9 lg:gap-5 lg:px-6"
-      >
-        {splash}
-        {sea("h-7 md:h-9")}
-        <span aria-hidden="true" className="relative flex shrink-0 items-center animate-float-medium">
-          <Image {...SHIP_MARK_HERO} alt="" sizes="64px" className="block h-12 w-auto object-contain lg:h-16" />
-        </span>
-        <span className="relative flex min-w-0 flex-1 flex-col">
-          {/* One line always: at 768 the card's text column is ~190px, and at
-              16px / 0.18em the name broke into AFFHAN / SHIPPING. */}
-          <span className="block whitespace-nowrap bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[14px] font-extrabold uppercase leading-none tracking-[0.14em] text-transparent lg:text-[16px] lg:tracking-[0.18em]">
-            AFFHAN Shipping
-          </span>
-          {/* The shipping page's own summary of what it offers, not new copy. */}
-          <span className="mt-2 text-[13px] leading-snug text-slate-600 sm:text-sm">
-            Sea and air freight, customs clearance and door-to-door delivery.
-          </span>
-        </span>
-        <span
-          aria-hidden="true"
-          className="relative hidden h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-dark text-white shadow-sm transition-transform duration-300 group-hover:translate-x-0.5 min-[360px]:flex"
-        >
-          <ArrowRight size={16} />
-        </span>
-      </Link>
-    );
-  }
-
   return (
     // left-10 is the lockup's own inset, so the pill sits exactly where it
-    // did. From xl only: below that it is the card, in the promo row.
+    // did. From xl only: below that, shipping is a button under the search
+    // (HeroSearchSection).
     <div className="absolute left-10 top-1/2 hidden -translate-y-1/2 xl:block">
       <Link
         ref={ref}

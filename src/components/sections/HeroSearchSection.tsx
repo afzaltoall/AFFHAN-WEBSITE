@@ -114,20 +114,20 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
       className={`w-full flex flex-col items-center justify-center pt-4 lg:pt-5 pb-8 lg:pb-10 relative z-[60] transition-opacity duration-300 ${isMegaMenuOpen ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
     >
-      {/* One line from 1360px: search centred, the trust badges on the left and
-          the Top Ranking / Full Catalog quick links on the right via balanced
-          flex-1 spacers, so the search doesn't shift off-centre. Together they
-          need ~1240px (badges ~425, search 440+, links ~300, gaps), and from
-          lg to 1359 there was not that much: at 1044 the links ran off the
-          right edge and "Full Catalog" was cut. So between lg and 1360 the
-          badges take their own line and the search and links share the next;
-          below lg everything stacks and centres. */}
-      <div className="w-full flex flex-col items-center gap-4 min-[1360px]:flex-row min-[1360px]:items-center min-[1360px]:justify-center">
+      {/* The trust badges on their own line, always centred. Then the search
+          row. From lg it is a three-column grid, 1fr | minmax(0,640px) | 1fr:
+          Full Catalog at the inner edge of the left column, Top Ranking at the
+          inner edge of the right. The outer columns are equal and the two
+          buttons are the same width, so the space either side of the search
+          is identical and the search sits on the page's centre. Below lg the
+          search takes the full width and the two buttons pair up, centred,
+          under it, in two equal columns. Below xl a third button, AFFHAN
+          Shipping, sits centred beneath them; from xl shipping is the pill on
+          the badge line instead (ShippingBar). */}
+      <div className="w-full flex flex-col items-center gap-4">
         {/* Trust badges: auto-sliding ticker on mobile, spotlight row on desktop */}
         <TrustBadges />
-        {/* The search and the links: a row of their own from lg, and from 1360
-            `contents`, so they become items of the one line above again. */}
-        <div className="flex w-full flex-col items-center gap-4 lg:flex-row lg:justify-center lg:gap-3 min-[1360px]:contents">
+        <div className="grid w-full grid-cols-2 items-center gap-3 lg:grid-cols-[1fr_minmax(0,640px)_1fr]">
         {/* z-50 is load-bearing and not decoration. Focusing the input applies
               scale-[1.01], and a transform creates a stacking context — which
               traps the suggestions panel's own z-50 inside this wrapper. The
@@ -136,7 +136,7 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
               being later siblings at z-auto they then paint straight over the
               open dropdown. An explicit z-index here lifts the whole wrapper
               instead, so the panel clears them. */}
-          <div className={`relative z-50 w-full max-w-2xl transition-all duration-300 ${isFocused ? "scale-[1.01]" : ""}`} ref={containerRef}>
+          <div className={`relative z-50 col-span-2 w-full max-w-2xl justify-self-center transition-all duration-300 lg:col-span-1 lg:col-start-2 lg:row-start-1 ${isFocused ? "scale-[1.01]" : ""}`} ref={containerRef}>
           <form
             onSubmit={(e) => { e.preventDefault(); runSearch(); }}
             className={`flex items-center w-full h-11 md:h-12 liquid-glass-card hover:!transform-none !rounded-full transition-colors ${isFocused ? "shadow-[0_4px_16px_rgba(39,168,196,0.12)]" : "shadow-sm"}`}
@@ -249,11 +249,32 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
           )}
         </div>
 
-        {/* Right-side quick entry points — Top Ranking / Full Catalog */}
-        <div className="flex shrink-0 items-center justify-center gap-2.5 min-[1360px]:flex-1 min-[1360px]:justify-start">
-          <QuickLinkPill href="/rankings/" icon="/top-1.jpg" label="Top Ranking" hoverTextClass="hover:text-amber-600" />
-          <QuickLinkPill href="/products/" icon="/cata.jpg" label="Full Catalog" />
-        </div>
+        {/* The two quick links, one each side of the search from lg. Same
+            width: 180px, or the column's width where that is less (both
+            columns are always equal). 12px side padding under 360px so the
+            labels still fit a 138px column at 320. After the search in the
+            DOM on purpose: see the z-50 note above. */}
+        <QuickLinkPill
+          href="/products/"
+          icon="/cata.jpg"
+          label="Full Catalog"
+          className="w-full max-w-[11.25rem] justify-center justify-self-end max-[359px]:px-3 lg:col-start-1 lg:row-start-1"
+        />
+        <QuickLinkPill
+          href="/rankings/"
+          icon="/top-1.jpg"
+          label="Top Ranking"
+          hoverTextClass="hover:text-amber-600"
+          className="w-full max-w-[11.25rem] justify-center justify-self-start max-[359px]:px-3 lg:col-start-3 lg:row-start-1"
+        />
+        {/* Below xl only: the way to the shipping side, in the same button. */}
+        <QuickLinkPill
+          href="/shipping/"
+          icon="/affhan-ship-nav.webp"
+          iconFit="mark"
+          label="AFFHAN Shipping"
+          className="col-span-2 min-w-[11.25rem] justify-center justify-self-center lg:col-span-1 lg:col-start-2 lg:row-start-2 xl:hidden"
+        />
         </div>
       </div>
     </div>
