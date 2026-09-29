@@ -125,7 +125,7 @@ export function WhatsAppButton() {
   }
 
   return (
-    <div className="fixed bottom-24 md:bottom-6 right-[21px] md:right-8 z-50 flex flex-col items-center gap-4 font-sans tracking-tight pointer-events-none">
+    <div data-site-dock className="fixed bottom-24 md:bottom-6 right-[21px] md:right-8 z-50 flex flex-col items-center gap-4 font-sans tracking-tight pointer-events-none">
       {/* Scroll to Top Button */}
       <AnimatePresence>
         {isScrolled && (

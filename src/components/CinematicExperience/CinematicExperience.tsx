@@ -283,13 +283,27 @@ export function CinematicExperience() {
         const undoTerms = terms ? buildTerms(terms, reduce) : () => undefined;
         buildCta(cta, ctaStage, desktop, reduce, starsDim);
 
+        // The site's floating dock (WhatsAppButton: back to top, Instagram)
+        // sits bottom right, which on a phone is on top of the film's city
+        // names and its HUD. It steps aside while the film holds the screen
+        // (cinematic.css) and comes back for the sections after it.
+        const root_ = document.documentElement;
+        const dock = ScrollTrigger.create({
+          trigger: film,
+          start: "top top",
+          end: "bottom bottom",
+          onToggle: (self) => root_.toggleAttribute("data-cx-film", self.isActive),
+        });
+
         ScrollTrigger.refresh();
+        root_.toggleAttribute("data-cx-film", dock.isActive);
         // Web fonts change the height of the text sections, and so where the
         // later triggers start.
         void document.fonts?.ready.then(() => ScrollTrigger.refresh());
 
         return () => {
           ScrollTrigger.removeEventListener("refresh", relayout);
+          root_.removeAttribute("data-cx-film");
           particles?.clear();
           warp?.clear();
           undoSteps();
