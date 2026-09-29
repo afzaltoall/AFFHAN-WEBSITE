@@ -489,7 +489,9 @@ export default function AboutUsContent() {
             viewport={{ once: true, amount: 0.5 }}
             className="flex flex-col items-center text-center"
           >
-            <span className="text-brand-dark text-sm font-semibold uppercase tracking-[0.2em] mb-3">Partner With Us</span>
+            {/* pl matches the tracking: letter-spacing also follows the last
+                letter, so without it the centred label sits 0.1em left. */}
+            <span className="text-brand-dark text-sm font-semibold uppercase tracking-[0.2em] pl-[0.2em] mb-3">Partner With Us</span>
             {/* slate-900, not gray-800. The font here was never the problem —
                 this heading rasterises Plus Jakarta Sans like every other one
                 (checked with getPlatformFontsForNode, no fallback), and
@@ -497,8 +499,12 @@ export default function AboutUsContent() {
                 The colour was the outlier: text-gray-800 (#1f2937) appeared
                 exactly once in the codebase against 79 uses of text-slate-900
                 (#0f172a) on headings this size. Lighter, and a different hue
-                family — which at 48px reads as a different, weaker typeface. */}
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-slate-900">AFFHAN International Pvt Ltd</h2>
+                family — which at 48px reads as a different, weaker typeface.
+                The registered name, in capitals as registered. Capitals take
+                normal tracking, not tight: the tightened letters crowd. One
+                line from 768px up (776px wide at 48px); on a phone it wraps,
+                balanced, and "PVT LTD" never splits. */}
+            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-normal leading-[1.12] text-balance text-slate-900">AFFHAN INTERNATIONAL PVT&nbsp;LTD</h2>
           </motion.div>
 
           {/* Center Affhan logo with animated social "wires" flowing in */}
