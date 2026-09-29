@@ -238,7 +238,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
           >
             <div className="shrink-0 flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-white z-20">
               <div className="relative h-12 w-36 sm:h-14 sm:w-48 shrink-0">
-                <Image src="/logo.png" alt="Affhan" fill className="object-contain object-left" priority />
+                <Image src="/logo.png" alt="AFFHAN" fill className="object-contain object-left" priority />
               </div>
               <button
                 onClick={handleClose}

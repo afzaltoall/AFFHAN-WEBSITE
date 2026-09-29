@@ -207,7 +207,7 @@ interface SourcingProcessSectionProps {
 }
 
 export function SourcingProcessSection({
-  eyebrow = "Affhan Workflow",
+  eyebrow = "AFFHAN Workflow",
   heading = "Process of Sourcing",
   intro,
 }: SourcingProcessSectionProps) {

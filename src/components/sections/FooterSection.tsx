@@ -121,7 +121,7 @@ export function FooterSection() {
               bottomBar={
           <div className="border-t border-white/10 bg-[#19414e]">
             <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-3 px-6 py-4 text-xs text-slate-200/80 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-14">
-              <p>Copyright &copy; 2026 Affhan. All rights reserved.</p>
+              <p>Copyright &copy; 2026 AFFHAN. All rights reserved.</p>
               <div className="flex items-center gap-4">
                 <a
                   href="https://www.facebook.com/affhaninternational"

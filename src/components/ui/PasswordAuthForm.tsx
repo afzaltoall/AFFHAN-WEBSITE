@@ -137,7 +137,7 @@ export function PasswordAuthForm({
           account. Without it the only route to signing up would be guesswork,
           which is how account creation ends up invisible. */}
       <p className={authSwitchRow}>
-        New to Affhan?{" "}
+        New to AFFHAN?{" "}
         <button
           type="button"
           onClick={onCreateAccount}

@@ -303,7 +303,7 @@ export default function RadialOrbitalTimeline({
         {/* Left panel — stage readout */}
         <div className="hidden xl:flex absolute left-8 top-1/2 -translate-y-1/2 w-[285px] flex-col gap-5 rounded-2xl border border-white/15 bg-white/5 p-6 backdrop-blur-md text-white select-none shadow-[0_8px_32px_rgba(0,0,0,0.12)]">
           <div className="flex flex-col gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#61deff]">Affhan Sourcing</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#61deff]">AFFHAN Sourcing</span>
             <h3 className="text-base font-extrabold tracking-tight text-white">Workflow Summary</h3>
           </div>
 
@@ -389,7 +389,7 @@ export default function RadialOrbitalTimeline({
               <div className="absolute inset-0 rounded-full bg-[radial-gradient(circle,rgba(39,168,196,0.2)_0%,rgba(39,168,196,0)_68%)] pointer-events-none" />
 
               <div className={`relative flex items-center justify-center transition-all duration-500 ${activeItem ? "opacity-0 scale-75 pointer-events-none h-0 w-0 overflow-hidden" : "opacity-100 scale-100 h-full w-full"}`}>
-                <Image alt="Affhan" className="relative z-10 h-28 w-28 object-contain" height={112} width={112} src="/images/logo.png" />
+                <Image alt="AFFHAN" className="relative z-10 h-28 w-28 object-contain" height={112} width={112} src="/images/logo.png" />
               </div>
 
               {activeItem && (

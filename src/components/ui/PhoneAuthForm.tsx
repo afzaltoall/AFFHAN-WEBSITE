@@ -325,7 +325,7 @@ export function PhoneAuthForm({
           ) : (
             <>
               <p className="pt-1 text-center text-[13px] text-slate-500">
-                New to Affhan?{" "}
+                New to AFFHAN?{" "}
                 <button
                   type="button"
                   onClick={() => {
