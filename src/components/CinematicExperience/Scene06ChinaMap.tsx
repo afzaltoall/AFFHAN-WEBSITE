@@ -28,7 +28,7 @@ export function Scene06ChinaMap() {
         cx="cap-map"
         eyebrow={CAPTIONS.map.eyebrow}
         title={CAPTIONS.map.title}
-        className="left-6 top-[13svh] md:left-[6vw] md:top-[17svh]"
+        className="left-6 top-[max(13svh,5rem)] md:left-[6vw] md:top-[max(17svh,5rem)]"
       >
         <p aria-hidden className={`${DISPLAY} mt-2 text-[clamp(22px,2.6vw,40px)] tracking-[0.2em] text-(--cx-gold)`}>
           {CAPTIONS.map.hanzi}

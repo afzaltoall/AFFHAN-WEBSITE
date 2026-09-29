@@ -31,7 +31,7 @@ export function Scene03BoardingPass() {
         cx="cap-boarding"
         eyebrow={CAPTIONS.boarding.eyebrow}
         title={CAPTIONS.boarding.title}
-        className="bottom-[9svh] left-6 md:bottom-[11svh] md:left-[6vw]"
+        className="bottom-[max(9svh,4.5rem)] left-6 md:bottom-[max(11svh,5rem)] md:left-[6vw]"
       />
     </div>
   );

@@ -33,7 +33,7 @@ export function Scene04Airplane() {
         cx="cap-plane"
         eyebrow={CAPTIONS.plane.eyebrow}
         title={CAPTIONS.plane.title}
-        className="left-6 top-[14svh] md:left-[6vw] md:top-[16svh]"
+        className="left-6 top-[max(14svh,5rem)] md:left-[6vw] md:top-[max(16svh,5rem)]"
       />
     </div>
   );

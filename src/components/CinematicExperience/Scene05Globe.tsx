@@ -88,7 +88,7 @@ export function Scene05Globe() {
         cx="cap-globe"
         eyebrow={CAPTIONS.globe.eyebrow}
         title={CAPTIONS.globe.title}
-        className="bottom-[8svh] left-6 md:bottom-[11svh] md:left-[6vw]"
+        className="bottom-[max(8svh,4.5rem)] left-6 md:bottom-[max(11svh,5rem)] md:left-[6vw]"
       />
     </div>
   );

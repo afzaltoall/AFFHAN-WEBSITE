@@ -27,7 +27,7 @@ export function Scene09Hotel() {
         cx="cap-hotel"
         eyebrow={CAPTIONS.hotel.eyebrow}
         title={CAPTIONS.hotel.title}
-        className="left-6 top-[13svh] md:left-[6vw] md:top-[16svh]"
+        className="left-6 top-[max(13svh,5rem)] md:left-[6vw] md:top-[max(16svh,5rem)]"
       />
     </div>
   );

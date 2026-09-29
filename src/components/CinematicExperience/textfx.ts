@@ -116,10 +116,28 @@ export function textIn(tl: gsap.core.Timeline, el: Element | null | undefined, f
     case "track": {
       // Crisp at every frame: the letters slide together and are fully there
       // before they meet, so the word never reads as broken strokes.
+      // Anchored on the first letter, which never moves: the rest come in
+      // from the right, the way the cities travel. They used to spread about
+      // the middle, 0.34em a letter, which put GUANGZHOU's G 1.36em left of
+      // its place (163px at 1280) — over the hanzi beside it, and on a phone
+      // off the screen, with the last letters off the other side. The spread
+      // is capped by the room to the right of the word, so no letter ever
+      // starts off screen. Measured from layout (offsetLeft), not from the
+      // letters' boxes, which carry this very transform on a refresh.
       const { chars } = split(el, "chars");
-      const mid = (chars.length - 1) / 2;
       const em = parseFloat(getComputedStyle(el).fontSize) || 16;
-      hold(tl, chars, { x: (i: number) => (i - mid) * em * 0.34 }, { x: 0, ease: "power3.out", duration: dur }, at);
+      let step = 0;
+      const spread = (i: number) => {
+        if (i === 0) {
+          const last = chars[chars.length - 1] as HTMLElement;
+          const host = last.offsetParent as HTMLElement | null;
+          const right = (host ? host.getBoundingClientRect().left : 0) + last.offsetLeft + last.offsetWidth;
+          const room = window.innerWidth - right - 16;
+          step = Math.max(0, Math.min(em * 0.34, room / Math.max(1, chars.length - 1)));
+        }
+        return i * step;
+      };
+      hold(tl, chars, { x: spread }, { x: 0, ease: "power3.out", duration: dur }, at);
       hold(tl, chars, { autoAlpha: 0 }, { autoAlpha: 1, ease: "power1.out", duration: dur * 0.45 }, at);
       return;
     }

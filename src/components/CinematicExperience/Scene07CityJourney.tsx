@@ -43,14 +43,18 @@ export function CityCaption({ city, children }: { city: (typeof CITIES)[number];
     <div
       data-cx={`cap-${city.key}`}
       data-cx-hide
-      className="cx-city-cap pointer-events-none absolute bottom-[8svh] left-6 z-40 flex items-end gap-4 md:bottom-[9svh] md:left-[6vw] md:gap-6"
+      className="cx-city-cap pointer-events-none absolute bottom-[max(8svh,4.5rem)] left-6 z-40 flex items-end gap-4 md:bottom-[max(9svh,5rem)] md:left-[6vw] md:gap-6"
     >
       <span data-cx-part="hanzi" aria-hidden className={`${DISPLAY} text-[clamp(22px,3vw,46px)] leading-none tracking-[0.18em] text-(--cx-gold) [writing-mode:vertical-rl]`}>
         {city.hanzi}
       </span>
       <div>
         <p data-cx-part="coords" className={`${EYEBROW} tabular-nums`}>{city.coords}</p>
-        <p data-cx-part="name" className={`${DISPLAY} cx-city-name mt-2 text-[clamp(50px,12vw,170px)] uppercase leading-[0.84] tracking-[0.01em] md:text-[clamp(64px,9.4vw,170px)]`}>
+        {/* Never wider than the screen: GUANGZHOU is 6.54x its font size, and
+            on a phone the name starts 62px in (24 + hanzi 22 + gap 16), so the
+            size is capped at (100vw - 86px) / 6.54, 35.8px at 320. It wrapped
+            there as GUANGZH / OU. 19svh caps it on a landscape phone. */}
+        <p data-cx-part="name" className={`${DISPLAY} cx-city-name mt-2 text-[length:min(clamp(50px,12vw,170px),calc((100vw_-_86px)/6.54),19svh)] uppercase leading-[0.84] tracking-[0.01em] md:text-[length:min(clamp(64px,9.4vw,170px),19svh)]`}>
           {city.name}
         </p>
         {children}
