@@ -46,9 +46,9 @@ function beyondWholeRows(index: number, count: number): string {
 }
 
 /** The China trip banner: the owner's picture on a fireworks card, linking to the trip. */
-function TripBanner({ className, src, width, height }: { className: string; src: string; width: number; height: number }) {
+function TripBanner({ className, src, width, height, contained = false }: { className: string; src: string; width: number; height: number; contained?: boolean }) {
   return (
-    <FireworksCard className={className}>
+    <FireworksCard className={className} contained={contained}>
       <Link
         href="/free-china-trip/"
         aria-label="Free China business trip: what's included, and how to apply"
@@ -205,13 +205,13 @@ export function MarketplaceHeroSection({
         {/* Animated intro headline — a morphing category word gives the opening
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
-          {/* A column below lg: the shipping pill gets its own line above the
-              badge, since beside it there is no room. From lg it is taken out
-              of the flow again (absolute, in ShippingBar) and the line is the
-              badge alone, centred. The pill is 58px on a 34px line, so it
-              reaches 12px below it; lg:mb-6 keeps that clear of the headline,
-              which at 1280-1439 starts under the pill's right end. */}
-          <div className="relative mb-3 flex flex-col items-center gap-3 lg:mb-6 lg:flex-row lg:justify-center lg:gap-0">
+          {/* The badge alone, centred. From xl the shipping pill joins it on the
+              left, out of the flow (absolute, in ShippingBar); below xl the
+              pill is a card in the promo row under the search instead. The
+              pill is 58px on a 34px line, so it reaches 12px below it; xl:mb-6
+              keeps that clear of the headline, which at 1280-1439 starts under
+              the pill's right end. */}
+          <div className="relative mb-3 flex justify-center xl:mb-6">
             {/* The Affhan.com lockup (components/ui/AffhanBrandBar) sat at the
                 left of this line until 2026-09-25, when the owner took it out
                 and gave its place to the shipping pill. The component is kept
@@ -585,18 +585,28 @@ export function MarketplaceHeroSection({
         {/* Large Hero Search Section */}
         <HeroSearchSection categories={searchCategories} />
 
-        {/* The China trip banner where the top-right corner has no room for
-            it (below 1280): full width under the search on a phone, capped so
-            it stays a banner rather than a poster on a tablet or small laptop.
-            The same card, at the picture's own 8:3, from a 1280px cut so a 3x
-            phone gets real detail rather than the corner's 640px file. */}
-        <div className="mx-auto -mt-2 mb-6 w-full max-w-[480px] md:max-w-[560px] xl:hidden">
+        {/* The promo row, below xl: the two ways off the catalogue as one
+            matched pair of cards — shipping, and the China trip. From xl they
+            have their own places on the badge line (the pill left, the banner
+            top right); below it there is no room there, and dropping them into
+            the stack one by one (a pill crowding the badge, a lone banner
+            floating over the grid) read as clutter.
+            Phones: stacked, the banner first at its 8:3 and full width, the
+            shipping card under it. From md: one row, the card taking the
+            width left over by the banner, whose height sets the row's —
+            clamp(128px, 15vw, 172px), so 128px at 768 and 157px at 1045 —
+            and the card stretches to match it. The banner is `contained`: its
+            fireworks stay inside its frame instead of drifting over the card.
+            From a 1280px cut, so a 3x phone gets real detail. */}
+        <div className="-mt-2 mb-6 grid w-full gap-4 md:grid-cols-[minmax(0,1fr)_auto] xl:hidden">
           <TripBanner
-            className="aspect-[8/3] w-full"
+            className="aspect-[8/3] w-full md:order-2 md:h-[clamp(128px,15vw,172px)] md:w-auto"
             src="/china-trip-hero-1280.webp"
             width={1280}
             height={480}
+            contained
           />
+          <ShippingBar variant="card" />
         </div>
 
         {/* Mobile Fallback Header */}

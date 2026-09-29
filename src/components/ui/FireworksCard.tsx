@@ -162,7 +162,12 @@ const FEATHER =
   "linear-gradient(to right, transparent, #000 26px, #000 calc(100% - 26px), transparent)," +
   "linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 12px), transparent)";
 
-export function FireworksCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+/**
+ * `contained` keeps the show inside the card's own rounded frame instead of
+ * spilling past its edges: for a card with a neighbour (the hero's promo row
+ * below xl), where sparks drifting over the next card read as a mess.
+ */
+export function FireworksCard({ children, className = "", contained = false }: { children: React.ReactNode; className?: string; contained?: boolean }) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -646,17 +651,22 @@ export function FireworksCard({ children, className = "" }: { children: React.Re
         {children}
       </div>
       {/* Outside the card's clip, and larger than it by SPILL, so the show
-          can spill past its edges; feathered, so it fades out there. */}
+          can spill past its edges; feathered, so it fades out there. When
+          contained, exactly the card, and rounded like it. */}
       <canvas
         ref={canvasRef}
         aria-hidden="true"
-        className="pointer-events-none absolute z-10"
-        style={{
-          left: -SPILL.left, top: -SPILL.top,
-          width: `calc(100% + ${SPILL.left + SPILL.right}px)`, height: `calc(100% + ${SPILL.top + SPILL.bottom}px)`,
-          maskImage: FEATHER, WebkitMaskImage: FEATHER,
-          maskComposite: "intersect", WebkitMaskComposite: "source-in",
-        }}
+        className={`pointer-events-none absolute z-10 ${contained ? "rounded-2xl" : ""}`}
+        style={
+          contained
+            ? { left: 0, top: 0, width: "100%", height: "100%" }
+            : {
+                left: -SPILL.left, top: -SPILL.top,
+                width: `calc(100% + ${SPILL.left + SPILL.right}px)`, height: `calc(100% + ${SPILL.top + SPILL.bottom}px)`,
+                maskImage: FEATHER, WebkitMaskImage: FEATHER,
+                maskComposite: "intersect", WebkitMaskComposite: "source-in",
+              }
+        }
       />
     </div>
   );
