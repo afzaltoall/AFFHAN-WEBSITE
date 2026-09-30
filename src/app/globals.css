@@ -1477,6 +1477,306 @@ html.scroll-behavior-auto {
 }
 
 /* ---------------------------------------------------------------------------
+   Hero stats row (components/ui/TrustBadges.tsx, TrustEmblems.tsx).
+   ---------------------------------------------------------------------------
+   The rest state comes first and outside any media query: it is what the
+   server sends, and all a visitor who asks for reduced motion ever gets —
+   the finished row, nothing hidden. Every animation is further down, inside
+   prefers-reduced-motion: no-preference. */
+
+.tb-emblem .tb-art {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  filter: drop-shadow(0 2px 3px rgb(16 80 95 / 0.22));
+}
+
+/* A figure's digits: a reel each, a window exactly one line of the figure
+   tall onto a column of digits. The column comes from the reel's data-col
+   (TrustBadges.tsx, reelColumn) and is drawn as ::before content, so the
+   page's text holds the number once (the sr-only span beside the reels),
+   never the columns. The figures are tabular, so every reel is one digit
+   wide. The line height here must stay the figure's (leading-[1.1]).
+
+   At rest a digit stands exactly where the figure's own text would have it,
+   measured at seven widths. There is no transform at rest: the digit is the
+   column's first line, laid out like the text beside it. Placing it with a
+   translate instead put it a device pixel low at one size or another (15px,
+   then 14px), because a fractional translate is painted after layout has
+   rounded everything else. The roll is a transform from down the column to
+   none.
+
+   The window clips hard at the line, as a real odometer's does. A taller
+   window with soft edges was tried: a digit's ink fills 15.6%-90.6% of its
+   line, so any fade soft enough to see let a rolling digit show almost
+   whole half a line above its place. */
+.tb-reel {
+  display: inline-block;
+  height: 1.1em;
+  line-height: 1.1;
+  overflow: hidden;
+  vertical-align: top;
+}
+.tb-reel::before {
+  content: attr(data-col);
+  display: block;
+  white-space: pre;
+}
+
+/* The spotlight: a glow behind the emblem, and a ring that closes round it
+   over --tb-cycle (set by the component). An <svg> is a replaced element, so
+   the ring is sized outright; insets alone would not stretch it. */
+.tb-halo {
+  position: absolute;
+  inset: -30%;
+  border-radius: 9999px;
+  background: radial-gradient(closest-side, rgb(39 168 196 / 0.24), rgb(39 168 196 / 0));
+  opacity: 0;
+  transform: scale(0.6);
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+.tb-stat.is-active .tb-halo {
+  opacity: 1;
+  transform: none;
+}
+.tb-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  opacity: 0;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+.tb-ring circle {
+  fill: none;
+  stroke-width: 1.5;
+}
+.tb-ring-track { stroke: rgb(15 23 42 / 0.07); }
+.tb-ring-fill {
+  stroke: var(--color-brand);
+  stroke-linecap: round;
+  stroke-dasharray: 1 2;
+  stroke-dashoffset: 1;
+}
+.tb-stat.is-active .tb-ring {
+  opacity: 1;
+  transition: opacity 0.3s ease;
+}
+.tb-label { transition: color 0.4s ease; }
+.tb-stat.is-active .tb-label { color: var(--color-brand-dark); }
+
+/* The emblems' moving parts, at rest. SVG transforms need their box named:
+   the seal and the globe turn about the centre of the 48-unit square, the
+   parcel squashes from its foot. The check and the route are drawn by their
+   dash (pathLength 1): fully drawn at offset 0. A meridian is one circle,
+   scaled across to its longitude's ellipse; its stroke does not scale with
+   it, or the one nearest the middle would thin to nothing. */
+.tb-seal-badge,
+.tb-seal-check,
+.tb-meridian {
+  transform-box: view-box;
+  transform-origin: 50% 50%;
+}
+.tb-parcel-box {
+  transform-box: view-box;
+  transform-origin: 50% 87.5%;
+}
+.tb-parcel-shadow,
+.tb-globe-ping {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.tb-seal-check,
+.tb-globe-route { stroke-dasharray: 1 2; }
+.tb-meridian {
+  transform: scaleX(var(--a));
+  vector-effect: non-scaling-stroke;
+}
+.tb-globe-ping { opacity: 0; }
+/* The shipment: a dash a sixth of the route long, parked before its start. */
+.tb-globe-pulse {
+  stroke-dasharray: 0.16 2;
+  stroke-dashoffset: 0.16;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The entrance. Each stat 140ms after the last: it rises, its emblem pops
+     in, its figure rolls in digit by digit, and at --tb-play its emblem plays
+     its motion once. The dividers grow between them. */
+  .tb-row.is-intro .tb-stat {
+    --tb-play: calc(var(--i) * 140ms + 440ms);
+    animation: tb-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i) * 140ms + 80ms);
+  }
+  .tb-row.is-intro .tb-emblem {
+    animation: tb-pop 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    animation-delay: calc(var(--i) * 140ms + 140ms);
+  }
+  .tb-row.is-intro .tb-reel::before {
+    animation: tb-roll 1.2s linear both; /* eased per keyframe, below */
+    animation-delay: calc(var(--i) * 140ms + var(--c) * 80ms + 200ms);
+  }
+  .tb-row.is-intro .tb-divider {
+    animation: tb-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--i) * 140ms);
+  }
+
+  /* The emblems' motion: once each in the entrance, and again whenever the
+     spotlight arrives (no --tb-play then, so at once). Every one ends where
+     it began, or on a pose that draws identically — the seal's turn is two
+     of its twelve points, the globe's is one meridian's spacing — so nothing
+     jumps when the class that started it goes. */
+  .tb-row.is-intro .tb-seal-badge,
+  .tb-stat.is-active .tb-seal-badge {
+    animation: tb-seal-turn 1s cubic-bezier(0.34, 1.3, 0.64, 1) both;
+    animation-delay: var(--tb-play, 0ms);
+  }
+  /* The check is drawn once, on arrival; each spotlight after that it pops
+     as the seal comes round. Redrawing it every pass left the seal empty for
+     half a second in every ten. */
+  .tb-row.is-intro .tb-seal-check {
+    animation: tb-draw 0.5s cubic-bezier(0.65, 0, 0.35, 1) both;
+    animation-delay: calc(var(--tb-play) + 250ms);
+  }
+  .tb-stat.is-active .tb-seal-check {
+    animation: tb-check-pop 0.7s both;
+    animation-delay: 300ms;
+  }
+  .tb-row.is-intro .tb-seal-shine,
+  .tb-stat.is-active .tb-seal-shine {
+    animation: tb-shine 0.9s cubic-bezier(0.45, 0, 0.55, 1) both;
+    animation-delay: calc(var(--tb-play, 0ms) + 380ms);
+  }
+  .tb-row.is-intro .tb-parcel-box {
+    animation: tb-drop 0.9s both;
+    animation-delay: var(--tb-play);
+  }
+  .tb-row.is-intro .tb-parcel-shadow {
+    animation: tb-drop-shadow 0.9s both;
+    animation-delay: var(--tb-play);
+  }
+  .tb-stat.is-active .tb-parcel-box { animation: tb-hop 0.95s both; }
+  .tb-stat.is-active .tb-parcel-shadow { animation: tb-hop-shadow 0.95s both; }
+  .tb-row.is-intro .tb-meridian,
+  .tb-stat.is-active .tb-meridian {
+    animation: tb-spin 1.3s both;
+    animation-delay: var(--tb-play, 0ms);
+  }
+  /* The route is drawn once, on arrival. After that it stays, and a shipment
+     runs along it each time the spotlight comes; hiding and redrawing it
+     every pass read as a flicker. The destination pings as either lands. */
+  .tb-row.is-intro .tb-globe-route {
+    animation: tb-draw 0.7s cubic-bezier(0.65, 0, 0.35, 1) both;
+    animation-delay: calc(var(--tb-play) + 200ms);
+  }
+  .tb-stat.is-active .tb-globe-pulse {
+    animation: tb-travel 0.8s cubic-bezier(0.45, 0, 0.3, 1) both;
+    animation-delay: 150ms;
+  }
+  .tb-row.is-intro .tb-globe-ping,
+  .tb-stat.is-active .tb-globe-ping {
+    animation: tb-ping 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: calc(var(--tb-play, 0ms) + 820ms);
+  }
+
+
+  /* The ring. Its animationend is also what hands the spotlight on
+     (TrustBadges.tsx), so holding the ring holds the spotlight. */
+  .tb-stat.is-active .tb-ring-fill {
+    animation: tb-ring var(--tb-cycle, 3400ms) linear both;
+  }
+  .tb-row.is-held .tb-ring-fill { animation-play-state: paused; }
+
+  /* Off screen, everything waits where it is. !important because the rules
+     above set the animation shorthand, which resets play-state, and several
+     of them outrank a selector this general. */
+  .tb-row.is-paused *,
+  .tb-row.is-paused *::before { animation-play-state: paused !important; }
+}
+
+@keyframes tb-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes tb-pop { from { opacity: 0; transform: scale(0.35) rotate(-14deg); } }
+/* From the column's last "0", --n lines down, to the digit itself at no
+   transform. It arrives at speed, a hair past its place, and clicks back: a
+   long ease-out left each digit creeping the last fraction of a line for a
+   third of a second, half cut off by the window. */
+@keyframes tb-roll {
+  0% { transform: translateY(calc(var(--n) * -1.1em)); animation-timing-function: cubic-bezier(0.32, 0, 0.3, 1); }
+  80% { transform: translateY(0.08em); animation-timing-function: cubic-bezier(0.35, 0, 0.35, 1); }
+  100% { transform: none; }
+}
+@keyframes tb-grow { from { opacity: 0; transform: scaleY(0); } }
+@keyframes tb-seal-turn { from { transform: rotate(-60deg); } }
+@keyframes tb-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes tb-check-pop {
+  0% { transform: none; animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
+  35% { transform: scale(1.22); animation-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1); }
+  100% { transform: none; }
+}
+@keyframes tb-shine {
+  from { transform: translateX(-12px); }
+  to { transform: translateX(56px); }
+}
+/* Falls, lands squashed, bounces once, settles. */
+@keyframes tb-drop {
+  0% { opacity: 0; transform: translateY(-16px); animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0); }
+  45% { opacity: 1; transform: translateY(0) scale(1.08, 0.9); animation-timing-function: cubic-bezier(0.25, 1, 0.5, 1); }
+  70% { transform: translateY(-2.5px) scale(0.98, 1.03); animation-timing-function: cubic-bezier(0.5, 0, 0.75, 0); }
+  85% { transform: translateY(0) scale(1.02, 0.98); }
+  100% { transform: none; }
+}
+@keyframes tb-drop-shadow {
+  0% { opacity: 0; transform: scale(0.4); }
+  45% { opacity: 1; transform: scale(1.05); }
+  100% { opacity: 1; transform: none; }
+}
+/* Crouches, hops, lands squashed, settles. */
+@keyframes tb-hop {
+  0% { transform: none; animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
+  15% { transform: translateY(0.5px) scale(1.07, 0.92); animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
+  45% { transform: translateY(-7px) scale(0.97, 1.04); animation-timing-function: cubic-bezier(0.32, 0, 0.67, 0); }
+  70% { transform: translateY(0) scale(1.06, 0.93); animation-timing-function: cubic-bezier(0.33, 1, 0.68, 1); }
+  85% { transform: translateY(0) scale(0.99, 1.01); }
+  100% { transform: none; }
+}
+@keyframes tb-hop-shadow {
+  0%, 15%, 70%, 100% { opacity: 1; transform: none; }
+  45% { opacity: 0.55; transform: scale(0.7); }
+}
+/* A flick and a slow stop. Half the turn is done at 21%, the point where an
+   ease-out-cubic reaches half, and each half is eased to meet the other at
+   the same speed. */
+@keyframes tb-spin {
+  0% { transform: scaleX(var(--a)); animation-timing-function: linear; }
+  21% { transform: scaleX(var(--m)); animation-timing-function: cubic-bezier(0.2, 0.75, 0.35, 1); }
+  100% { transform: scaleX(var(--b)); }
+}
+@keyframes tb-ping {
+  from { opacity: 0.9; transform: scale(1); }
+  to { opacity: 0; transform: scale(2.8); }
+}
+@keyframes tb-travel {
+  0% { stroke-dashoffset: 0.16; opacity: 0; }
+  12% { opacity: 1; }
+  88% { opacity: 1; }
+  100% { stroke-dashoffset: -1; opacity: 0; }
+}
+@keyframes tb-ring {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* ---------------------------------------------------------------------------
    Windows High Contrast / forced-colors.
    ---------------------------------------------------------------------------
    In this mode the browser throws away author colours and repaints with the
@@ -1541,6 +1841,14 @@ html.scroll-behavior-auto {
   [class*="b2b-bead"] {
     display: none !important;
   }
+
+  /* The hero stats row. Its emblems are pictures, drawn inline, and keep
+     their colours as an <img> would; forced, their gradients' stops turn to
+     system colours and the seal, parcel and globe become flat shapes. The
+     spotlight's glow and ring are decoration and go. */
+  .tb-emblem .tb-art { forced-color-adjust: none; }
+  .tb-halo,
+  .tb-ring { display: none !important; }
 
   /* Borders drawn in white or near-white. These are bevels and glass edges —
      invisible by design against a light surface, and the single biggest source
