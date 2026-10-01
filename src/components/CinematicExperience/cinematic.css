@@ -728,11 +728,12 @@ html:has(.cx-counter[data-lock]) {
    bar while the bar is showing and follows it as it slides away
    (--nav-shift, Navbar.tsx), so the bar never covers it; the countdown's
    timeline brings the button in (cd-sound, buildCta).
-   Off: a speaker with a cross, and the ring breathes now and then, to say
-   the clock can be heard. On: the cross goes, the two sound waves draw in,
-   and the button turns gold; with every tick the speaker knocks, the waves
-   light up from the speaker outwards and a ring of gold spreads from the
-   button (the component, in time with the sound). */
+   On by default (data-on). Playing (data-live): gold, the two sound waves
+   drawn, and with every tick the speaker knocks, the waves light up from the
+   speaker outwards and a ring of gold spreads from the button (the
+   component, in time with the sound). On but waiting for the browser to
+   allow sound (no click on the page yet): gold, the waves breathing outwards
+   and the ring inviting a press. Off: a speaker with a cross, quiet. */
 .cx-cd-sound-dock {
   position: absolute;
   top: 0;
@@ -827,9 +828,19 @@ html:has(.cx-counter[data-lock]) {
   pointer-events: none;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .cx-cd-sound:not([data-on]) .cx-cd-sound-ring {
+  .cx-cd-sound[data-on]:not([data-live]) .cx-cd-sound-ring {
     animation: cx-sound-invite 3.2s ease-out 1.2s infinite;
   }
+  .cx-cd-sound[data-on]:not([data-live]) .cx-cd-sound-wave {
+    animation: cx-sound-wait 2.4s ease-in-out infinite;
+  }
+  .cx-cd-sound[data-on]:not([data-live]) .cx-cd-sound-wave-far {
+    animation-delay: 0.3s;
+  }
+}
+@keyframes cx-sound-wait {
+  0%, 100% { opacity: 0.3; }
+  40% { opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cx-cd-sound,

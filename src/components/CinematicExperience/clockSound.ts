@@ -109,7 +109,9 @@ export function createClockSound(target: number, onTick?: (even: boolean) => voi
       if (running) return true;
       try {
         ctx ??= new AudioContext();
-        if (ctx.state === "suspended") await ctx.resume();
+        // Without a click on the page some browsers leave resume() pending
+        // rather than refusing: never wait on it for long.
+        if (ctx.state === "suspended") await Promise.race([ctx.resume(), new Promise((r) => window.setTimeout(r, 400))]);
       } catch {
         return false;
       }

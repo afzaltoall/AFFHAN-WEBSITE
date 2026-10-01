@@ -27,9 +27,9 @@ import { DISPLAY, EYEBROW } from "./parts";
  *  - Real time: every tick is read from the clock (Date.now), scheduled just
  *    after each whole second, so a sleeping tab or a slow frame never drifts.
  *  - At zero it rests at 00 00 00 00.
- *  - It can be heard: a speaker in the top-right corner plays the owner's
- *    tick and tock on the seconds (clockSound.ts), only while the clock is
- *    on screen (ClockSoundToggle).
+ *  - It is heard: the owner's tick and tock on the seconds (clockSound.ts),
+ *    on by default, only while the clock is on screen; the speaker in the
+ *    top-right corner turns it off (ClockSoundToggle).
  *
  * The figures are drawn on the client only (the server can't know the time
  * the page will be read): its windows are empty, so there is nothing to
@@ -165,24 +165,30 @@ function Unit({ value, digits, label, motion, ring }: { value: number; digits: n
   );
 }
 
-/** sessionStorage: the visitor's own choice, "on" or "off", for this visit. */
+/** localStorage: "off" once the visitor has turned the sound off on this browser ("on" when turned back on). */
 const SOUND_KEY = "cx-clock-sound";
+/** A click or key press this recent may still be opening something (the Apply popup): the clock waits for it to settle before it starts by itself. */
+const SETTLE_MS = 350;
 
 /**
  * The clock, heard: a speaker in the top-right corner, with no words (its
- * name, COUNTDOWN.sound, is for screen readers). Off, it is a speaker with a
- * cross and its ring breathes now and then; on, its sound waves draw in, and
- * with every tick they light up from the speaker outwards and a ring of gold
- * spreads from the button, in time with what is heard (the tock a little
- * softer). A browser lets a page make sound only after a click, tap or key
- * press on it (a scroll is not one), so:
- *  - pressed, it ticks;
- *  - if the visitor has already clicked or tapped somewhere on the page, it
- *    starts by itself, softly, as the clock assembles (not under reduced
- *    motion, and not if they turned it off earlier in the visit);
- *  - it is heard only while the clock is on screen: it fades out when the
- *    page scrolls back, the tab is hidden, or the Apply popup is open, and
- *    for good at zero.
+ * name, COUNTDOWN.sound, is for screen readers). The sound is ON by default;
+ * the speaker turns it off, and back on.
+ *
+ * A browser lets a page make sound only once it has had a click, tap or key
+ * press (a scroll is not one), so "on" has two looks:
+ *  - playing: gold, the waves drawn, and with every tick the speaker knocks,
+ *    the waves light up from the speaker outwards and a ring of gold spreads
+ *    from the button, in time with what is heard (the tock a little softer);
+ *  - waiting for the browser (no click on the page yet): gold, the waves
+ *    breathing and the ring inviting. The first click, tap or key press
+ *    anywhere starts it, and pressing the speaker then starts it too (it
+ *    never turns it off from that state: the visitor has heard nothing yet).
+ * Off: a speaker with a cross, quiet. Turning it off is remembered on this
+ * browser (localStorage), so the clock stays quiet on the next visit too.
+ *
+ * Heard only while the clock is on screen: it fades out when the page scrolls
+ * back, the tab is hidden or the Apply popup is open, and for good at zero.
  */
 function ClockSoundToggle({ label }: { label: string }) {
   const btn = useRef<HTMLButtonElement>(null);
@@ -190,7 +196,8 @@ function ClockSoundToggle({ label }: { label: string }) {
   const cone = useRef<SVGPathElement>(null);
   const near = useRef<SVGPathElement>(null);
   const far = useRef<SVGPathElement>(null);
-  const [on, setOn] = useState(false);
+  /** off: turned off. waiting: on, until the browser allows sound. live: playing. */
+  const [view, setView] = useState<"off" | "waiting" | "live">("waiting");
   const api = useRef<{ toggle: () => void } | null>(null);
 
   useEffect(() => {
@@ -213,24 +220,29 @@ function ClockSoundToggle({ label }: { label: string }) {
       );
     };
     const sound = createClockSound(TARGET, pulse);
-    let wanted = false;
-    let playing = false;
-    let decided = false;
-    let busy = false;
     const choice = () => {
       try {
-        return sessionStorage.getItem(SOUND_KEY);
+        return localStorage.getItem(SOUND_KEY);
       } catch {
         return null;
       }
     };
     const remember = (v: "on" | "off") => {
       try {
-        sessionStorage.setItem(SOUND_KEY, v);
+        localStorage.setItem(SOUND_KEY, v);
       } catch {
         /* the choice lasts this page view only */
       }
     };
+    // On, unless the visitor turned it off on this browser.
+    let wanted = choice() !== "off";
+    let playing = false;
+    let busy = false;
+    /** When the page last had a click, tap or key press (outside the speaker). */
+    let gesture = 0;
+    /** The browser allows sound once the page has had a click, tap or key press. Unknown (no API): try, and let start() find out. */
+    const allowed = () => (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive ?? true;
+    const show = () => setView(!wanted ? "off" : playing ? "live" : "waiting");
     /** The clock is assembled and on screen, nothing covers it, and it still has time to count. */
     const audible = () => {
       const unit = btn.current?.closest("[data-cx-countdown]")?.querySelector<HTMLElement>("[data-cx='cd-unit']");
@@ -242,41 +254,46 @@ function ClockSoundToggle({ label }: { label: string }) {
         TARGET > Date.now()
       );
     };
-    const sync = async () => {
+    /** pressed: the speaker itself was just pressed (that press is what lets the sound start). */
+    const sync = async (pressed = false) => {
       if (busy) return;
       const can = audible();
-      // Heard by itself once the page has been clicked or tapped, unless declined.
-      if (!decided && can) {
-        decided = true;
-        const active = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive;
-        if (active && !reduce && choice() !== "off") wanted = true;
-      }
-      if (wanted && can && !playing) {
+      // A click elsewhere may be opening the Apply popup: let it open before
+      // the clock starts by itself, so not even a tick slips out under it.
+      const settled = pressed || Date.now() - gesture > SETTLE_MS;
+      if (wanted && can && !playing && allowed() && settled) {
         busy = true;
         playing = await sound.start();
         busy = false;
-        // The browser would not let it start (no click on the page yet): it waits for the button.
-        if (!playing) wanted = false;
-        setOn(wanted);
       } else if ((!wanted || !can) && playing) {
         sound.stop();
         playing = false;
       }
+      show();
     };
     api.current = {
       toggle: () => {
-        wanted = !wanted;
+        // Playing: off. Off, or on but still waiting for the browser: play
+        // (this press is what the browser was waiting for).
+        wanted = !(wanted && playing);
         remember(wanted ? "on" : "off");
-        decided = true;
-        setOn(wanted);
-        void sync();
+        void sync(true);
       },
     };
+    const onGesture = (e: Event) => {
+      if (!btn.current?.contains(e.target as Node)) gesture = Date.now();
+    };
     const id = window.setInterval(() => void sync(), 250);
-    document.addEventListener("visibilitychange", sync);
+    const onVisibility = () => void sync();
+    document.addEventListener("visibilitychange", onVisibility);
+    document.addEventListener("pointerdown", onGesture, true);
+    document.addEventListener("keydown", onGesture, true);
+    show();
     return () => {
       window.clearInterval(id);
-      document.removeEventListener("visibilitychange", sync);
+      document.removeEventListener("visibilitychange", onVisibility);
+      document.removeEventListener("pointerdown", onGesture, true);
+      document.removeEventListener("keydown", onGesture, true);
       sound.destroy();
       api.current = null;
     };
@@ -287,10 +304,11 @@ function ClockSoundToggle({ label }: { label: string }) {
       ref={btn}
       type="button"
       aria-label={label}
-      aria-pressed={on}
+      aria-pressed={view !== "off"}
       onClick={() => api.current?.toggle()}
       className="cx-cd-sound"
-      data-on={on ? "" : undefined}
+      data-on={view !== "off" ? "" : undefined}
+      data-live={view === "live" ? "" : undefined}
     >
       <span ref={ring} aria-hidden className="cx-cd-sound-ring" />
       <svg aria-hidden viewBox="0 0 24 24" className="cx-cd-sound-glyph">

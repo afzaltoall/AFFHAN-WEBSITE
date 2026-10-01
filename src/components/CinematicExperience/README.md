@@ -108,12 +108,14 @@ recording, `time-sound.mp3` (16.6 s, kept as the source and not shipped):
 the tick at 0.785 s and the tock at 1.765 s, about a third of a second each,
 raised together to a 0.89 peak with soft fades. Looping the recording would
 drift (its ticks fall 975 to 1025 ms apart), so each sound is scheduled for
-the moment its second turns. A browser lets a page make sound only after a
-click, tap or key press on it, so the clock is heard when the speaker in the
-countdown's top-right corner is pressed (it has no words; "Clock sound" is its
-name for screen readers), or by itself if the visitor has already clicked on
-the page; only while the clock is on screen, never under the Apply popup,
-never past zero.
+the moment its second turns. The sound is on by default; the speaker in the
+countdown's top-right corner turns it off (it has no words; "Clock sound" is
+its name for screen readers), and "off" is remembered on that browser. A
+browser lets a page make sound only once it has had a click, tap or key press
+(a scroll is not one): with one already, the clock is heard as it assembles;
+without, the speaker shows on and waiting, and the first click, tap or key
+press anywhere (the speaker included) starts it. Only while the clock is on
+screen, never under the Apply popup, never past zero.
 
 ## Reduced motion
 
