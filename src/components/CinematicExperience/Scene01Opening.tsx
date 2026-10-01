@@ -86,9 +86,16 @@ export function Scene01Opening({ onApply, play }: { onApply: (e: MouseEvent<HTML
         >
           {HERO.line}
         </p>
-        <div className="cx-hero-cta cx-enter-rise mt-7 flex items-center gap-7 md:mt-10" style={{ animationDelay: "0.7s" }}>
+        {/* The scroll hint shows only when its row has room for it in two
+            lines at most: from md it used to show whatever the room, and at
+            768px it stood five words tall beside the button. Measured, the
+            button and gap take 248px and the hint 256px on one line, so a
+            416px row (26rem) leaves it room for two, balanced. The row's own
+            width decides it, not the window's: the copy column is 52vw on
+            desktop and something else again on a landscape phone. */}
+        <div className="cx-hero-cta cx-enter-rise @container mt-7 flex items-center gap-7 md:mt-10" style={{ animationDelay: "0.7s" }}>
           <ApplyButton onClick={onApply}>{HERO.cta}</ApplyButton>
-          <span aria-hidden className="hidden items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-(--cx-mute) md:flex">
+          <span aria-hidden className="hidden items-center gap-3 text-[11px] uppercase tracking-[0.24em] text-balance text-(--cx-mute) @min-[26rem]:flex">
             <span className="relative h-10 w-px overflow-hidden bg-(--cx-faint)">
               <span className="cx-cue absolute inset-0 bg-(--cx-gold)" />
             </span>

@@ -1084,7 +1084,9 @@ html:has(.cx-counter[data-lock]) {
   from { transform: translateX(-190%) skewX(-18deg); }
   to { transform: translateX(430%) skewX(-18deg); }
 }
-/* The words, pressed into the gold. */
+/* The words, pressed into the gold. A pill's label never breaks: allowed to,
+   the opening's button gave way to the scroll hint beside it at 768px and
+   stood three lines tall ("Apply / for the / Trip"). */
 .cx-apply-label {
   position: relative;
   z-index: 1;
@@ -1092,6 +1094,7 @@ html:has(.cx-counter[data-lock]) {
   font-weight: 650;
   letter-spacing: 0.01em;
   text-shadow: 0 1px 0 rgb(255 246 222 / 0.55);
+  white-space: nowrap;
 }
 /* The application page's buttons (GoldButton) keep their small capitals. */
 .cx-apply-caps {
