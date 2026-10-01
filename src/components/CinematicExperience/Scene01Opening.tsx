@@ -27,8 +27,13 @@ export function Scene01Opening({ onApply, play }: { onApply: (e: MouseEvent<HTML
         <div className="cx-enter-glow cx-glow-gold absolute left-[54%] top-[30%] h-[120vw] w-[120vw] -translate-x-1/2 -translate-y-1/2 md:left-[64%] md:top-[54%] md:h-[min(64vw,118vh)] md:w-[min(64vw,118vh)]" />
       </div>
 
-      {/* Red silk entering from the frame edge, soft, as a foreground element. */}
-      <div data-cx="hero-silk" aria-hidden className="pointer-events-none absolute -left-[30vw] top-[2svh] z-[62] w-[120vw] md:-left-[12vw] md:top-[-6vh] md:w-[62vw]">
+      {/* Red silk entering from the frame edge, soft, as a foreground element.
+          On phones it sits a little above the traveller's head (-4svh): at
+          2svh its lower edge crossed the traveller's face and tinted it red
+          (more so once the picture was replaced in October). Measured at
+          375x667, 360x780, 390x844 and 412x915; -3svh still touched the hair
+          on the shortest. */}
+      <div data-cx="hero-silk" aria-hidden className="pointer-events-none absolute -left-[30vw] top-[-4svh] z-[62] w-[120vw] md:-left-[12vw] md:top-[-6vh] md:w-[62vw]">
         <div className="cx-enter-silk">
           <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 768px) 62vw, 120vw" eager className="cx-feather-x opacity-80 blur-[3px] md:blur-[5px]" />
         </div>
@@ -40,7 +45,7 @@ export function Scene01Opening({ onApply, play }: { onApply: (e: MouseEvent<HTML
           <div className="cx-enter-push cx-feather-hero">
             <FilmImage
               asset={ASSETS.traveler}
-              alt="A traveller with a backpack and suitcase, red silk and cherry blossom around them, a plane climbing overhead"
+              alt="A business traveller in a suit with a laptop bag, pulling a suitcase past a passport and tickets, red silk and cherry blossom around them, a plane climbing overhead"
               sizes="(min-width: 768px) 68vw, 156vw"
               eager
               priority
