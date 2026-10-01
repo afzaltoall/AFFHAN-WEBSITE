@@ -4,16 +4,32 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile, splitE164 } from "@/lib/phone";
-import { validateStep, type FieldErrors, type StepKey, type TripApplicationPayload } from "@/lib/trip-application";
+import {
+  BUSINESS_FIELDS,
+  BUSINESS_FIELD_KEYS,
+  relevantBusiness,
+  validateStep,
+  type BusinessStatus,
+  type FieldErrors,
+  type StepKey,
+  type TripApplicationPayload,
+} from "@/lib/trip-application";
 
 /**
  * The application's one state object: { personal, business, profile, travel,
  * consent }, plus the dial code the mobile field needs.
  *
  * - Back never erases anything; forward runs that step's rules first.
+ * - Step 02's first answer decides which of its questions apply
+ *   (BUSINESS_FIELDS). Changing it clears only the answers the new choice
+ *   does not ask, and keeps the ones it shares; what is sent is only what
+ *   the choice asks (toPayload), so nothing stale ever leaves the browser.
  * - Steps 01–03 (nothing sensitive) are kept as a draft in sessionStorage, so
  *   an accidental refresh does not lose them. Step 04 (travel) and the consent
  *   ticks are NEVER stored anywhere in the browser: they live in memory only.
+ *   The Privacy Policy and Terms boxes are ticked by the agreement given in
+ *   the popup before the application starts (ApplyExperience); the accuracy
+ *   box starts unticked.
  * - Someone signed in has their name, email and mobile filled in, into fields
  *   that are still empty.
  */
@@ -28,7 +44,18 @@ export interface ApplicationState {
 
 const EMPTY: ApplicationState = {
   personal: { fullName: "", email: "", phoneIso: "in", phoneCode: "+91", phone: "", country: "", city: "", profileUrl: "" },
-  business: { companyName: "", role: "", businessCategory: "", companyWebsite: "", yearsInBusiness: "", businessDescription: "" },
+  business: {
+    businessStatus: "",
+    companyName: "",
+    role: "",
+    businessCategory: "",
+    companyWebsite: "",
+    yearsInBusiness: "",
+    businessDescription: "",
+    businessPlan: "",
+    areaOfInterest: "",
+    exploreGoal: "",
+  },
   profile: { interests: [], productsOfInterest: "", exploreNotes: "" },
   travel: { nationality: "", hasPassport: null, travelledToChina: null },
   consent: { privacy: false, accuracy: false, terms: false },
@@ -42,12 +69,14 @@ export function toPayload(s: ApplicationState): TripApplicationPayload {
     personal: {
       fullName: s.personal.fullName.trim(),
       email: s.personal.email.trim(),
-      phone: `${s.personal.phoneCode} ${s.personal.phone}`.trim(),
+      // No number, no phone: the dial code alone ("+91") is not an answer, and must not pass as one.
+      phone: s.personal.phone ? `${s.personal.phoneCode} ${s.personal.phone}` : "",
       country: s.personal.country,
       city: s.personal.city.trim(),
       profileUrl: s.personal.profileUrl.trim(),
     },
-    business: { ...s.business },
+    // Only what the chosen option asks: the rest is blank, whatever was typed before a change of mind.
+    business: relevantBusiness(s.business),
     profile: { ...s.profile },
     travel: { ...s.travel },
     consent: { ...s.consent },
@@ -118,6 +147,27 @@ export function useApplication() {
     });
   }, []);
 
+  /**
+   * Step 02's first answer. The answers the new choice does not ask are
+   * cleared (and their complaints with them); the ones it shares with the old
+   * choice (a company or brand name, a category, a website) are kept.
+   */
+  const chooseStatus = useCallback((next: BusinessStatus) => {
+    const keep: readonly string[] = BUSINESS_FIELDS[next];
+    setState((s) => {
+      if (s.business.businessStatus === next) return s;
+      const business = { ...s.business, businessStatus: next };
+      for (const k of BUSINESS_FIELD_KEYS) if (!keep.includes(k)) business[k] = "";
+      return { ...s, business };
+    });
+    setErrors((e) => {
+      const n = { ...e };
+      delete n.businessStatus;
+      for (const k of BUSINESS_FIELD_KEYS) if (!keep.includes(k)) delete n[k];
+      return n;
+    });
+  }, []);
+
   const phoneOk = useMemo(
     () => (state.personal.phone ? isValidMobile(state.personal.phone, state.personal.phoneIso) : undefined),
     [state.personal.phone, state.personal.phoneIso],
@@ -141,7 +191,7 @@ export function useApplication() {
     }
   }, []);
 
-  return { state, update, errors, setErrors, check, phoneOk, clearDraft };
+  return { state, update, chooseStatus, errors, setErrors, check, phoneOk, clearDraft };
 }
 
 export type ApplicationApi = ReturnType<typeof useApplication>;

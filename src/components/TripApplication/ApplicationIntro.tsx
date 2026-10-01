@@ -1,5 +1,6 @@
 import { ASSETS } from "@/components/CinematicExperience/assets";
 import { DISPLAY, EYEBROW, FilmImage } from "@/components/CinematicExperience/parts";
+import type { WindowState } from "@/lib/trip-application";
 import { INTRO } from "./content";
 import { GoldButton } from "./StepNav";
 
@@ -9,8 +10,12 @@ import { GoldButton } from "./StepNav";
  * the first frame (data-ax-hide) and revealed by ApplyExperience's intro
  * timeline, in order; the heading goes from blurred to sharp. Under reduced
  * motion the same pieces simply fade in.
+ *
+ * Outside the application window (Terms, clause 1) the way in is a line
+ * instead: when applications open, or that they closed and when the winners
+ * are announced.
  */
-export function ApplicationIntro({ onStart }: { onStart: () => void }) {
+export function ApplicationIntro({ onStart, windowState }: { onStart: () => void; windowState: WindowState }) {
   return (
     <div data-ax-view="intro" className="relative max-w-[36rem]">
       {/* Phones and tablets: the host above the heading, cropped to head and
@@ -42,10 +47,19 @@ export function ApplicationIntro({ onStart }: { onStart: () => void }) {
         {INTRO.body}
       </p>
       <div data-ax="intro-cta" data-ax-hide className="mt-10 flex flex-col items-start gap-4">
-        <GoldButton type="button" onClick={onStart} data-ax-start className="w-full sm:w-auto">
-          {INTRO.cta}
-        </GoldButton>
-        <p className="text-[13px] text-(--cx-mute)">{INTRO.time}</p>
+        {windowState === "open" ? (
+          <>
+            <GoldButton type="button" onClick={onStart} data-ax-start className="w-full sm:w-auto">
+              {INTRO.cta}
+            </GoldButton>
+            <p className="text-[13px] text-(--cx-mute)">{INTRO.time}</p>
+          </>
+        ) : (
+          <div role="status" className="border-l-2 border-(--cx-gold) pl-4">
+            <p className="text-[17px] font-medium text-(--cx-gold-hi) md:text-[19px]">{windowState === "before" ? INTRO.before : INTRO.closed}</p>
+            {windowState === "closed" && <p className="mt-1.5 text-[15px] text-(--cx-mute)">{INTRO.closedNext}</p>}
+          </div>
+        )}
       </div>
     </div>
   );

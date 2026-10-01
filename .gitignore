@@ -110,6 +110,8 @@ public/static/images/map*.png
 # Creates the sequence ShipmentInquiry.referenceNo draws from; the record of
 # where it came from (see the script).
 !scripts/create_shipment_ref_seq.mjs
+# The same for TripApplication.referenceNo (the trip's TRIP-26-00001 numbers).
+!scripts/create_trip_ref_seq.mjs
 # The one-time reset that cleared what testing recorded against the live
 # database. Kept because it documents exactly what was removed and what was
 # deliberately left alone, and because its dry run is the safe way to ask the

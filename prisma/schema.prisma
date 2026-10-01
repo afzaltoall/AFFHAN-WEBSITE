@@ -1059,10 +1059,14 @@ model CustomerCode {
 /// at /free-china-trip/apply/. The admin console lists them under Leads.
 ///
 /// What is here is exactly what the form asks, and nothing it does not. The
-/// travel step asks three questions only (nationality, passport held, been to
-/// China before): passport numbers, expiry dates, visa status and document
-/// uploads are NOT collected, because the trip's process has not confirmed it
-/// needs them, and a public form should not hold them until it does.
+/// travel step asks three questions only (nationality, valid passport held,
+/// been to China before): passport numbers, expiry dates, visa status and
+/// documents are NOT collected; the trip's Terms and Privacy Policy say they
+/// are asked for later, from selected applicants, only where needed.
+///
+/// Nothing here is a score or a rank. The winners are drawn at random from
+/// the applications found eligible (Terms, clause 3); no column has any part
+/// in that.
 model TripApplication {
   id String @id @default(uuid())
 
@@ -1082,14 +1086,31 @@ model TripApplication {
   /// Website or LinkedIn, optional.
   profileUrl String?
 
-  // 02 Your business
-  companyName         String
-  role                String
-  businessCategory    String
+  // 02 Your business journey: the first answer, then only the answers it
+  // asks (BUSINESS_FIELDS in lib/trip-application.ts); the rest stay null.
+  /// existing_business | planning_business | expanding_business |
+  /// no_business_yet. Anyone may apply, with a business or without one.
+  businessStatus      String
+  /// Company name (running or expanding a business), or business / brand
+  /// name (planning one; optional).
+  companyName         String?
+  /// Running or expanding a business.
+  role                String?
+  /// Business category (running or expanding), or business category / area
+  /// (planning).
+  businessCategory    String?
   companyWebsite      String?
-  /// A band, as the form offers it: "Under 1", "1-3", "3-5", "5-10", "10+".
-  yearsInBusiness     String
-  businessDescription String  @db.Text
+  /// A band, as the form offers it: "Under 1 year" … "10+ years" (running or
+  /// expanding).
+  yearsInBusiness     String?
+  /// About your business (running or expanding).
+  businessDescription String?  @db.Text
+  /// What are you planning to build? (planning)
+  businessPlan        String?  @db.Text
+  /// Area of interest, from the categories list (no business yet).
+  areaOfInterest      String?
+  /// What would you like to explore in China? (no business yet)
+  exploreGoal         String?  @db.Text
 
   // 03 Business profile
   /// Chosen from the form's list (a placeholder list until the business
@@ -1103,7 +1124,9 @@ model TripApplication {
   hasPassport      Boolean
   travelledToChina Boolean
 
-  // 05 Consent: both boxes are required to submit; recorded as given.
+  // 05 Consent: the three boxes are required to submit, and each is
+  // recorded as given.
+  consentPrivacy  Boolean
   consentAccuracy Boolean
   consentTerms    Boolean
 

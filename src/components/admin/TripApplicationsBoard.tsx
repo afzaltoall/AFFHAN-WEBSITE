@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Mail, MessageCircle, Phone, RefreshCw, Search, X } from "lucide-react";
+import { businessStatusBrief } from "@/lib/trip-application";
 
 /**
  * Free China trip applications, for the office.
@@ -11,6 +12,11 @@ import { ArrowLeft, Download, Mail, MessageCircle, Phone, RefreshCw, Search, X }
  * soft delete). A row opens every answer the applicant gave, grouped the way
  * the form asked them, with call / WhatsApp / email on top so the next step
  * is one tap. Excel export of whatever the filter shows.
+ *
+ * Step 02 is the applicant's business journey (running a business, planning
+ * one, expanding one, or none yet), and only the answers that journey asked
+ * are shown. The order is arrival only: nothing here scores or ranks an
+ * application, and the winners are drawn at random (Terms, clause 3).
  *
  * Nothing sensitive is collected by the form (no passport numbers, no
  * documents), so there is nothing here to mask.
@@ -33,18 +39,23 @@ interface Application {
   country: string;
   city: string;
   profileUrl: string | null;
-  companyName: string;
-  role: string;
-  businessCategory: string;
+  businessStatus: string;
+  companyName: string | null;
+  role: string | null;
+  businessCategory: string | null;
   companyWebsite: string | null;
-  yearsInBusiness: string;
-  businessDescription: string;
+  yearsInBusiness: string | null;
+  businessDescription: string | null;
+  businessPlan: string | null;
+  areaOfInterest: string | null;
+  exploreGoal: string | null;
   interests: string[];
   productsOfInterest: string;
   exploreNotes: string | null;
   nationality: string;
   hasPassport: boolean;
   travelledToChina: boolean;
+  consentPrivacy: boolean;
   consentAccuracy: boolean;
   consentTerms: boolean;
   userId: string | null;
@@ -110,7 +121,8 @@ export function TripApplicationsBoard() {
     return (rows ?? []).filter((r) => {
       if (tab !== "all" && r.status !== tab) return false;
       if (!needle) return true;
-      return [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory]
+      return [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory, r.areaOfInterest, businessStatusBrief(r.businessStatus)]
+        .filter(Boolean)
         .join(" ")
         .toLowerCase()
         .includes(needle);
@@ -145,14 +157,18 @@ export function TripApplicationsBoard() {
     const XLSX = await import("xlsx");
     const headers = [
       "Reference", "Received", "Status", "Full name", "Email", "Mobile", "Country", "City", "Website / LinkedIn",
-      "Company", "Role", "Business category", "Company website", "Years in business", "Business description",
-      "Interested in", "Products of interest", "Hoping to explore", "Nationality", "Passport", "Been to China",
+      "Business journey", "Company / brand", "Role", "Business category / area", "Company website", "Years in business",
+      "About the business", "Planning to build", "Area of interest", "Would like to explore",
+      "Interested in", "Products of interest", "Hoping to explore", "Nationality", "Valid passport", "Been to China",
+      "Privacy Policy", "Accurate & complete", "Terms & Conditions",
     ];
+    const yes = (v: boolean) => (v ? "Yes" : "No");
     const data = list.map((r) => [
       r.referenceNo, fmtDate(r.createdAt), r.status, r.fullName, r.email, r.phone, r.country, r.city, r.profileUrl ?? "",
-      r.companyName, r.role, r.businessCategory, r.companyWebsite ?? "", r.yearsInBusiness, r.businessDescription,
-      r.interests.join(", "), r.productsOfInterest, r.exploreNotes ?? "", r.nationality,
-      r.hasPassport ? "Yes" : "No", r.travelledToChina ? "Yes" : "No",
+      businessStatusBrief(r.businessStatus), r.companyName ?? "", r.role ?? "", r.businessCategory ?? "", r.companyWebsite ?? "", r.yearsInBusiness ?? "",
+      r.businessDescription ?? "", r.businessPlan ?? "", r.areaOfInterest ?? "", r.exploreGoal ?? "",
+      r.interests.join(", "), r.productsOfInterest, r.exploreNotes ?? "", r.nationality, yes(r.hasPassport), yes(r.travelledToChina),
+      yes(r.consentPrivacy), yes(r.consentAccuracy), yes(r.consentTerms),
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
     // Mobile numbers as text, or Excel shows 919876543210 as 9.19E+11.
@@ -256,8 +272,8 @@ export function TripApplicationsBoard() {
                       <span className="block truncate text-[12px] text-[#86868b]">{r.email}</span>
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-[14px]">{r.companyName}</span>
-                      <span className="block truncate text-[12px] text-[#86868b]">{r.businessCategory}</span>
+                      <span className="block truncate text-[14px]">{r.companyName || businessStatusBrief(r.businessStatus)}</span>
+                      <span className="block truncate text-[12px] text-[#86868b]">{r.businessCategory || r.areaOfInterest}</span>
                     </span>
                     <span className="min-w-0 text-[13px]">
                       <span className="block truncate">{r.city}, {r.country}</span>
@@ -275,6 +291,28 @@ export function TripApplicationsBoard() {
       {open && <Detail a={open} busy={busy} onClose={() => setOpenId(null)} onStatus={(s) => void setStatus(open.id, s)} />}
     </div>
   );
+}
+
+/** Step 02's answers, as the applicant's business journey asked them (BUSINESS_FIELDS in lib/trip-application.ts). */
+function businessRows(a: Application): Array<[string, React.ReactNode]> {
+  const site = (url: string | null) =>
+    url ? <a className="text-[#0058b0] underline" href={href(url)} target="_blank" rel="noopener noreferrer">{url}</a> : null;
+  const journey: [string, React.ReactNode] = ["Business journey", businessStatusBrief(a.businessStatus) || a.businessStatus];
+  if (a.businessStatus === "planning_business") {
+    return [journey, ["Business / brand name", a.companyName], ["Category / area", a.businessCategory], ["Company website", site(a.companyWebsite)], ["Planning to build", a.businessPlan]];
+  }
+  if (a.businessStatus === "no_business_yet") {
+    return [journey, ["Area of interest", a.areaOfInterest], ["Would like to explore in China", a.exploreGoal]];
+  }
+  return [
+    journey,
+    ["Company", a.companyName],
+    ["Role", a.role],
+    ["Category", a.businessCategory],
+    ["Years in business", a.yearsInBusiness],
+    ["Company website", site(a.companyWebsite)],
+    ["About the business", a.businessDescription],
+  ];
 }
 
 function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean; onClose: () => void; onStatus: (s: Status) => void }) {
@@ -311,7 +349,7 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
           <div className="min-w-0 flex-1">
             <p className="font-mono text-[12px] text-[#86868b]">{a.referenceNo} · {fmtDate(a.createdAt)}</p>
             <h2 id="trip-app-title" className="mt-0.5 truncate text-xl font-semibold tracking-tight">{a.fullName}</h2>
-            <p className="truncate text-[13px] text-[#86868b]">{a.role}, {a.companyName}</p>
+            <p className="truncate text-[13px] text-[#86868b]">{[a.role, a.companyName].filter(Boolean).join(", ") || businessStatusBrief(a.businessStatus)}</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06]">
             <X size={16} />
@@ -357,14 +395,7 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
             ["Website / LinkedIn", a.profileUrl ? <a className="text-[#0058b0] underline" href={href(a.profileUrl)} target="_blank" rel="noopener noreferrer">{a.profileUrl}</a> : null],
             ["Signed in", a.userId ? "Yes, with an Affhan account" : "No"],
           ])}
-          {section("Their business", [
-            ["Company", a.companyName],
-            ["Role", a.role],
-            ["Category", a.businessCategory],
-            ["Years in business", a.yearsInBusiness],
-            ["Company website", a.companyWebsite ? <a className="text-[#0058b0] underline" href={href(a.companyWebsite)} target="_blank" rel="noopener noreferrer">{a.companyWebsite}</a> : null],
-            ["About the business", a.businessDescription],
-          ])}
+          {section("Business journey", businessRows(a))}
           {section("Business profile", [
             ["Interested in", a.interests.join(", ")],
             ["Products or categories", a.productsOfInterest],
@@ -372,12 +403,13 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
           ])}
           {section("Travel profile", [
             ["Nationality", a.nationality],
-            ["Holds a passport", a.hasPassport ? "Yes" : "No"],
+            ["Holds a valid passport", a.hasPassport ? "Yes" : "No"],
             ["Been to China before", a.travelledToChina ? "Yes" : "No"],
           ])}
           {section("Consent", [
+            ["Privacy Policy", a.consentPrivacy ? "Consented" : "Not given"],
             ["Information is accurate", a.consentAccuracy ? "Confirmed" : "Not given"],
-            ["Terms & Privacy Policy", a.consentTerms ? "Agreed" : "Not given"],
+            ["Terms & Conditions", a.consentTerms ? "Agreed" : "Not given"],
           ])}
         </div>
       </aside>

@@ -6,8 +6,10 @@
  *
  * A module-level value survives the client-side navigation from the landing
  * page to /free-china-trip/apply/, so agreeing there opens the application
- * already agreed. A reload starts again, and the popup asks again: an
- * agreement is never carried anywhere it could be read later.
+ * without asking again, and the review's Privacy Policy and Terms boxes arrive
+ * ticked. The landing page's "Apply for the Trip" asks every time all the
+ * same. A reload starts again: an agreement is never carried anywhere it
+ * could be read later.
  */
 
 let agreedAt: number | null = null;
@@ -18,9 +20,4 @@ export function agreeToTripTerms() {
 
 export function hasAgreedToTripTerms() {
   return agreedAt !== null;
-}
-
-/** Unticking either box in the application takes the agreement back too. */
-export function withdrawTripAgreement() {
-  agreedAt = null;
 }

@@ -38,6 +38,7 @@ export function SubmitStage({
   pinned,
   reference,
   failure,
+  canRetry = true,
   onRetry,
   onReview,
 }: {
@@ -46,15 +47,16 @@ export function SubmitStage({
   pinned: boolean;
   reference: string | null;
   failure: string;
+  /** False when sending again could only be refused again (a duplicate, the window closed). */
+  canRetry?: boolean;
   onRetry: () => void;
   onReview: () => void;
 }) {
   return (
     <div data-ax="send" className={`absolute inset-0 z-30 ${active ? "" : "pointer-events-none"}`} aria-hidden={active ? undefined : true}>
-      {/* Fixed while the sequence plays, so it fills the screen and covers the
-          footer wherever the review was scrolled to; sticky once received, so
-          the page (and its footer) scroll normally again. */}
-      <div className={`${pinned ? "fixed inset-x-0 bottom-0 top-16" : "sticky top-16 h-[calc(100svh-4rem)]"} flex flex-col items-center justify-center overflow-hidden px-6 text-center`}>
+      {/* Fixed to the screen while the sequence plays; once received, the
+          application's one screen (ApplyExperience), which never scrolls. */}
+      <div className={`${pinned ? "fixed inset-x-0 bottom-0 top-16" : "absolute inset-0"} flex flex-col items-center justify-center overflow-hidden px-6 text-center`}>
         <div data-ax="send-dark" className="absolute inset-0 bg-(--ax-base) opacity-0" />
         <div data-ax="send-silk" className="pointer-events-none absolute left-[-10%] top-[30%] w-[120%] opacity-0">
           <FilmImage asset={ASSETS.silk} alt="" sizes="120vw" eager className="cx-feather-x" />
@@ -151,9 +153,11 @@ export function SubmitStage({
             <p className="mt-4 text-[16px] leading-relaxed text-(--cx-mute)">{failure || FAILURE.line}</p>
             <p className="mt-1 text-[14px] text-(--cx-mute)">{FAILURE.kept}</p>
             <div className="mt-8 flex w-full flex-col items-center gap-5 sm:w-auto sm:flex-row">
-              <GoldButton type="button" onClick={onRetry} data-ax-retry className="w-full sm:w-auto">
-                {FAILURE.retry}
-              </GoldButton>
+              {canRetry && (
+                <GoldButton type="button" onClick={onRetry} data-ax-retry className="w-full sm:w-auto">
+                  {FAILURE.retry}
+                </GoldButton>
+              )}
               <button type="button" onClick={onReview} className={TEXT_BUTTON}>
                 {FAILURE.review}
               </button>

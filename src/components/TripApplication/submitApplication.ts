@@ -20,6 +20,10 @@ export type SubmitResult =
   | { ok: false; reason: "invalid"; message: string; fields: FieldErrors }
   /** Too many applications from this connection. */
   | { ok: false; reason: "limited"; message: string }
+  /** One application per person: there is already one from this email or mobile. */
+  | { ok: false; reason: "duplicate"; message: string }
+  /** Outside the application window, by the server's clock. */
+  | { ok: false; reason: "closed"; message: string }
   /** The request never arrived, or the server couldn't record it. */
   | { ok: false; reason: "network" | "server"; message: string };
 
@@ -41,7 +45,7 @@ export async function submitApplication(payload: TripApplicationPayload): Promis
     return { ok: false, reason: "network", message: "" };
   }
 
-  let data: { referenceNo?: unknown; error?: unknown; fields?: unknown } = {};
+  let data: { referenceNo?: unknown; error?: unknown; fields?: unknown; reason?: unknown } = {};
   try {
     data = await res.json();
   } catch {
@@ -54,6 +58,8 @@ export async function submitApplication(payload: TripApplicationPayload): Promis
     return { ok: false, reason: "invalid", message, fields: data.fields as FieldErrors };
   }
   if (res.status === 429) return { ok: false, reason: "limited", message };
+  if (res.status === 409 && data.reason === "duplicate") return { ok: false, reason: "duplicate", message };
+  if (res.status === 403 && data.reason === "closed") return { ok: false, reason: "closed", message };
   return { ok: false, reason: "server", message };
 }
 

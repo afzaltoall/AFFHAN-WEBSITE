@@ -589,7 +589,7 @@ export const TRIP_CONSENTS = {
     after: " and consent to the processing of my personal information for the purposes described in it.",
   },
   accuracy: "I confirm that the information I have provided is accurate and complete.",
-  terms: { before: "I agree to the ", link: "Terms & Conditions", after: "." },
+  terms: { before: "I have read and agree to the ", link: "Terms & Conditions", after: "." },
 } as const;
 
 /**

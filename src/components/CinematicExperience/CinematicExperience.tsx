@@ -7,7 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import Lenis from "lenis";
 import "lenis/dist/lenis.css";
-import { agreeToTripTerms, hasAgreedToTripTerms } from "@/components/TripLegal/approval";
+import { agreeToTripTerms } from "@/components/TripLegal/approval";
 import { ConsentGate } from "@/components/TripLegal/ConsentGate";
 import "./cinematic.css";
 import {
@@ -179,11 +179,11 @@ export function CinematicExperience() {
 
   /**
    * Every "Apply for the Trip" (hero, film readout, final call, countdown)
-   * asks first: the trip's Terms & Conditions and Privacy Policy, in the
-   * consent popup, held open by the button that was pressed. Agreed, the
-   * trip takes off from that button. Agreed already on this visit: straight
-   * to the take-off. Ctrl, ⌘, Shift or middle click still open a new tab, as
-   * links do, and the application asks there instead.
+   * asks first, every time it is pressed: the trip's Terms & Conditions and
+   * Privacy Policy, in the consent popup, held open by the button that was
+   * pressed. Agreed, the trip takes off from that button. Ctrl, ⌘, Shift or
+   * middle click still open a new tab, as links do, and the application asks
+   * there instead.
    */
   const [askedFrom, setAskedFrom] = useState<HTMLElement | null>(null);
   const goApply = useCallback(
@@ -191,10 +191,9 @@ export function CinematicExperience() {
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
       if (leaving.current) return;
-      if (hasAgreedToTripTerms()) takeOffFrom(e.currentTarget);
-      else setAskedFrom(e.currentTarget);
+      setAskedFrom(e.currentTarget);
     },
-    [takeOffFrom],
+    [],
   );
   const closeConsent = useCallback(() => setAskedFrom(null), []);
   const agreed = useCallback(() => {

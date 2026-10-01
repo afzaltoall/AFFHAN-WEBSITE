@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { DISPLAY } from "@/components/CinematicExperience/parts";
+import { businessStatusBrief, relevantBusiness } from "@/lib/trip-application";
 import { TRIP_CONSENTS, TRIP_PRIVACY_HREF, TRIP_TERMS_HREF } from "@/lib/trip-legal";
 import { LABELS, REVIEW, STEPS } from "./content";
 import { Consent } from "./fields";
@@ -9,12 +10,15 @@ import type { ApplicationApi } from "./useApplication";
  * Step 05, Review & submit: the whole application on one screen, like the
  * details on a ticket. Four blocks in a 2 × 2 grid (one per step, each with
  * an Edit link back to it), the answers set as a few lines of flowing text
- * rather than a tall list of labels, then Privacy & Consent (the trip's three
- * boxes, in the owner's words: lib/trip-legal.ts) and Submit. The Privacy
- * Policy and Terms & Conditions boxes arrive ticked from the agreement given
- * before the application started; the accuracy box is ticked here, where it
- * can be true. It used to run 1,550px tall, far below the fold; now the page
- * stays still.
+ * rather than a tall list of labels, then Privacy & Consent and Submit.
+ *
+ * Step 02's block shows the business journey chosen and only the answers that
+ * choice asks (relevantBusiness): the same lines the application sends.
+ *
+ * Privacy & Consent is the trip's three boxes, in the owner's words
+ * (lib/trip-legal.ts). The Privacy Policy and Terms & Conditions boxes arrive
+ * ticked: the applicant accepted both in the popup before the application
+ * started. The accuracy box is ticked here, at the end, where it can be true.
  *
  * Nothing sensitive is collected (no passport number, expiry or document:
  * see TRAVEL_DOCUMENTS), so the travel block shows plain Yes/No. If those
@@ -22,11 +26,14 @@ import type { ApplicationApi } from "./useApplication";
  * (********1234), never in full.
  */
 export function StepReview({ app, onEdit }: { app: ApplicationApi; onEdit: (step: number) => void }) {
-  const { personal: p, business: b, profile: f, travel: t, consent: c } = app.state;
+  const { personal: p, profile: f, travel: t, consent: c } = app.state;
+  const b = relevantBusiness(app.state.business);
   const e = app.errors;
   const yesNo = (v: boolean | null) => (v === null ? "" : v ? "Yes" : "No");
   const setConsent = (patch: Partial<typeof c>) => app.update("consent", patch);
   const join = (parts: string[], sep = " · ") => parts.filter(Boolean).join(sep);
+  const status = businessStatusBrief(b.businessStatus);
+  const company = b.businessStatus === "existing_business" || b.businessStatus === "expanding_business";
 
   return (
     <div className="grid gap-7">
@@ -37,11 +44,30 @@ export function StepReview({ app, onEdit }: { app: ApplicationApi; onEdit: (step
           <Line>{join([p.city, p.country], ", ")}</Line>
           <Line muted>{p.profileUrl}</Line>
         </Block>
-        <Block index={1} title={REVIEW.groups.business} onEdit={onEdit} lead={b.companyName}>
-          <Line>{join([b.role, b.businessCategory])}</Line>
-          <Line>{b.yearsInBusiness ? `${b.yearsInBusiness} ${REVIEW.brief.inBusiness}` : ""}</Line>
-          <Line muted>{b.companyWebsite}</Line>
-          <Line muted clamp>{b.businessDescription}</Line>
+        <Block index={1} title={REVIEW.groups.business} onEdit={onEdit} lead={status}>
+          {company && (
+            <>
+              <Line>{b.companyName}</Line>
+              <Line>{join([b.role, b.businessCategory])}</Line>
+              <Line>{b.yearsInBusiness ? `${b.yearsInBusiness} ${REVIEW.brief.inBusiness}` : ""}</Line>
+              <Line muted>{b.companyWebsite}</Line>
+              <Line muted clamp>{b.businessDescription}</Line>
+            </>
+          )}
+          {b.businessStatus === "planning_business" && (
+            <>
+              <Line>{join([b.companyName, b.businessCategory])}</Line>
+              <Line muted clamp>{b.businessPlan}</Line>
+              <Line muted>{b.companyWebsite}</Line>
+            </>
+          )}
+          {b.businessStatus === "no_business_yet" && (
+            <>
+              <Line>{b.areaOfInterest ? `${REVIEW.brief.area}: ${b.areaOfInterest}` : ""}</Line>
+              <Line muted clamp>{b.exploreGoal}</Line>
+              <Line muted>{p.profileUrl}</Line>
+            </>
+          )}
         </Block>
         <Block index={2} title={REVIEW.groups.profile} onEdit={onEdit} lead={join(f.interests)}>
           <Line>{f.productsOfInterest}</Line>
@@ -82,7 +108,7 @@ function Block({ index, title, onEdit, lead, children }: { index: number; title:
       <div className="flex items-baseline justify-between gap-3">
         <h3 id={`ax-review-${index}`} className="flex min-w-0 items-baseline gap-2.5">
           <span className="text-[11px] font-semibold tabular-nums tracking-[0.24em] text-(--cx-gold)">{STEPS[index].number}</span>
-          <span className={`${DISPLAY} truncate text-[19px] leading-none text-(--cx-white)`}>{title}</span>
+          <span className={`${DISPLAY} min-w-0 text-balance text-[19px] leading-[1.05] text-(--cx-white)`}>{title}</span>
         </h3>
         <button
           type="button"

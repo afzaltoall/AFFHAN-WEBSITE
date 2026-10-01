@@ -3,10 +3,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
-import { validateAll, type FieldErrors } from "@/lib/trip-application";
+import { applicationWindow, validateAll, type FieldErrors, type WindowState } from "@/lib/trip-application";
 import { ARRIVAL_KEY } from "@/components/CinematicExperience/takeoff";
 import { revertTextFx, textIn } from "@/components/CinematicExperience/textfx";
-import { agreeToTripTerms, hasAgreedToTripTerms, withdrawTripAgreement } from "@/components/TripLegal/approval";
+import { agreeToTripTerms, hasAgreedToTripTerms } from "@/components/TripLegal/approval";
 import { ConsentGate } from "@/components/TripLegal/ConsentGate";
 import "@/components/CinematicExperience/cinematic.css";
 import "./apply.css";
@@ -20,6 +20,7 @@ import { StepIndicator } from "./StepIndicator";
 import { StepNav } from "./StepNav";
 import { StepProfile } from "./StepProfile";
 import { StepReview } from "./StepReview";
+import { StepScroll } from "./StepScroll";
 import { StepTravel } from "./StepTravel";
 import { SubmitStage } from "./SubmitStage";
 import { submitApplication, type SubmitResult } from "./submitApplication";
@@ -34,13 +35,23 @@ import { toPayload, useApplication } from "./useApplication";
  * The intro always plays first, whether the visitor came through the landing
  * page's transition or opened this address directly. Start asks for the
  * trip's Terms & Conditions and Privacy Policy (TripLegal/ConsentGate) unless
- * they were agreed on the landing page a moment ago; either way the review's
- * first and last boxes arrive ticked with that agreement, and unticking
- * either takes it back. All state lives in
- * useApplication; Back never erases, forward validates, Edit on the review
- * returns to a step and back. The request starts the moment Submit is
- * pressed and the animation runs alongside it; success is shown only when
- * the server has confirmed it.
+ * they were agreed on the landing page a moment ago. That agreement ticks
+ * the review's Privacy Policy and Terms & Conditions boxes; the third (the
+ * information is accurate) is ticked there, at the end. Outside the application
+ * window (5 October to 25 November 2026, on a production build) the intro
+ * says when applications open, or that they have closed, in place of Start.
+ *
+ * One screen, fixed: the progress and the step's heading at the top, Back
+ * and Next (or Submit) at the bottom, and only the questions between them
+ * scroll, when a step is taller than the screen (StepScroll). The page
+ * itself never scrolls.
+ *
+ * All state lives in useApplication; Back never erases, forward validates,
+ * Edit on the review returns to a step and back. Submit is disabled until
+ * every answer and the three boxes are in (StepNav says what is missing),
+ * and while sending. The request starts the moment Submit is pressed and the
+ * animation runs alongside it; success is shown only when the server has
+ * confirmed it.
  *
  * Motion is GSAP on transform, opacity and a little filter, all of it here,
  * so the choreography reads in one place. Reduced motion keeps every screen
@@ -54,7 +65,8 @@ type Phase = "intro" | "form" | "sending" | "failed" | "received";
 /** Which step asks for each answer, in the order the form asks them. */
 const STEP_OF = {
   fullName: 0, email: 0, phone: 0, country: 0, city: 0, profileUrl: 0,
-  companyName: 1, role: 1, businessCategory: 1, companyWebsite: 1, yearsInBusiness: 1, businessDescription: 1,
+  businessStatus: 1, companyName: 1, role: 1, businessCategory: 1, companyWebsite: 1, yearsInBusiness: 1, businessDescription: 1,
+  businessPlan: 1, areaOfInterest: 1, exploreGoal: 1,
   interests: 2, productsOfInterest: 2, exploreNotes: 2,
   nationality: 3, hasPassport: 3, travelledToChina: 3,
   privacy: 4, accuracy: 4, terms: 4,
@@ -96,6 +108,10 @@ export function ApplyExperience() {
   const [editing, setEditing] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const [failure, setFailure] = useState("");
+  /** The failure cannot be cured by sending again (a duplicate, or the window closed): no Try again. */
+  const [failureFinal, setFailureFinal] = useState(false);
+  /** Whether applications are being taken (lib/trip-application.ts): read in the browser, after the first render. */
+  const [win, setWin] = useState<WindowState>("open");
   /** The consent popup, asked for by Start (the button focus goes back to). */
   const [asking, setAsking] = useState<{ from: HTMLElement | null } | null>(null);
 
@@ -263,6 +279,7 @@ export function ApplyExperience() {
     }
     setAsking({ from: root.current?.querySelector<HTMLElement>("[data-ax-start]") ?? null });
   };
+  // Accepted in the popup: the review's Privacy Policy and Terms boxes arrive ticked.
   const agreed = () => {
     agreeToTripTerms();
     app.update("consent", { privacy: true, terms: true });
@@ -270,15 +287,12 @@ export function ApplyExperience() {
     void start();
   };
 
-  // The agreement and the review's Privacy Policy and Terms & Conditions
-  // boxes are one thing: untick either and it is taken back (Start would ask
-  // again), tick both and it stands.
-  const { privacy: agreedPrivacy, terms: agreedTerms } = app.state.consent;
+  // Applications are taken from 5 October to 25 November 2026 (Terms, clause
+  // 1). Read here, in the browser, so a page built before the date still
+  // knows; the API keeps the same window whatever the browser thinks.
   useEffect(() => {
-    if (phase === "intro") return;
-    if (agreedPrivacy && agreedTerms) agreeToTripTerms();
-    else withdrawTripAgreement();
-  }, [phase, agreedPrivacy, agreedTerms]);
+    setWin(applicationWindow());
+  }, []);
 
   /** The application starts: the button glows, a gold trail passes, the intro leaves, 01 arrives. */
   const start = async () => {
@@ -315,10 +329,10 @@ export function ApplyExperience() {
 
   /** The step's lines, top to bottom: its fields (or review sections), then its buttons. */
   const stepRows = (view: HTMLElement) => {
-    const body = view.firstElementChild as HTMLElement | null;
-    const nav = view.lastElementChild as HTMLElement | null;
+    const body = view.querySelector<HTMLElement>("[data-ax-body]")?.firstElementChild as HTMLElement | null;
+    const nav = view.querySelector<HTMLElement>("[data-ax='nav']");
     const rows = body ? (Array.from(body.children) as HTMLElement[]) : [];
-    if (nav && nav !== body) rows.push(nav);
+    if (nav) rows.push(nav);
     return rows;
   };
   /** How far down the step each line sits, 0 (top) to 1 (bottom). */
@@ -564,6 +578,7 @@ export function ApplyExperience() {
     }
     busy.current = true;
     setFailure("");
+    setFailureFinal(false);
     setPhase("sending");
 
     const request = submitApplication(toPayload(app.state));
@@ -602,7 +617,18 @@ export function ApplyExperience() {
       setPhase("form");
       return;
     }
-    setFailure(result.reason === "limited" ? result.message || FAILURE.limited : "");
+    // A duplicate, or the window closed: sending again would only be refused again.
+    const final = result.reason === "duplicate" || result.reason === "closed";
+    setFailureFinal(final);
+    setFailure(
+      result.reason === "limited"
+        ? result.message || FAILURE.limited
+        : result.reason === "duplicate"
+          ? result.message || FAILURE.duplicate
+          : result.reason === "closed"
+            ? result.message || FAILURE.closed
+            : "",
+    );
     setPhase("failed");
   };
 
@@ -693,8 +719,21 @@ export function ApplyExperience() {
   const Step = [StepAboutYou, StepBusiness, StepProfile, StepTravel][step];
   const covered = phase === "sending" || phase === "failed";
 
+  // Submit waits for every answer the application needs and the three boxes;
+  // until then StepNav says what is missing. (Every step was checked on its
+  // way forward, so this is mostly the boxes; a draft brought back from the
+  // session is checked here all the same.)
+  let submitHint = "";
+  if (step === LAST && phase === "form") {
+    const all = validateAll(toPayload(app.state), app.phoneOk);
+    const unfinished = STEPS.slice(0, LAST).filter((_, i) => FIELD_ORDER.some((k) => all[k] && STEP_OF[k] === i));
+    const boxes = (["privacy", "accuracy", "terms"] as const).filter((k) => all[k]);
+    if (unfinished.length) submitHint = SUBMIT.needsAnswers(unfinished.map((s) => `${s.number} ${s.title}`).join(", "));
+    else if (boxes.length) submitHint = SUBMIT.needsConsent(boxes);
+  }
+
   return (
-    <div ref={root} className="ax relative isolate min-h-[calc(100svh-4rem)] overflow-clip">
+    <div ref={root} className="ax relative isolate h-[calc(100dvh-4rem)] overflow-clip">
       <h1 className="sr-only">{PAGE_TITLE}</h1>
       <p ref={liveRef} aria-live="polite" className="sr-only" />
 
@@ -706,26 +745,40 @@ export function ApplyExperience() {
         <div className="cx-bloom" />
       </div>
 
-      <div className={`relative z-20 mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1320px] px-5 sm:px-8 lg:px-12 ${phase === "intro" ? "items-center" : "items-start"}`}>
-        <div className="w-full py-10 md:py-14 lg:w-[45%] lg:pb-6 lg:pt-8">
-          {phase === "intro" && <ApplicationIntro onStart={requestStart} />}
+      {/* One screen under the site's bar: the page never scrolls. */}
+      <div className="relative z-20 mx-auto flex h-full max-w-[1320px] px-5 sm:px-8 lg:px-12">
+        <div className={`relative flex h-full min-h-0 w-full flex-col lg:w-[45%] ${phase === "intro" ? "ax-thin-scroll overflow-y-auto py-8" : ""}`}>
+          {/* The glass the form sits on: the sky behind the questions frosted (apply.css). */}
+          {phase !== "intro" && <div aria-hidden className="ax-pane" />}
+          {phase === "intro" && (
+            <div className="my-auto">
+              <ApplicationIntro onStart={requestStart} windowState={win} />
+            </div>
+          )}
 
           {phase !== "intro" && phase !== "received" && (
-            <div inert={covered}>
+            <div inert={covered} className="flex min-h-0 flex-1 flex-col pb-4 pt-5 md:pb-6 md:pt-7">
               <StepIndicator step={headerStep} />
               <div data-ax="step-head" data-ax-hide>
                 <StepHeader step={headerStep} dir={headerDir} />
               </div>
-              <div className="relative mt-7 md:mt-8">
+              <div className="ax-stage relative mt-5 flex min-h-0 flex-1 flex-col md:mt-6">
                 {/* The line of light that lifts one step away and prints the next. */}
                 <span data-ax="scan" aria-hidden className="ax-scan pointer-events-none absolute -inset-x-4 top-0 z-10 block h-px opacity-0 md:-inset-x-8" />
                 {/* The light that catches each new page as it lands; clipped to the page. */}
                 <span aria-hidden className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
                   <span data-ax="gleam" className="ax-gleam absolute inset-y-0 left-0 block w-[34%] opacity-0" />
                 </span>
-                <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title">
-                  {step === LAST ? <StepReview app={app} onEdit={(i) => void go(i, true)} /> : <Step app={app} />}
-                  <StepNav step={step} last={LAST} editing={editing} onBack={() => void go(step - 1)} />
+                <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title" className="flex min-h-0 flex-1 flex-col">
+                  <StepScroll>{step === LAST ? <StepReview app={app} onEdit={(i) => void go(i, true)} /> : <Step app={app} />}</StepScroll>
+                  <StepNav
+                    step={step}
+                    last={LAST}
+                    editing={editing}
+                    onBack={() => void go(step - 1)}
+                    disabled={step === LAST && (!!submitHint || phase !== "form")}
+                    hint={submitHint}
+                  />
                 </form>
               </div>
             </div>
@@ -733,7 +786,15 @@ export function ApplyExperience() {
         </div>
       </div>
 
-      <SubmitStage active={phase === "sending" || phase === "failed" || phase === "received"} pinned={covered} reference={reference} failure={failure} onRetry={retry} onReview={backToReview} />
+      <SubmitStage
+        active={phase === "sending" || phase === "failed" || phase === "received"}
+        pinned={covered}
+        reference={reference}
+        failure={failure}
+        canRetry={!failureFinal}
+        onRetry={retry}
+        onReview={backToReview}
+      />
 
       <ConsentGate open={asking !== null} onClose={() => setAsking(null)} onAgree={agreed} returnFocus={asking?.from} />
     </div>
