@@ -7,6 +7,8 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import Lenis from "lenis";
 import "lenis/dist/lenis.css";
+import { agreeToTripTerms, hasAgreedToTripTerms } from "@/components/TripLegal/approval";
+import { ConsentGate } from "@/components/TripLegal/ConsentGate";
 import "./cinematic.css";
 import {
   buildCta,
@@ -52,8 +54,9 @@ import { WarpToFoshan } from "./WarpToFoshan";
  * Terms & Conditions -> the final call to action (a second pinned stage,
  * 14–16: the call, then into time, then the countdown, all in the one
  * stage) -> the end of the page: no footer. Every "Apply
- * for the Trip" opens the application, its own page (/free-china-trip/apply/),
- * through goApply's transition. It mounts below
+ * for the Trip" asks for the trip's Terms & Conditions and Privacy Policy
+ * first (TripLegal/ConsentGate), then opens the application, its own page
+ * (/free-china-trip/apply/), through goApply's transition. It mounts below
  * the site's navbar, which it does not touch: the page is padded 64px for
  * the fixed bar (app/free-china-trip/page.tsx), exactly as other pages are.
  *
@@ -146,18 +149,15 @@ export function CinematicExperience() {
   }, [router]);
 
   /**
-   * Every "Apply for the Trip" (hero, film readout, final call, countdown):
-   * the trip takes off from the button pressed (takeoff.ts: the plane leaves
-   * its porthole, draws a gold contrail up and out of the top right corner,
-   * and light blooms where it leaves), and the application opens out of that
-   * same light: ARRIVAL_KEY tells it to start from this frame. Transform,
-   * opacity and a stroke's dash only. The navbar stays. Ctrl, ⌘, Shift or
-   * middle click still open a new tab, as links do.
+   * The way out, from the button that was pressed: the trip takes off
+   * (takeoff.ts: the plane leaves its porthole, draws a gold contrail up and
+   * out of the top right corner, and light blooms where it leaves), and the
+   * application opens out of that same light: ARRIVAL_KEY tells it to start
+   * from this frame. Transform, opacity and a stroke's dash only. The navbar
+   * stays.
    */
-  const goApply = useCallback(
-    (e: MouseEvent<HTMLAnchorElement>) => {
-      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-      e.preventDefault();
+  const takeOffFrom = useCallback(
+    (from: HTMLElement) => {
       if (leaving.current) return;
       leaving.current = true;
       lenisRef.current?.stop();
@@ -174,10 +174,36 @@ export function CinematicExperience() {
       };
       const layer = rootRef.current?.querySelector<HTMLElement>("[data-cx='exit']");
       if (!layer) return go();
-      takeOff(e.currentTarget, layer, reduced, go);
+      takeOff(from, layer, reduced, go);
     },
     [router],
   );
+
+  /**
+   * Every "Apply for the Trip" (hero, film readout, final call, countdown)
+   * asks first: the trip's Terms & Conditions and Privacy Policy, in the
+   * consent popup, held open by the button that was pressed. Agreed, the
+   * trip takes off from that button. Agreed already on this visit: straight
+   * to the take-off. Ctrl, ⌘, Shift or middle click still open a new tab, as
+   * links do, and the application asks there instead.
+   */
+  const [askedFrom, setAskedFrom] = useState<HTMLElement | null>(null);
+  const goApply = useCallback(
+    (e: MouseEvent<HTMLAnchorElement>) => {
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      e.preventDefault();
+      if (leaving.current) return;
+      if (hasAgreedToTripTerms()) takeOffFrom(e.currentTarget);
+      else setAskedFrom(e.currentTarget);
+    },
+    [takeOffFrom],
+  );
+  const closeConsent = useCallback(() => setAskedFrom(null), []);
+  const agreed = useCallback(() => {
+    agreeToTripTerms();
+    setAskedFrom(null);
+    if (askedFrom) takeOffFrom(askedFrom);
+  }, [askedFrom, takeOffFrom]);
 
   useGSAP(
     () => {
@@ -339,6 +365,9 @@ export function CinematicExperience() {
 
       {/* The way out to the application (goApply, takeoff.ts). */}
       <TakeOffLayer />
+
+      {/* What every "Apply for the Trip" asks first (goApply). */}
+      <ConsentGate open={askedFrom !== null} onClose={closeConsent} onAgree={agreed} returnFocus={askedFrom} agreeLabel="Agree & continue" />
 
       {/* The night sky, behind every section below (fixed; see Starfield.tsx). */}
       <Starfield />

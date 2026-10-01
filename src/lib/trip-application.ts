@@ -88,7 +88,9 @@ export interface TripApplicationPayload {
     hasPassport: boolean | null;
     travelledToChina: boolean | null;
   };
+  /** The trip's three consents, in the order the review asks them (lib/trip-legal.ts, TRIP_CONSENTS). */
   consent: {
+    privacy: boolean;
     accuracy: boolean;
     terms: boolean;
   };
@@ -156,8 +158,9 @@ export function validateStep(step: StepKey, a: TripApplicationPayload, phoneOk?:
     if (t.travelledToChina === null) e.travelledToChina = "Please choose one.";
   } else {
     const c = a.consent;
-    if (!c.accuracy) e.accuracy = "Please confirm the information is accurate.";
-    if (!c.terms) e.terms = "Please agree to the Terms & Conditions and Privacy Policy.";
+    if (!c.privacy) e.privacy = "Please consent to the Privacy Policy.";
+    if (!c.accuracy) e.accuracy = "Please confirm the information is accurate and complete.";
+    if (!c.terms) e.terms = "Please agree to the Terms & Conditions.";
   }
   return e;
 }

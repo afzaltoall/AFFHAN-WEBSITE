@@ -31,7 +31,7 @@ const EMPTY: ApplicationState = {
   business: { companyName: "", role: "", businessCategory: "", companyWebsite: "", yearsInBusiness: "", businessDescription: "" },
   profile: { interests: [], productsOfInterest: "", exploreNotes: "" },
   travel: { nationality: "", hasPassport: null, travelledToChina: null },
-  consent: { accuracy: false, terms: false },
+  consent: { privacy: false, accuracy: false, terms: false },
 };
 
 /** Session-only draft of steps 01–03. Never step 04, never consent. */

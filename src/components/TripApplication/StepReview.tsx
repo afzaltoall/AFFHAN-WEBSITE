@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { DISPLAY } from "@/components/CinematicExperience/parts";
+import { TRIP_CONSENTS, TRIP_PRIVACY_HREF, TRIP_TERMS_HREF } from "@/lib/trip-legal";
 import { LABELS, REVIEW, STEPS } from "./content";
 import { Consent } from "./fields";
 import type { ApplicationApi } from "./useApplication";
@@ -8,8 +9,12 @@ import type { ApplicationApi } from "./useApplication";
  * Step 05, Review & submit: the whole application on one screen, like the
  * details on a ticket. Four blocks in a 2 × 2 grid (one per step, each with
  * an Edit link back to it), the answers set as a few lines of flowing text
- * rather than a tall list of labels, then the two consents and Submit. It
- * used to run 1,550px tall, far below the fold; now the page stays still.
+ * rather than a tall list of labels, then Privacy & Consent (the trip's three
+ * boxes, in the owner's words: lib/trip-legal.ts) and Submit. The Privacy
+ * Policy and Terms & Conditions boxes arrive ticked from the agreement given
+ * before the application started; the accuracy box is ticked here, where it
+ * can be true. It used to run 1,550px tall, far below the fold; now the page
+ * stays still.
  *
  * Nothing sensitive is collected (no passport number, expiry or document:
  * see TRAVEL_DOCUMENTS), so the travel block shows plain Yes/No. If those
@@ -48,15 +53,24 @@ export function StepReview({ app, onEdit }: { app: ApplicationApi; onEdit: (step
         </Block>
       </div>
 
-      <div className="grid gap-3.5 border-t border-(--cx-white)/10 pt-5">
+      <section aria-labelledby="ax-consent-title" className="grid gap-3.5 border-t border-(--cx-white)/10 pt-5">
+        <h3 id="ax-consent-title" className="text-[11px] font-semibold uppercase tracking-[0.24em] text-(--cx-gold)">
+          {TRIP_CONSENTS.heading}
+        </h3>
+        <Consent id="ax-privacy" checked={c.privacy} onChange={(v) => setConsent({ privacy: v })} error={e.privacy}>
+          {TRIP_CONSENTS.privacy.before}
+          <Legal href={TRIP_PRIVACY_HREF}>{TRIP_CONSENTS.privacy.link}</Legal>
+          {TRIP_CONSENTS.privacy.after}
+        </Consent>
         <Consent id="ax-accuracy" checked={c.accuracy} onChange={(v) => setConsent({ accuracy: v })} error={e.accuracy}>
-          {REVIEW.accuracy}
+          {TRIP_CONSENTS.accuracy}
         </Consent>
         <Consent id="ax-terms" checked={c.terms} onChange={(v) => setConsent({ terms: v })} error={e.terms}>
-          {REVIEW.termsBefore} <Legal href={REVIEW.terms.href}>{REVIEW.terms.label}</Legal> {REVIEW.and}{" "}
-          <Legal href={REVIEW.privacy.href}>{REVIEW.privacy.label}</Legal>.
+          {TRIP_CONSENTS.terms.before}
+          <Legal href={TRIP_TERMS_HREF}>{TRIP_CONSENTS.terms.link}</Legal>
+          {TRIP_CONSENTS.terms.after}
         </Consent>
-      </div>
+      </section>
     </div>
   );
 }
@@ -93,7 +107,7 @@ function Line({ children, muted = false, clamp = false }: { children: string; mu
   return <p className={`break-words ${muted ? "text-(--cx-mute)" : "text-(--cx-white)/82"} ${clamp ? "line-clamp-2" : ""}`}>{children}</p>;
 }
 
-/** The real legal pages, in a new tab so the application isn't lost. */
+/** The trip's own legal pages, in a new tab so the application isn't lost. */
 function Legal({ href, children }: { href: string; children: ReactNode }) {
   return (
     <a

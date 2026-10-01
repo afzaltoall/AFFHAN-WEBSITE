@@ -80,11 +80,8 @@ export const REVIEW = {
   notGiven: "Not given",
   /** Short forms for the review's lines (the questions are long). */
   brief: { passport: "Passport", travelled: "Travelled to China", inBusiness: "in business" },
-  accuracy: "I confirm the information provided is accurate.",
-  termsBefore: "I agree to the",
-  terms: { href: "/terms-conditions/", label: "Terms & Conditions" },
-  and: "and",
-  privacy: { href: "/privacy-policy/", label: "Privacy Policy" },
+  // The three consents are the trip's own words, with its documents:
+  // TRIP_CONSENTS in lib/trip-legal.ts.
 } as const;
 
 export const SUBMIT = {

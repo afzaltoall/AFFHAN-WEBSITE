@@ -6,6 +6,8 @@ import { SplitText } from "gsap/SplitText";
 import { validateAll, type FieldErrors } from "@/lib/trip-application";
 import { ARRIVAL_KEY } from "@/components/CinematicExperience/takeoff";
 import { revertTextFx, textIn } from "@/components/CinematicExperience/textfx";
+import { agreeToTripTerms, hasAgreedToTripTerms, withdrawTripAgreement } from "@/components/TripLegal/approval";
+import { ConsentGate } from "@/components/TripLegal/ConsentGate";
 import "@/components/CinematicExperience/cinematic.css";
 import "./apply.css";
 import { ApplicationIntro } from "./ApplicationIntro";
@@ -26,11 +28,15 @@ import { toPayload, useApplication } from "./useApplication";
 /**
  * /free-china-trip/apply/: the application as the next chapter of the film.
  *
- *   intro ──Start──▶ 01 ⇄ 02 ⇄ 03 ⇄ 04 ⇄ 05 ──Submit──▶ sending ──▶ received
- *                                                          └──▶ failed ──▶ (try again | review)
+ *   intro ──Start──▶ [agree] ──▶ 01 ⇄ 02 ⇄ 03 ⇄ 04 ⇄ 05 ──Submit──▶ sending ──▶ received
+ *                                                                    └──▶ failed ──▶ (try again | review)
  *
  * The intro always plays first, whether the visitor came through the landing
- * page's transition or opened this address directly. All state lives in
+ * page's transition or opened this address directly. Start asks for the
+ * trip's Terms & Conditions and Privacy Policy (TripLegal/ConsentGate) unless
+ * they were agreed on the landing page a moment ago; either way the review's
+ * first and last boxes arrive ticked with that agreement, and unticking
+ * either takes it back. All state lives in
  * useApplication; Back never erases, forward validates, Edit on the review
  * returns to a step and back. The request starts the moment Submit is
  * pressed and the animation runs alongside it; success is shown only when
@@ -51,7 +57,7 @@ const STEP_OF = {
   companyName: 1, role: 1, businessCategory: 1, companyWebsite: 1, yearsInBusiness: 1, businessDescription: 1,
   interests: 2, productsOfInterest: 2, exploreNotes: 2,
   nationality: 3, hasPassport: 3, travelledToChina: 3,
-  accuracy: 4, terms: 4,
+  privacy: 4, accuracy: 4, terms: 4,
 } as const;
 const FIELD_ORDER = Object.keys(STEP_OF) as Array<keyof typeof STEP_OF>;
 const STEP_KEYS = ["personal", "business", "profile", "travel", "consent"] as const;
@@ -90,6 +96,8 @@ export function ApplyExperience() {
   const [editing, setEditing] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   const [failure, setFailure] = useState("");
+  /** The consent popup, asked for by Start (the button focus goes back to). */
+  const [asking, setAsking] = useState<{ from: HTMLElement | null } | null>(null);
 
   /** A transition is playing: further clicks wait for it. */
   const busy = useRef(true);
@@ -241,7 +249,38 @@ export function ApplyExperience() {
     };
   }, []);
 
-  /** Start application: the button glows, a gold trail passes, the intro leaves, 01 arrives. */
+  /**
+   * Start application: the agreement first. Agreed already (on the landing
+   * page, a moment ago), straight on; otherwise the popup asks, and agreeing
+   * there starts.
+   */
+  const requestStart = () => {
+    if (busy.current) return;
+    if (hasAgreedToTripTerms()) {
+      app.update("consent", { privacy: true, terms: true });
+      void start();
+      return;
+    }
+    setAsking({ from: root.current?.querySelector<HTMLElement>("[data-ax-start]") ?? null });
+  };
+  const agreed = () => {
+    agreeToTripTerms();
+    app.update("consent", { privacy: true, terms: true });
+    setAsking(null);
+    void start();
+  };
+
+  // The agreement and the review's Privacy Policy and Terms & Conditions
+  // boxes are one thing: untick either and it is taken back (Start would ask
+  // again), tick both and it stands.
+  const { privacy: agreedPrivacy, terms: agreedTerms } = app.state.consent;
+  useEffect(() => {
+    if (phase === "intro") return;
+    if (agreedPrivacy && agreedTerms) agreeToTripTerms();
+    else withdrawTripAgreement();
+  }, [phase, agreedPrivacy, agreedTerms]);
+
+  /** The application starts: the button glows, a gold trail passes, the intro leaves, 01 arrives. */
   const start = async () => {
     if (busy.current) return;
     busy.current = true;
@@ -669,7 +708,7 @@ export function ApplyExperience() {
 
       <div className={`relative z-20 mx-auto flex min-h-[calc(100svh-4rem)] max-w-[1320px] px-5 sm:px-8 lg:px-12 ${phase === "intro" ? "items-center" : "items-start"}`}>
         <div className="w-full py-10 md:py-14 lg:w-[45%] lg:pb-6 lg:pt-8">
-          {phase === "intro" && <ApplicationIntro onStart={start} />}
+          {phase === "intro" && <ApplicationIntro onStart={requestStart} />}
 
           {phase !== "intro" && phase !== "received" && (
             <div inert={covered}>
@@ -695,6 +734,8 @@ export function ApplyExperience() {
       </div>
 
       <SubmitStage active={phase === "sending" || phase === "failed" || phase === "received"} pinned={covered} reference={reference} failure={failure} onRetry={retry} onReview={backToReview} />
+
+      <ConsentGate open={asking !== null} onClose={() => setAsking(null)} onAgree={agreed} returnFocus={asking?.from} />
     </div>
   );
 }

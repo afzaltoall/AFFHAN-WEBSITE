@@ -62,7 +62,14 @@ function read(body: Record<string, unknown>): TripApplicationPayload {
       hasPassport: bool(t.hasPassport),
       travelledToChina: bool(t.travelledToChina),
     },
-    consent: { accuracy: c.accuracy === true, terms: c.terms === true },
+    consent: {
+      // The website asks for the Privacy Policy in a box of its own. The
+      // mobile app's form asks for it inside its terms box and sends no
+      // `privacy`, so for that form the terms box carries both.
+      privacy: c.privacy === undefined ? c.terms === true : c.privacy === true,
+      accuracy: c.accuracy === true,
+      terms: c.terms === true,
+    },
   };
 }
 
