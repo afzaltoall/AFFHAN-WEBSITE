@@ -1,9 +1,16 @@
 # /free-china-trip/ — the cinematic page
 
 An opening count (00 → 100, on every load), a single scroll-driven film
-(chapters 01–11), then How it works, Terms & Conditions, the host's call to
-action (14–15) and a live countdown to 1 December (16), where the page ends:
-no footer, on the owner's request. Route: `src/app/free-china-trip/page.tsx`.
+(chapters 01–11), then How it works, the host's call to action (14–15) and a
+live countdown to the winners' announcement on 1 December (16), where the
+page ends: no footer, on the owner's request. Route:
+`src/app/free-china-trip/page.tsx`.
+
+Each pinned stage dissolves as it lets go (the film into How it works, How
+it works into the call), and no stage clips or glows to a straight edge, so
+the page reads as one continuous sky. How it works and the call are
+composed on the centre of the screen: the call's host and offer are one
+group, centred by `.cx-cta-stage` in `cinematic.css`.
 
 Every "Apply for the Trip" (hero, film readout, final call, countdown) first
 asks for the trip's Terms & Conditions and Privacy Policy, in a popup
@@ -19,9 +26,11 @@ sections): the owner's text of 2026-10-01, word for word, in
 `/free-china-trip/privacy/` (`components/TripLegal/`), and they are **not**
 the website's `/terms-conditions/` and `/privacy-policy/`, which are the
 main site's and are untouched. Every place that shows them reads that one
-file: the two pages, the popup, this page's Terms section (eight key clauses,
-quoted by `said()` in `content.ts`, never retyped), the dates in How it
-works, the countdown, and the application's three consents.
+file: the two pages, the popup, the dates in How it works, the countdown,
+and the application's three consents. This page does not set the terms out
+itself: on the owner's request (2026-10-01) its Terms & Conditions section
+(13) came out, and every "Apply for the Trip" shows them, whole, in the
+popup instead.
 
 | File | What it holds |
 | --- | --- |
@@ -29,7 +38,7 @@ works, the countdown, and the application's three consents.
 | `animations.ts` | Every scroll timeline: the film, How it works, the final CTA, the sky. Positions are scroll distances. |
 | `assets.ts` | The 14 pictures (`public/free-china-trip/`), and the points inside them the choreography aims at. |
 | `NumberLoadingOpener.tsx` | The opening count: CSS-driven from the first frame, finished by script. |
-| `Scene01Opening.tsx` … `Scene16Countdown.tsx` | One file per scene: markup only (the countdown also keeps its own clock). |
+| `Scene01Opening.tsx` … `Scene16Countdown.tsx` | One file per scene: markup only (the countdown also keeps its own clock). There is no 13: the terms section came out. |
 | `Motifs.tsx` | The red silk and gold trail layers that recur through the film, and the atmosphere. |
 | `warp.ts`, `WarpToFoshan.tsx` | The jump from Guangzhou to Foshan: gold streaks out of a vanishing point, drawn from the film's progress (scrolls back too), and the coordinates readout. |
 | `particles.ts`, `GoldDust.tsx` | The FREE particles (scroll-driven, no loop) and the ambient gold dust (on screen only). |

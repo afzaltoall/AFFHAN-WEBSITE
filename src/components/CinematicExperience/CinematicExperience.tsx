@@ -16,7 +16,6 @@ import {
   buildFilmReduced,
   buildStars,
   buildSteps,
-  buildTerms,
   FILM_CHAPTER_STARTS,
   FILM_REDUCED_STARTS,
   registerGsap,
@@ -38,7 +37,6 @@ import { Scene09Hotel } from "./Scene09Hotel";
 import { Scene10FreeReveal } from "./Scene10FreeReveal";
 import { Scene11WhatsIncluded } from "./Scene11WhatsIncluded";
 import { Scene12HowItWorks } from "./Scene12HowItWorks";
-import { Scene13Terms } from "./Scene13Terms";
 import { Scene14FinalCta } from "./Scene14FinalCta";
 import { Starfield } from "./Starfield";
 import { ARRIVAL_KEY, takeOff } from "./takeoff";
@@ -51,7 +49,7 @@ import { WarpToFoshan } from "./WarpToFoshan";
  * The free China business trip, as one scroll-driven film.
  *
  * Page order: the film (a pinned stage, chapters 01–11) -> How it works ->
- * Terms & Conditions -> the final call to action (a second pinned stage,
+ * the final call to action (a second pinned stage,
  * 14–16: the call, then into time, then the countdown, all in the one
  * stage) -> the end of the page: no footer. Every "Apply
  * for the Trip" asks for the trip's Terms & Conditions and Privacy Policy
@@ -223,7 +221,6 @@ export function CinematicExperience() {
       const film = root.querySelector<HTMLElement>("[data-cx-film]");
       const stage = root.querySelector<HTMLElement>("[data-cx-stage]");
       const steps = root.querySelector<HTMLElement>("[data-cx-steps]");
-      const terms = root.querySelector<HTMLElement>("[data-cx-terms]");
       const cta = root.querySelector<HTMLElement>("[data-cx-cta]");
       const ctaStage = root.querySelector<HTMLElement>("[data-cx-cta-stage]");
       if (!film || !stage || !steps || !cta || !ctaStage) return;
@@ -308,8 +305,13 @@ export function CinematicExperience() {
         if (stars) buildStars(root, stars, reduce);
         if (reduce) buildFilmReduced(film, stage, desktop, { onProgress, squat });
         else buildFilm(film, stage, desktop, particles, { onProgress, starsDim, squat, warp: warp ? (p) => warp.render(p) : undefined });
+        // THE FILM'S WAY OUT ScrollTrigger: as its stage lets go and rises off
+        // the screen, the last chapter (FREE, What's included) dissolves, as
+        // How it works does into the final call (buildSteps), so no chapter
+        // leaves as a block scrolling over the next. The film's timelines only
+        // look things up inside the stage; nothing else animates the stage.
+        gsap.fromTo(stage, { autoAlpha: 1 }, { autoAlpha: 0, ease: "none", scrollTrigger: { trigger: film, start: "bottom bottom", end: "bottom 35%", scrub: reduce ? true : 0.4, invalidateOnRefresh: true } });
         const undoSteps = buildSteps(steps, desktop, reduce, short);
-        const undoTerms = terms ? buildTerms(terms, reduce) : () => undefined;
         buildCta(cta, ctaStage, desktop, reduce, starsDim);
 
         // The site's floating dock (WhatsAppButton: back to top, Instagram)
@@ -336,7 +338,6 @@ export function CinematicExperience() {
           particles?.clear();
           warp?.clear();
           undoSteps();
-          undoTerms();
           revertTextFx();
           if (tick) gsap.ticker.remove(tick);
           lenis?.destroy();
@@ -410,7 +411,6 @@ export function CinematicExperience() {
       </noscript>
 
       <Scene12HowItWorks />
-      <Scene13Terms />
       <div data-cx-scene="cta">
         <Scene14FinalCta onApply={goApply} />
       </div>

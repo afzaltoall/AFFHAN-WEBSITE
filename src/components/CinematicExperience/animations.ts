@@ -4,7 +4,6 @@ import type { GatherField } from "./particles";
 import { ROUTE_POINTS } from "./Scene05Globe";
 import { ANCHORS } from "./assets";
 import { warpTravel } from "./warp";
-import { createBoard } from "./board";
 import { SplitText } from "gsap/SplitText";
 import { hold, textIn, type TextFx } from "./textfx";
 
@@ -19,9 +18,7 @@ import { hold, textIn, type TextFx } from "./textfx";
  *      cities), is continuous; there is no seam between sections to hide.
  *   2. HOW IT WORKS (buildSteps): a short pinned stage: a comet flies the
  *      route through the three steps and each one is written as it lands.
- *   3. TERMS & CONDITIONS (buildTerms): not pinned; the clause at the reading
- *      line lights, a departure board sets it, a gold thread fills.
- *   4. THE FINAL CALL TO ACTION (buildCta): the last pinned stage: the host
+ *   3. THE FINAL CALL TO ACTION (buildCta): the last pinned stage: the host
  *      and the call, then into time, then the countdown (14–16).
  *
  * PINNING is CSS position: sticky, not ScrollTrigger's pin. The stage is a
@@ -497,7 +494,10 @@ export function buildSteps(section: HTMLElement, desktop: boolean, reduced: bool
       const r = n.getBoundingClientRect();
       return { x: r.left + r.width / 2 - o.left, y: r.top + r.height / 2 - o.top };
     });
-    const from = desktop ? { x: at[0].x - 96, y: at[0].y + 46 } : { x: at[0].x, y: at[0].y - 26 };
+    // It sweeps in from the left, half a leg out (desktop), or drops in from
+    // above the first stop (phone).
+    const lead = desktop ? Math.max(96, (at[1].x - at[0].x) * 0.5) : 0;
+    const from = desktop ? { x: at[0].x - lead, y: at[0].y + 46 } : { x: at[0].x, y: at[0].y - 26 };
     const pts = [from, ...at];
     const curves = at.map((b, i) => {
       const a = pts[i];
@@ -562,6 +562,26 @@ export function buildSteps(section: HTMLElement, desktop: boolean, reduced: bool
   const pinned = !reduced && !short && content.offsetHeight <= window.innerHeight - 88;
   section.toggleAttribute("data-flow", !pinned);
 
+  // THE WAY OUT ScrollTrigger: as How it works leaves (unpinned, rising off
+  // the top of the screen) it dissolves: the words lift a little and soften,
+  // and the stage's warm haze and dust go with them, so it never ends in a
+  // hard line across the sky. The final call is arriving underneath
+  // (buildCta). Pinned, it starts the moment the stage lets go; flowing, once
+  // the last stop has been written. Under reduced motion it only fades.
+  const leave = gsap.timeline({
+    defaults: { ease: "none" },
+    scrollTrigger: {
+      trigger: section,
+      start: pinned ? "bottom bottom" : "bottom 55%",
+      end: pinned ? "bottom 38%" : "bottom 15%",
+      scrub: reduced ? true : 0.4,
+      invalidateOnRefresh: true,
+    },
+  });
+  leave.to($("steps-haze", "steps-dust"), { autoAlpha: 0, duration: 0.7 }, 0);
+  if (reduced) leave.to(content, { autoAlpha: 0, duration: 1 }, 0);
+  else leave.to(content, { autoAlpha: 0, y: () => -0.05 * window.innerHeight, filter: "blur(5px)", ease: "power1.in", duration: 1 }, 0);
+
   if (reduced) {
     // The route drawn, every stop lit, every word in place.
     ride.s = 3;
@@ -617,155 +637,10 @@ export function buildSteps(section: HTMLElement, desktop: boolean, reduced: bool
 }
 
 /* =============================================================================
- * 3. TERMS & CONDITIONS — not pinned; the fine print, read under a lamp
- * The clause at the reading line lights and the departure board (board.ts)
- * sets it; a gold thread fills with the reading; each clause arrives as it
- * is reached. Under reduced motion nothing moves; the lighting and the board
- * still follow the reading.
- * ============================================================================= */
-export function buildTerms(section: HTMLElement, reduced: boolean): () => void {
-  const $ = picker(section);
-  const rows = $("term") as HTMLElement[];
-  const [list] = $("terms-list") as HTMLElement[];
-  const [side] = $("terms-side") as HTMLElement[];
-  const [boardEl] = $("terms-board") as HTMLElement[];
-  const [fill] = $("terms-thread");
-  const [bead] = $("terms-bead");
-  const [endCore] = $("terms-end-core");
-  const [endRing] = $("terms-end-ring");
-  if (!list || !rows.length) return () => undefined;
-
-  const board = boardEl
-    ? createBoard(
-        boardEl,
-        rows.map((r) => r.dataset.title ?? ""),
-        reduced,
-        rows.map((r) => Number(r.dataset.clause)),
-      )
-    : null;
-
-  // WHICH CLAUSE IS BEING READ: the last one whose top has passed the reading
-  // line (the lamp, just above the middle of the screen).
-  let current = -1;
-  const setCurrent = (k: number) => {
-    if (k === current) return;
-    current = k;
-    rows.forEach((r, j) => {
-      r.toggleAttribute("data-active", j === k);
-      r.toggleAttribute("data-read", k >= 0 && j <= k);
-    });
-    if (k >= 0) board?.show(k);
-  };
-  const readAt = () => {
-    const line = window.innerHeight * 0.52;
-    let k = -1;
-    rows.forEach((r, j) => {
-      if (r.getBoundingClientRect().top <= line) k = j;
-    });
-    return k;
-  };
-  // TERMS READING ScrollTrigger: follows the reading line down the list.
-  ScrollTrigger.create({
-    trigger: list,
-    start: "top 80%",
-    end: "bottom top",
-    onUpdate: () => setCurrent(readAt()),
-    onRefresh: () => setCurrent(readAt()),
-    onLeaveBack: () => setCurrent(-1),
-  });
-
-  const undo = () => {
-    board?.kill();
-    gsap.killTweensOf([boardEl, endRing].filter(Boolean));
-    rows.forEach((r) => {
-      r.removeAttribute("data-active");
-      r.removeAttribute("data-read");
-    });
-  };
-
-  if (reduced) {
-    gsap.set(fill, { scaleY: 1 });
-    gsap.set(bead, { autoAlpha: 0 });
-    gsap.set(endCore, { scale: 1 });
-    return undo;
-  }
-
-  // THE BOARD switches on as it comes into view and sets the clause; it
-  // clears again if the reader goes back above it. Its trigger is the
-  // column beside the list (not the sticky part, whose position moves).
-  if (board && boardEl && side) {
-    gsap.set(boardEl, { autoAlpha: 0, y: 24 });
-    board.blank();
-    ScrollTrigger.create({
-      trigger: side,
-      start: () => `top+=${boardEl.offsetTop + 40} 90%`,
-      onEnter: () => {
-        gsap.to(boardEl, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power2.out", overwrite: true });
-        board.show(Math.max(0, current));
-      },
-      onLeaveBack: () => {
-        gsap.to(boardEl, { autoAlpha: 0, y: 24, duration: 0.4, ease: "power1.in", overwrite: true });
-        board.blank();
-      },
-    });
-  }
-
-  // THE HEADING ScrollTrigger: the eyebrow is set like a board, the title
-  // rises out of its masks, the notice's rule draws down, its words follow,
-  // and the way to the whole document comes up under them.
-  const head = gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { trigger: section, start: "top 82%", end: "top 28%", scrub: 0.5 } });
-  textIn(head, $("terms-eyebrow")[0], "scramble", 0, 0.3);
-  textIn(head, $("terms-title")[0], "rise", 0.06, 0.5);
-  head.fromTo($("terms-notice-rule"), { scaleY: 0 }, { scaleY: 1, ease: "power2.inOut", duration: 0.3 }, 0.42);
-  textIn(head, $("terms-notice-text")[0], "words", 0.46, 0.4);
-  head.fromTo($("terms-links"), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.16 }, 0.8);
-  head.set({}, {}, 1);
-
-  // THE THREAD ScrollTrigger: gold fills down it with the reading line, a bead
-  // of light at its head; the last stop lights when the reading gets there.
-  gsap.set(bead, { xPercent: -50, yPercent: -50 });
-  const thread = gsap.timeline({
-    defaults: { ease: "none" },
-    scrollTrigger: {
-      trigger: list,
-      start: "top 52%",
-      end: "bottom 52%",
-      scrub: 0.4,
-      invalidateOnRefresh: true,
-      onLeave: () => {
-        gsap.fromTo(endRing, { scale: 1, opacity: 0.9 }, { scale: 4.2, opacity: 0, duration: 0.9, ease: "power2.out", overwrite: true });
-      },
-    },
-  });
-  thread.fromTo(fill, { scaleY: 0 }, { scaleY: 1, duration: 1 }, 0);
-  thread.fromTo(bead, { y: 0 }, { y: () => list.offsetHeight, duration: 1 }, 0);
-  thread.fromTo(bead, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.01 }, 0);
-  thread.fromTo(bead, { autoAlpha: 1 }, { autoAlpha: 0, duration: 0.02, immediateRender: false }, 0.98);
-  thread.fromTo(endCore, { scale: 0 }, { scale: 1, ease: "back.out(3)", duration: 0.02 }, 0.98);
-
-  // EACH CLAUSE ScrollTrigger: as it comes up the screen its rule draws
-  // across, its number rises, its title is typed, its notice (if it has one)
-  // comes up, its words follow, and the way to the clause in full last.
-  rows.forEach((row) => {
-    const q = (key: string) => row.querySelector<HTMLElement>(`[data-cx='${key}']`);
-    const rtl = gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { trigger: row, start: "top 90%", end: "top 58%", scrub: 0.5 } });
-    rtl.fromTo(q("term-rule"), { scaleX: 0 }, { scaleX: 1, ease: "power2.inOut", duration: 0.7 }, 0);
-    textIn(rtl, q("term-num"), "rise", 0.08, 0.5);
-    textIn(rtl, q("term-title"), "type", 0.16, 0.45);
-    const note = q("term-note");
-    if (note) rtl.fromTo(note, { autoAlpha: 0, x: -8 }, { autoAlpha: 1, x: 0, duration: 0.2 }, 0.26);
-    textIn(rtl, q("term-text"), "words", note ? 0.36 : 0.3, 0.5);
-    rtl.fromTo(q("term-link"), { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.15 }, 0.84);
-    rtl.set({}, {}, 1);
-  });
-  return undo;
-}
-
-/* =============================================================================
- * 4. THE FINAL CALL TO ACTION — the last pinned stage: the call (14), into
+ * 3. THE FINAL CALL TO ACTION — the last pinned stage: the call (14), into
  *    time (15) and the countdown (16), where the page ends
  * ============================================================================= */
-export const CTA_END = 5.6;
+export const CTA_END = 5.2;
 const CTA_REDUCED_END = 3.2;
 
 export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: boolean, reduced: boolean, starsDim?: HTMLElement | null) {
@@ -776,9 +651,10 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
 
   // FINAL CTA ScrollTrigger: the stage is sticky inside `section`. It starts
   // as the stage comes up the screen, not once it is pinned, so the host,
-  // the silk, the gold and the dust are already arriving as it rises: there
-  // is no empty screen between the terms and the call. While it is on screen
-  // the host is allowed to breathe (data-idle, CSS).
+  // the silk, the gold and the dust are already arriving as How it works
+  // dissolves above them (buildSteps' way out): there is no empty screen
+  // between the steps and the call. While it is on screen the host is
+  // allowed to breathe (data-idle, CSS).
   const tl = pinnedTimeline(section, END, reduced ? true : 0.6, {
     start: "top 72%",
     onToggle: (self) => { stage.dataset.idle = self.isActive ? "on" : "off"; },
@@ -814,52 +690,55 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
   tl.fromTo($("cta-gold"), { autoAlpha: 0, x: X(-50, -70), rotation: -8, scale: 0.9 }, { autoAlpha: 0.9, x: 0, rotation: 0, scale: 1, ease: "power2.out", duration: 0.9 }, 0.05);
   // The host steps out of the glow: a slow push, blur to sharp.
   tl.fromTo($("cta-host"), { autoAlpha: 0, scale: 0.9, y: "3vh", filter: "blur(10px)", transformOrigin: "50% 100%" },
-    { autoAlpha: 1, scale: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.85 }, 0.35);
-  // Just after he settles, the offer appears by his open hand.
-  tl.set($("cta-headline"), { autoAlpha: 1 }, 1.15);
-  textIn(tl, $("cta-headline")[0], "rise", 1.15, 0.5);
-  tl.fromTo($("cta-headline"), { scale: 0.96, filter: "blur(6px)", transformOrigin: "0% 50%" },
-    { scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.45 }, 1.15);
-  tl.set($("cta-line"), { autoAlpha: 1 }, 1.3);
-  textIn(tl, $("cta-line")[0], "words", 1.3, 0.45);
-  tl.fromTo($("cta-button"), { autoAlpha: 0, scale: 0.9, filter: "blur(8px)", transformOrigin: "0% 50%" },
-    { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.4 }, 1.45);
-  tl.fromTo($("cta-note"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.6);
+    { autoAlpha: 1, scale: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.72 }, 0.15);
+  // As he settles, and as the stage pins, the offer appears by his open hand.
+  // Grown from where the words are set: their left edge beside him (lg),
+  // their middle when they stand centred under him.
+  const grow = () => (window.matchMedia("(min-width: 1024px)").matches ? "0% 50%" : "50% 50%");
+  tl.set($("cta-headline"), { autoAlpha: 1 }, 0.6);
+  textIn(tl, $("cta-headline")[0], "rise", 0.6, 0.45);
+  tl.fromTo($("cta-headline"), { scale: 0.96, filter: "blur(6px)", transformOrigin: grow },
+    { scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.42 }, 0.6);
+  tl.set($("cta-line"), { autoAlpha: 1 }, 0.74);
+  textIn(tl, $("cta-line")[0], "words", 0.74, 0.4);
+  tl.fromTo($("cta-button"), { autoAlpha: 0, scale: 0.9, filter: "blur(8px)", transformOrigin: grow },
+    { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.38 }, 0.87);
+  tl.fromTo($("cta-note"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.02);
 
   // 15: INTO TIME. The button swells and its gold floods the frame; the
   // frame warms instead of going dark; the call dissolves; the silk settles
   // low and the gold trail curls into an orbit; the sky quiets.
-  tl.to($("cta-button"), { scale: 1.08, ease: "power1.inOut", duration: 0.4 }, 2.4);
-  tl.fromTo($("cta-flood"), { autoAlpha: 0, scale: 0.15 }, { autoAlpha: 1, scale: 2.8, ease: "power2.in", duration: 0.55 }, 2.5);
-  tl.to($("cta-flood"), { autoAlpha: 0, scale: 3.6, ease: "power1.out", duration: 0.6 }, 3.05);
-  tl.fromTo($("time-ground"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 2.85);
-  tl.to($("cta-host", "cta-headline", "cta-line", "cta-note", "cta-button"), { autoAlpha: 0, filter: "blur(10px)", duration: 0.4 }, 2.6);
-  tl.to($("cta-silk"), { x: X(-6, -10), y: "9vh", rotation: -3, autoAlpha: 0.8, ease: "power2.inOut", duration: 1.0 }, 2.7);
-  tl.to($("cta-gold"), { rotation: 16, scale: 1.12, autoAlpha: 0.55, ease: "power2.inOut", duration: 1.2 }, 2.7);
-  if (starsDim) tl.to(starsDim, { opacity: 0.55, duration: 0.6 }, 2.7);
+  tl.to($("cta-button"), { scale: 1.08, ease: "power1.inOut", duration: 0.4 }, 2.0);
+  tl.fromTo($("cta-flood"), { autoAlpha: 0, scale: 0.15 }, { autoAlpha: 1, scale: 2.8, ease: "power2.in", duration: 0.55 }, 2.1);
+  tl.to($("cta-flood"), { autoAlpha: 0, scale: 3.6, ease: "power1.out", duration: 0.6 }, 2.65);
+  tl.fromTo($("time-ground"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 2.45);
+  tl.to($("cta-host", "cta-headline", "cta-line", "cta-note", "cta-button"), { autoAlpha: 0, filter: "blur(10px)", duration: 0.4 }, 2.2);
+  tl.to($("cta-silk"), { x: X(-6, -10), y: "9vh", rotation: -3, autoAlpha: 0.8, ease: "power2.inOut", duration: 1.0 }, 2.3);
+  tl.to($("cta-gold"), { rotation: 16, scale: 1.12, autoAlpha: 0.55, ease: "power2.inOut", duration: 1.2 }, 2.3);
+  if (starsDim) tl.to(starsDim, { opacity: 0.55, duration: 0.6 }, 2.3);
   // A clock face pulls in from beyond the screen, turning; its ticks light in turn.
-  tl.fromTo($("time-ring"), { autoAlpha: 0, scale: 3.4, rotation: -40 }, { autoAlpha: 1, scale: 1, rotation: 0, ease: "power3.out", duration: 1.1 }, 2.95);
-  tl.fromTo($("time-arc"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, ease: "power2.inOut", duration: 0.9 }, 3.1);
-  tl.fromTo($("time-tick"), { opacity: 0 }, { opacity: 1, duration: 0.12, stagger: 0.012 }, 3.15);
+  tl.fromTo($("time-ring"), { autoAlpha: 0, scale: 3.4, rotation: -40 }, { autoAlpha: 1, scale: 1, rotation: 0, ease: "power3.out", duration: 1.1 }, 2.55);
+  tl.fromTo($("time-arc"), { strokeDashoffset: 1 }, { strokeDashoffset: 0, ease: "power2.inOut", duration: 0.9 }, 2.7);
+  tl.fromTo($("time-tick"), { opacity: 0 }, { opacity: 1, duration: 0.12, stagger: 0.012 }, 2.75);
 
   // 16: THE COUNTDOWN assembles inside it: the date, then each figure out of
   // the camera (large and blurred, to its place), then today in India and
   // the way in. The figures are live already (Scene16Countdown).
-  tl.set($("cd-eyebrow", "cd-title"), { autoAlpha: 1 }, 3.45);
-  textIn(tl, $("cd-eyebrow")[0], "type", 3.45, 0.3);
-  textIn(tl, $("cd-title")[0], "scramble", 3.5, 0.5);
-  tl.fromTo($("cd-unit"), { autoAlpha: 0, scale: 1.7, filter: "blur(16px)" }, { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power3.out", duration: 0.6, stagger: 0.16 }, 3.7);
-  tl.fromTo($("cd-sep"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, stagger: 0.16 }, 3.85);
-  tl.fromTo($("cd-now"), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.4 }, 4.35);
-  tl.fromTo($("cd-apply"), { autoAlpha: 0, y: 16, scale: 0.94 }, { autoAlpha: 1, y: 0, scale: 1, ease: "power2.out", duration: 0.45 }, 4.5);
+  tl.set($("cd-eyebrow", "cd-title"), { autoAlpha: 1 }, 3.05);
+  textIn(tl, $("cd-eyebrow")[0], "type", 3.05, 0.3);
+  textIn(tl, $("cd-title")[0], "scramble", 3.1, 0.5);
+  tl.fromTo($("cd-unit"), { autoAlpha: 0, scale: 1.7, filter: "blur(16px)" }, { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power3.out", duration: 0.6, stagger: 0.16 }, 3.3);
+  tl.fromTo($("cd-sep"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, stagger: 0.16 }, 3.45);
+  tl.fromTo($("cd-now"), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.4 }, 3.95);
+  tl.fromTo($("cd-apply"), { autoAlpha: 0, y: 16, scale: 0.94 }, { autoAlpha: 1, y: 0, scale: 1, ease: "power2.out", duration: 0.45 }, 4.1);
   // Then it holds on the live clock, the face still turning slowly with the scroll.
-  tl.to($("time-ring"), { rotation: 14, ease: "none", duration: 1.55 }, 4.05);
-  tl.to($("cta-gold"), { rotation: 26, ease: "none", duration: 1.55 }, 4.05);
+  tl.to($("time-ring"), { rotation: 14, ease: "none", duration: 1.55 }, 3.65);
+  tl.to($("cta-gold"), { rotation: 26, ease: "none", duration: 1.55 }, 3.65);
   return tl;
 }
 
 /* =============================================================================
- * 5. THE SKY — not pinned
+ * 4. THE SKY — not pinned
  * The star layers drift at different speeds as the page scrolls (depth: the
  * nearer, the faster), and the whole sky leaves with the end of the page, so
  * the fixed layer never sits over the footer.

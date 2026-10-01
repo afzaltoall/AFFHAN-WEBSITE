@@ -1,4 +1,4 @@
-import { TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS, TRIP_TERMS_HREF } from "@/lib/trip-legal";
+import { TRIP_FACTS } from "@/lib/trip-legal";
 
 /**
  * Every word the /free-china-trip/ film puts on screen, in one place, so copy
@@ -8,10 +8,11 @@ import { TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS, TRIP_TERMS_HREF } from "@/li
  * THE RULE FOR THIS FILE: the terms of the offer are the trip's own Terms &
  * Conditions (lib/trip-legal.ts, the owner's text of 2026-10-01). Nothing
  * here may state a date, a number, an inclusion, a rule or an outcome that
- * the Terms do not, and the Terms section quotes them word for word, taken
- * from that file rather than retyped. Anything the page needs that nobody has
- * confirmed is flagged `placeholder: true`, which renders a visible
- * "Placeholder" tag beside it; README.md lists every one.
+ * the Terms do not. The Terms themselves are not on this page, on the
+ * owner's request: every "Apply for the Trip" shows them, whole, in the
+ * consent popup, and they have their own pages. Anything the page needs that
+ * nobody has confirmed is flagged `placeholder: true`, which renders a
+ * visible "Placeholder" tag beside it; README.md lists every one.
  *
  * Confirmed by the brief: the trip is free, it is a business trip to China,
  * and the three steps (apply, get selected, travel). Confirmed by the Terms:
@@ -128,50 +129,6 @@ export const STEPS: ReadonlyArray<{ title: string; detail: string } & Placeholde
   },
   { title: "Travel to China", detail: "Fly out with the group. The travel date and itinerary are announced to the winners." },
 ];
-
-// ---- 13 Terms & Conditions ----------------------------------------------------------------------
-/**
- * The Terms' own sentences, exactly as written: clause n, its blocks in the
- * order given (a list runs on as the document punctuates it). Taken from
- * lib/trip-legal.ts, never retyped, so these can't drift from the Terms.
- */
-function said(n: number, ...blocks: number[]): string {
-  const clause = TRIP_TERMS.sections.find((c) => c.n === n);
-  return blocks
-    .map((i) => {
-      const b = clause?.blocks[i];
-      if (b?.kind === "p" || b?.kind === "notice") return b.text;
-      if (b?.kind === "list") return b.items.join(" ");
-      throw new Error(`The Terms have no sentence at clause ${n}, block ${i}`);
-    })
-    .join(" ");
-}
-
-/**
- * The key terms, eight of the clauses, each quoted and each linking to its
- * clause on /free-china-trip/terms/. The number is the document's own; the
- * title is the clause's (two rows of sixteen on the departure board: letters,
- * spaces and "&" only).
- */
-export const TERMS = {
-  eyebrow: "The fine print",
-  title: "Terms & Conditions",
-  notice: `The trip's key terms, in the words of its Terms & Conditions. Applying means agreeing to all ${TRIP_TERMS.sections.length} clauses, so read them in full before you apply.`,
-  full: { href: TRIP_TERMS_HREF, label: "Read the Terms & Conditions" },
-  privacy: { href: TRIP_PRIVACY_HREF, label: "Privacy Policy" },
-  /** How many clauses the Terms have (the board's "/ 35"). */
-  count: TRIP_TERMS.sections.length,
-  sections: [
-    { clause: 3, title: "Application Period", body: [said(1, 1), said(3, 4)] },
-    { clause: 4, title: "Winner Selection", body: [said(4, 4), said(4, 2)] },
-    { clause: 5, title: "Winner Announcement", body: [said(1, 2), said(5, 4)] },
-    { clause: 6, title: "Final Verification", body: [said(6, 0), said(6, 3)] },
-    { clause: 8, title: "Visa Requirements", body: [said(8, 0), said(8, 3)] },
-    { clause: 15, title: "Food and Meals", note: said(15, 0), body: [said(15, 1, 2)] },
-    { clause: 18, title: "What the Trip Includes", body: [said(18, 0, 1), said(18, 3)] },
-    { clause: 27, title: "Commercial Outcomes", body: [said(27, 0), said(27, 3)] },
-  ] as ReadonlyArray<{ clause: number; title: string; note?: string; body: string[] }>,
-};
 
 // ---- 14 Final CTA ---------------------------------------------------------------------------------
 /**

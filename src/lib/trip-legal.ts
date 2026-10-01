@@ -11,8 +11,8 @@
  *
  * One source for every place that shows them: the two pages
  * (/free-china-trip/terms/, /free-china-trip/privacy/), the consent popup in
- * front of the application, the landing page's key terms, and the
- * application's consents. Change the wording here and it changes everywhere.
+ * front of the application, the landing page's dates, and the application's
+ * consents. Change the wording here and it changes everywhere.
  */
 
 export const TRIP_TERMS_HREF = "/free-china-trip/terms/";
