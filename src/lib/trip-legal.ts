@@ -73,7 +73,8 @@ const EMAIL = "info@affhan.com";
 /**
  * The owner's revised text of 2026-10-01: seventeen clauses. It replaced the
  * first, 35-clause version the same day; its closing Acceptance came out on
- * the owner's request.
+ * the owner's request, and clause 14 gained its Medical Expenses and
+ * Insurance subsection, in the owner's words, the same day.
  */
 export const TRIP_TERMS: LegalDoc = {
   heading: ["AFFHAN Free China Business Trip", "Terms & Conditions"],
@@ -264,6 +265,12 @@ export const TRIP_TERMS: LegalDoc = {
         p("The Trip does not guarantee any business or commercial success."),
         p("Personal travel insurance, medical expenses, and other personal expenses are the participant's responsibility unless expressly included in the official Trip package."),
         p("The Trip date, flights, accommodation, transportation, destinations, guides, and itinerary may be reasonably changed due to availability, operational requirements, airline changes, government restrictions, visa requirements, safety considerations, or other circumstances beyond Affhan's reasonable control."),
+        sub("Medical Expenses and Insurance"),
+        p("Unless expressly stated otherwise, medical, accident, health, baggage, or other insurance is not included in the Trip."),
+        p("Participants are responsible for their own medical needs, medicines, treatment, hospitalisation, emergency medical care, and related expenses before, during, or in connection with the Trip."),
+        p("Affhan does not provide or guarantee medical, health, or accident insurance and does not guarantee the availability, suitability, or outcome of any medical treatment or healthcare service."),
+        p("Any medical or related expense incurred by a participant will be the participant's responsibility unless Affhan has expressly confirmed otherwise in writing."),
+        p("Any assistance or coordination provided by Affhan in a medical emergency will be subject to availability and the requirements and decisions of the relevant medical or healthcare provider."),
       ],
     },
     {
