@@ -3,14 +3,14 @@ import { CAPTIONS } from "./content";
 import { Caption, FilmImage } from "./parts";
 
 /**
- * 09 Hotel. The environment darkens (a black veil over Yiwu while its lights
+ * 09 Hotel. The environment darkens (a black veil over Foshan while its lights
  * soften), gold light and then red silk sweep across (motif layers), and the
  * hotel comes in with a slight push, warm light blooming behind its doors.
  */
 export function Scene09Hotel() {
   return (
     <div data-cx-scene="hotel">
-      {/* The veil sits between Yiwu (z 10) and the hotel (z 12). */}
+      {/* The veil sits between Foshan (z 10) and the hotel (z 12). */}
       <div data-cx="veil" data-cx-hide aria-hidden className="pointer-events-none absolute inset-0 z-[11] bg-black" />
       <div className="pointer-events-none absolute inset-0 z-[12] flex items-center justify-center">
         <div data-cx="hotel-glow" data-cx-hide aria-hidden className="cx-glow-gold absolute h-[120vw] w-[120vw] md:h-[min(70vw,120vh)] md:w-[min(70vw,120vh)]" />

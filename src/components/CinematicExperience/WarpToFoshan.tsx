@@ -1,20 +1,21 @@
 import { CITIES } from "./content";
 
 /**
- * 07 → 08 The jump to Yiwu. After Guangzhou rushes into the lens, the sky
+ * 07 → 08 The jump to Foshan. After Guangzhou rushes into the lens, the sky
  * goes to light speed: gold streaks out of a vanishing point (the canvas,
  * drawn by warp.ts from the film's progress), a small travel readout whose
- * coordinates run from Guangzhou's to Yiwu's, a flare at the centre, and Yiwu
- * comes out of the light (animations.ts, chapter 08).
+ * coordinates run from Guangzhou's to Foshan's, a flare at the centre, and
+ * Foshan comes out of the light (animations.ts, chapter 08). Until October
+ * 2026 the jump went to Yiwu.
  *
  * The readout's numbers are the two captions' own coordinates, so it states
  * nothing the page doesn't already: a journey between two places, no
- * itinerary. Decorative, so hidden from screen readers (the Yiwu caption
+ * itinerary. Decorative, so hidden from screen readers (the Foshan caption
  * carries the words).
  */
-export function WarpToYiwu() {
+export function WarpToFoshan() {
   const from = CITIES.find((c) => c.key === "guangzhou")!;
-  const to = CITIES.find((c) => c.key === "yiwu")!;
+  const to = CITIES.find((c) => c.key === "foshan")!;
   return (
     <div aria-hidden>
       <canvas data-cx="warp" data-cx-hide className="pointer-events-none absolute inset-0 z-[30] h-full w-full" />

@@ -18,7 +18,7 @@ the application, its own page: `/free-china-trip/apply/`
 | `NumberLoadingOpener.tsx` | The opening count: CSS-driven from the first frame, finished by script. |
 | `Scene01Opening.tsx` … `Scene16Countdown.tsx` | One file per scene: markup only (the countdown also keeps its own clock). |
 | `Motifs.tsx` | The red silk and gold trail layers that recur through the film, and the atmosphere. |
-| `warp.ts`, `WarpToYiwu.tsx` | The jump from Guangzhou to Yiwu: gold streaks out of a vanishing point, drawn from the film's progress (scrolls back too), and the coordinates readout. |
+| `warp.ts`, `WarpToFoshan.tsx` | The jump from Guangzhou to Foshan: gold streaks out of a vanishing point, drawn from the film's progress (scrolls back too), and the coordinates readout. |
 | `particles.ts`, `GoldDust.tsx` | The FREE particles (scroll-driven, no loop) and the ambient gold dust (on screen only). |
 | `cinematic.css` | Palette tokens, the opening's CSS entrance, masks and gradients. Scoped to `.cx`. |
 
@@ -49,12 +49,13 @@ the application, its own page: `/free-china-trip/apply/`
 
 ## Worth confirming
 
-- **The two cities** (Guangzhou, then Yiwu) appear as a travel montage. The
-  page never says the trip visits them, because the itinerary is not
-  confirmed. If it does visit them, that can be said. Shanghai and Beijing
-  were in the film until 2026-10-01 and came out on the owner's request, so
-  Guangzhou is the first city; the China map still marks them, because they
-  are in the artwork.
+- **The two cities** (Guangzhou, then Foshan) appear as a travel montage.
+  The page never says the trip visits them, because the itinerary is not
+  confirmed. If it does visit them, that can be said. On 2026-10-01, on the
+  owner's request, Shanghai and Beijing came out, so Guangzhou is the first
+  city, and Foshan (the owner's picture of its furniture market) replaced
+  Yiwu as the arrival. The China map still marks Beijing, Shanghai and Yiwu,
+  and not Foshan, because that is the artwork.
 - **What 1 December means.** The countdown (`COUNTDOWN` in `content.ts`)
   runs to 1 December 2026, midnight IST, as asked, but what happens then
   (applications close? the trip departs?) is not confirmed, so the page gives

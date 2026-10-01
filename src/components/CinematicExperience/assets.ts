@@ -53,7 +53,10 @@ export const ASSETS = {
   // 09-shanghai and 10-beijing are still in public/free-china-trip/ but no
   // longer used: the two cities came out of the film in October.
   guangzhou: asset("11-guangzhou", 1600, 800),
-  yiwu: asset("12-yiwu", 1600, 800),
+  // The arrival since October: Foshan's furniture market, made from the
+  // owner's foshan-Market.png (1670 x 942) like the rest. 12-yiwu is still in
+  // public/free-china-trip/ but no longer used.
+  foshan: asset("12-foshan", 1600, 903),
   hotel: asset("13-hotel", 1600, 900),
   host: asset("14-host-presenter", 992, 1586, 640),
   afzalKhan: asset("16-afzal-khan", 1004, 1390, 640),

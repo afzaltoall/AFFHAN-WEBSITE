@@ -31,7 +31,7 @@ import { Scene04Airplane } from "./Scene04Airplane";
 import { Scene05Globe } from "./Scene05Globe";
 import { Scene06ChinaMap } from "./Scene06ChinaMap";
 import { Scene07CityJourney } from "./Scene07CityJourney";
-import { Scene08YiwuArrival } from "./Scene08YiwuArrival";
+import { Scene08FoshanArrival } from "./Scene08FoshanArrival";
 import { Scene09Hotel } from "./Scene09Hotel";
 import { Scene10FreeReveal } from "./Scene10FreeReveal";
 import { Scene11WhatsIncluded } from "./Scene11WhatsIncluded";
@@ -43,7 +43,7 @@ import { ARRIVAL_KEY, takeOff } from "./takeoff";
 import { TakeOffLayer } from "./TakeOffLayer";
 import { revertTextFx } from "./textfx";
 import { WarpField } from "./warp";
-import { WarpToYiwu } from "./WarpToYiwu";
+import { WarpToFoshan } from "./WarpToFoshan";
 
 /**
  * The free China business trip, as one scroll-driven film.
@@ -70,7 +70,7 @@ import { WarpToYiwu } from "./WarpToYiwu";
 
 const SCROLL_BEHAVIOR_CLASS = "scroll-behavior-auto";
 /** data-cx-scene names, in chapter order (matches CHAPTERS). */
-const SCENE_ORDER = ["opening", "passport", "boarding", "plane", "globe", "map", "cities", "yiwu", "hotel", "free", "included"];
+const SCENE_ORDER = ["opening", "passport", "boarding", "plane", "globe", "map", "cities", "foshan", "hotel", "free", "included"];
 
 function promote(img: HTMLImageElement) {
   const src = img.dataset.src;
@@ -267,7 +267,7 @@ export function CinematicExperience() {
           particles = new GatherField(canvas, word, desktop ? 2400 : 1100);
           void particles.layout();
         }
-        // The jump to Yiwu: gold streaks drawn from the film's progress.
+        // The jump to Foshan: gold streaks drawn from the film's progress.
         const warpCanvas = stage.querySelector<HTMLCanvasElement>("[data-cx='warp']");
         const warp = !reduce && warpCanvas ? new WarpField(warpCanvas, desktop ? 420 : 220) : null;
         warp?.layout();
@@ -355,8 +355,8 @@ export function CinematicExperience() {
           <Scene05Globe />
           <Scene06ChinaMap />
           <Scene07CityJourney />
-          <WarpToYiwu />
-          <Scene08YiwuArrival />
+          <WarpToFoshan />
+          <Scene08FoshanArrival />
           <Scene09Hotel />
           <Scene10FreeReveal />
           <Scene11WhatsIncluded />

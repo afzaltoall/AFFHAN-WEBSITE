@@ -1,5 +1,5 @@
 /**
- * The jump from Guangzhou to Yiwu: gold streaks pouring out of a vanishing
+ * The jump from Guangzhou to Foshan: gold streaks pouring out of a vanishing
  * point, as if the camera went to light speed between the two cities.
  *
  * Drawn as a pure function of the jump's progress (0..1), with nothing kept
@@ -11,7 +11,7 @@
  *   travel   how far the streaks have come: the integral of speed, 0 → 1
  *   streaks  each on its own ray, slow and dim near the centre (perspective:
  *            radius ∝ u²) and long and bright at the edges, longer the faster
- *   flare    the vanishing point flares at p ≈ 0.72, as Yiwu comes out of it
+ *   flare    the vanishing point flares at p ≈ 0.72, as Foshan comes out of it
  */
 
 type Streak = { cos: number; sin: number; r0: number; width: number; pale: boolean };
@@ -90,7 +90,7 @@ export class WarpField {
     wash.addColorStop(1, "rgba(214,168,78,0)");
     ctx.fillStyle = wash;
     ctx.fillRect(0, 0, w, h);
-    // ...and the vanishing point burns, flaring as Yiwu comes out of it.
+    // ...and the vanishing point burns, flaring as Foshan comes out of it.
     const flare = Math.exp(-((p - 0.72) ** 2) / 0.012);
     const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, R * 0.38);
     glow.addColorStop(0, `rgba(255,244,214,${Math.min(1, 0.55 * speed + 0.6 * flare).toFixed(3)})`);

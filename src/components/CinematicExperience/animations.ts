@@ -92,7 +92,7 @@ export interface FilmHooks {
   onProgress: (time: number, progress: number) => void;
   /** The night sky's dimmer (Starfield.tsx): lowered under the jump and the FREE reveal. */
   starsDim?: HTMLElement | null;
-  /** Draws the jump to Yiwu (warp.ts) for its progress, 0..1. */
+  /** Draws the jump to Foshan (warp.ts) for its progress, 0..1. */
   warp?: (p: number) => void;
   /** A landscape phone or any screen under 540px tall: the FREE lockup has to
    *  get smaller and higher to leave the included rows their room. */
@@ -113,7 +113,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
 
   // Resting states the tweens below start from.
   gsap.set($("hero-img", "hero-copy", "hero-glow", "hero-silk"), { filter: "blur(0px)" });
-  gsap.set($("city-guangzhou", "city-yiwu"), { filter: "blur(0px) brightness(1)" });
+  gsap.set($("city-guangzhou", "city-foshan"), { filter: "blur(0px) brightness(1)" });
   gsap.set($("globe-art"), { filter: "brightness(1) saturate(1)" });
   gsap.set($("boarding", "map"), { transformPerspective: 1400 });
   gsap.set($("route-head"), { x: ROUTE_POINTS[0].x, y: ROUTE_POINTS[0].y });
@@ -257,14 +257,14 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.to($("map"), { scale: 3.6, xPercent: -(3.6 - 1.05) * gz.x * 100, yPercent: -(3.6 - 1.05) * gz.y * 100, autoAlpha: 0, filter: "blur(10px)", ease: "power2.in", duration: 0.8 }, 8.35);
 
   // ---- 07 GUANGZHOU: out of its marker, its lights come on, flown into ------
-  // The first city, and since October the only one before Yiwu (Shanghai and
+  // The first city, and since October the only one before Foshan (Shanghai and
   // Beijing came out on the owner's request). It rises from where its marker
   // was on the map (the map is 62vw / 118vw wide at 1.05, so the marker sits
   // ~5vw / ~9vw right of centre and ~10vw / ~18vw below it), still dark. As it
   // lands its lights come on, up past full and settling, while a gold trail
   // sweeps across the skyline and silk follows. The camera drifts in, then
   // flies straight into it: it becomes the jump's vanishing point, flaring as
-  // Yiwu will come out of the light.
+  // Foshan will come out of the light.
   tl.fromTo($("city-guangzhou"), { autoAlpha: 0, scale: 0.22, x: X(5, 9), y: d ? "10vw" : "18vw", filter: "blur(14px) brightness(0.4)" },
     { autoAlpha: 1, scale: d ? 0.94 : 1, x: X(0, 0), y: 0, filter: "blur(0px) brightness(0.7)", ease: "power2.out", duration: 0.85 }, 8.5);
   tl.to($("city-guangzhou"), { filter: "blur(0px) brightness(1.22)", ease: "power2.out", duration: 0.35 }, 9.35);
@@ -282,8 +282,8 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   // ---- 07 → 08 THE JUMP TO YIWU: light speed, out of a vanishing point --------
   // Gold streaks pour out of the centre (warp.ts draws them from the jump's
   // progress, so scrolling back plays it backwards), the readout's
-  // coordinates run from Guangzhou's to Yiwu's, the sky dims so the light
-  // owns the frame, and the centre flares as Yiwu comes out of it.
+  // coordinates run from Guangzhou's to Foshan's, the sky dims so the light
+  // owns the frame, and the centre flares as Foshan comes out of it.
   const jump = { p: 0 };
   const [warpLine] = $("warp-line");
   const [warpDot] = $("warp-dot");
@@ -294,7 +294,7 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
     if (warpLine) warpLine.style.transform = `scaleX(${e.toFixed(4)})`;
     if (warpDot) warpDot.style.left = `${(e * 100).toFixed(2)}%`;
     if (warpCoords) {
-      const text = `${(23.13 + 6.18 * e).toFixed(2)}° N · ${(113.26 + 6.82 * e).toFixed(2)}° E`;
+      const text = `${(23.13 - 0.11 * e).toFixed(2)}° N · ${(113.26 - 0.14 * e).toFixed(2)}° E`;
       if (warpCoords.textContent !== text) warpCoords.textContent = text;
     }
   };
@@ -308,22 +308,27 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
     tl.to(hooks.starsDim, { opacity: 1, duration: 0.4 }, 11.6);
   }
 
-  // ---- 08 YIWU: out of the light, and the camera gently approaches ----------
-  tl.fromTo($("city-yiwu"), { autoAlpha: 0, scale: 0.06, x: 0, y: vh(-3), filter: "blur(20px) brightness(1.6)" },
-    { autoAlpha: 1, scale: d ? 0.98 : 1.06, y: 0, filter: "blur(0px) brightness(1)", ease: "expo.out", duration: 1.0 }, 11.3);
-  tl.to($("city-yiwu"), { scale: d ? 1.1 : 1.18, y: vh(1), duration: 1.05 }, 12.3);
-  caption("cap-yiwu", 12, 13.1, { hanzi: "fade", coords: "scramble", name: "track", line: "type" });
+  // ---- 08 FOSHAN: out of the light, and the camera gently approaches --------
+  // The market comes out of the vanishing point and, on desktop, settles 7vh
+  // above centre: it is 16:9 (Yiwu was 2:1), so centred its busiest edge, the
+  // crowd and the sofas, sat right behind the caption. Lifted, the caption
+  // rests on the picture's faded foot. A phone's picture ends above the
+  // caption anyway.
+  tl.fromTo($("city-foshan"), { autoAlpha: 0, scale: 0.06, x: 0, y: vh(-3), filter: "blur(20px) brightness(1.6)" },
+    { autoAlpha: 1, scale: d ? 0.98 : 1.06, y: vh(d ? -7 : 0), filter: "blur(0px) brightness(1)", ease: "expo.out", duration: 1.0 }, 11.3);
+  tl.to($("city-foshan"), { scale: d ? 1.1 : 1.18, y: vh(d ? -6 : 1), duration: 1.05 }, 12.3);
+  caption("cap-foshan", 12, 13.1, { hanzi: "fade", coords: "scramble", name: "track", line: "type" });
 
   // ---- 09 HOTEL: darken, gold, silk, then the hotel ---------------------------------
   tl.fromTo($("veil"), { autoAlpha: 0 }, { autoAlpha: 0.6, duration: 0.6 }, 13.05);
-  tl.to($("city-yiwu"), { filter: "blur(6px) brightness(0.55)", duration: 0.6 }, 13.05);
+  tl.to($("city-foshan"), { filter: "blur(6px) brightness(0.55)", duration: 0.6 }, 13.05);
   tl.fromTo($("gold-front"), { autoAlpha: 0, x: X(-110, -150), y: vh(10), rotation: 8, scale: 1 },
     { autoAlpha: 0.9, x: X(0, 0), y: vh(0), rotation: 0, ease: "power1.out", duration: 0.4 }, 13.25);
   tl.to($("gold-front"), { autoAlpha: 0, x: X(110, 150), y: vh(-10), rotation: -8, ease: "power1.in", duration: 0.4 }, 13.65);
   tl.fromTo($("silk-front"), { autoAlpha: 0, x: X(110, 150), y: vh(16), rotation: 12, scale: 1.2 },
     { autoAlpha: 1, x: X(0, 0), y: vh(4), rotation: 2, ease: "power1.out", duration: 0.4 }, 13.5);
   tl.to($("silk-front"), { autoAlpha: 0, x: X(-120, -160), y: vh(-10), rotation: -10, ease: "power1.in", duration: 0.4 }, 13.9);
-  tl.to($("city-yiwu"), { autoAlpha: 0, duration: 0.45 }, 13.75);
+  tl.to($("city-foshan"), { autoAlpha: 0, duration: 0.45 }, 13.75);
   tl.to($("veil"), { autoAlpha: 0.25, duration: 0.5 }, 13.8);
   tl.fromTo($("hotel"), { autoAlpha: 0, scale: 1.18, filter: "blur(12px)" },
     { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.85 }, 13.7);
@@ -407,6 +412,8 @@ export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop:
   gsap.set($("free-word", "free-glow", "free-sub-char"), { autoAlpha: 1 });
   gsap.set($("free-blur"), { autoAlpha: 0 });
   gsap.set($("inc-line"), { scaleX: 1 });
+  // Foshan rests where the full film puts it, above its caption (desktop).
+  if (desktop) gsap.set($("city-foshan"), { y: "-7vh" });
 
   // THE FILM'S ScrollTrigger, reduced: same stage, straight scrub.
   const tl = pinnedTimeline(film, END, true, { onUpdate: (self) => hooks.onProgress(self.progress * END, self.progress) });
@@ -426,7 +433,7 @@ export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop:
   fade(["globe", "cap-globe", "route-label-a", "route-label-b"], s[4], s[5] - 0.3);
   fade(["map", "map-glow", "cap-map"], s[5], s[6] - 0.3);
   fade(["city-guangzhou", "cap-guangzhou"], s[6], s[7] - 0.3);
-  fade(["city-yiwu", "cap-yiwu"], s[7], s[8] - 0.3);
+  fade(["city-foshan", "cap-foshan"], s[7], s[8] - 0.3);
   fade(["hotel", "hotel-glow", "cap-hotel"], s[8], s[9] - 0.3);
   tl.to($("haze-crimson"), { autoAlpha: 0, duration: 0.25 }, s[9] - 0.3);
   fade(["free-lockup"], s[9], s[10] - 0.35);

@@ -6,7 +6,7 @@ import { DISPLAY, EYEBROW, FilmImage } from "./parts";
 /**
  * 07 Guangzhou. The camera dives into its marker on the map and the skyline
  * rises out of it, dark; its lights come on as it lands, a gold trail and
- * silk cross it, and the camera flies straight into it for the jump to Yiwu
+ * silk cross it, and the camera flies straight into it for the jump to Foshan
  * (the destination, Scene08). Until October this was a pass through three
  * skylines stacked in depth, Shanghai and Beijing in front; they came out on
  * the owner's request and Guangzhou is the first city now.
@@ -17,7 +17,7 @@ import { DISPLAY, EYEBROW, FilmImage } from "./parts";
 
 const DEPTH: Record<string, string> = {
   guangzhou: "z-[14]",
-  yiwu: "z-[10]",
+  foshan: "z-[10]",
 };
 
 export function CitySkyline({ city, alt }: { city: (typeof CITIES)[number]; alt: string }) {
@@ -67,7 +67,7 @@ const ALTS: Record<string, string> = {
 export function Scene07CityJourney() {
   return (
     <div data-cx-scene="cities">
-      {CITIES.filter((c) => c.key !== "yiwu").map((city) => (
+      {CITIES.filter((c) => c.key !== "foshan").map((city) => (
         <div key={city.key}>
           <CitySkyline city={city} alt={ALTS[city.key]} />
           <CityCaption city={city} />

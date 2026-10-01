@@ -606,7 +606,8 @@ html:has(.cx-counter[data-lock]) {
    are finer than a pixel (0.2–0.3px measured): the W and U of YIWU lost their
    thin strokes over the picture. The text cut, opsz 11 (as the page's other
    numerals), keeps them at 2–3px. And a soft shade behind the caption, so
-   a sign in the photograph (Yiwu's reads YIWU CHINA) never competes with it. */
+   a sign in the photograph (Yiwu's read YIWU CHINA; Foshan's market is full of
+   them) never competes with it. */
 .cx-city-name {
   font-variation-settings: "opsz" 11;
 }

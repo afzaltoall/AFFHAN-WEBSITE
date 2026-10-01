@@ -59,7 +59,7 @@ export const CHAPTERS = [
   "The route",
   "China",
   "Guangzhou",
-  "Yiwu",
+  "Foshan",
   "Hotel",
   "Free",
   "What's included",
@@ -72,20 +72,22 @@ export const CAPTIONS = {
   plane: { eyebrow: "Flight", title: "Wheels up." },
   globe: { eyebrow: "The route", title: "One line across the map.", from: "India", to: "China" },
   map: { eyebrow: "Destination", title: "China", hanzi: "中国" },
-  yiwu: { eyebrow: "Arrival", title: "You've arrived." },
+  foshan: { eyebrow: "Arrival", title: "You've arrived." },
   hotel: { eyebrow: "Your stay", title: "Check in. Rest well." },
 } as const;
 
 /**
- * The cities: Guangzhou, then Yiwu. Names, characters and coordinates are
+ * The cities: Guangzhou, then Foshan. Names, characters and coordinates are
  * facts about the cities. The page never says the trip visits them: the
  * itinerary is not confirmed (see README.md), so these read as a travel
- * montage, not a schedule. Shanghai and Beijing came out in October, on the
- * owner's request, so Guangzhou is the first.
+ * montage, not a schedule. In October, on the owner's request, Shanghai and
+ * Beijing came out, so Guangzhou is the first, and Foshan (its furniture
+ * market) took Yiwu's place as the arrival. Foshan's are the city's own
+ * coordinates.
  */
 export const CITIES = [
   { key: "guangzhou", name: "Guangzhou", hanzi: "广州", coords: "23.13° N · 113.26° E" },
-  { key: "yiwu", name: "Yiwu", hanzi: "义乌", coords: "29.31° N · 120.08° E" },
+  { key: "foshan", name: "Foshan", hanzi: "佛山", coords: "23.02° N · 113.12° E" },
 ] as const;
 
 // ---- 10 FREE reveal -----------------------------------------------------------------------
