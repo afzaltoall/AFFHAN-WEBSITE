@@ -247,7 +247,7 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
         id="cx-countdown-title"
         data-cx="cd-title"
         data-cx-hide
-        className={`${DISPLAY} mt-3 text-[clamp(30px,8vw,44px)] font-normal uppercase leading-none tracking-[0.02em] text-(--cx-white) md:mt-4 md:text-[clamp(40px,4vw,64px)]`}
+        className={`${DISPLAY} cx-cd-title mt-3 text-[clamp(30px,8vw,44px)] font-normal uppercase leading-none tracking-[0.02em] text-(--cx-white) md:mt-4 md:text-[clamp(40px,4vw,64px)]`}
       >
         {COUNTDOWN.title}
       </h2>

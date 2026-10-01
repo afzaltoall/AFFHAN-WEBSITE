@@ -391,6 +391,10 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
     tl.fromTo(row, { autoAlpha: 0, y: 34, filter: "blur(8px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.42 }, at);
   });
   tl.to($("hud"), { autoAlpha: 0, duration: 0.3 }, FILM_END - 0.45);
+  // The silk, the gold and the glow go before the stage scrolls away. The
+  // stage clips what it holds, so they used to leave cut off by a hard
+  // straight line along its foot as How it works came up beneath it.
+  tl.to($("silk-back", "gold-back", "free-glow"), { autoAlpha: 0, duration: 0.4 }, FILM_END - 0.45);
 
   return tl;
 }

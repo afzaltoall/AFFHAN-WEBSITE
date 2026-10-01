@@ -501,6 +501,12 @@ html:has(.cx-counter[data-lock]) {
 @media (min-width: 768px) {
   .cx-cd-num { font-size: clamp(84px, 8.6vw, 150px); }
 }
+/* The date above the clock, in the text cut like every other figure on the
+   page. In the display cut its 1 is a bare stem with a hairline flag, and
+   the title read "I DECEMBER 2026". */
+.cx-cd-title {
+  font-variation-settings: "opsz" 11;
+}
 .cx-cd-slot {
   position: relative;
   display: inline-block;
@@ -560,8 +566,14 @@ html:has(.cx-counter[data-lock]) {
    the reveal. The fallbacks are the first frame (hidden, no edge): a
    ScrollTrigger refresh can delete the properties (GSAP cannot save a custom
    property's inline value), and a deleted value must never show the words. */
+/* As wide as its words, not its column: the reveal and its edge run the box,
+   and on a full-width heading ("Three steps to China." is 770px of words in
+   a 1264px box) the words were whole by 60% and the edge ran on alone into
+   empty space, where a stopped scroll left it standing like a glitch. */
 .cx-wipe {
   position: relative;
+  width: fit-content;
+  max-width: 100%;
   clip-path: inset(-0.2em calc(100% - var(--wipe, 0%)) -0.2em -0.2em);
 }
 .cx-wipe::after {

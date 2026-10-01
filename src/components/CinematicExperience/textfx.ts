@@ -186,7 +186,12 @@ export function textIn(tl: gsap.core.Timeline, el: Element | null | undefined, f
       const state = { p: 0 };
       const n = final.length;
       let last = "";
-      const draw = () => {
+      let still: ReturnType<typeof setTimeout> | undefined;
+      // settled: the scroll has stopped. The flicker is a thing of motion; at
+      // rest every letter shown is its real one and the rest stay hidden.
+      // Scrubbed, a stopped scroll used to freeze the flicker, and a reader
+      // saw "23.13° N · 569." and "116.41° T": wrong figures, standing still.
+      const draw = (settled = false) => {
         // Letters land left to right; a few ahead of the landed ones flicker;
         // nothing (not even a stray "." or "°") shows before the front reaches it.
         const landed = Math.floor(state.p * (n + 5)) - 5;
@@ -195,7 +200,7 @@ export function textIn(tl: gsap.core.Timeline, el: Element | null | undefined, f
         let shown = "";
         for (let i = 0; i < cut; i++) {
           const ch = final[i];
-          if (i < landed || /\s/.test(ch)) shown += ch;
+          if (settled || i < landed || /\s/.test(ch)) shown += ch;
           else shown += /[0-9]/.test(ch) ? flick(i, frame, DIGITS) : /[A-Z]/.test(ch) ? flick(i, frame, UPPER) : /[a-z]/.test(ch) ? flick(i, frame, LOWER) : ch;
         }
         const key = `${cut}|${shown}`;
@@ -204,8 +209,16 @@ export function textIn(tl: gsap.core.Timeline, el: Element | null | undefined, f
         lit.textContent = shown;
         rest.textContent = final.slice(cut);
       };
+      // The scrub keeps updating for its 0.6s catch-up after the wheel stops,
+      // so "stopped" is 160ms without an update.
+      const moved = () => {
+        draw();
+        clearTimeout(still);
+        still = setTimeout(() => draw(true), 160);
+      };
+      undo.add(() => clearTimeout(still));
       draw();
-      tl.fromTo(state, { p: 0 }, { p: 1, ease: "none", duration: dur, onUpdate: draw, onStart: draw, immediateRender: false }, at);
+      tl.fromTo(state, { p: 0 }, { p: 1, ease: "none", duration: dur, onUpdate: moved, onStart: moved, immediateRender: false }, at);
       return;
     }
   }
