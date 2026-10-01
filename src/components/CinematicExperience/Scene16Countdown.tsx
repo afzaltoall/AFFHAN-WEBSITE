@@ -2,7 +2,6 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import gsap from "gsap";
-import { Volume2, VolumeX } from "lucide-react";
 import { ApplyButton } from "./ApplyButton";
 import { createClockSound } from "./clockSound";
 import { COUNTDOWN } from "./content";
@@ -28,7 +27,7 @@ import { DISPLAY, EYEBROW } from "./parts";
  *  - Real time: every tick is read from the clock (Date.now), scheduled just
  *    after each whole second, so a sleeping tab or a slow frame never drifts.
  *  - At zero it rests at 00 00 00 00.
- *  - It can be heard: "Clock sound" beside today's time plays the owner's
+ *  - It can be heard: a speaker in the top-right corner plays the owner's
  *    tick and tock on the seconds (clockSound.ts), only while the clock is
  *    on screen (ClockSoundToggle).
  *
@@ -170,9 +169,14 @@ function Unit({ value, digits, label, motion, ring }: { value: number; digits: n
 const SOUND_KEY = "cx-clock-sound";
 
 /**
- * The clock, heard. A browser lets a page make sound only after a click, tap
- * or key press on it (a scroll is not one), so:
- *  - pressed, it ticks, and its ring pulses with every tick;
+ * The clock, heard: a speaker in the top-right corner, with no words (its
+ * name, COUNTDOWN.sound, is for screen readers). Off, it is a speaker with a
+ * cross and its ring breathes now and then; on, its sound waves draw in, and
+ * with every tick they light up from the speaker outwards and a ring of gold
+ * spreads from the button, in time with what is heard (the tock a little
+ * softer). A browser lets a page make sound only after a click, tap or key
+ * press on it (a scroll is not one), so:
+ *  - pressed, it ticks;
  *  - if the visitor has already clicked or tapped somewhere on the page, it
  *    starts by itself, softly, as the clock assembles (not under reduced
  *    motion, and not if they turned it off earlier in the visit);
@@ -183,19 +187,29 @@ const SOUND_KEY = "cx-clock-sound";
 function ClockSoundToggle({ label }: { label: string }) {
   const btn = useRef<HTMLButtonElement>(null);
   const ring = useRef<HTMLSpanElement>(null);
+  const cone = useRef<SVGPathElement>(null);
+  const near = useRef<SVGPathElement>(null);
+  const far = useRef<SVGPathElement>(null);
   const [on, setOn] = useState(false);
   const api = useRef<{ toggle: () => void } | null>(null);
 
   useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    // Each tick, seen as it is heard: the speaker knocks, its waves light up
+    // from the speaker outwards, and a ring spreads from the button.
     const pulse = (even: boolean) => {
-      if (reduce || !ring.current) return;
-      ring.current.animate(
+      if (reduce) return;
+      const peak = even ? 1 : 0.7;
+      const out = "cubic-bezier(0.2, 0.7, 0.2, 1)";
+      cone.current?.animate([{ transform: "scale(0.86)" }, { transform: "scale(1)" }], { duration: 220, easing: out });
+      near.current?.animate([{ opacity: peak }, { opacity: 0.5 }], { duration: 520, easing: out });
+      far.current?.animate([{ opacity: 0.5 }, { opacity: peak, offset: 0.2 }, { opacity: 0.5 }], { duration: 640, delay: 70, easing: out });
+      ring.current?.animate(
         [
-          { transform: "scale(1)", opacity: even ? 0.85 : 0.55 },
-          { transform: "scale(1.9)", opacity: 0 },
+          { transform: "scale(1)", opacity: even ? 0.8 : 0.5 },
+          { transform: "scale(1.6)", opacity: 0 },
         ],
-        { duration: 760, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" },
+        { duration: 820, easing: out },
       );
     };
     const sound = createClockSound(TARGET, pulse);
@@ -272,16 +286,19 @@ function ClockSoundToggle({ label }: { label: string }) {
     <button
       ref={btn}
       type="button"
+      aria-label={label}
       aria-pressed={on}
       onClick={() => api.current?.toggle()}
-      className="cx-cd-sound pointer-events-auto"
+      className="cx-cd-sound"
       data-on={on ? "" : undefined}
     >
-      <span aria-hidden className="cx-cd-sound-icon">
-        <span ref={ring} className="cx-cd-sound-ring" />
-        {on ? <Volume2 size={15} strokeWidth={2} /> : <VolumeX size={15} strokeWidth={2} />}
-      </span>
-      <span>{label}</span>
+      <span ref={ring} aria-hidden className="cx-cd-sound-ring" />
+      <svg aria-hidden viewBox="0 0 24 24" className="cx-cd-sound-glyph">
+        <path ref={cone} className="cx-cd-sound-cone" d="M3.5 10.1a1 1 0 0 1 1-1h2.6l4.4-3.7v13.2l-4.4-3.7H4.5a1 1 0 0 1-1-1z" />
+        <path ref={near} className="cx-cd-sound-wave" pathLength={1} d="M15 9.2a4 4 0 0 1 0 5.6" />
+        <path ref={far} className="cx-cd-sound-wave cx-cd-sound-wave-far" pathLength={1} d="M17.9 6.6a7.7 7.7 0 0 1 0 10.8" />
+        <path className="cx-cd-sound-mute" d="M15.6 9.6l4.8 4.8m0-4.8l-4.8 4.8" />
+      </svg>
     </button>
   );
 }
@@ -390,19 +407,24 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
         </div>
       </div>
 
-      {/* Today, live: so the countdown is plainly counting from now. And the clock, heard. */}
-      <div data-cx="cd-now" data-cx-hide className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 md:mt-9">
-        <p className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-(--cx-mute)">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.3em]">{COUNTDOWN.now}</span>
-          <span className="min-h-[1.5em] text-[14px] tabular-nums tracking-[0.02em] text-(--cx-white)/85 md:text-[15px]">{now}</span>
-        </p>
-        <ClockSoundToggle label={COUNTDOWN.sound} />
-      </div>
+      {/* Today, live: so the countdown is plainly counting from now. */}
+      <p data-cx="cd-now" data-cx-hide className="mt-7 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-(--cx-mute) md:mt-9">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.3em]">{COUNTDOWN.now}</span>
+        <span className="min-h-[1.5em] text-[14px] tabular-nums tracking-[0.02em] text-(--cx-white)/85 md:text-[15px]">{now}</span>
+      </p>
 
       <div data-cx="cd-apply" data-cx-hide className="pointer-events-auto mt-9 md:mt-11">
         <ApplyButton onClick={onApply} size="lg">
           {COUNTDOWN.button}
         </ApplyButton>
+      </div>
+
+      {/* The clock, heard: in the top-right corner, below the site's bar
+          whenever the bar is showing (cinematic.css). */}
+      <div className="cx-cd-sound-dock">
+        <div data-cx="cd-sound" data-cx-hide className="pointer-events-auto">
+          <ClockSoundToggle label={COUNTDOWN.sound} />
+        </div>
       </div>
     </div>
   );

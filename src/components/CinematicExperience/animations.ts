@@ -670,7 +670,7 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
     tl.fromTo($("time-ring"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.8);
     tl.set($("time-arc"), { strokeDashoffset: 0 }, 1.8);
     tl.set($("time-tick"), { opacity: 1 }, 1.8);
-    tl.fromTo($("cd-eyebrow", "cd-title", "cd-unit", "cd-sep", "cd-now", "cd-apply"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 2.0);
+    tl.fromTo($("cd-eyebrow", "cd-title", "cd-unit", "cd-sep", "cd-now", "cd-apply", "cd-sound"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 2.0);
     return tl;
   }
 
@@ -719,14 +719,16 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
   tl.fromTo($("time-tick"), { opacity: 0 }, { opacity: 1, duration: 0.12, stagger: 0.012 }, 2.75);
 
   // 16: THE COUNTDOWN assembles inside it: the date, then each figure out of
-  // the camera (large and blurred, to its place), then today in India and
-  // the way in. The figures are live already (Scene16Countdown).
+  // the camera (large and blurred, to its place), then today in India, the
+  // speaker in the corner and the way in. The figures are live already
+  // (Scene16Countdown).
   tl.set($("cd-eyebrow", "cd-title"), { autoAlpha: 1 }, 3.05);
   textIn(tl, $("cd-eyebrow")[0], "type", 3.05, 0.3);
   textIn(tl, $("cd-title")[0], "scramble", 3.1, 0.5);
   tl.fromTo($("cd-unit"), { autoAlpha: 0, scale: 1.7, filter: "blur(16px)" }, { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power3.out", duration: 0.6, stagger: 0.16 }, 3.3);
   tl.fromTo($("cd-sep"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3, stagger: 0.16 }, 3.45);
   tl.fromTo($("cd-now"), { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, ease: "power2.out", duration: 0.4 }, 3.95);
+  tl.fromTo($("cd-sound"), { autoAlpha: 0, scale: 0.5, rotation: -25 }, { autoAlpha: 1, scale: 1, rotation: 0, ease: "back.out(2.2)", duration: 0.45 }, 4.0);
   tl.fromTo($("cd-apply"), { autoAlpha: 0, y: 16, scale: 0.94 }, { autoAlpha: 1, y: 0, scale: 1, ease: "power2.out", duration: 0.45 }, 4.1);
   // Then it holds on the live clock, the face still turning slowly with the scroll.
   tl.to($("time-ring"), { rotation: 14, ease: "none", duration: 1.55 }, 3.65);

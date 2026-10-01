@@ -723,52 +723,100 @@ html:has(.cx-counter[data-lock]) {
 }
 
 /* ---- 16 The clock, heard (Scene16Countdown's ClockSoundToggle) ------------------------------
-   A quiet pill beside today's time: a speaker in a small gold ring, which
-   pulses out with every tick while the clock is heard. Off, the ring
-   breathes once in a while, to say the clock can be heard. */
+   A speaker in a gold ring, alone in the top-right corner of the countdown:
+   no words (its name is for screen readers). The dock sits below the site's
+   bar while the bar is showing and follows it as it slides away
+   (--nav-shift, Navbar.tsx), so the bar never covers it; the countdown's
+   timeline brings the button in (cd-sound, buildCta).
+   Off: a speaker with a cross, and the ring breathes now and then, to say
+   the clock can be heard. On: the cross goes, the two sound waves draw in,
+   and the button turns gold; with every tick the speaker knocks, the waves
+   light up from the speaker outwards and a ring of gold spreads from the
+   button (the component, in time with the sound). */
+.cx-cd-sound-dock {
+  position: absolute;
+  top: 0;
+  right: max(18px, env(safe-area-inset-right));
+  z-index: 2;
+  transform: translateY(calc(var(--nav-shift, 4rem) + 18px));
+  transition: transform 0.35s ease;
+}
+@media (min-width: 768px) {
+  .cx-cd-sound-dock {
+    right: max(28px, env(safe-area-inset-right));
+    transform: translateY(calc(var(--nav-shift, 4rem) + 26px));
+  }
+}
 .cx-cd-sound {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 36px;
-  padding: 4px 14px 4px 5px;
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
   border-radius: 999px;
-  border: 1px solid rgb(244 239 230 / 0.18);
-  background: rgb(9 8 11 / 0.45);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--cx-mute);
-  transition: color 0.25s, border-color 0.25s, background 0.25s, box-shadow 0.25s;
+  border: 1px solid rgb(214 168 78 / 0.42);
+  background: rgb(9 8 11 / 0.5);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: rgb(244 239 230 / 0.78);
+  transition: color 0.3s, border-color 0.3s, background 0.3s, box-shadow 0.3s, transform 0.2s;
+}
+@media (min-width: 768px) {
+  .cx-cd-sound { width: 50px; height: 50px; }
 }
 .cx-cd-sound:hover {
   color: var(--cx-white);
-  border-color: rgb(214 168 78 / 0.55);
+  border-color: rgb(242 211 142 / 0.75);
+  box-shadow: 0 0 20px -6px rgb(242 211 142 / 0.5);
 }
+.cx-cd-sound:active { transform: scale(0.93); }
 .cx-cd-sound:focus-visible {
   outline: 2px solid var(--cx-white);
   outline-offset: 3px;
 }
 .cx-cd-sound[data-on] {
   color: var(--cx-gold-hi);
-  border-color: rgb(214 168 78 / 0.6);
-  background: rgb(214 168 78 / 0.1);
-  box-shadow: 0 0 22px -6px rgb(242 211 142 / 0.55);
-}
-.cx-cd-sound-icon {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  border: 1px solid rgb(214 168 78 / 0.45);
-  color: inherit;
-}
-.cx-cd-sound[data-on] .cx-cd-sound-icon {
   border-color: var(--cx-gold);
-  background: rgb(214 168 78 / 0.16);
+  background: radial-gradient(circle at 40% 35%, rgb(242 211 142 / 0.2), rgb(214 168 78 / 0.06) 70%), rgb(9 8 11 / 0.55);
+  box-shadow: 0 0 26px -6px rgb(242 211 142 / 0.6), inset 0 0 12px rgb(242 211 142 / 0.12);
+}
+.cx-cd-sound-glyph {
+  width: 22px;
+  height: 22px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (min-width: 768px) {
+  .cx-cd-sound-glyph { width: 24px; height: 24px; }
+}
+.cx-cd-sound[data-on] .cx-cd-sound-glyph { filter: drop-shadow(0 0 4px rgb(242 211 142 / 0.55)); }
+.cx-cd-sound-cone {
+  fill: currentColor;
+  fill-opacity: 0.18;
+  transform-box: fill-box;
+  transform-origin: 100% 50%;
+}
+/* The waves draw in when it is switched on, and draw back when it is off. */
+.cx-cd-sound-wave {
+  stroke-dasharray: 1 1;
+  stroke-dashoffset: 1;
+  opacity: 0.5;
+  transition: stroke-dashoffset 0.38s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.cx-cd-sound[data-on] .cx-cd-sound-wave { stroke-dashoffset: 0; }
+.cx-cd-sound[data-on] .cx-cd-sound-wave-far { transition-delay: 0.09s; }
+.cx-cd-sound-mute {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  transition: opacity 0.22s, transform 0.3s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.cx-cd-sound[data-on] .cx-cd-sound-mute {
+  opacity: 0;
+  transform: scale(0.3) rotate(45deg);
 }
 .cx-cd-sound-ring {
   position: absolute;
@@ -783,9 +831,14 @@ html:has(.cx-counter[data-lock]) {
     animation: cx-sound-invite 3.2s ease-out 1.2s infinite;
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .cx-cd-sound,
+  .cx-cd-sound-wave,
+  .cx-cd-sound-mute { transition: none; }
+}
 @keyframes cx-sound-invite {
   0% { transform: scale(1); opacity: 0.6; }
-  45%, 100% { transform: scale(1.9); opacity: 0; }
+  45%, 100% { transform: scale(1.6); opacity: 0; }
 }
 
 /* ---- "Apply for the Trip" (ApplyButton.tsx) ------------------------------------------------

@@ -43,7 +43,7 @@ popup instead.
 | `warp.ts`, `WarpToFoshan.tsx` | The jump from Guangzhou to Foshan: gold streaks out of a vanishing point, drawn from the film's progress (scrolls back too), and the coordinates readout. |
 | `particles.ts`, `GoldDust.tsx` | The FREE particles (scroll-driven, no loop) and the ambient gold dust (on screen only). |
 | `cinematic.css` | Palette tokens, the opening's CSS entrance, masks and gradients. Scoped to `.cx`. |
-| `clockSound.ts` | The countdown, heard: the owner's tick and tock, scheduled on the audio clock for each second as it turns (Scene16's "Clock sound"). |
+| `clockSound.ts` | The countdown, heard: the owner's tick and tock, scheduled on the audio clock for each second as it turns (Scene16's speaker, top right). |
 
 ## Must be settled before launch
 
@@ -109,9 +109,11 @@ the tick at 0.785 s and the tock at 1.765 s, about a third of a second each,
 raised together to a 0.89 peak with soft fades. Looping the recording would
 drift (its ticks fall 975 to 1025 ms apart), so each sound is scheduled for
 the moment its second turns. A browser lets a page make sound only after a
-click, tap or key press on it, so the clock is heard when "Clock sound" is
-pressed, or by itself if the visitor has already clicked on the page; only
-while the clock is on screen, never under the Apply popup, never past zero.
+click, tap or key press on it, so the clock is heard when the speaker in the
+countdown's top-right corner is pressed (it has no words; "Clock sound" is its
+name for screen readers), or by itself if the visitor has already clicked on
+the page; only while the clock is on screen, never under the Apply popup,
+never past zero.
 
 ## Reduced motion
 
