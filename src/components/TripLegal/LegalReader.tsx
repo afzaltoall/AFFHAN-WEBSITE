@@ -14,6 +14,8 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
  *    simply lights, with no transition.
  *  - Contents links glide to their section, the navbar allowed for (CSS
  *    scroll-margin), and update the address so a clause can be shared.
+ *  - The pass beside the text (LegalPage, the widest screens) says which
+ *    section is being read, and its bar fills with the reading.
  */
 export function LegalReader({ prefix, items, label }: { prefix: string; items: { n: number; title: string }[]; label: string }) {
   const [active, setActive] = useState(items[0]?.n ?? 1);
@@ -30,6 +32,8 @@ export function LegalReader({ prefix, items, label }: { prefix: string; items: {
     const sections = items
       .map((it) => document.getElementById(`${prefix}-${it.n}`))
       .filter((el): el is HTMLElement => !!el);
+    const passNow = document.querySelector<HTMLElement>("[data-tl-now]");
+    const passBar = document.querySelector<HTMLElement>("[data-tl-passbar]");
     let raf = 0;
     const update = () => {
       raf = 0;
@@ -51,6 +55,8 @@ export function LegalReader({ prefix, items, label }: { prefix: string; items: {
         current = Number(last.dataset.tlSection);
       }
       setActive(current);
+      const now = String(current).padStart(2, "0");
+      if (passNow && passNow.textContent !== now) passNow.textContent = now;
       const first = sections[0];
       const end = sections[sections.length - 1];
       if (first && end) {
@@ -59,6 +65,7 @@ export function LegalReader({ prefix, items, label }: { prefix: string; items: {
         const p = Math.max(0, Math.min(1, (window.scrollY - start) / Math.max(1, stop - start)));
         if (barRef.current) barRef.current.style.transform = `scaleX(${p.toFixed(4)})`;
         if (railRef.current) railRef.current.style.transform = `scaleY(${p.toFixed(4)})`;
+        if (passBar) passBar.style.transform = `scaleX(${p.toFixed(4)})`;
       }
     };
     const onScroll = () => {
