@@ -6,7 +6,10 @@ import { DISPLAY, EYEBROW, PlaceholderTag } from "./parts";
  * and the four confirmed inclusions arrive beneath it as editorial rows, one
  * after another as you scroll: a hairline of gold draws across, then the row
  * resolves. Rows, not cards: no boxes, no fills, no icons. Only the four the
- * brief confirms (content.ts).
+ * brief confirms (content.ts). On a wide screen each row is a two-column
+ * table, the detail starting halfway across beside its title, every detail
+ * on the same edge; narrower, the detail sits under its title. Set bright
+ * and large enough to read over the stars (with a dark halo, cinematic.css).
  */
 export function Scene11WhatsIncluded() {
   return (
@@ -21,7 +24,7 @@ export function Scene11WhatsIncluded() {
               key={item.title}
               data-cx="inc-row"
               data-cx-hide
-              className="relative flex flex-col gap-1 py-[1.7svh] md:flex-row md:items-baseline md:justify-between md:gap-12 md:py-[2.3svh]"
+              className="relative flex flex-col gap-1 py-[1.7svh] md:py-[2.3svh] lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-baseline lg:gap-x-16 lg:gap-y-0"
             >
               <span
                 data-cx="inc-line"
@@ -32,7 +35,7 @@ export function Scene11WhatsIncluded() {
                 {item.title}
                 {item.placeholder && <PlaceholderTag />}
               </h3>
-              <p className="text-[14px] leading-snug text-(--cx-mute) md:max-w-[25rem] md:text-right md:text-[17px]">{item.detail}</p>
+              <p className="cx-inc-detail text-[15px] leading-snug text-(--cx-white)/90 md:text-[17px] md:leading-[1.45] lg:text-[clamp(17px,1.25vw,21px)]">{item.detail}</p>
             </li>
           ))}
         </ul>

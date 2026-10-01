@@ -965,6 +965,13 @@ html[data-film-on] [data-site-dock] {
   transition: opacity 0.35s ease, visibility 0s linear 0.35s;
 }
 
+/* ---- 11 What's included: each detail readable over the stars ------------------------------
+   A dark halo, close and soft, so a bright star behind a word never breaks
+   it up; the words themselves are near-white (Scene11WhatsIncluded). */
+.cx-inc-detail {
+  text-shadow: 0 0 2px rgb(7 6 8 / 0.9), 0 0 16px rgb(7 6 8 / 0.95);
+}
+
 /* ---- Short landscape screens ------------------------------------------------------------
    A phone on its side, or any window under 540px tall and wider than it is tall.
    The film was laid out for height: on a 667x375 phone the hero's headline went
@@ -995,14 +1002,14 @@ html[data-film-on] [data-site-dock] {
   [data-cx-scene="included"] > div { top: 25svh; bottom: 4.25rem; padding-inline: max(1.5rem, 5vw); }
   [data-cx-scene="included"] ul { margin-top: 0.4rem; }
   [data-cx="inc-row"] {
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 19rem);
     align-items: baseline;
-    justify-content: space-between;
-    gap: 1.25rem;
+    column-gap: 1.25rem;
     padding-block: 1.1svh;
   }
   [data-cx="inc-row"] h3 { font-size: min(6.2svh, 30px); }
-  [data-cx="inc-row"] p { max-width: 22rem; text-align: right; font-size: 13px; }
+  [data-cx="inc-row"] p { font-size: 13.5px; }
 
   [data-cx-countdown] { padding-top: 1.25rem; padding-bottom: 2svh; }
   #cx-countdown-title { margin-top: 0.4rem; font-size: min(9svh, 44px); }
