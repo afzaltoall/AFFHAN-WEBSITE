@@ -635,7 +635,14 @@ export function buildTerms(section: HTMLElement, reduced: boolean): () => void {
   const [endRing] = $("terms-end-ring");
   if (!list || !rows.length) return () => undefined;
 
-  const board = boardEl ? createBoard(boardEl, rows.map((r) => r.dataset.title ?? ""), reduced) : null;
+  const board = boardEl
+    ? createBoard(
+        boardEl,
+        rows.map((r) => r.dataset.title ?? ""),
+        reduced,
+        rows.map((r) => Number(r.dataset.clause)),
+      )
+    : null;
 
   // WHICH CLAUSE IS BEING READ: the last one whose top has passed the reading
   // line (the lamp, just above the middle of the screen).
@@ -704,13 +711,14 @@ export function buildTerms(section: HTMLElement, reduced: boolean): () => void {
   }
 
   // THE HEADING ScrollTrigger: the eyebrow is set like a board, the title
-  // rises out of its masks, the notice's rule draws down and its words follow.
+  // rises out of its masks, the notice's rule draws down, its words follow,
+  // and the way to the whole document comes up under them.
   const head = gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { trigger: section, start: "top 82%", end: "top 28%", scrub: 0.5 } });
   textIn(head, $("terms-eyebrow")[0], "scramble", 0, 0.3);
   textIn(head, $("terms-title")[0], "rise", 0.06, 0.5);
   head.fromTo($("terms-notice-rule"), { scaleY: 0 }, { scaleY: 1, ease: "power2.inOut", duration: 0.3 }, 0.42);
-  head.fromTo($("terms-notice-tag"), { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.14 }, 0.46);
-  textIn(head, $("terms-notice-text")[0], "words", 0.5, 0.4);
+  textIn(head, $("terms-notice-text")[0], "words", 0.46, 0.4);
+  head.fromTo($("terms-links"), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.16 }, 0.8);
   head.set({}, {}, 1);
 
   // THE THREAD ScrollTrigger: gold fills down it with the reading line, a bead
@@ -736,15 +744,18 @@ export function buildTerms(section: HTMLElement, reduced: boolean): () => void {
   thread.fromTo(endCore, { scale: 0 }, { scale: 1, ease: "back.out(3)", duration: 0.02 }, 0.98);
 
   // EACH CLAUSE ScrollTrigger: as it comes up the screen its rule draws
-  // across, its number rises, its title is typed and its words follow.
+  // across, its number rises, its title is typed, its notice (if it has one)
+  // comes up, its words follow, and the way to the clause in full last.
   rows.forEach((row) => {
     const q = (key: string) => row.querySelector<HTMLElement>(`[data-cx='${key}']`);
     const rtl = gsap.timeline({ defaults: { ease: "none" }, scrollTrigger: { trigger: row, start: "top 90%", end: "top 58%", scrub: 0.5 } });
     rtl.fromTo(q("term-rule"), { scaleX: 0 }, { scaleX: 1, ease: "power2.inOut", duration: 0.7 }, 0);
     textIn(rtl, q("term-num"), "rise", 0.08, 0.5);
     textIn(rtl, q("term-title"), "type", 0.16, 0.45);
-    textIn(rtl, q("term-text"), "words", 0.3, 0.55);
-    rtl.fromTo(q("term-tag"), { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.15 }, 0.82);
+    const note = q("term-note");
+    if (note) rtl.fromTo(note, { autoAlpha: 0, x: -8 }, { autoAlpha: 1, x: 0, duration: 0.2 }, 0.26);
+    textIn(rtl, q("term-text"), "words", note ? 0.36 : 0.3, 0.5);
+    rtl.fromTo(q("term-link"), { autoAlpha: 0, x: -6 }, { autoAlpha: 1, x: 0, duration: 0.15 }, 0.84);
     rtl.set({}, {}, 1);
   });
   return undo;

@@ -19,7 +19,7 @@ import { displayFont } from "@/components/CinematicExperience/fonts";
 
 const TITLE = "Free China Business Trip | AFFHAN";
 const DESCRIPTION =
-  "A free China business trip with AFFHAN: round-trip flight, hotel stay, local transport and the China trip experience. Apply online in a few minutes.";
+  "AFFHAN's Free China Business Trip: round-trip flight, hotel stay, local transport and business guidance. Five winners, drawn at random. Applications close 25 November 2026.";
 const PAGE_URL = "https://affhan.com/free-china-trip/";
 
 export const metadata: Metadata = {

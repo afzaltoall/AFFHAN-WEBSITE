@@ -1,18 +1,25 @@
+import { TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS, TRIP_TERMS_HREF } from "@/lib/trip-legal";
+
 /**
- * Every word the /free-china-trip/ film puts on screen, in one place, so the
- * placeholder copy can be swapped for approved copy without touching any
- * animation code (animations.ts only ever looks elements up by data-cx key).
+ * Every word the /free-china-trip/ film puts on screen, in one place, so copy
+ * can change without touching any animation code (animations.ts only ever
+ * looks elements up by data-cx key).
  *
- * THE RULE FOR THIS FILE: nothing here may state a date, a fee, a prize value,
- * a number of places, an eligibility rule, a visa outcome or any other term of
- * the offer, because none has been confirmed. Where the page needs such a thing
- * it says so, and the entry is flagged `placeholder: true`, which renders a
- * visible "Placeholder" tag beside it. README.md lists every one.
+ * THE RULE FOR THIS FILE: the terms of the offer are the trip's own Terms &
+ * Conditions (lib/trip-legal.ts, the owner's text of 2026-10-01). Nothing
+ * here may state a date, a number, an inclusion, a rule or an outcome that
+ * the Terms do not, and the Terms section quotes them word for word, taken
+ * from that file rather than retyped. Anything the page needs that nobody has
+ * confirmed is flagged `placeholder: true`, which renders a visible
+ * "Placeholder" tag beside it; README.md lists every one.
  *
- * Confirmed by the brief, and therefore stated plainly: the trip is free, it is
- * a business trip to China, and it includes a round-trip flight, a hotel stay,
- * local transport and the China trip experience. The three steps (apply, get
- * selected, travel) are the brief's too.
+ * Confirmed by the brief: the trip is free, it is a business trip to China,
+ * and the three steps (apply, get selected, travel). Confirmed by the Terms:
+ * applications open on 5 October and close on 25 November 2026; five winners,
+ * drawn at random from the eligible applications, are announced on
+ * 1 December 2026; the trip may include economy-class round-trip airfare,
+ * group or shared accommodation, group transportation and group business
+ * guidance (clause 18); the travel date is announced to the winners.
  */
 
 export interface Placeholderable {
@@ -97,55 +104,74 @@ export const FREE = {
 } as const;
 
 // ---- 11 What's included --------------------------------------------------------------------
-/** The four confirmed inclusions, in the brief's order and words. Nothing else. */
+/**
+ * The four inclusions, as the Terms set them out (clause 18): the brief's
+ * first three names, each detail in the Terms' terms (clauses 10, 14, 11,
+ * 17), and the fourth, business guidance, which the brief left open as "the
+ * China trip experience". Nothing else.
+ */
 export const INCLUDED: ReadonlyArray<{ title: string; detail: string } & Placeholderable> = [
-  { title: "Round-Trip Flight", detail: "Your flight to China, and home again." },
-  { title: "Hotel Stay", detail: "Your accommodation while you are in China." },
-  { title: "Local Transport", detail: "Getting around in China during the trip." },
-  {
-    title: "China Trip Experience",
-    detail: "What the experience includes will be published here.",
-    placeholder: true,
-  },
+  { title: "Round-Trip Flight", detail: "Economy class, to China and home again." },
+  { title: "Hotel Stay", detail: "Group or shared rooms while you are in China." },
+  { title: "Local Transport", detail: "Group transport on the official itinerary." },
+  { title: "Business Guidance", detail: "A business guide for the group on the official itinerary." },
 ];
 export const INCLUDED_EYEBROW = "What's included";
 
 // ---- 12 How it works ------------------------------------------------------------------------
 export const STEPS_HEADING = { eyebrow: "How it works", title: "Three steps to China." } as const;
 export const STEPS: ReadonlyArray<{ title: string; detail: string } & Placeholderable> = [
-  { title: "Apply", detail: "Complete the four-step application on this page. It takes a few minutes." },
+  { title: "Apply", detail: `Apply between ${dayMonth(TRIP_FACTS.applicationsOpen)} and ${TRIP_FACTS.applicationsClose}. It takes a few minutes.` },
   {
     title: "Get Selected",
-    detail: "How applications are reviewed, and when applicants hear back, will be published here.",
-    placeholder: true,
+    detail: `Five winners are drawn at random from the eligible applications, and announced on ${TRIP_FACTS.winnersAnnounced}.`,
   },
-  { title: "Travel to China", detail: "Fly out with your flight, hotel stay and local transport covered." },
+  { title: "Travel to China", detail: "Fly out with the group. The travel date and itinerary are announced to the winners." },
 ];
 
 // ---- 13 Terms & Conditions ----------------------------------------------------------------------
 /**
- * Every section is a placeholder. Do not fill these in from assumption: they
- * are the legal terms of the offer and must come from Affhan.
+ * The Terms' own sentences, exactly as written: clause n, its blocks in the
+ * order given (a list runs on as the document punctuates it). Taken from
+ * lib/trip-legal.ts, never retyped, so these can't drift from the Terms.
+ */
+function said(n: number, ...blocks: number[]): string {
+  const clause = TRIP_TERMS.sections.find((c) => c.n === n);
+  return blocks
+    .map((i) => {
+      const b = clause?.blocks[i];
+      if (b?.kind === "p" || b?.kind === "notice") return b.text;
+      if (b?.kind === "list") return b.items.join(" ");
+      throw new Error(`The Terms have no sentence at clause ${n}, block ${i}`);
+    })
+    .join(" ");
+}
+
+/**
+ * The key terms, eight of the clauses, each quoted and each linking to its
+ * clause on /free-china-trip/terms/. The number is the document's own; the
+ * title is the clause's (two rows of sixteen on the departure board: letters,
+ * spaces and "&" only).
  */
 export const TERMS = {
   eyebrow: "The fine print",
   title: "Terms & Conditions",
-  notice:
-    "The official terms for this trip are being finalised. Each section below is a placeholder and is not binding: nothing on this page sets dates, fees, eligibility, selection criteria or guarantees.",
+  notice: `The trip's key terms, in the words of its Terms & Conditions. Applying means agreeing to all ${TRIP_TERMS.sections.length} clauses, so read them in full before you apply.`,
+  full: { href: TRIP_TERMS_HREF, label: "Read the Terms & Conditions" },
+  privacy: { href: TRIP_PRIVACY_HREF, label: "Privacy Policy" },
+  /** How many clauses the Terms have (the board's "/ 35"). */
+  count: TRIP_TERMS.sections.length,
   sections: [
-    { id: "eligibility", title: "Eligibility", body: "Who can apply will be set out here." },
-    { id: "requirements", title: "Application Requirements", body: "What a complete application must include will be set out here." },
-    { id: "selection", title: "Selection Process", body: "How applications are reviewed and how applicants are selected will be set out here." },
-    {
-      id: "travel",
-      title: "Travel & Visa Responsibilities",
-      body: "Who is responsible for visas, travel insurance and other travel requirements will be set out here.",
-    },
-    { id: "documents", title: "Required Documents", body: "The documents you will need, and when, will be set out here." },
-    { id: "changes", title: "Cancellation & Changes", body: "What happens if plans change, on either side, will be set out here." },
-    { id: "other", title: "Other Applicable Conditions", body: "Any further conditions of the offer will be set out here." },
-  ],
-} as const;
+    { clause: 3, title: "Application Period", body: [said(1, 1), said(3, 4)] },
+    { clause: 4, title: "Winner Selection", body: [said(4, 4), said(4, 2)] },
+    { clause: 5, title: "Winner Announcement", body: [said(1, 2), said(5, 4)] },
+    { clause: 6, title: "Final Verification", body: [said(6, 0), said(6, 3)] },
+    { clause: 8, title: "Visa Requirements", body: [said(8, 0), said(8, 3)] },
+    { clause: 15, title: "Food and Meals", note: said(15, 0), body: [said(15, 1, 2)] },
+    { clause: 18, title: "What the Trip Includes", body: [said(18, 0, 1), said(18, 3)] },
+    { clause: 27, title: "Commercial Outcomes", body: [said(27, 0), said(27, 3)] },
+  ] as ReadonlyArray<{ clause: number; title: string; note?: string; body: string[] }>,
+};
 
 // ---- 14 Final CTA ---------------------------------------------------------------------------------
 /**
@@ -166,25 +192,27 @@ export const APPLY_HREF = "/free-china-trip/apply/";
 
 // ---- 16 The countdown --------------------------------------------------------------------------------
 /**
- * The page ends on the time left until 1 December 2026, midnight in India
- * (IST, UTC+05:30), counting live.
- *
- * PLACEHOLDER: what happens on that date (applications close? the trip
- * departs?) has not been confirmed, so the words give the date and nothing
- * more. When it is, say it in the eyebrow (e.g. "Applications close in").
+ * The page ends on the time left until the winners are announced, on
+ * 1 December 2026 (the Terms, clause 5), from midnight in India (IST,
+ * UTC+05:30), counting live.
  */
 export const COUNTDOWN = {
   /** The moment the clock reaches zero, with its time zone. */
   target: "2026-12-01T00:00:00+05:30",
-  eyebrow: "Counting down to",
-  title: "1 December 2026",
+  eyebrow: "Winners announced",
+  title: TRIP_FACTS.winnersAnnounced,
   /** Beside the live date and time in India, under the clock. */
   now: "Now in India",
   units: ["Days", "Hours", "Minutes", "Seconds"],
   /** Read by screen readers (updated each minute, never announced). */
-  spoken: "Time left until 1 December 2026:",
+  spoken: `Time left until the winners are announced on ${TRIP_FACTS.winnersAnnounced}:`,
   button: "Apply for the Trip",
 } as const;
 
 /** Visible tag text for any placeholder entry. */
 export const PLACEHOLDER_TAG = "Placeholder";
+
+/** "5 October 2026" → "5 October". */
+function dayMonth(date: string) {
+  return date.split(" ").slice(0, 2).join(" ");
+}

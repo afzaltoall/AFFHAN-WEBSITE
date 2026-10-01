@@ -820,6 +820,80 @@ html:has(.cx-counter[data-lock]) {
   box-shadow: 0 0 12px 3px rgb(242 211 142 / 0.55);
   transform: scale(1.3);
 }
+/* A clause's notice, set as the Terms set it: in capitals, here in gold. */
+.cx-term-note {
+  justify-self: start;
+  padding: 7px 12px 7px 14px;
+  border-left: 2px solid var(--cx-gold);
+  background: linear-gradient(90deg, rgb(214 168 78 / 0.14), rgb(214 168 78 / 0));
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.12em;
+  color: var(--cx-gold-hi);
+}
+/* The way to each clause in full, and to both documents beside the title. */
+.cx-term-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cx-gold);
+  opacity: 0.7;
+  transition: opacity 0.3s, color 0.2s;
+}
+.cx-term-more svg {
+  transition: transform 0.25s;
+}
+.cx-term[data-active] .cx-term-more,
+.cx-term-more:hover {
+  opacity: 1;
+}
+.cx-term-more:hover {
+  color: var(--cx-gold-hi);
+}
+.cx-term-more:hover svg {
+  transform: translateX(3px);
+}
+.cx-terms-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cx-gold-hi);
+  text-decoration: underline;
+  text-decoration-color: rgb(242 211 142 / 0.35);
+  text-underline-offset: 5px;
+  transition: color 0.2s, text-decoration-color 0.2s;
+}
+.cx-terms-link:hover {
+  text-decoration-color: currentColor;
+}
+.cx-terms-link svg {
+  transition: transform 0.25s;
+}
+.cx-terms-link:hover svg {
+  transform: translate(2px, -2px);
+}
+.cx-terms-link-quiet {
+  color: var(--cx-mute);
+  text-decoration-color: rgb(244 239 230 / 0.25);
+}
+.cx-terms-link-quiet:hover {
+  color: var(--cx-white);
+}
+.cx-terms-link:focus-visible,
+.cx-term-more:focus-visible {
+  outline: 2px solid var(--cx-white);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
 
 /* The departure board (board.ts). Sized by its own width (container units),
    so its sixteen columns always fit the column beside the list. */

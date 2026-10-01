@@ -41,7 +41,8 @@ export interface Board {
   kill(): void;
 }
 
-export function createBoard(el: HTMLElement, titles: readonly string[], reduced: boolean): Board {
+/** `numbers`: what the digits show for each title (the clause's own number); 1, 2, 3… when not given. */
+export function createBoard(el: HTMLElement, titles: readonly string[], reduced: boolean, numbers?: readonly number[]): Board {
   const digits = Array.from(el.querySelectorAll<HTMLElement>("[data-flap='digit']"));
   const letters = Array.from(el.querySelectorAll<HTMLElement>("[data-flap='letter']"));
   const segs = Array.from(el.querySelectorAll<HTMLElement>("[data-cx='board-seg']"));
@@ -106,7 +107,7 @@ export function createBoard(el: HTMLElement, titles: readonly string[], reduced:
 
   return {
     show(i) {
-      const n = String(i + 1).padStart(2, "0");
+      const n = String(numbers?.[i] ?? i + 1).padStart(2, "0");
       const text = boardLines(titles[i] ?? "").join("");
       const animate = visible();
       digits.forEach((t, k) => turn(t, n[k] ?? " ", DIGITS, k * 0.05, animate));

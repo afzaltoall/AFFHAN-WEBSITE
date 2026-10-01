@@ -5,10 +5,23 @@ An opening count (00 → 100, on every load), a single scroll-driven film
 action (14–15) and a live countdown to 1 December (16), where the page ends:
 no footer, on the owner's request. Route: `src/app/free-china-trip/page.tsx`.
 
-Every "Apply for the Trip" (hero, film readout, final call, countdown) opens
-the application, its own page: `/free-china-trip/apply/`
-(`components/TripApplication/`), through a gold and silk transition
-(`goApply` in `CinematicExperience.tsx`).
+Every "Apply for the Trip" (hero, film readout, final call, countdown) first
+asks for the trip's Terms & Conditions and Privacy Policy, in a popup
+(`components/TripLegal/ConsentGate.tsx`); agreed, it opens the application,
+its own page: `/free-china-trip/apply/` (`components/TripApplication/`),
+through a gold and silk transition (`goApply` in `CinematicExperience.tsx`).
+
+## The terms
+
+The trip has its own Terms & Conditions (35 clauses) and Privacy Policy (26
+sections): the owner's text of 2026-10-01, word for word, in
+`src/lib/trip-legal.ts`. They are published at `/free-china-trip/terms/` and
+`/free-china-trip/privacy/` (`components/TripLegal/`), and they are **not**
+the website's `/terms-conditions/` and `/privacy-policy/`, which are the
+main site's and are untouched. Every place that shows them reads that one
+file: the two pages, the popup, this page's Terms section (eight key clauses,
+quoted by `said()` in `content.ts`, never retyped), the dates in How it
+works, the countdown, and the application's three consents.
 
 | File | What it holds |
 | --- | --- |
@@ -24,26 +37,17 @@ the application, its own page: `/free-china-trip/apply/`
 
 ## Must be settled before launch
 
-1. **Terms & Conditions: all seven sections are placeholders** (`TERMS` in
-   `content.ts`): Eligibility, Application Requirements, Selection Process,
-   Travel & Visa Responsibilities, Required Documents, Cancellation & Changes,
-   Other Applicable Conditions. Each shows a visible "Placeholder" tag, and a
-   notice says the terms are not yet binding. The wording must come from
-   Affhan; none was invented.
-2. **The boarding-pass artwork (`03-boarding-pass`) prints a flight number,
+1. **The boarding-pass artwork (`03-boarding-pass`) prints a flight number,
    CA528, and a date, 18 OCT 2024**, twice. Both are baked into the
    flattened image, and the date is in the past. They read as the trip's
    flight and date, which nobody has confirmed. The artwork needs to be
    regenerated without them.
-3. **"China Trip Experience"** (What's included, row 4): what it includes is
-   not stated. The row says so and is tagged Placeholder.
-4. **"Get Selected"** (How it works, step 2): how applicants are chosen, and
-   when they hear back, is not stated. Tagged Placeholder.
-5. **The homepage banner and this page disagree.** The banner picture lists
-   "Business visits & meetings" and "Guided support"; the brief's confirmed
-   inclusions (used here) are Round-Trip Flight, Hotel Stay, Local Transport
-   and China Trip Experience. One of them needs to change.
-6. **The host (`14-host-presenter`) is uncaptioned on purpose.** No name or
+2. **When the application accepts applications.** The Terms open
+   applications on 5 October 2026 and close them on 25 November 2026
+   (clause 3), but the application takes one whenever it is sent. Whether it
+   should refuse them outside those dates is the owner's call; nothing
+   enforces the dates yet.
+3. **The host (`14-host-presenter`) is uncaptioned on purpose.** No name or
    title was supplied. If Affhan wants him named, add it to `FINAL_CTA` in
    `content.ts` and render it in `Scene14FinalCta.tsx`.
 
@@ -56,13 +60,17 @@ the application, its own page: `/free-china-trip/apply/`
   city, and Foshan (the owner's picture of its furniture market) replaced
   Yiwu as the arrival. The China map still marks Beijing, Shanghai and Yiwu,
   and not Foshan, because that is the artwork.
-- **What 1 December means.** The countdown (`COUNTDOWN` in `content.ts`)
-  runs to 1 December 2026, midnight IST, as asked, but what happens then
-  (applications close? the trip departs?) is not confirmed, so the page gives
-  only the date. Say it in the eyebrow once confirmed. At zero it rests at
-  00 00 00 00.
+- **The countdown** (`COUNTDOWN` in `content.ts`) runs to 1 December 2026,
+  midnight IST: the day the Terms announce the winners (clause 5). At zero it
+  rests at 00 00 00 00.
+- **What's included** is the Terms' clause 18: economy-class round-trip
+  airfare, group or shared accommodation, group transportation and group
+  business guidance. The fourth row was "China Trip Experience", a
+  placeholder, until the Terms said what it is. The homepage banner's
+  "Business visits & meetings" and "Guided support" now match clauses 13 and
+  17.
 - **The application's own placeholders** (interest categories, travel
-  documents, terms) are listed in `components/TripApplication/README.md`.
+  documents) are listed in `components/TripApplication/README.md`.
 - **The hero line** ("Your round-trip flight, hotel stay and local transport in
   China, covered.") restates three confirmed inclusions and adds nothing.
 
