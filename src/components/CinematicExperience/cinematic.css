@@ -722,6 +722,72 @@ html:has(.cx-counter[data-lock]) {
   mask-image: linear-gradient(to bottom, transparent, #000 20svh);
 }
 
+/* ---- 16 The clock, heard (Scene16Countdown's ClockSoundToggle) ------------------------------
+   A quiet pill beside today's time: a speaker in a small gold ring, which
+   pulses out with every tick while the clock is heard. Off, the ring
+   breathes once in a while, to say the clock can be heard. */
+.cx-cd-sound {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 4px 14px 4px 5px;
+  border-radius: 999px;
+  border: 1px solid rgb(244 239 230 / 0.18);
+  background: rgb(9 8 11 / 0.45);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cx-mute);
+  transition: color 0.25s, border-color 0.25s, background 0.25s, box-shadow 0.25s;
+}
+.cx-cd-sound:hover {
+  color: var(--cx-white);
+  border-color: rgb(214 168 78 / 0.55);
+}
+.cx-cd-sound:focus-visible {
+  outline: 2px solid var(--cx-white);
+  outline-offset: 3px;
+}
+.cx-cd-sound[data-on] {
+  color: var(--cx-gold-hi);
+  border-color: rgb(214 168 78 / 0.6);
+  background: rgb(214 168 78 / 0.1);
+  box-shadow: 0 0 22px -6px rgb(242 211 142 / 0.55);
+}
+.cx-cd-sound-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  border: 1px solid rgb(214 168 78 / 0.45);
+  color: inherit;
+}
+.cx-cd-sound[data-on] .cx-cd-sound-icon {
+  border-color: var(--cx-gold);
+  background: rgb(214 168 78 / 0.16);
+}
+.cx-cd-sound-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: 999px;
+  border: 1px solid var(--cx-gold-hi);
+  opacity: 0;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cx-cd-sound:not([data-on]) .cx-cd-sound-ring {
+    animation: cx-sound-invite 3.2s ease-out 1.2s infinite;
+  }
+}
+@keyframes cx-sound-invite {
+  0% { transform: scale(1); opacity: 0.6; }
+  45%, 100% { transform: scale(1.9); opacity: 0; }
+}
+
 /* ---- "Apply for the Trip" (ApplyButton.tsx) ------------------------------------------------
    A piece of gold: a polished face with the words pressed in, a spark running
    round the rim, a glint every few seconds (clipped to the button, so it never

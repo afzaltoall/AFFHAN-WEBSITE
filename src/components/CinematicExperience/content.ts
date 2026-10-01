@@ -164,6 +164,8 @@ export const COUNTDOWN = {
   units: ["Days", "Hours", "Minutes", "Seconds"],
   /** Read by screen readers (updated each minute, never announced). */
   spoken: `Time left until the winners are announced on ${TRIP_FACTS.winnersAnnounced}:`,
+  /** The button that lets the clock be heard (clockSound.ts). */
+  sound: "Clock sound",
   button: "Apply for the Trip",
 } as const;
 

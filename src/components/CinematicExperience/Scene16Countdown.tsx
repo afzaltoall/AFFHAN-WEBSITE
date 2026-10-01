@@ -2,7 +2,9 @@
 
 import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import gsap from "gsap";
+import { Volume2, VolumeX } from "lucide-react";
 import { ApplyButton } from "./ApplyButton";
+import { createClockSound } from "./clockSound";
 import { COUNTDOWN } from "./content";
 import { DISPLAY, EYEBROW } from "./parts";
 
@@ -26,6 +28,9 @@ import { DISPLAY, EYEBROW } from "./parts";
  *  - Real time: every tick is read from the clock (Date.now), scheduled just
  *    after each whole second, so a sleeping tab or a slow frame never drifts.
  *  - At zero it rests at 00 00 00 00.
+ *  - It can be heard: "Clock sound" beside today's time plays the owner's
+ *    tick and tock on the seconds (clockSound.ts), only while the clock is
+ *    on screen (ClockSoundToggle).
  *
  * The figures are drawn on the client only (the server can't know the time
  * the page will be read): its windows are empty, so there is nothing to
@@ -161,6 +166,126 @@ function Unit({ value, digits, label, motion, ring }: { value: number; digits: n
   );
 }
 
+/** sessionStorage: the visitor's own choice, "on" or "off", for this visit. */
+const SOUND_KEY = "cx-clock-sound";
+
+/**
+ * The clock, heard. A browser lets a page make sound only after a click, tap
+ * or key press on it (a scroll is not one), so:
+ *  - pressed, it ticks, and its ring pulses with every tick;
+ *  - if the visitor has already clicked or tapped somewhere on the page, it
+ *    starts by itself, softly, as the clock assembles (not under reduced
+ *    motion, and not if they turned it off earlier in the visit);
+ *  - it is heard only while the clock is on screen: it fades out when the
+ *    page scrolls back, the tab is hidden, or the Apply popup is open, and
+ *    for good at zero.
+ */
+function ClockSoundToggle({ label }: { label: string }) {
+  const btn = useRef<HTMLButtonElement>(null);
+  const ring = useRef<HTMLSpanElement>(null);
+  const [on, setOn] = useState(false);
+  const api = useRef<{ toggle: () => void } | null>(null);
+
+  useEffect(() => {
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const pulse = (even: boolean) => {
+      if (reduce || !ring.current) return;
+      ring.current.animate(
+        [
+          { transform: "scale(1)", opacity: even ? 0.85 : 0.55 },
+          { transform: "scale(1.9)", opacity: 0 },
+        ],
+        { duration: 760, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" },
+      );
+    };
+    const sound = createClockSound(TARGET, pulse);
+    let wanted = false;
+    let playing = false;
+    let decided = false;
+    let busy = false;
+    const choice = () => {
+      try {
+        return sessionStorage.getItem(SOUND_KEY);
+      } catch {
+        return null;
+      }
+    };
+    const remember = (v: "on" | "off") => {
+      try {
+        sessionStorage.setItem(SOUND_KEY, v);
+      } catch {
+        /* the choice lasts this page view only */
+      }
+    };
+    /** The clock is assembled and on screen, nothing covers it, and it still has time to count. */
+    const audible = () => {
+      const unit = btn.current?.closest("[data-cx-countdown]")?.querySelector<HTMLElement>("[data-cx='cd-unit']");
+      return (
+        !!unit &&
+        Number(getComputedStyle(unit).opacity) > 0.6 &&
+        document.visibilityState === "visible" &&
+        !document.querySelector("[data-tg-root]") &&
+        TARGET > Date.now()
+      );
+    };
+    const sync = async () => {
+      if (busy) return;
+      const can = audible();
+      // Heard by itself once the page has been clicked or tapped, unless declined.
+      if (!decided && can) {
+        decided = true;
+        const active = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation?.hasBeenActive;
+        if (active && !reduce && choice() !== "off") wanted = true;
+      }
+      if (wanted && can && !playing) {
+        busy = true;
+        playing = await sound.start();
+        busy = false;
+        // The browser would not let it start (no click on the page yet): it waits for the button.
+        if (!playing) wanted = false;
+        setOn(wanted);
+      } else if ((!wanted || !can) && playing) {
+        sound.stop();
+        playing = false;
+      }
+    };
+    api.current = {
+      toggle: () => {
+        wanted = !wanted;
+        remember(wanted ? "on" : "off");
+        decided = true;
+        setOn(wanted);
+        void sync();
+      },
+    };
+    const id = window.setInterval(() => void sync(), 250);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", sync);
+      sound.destroy();
+      api.current = null;
+    };
+  }, []);
+
+  return (
+    <button
+      ref={btn}
+      type="button"
+      aria-pressed={on}
+      onClick={() => api.current?.toggle()}
+      className="cx-cd-sound pointer-events-auto"
+      data-on={on ? "" : undefined}
+    >
+      <span aria-hidden className="cx-cd-sound-icon">
+        <span ref={ring} className="cx-cd-sound-ring" />
+        {on ? <Volume2 size={15} strokeWidth={2} /> : <VolumeX size={15} strokeWidth={2} />}
+      </span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
 /** The date and time in India now, to the second: "Saturday 26 September 2026 · 11:42:07". */
 const IST = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Asia/Kolkata",
@@ -265,11 +390,14 @@ export function Scene16Countdown({ onApply }: { onApply: (e: MouseEvent<HTMLAnch
         </div>
       </div>
 
-      {/* Today, live: so the countdown is plainly counting from now. */}
-      <p data-cx="cd-now" data-cx-hide className="mt-7 flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-(--cx-mute) md:mt-9">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.3em]">{COUNTDOWN.now}</span>
-        <span className="min-h-[1.5em] text-[14px] tabular-nums tracking-[0.02em] text-(--cx-white)/85 md:text-[15px]">{now}</span>
-      </p>
+      {/* Today, live: so the countdown is plainly counting from now. And the clock, heard. */}
+      <div data-cx="cd-now" data-cx-hide className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-3 md:mt-9">
+        <p className="flex flex-wrap items-baseline justify-center gap-x-3 gap-y-1 text-(--cx-mute)">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.3em]">{COUNTDOWN.now}</span>
+          <span className="min-h-[1.5em] text-[14px] tabular-nums tracking-[0.02em] text-(--cx-white)/85 md:text-[15px]">{now}</span>
+        </p>
+        <ClockSoundToggle label={COUNTDOWN.sound} />
+      </div>
 
       <div data-cx="cd-apply" data-cx-hide className="pointer-events-auto mt-9 md:mt-11">
         <ApplyButton onClick={onApply} size="lg">

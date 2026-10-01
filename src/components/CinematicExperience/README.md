@@ -43,6 +43,7 @@ popup instead.
 | `warp.ts`, `WarpToFoshan.tsx` | The jump from Guangzhou to Foshan: gold streaks out of a vanishing point, drawn from the film's progress (scrolls back too), and the coordinates readout. |
 | `particles.ts`, `GoldDust.tsx` | The FREE particles (scroll-driven, no loop) and the ambient gold dust (on screen only). |
 | `cinematic.css` | Palette tokens, the opening's CSS entrance, masks and gradients. Scoped to `.cx`. |
+| `clockSound.ts` | The countdown, heard: the owner's tick and tock, scheduled on the audio clock for each second as it turns (Scene16's "Clock sound"). |
 
 ## Must be settled before launch
 
@@ -99,6 +100,18 @@ PNG. The source PNGs are not shipped. Only the opening picture loads with the
 page; the rest are fed in after load, in film order (`CinematicExperience.tsx`).
 To replace a picture, keep its file name and update `w`/`h` in `assets.ts`;
 if its subject moves, update `ANCHORS` there too.
+
+## The clock's sound
+
+`public/free-china-trip/16-clock-ticks.wav` (62 KB) is cut from the owner's
+recording, `time-sound.mp3` (16.6 s, kept as the source and not shipped):
+the tick at 0.785 s and the tock at 1.765 s, about a third of a second each,
+raised together to a 0.89 peak with soft fades. Looping the recording would
+drift (its ticks fall 975 to 1025 ms apart), so each sound is scheduled for
+the moment its second turns. A browser lets a page make sound only after a
+click, tap or key press on it, so the clock is heard when "Clock sound" is
+pressed, or by itself if the visitor has already clicked on the page; only
+while the clock is on screen, never under the Apply popup, never past zero.
 
 ## Reduced motion
 
