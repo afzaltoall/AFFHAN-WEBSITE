@@ -692,16 +692,13 @@ export function buildCta(section: HTMLElement, stage: HTMLElement, desktop: bool
   tl.fromTo($("cta-host"), { autoAlpha: 0, scale: 0.9, y: "3vh", filter: "blur(10px)", transformOrigin: "50% 100%" },
     { autoAlpha: 1, scale: 1, y: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.72 }, 0.15);
   // As he settles, and as the stage pins, the offer appears by his open hand.
-  // Grown from where the words are set: their left edge beside him (lg),
-  // their middle when they stand centred under him.
-  const grow = () => (window.matchMedia("(min-width: 1024px)").matches ? "0% 50%" : "50% 50%");
   tl.set($("cta-headline"), { autoAlpha: 1 }, 0.6);
   textIn(tl, $("cta-headline")[0], "rise", 0.6, 0.45);
-  tl.fromTo($("cta-headline"), { scale: 0.96, filter: "blur(6px)", transformOrigin: grow },
+  tl.fromTo($("cta-headline"), { scale: 0.96, filter: "blur(6px)", transformOrigin: "0% 50%" },
     { scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.42 }, 0.6);
   tl.set($("cta-line"), { autoAlpha: 1 }, 0.74);
   textIn(tl, $("cta-line")[0], "words", 0.74, 0.4);
-  tl.fromTo($("cta-button"), { autoAlpha: 0, scale: 0.9, filter: "blur(8px)", transformOrigin: grow },
+  tl.fromTo($("cta-button"), { autoAlpha: 0, scale: 0.9, filter: "blur(8px)", transformOrigin: "0% 50%" },
     { autoAlpha: 1, scale: 1, filter: "blur(0px)", ease: "power2.out", duration: 0.38 }, 0.87);
   tl.fromTo($("cta-note"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 }, 1.02);
 

@@ -8,9 +8,9 @@ page ends: no footer, on the owner's request. Route:
 
 Each pinned stage dissolves as it lets go (the film into How it works, How
 it works into the call), and no stage clips or glows to a straight edge, so
-the page reads as one continuous sky. How it works and the call are
-composed on the centre of the screen: the call's host and offer are one
-group, centred by `.cx-cta-stage` in `cinematic.css`.
+the page reads as one continuous sky. How it works is composed on the
+centre of the screen; the call keeps its host on the left and the offer by
+his open hand (the owner's choice: it was centred once, and put back).
 
 Every "Apply for the Trip" (hero, film readout, final call, countdown) first
 asks for the trip's Terms & Conditions and Privacy Policy, in a popup

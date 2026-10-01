@@ -714,30 +714,12 @@ html:has(.cx-counter[data-lock]) {
   font-variation-settings: "opsz" 11;
 }
 
-/* ---- 14 The final call: the host and the offer, one group, centred ----------------------
-   He stands --host-h tall. The offer starts by his open hand, 0.64 of his
-   height in from the picture's left edge, and is as wide as its headline
-   (7.3 em of the headline's size: "READY TO GO?" in the display face) or the
-   line under it (30rem), whichever is wider. The figure itself starts 5.4%
-   of his height in from the picture's left edge (the picture's alpha). So
-   the group, from his shoulder to the headline's last letter, is
-   0.586 x --host-h + the offer's width, and --cta-x puts the picture where
-   that group is centred on the stage (100% is the stage's width, so a
-   scrollbar is allowed for). Wide screens (lg); below that he stands above
-   the offer, both centred. If the headline's words change, measure the new
-   ratio and change the 7.3. */
-/* Its glow fades in from the stage's top edge, so the stage rising up the
+/* ---- 14 The final call ---------------------------------------------------------------------
+   Its glow fades in from the stage's top edge, so the stage rising up the
    screen never shows as a line. */
 .cx-cta-haze {
   -webkit-mask-image: linear-gradient(to bottom, transparent, #000 20svh);
   mask-image: linear-gradient(to bottom, transparent, #000 20svh);
-}
-.cx-cta-stage {
-  --host-h: min(80svh, 50vw);
-  --cta-fs: clamp(52px, 5.8vw, 112px);
-  --cta-copy-w: max(var(--cta-fs) * 7.3, 30rem);
-  --cta-group-w: calc(var(--host-h) * 0.586 + var(--cta-copy-w));
-  --cta-x: max(4vw, calc((100% - var(--cta-group-w)) / 2 - var(--host-h) * 0.054));
 }
 
 /* ---- "Apply for the Trip" (ApplyButton.tsx) ------------------------------------------------
