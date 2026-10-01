@@ -18,9 +18,10 @@ import { TRIP_FACTS } from "@/lib/trip-legal";
  * and the three steps (apply, get selected, travel). Confirmed by the Terms:
  * applications open on 5 October and close on 25 November 2026; five winners,
  * drawn at random from the eligible applications, are announced on
- * 1 December 2026; the trip may include economy-class round-trip airfare,
- * group or shared accommodation, group transportation and group business
- * guidance (clause 18); the travel date is announced to the winners.
+ * 1 December 2026 (clauses 1, 3 and 4); the flight is economy class (7),
+ * transport is by group (8), rooms are group or shared (9), and a business
+ * guide goes with the group (12); the travel date is announced to the
+ * winners (1).
  */
 
 export interface Placeholderable {
@@ -106,10 +107,10 @@ export const FREE = {
 
 // ---- 11 What's included --------------------------------------------------------------------
 /**
- * The four inclusions, as the Terms set them out (clause 18): the brief's
- * first three names, each detail in the Terms' terms (clauses 10, 14, 11,
- * 17), and the fourth, business guidance, which the brief left open as "the
- * China trip experience". Nothing else.
+ * The four inclusions: the brief's first three names, each detail in the
+ * Terms' terms (clauses 7, 9 and 8), and the fourth, business guidance
+ * (clause 12), which the brief left open as "the China trip experience".
+ * Nothing else.
  */
 export const INCLUDED: ReadonlyArray<{ title: string; detail: string } & Placeholderable> = [
   { title: "Round-Trip Flight", detail: "Economy class, to China and home again." },
@@ -150,7 +151,7 @@ export const APPLY_HREF = "/free-china-trip/apply/";
 // ---- 16 The countdown --------------------------------------------------------------------------------
 /**
  * The page ends on the time left until the winners are announced, on
- * 1 December 2026 (the Terms, clause 5), from midnight in India (IST,
+ * 1 December 2026 (the Terms, clause 4), from midnight in India (IST,
  * UTC+05:30), counting live.
  */
 export const COUNTDOWN = {

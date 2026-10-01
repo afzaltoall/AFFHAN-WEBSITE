@@ -3,7 +3,8 @@ import { ArrowRight, Plane } from "lucide-react";
 import "@/components/CinematicExperience/cinematic.css";
 import "./trip-legal.css";
 import { displayFont } from "@/components/CinematicExperience/fonts";
-import { TRIP_APPLY_HREF, TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS_HREF, type LegalDoc } from "@/lib/trip-legal";
+import { FooterSection } from "@/components/sections/FooterSection";
+import { sectionAnchor, TRIP_APPLY_HREF, TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS_HREF, type LegalDoc } from "@/lib/trip-legal";
 import { LegalReader } from "./LegalReader";
 import { LegalSections } from "./LegalSections";
 
@@ -28,18 +29,36 @@ import { LegalSections } from "./LegalSections";
 const DISPLAY = "font-[family-name:var(--font-cx-display)]";
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/** A document's reading time, at about 200 words a minute. */
+function minutesToRead(doc: LegalDoc) {
+  const words = (t: string) => t.split(/\s+/).filter(Boolean).length;
+  let n = doc.intro.reduce((a, t) => a + words(t), 0);
+  for (const s of doc.sections) {
+    n += words(s.title);
+    for (const b of s.blocks) {
+      if (b.kind === "list") n += b.items.reduce((a, t) => a + words(t), 0);
+      else if (b.kind === "address") n += b.lines.reduce((a, t) => a + words(t), 0);
+      else if (b.kind === "facts") n += b.rows.reduce((a, r) => a + words(r.label) + r.lines.reduce((x, t) => x + words(t), 0), 0);
+      else if (b.kind === "email") n += 1;
+      else n += words(b.text);
+    }
+  }
+  return Math.max(1, Math.round(n / 200));
+}
+
 /** What the pass sets out: the Terms' facts, or the Policy's key sections. */
 function passRows(doc: LegalDoc, kind: "terms" | "privacy") {
   if (kind === "terms") {
     return [
-      { label: "Applications open", value: TRIP_FACTS.applicationsOpen, n: 3 },
-      { label: "Applications close", value: TRIP_FACTS.applicationsClose, n: 3 },
-      { label: "Winners announced", value: TRIP_FACTS.winnersAnnounced, n: 5 },
-      { label: "Selection", value: `${TRIP_FACTS.winners} winners, by random draw`, n: 4 },
-      { label: "Trip date", value: "Announced to the winners", n: 5 },
+      { label: "Applications open", value: TRIP_FACTS.applicationsOpen, n: 1 },
+      { label: "Applications close", value: TRIP_FACTS.applicationsClose, n: 1 },
+      { label: "Winners announced", value: TRIP_FACTS.winnersAnnounced, n: 4 },
+      { label: "Selection", value: `${TRIP_FACTS.winners} winners, by random draw`, n: 3 },
+      { label: "Trip date", value: "Announced to the winners", n: 1 },
     ];
   }
-  const KEY = [1, 2, 6, 9, 10, 25];
+  // What is collected, why, who it is shared with, how long it is kept, your rights, who to ask.
+  const KEY = [1, 2, 5, 8, 9, 16];
   return doc.sections.filter((s) => KEY.includes(s.n)).map((s) => ({ label: `Section ${pad(s.n)}`, value: s.title, n: s.n }));
 }
 
@@ -49,8 +68,9 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
   const [eyebrow, title] = doc.heading;
   const [before, after] = title.includes("&") ? title.split("&") : [title, null];
   const other = kind === "terms" ? { href: TRIP_PRIVACY_HREF, label: "Privacy Policy" } : { href: TRIP_TERMS_HREF, label: "Terms & Conditions" };
-  const count = kind === "terms" ? `${doc.sections.length} clauses` : `${doc.sections.length} sections`;
-  const items = doc.sections.map((s) => ({ n: s.n, title: s.title }));
+  const total = doc.sections.length;
+  const count = kind === "terms" ? `${total} clauses` : `${total} sections`;
+  const items = doc.sections.map((s) => ({ n: s.n, title: s.title, id: sectionAnchor(prefix, s) }));
   const rows = passRows(doc, kind);
 
   return (
@@ -75,6 +95,11 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
             )}
           </h1>
           <span aria-hidden className="tl-hero-rule" />
+          <p className="tl-meta">
+            {count}
+            <span aria-hidden className="tl-meta-dot" />
+            About {minutesToRead(doc)} minutes to read
+          </p>
           <div className="tl-intro">
             {doc.intro.map((line) => (
               <p key={line}>{line}</p>
@@ -84,10 +109,10 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
           {/* Below the widest screens; there, the pass holds these. */}
           {kind === "terms" && (
             <dl className="tl-keys" aria-label="Key dates">
-              <KeyFact label="Applications open" value={TRIP_FACTS.applicationsOpen} href="#clause-3" />
-              <KeyFact label="Applications close" value={TRIP_FACTS.applicationsClose} href="#clause-3" />
-              <KeyFact label="Winners announced" value={TRIP_FACTS.winnersAnnounced} href="#clause-5" />
-              <KeyFact label="By random draw" value={`${TRIP_FACTS.winners} winners`} href="#clause-4" />
+              <KeyFact label="Applications open" value={TRIP_FACTS.applicationsOpen} href="#clause-1" />
+              <KeyFact label="Applications close" value={TRIP_FACTS.applicationsClose} href="#clause-1" />
+              <KeyFact label="Winners announced" value={TRIP_FACTS.winnersAnnounced} href="#clause-4" />
+              <KeyFact label="By random draw" value={`${TRIP_FACTS.winners} winners`} href="#clause-3" />
             </dl>
           )}
 
@@ -124,7 +149,7 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
             <div className="tl-pass-stub">
               <p className="tl-pass-now">
                 <span>
-                  Reading {unit.toLowerCase()} <b data-tl-now>01</b> of {doc.sections.length}
+                  Reading {unit.toLowerCase()} <b data-tl-now>01</b> of {total}
                 </span>
                 <span aria-hidden className="tl-pass-bar">
                   <span data-tl-passbar />
@@ -147,7 +172,7 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
         </aside>
 
         <aside className="tl-aside">
-          <LegalReader prefix={prefix} items={items} label="Contents" />
+          <LegalReader items={items} label="Contents" total={total} />
         </aside>
 
         <article aria-labelledby="tl-title" className="tl-article">
@@ -159,7 +184,7 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
             <ol>
               {items.map((it) => (
                 <li key={it.n}>
-                  <a href={`#${prefix}-${it.n}`}>
+                  <a href={`#${it.id}`}>
                     <span>{pad(it.n)}</span>
                     {it.title}
                   </a>
@@ -190,6 +215,12 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
             </div>
           </footer>
         </article>
+      </div>
+
+      {/* The site's own footer, as on its other pages: the document ends,
+          the site goes on. */}
+      <div className="tl-site-footer">
+        <FooterSection />
       </div>
     </main>
   );

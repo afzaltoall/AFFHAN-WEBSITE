@@ -57,7 +57,7 @@
   position: relative;
   width: min(100% - 2 * var(--tl-gutter), 1840px);
   margin: 0 auto;
-  padding-bottom: 120px;
+  padding-bottom: 104px;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   column-gap: 40px;
@@ -93,6 +93,12 @@
   /* The pass holds the dates and the way in. */
   .tl-hero .tl-keys,
   .tl-hero .tl-hero-actions { display: none; }
+  /* The intro runs across the header, its two paragraphs side by side. */
+  .tl-hero .tl-intro {
+    max-width: none;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+    column-gap: clamp(40px, 4vw, 72px);
+  }
 }
 /* A big screen reads at a size to match. */
 @media (min-width: 1600px) {
@@ -144,8 +150,26 @@
   background: linear-gradient(90deg, var(--cx-gold), rgb(214 168 78 / 0));
   transform-origin: left;
 }
+.tl-meta {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cx-mute);
+}
+.tl-meta-dot {
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+  background: var(--cx-gold);
+}
 .tl-intro {
-  margin-top: 26px;
+  margin-top: 22px;
   display: grid;
   gap: 12px;
   max-width: 37rem;
@@ -250,6 +274,20 @@
 .tl-ghost:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 3px; }
 
 .tl-article { min-width: 0; padding-top: 8px; }
+
+/* The site's footer closes the page: a gold rule where the document meets it. */
+.tl-site-footer {
+  position: relative;
+}
+.tl-site-footer::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(214 168 78 / 0), var(--cx-gold) 30%, var(--cx-gold-hi) 50%, var(--cx-gold) 70%, rgb(214 168 78 / 0));
+  box-shadow: 0 0 14px rgb(242 211 142 / 0.45);
+}
 
 /* ---- The pass: the key facts, the reading, the way in -------------------------------------
    Set like the stub of the boarding pass in the consent popup: a card torn
@@ -682,32 +720,6 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
   font-variation-settings: "opsz" 11;
   color: var(--cx-gold-hi);
 }
-.tl-quote {
-  position: relative;
-  margin: 2px 0;
-  max-width: var(--tl-measure, 34rem);
-  padding: 22px 24px 22px 26px;
-  border-left: 2px solid var(--cx-gold);
-  border-radius: 0 18px 18px 0;
-  background: linear-gradient(90deg, rgb(214 168 78 / 0.09), rgb(17 16 20 / 0.5));
-}
-.tl-quote p {
-  font-size: 16.5px;
-  line-height: 1.8;
-  color: var(--cx-white);
-}
-/* One large mark in the corner, faint: the block is a quotation. */
-.tl-quote-mark {
-  position: absolute;
-  top: 6px;
-  right: 20px;
-  font-size: 88px;
-  line-height: 1;
-  font-variation-settings: "opsz" 96;
-  color: rgb(214 168 78 / 0.26);
-  pointer-events: none;
-}
-.tl-quote p { position: relative; }
 .tl-sub {
   margin-top: 10px;
   font-size: 11.5px;
@@ -836,6 +848,7 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
 @media print {
   .tl-sky,
   .tl-progress,
+  .tl-site-footer,
   .tl-rail,
   .tl-aside,
   .tl-toc-mobile,
@@ -848,7 +861,6 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
   .tl-p,
   .tl-list li,
   .tl-intro p,
-  .tl-quote p,
   .tl-fact dd,
   .tl-address { color: #222; }
   .tl-num,

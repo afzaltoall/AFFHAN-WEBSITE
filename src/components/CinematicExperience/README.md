@@ -20,8 +20,8 @@ through a gold and silk transition (`goApply` in `CinematicExperience.tsx`).
 
 ## The terms
 
-The trip has its own Terms & Conditions (35 clauses) and Privacy Policy (26
-sections): the owner's text of 2026-10-01, word for word, in
+The trip has its own Terms & Conditions (17 clauses) and Privacy Policy (17
+sections): the owner's revised text of 2026-10-01, word for word, in
 `src/lib/trip-legal.ts`. They are published at `/free-china-trip/terms/` and
 `/free-china-trip/privacy/` (`components/TripLegal/`), and they are **not**
 the website's `/terms-conditions/` and `/privacy-policy/`, which are the
@@ -53,7 +53,7 @@ popup instead.
    regenerated without them.
 2. **When the application accepts applications.** The Terms open
    applications on 5 October 2026 and close them on 25 November 2026
-   (clause 3), but the application takes one whenever it is sent. Whether it
+   (clause 1), but the application takes one whenever it is sent. Whether it
    should refuse them outside those dates is the owner's call; nothing
    enforces the dates yet.
 3. **The host (`14-host-presenter`) is uncaptioned on purpose.** No name or
@@ -70,14 +70,14 @@ popup instead.
   Yiwu as the arrival. The China map still marks Beijing, Shanghai and Yiwu,
   and not Foshan, because that is the artwork.
 - **The countdown** (`COUNTDOWN` in `content.ts`) runs to 1 December 2026,
-  midnight IST: the day the Terms announce the winners (clause 5). At zero it
+  midnight IST: the day the Terms announce the winners (clause 4). At zero it
   rests at 00 00 00 00.
-- **What's included** is the Terms' clause 18: economy-class round-trip
-  airfare, group or shared accommodation, group transportation and group
-  business guidance. The fourth row was "China Trip Experience", a
+- **What's included** follows the Terms: an economy-class flight (clause
+  7), group transportation (8), group or shared accommodation (9) and group
+  business guidance (12). The fourth row was "China Trip Experience", a
   placeholder, until the Terms said what it is. The homepage banner's
-  "Business visits & meetings" and "Guided support" now match clauses 13 and
-  17.
+  "Business visits & meetings" and "Guided support" now match clauses 8 and
+  12.
 - **The application's own placeholders** (interest categories, travel
   documents) are listed in `components/TripApplication/README.md`.
 - **The hero line** ("Your round-trip flight, hotel stay and local transport in

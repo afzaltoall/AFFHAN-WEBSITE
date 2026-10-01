@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { MouseEvent } from "react";
-import type { LegalBlock, LegalDoc } from "@/lib/trip-legal";
+import { sectionAnchor, type LegalBlock, type LegalDoc } from "@/lib/trip-legal";
 
 /**
  * A legal document's sections, set for reading: the page (/free-china-trip/
@@ -37,8 +37,8 @@ export function LegalSections({
   return (
     <ol className="tl-sections">
       {doc.sections.map((s) => (
-        <li key={s.n} id={`${prefix}-${s.n}`} data-tl-section={s.n} className="tl-section">
-          <H id={`${prefix}-${s.n}-title`} className="tl-section-title">
+        <li key={s.n} id={sectionAnchor(prefix, s)} data-tl-section={s.n} className="tl-section">
+          <H id={`${sectionAnchor(prefix, s)}-title`} className="tl-section-title">
             <span aria-hidden className={`${DISPLAY} tl-num`}>
               {pad(s.n)}
             </span>
@@ -114,15 +114,6 @@ function Block({ block: b, Sub, onDocLink }: { block: LegalBlock; Sub: "h3" | "h
           <span aria-hidden className="tl-date-mark" />
           <span className={`${DISPLAY} tl-date-text`}>{b.text}</span>
         </p>
-      );
-    case "quote":
-      return (
-        <blockquote className="tl-quote">
-          <span aria-hidden className={`${DISPLAY} tl-quote-mark`}>
-            &ldquo;
-          </span>
-          <p>&ldquo;{b.text}&rdquo;</p>
-        </blockquote>
       );
     case "sub":
       return <Sub className="tl-sub">{b.text}</Sub>;

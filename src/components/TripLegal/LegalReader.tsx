@@ -17,7 +17,14 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
  *  - The pass beside the text (LegalPage, the widest screens) says which
  *    section is being read, and its bar fills with the reading.
  */
-export function LegalReader({ prefix, items, label }: { prefix: string; items: { n: number; title: string }[]; label: string }) {
+/** One entry of the contents: its number, title and anchor. */
+export interface ReaderItem {
+  n: number;
+  title: string;
+  id: string;
+}
+
+export function LegalReader({ items, label, total }: { items: ReaderItem[]; label: string; total: number }) {
   const [active, setActive] = useState(items[0]?.n ?? 1);
   const listRef = useRef<HTMLOListElement>(null);
   // The two bars are set directly, not through state: they move every frame.
@@ -29,9 +36,7 @@ export function LegalReader({ prefix, items, label }: { prefix: string; items: {
   useEffect(() => {
     const root = document.documentElement;
     root.setAttribute("data-tl-js", "");
-    const sections = items
-      .map((it) => document.getElementById(`${prefix}-${it.n}`))
-      .filter((el): el is HTMLElement => !!el);
+    const sections = items.map((it) => document.getElementById(it.id)).filter((el): el is HTMLElement => !!el);
     const passNow = document.querySelector<HTMLElement>("[data-tl-now]");
     const passBar = document.querySelector<HTMLElement>("[data-tl-passbar]");
     let raf = 0;
@@ -55,7 +60,7 @@ export function LegalReader({ prefix, items, label }: { prefix: string; items: {
         current = Number(last.dataset.tlSection);
       }
       setActive(current);
-      const now = String(current).padStart(2, "0");
+      const now = String(Math.min(current, total)).padStart(2, "0");
       if (passNow && passNow.textContent !== now) passNow.textContent = now;
       const first = sections[0];
       const end = sections[sections.length - 1];
@@ -80,7 +85,7 @@ export function LegalReader({ prefix, items, label }: { prefix: string; items: {
       if (raf) cancelAnimationFrame(raf);
       root.removeAttribute("data-tl-js");
     };
-  }, [items, prefix]);
+  }, [items, total]);
 
   // Keep the active entry in view inside a long contents list.
   useEffect(() => {
@@ -91,13 +96,13 @@ export function LegalReader({ prefix, items, label }: { prefix: string; items: {
     list.scrollTo({ top, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [active]);
 
-  const go = (e: MouseEvent<HTMLAnchorElement>, n: number) => {
-    const el = document.getElementById(`${prefix}-${n}`);
+  const go = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
+    const el = document.getElementById(id);
     if (!el) return;
     e.preventDefault();
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-    history.replaceState(null, "", `#${prefix}-${n}`);
+    history.replaceState(null, "", `#${id}`);
     // Keyboard and screen-reader users land in the section too.
     el.setAttribute("tabindex", "-1");
     el.focus({ preventScroll: true });
@@ -117,10 +122,10 @@ export function LegalReader({ prefix, items, label }: { prefix: string; items: {
           {items.map((it) => (
             <li key={it.n}>
               <a
-                href={`#${prefix}-${it.n}`}
+                href={`#${it.id}`}
                 data-n={it.n}
                 aria-current={active === it.n ? "location" : undefined}
-                onClick={(e) => go(e, it.n)}
+                onClick={(e) => go(e, it.id)}
                 className="tl-toc-link"
               >
                 <span className="tl-toc-num">{String(it.n).padStart(2, "0")}</span>

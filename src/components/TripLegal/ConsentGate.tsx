@@ -57,13 +57,13 @@ const DOCS = {
 
 /** The facts, each in the Terms' own words and pointing at the clause that states it. */
 const GLANCE = [
-  { label: "Applications", value: `${shortDate(TRIP_FACTS.applicationsOpen)} – ${shortDate(TRIP_FACTS.applicationsClose)} 2026`, clause: 3 },
-  { label: "Selection", value: `${TRIP_FACTS.winners} winners, random draw`, clause: 4 },
-  { label: "Winners announced", value: `${shortDate(TRIP_FACTS.winnersAnnounced)} 2026`, clause: 5 },
-  { label: "Trip date", value: "Announced to the winners", clause: 5 },
-  { label: "Flights", value: "Economy class only", clause: 10 },
-  { label: "Rooms", value: "Shared, no private rooms", clause: 14 },
-  { label: "Not included", value: "Food and meals", clause: 15 },
+  { label: "Applications", value: `${shortDate(TRIP_FACTS.applicationsOpen)} – ${shortDate(TRIP_FACTS.applicationsClose)} 2026`, clause: 1 },
+  { label: "Selection", value: `${TRIP_FACTS.winners} winners, random draw`, clause: 3 },
+  { label: "Winners announced", value: `${shortDate(TRIP_FACTS.winnersAnnounced)} 2026`, clause: 4 },
+  { label: "Trip date", value: "Announced to the winners", clause: 1 },
+  { label: "Flights", value: "Economy class only", clause: 7 },
+  { label: "Rooms", value: "Shared, no private rooms", clause: 9 },
+  { label: "Not included", value: "Food and meals", clause: 10 },
 ] as const;
 
 /** "5 October 2026" → "5 Oct". */
