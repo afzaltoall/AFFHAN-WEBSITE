@@ -7,7 +7,9 @@ import { Caption, DISPLAY, FilmImage } from "./parts";
  * tilted like a relief map on a table and settling flat, with a crimson glow
  * behind it. Red silk wraps across the frame and the gold trail follows
  * (both are motif layers in Motifs.tsx). The chapter ends with the camera
- * diving into the Shanghai marker, which is where the city pass begins.
+ * diving into the Guangzhou marker, where the city rises (Scene07). The map
+ * still marks Beijing and Shanghai: they are in the owner's artwork, though
+ * the film no longer goes to them.
  */
 export function Scene06ChinaMap() {
   return (

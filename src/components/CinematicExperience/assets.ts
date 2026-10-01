@@ -1,5 +1,6 @@
 /**
- * The film's fourteen pictures, as shipped in public/free-china-trip/.
+ * The film's pictures, as shipped in public/free-china-trip/: twelve since
+ * October, when Shanghai and Beijing came out of the city chapter.
  *
  * Each exists twice: the full file (1600px wide for most) and a phone copy
  * (`-960`), both WebP, made from the owner's PNGs (25 MB of PNG became 3.2 MB
@@ -49,8 +50,8 @@ export const ASSETS = {
   chinaMap: asset("06-china-map", 1536, 1024),
   silk: asset("07-red-silk-ribbon", 1800, 605, 1100),
   gold: asset("08-gold-light-trail", 1800, 600, 1100),
-  shanghai: asset("09-shanghai", 1600, 900),
-  beijing: asset("10-beijing", 1600, 800),
+  // 09-shanghai and 10-beijing are still in public/free-china-trip/ but no
+  // longer used: the two cities came out of the film in October.
   guangzhou: asset("11-guangzhou", 1600, 800),
   yiwu: asset("12-yiwu", 1600, 800),
   hotel: asset("13-hotel", 1600, 900),
@@ -71,6 +72,7 @@ export const ANCHORS = {
   /** Globe: southern India (near Chennai) and the bright hub over China. */
   globeIndia: { x: 0.35, y: 0.44 },
   globeChina: { x: 0.62, y: 0.31 },
-  /** China map: the Shanghai marker, which the camera dives into. */
-  mapShanghai: { x: 0.8, y: 0.5 },
+  /** China map: the Guangzhou marker, which the camera dives into (the glow at
+   *  the foot of the map's little Canton Tower, measured 0.570, 0.723). */
+  mapGuangzhou: { x: 0.57, y: 0.723 },
 } as const;

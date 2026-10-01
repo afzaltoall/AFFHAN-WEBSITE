@@ -4,21 +4,18 @@ import { CITIES } from "./content";
 import { DISPLAY, EYEBROW, FilmImage } from "./parts";
 
 /**
- * 07 City journey: Shanghai, Beijing, Guangzhou, in one continuous camera pass.
- *
- * Never a grid and never cards. The three skylines are stacked in depth in the
- * same frame (Shanghai nearest, then Beijing, then Guangzhou behind it) and the
- * timeline flies the camera through them: each city rises from depth, holds,
- * then rushes past the lens and blurs out as the next one emerges behind it.
- * Yiwu, the destination, is Scene08.
+ * 07 Guangzhou. The camera dives into its marker on the map and the skyline
+ * rises out of it, dark; its lights come on as it lands, a gold trail and
+ * silk cross it, and the camera flies straight into it for the jump to Yiwu
+ * (the destination, Scene08). Until October this was a pass through three
+ * skylines stacked in depth, Shanghai and Beijing in front; they came out on
+ * the owner's request and Guangzhou is the first city now.
  *
  * The captions are facts about the cities (name, characters, coordinates),
  * never an itinerary; see README.md.
  */
 
 const DEPTH: Record<string, string> = {
-  shanghai: "z-[18]",
-  beijing: "z-[16]",
   guangzhou: "z-[14]",
   yiwu: "z-[10]",
 };
@@ -64,8 +61,6 @@ export function CityCaption({ city, children }: { city: (typeof CITIES)[number];
 }
 
 const ALTS: Record<string, string> = {
-  shanghai: "Shanghai's skyline at dusk across the river, wrapped in red silk",
-  beijing: "Beijing: the Temple of Heaven with the Forbidden City and the modern skyline",
   guangzhou: "Guangzhou at night: the Canton Tower and the river",
 };
 

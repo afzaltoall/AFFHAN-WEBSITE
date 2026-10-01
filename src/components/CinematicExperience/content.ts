@@ -58,7 +58,7 @@ export const CHAPTERS = [
   "Flight",
   "The route",
   "China",
-  "The cities",
+  "Guangzhou",
   "Yiwu",
   "Hotel",
   "Free",
@@ -77,13 +77,13 @@ export const CAPTIONS = {
 } as const;
 
 /**
- * The city pass. Names, characters and coordinates are facts about the cities.
- * The page never says the trip visits them: the itinerary is not confirmed
- * (see README.md), so these read as a travel montage, not a schedule.
+ * The cities: Guangzhou, then Yiwu. Names, characters and coordinates are
+ * facts about the cities. The page never says the trip visits them: the
+ * itinerary is not confirmed (see README.md), so these read as a travel
+ * montage, not a schedule. Shanghai and Beijing came out in October, on the
+ * owner's request, so Guangzhou is the first.
  */
 export const CITIES = [
-  { key: "shanghai", name: "Shanghai", hanzi: "上海", coords: "31.23° N · 121.47° E" },
-  { key: "beijing", name: "Beijing", hanzi: "北京", coords: "39.90° N · 116.41° E" },
   { key: "guangzhou", name: "Guangzhou", hanzi: "广州", coords: "23.13° N · 113.26° E" },
   { key: "yiwu", name: "Yiwu", hanzi: "义乌", coords: "29.31° N · 120.08° E" },
 ] as const;

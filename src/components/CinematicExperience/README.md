@@ -49,10 +49,12 @@ the application, its own page: `/free-china-trip/apply/`
 
 ## Worth confirming
 
-- **The four cities** (Shanghai, Beijing, Guangzhou, Yiwu) appear as a travel
-  montage. The page never says the trip visits them, because the itinerary is
-  not confirmed. If it does visit them, that can be said; if it does not,
-  consider whether to show them at all.
+- **The two cities** (Guangzhou, then Yiwu) appear as a travel montage. The
+  page never says the trip visits them, because the itinerary is not
+  confirmed. If it does visit them, that can be said. Shanghai and Beijing
+  were in the film until 2026-10-01 and came out on the owner's request, so
+  Guangzhou is the first city; the China map still marks them, because they
+  are in the artwork.
 - **What 1 December means.** The countdown (`COUNTDOWN` in `content.ts`)
   runs to 1 December 2026, midnight IST, as asked, but what happens then
   (applications close? the trip departs?) is not confirmed, so the page gives
