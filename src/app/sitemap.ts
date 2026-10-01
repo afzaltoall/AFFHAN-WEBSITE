@@ -50,7 +50,9 @@ const UPDATED = {
   about: '2026-09-15',
   contact: '2026-09-15',
   shipping: '2026-09-16',
-  chinaTrip: '2026-09-25',
+  chinaTrip: '2026-10-01',
+  /** The trip's own Terms & Conditions and Privacy Policy (lib/trip-legal.ts). */
+  chinaTripLegal: '2026-10-01',
   careers: '2026-09-17',
   /** Every role page is generated from lib/careerRoles.ts, so they share its date. */
   careerRoles: '2026-09-17',
@@ -196,6 +198,20 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${baseUrl}/terms-conditions/`,
       lastModified: UPDATED.legal,
       changeFrequency: 'yearly',
+      priority: 0.3,
+    },
+    // The free China business trip's own documents, linked from its page,
+    // its application and its consent popup.
+    {
+      url: `${baseUrl}/free-china-trip/terms/`,
+      lastModified: UPDATED.chinaTripLegal,
+      changeFrequency: 'monthly',
+      priority: 0.4,
+    },
+    {
+      url: `${baseUrl}/free-china-trip/privacy/`,
+      lastModified: UPDATED.chinaTripLegal,
+      changeFrequency: 'monthly',
       priority: 0.3,
     },
   ];

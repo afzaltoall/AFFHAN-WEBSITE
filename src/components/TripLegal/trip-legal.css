@@ -1,0 +1,685 @@
+/* =============================================================================
+ * The Free China Business Trip's legal pages (.tl-*): components/TripLegal.
+ * The trip's own night and gold (cinematic.css's .cx tokens), set for long
+ * reading: a measure of about 77 characters, generous leading, numbers in
+ * the text cut of the display face (its display cut's 1 reads as an I).
+ * ============================================================================= */
+
+/* ---- The pages --------------------------------------------------------------------------- */
+.tl-page {
+  position: relative;
+  min-height: 100svh;
+  isolation: isolate;
+  /* The reading measure: about 77 characters of the body face at 16px. */
+  --tl-measure: 34rem;
+}
+/* The sky, still: warm light high on the right, a breath of crimson on the
+   left, and two layers of fixed dust. No twinkle. */
+.tl-sky {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(55% 38% at 82% 0%, rgb(214 168 78 / 0.16), transparent 72%),
+    radial-gradient(42% 34% at 0% 26%, rgb(163 22 44 / 0.14), transparent 72%),
+    radial-gradient(60% 40% at 50% 110%, rgb(214 168 78 / 0.08), transparent 70%),
+    var(--cx-ink);
+}
+.tl-sky::before,
+.tl-sky::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.55;
+  background-image:
+    radial-gradient(1px 1px at 12px 30px, rgb(244 239 230 / 0.7), transparent 70%),
+    radial-gradient(1px 1px at 140px 90px, rgb(244 239 230 / 0.5), transparent 70%),
+    radial-gradient(1.5px 1.5px at 210px 210px, rgb(242 211 142 / 0.6), transparent 70%),
+    radial-gradient(1px 1px at 70px 170px, rgb(244 239 230 / 0.45), transparent 70%);
+  background-size: 260px 260px;
+}
+.tl-sky::after {
+  opacity: 0.35;
+  background-size: 410px 410px;
+  background-position: 120px 60px;
+}
+
+.tl-hero {
+  position: relative;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: clamp(40px, 7vw, 88px) 24px 44px;
+}
+@media (min-width: 768px) {
+  .tl-hero { padding-inline: 48px; }
+}
+.tl-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  font-size: 13px;
+  color: var(--cx-mute);
+}
+.tl-crumbs a {
+  color: var(--cx-mute);
+  text-decoration: underline;
+  text-decoration-color: rgb(244 239 230 / 0.25);
+  text-underline-offset: 4px;
+  transition: color 0.2s;
+}
+.tl-crumbs a:hover { color: var(--cx-gold-hi); }
+.tl-crumbs [aria-current] { color: var(--cx-white); }
+.tl-eyebrow {
+  margin-top: 34px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--cx-gold);
+}
+.tl-title {
+  margin-top: 14px;
+  font-size: clamp(46px, 8.4vw, 104px);
+  line-height: 0.96;
+  letter-spacing: -0.01em;
+  color: var(--cx-white);
+  text-wrap: balance;
+}
+.tl-amp { color: var(--cx-gold); }
+.tl-hero-rule {
+  display: block;
+  margin-top: 30px;
+  height: 1px;
+  max-width: 420px;
+  background: linear-gradient(90deg, var(--cx-gold), rgb(214 168 78 / 0));
+  transform-origin: left;
+}
+.tl-intro {
+  margin-top: 26px;
+  display: grid;
+  gap: 12px;
+  max-width: 37rem;
+}
+.tl-intro p {
+  font-size: clamp(16px, 1.25vw, 18px);
+  line-height: 1.75;
+  color: rgb(244 239 230 / 0.84);
+}
+
+/* The key dates: each opens its clause. */
+.tl-keys {
+  margin-top: 34px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  max-width: 900px;
+}
+@media (min-width: 900px) {
+  .tl-keys { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.tl-key {
+  position: relative;
+  padding: 16px 18px 18px;
+  border-radius: 18px;
+  border: 1px solid rgb(214 168 78 / 0.22);
+  background: linear-gradient(180deg, rgb(214 168 78 / 0.08), rgb(17 16 20 / 0.55));
+  overflow: hidden;
+}
+.tl-key::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(242 211 142 / 0), var(--cx-gold-hi), rgb(242 211 142 / 0));
+  opacity: 0.6;
+}
+.tl-key dt {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cx-mute);
+}
+.tl-key dd { margin: 8px 0 0; }
+.tl-key-value {
+  display: inline-block;
+  font-size: clamp(22px, 2.2vw, 28px);
+  line-height: 1.1;
+  font-variation-settings: "opsz" 11;
+  color: var(--cx-gold-hi);
+  transition: color 0.2s;
+}
+.tl-key-value:hover { color: var(--cx-white); }
+/* A phone: one list, each date under its label. */
+@media (max-width: 639.98px) {
+  .tl-keys {
+    grid-template-columns: none;
+    gap: 0;
+    border-radius: 18px;
+    border: 1px solid rgb(214 168 78 / 0.22);
+    background: linear-gradient(180deg, rgb(214 168 78 / 0.07), rgb(17 16 20 / 0.55));
+    overflow: hidden;
+  }
+  .tl-key {
+    padding: 14px 18px 15px;
+    border: 0;
+    border-top: 1px solid var(--cx-faint);
+    border-radius: 0;
+    background: none;
+  }
+  .tl-key:first-child { border-top: 0; }
+  .tl-key::before { display: none; }
+  .tl-key dd { margin-top: 4px; }
+  .tl-key-value { font-size: 22px; }
+}
+
+.tl-hero-actions {
+  margin-top: 34px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 14px 20px;
+}
+.tl-ghost {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 999px;
+  border: 1px solid rgb(244 239 230 / 0.18);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cx-white);
+  transition: border-color 0.2s, background 0.2s, color 0.2s;
+}
+.tl-ghost:hover {
+  border-color: rgb(214 168 78 / 0.6);
+  background: rgb(214 168 78 / 0.08);
+  color: var(--cx-gold-hi);
+}
+.tl-ghost:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 3px; }
+
+.tl-layout {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 8px 24px 120px;
+  display: grid;
+  gap: 40px;
+}
+@media (min-width: 768px) {
+  .tl-layout { padding-inline: 48px; }
+}
+@media (min-width: 1024px) {
+  .tl-layout {
+    grid-template-columns: 250px minmax(0, 1fr);
+    gap: 72px;
+  }
+}
+.tl-article { min-width: 0; max-width: 780px; }
+
+/* The reading bar, under the navbar. */
+.tl-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 40;
+  pointer-events: none;
+  transform: translateY(var(--nav-shift, 4rem));
+  transition: transform 0.35s ease;
+}
+.tl-progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--cx-gold-deep), var(--cx-gold), var(--cx-gold-hi));
+  box-shadow: 0 0 10px rgb(242 211 142 / 0.55);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+/* Contents beside the text (desktop); folded above it on a phone. */
+.tl-toc { display: none; }
+@media (min-width: 1024px) {
+  .tl-toc {
+    display: block;
+    position: sticky;
+    top: calc(var(--nav-shift, 4rem) + 40px);
+    padding-left: 18px;
+    transition: top 0.35s ease;
+  }
+}
+.tl-toc-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--cx-gold);
+  margin-bottom: 12px;
+}
+.tl-toc-rail {
+  position: absolute;
+  left: 0;
+  top: 30px;
+  bottom: 0;
+  width: 1px;
+  background: var(--cx-faint);
+}
+.tl-toc-rail span {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, var(--cx-gold-hi), var(--cx-gold));
+  transform: scaleY(0);
+  transform-origin: top;
+}
+.tl-toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 6px 0 0;
+  max-height: calc(100svh - var(--nav-shift, 4rem) - 126px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(214 168 78 / 0.35) transparent;
+}
+.tl-toc-link {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--cx-mute);
+  transition: color 0.2s, background 0.2s;
+}
+.tl-toc-link:hover { color: var(--cx-white); }
+.tl-toc-link[aria-current] {
+  color: var(--cx-white);
+  background: rgb(214 168 78 / 0.09);
+}
+.tl-toc-num {
+  font-variant-numeric: tabular-nums;
+  color: rgb(244 239 230 / 0.38);
+  transition: color 0.2s;
+}
+.tl-toc-link[aria-current] .tl-toc-num { color: var(--cx-gold); }
+.tl-toc-link:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; }
+
+.tl-toc-mobile {
+  margin-bottom: 18px;
+  border: 1px solid rgb(214 168 78 / 0.22);
+  border-radius: 18px;
+  background: rgb(17 16 20 / 0.6);
+}
+@media (min-width: 1024px) {
+  .tl-toc-mobile { display: none; }
+}
+.tl-toc-mobile summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--cx-white);
+}
+.tl-toc-mobile summary::-webkit-details-marker { display: none; }
+.tl-toc-mobile summary::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid var(--cx-gold);
+  border-bottom: 1.5px solid var(--cx-gold);
+  transform: rotate(45deg) translateY(-2px);
+  transition: transform 0.25s;
+}
+.tl-toc-mobile[open] summary::after { transform: rotate(225deg) translateY(-2px); }
+.tl-toc-mobile-count {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cx-mute);
+}
+.tl-toc-mobile ol {
+  list-style: none;
+  margin: 0;
+  padding: 4px 10px 12px;
+  display: grid;
+  gap: 2px;
+}
+.tl-toc-mobile a {
+  display: flex;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 10px;
+  font-size: 14px;
+  color: rgb(244 239 230 / 0.82);
+}
+.tl-toc-mobile a span {
+  min-width: 1.6rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--cx-gold);
+}
+
+/* ---- A document's sections (pages and popup alike) -------------------------------------------- */
+.tl-sections {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tl-section {
+  position: relative;
+  padding: 34px 0 6px;
+  border-top: 1px solid var(--cx-faint);
+  scroll-margin-top: 96px;
+}
+.tl-section:focus { outline: none; }
+/* A gold rule draws across a section's top once it has been read. */
+.tl-section::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cx-gold), rgb(214 168 78 / 0) 72%);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+.tl-section[data-tl-seen]::before { transform: scaleX(1); }
+.tl-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-size: clamp(19px, 1.9vw, 23px);
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--cx-white);
+}
+.tl-num {
+  flex: none;
+  width: 56px;
+  font-size: clamp(26px, 2.6vw, 34px);
+  line-height: 1;
+  font-variation-settings: "opsz" 11;
+  font-weight: 400;
+  color: var(--cx-gold);
+}
+/* With the script, a number is quiet until its section is read. */
+html[data-tl-js] .tl-page .tl-num { color: rgb(214 168 78 / 0.42); }
+html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-gold); }
+.tl-body {
+  margin-top: 14px;
+  display: grid;
+  gap: 14px;
+}
+@media (min-width: 640px) {
+  .tl-body { padding-left: 70px; }
+}
+.tl-p {
+  font-size: 16px;
+  line-height: 1.8;
+  color: rgb(244 239 230 / 0.84);
+  max-width: var(--tl-measure, 34rem);
+}
+.tl-list {
+  list-style: none;
+  margin: -2px 0 2px;
+  padding: 0;
+  display: grid;
+  gap: 7px;
+  max-width: var(--tl-measure, 34rem);
+}
+.tl-list li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: rgb(244 239 230 / 0.8);
+  break-inside: avoid;
+}
+.tl-list li::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 0.72em;
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  border: 1px solid var(--cx-gold);
+  background: rgb(214 168 78 / 0.28);
+}
+@media (min-width: 768px) {
+  .tl-list-wide {
+    display: block;
+    columns: 2;
+    column-gap: 36px;
+  }
+  .tl-list-wide li { margin-bottom: 7px; }
+}
+.tl-notice {
+  position: relative;
+  max-width: var(--tl-measure, 34rem);
+  padding: 14px 18px 14px 22px;
+  border-radius: 12px;
+  border: 1px solid rgb(214 168 78 / 0.35);
+  background: linear-gradient(90deg, rgb(214 168 78 / 0.14), rgb(214 168 78 / 0.03));
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+  letter-spacing: 0.14em;
+  color: var(--cx-gold-hi);
+}
+.tl-notice::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--cx-gold);
+}
+.tl-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  padding: 9px 20px 9px 14px;
+  border-radius: 999px;
+  border: 1px solid rgb(214 168 78 / 0.4);
+  background: rgb(17 16 20 / 0.82);
+}
+.tl-date-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--cx-gold-hi);
+  box-shadow: 0 0 0 4px rgb(214 168 78 / 0.18), 0 0 14px rgb(242 211 142 / 0.7);
+}
+.tl-date-text {
+  font-size: 21px;
+  line-height: 1.2;
+  font-variation-settings: "opsz" 11;
+  color: var(--cx-gold-hi);
+}
+.tl-quote {
+  position: relative;
+  margin: 2px 0;
+  max-width: var(--tl-measure, 34rem);
+  padding: 22px 24px 22px 26px;
+  border-left: 2px solid var(--cx-gold);
+  border-radius: 0 18px 18px 0;
+  background: linear-gradient(90deg, rgb(214 168 78 / 0.09), rgb(17 16 20 / 0.5));
+}
+.tl-quote p {
+  font-size: 16.5px;
+  line-height: 1.8;
+  color: var(--cx-white);
+}
+/* One large mark in the corner, faint: the block is a quotation. */
+.tl-quote-mark {
+  position: absolute;
+  top: 6px;
+  right: 20px;
+  font-size: 88px;
+  line-height: 1;
+  font-variation-settings: "opsz" 96;
+  color: rgb(214 168 78 / 0.26);
+  pointer-events: none;
+}
+.tl-quote p { position: relative; }
+.tl-sub {
+  margin-top: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cx-gold);
+}
+.tl-address {
+  display: grid;
+  gap: 2px;
+  width: fit-content;
+  padding: 16px 22px;
+  border-radius: 16px;
+  border: 1px solid var(--cx-faint);
+  background: rgb(17 16 20 / 0.6);
+  font-style: normal;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: rgb(244 239 230 / 0.86);
+}
+.tl-email { font-size: 16px; color: rgb(244 239 230 / 0.84); }
+.tl-email-label { color: var(--cx-mute); }
+.tl-link {
+  color: var(--cx-gold-hi);
+  text-decoration: underline;
+  text-decoration-color: rgb(242 211 142 / 0.4);
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.2s, color 0.2s;
+}
+.tl-link:hover { text-decoration-color: currentColor; }
+.tl-link:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; border-radius: 2px; }
+.tl-facts {
+  margin: 0;
+  display: grid;
+  border-radius: 18px;
+  border: 1px solid rgb(214 168 78 / 0.26);
+  background: rgb(17 16 20 / 0.62);
+  overflow: hidden;
+}
+.tl-fact {
+  display: grid;
+  gap: 4px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--cx-faint);
+}
+.tl-fact:first-child { border-top: 0; }
+@media (min-width: 640px) {
+  .tl-fact {
+    grid-template-columns: 230px minmax(0, 1fr);
+    gap: 18px;
+  }
+}
+.tl-fact dt {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.9;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cx-gold);
+}
+.tl-fact dd {
+  margin: 0;
+  display: grid;
+  font-size: 15.5px;
+  line-height: 1.6;
+  color: var(--cx-white);
+}
+/* A clause the popup has just been asked for: a gold breath behind it. */
+.tl-section[data-flash]::after {
+  content: "";
+  position: absolute;
+  inset: 10px -14px 0;
+  border-radius: 16px;
+  background: rgb(214 168 78 / 0.13);
+  pointer-events: none;
+  animation: tl-flash 1.6s ease-out forwards;
+}
+@keyframes tl-flash {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.tl-end {
+  margin-top: 56px;
+  padding-top: 40px;
+  border-top: 1px solid rgb(214 168 78 / 0.3);
+}
+.tl-end-title {
+  font-size: clamp(26px, 3vw, 36px);
+  line-height: 1.1;
+  color: var(--cx-white);
+}
+.tl-end-line {
+  margin-top: 12px;
+  font-size: 15.5px;
+  color: var(--cx-mute);
+}
+
+/* The page arrives: the rule draws, the title and key dates rise in. A first
+   frame that is fully readable; under reduced motion, nothing moves. */
+@media (prefers-reduced-motion: no-preference) {
+  .tl-title,
+  .tl-intro,
+  .tl-key,
+  .tl-hero-actions {
+    animation: tl-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .tl-intro { animation-delay: 0.12s; }
+  .tl-key:nth-child(1) { animation-delay: 0.2s; }
+  .tl-key:nth-child(2) { animation-delay: 0.27s; }
+  .tl-key:nth-child(3) { animation-delay: 0.34s; }
+  .tl-key:nth-child(4) { animation-delay: 0.41s; }
+  .tl-hero-actions { animation-delay: 0.3s; }
+  .tl-hero-rule { animation: tl-draw 1.2s cubic-bezier(0.65, 0, 0.35, 1) 0.1s both; }
+  .tl-section::before { transition: transform 1s cubic-bezier(0.22, 1, 0.36, 1); }
+  html[data-tl-js] .tl-page .tl-num { transition: color 0.6s ease; }
+}
+@keyframes tl-rise {
+  from { opacity: 0; transform: translateY(18px); }
+}
+@keyframes tl-draw {
+  from { transform: scaleX(0); }
+}
+
+@media print {
+  .tl-sky,
+  .tl-progress,
+  .tl-aside,
+  .tl-toc-mobile,
+  .tl-hero-actions,
+  .tl-keys { display: none !important; }
+  .cx.tl-page { background: #fff; color: #000; }
+  .tl-title,
+  .tl-section-title,
+  .tl-end-title { color: #000; }
+  .tl-p,
+  .tl-list li,
+  .tl-intro p,
+  .tl-quote p,
+  .tl-fact dd,
+  .tl-address { color: #222; }
+  .tl-num,
+  .tl-notice,
+  .tl-date-text,
+  .tl-sub,
+  .tl-fact dt { color: #6b4f12 !important; }
+  .tl-layout { display: block; }
+}
