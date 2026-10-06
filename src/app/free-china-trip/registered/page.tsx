@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { displayFont } from "@/components/CinematicExperience/fonts";
 import { TripSignInGate } from "@/components/TripAccess/SignInGate";
+import { TripPreviewNote } from "@/components/TripAccess/TripPreviewNote";
 import { RegisteredExperience } from "@/components/TripRegistered/RegisteredExperience";
 
 /**
@@ -22,6 +23,7 @@ export default function FreeChinaTripRegisteredPage() {
     <main className={`${displayFont.variable} cx pt-16`}>
       <RegisteredExperience />
       <TripSignInGate />
+      <TripPreviewNote />
     </main>
   );
 }

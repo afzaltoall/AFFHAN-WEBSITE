@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { LegalPage } from "@/components/TripLegal/LegalPage";
+import { TripPreviewNote } from "@/components/TripAccess/TripPreviewNote";
 import { TRIP_TERMS } from "@/lib/trip-legal";
 
 /**
@@ -21,5 +22,10 @@ export const metadata: Metadata = {
 };
 
 export default function FreeChinaTripTermsPage() {
-  return <LegalPage doc={TRIP_TERMS} kind="terms" />;
+  return (
+    <>
+      <LegalPage doc={TRIP_TERMS} kind="terms" />
+      <TripPreviewNote />
+    </>
+  );
 }

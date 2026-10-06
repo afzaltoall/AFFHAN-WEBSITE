@@ -4,9 +4,10 @@ import { tripLock } from "@/lib/trip-lock";
 export const dynamic = "force-dynamic";
 
 /**
- * Whether the homepage's trip banner is still locked (lib/trip-lock.ts). The
- * banner asks every ten seconds or so while it is locked, and opens the
- * moment this says it is not.
+ * Whether the trip is still locked (lib/trip-lock.ts). The homepage banner
+ * and a locked trip page ask every ten seconds or so while it is locked, and
+ * open the moment this says it is not; the door to the trip's pages asks on
+ * every visit (proxy.ts).
  *
  * Kept at the edge for five seconds (s-maxage), so however many people are
  * watching when an admin unlocks it, the database hears about once every five

@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { ROLES, rolePath } from '@/lib/careerRoles';
+import { tripLock } from '@/lib/trip-lock';
 
 // Static route sitemap only. next.config.ts has trailingSlash: true, so every
 // URL here must end in a slash — otherwise Google fetches a URL that 308s to
@@ -61,8 +62,18 @@ const UPDATED = {
   legal: '2026-08-20',
 } as const;
 
-export default function sitemap(): MetadataRoute.Sitemap {
+/**
+ * Built once and kept, but the Free China Business Trip comes and goes with
+ * its lock: while it is locked its pages show "Opening soon", unindexed
+ * (proxy.ts), so they are left out. The console's lock rebuilds this at once
+ * (/api/admin/trip-lock/); the hour is the backstop.
+ */
+export const revalidate = 3600;
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://affhan.com';
+  // Locked if it cannot be read.
+  const tripOpen = !(await tripLock()).locked;
 
   return [
     {
@@ -149,13 +160,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.7,
     },
-    {
-      // The free China business trip the homepage banner leads to.
-      url: `${baseUrl}/free-china-trip/`,
-      lastModified: UPDATED.chinaTrip,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    },
+    // The free China business trip the homepage banner leads to, once it is open.
+    ...(tripOpen
+      ? [{ url: `${baseUrl}/free-china-trip/`, lastModified: UPDATED.chinaTrip, changeFrequency: 'monthly' as const, priority: 0.7 }]
+      : []),
     {
       url: `${baseUrl}/careers/`,
       lastModified: UPDATED.careers,
@@ -201,18 +209,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.3,
     },
     // The free China business trip's own documents, linked from its page,
-    // its application and its consent popup.
-    {
-      url: `${baseUrl}/free-china-trip/terms/`,
-      lastModified: UPDATED.chinaTripLegal,
-      changeFrequency: 'monthly',
-      priority: 0.4,
-    },
-    {
-      url: `${baseUrl}/free-china-trip/privacy/`,
-      lastModified: UPDATED.chinaTripLegal,
-      changeFrequency: 'monthly',
-      priority: 0.3,
-    },
+    // its application and its consent popup: open with the trip.
+    ...(tripOpen
+      ? [
+          { url: `${baseUrl}/free-china-trip/terms/`, lastModified: UPDATED.chinaTripLegal, changeFrequency: 'monthly' as const, priority: 0.4 },
+          { url: `${baseUrl}/free-china-trip/privacy/`, lastModified: UPDATED.chinaTripLegal, changeFrequency: 'monthly' as const, priority: 0.3 },
+        ]
+      : []),
   ];
 }

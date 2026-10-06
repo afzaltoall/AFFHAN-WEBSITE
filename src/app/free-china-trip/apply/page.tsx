@@ -6,6 +6,7 @@ import { displayFont } from "@/components/CinematicExperience/fonts";
 import { ApplyExperience } from "@/components/TripApplication/ApplyExperience";
 import { NO_SCRIPT } from "@/components/TripApplication/content";
 import { TripSignInGate } from "@/components/TripAccess/SignInGate";
+import { TripPreviewNote } from "@/components/TripAccess/TripPreviewNote";
 
 /**
  * The application for the free China business trip: the chapter after the
@@ -53,6 +54,7 @@ export default function FreeChinaTripApplyPage() {
       </noscript>
       <ApplyExperience />
       <TripSignInGate />
+      <TripPreviewNote />
     </main>
   );
 }

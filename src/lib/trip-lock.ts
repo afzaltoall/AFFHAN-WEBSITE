@@ -1,16 +1,22 @@
 import { prisma } from "@/lib/prisma";
+import { ADMIN_ROLE, getCurrentUser } from "@/lib/session";
 
 /**
- * The lock on the homepage's Free China Business Trip banner (the owner's
- * request of 2026-10-05). While it is locked the banner sits behind frosted
- * glass with a lock on it (TripLockOverlay), and neither the banner nor the
- * button under it opens anything. An admin unlocks it from the console's Free
- * China Trip page, and everyone on the homepage at that moment watches it
- * open (the banner asks /api/trip-lock/ every few seconds while it is
- * locked); an admin can lock it again from there.
+ * The Free China Business Trip's lock (the owner's requests of 2026-10-05
+ * and 2026-10-06). While it is locked the trip is closed to visitors:
  *
- * It locks the banner, not the trip: /free-china-trip/ and its application
- * still open from a link someone already has.
+ *  - the homepage banner sits behind frosted glass with a lock on it
+ *    (TripLockOverlay), with no link under the glass, and neither it nor
+ *    the button under it opens anything;
+ *  - every page under /free-china-trip/ shows "Opening soon" instead,
+ *    however it is reached (proxy.ts);
+ *  - the trip's API routes refuse (tripClosedHere), the app's included.
+ *
+ * An admin signed in to the console still has all of it, to check the trip
+ * before it opens. An admin unlocks it from the console's Free China Trip
+ * page, and everyone on the homepage or on a locked trip page at that moment
+ * watches it open (they ask /api/trip-lock/ every few seconds while it is
+ * locked); an admin can lock it again from there.
  *
  * It fails shut. No row, or a database that cannot be read, reads as locked,
  * so a fault never opens it.
@@ -18,7 +24,7 @@ import { prisma } from "@/lib/prisma";
 
 const ID = "trip-banner";
 
-/** The banner polls; the row is read at most once every few seconds per server instance. */
+/** The banner and the door poll; the row is read at most once every few seconds per server instance. */
 const FRESH_MS = 3000;
 
 export interface TripLockState {
@@ -69,10 +75,24 @@ export async function tripLock({ fresh = false } = {}): Promise<TripLockState & 
     const why = e instanceof Error ? e.message : String(e);
     if (why !== reported) {
       reported = why;
-      console.error(`trip lock read failed, so the banner stays locked: ${why}`);
+      console.error(`trip lock read failed, so the trip stays locked: ${why}`);
     }
     return { ...SHUT, failed: true };
   }
+}
+
+/** What the trip's API routes answer while it is locked (the app shows it as it is). */
+export const TRIP_LOCKED_ERROR = "The Free China Business Trip is not open yet. Please try again once it opens.";
+
+/**
+ * Whether the trip is closed to this request: it is locked, and the request
+ * is not an admin's from the console, who can use the trip while it is
+ * locked, to check it, as at the door (proxy.ts). For the trip's API routes,
+ * which the door does not cover: anyone can call them without the pages.
+ */
+export async function tripClosedHere(): Promise<boolean> {
+  if (!(await tripLock()).locked) return false;
+  return (await getCurrentUser())?.role !== ADMIN_ROLE;
 }
 
 /**

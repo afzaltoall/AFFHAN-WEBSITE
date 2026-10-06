@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import { Star, ChevronRight } from "lucide-react";
 import dynamic from 'next/dynamic';
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then(mod => mod.InquiryModal), { ssr: false });
@@ -78,8 +77,11 @@ const TRIP_CALL_PLACE = {
  * lock; the call is the locked button, which shakes too; the fireworks hold
  * (paused). When it is unlocked it opens in front of whoever is watching,
  * and as it lets go the call turns into the red button and the fireworks
- * celebrate (`lock`, useTripBannerLock). The picture's link is under the
- * glass all along, so nothing about the picture changes when it goes.
+ * celebrate (`lock`, useTripBannerLock). Under the glass the picture has no
+ * address at all, so nothing on the page opens the trip early, not even its
+ * link read out of the browser's inspector (the owner's find, 2026-10-06; the
+ * trip's pages are shut at the door too, proxy.ts). It gets its address as
+ * the lock lets go.
  */
 function TripBanner({
   className,
@@ -109,7 +111,8 @@ function TripBanner({
   return (
     <div data-fireworks-host className={`trip-unit group relative ${place === "below" ? "flex flex-col" : ""}`}>
       <FireworksCard className={className} contained={contained} paused={shut}>
-        <Link href="/free-china-trip/" onClick={open} tabIndex={-1} aria-hidden className="block h-full w-full">
+        {/* An address only once it is open: the same element throughout, so the picture never reloads as it opens. */}
+        <a href={shut ? undefined : "/free-china-trip/"} onClick={shut ? undefined : open} tabIndex={-1} aria-hidden className="block h-full w-full">
           <Image
             src={src}
             alt=""
@@ -120,7 +123,7 @@ function TripBanner({
             fetchPriority="low"
             className="h-full w-full object-cover"
           />
-        </Link>
+        </a>
         {lock.phase !== "open" && (
           <TripLockOverlay state={lock.phase === "locked" ? "locked" : "breaking"} rattle={lock.rattle} onPress={lock.press} />
         )}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 import { participantsSnapshot } from "@/lib/trip-participants";
+import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,8 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(request: Request) {
   try {
+    // Locked, the board is closed with the rest of the trip (lib/trip-lock.ts).
+    if (await tripClosedHere()) return NextResponse.json({ error: TRIP_LOCKED_ERROR, reason: "locked" }, { status: 403 });
     const user = await verifyMobileSession(request);
     if (!user) return NextResponse.json({ error: "Please sign in.", reason: "signin" }, { status: 401 });
     const snapshot = await participantsSnapshot(user.id);

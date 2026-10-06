@@ -1,0 +1,221 @@
+/* The page every trip page shows while the trip is locked (TripLockedExperience,
+   proxy.ts). The trip's own black, gold and crimson: cinematic.css's tokens,
+   copied here, so this page does not carry the film's 50 KB of styles (CSS is
+   inlined in every page, next.config.ts). The sealed banner is the one lifted
+   object; everything else sits on the ground. */
+
+.tlk {
+  --cx-ink: #070608;
+  --cx-crimson: #a3162c;
+  --cx-gold: #d6a84e;
+  --cx-gold-hi: #f2d38e;
+  --cx-gold-deep: #8e6a26;
+  --cx-white: #f4efe6;
+  --cx-mute: rgb(244 239 230 / 0.66);
+  background: #050406;
+  color: var(--cx-white);
+  overflow-x: clip;
+}
+.tlk ::selection {
+  background: var(--cx-gold);
+  color: var(--cx-ink);
+}
+
+.tlk-stage {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  min-height: calc(100dvh - 4rem);
+  /* A phone reads it from the top; a wider screen holds it in the middle. */
+  place-items: start center;
+  padding: 2.25rem 1.25rem 3.5rem;
+}
+@media (min-width: 768px) {
+  .tlk-stage { place-items: center; padding: 3.5rem 2rem 4.5rem; }
+}
+
+/* The ground: gold high on the right, crimson low on the left, gold dust. */
+.tlk-ground {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 60% at 84% 6%, rgb(214 168 78 / 0.16), transparent 70%),
+    radial-gradient(60% 55% at 6% 100%, rgb(163 22 44 / 0.22), transparent 72%),
+    #050406;
+}
+
+.tlk-col {
+  display: flex;
+  width: 100%;
+  max-width: 46rem;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: opacity 0.5s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Opening: the page gives way to the trip. */
+.tlk.is-leaving .tlk-col {
+  opacity: 0;
+  transform: scale(1.03);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tlk-in { animation: tlk-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both; }
+}
+@keyframes tlk-rise { from { opacity: 0; transform: translateY(18px); filter: blur(6px); } }
+
+.tlk-title {
+  margin-top: 0.85rem;
+  font-size: clamp(44px, 11.5vw, 96px);
+  font-weight: 400;
+  line-height: 0.92;
+  text-transform: uppercase;
+  text-wrap: balance;
+  /* Ivory at the top, gold at the foot, as the trip's figures are lit. */
+  background: linear-gradient(180deg, #fffaf0 10%, #f4e6c8 55%, #d6a84e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* The banner, sealed: the homepage's own lock (TripLockOverlay), larger. */
+.tlk-seal {
+  position: relative;
+  width: 100%;
+  margin-top: 2rem;
+  aspect-ratio: 8 / 3;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #140f0a;
+  box-shadow:
+    0 40px 90px -40px rgb(0 0 0 / 0.95),
+    0 0 0 1px rgb(242 211 142 / 0.3),
+    0 0 90px -34px rgb(242 211 142 / 0.4);
+}
+@media (min-width: 768px) {
+  .tlk-seal { margin-top: 2.5rem; border-radius: 26px; }
+}
+.tlk-seal img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.tlk-seal .tlo-center { width: clamp(52px, 40cqh, 108px); }
+@media (prefers-reduced-motion: no-preference) and (hover: hover) and (pointer: fine) {
+  .tlk-seal:hover .tlo[data-state="locked"] .tlo-disc {
+    scale: 1.06;
+    box-shadow:
+      0 0 0 1px rgb(255 226 160 / 0.95),
+      0 0 0 3px rgb(20 15 9 / 0.2),
+      0 10px 24px -8px rgb(0 0 0 / 0.65),
+      inset 0 1px 0 rgb(255 255 255 / 0.22);
+  }
+}
+
+/* What the lock is doing, under it, as the homepage's call says it. */
+.tlk-status {
+  display: inline-flex;
+  min-height: 1.5rem;
+  margin-top: 1.15rem;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cx-gold-hi);
+}
+.tlk-status.is-denied { color: var(--cx-white); }
+.tlk-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--cx-gold);
+}
+.tlk-dot.is-live { background: #5be39b; }
+@media (prefers-reduced-motion: no-preference) {
+  .tlk-dot { animation: tlk-wait 2.6s ease-in-out infinite; }
+  .tlk-dot.is-live { animation: tlk-live 1.1s ease-out infinite; }
+}
+@keyframes tlk-wait {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(214 168 78 / 0); opacity: 0.55; }
+  50% { box-shadow: 0 0 0 5px rgb(214 168 78 / 0.16); opacity: 1; }
+}
+@keyframes tlk-live {
+  0% { box-shadow: 0 0 0 0 rgb(91 227 155 / 0.55); }
+  100% { box-shadow: 0 0 0 9px rgb(91 227 155 / 0); }
+}
+
+.tlk-line {
+  max-width: 32rem;
+  margin-top: 1.1rem;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--cx-mute);
+  text-wrap: balance;
+}
+@media (min-width: 768px) {
+  .tlk-line { font-size: 17px; }
+}
+
+/* Someone who registered before it was locked: their Trip ID. */
+.tlk-you {
+  display: inline-flex;
+  margin-top: 1.4rem;
+  align-items: center;
+  gap: 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgb(214 168 78 / 0.38);
+  background: rgb(214 168 78 / 0.07);
+  padding: 0.5rem 1rem;
+  font-size: 13px;
+  color: var(--cx-white);
+}
+.tlk-you-id {
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cx-gold-hi);
+}
+
+.tlk-links {
+  display: flex;
+  margin-top: 2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}
+.tlk-links a {
+  display: inline-flex;
+  min-height: 46px;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0 1.4rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+.tlk-links a:first-child {
+  background: linear-gradient(180deg, #f6dfa6, #d6a84e);
+  color: #1b1307;
+  box-shadow: 0 10px 26px -14px rgb(242 211 142 / 0.7);
+}
+.tlk-links a:first-child:hover { background: linear-gradient(180deg, #fbe9bd, #e0b55c); }
+.tlk-links a + a {
+  border: 1px solid rgb(244 239 230 / 0.2);
+  color: rgb(244 239 230 / 0.86);
+}
+.tlk-links a + a:hover { border-color: rgb(244 239 230 / 0.45); color: var(--cx-white); }
+.tlk-links a:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tlk-col { transition: opacity 0.3s ease; }
+  .tlk.is-leaving .tlk-col { transform: none; }
+}

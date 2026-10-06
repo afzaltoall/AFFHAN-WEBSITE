@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Image from "next/image";
-import { KeyRound, Lock, LockOpen } from "lucide-react";
+import { ArrowUpRight, KeyRound, Lock, LockOpen } from "lucide-react";
 import { BREAK, LOCKING_S, TripLockOverlay } from "@/components/TripAccess/TripLockOverlay";
 import { LIGHT_THEME, type Theme } from "@/components/admin/console-theme";
 import { announceTripLock } from "@/components/admin/TripLockRailStatus";
@@ -26,8 +26,10 @@ const fmt = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }) + " IST";
 
 /**
- * The homepage trip banner's lock, from the console (lib/trip-lock.ts,
- * the owner's request of 2026-10-05): the key to it.
+ * The Free China Business Trip's lock, from the console (lib/trip-lock.ts,
+ * the owner's requests of 2026-10-05 and 2026-10-06): the key to it. Locked,
+ * the trip is closed to visitors, its banner, its pages and its application
+ * alike; an admin signed in here can still open them, to check them.
  *
  * On the left, the banner as visitors see it, drawn by the same lock
  * (TripLockOverlay): when the key turns, it opens here exactly as it opens
@@ -83,7 +85,7 @@ export function TripLockPanel({ t = LIGHT_THEME, dark = false }: { t?: Theme; da
       setError(null);
       show(json);
     } catch {
-      setError("Could not read the lock. Until it can be read, the homepage shows the banner locked.");
+      setError("Could not read the lock. Until it can be read, the trip stays locked for visitors.");
     }
   }, [show]);
 
@@ -132,8 +134,8 @@ export function TripLockPanel({ t = LIGHT_THEME, dark = false }: { t?: Theme; da
   const line = !lock
     ? "Reading the lock…"
     : locked
-      ? "Visitors see the banner locked behind frosted glass, and neither it nor its button opens anything. Unlock it, and it opens for everyone on the homepage within about 15 seconds."
-      : "The banner and its button take visitors to the trip. Lock it again, and it is locked for every visit from then on.";
+      ? "Closed to visitors: the homepage banner is behind frosted glass, and every trip page shows \"Opening soon\" however it is reached; applications are refused, the app's too. You can still open the trip while signed in here. Unlock it, and it opens for everyone within about 15 seconds."
+      : "Open to everyone: the banner, the trip's pages and its application. Lock it again, and it closes for every visit from then on.";
   const changed = !lock
     ? null
     : lock.changedBy && lock.changedAt
@@ -157,7 +159,7 @@ export function TripLockPanel({ t = LIGHT_THEME, dark = false }: { t?: Theme; da
 
       <div className="min-w-[240px] flex-1">
         <h2 id={titleId} className={`flex flex-wrap items-center gap-2 text-[15px] font-semibold ${t.strong}`}>
-          Free China Trip banner
+          Free China Trip
           {pill && (
             <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-medium ${pill.cls}`}>
               <pill.Icon size={12} aria-hidden />
@@ -167,7 +169,21 @@ export function TripLockPanel({ t = LIGHT_THEME, dark = false }: { t?: Theme; da
         </h2>
         <p className={`mt-1 max-w-[62ch] text-[13px] leading-snug ${t.mid}`}>{line}</p>
         {changed && (
-          <p className={`mt-1 text-[12px] ${t.soft}`}>{`${changed} Only the banner is locked: the trip's own page still opens from a direct link.`}</p>
+          <p className={`mt-1 text-[12px] ${t.soft}`}>{changed}</p>
+        )}
+        {lock && (
+          <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] font-medium">
+            <a href="/free-china-trip/" target="_blank" rel="noopener" className={`inline-flex items-center gap-1 underline-offset-4 hover:underline ${t.strong}`}>
+              Open the trip
+              <ArrowUpRight size={13} aria-hidden />
+            </a>
+            {locked && (
+              <a href="/free-china-trip/locked/" target="_blank" rel="noopener" className={`inline-flex items-center gap-1 underline-offset-4 hover:underline ${t.mid}`}>
+                What visitors see
+                <ArrowUpRight size={13} aria-hidden />
+              </a>
+            )}
+          </p>
         )}
         {error && (
           <p role="alert" className={`mt-1.5 text-[12.5px] font-medium ${dark ? "text-red-400" : "text-red-700"}`}>
@@ -286,10 +302,10 @@ function HoldKey({ action, busy, dark, soft, onTurn }: { action: "unlock" | "loc
         {label}
       </button>
       <p id={hintId} className={`text-center text-[11.5px] ${soft}`}>
-        {unlock ? "Press and hold for a second: the key turns, and the banner opens." : "Press and hold for a second to lock the banner again."}
+        {unlock ? "Press and hold for a second: the key turns, and the trip opens." : "Press and hold for a second to lock the trip again."}
       </p>
       {asking && (
-        <div role="group" aria-label={unlock ? "Unlock the banner" : "Lock the banner"} className="flex items-center justify-center gap-2 text-[12.5px]">
+        <div role="group" aria-label={unlock ? "Unlock the trip" : "Lock the trip"} className="flex items-center justify-center gap-2 text-[12.5px]">
           <span>{unlock ? "Unlock it now?" : "Lock it again?"}</span>
           <button
             ref={yes}

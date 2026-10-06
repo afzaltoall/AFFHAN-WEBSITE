@@ -6,6 +6,7 @@ import { verifyMobileSession } from "@/lib/mobile-auth";
 import { isValidMobileE164 } from "@/lib/phone";
 import { checkTripApplicationRateLimit } from "@/lib/rate-limit";
 import { TRIP_FACTS } from "@/lib/trip-legal";
+import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
 import {
   BUSINESS_CATEGORIES,
   BUSINESS_FIELD_KEYS,
@@ -29,6 +30,8 @@ import {
  * applies is applied again here (lib/trip-application.ts is shared), because
  * the form is only a convenience and anyone can post to this URL:
  *
+ *  - never while the trip is locked (lib/trip-lock.ts), except from an admin
+ *    signed in to the console, checking it;
  *  - only from 5 October to 25 November 2026 (Terms, clause 1; a production
  *    build keeps the window, a development server is always open);
  *  - one application per person (Terms, clause 2): none is taken from an
@@ -109,6 +112,11 @@ export async function POST(req: NextRequest) {
   const limited = await checkTripApplicationRateLimit(req);
   if (!limited.success) {
     return NextResponse.json({ error: "Too many applications from this connection. Please try again later." }, { status: 429 });
+  }
+
+  // Locked, nothing is taken, from the website or the app (lib/trip-lock.ts).
+  if (await tripClosedHere()) {
+    return NextResponse.json({ error: TRIP_LOCKED_ERROR, reason: "locked" }, { status: 403 });
   }
 
   const taking = applicationWindow();
