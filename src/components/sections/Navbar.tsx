@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
-import { Search, Mail, X, Menu, ChevronDown, ChevronRight, Layers, Loader2, LayoutGrid, Home, Info, Briefcase, Ship } from "lucide-react";
+import { Search, Mail, X, Menu, ChevronDown, ChevronRight, LayoutGrid, Home, Info, Briefcase, Ship } from "lucide-react";
 
 const TopRankingIcon = ({ size, className }: { size?: number, className?: string }) => (
   // eslint-disable-next-line @next/next/no-img-element
@@ -15,7 +15,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import dynamic from 'next/dynamic';
 const CategoryMegaPanel = dynamic(() => import("@/components/ui/CategoryMegaPanel").then(mod => mod.CategoryMegaPanel), { ssr: false });
-import { getCdnUrl } from "@/lib/cdn";
+import { SearchAssistPanel, usePanelFit, useSearchAssist } from "@/components/search/SearchAssist";
 import { AuthButtonPlaceholder } from "@/components/ui/NavAuthButton";
 
 // Client-only: who is signed in comes from an httpOnly cookie the server never
@@ -29,8 +29,6 @@ const NavAuthButton = dynamic(
 import { prepCatalogueNav } from "@/lib/scroll";
 import { loadAllCategories } from "@/lib/categoriesClient";
 
-interface SuggestCategory { id: string; name: string; parentName?: string | null; thumbnailUrl: string | null }
-interface SuggestProduct { id: number; name: string; imageUrl: string | null; category?: string | null; categoryRef?: { name: string | null } | null }
 
 export function Navbar() {
   const pathname = usePathname();
@@ -47,16 +45,12 @@ export function Navbar() {
   // Search
   const [navSearchValue, setNavSearchValue] = useState("");
   const [isInputFocused, setIsInputFocused] = useState(false);
-  const [results, setResults] = useState<{ categories: SuggestCategory[]; products: SuggestProduct[] }>({ categories: [], products: [] });
-  const [isSearching, setIsSearching] = useState(false);
   const searchRef = useRef<HTMLFormElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   
   // Mega Menu Hover State
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const megaMenuHoverTimeout = useRef<NodeJS.Timeout | null>(null);
-
-  // Suggestions
-    const [debouncedSearch, setDebouncedSearch] = useState("");
 
   // Categories Data
   const [categories, setCategories] = useState<CategoryRecord[]>([]);
@@ -191,44 +185,6 @@ export function Navbar() {
   // page use, so all three show the same set of categories.
   const categoryTree = useMemo(() => buildCategoryTree(categories), [categories]);
 
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedSearch(navSearchValue);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [navSearchValue]);
-
-  useEffect(() => {
-    const query = debouncedSearch.trim();
-    // Amazon/Flipkart-style: no lookups until at least 2 characters — a single
-    // letter matched hundreds of thousands of rows and just flickered.
-    if (query.length < 2) {
-      setResults({ categories: [], products: [] });
-      setIsSearching(false);
-      return;
-    }
-    // Cancel any in-flight request so a slow earlier response can never
-    // overwrite the newest query's results (that race was the "glitching").
-    const controller = new AbortController();
-    setIsSearching(true);
-    (async () => {
-      try {
-        const res = await fetch(`/api/search/suggestions?q=${encodeURIComponent(query)}`, { signal: controller.signal });
-        if (res.ok) {
-          const data = await res.json();
-          setResults({ categories: data.categories || [], products: data.products || [] });
-        }
-      } catch (err) {
-        if ((err as Error)?.name !== "AbortError") console.error("Failed to fetch ", err);
-      } finally {
-        // Only the request that wasn't aborted clears the spinner.
-        if (!controller.signal.aborted) setIsSearching(false);
-      }
-    })();
-    return () => controller.abort();
-  }, [debouncedSearch]);
-
   // Sync search from URL
   useEffect(() => {
     const q = searchParams.get("q");
@@ -246,20 +202,36 @@ export function Navbar() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleSuggestionClick = (product: SuggestProduct) => {
+  // The search's dropdown: the shared SearchAssist (the hero's too).
+  const runNavSearch = (term: string) => {
+    const t = term.trim();
     setIsInputFocused(false);
-    setNavSearchValue(product.name);
+    if (!t) return;
+    setNavSearchValue(t);
+    navAssist.saveRecent(t);
     prepCatalogueNav();
-    router.push(`/products/?q=${encodeURIComponent(product.name)}`);
+    router.push(`/products/?q=${encodeURIComponent(t)}`);
   };
+  const navAssist = useSearchAssist({
+    query: navSearchValue,
+    open: isInputFocused,
+    onSearch: (term) => runNavSearch(term),
+    onCategory: (id) => {
+      setIsInputFocused(false);
+      prepCatalogueNav();
+      router.push(`/products/?categoryId=${id}`);
+    },
+    onProduct: (id) => {
+      setIsInputFocused(false);
+      router.push(`/products/${id}/`);
+    },
+    onClose: () => setIsInputFocused(false),
+  });
+  const navPanelHeight = usePanelFit(searchRef, isInputFocused);
 
   const handleNavbarSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsInputFocused(false);
-    if (navSearchValue.trim().length > 0) {
-      prepCatalogueNav();
-      router.push(`/products/?q=${encodeURIComponent(navSearchValue.trim())}`);
-    }
+    runNavSearch(navSearchValue);
   };
 
   // Back closes the drawer or the mega menu before it leaves the page.
@@ -463,7 +435,10 @@ export function Navbar() {
                 >
                   <Search className="w-5 h-5 text-slate-400 absolute left-4 pointer-events-none" />
                   <input
+                    ref={searchInputRef}
+                    {...navAssist.inputProps}
                     type="text"
+                    aria-label="Search products"
                     placeholder="What are you sourcing today?"
                     value={navSearchValue}
                     onChange={(e) => {
@@ -477,62 +452,17 @@ export function Navbar() {
                     Search
                   </button>
 
-                  {/* Desktop Search Suggestions */}
-                  {isInputFocused && (results.categories.length > 0 || results.products.length > 0 || isSearching) && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-slate-200/70 overflow-hidden z-50">
-                      <div className="p-2 flex flex-col max-h-[70vh] overflow-y-auto custom-scrollbar">
-                        {isSearching && results.categories.length === 0 && results.products.length === 0 && (
-                          <div className="flex items-center gap-2 text-slate-400 text-sm py-6 justify-center"><Loader2 size={16} className="animate-spin" /> Searching…</div>
-                        )}
-
-                        {results.categories.length > 0 && (
-                          <div className="mb-2">
-                            <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Categories</p>
-                            {results.categories.map((c, idx) => (
-                              <button
-                                key={`desktop-suggest-cat-${c.id}-${idx}`}
-                                type="button"
-                                onClick={() => { setIsInputFocused(false); prepCatalogueNav(); router.push(`/products/?categoryId=${c.id}`); }}
-                                className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-slate-50 text-left transition-colors cursor-pointer"
-                              >
-                                <span className="relative w-9 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 border border-slate-200 flex items-center justify-center">
-                                  {c.thumbnailUrl ? <Image src={getCdnUrl(c.thumbnailUrl, 50) as string} alt={c.name} width={40} height={40} sizes="36px" className="w-full h-full object-cover" /> : <Layers size={16} className="text-slate-400" />}
-                                </span>
-                                <span className="flex items-center gap-1.5 text-sm font-semibold text-slate-800 min-w-0">
-                                  <Layers size={13} className="text-brand shrink-0" />
-                                  <span className="truncate">{c.name} {c.parentName ? <span className="text-[10px] text-slate-400 uppercase tracking-wider ml-1">in {c.parentName}</span> : ""}</span>
-                                </span>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-
-                        {results.products.length > 0 && (
-                          <div className={results.categories.length > 0 ? "pt-2 border-t border-slate-100" : ""}>
-                            <p className="px-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Products</p>
-                            {results.products.map((product, idx) => (
-                              <button
-                                key={`desktop-suggest-prod-${product.id}-${idx}`}
-                                type="button"
-                                onClick={() => handleSuggestionClick(product)}
-                                className="flex w-full items-center gap-3 rounded-xl p-2 hover:bg-slate-50 transition-colors text-left cursor-pointer"
-                              >
-                                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center">
-                                  {product.imageUrl ? (
-                                    <Image src={getCdnUrl(product.imageUrl, 100) as string} alt={product.name} width={40} height={40} sizes="40px" className="w-full h-full object-cover" />
-                                  ) : (
-                                    <span className="text-[10px] text-slate-400">No Img</span>
-                                  )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <span className="block truncate text-sm font-bold text-slate-800">{product.name}</span>
-                                  <span className="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mt-0.5 truncate max-w-full">{product.categoryRef?.name || product.category || "Uncategorized"}</span>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                  {/* Search suggestions: the shared SearchAssist dropdown. */}
+                  {isInputFocused && (
+                    <div style={{ maxHeight: navPanelHeight }} className="absolute left-0 right-0 top-full z-50 mt-2 max-h-[72vh] overflow-y-auto overscroll-contain rounded-2xl border border-slate-200/70 bg-white p-3 shadow-xl custom-scrollbar">
+                      <SearchAssistPanel
+                        assist={navAssist}
+                        query={navSearchValue}
+                        onFill={(text) => {
+                          setNavSearchValue(text);
+                          searchInputRef.current?.focus();
+                        }}
+                      />
                     </div>
                   )}
                 </form>

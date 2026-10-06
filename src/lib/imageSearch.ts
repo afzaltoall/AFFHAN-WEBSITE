@@ -40,12 +40,21 @@ const ANTHROPIC_VERSION = "2023-06-01";
  *  maxOutputTokens is 800 rather than 300 because thinking tokens are drawn
  *  from the same budget: at 300 a reasoning model spent 286 on thought, left 7
  *  for the answer, and returned truncated JSON with finishReason MAX_TOKENS.
- *  Lite models ignore the headroom, so it costs nothing to leave it there. */
-const GEMINI_MODELS = [
-  "gemini-3.5-flash",
-  "gemini-3.1-flash-lite",
-  "gemini-flash-latest",
-] as const;
+ *  Lite models ignore the headroom, so it costs nothing to leave it there.
+ *
+ *  Measured again 2026-10-06, after "the scanner is very slow": gemini-3.5-flash
+ *  (then first) answered 429 at once on every photo, its quota spent, so each
+ *  search lost a round trip before the model that worked; flash-latest was 503.
+ *  gemini-3.5-flash-lite, with no thinking config at all, answered in 1.6–4.0s
+ *  against 3.0–5.9s for gemini-3.1-flash-lite; image size made no difference
+ *  (a fixed ~1,400 tokens), nor did a shorter answer. The two lite models are
+ *  raced: each has its own free-tier quota, so racing spreads the load rather
+ *  than doubling it on one, and whichever is quicker (or not busy) wins. */
+const GEMINI_RACE = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite"] as const;
+/** Tried one after the other only if both raced models fail. */
+const GEMINI_FALLBACK = ["gemini-flash-latest", "gemini-3.5-flash"] as const;
+/** Models that refuse `thinkingBudget` (400 "invalid argument"): the 3.5 generation takes thinkingLevel, and none at all is quickest. */
+const NO_THINKING_BUDGET = new Set<string>(["gemini-3.5-flash-lite", "gemini-3.5-flash"]);
 const ANTHROPIC_MODEL = "claude-haiku-4-5-20251001";
 
 /**
@@ -85,17 +94,34 @@ export const ACCEPTED_IMAGE_TYPES = [
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 /** Longest edge sent to the provider. Vision models downscale internally
- *  anyway, so anything larger is upload time and tokens spent for nothing. */
-const MAX_EDGE = 1568;
+ *  anyway, so anything larger is upload time and tokens spent for nothing.
+ *  1024, not 1568: Gemini 3 bills an image at a fixed ~1,400 tokens and
+ *  answered as well from 512px as from 1000px (measured 2026-10-06), so the
+ *  extra pixels only lengthened the request. The page sends 1024 already. */
+const MAX_EDGE = 1024;
+
+/** One thing in the photo that can be bought, as the model saw it. */
+export type DetectedItem = {
+  /** What to call it on a chip: "Football jersey". */
+  label: string;
+  /** What to search the catalogue for: "red football jersey". */
+  query: string;
+  /** Keywords, most distinctive first. */
+  terms: string[];
+  /** Where it is: [ymin, xmin, ymax, xmax], each 0–1000 of the upright image. Null when not given or not sane. */
+  box: [number, number, number, number] | null;
+};
 
 export type ImageDescription = {
-  /** Short noun phrase, e.g. "digital tyre pressure gauge". */
+  /** Short noun phrase, e.g. "digital tyre pressure gauge": the first item's query. */
   productType: string;
-  /** Terms to search the catalogue with, most distinctive first. */
+  /** Terms to search the catalogue with, most distinctive first: the first item's. */
   terms: string[];
-  /** false when the picture is not a product at all — a face, a document, a
-   *  landscape. Lets the caller say so rather than return nonsense results. */
+  /** false when nothing in the picture can be bought — a landscape, a
+   *  document. Lets the caller say so rather than return nonsense results. */
   isProduct: boolean;
+  /** Everything purchasable in it, most prominent first (at most four). */
+  items: DetectedItem[];
 };
 
 export class ImageSearchUnavailable extends Error {}
@@ -137,8 +163,12 @@ export async function normaliseForProvider(
       meta.format === "png" ? "image/png" :
       meta.format === "webp" ? "image/webp" :
       null;
+    // A photo stored sideways with an EXIF turn is drawn upright by the
+    // browser; the model must see it upright too, or the boxes it returns
+    // land on the wrong part of the picture the shopper sees.
+    const turned = !!meta.orientation && meta.orientation !== 1;
 
-    if (detected && !oversized) {
+    if (detected && !oversized && !turned) {
       return { base64: input.toString("base64"), mediaType: detected };
     }
 
@@ -167,17 +197,30 @@ function isTransient(status: number) {
   return status === 429 || status === 529 || status >= 500;
 }
 
-const PROMPT = `You identify products in photographs so they can be looked up in a B2B sourcing catalogue.
+/*
+ * The products in a photo, not "is this photo a product". The first version
+ * asked the latter and told the model a person is not a product, so a
+ * footballer in a red jersey came back "That does not look like a product"
+ * (reported 2026-10-06): the jersey is exactly what the shopper wants found.
+ * Now every purchasable thing in view counts, worn and held ones included,
+ * each with where it is, so the page can draw it and let the shopper pick.
+ */
+// The shape by example, not by type: given `{"label": string, …}` the 3.5
+// lite model once echoed it back word for word. No keyword lists: nothing
+// reads them any more, and they were half of every answer.
+const PROMPT = `You find the products in photographs so they can be looked up in a B2B sourcing catalogue.
 
-Reply with ONLY a JSON object, no prose and no code fences:
-{"isProduct": boolean, "productType": string, "terms": string[]}
+Reply with ONLY compact JSON on one line, no prose, no code fences, in this shape:
+{"items":[{"label":"Office chair","query":"black leather office chair","box":[120,80,940,610]}]}
 
 Rules:
-- "productType" is a short generic noun phrase for the object: "digital tyre pressure gauge", "cotton tote bag", "LED ceiling panel".
-- "terms" is 3 to 6 short search keywords, most distinctive first. Generic nouns a catalogue would use, not a sentence.
-- Describe only what is visibly there. Do not guess brand, price, material, dimensions or country of origin.
-- If the image is not a physical product (a person, a document, a screenshot, scenery), set isProduct false, productType "", terms [].
-- Never invent a model number or a manufacturer.`;
+- List the physical things in the photo that someone could buy, most prominent first, at most 4. Things a person is wearing, holding or using count: in a photo of a footballer, the jersey, the shorts and the boots are the products.
+- "label": 1 to 3 words naming the thing, e.g. "Football jersey", "Running shoes", "Desk lamp".
+- "query": a short catalogue search for it: a generic noun with at most two visible attributes such as colour, material or style, e.g. "red football jersey", "white leather sneakers", "LED desk lamp".
+- "box": where the item is, as [ymin, xmin, ymax, xmax], each scaled 0 to 1000.
+- Never identify or name a person. Never use a brand, team, club, logo or character name; describe only what the item is.
+- Do not guess price, size, dimensions, model numbers or country of origin.
+- If nothing in the photo can be bought (scenery, a page of text, a blank screen), reply {"items":[]}.`;
 
 type Provider = "gemini" | "anthropic";
 
@@ -211,20 +254,26 @@ function extractJson(text: string): unknown {
   }
 }
 
+/** An answer worth stopping for: JSON with an item list (an echo of the prompt's shape, or a refusal in prose, is not). */
+function looksAnswered(text: string): boolean {
+  const j = extractJson(text) as { items?: unknown } | null;
+  return !!j && typeof j === "object" && Array.isArray(j.items);
+}
+
 async function callGemini(key: string, base64: string, mediaType: string, signal?: AbortSignal) {
   // A single model is a single point of failure on a free tier: capacity moves
   // around, and a saturated model answers 503 UNAVAILABLE while its siblings
-  // are fine. Measured at the same moment, all three of these returned 200 in
-  // roughly 1.1 to 1.5 seconds, so falling through costs almost nothing and
-  // turns an outage into a delay.
+  // are fine. So two are raced, and the rest are fallbacks (see GEMINI_RACE).
   const override = process.env.IMAGE_SEARCH_MODEL;
-  const chain = override ? [override] : [...GEMINI_MODELS];
+  const race: string[] = override ? [override] : [...GEMINI_RACE];
+  const fallback: string[] = override ? [] : [...GEMINI_FALLBACK];
 
-  let lastStatus = 0;
-  for (const model of chain) {
+  /** One model's answer: its text, or the status it refused with (0: no answer at all, or none worth having). */
+  async function ask(model: string, stop?: AbortSignal): Promise<{ text: string } | { status: number }> {
     try {
-      const perModelSignals = [AbortSignal.timeout(8_000)];
+      const perModelSignals = [AbortSignal.timeout(7_000)];
       if (signal) perModelSignals.push(signal);
+      if (stop) perModelSignals.push(stop);
       const combinedSignal = AbortSignal.any(perModelSignals);
 
       const res = await fetch(`${GEMINI_URL}/${model}:generateContent`, {
@@ -238,7 +287,7 @@ async function callGemini(key: string, base64: string, mediaType: string, signal
               role: "user",
               parts: [
                 { inline_data: { mime_type: mediaType, data: base64 } },
-                { text: "Identify this product for a catalogue search." },
+                { text: "List the products in this photo for a catalogue search." },
               ],
             },
           ],
@@ -246,7 +295,7 @@ async function callGemini(key: string, base64: string, mediaType: string, signal
             responseMimeType: "application/json",
             maxOutputTokens: 800,
             temperature: 0,
-            thinkingConfig: { thinkingBudget: 0 },
+            ...(NO_THINKING_BUDGET.has(model) ? {} : { thinkingConfig: { thinkingBudget: 0 } }),
           },
         }),
       });
@@ -255,10 +304,12 @@ async function callGemini(key: string, base64: string, mediaType: string, signal
         const payload = (await res.json()) as {
           candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
         };
-        return (payload.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+        const text = (payload.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+        if (looksAnswered(text)) return { text };
+        console.warn(`Image search: ${model} answered without an item list: ${text.slice(0, 120)}`);
+        return { status: 0 };
       }
 
-      lastStatus = res.status;
       const detail = await res.text().catch(() => "");
       if (!isTransient(res.status)) {
         // 400, 403, 404 — a wrong model name or a rejected key.
@@ -266,9 +317,60 @@ async function callGemini(key: string, base64: string, mediaType: string, signal
       } else {
         console.warn(`Image search: ${model} returned ${res.status}, trying next model.`);
       }
+      return { status: res.status };
     } catch (err) {
+      if (stop?.aborted) return { status: 0 }; // lost the race: not a failure
       console.warn(`Image search: ${model} attempt failed (${err instanceof Error ? err.message : String(err)}), trying next model.`);
+      return { status: 0 };
     }
+  }
+
+  /** The first good answer of several models asked at once; the rest are stopped. */
+  function first(models: string[]): Promise<{ text: string } | { statuses: number[] }> {
+    const stop = new AbortController();
+    return new Promise((resolve) => {
+      const statuses: number[] = [];
+      let left = models.length;
+      for (const model of models) {
+        void ask(model, stop.signal).then((answer) => {
+          if ("text" in answer) {
+            stop.abort();
+            resolve(answer);
+          } else {
+            statuses.push(answer.status);
+            if (--left === 0) resolve({ statuses });
+          }
+        });
+      }
+    });
+  }
+
+  let lastStatus = 0;
+  // Twice round, a beat apart, when every model was only busy: a free tier's
+  // saturation comes and goes in seconds (measured 2026-10-06: uploads in a
+  // quick run came back 429/503 from all of them, one a little later was
+  // fine), so a short wait turns most "busy" answers into a slower result.
+  for (let round = 0; round < 2; round++) {
+    if (round > 0) {
+      if (signal?.aborted) break;
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      if (signal?.aborted) break;
+    }
+    let onlyBusy = true;
+    const raced = await first(race);
+    if ("text" in raced) return raced.text;
+    for (const s of raced.statuses) {
+      if (s) lastStatus = s;
+      if (s && !isTransient(s)) onlyBusy = false;
+    }
+    for (const model of fallback) {
+      if (signal?.aborted) break;
+      const answer = await ask(model);
+      if ("text" in answer) return answer.text;
+      if (answer.status) lastStatus = answer.status;
+      if (answer.status && !isTransient(answer.status)) onlyBusy = false;
+    }
+    if (!onlyBusy) break;
   }
 
   throw new ImageSearchBusy(`All Gemini models were unavailable (last status ${lastStatus}).`);
@@ -285,14 +387,15 @@ async function callAnthropic(key: string, base64: string, mediaType: string, sig
     },
     body: JSON.stringify({
       model: process.env.IMAGE_SEARCH_MODEL || ANTHROPIC_MODEL,
-      max_tokens: 300,
+      // Four items with boxes run to ~250 tokens; 300 was sized for one.
+      max_tokens: 700,
       system: PROMPT,
       messages: [
         {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
-            { type: "text", text: "Identify this product for a catalogue search." },
+            { type: "text", text: "List the products in this photo for a catalogue search." },
           ],
         },
       ],
@@ -328,24 +431,113 @@ export async function describeProductImage(
       ? await callGemini(apiKey, base64, mediaType, signal)
       : await callAnthropic(apiKey, base64, mediaType, signal);
 
-  const parsed = extractJson(text) as Partial<ImageDescription> | null;
-  if (!parsed || typeof parsed !== "object") {
-    return { isProduct: false, productType: "", terms: [] };
-  }
+  return readDescription(extractJson(text));
+}
 
-  // Everything below is defensive: the response is untrusted input as far as
-  // the rest of the app is concerned, and it flows into a SQL search builder.
-  const terms = Array.isArray(parsed.terms)
-    ? parsed.terms
-        .filter((t): t is string => typeof t === "string")
-        .map((t) => t.trim().slice(0, 40))
-        .filter(Boolean)
-        .slice(0, 6)
+/** Words, trimmed and capped, from what may not be a list of strings at all. */
+function strings(value: unknown, max: number, len: number): string[] {
+  return Array.isArray(value)
+    ? value.filter((t): t is string => typeof t === "string").map((t) => t.trim().slice(0, len)).filter(Boolean).slice(0, max)
     : [];
+}
 
-  return {
-    isProduct: parsed.isProduct === true && terms.length > 0,
-    productType: typeof parsed.productType === "string" ? parsed.productType.trim().slice(0, 80) : "",
-    terms,
-  };
+/** A box only if it is four numbers that make a box inside the picture. */
+function readBox(value: unknown): DetectedItem["box"] {
+  if (!Array.isArray(value) || value.length !== 4 || !value.every((n) => typeof n === "number" && Number.isFinite(n))) return null;
+  const [y0, x0, y1, x1] = (value as number[]).map((n) => Math.max(0, Math.min(1000, Math.round(n))));
+  return y1 - y0 >= 20 && x1 - x0 >= 20 ? [y0, x0, y1, x1] : null;
+}
+
+/**
+ * The model's answer, as data the rest of the app can trust: it is untrusted
+ * input, and it flows into the catalogue search. Takes the item list, or the
+ * older one-product shape ({isProduct, productType, terms}) should a model
+ * answer that way.
+ */
+export function readDescription(parsed: unknown): ImageDescription {
+  const none: ImageDescription = { isProduct: false, productType: "", terms: [], items: [] };
+  if (!parsed || typeof parsed !== "object") return none;
+  const p = parsed as Record<string, unknown>;
+  const items: DetectedItem[] = [];
+  const seen = new Set<string>();
+  const raw = Array.isArray(p.items) ? p.items : typeof p.productType === "string" && p.isProduct !== false ? [{ label: p.productType, query: p.productType, terms: p.terms }] : [];
+  for (const it of raw) {
+    if (!it || typeof it !== "object") continue;
+    const r = it as Record<string, unknown>;
+    const query = typeof r.query === "string" ? r.query.trim().slice(0, 80) : "";
+    const label = typeof r.label === "string" && r.label.trim() ? r.label.trim().slice(0, 40) : query;
+    const terms = strings(r.terms, 6, 40);
+    const q = query || terms.join(" ");
+    if (!q || seen.has(q.toLowerCase())) continue;
+    seen.add(q.toLowerCase());
+    items.push({ label: label || q, query: q, terms, box: readBox(r.box) });
+    if (items.length >= 4) break;
+  }
+  if (!items.length) return none;
+  return { isProduct: true, productType: items[0].query, terms: items[0].terms.length ? items[0].terms : [items[0].query], items };
+}
+
+/** A link to an image that this server will not fetch: not http(s), or pointing inside a network. */
+export class RemoteImageRefused extends Error {}
+
+const PRIVATE_V4 = [/^0\./, /^10\./, /^127\./, /^169\.254\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, /^22[4-9]\./, /^2[3-5]\d\./];
+function isPrivateAddress(ip: string): boolean {
+  const v = ip.toLowerCase();
+  if (/^\d+\.\d+\.\d+\.\d+$/.test(v)) return PRIVATE_V4.some((r) => r.test(v));
+  if (v.startsWith("::ffff:")) return isPrivateAddress(v.slice(7));
+  return v === "::" || v === "::1" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe8") || v.startsWith("fe9") || v.startsWith("fea") || v.startsWith("feb") || v.startsWith("ff");
+}
+
+async function checkRemote(url: URL): Promise<void> {
+  if (url.protocol !== "https:" && url.protocol !== "http:") throw new RemoteImageRefused("Only http and https links can be searched.");
+  const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
+  if (!host || host === "localhost" || /\.(localhost|local|internal|lan|home|corp)$/.test(host)) throw new RemoteImageRefused("That link points inside a private network.");
+  const { lookup } = await import("node:dns/promises");
+  const isIp = /^\d+\.\d+\.\d+\.\d+$/.test(host) || host.includes(":");
+  const addresses = isIp ? [host] : (await lookup(host, { all: true })).map((a) => a.address);
+  if (!addresses.length || addresses.some(isPrivateAddress)) throw new RemoteImageRefused("That link points inside a private network.");
+}
+
+/**
+ * Fetches an image a shopper linked to (a pasted or dropped image link),
+ * the way a server should fetch a stranger's URL: http(s) only, never an
+ * address inside a network (checked again at every redirect), an image
+ * content type, and no more than MAX_IMAGE_BYTES read. The first version
+ * fetched whatever URL arrived.
+ */
+export async function fetchRemoteImage(link: string): Promise<{ buffer: Buffer; mediaType: string }> {
+  let url: URL;
+  try {
+    url = new URL(link);
+  } catch {
+    throw new RemoteImageRefused("That is not a link.");
+  }
+  const deadline = AbortSignal.timeout(6_000);
+  for (let hop = 0; hop < 4; hop++) {
+    await checkRemote(url);
+    const res = await fetch(url, { redirect: "manual", signal: deadline, headers: { accept: "image/*" } });
+    if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
+      url = new URL(res.headers.get("location") as string, url);
+      continue;
+    }
+    if (!res.ok || !res.body) throw new RemoteImageRefused("That image could not be loaded.");
+    const type = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
+    if (type && !type.startsWith("image/")) throw new RemoteImageRefused("That link is not an image.");
+    if (Number(res.headers.get("content-length") ?? 0) > MAX_IMAGE_BYTES) throw new RemoteImageRefused("That image is over 5MB.");
+    const reader = res.body.getReader();
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_IMAGE_BYTES) {
+        await reader.cancel();
+        throw new RemoteImageRefused("That image is over 5MB.");
+      }
+      chunks.push(value);
+    }
+    return { buffer: Buffer.concat(chunks), mediaType: type || "image/jpeg" };
+  }
+  throw new RemoteImageRefused("That link redirects too many times.");
 }

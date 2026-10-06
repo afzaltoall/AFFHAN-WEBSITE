@@ -93,7 +93,8 @@ export default async function ProductsPage({
 
   // Also prefetch for ProductsCatalogue
   const q = params.q ? (Array.isArray(params.q) ? params.q[0] : params.q) : "";
-  const sortBy = params.sortBy ? (Array.isArray(params.sortBy) ? params.sortBy[0] : params.sortBy) : "alpha";
+  // A search opens on its best matches; the catalogue on A–Z.
+  const sortBy = params.sortBy ? (Array.isArray(params.sortBy) ? params.sortBy[0] : params.sortBy) : q ? "relevance" : "alpha";
   const pageStr = params.page ? (Array.isArray(params.page) ? params.page[0] : params.page) : "1";
 
   const headersList = await headers();
@@ -105,6 +106,8 @@ export default async function ProductsPage({
   if (q) queryParams.append("q", q);
   if (categoryId) queryParams.append("categoryId", categoryId);
   if (sortBy) queryParams.append("sortBy", sortBy);
+  const exact = params.exact ? (Array.isArray(params.exact) ? params.exact[0] : params.exact) : "";
+  if (q && exact === "1") queryParams.append("exact", "1");
   queryParams.append("page", pageStr);
   queryParams.append("limit", "96"); // PAGE_SIZE in catalogue
   const isDefaultView = !q && !categoryId;
@@ -122,6 +125,7 @@ export default async function ProductsPage({
   const initialProducts = productsJson.data || [];
   const initialFacets = productsJson.facets || [];
   const initialPagination = productsJson.pagination || { total: 0, totalPages: 1, totalCapped: false };
+  const initialSearch = productsJson.search ?? null;
 
   // Mirrors the breadcrumb the page already draws above the grid, which is
   // what BreadcrumbList is for — markup that agrees with what the visitor
@@ -177,6 +181,7 @@ export default async function ProductsPage({
          initialCategories={initialCategories}
          initialFacets={initialFacets}
          initialPagination={initialPagination}
+         initialSearch={initialSearch}
       />
     </>
   );

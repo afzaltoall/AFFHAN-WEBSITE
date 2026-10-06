@@ -56,10 +56,34 @@ const SORT_OPTIONS = [
   { value: "alpha", label: "A – Z" },
   { value: "za", label: "Z – A" },
 ];
+// While searching, the first choice and the default: what the search thinks
+// answers it best (lib/searchServer.ts searchScore).
+const SEARCH_SORT_OPTIONS = [{ value: "relevance", label: "Best match" }, ...SORT_OPTIONS];
+
+/** How the results API read the query (lib/searchServer.ts), for the header to say so. */
+interface SearchInfo {
+  text: string;
+  typed: string;
+  corrected: boolean;
+  empty: boolean;
+  budget: { label: string } | null;
+  quantity: { label: string } | null;
+  primary: { id: string; name: string; total: number; path: string[] }[];
+  related: { id: string; name: string; total: number }[];
+  loose: boolean;
+}
+
+/** "I'm looking for: mobile phones · Budget: Under ₹10,000 · Quantity: 500 pcs" for the contact form (?message=). */
+const sourcingHref = (query: string, s: SearchInfo | null) => {
+  const parts = [`I'm looking for: ${s?.text || query.trim()}`];
+  if (s?.budget) parts.push(`Budget: ${s.budget.label}`);
+  if (s?.quantity) parts.push(`Quantity: ${s.quantity.label}`);
+  return `/contact/?message=${encodeURIComponent(parts.join(" · "))}`;
+};
 
 // Custom sort control — a clean, on-brand replacement for the native <select>
 // (native selects can't be styled consistently across browsers/OS).
-function SortDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function SortDropdown({ value, onChange, options = SORT_OPTIONS }: { value: string; onChange: (v: string) => void; options?: { value: string; label: string }[] }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -70,7 +94,7 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
     document.addEventListener("keydown", onKey);
     return () => { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
   }, [open]);
-  const current = SORT_OPTIONS.find((o) => o.value === value) ?? SORT_OPTIONS[0];
+  const current = options.find((o) => o.value === value) ?? options[0];
   return (
     <div ref={ref} className="relative">
       <button
@@ -89,7 +113,7 @@ function SortDropdown({ value, onChange }: { value: string; onChange: (v: string
           role="listbox"
           className="absolute left-0 top-full z-40 mt-2 w-52 origin-top overflow-hidden rounded-xl border border-slate-100 bg-white p-1 shadow-xl ring-1 ring-black/5"
         >
-          {SORT_OPTIONS.map((o) => {
+          {options.map((o) => {
             const active = o.value === value;
             return (
               <button
@@ -171,12 +195,15 @@ export function ProductsCatalogue({
   initialProducts = [],
   initialCategories = [],
   initialFacets = [],
-  initialPagination = { total: 0, totalPages: 1, totalCapped: false }
+  initialPagination = { total: 0, totalPages: 1, totalCapped: false },
+  initialSearch = null,
 }: {
   initialProducts?: ProductCardData[];
   initialCategories?: CategoryRecord[];
   initialFacets?: FacetChip[];
   initialPagination?: { total: number; totalPages: number; totalCapped: boolean };
+  /** How the server read ?q= for the first paint (the API's `search`). */
+  initialSearch?: SearchInfo | null;
 }) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -191,6 +218,11 @@ export function ProductsCatalogue({
 
   // Full catalogue opens A–Z by default (requested: "start from A to Z").
   const [sortBy, setSortBy] = useState("alpha");
+  // A search opens on its best matches, until the shopper picks an order
+  // for it: the search an order was chosen for. A new search starts on best
+  // matches again, not on an order picked while browsing or for another.
+  const [sortChosenFor, setSortChosenFor] = useState<string | null>(null);
+  const [searchInfo, setSearchInfo] = useState<SearchInfo | null>(initialSearch);
 
   const [page, setPage] = useState<number>(1);
   const [totalPages, setTotalPages] = useState<number>(initialPagination.totalPages);
@@ -368,6 +400,9 @@ export function ProductsCatalogue({
     router.push(`/products/?${params.toString()}`);
   };
 
+  // While searching, best matches first unless the shopper chose an order.
+  const effectiveSort = debouncedQuery && sortChosenFor !== debouncedQuery ? "relevance" : sortBy;
+
   const fetchProducts = async (
     searchQuery: string,
     catId: string | null,
@@ -382,6 +417,8 @@ export function ProductsCatalogue({
       const finalCatId = catId;
       const params = new URLSearchParams();
       if (searchQuery) params.append("q", searchQuery);
+      // "Search instead for" what was typed: the URL says not to correct it.
+      if (searchQuery && new URLSearchParams(window.location.search).get("exact") === "1") params.append("exact", "1");
       if (finalCatId) params.append("categoryId", finalCatId);
       if (sort) params.append("sortBy", sort);
       const isDefaultView = !searchQuery && !finalCatId;
@@ -399,6 +436,7 @@ export function ProductsCatalogue({
       setTotalPages(json.pagination.totalPages);
       setTotalProductCount(json.pagination.total);
       setTotalCapped(Boolean(json.pagination.totalCapped));
+      setSearchInfo(json.search ?? null);
     } catch (err) {
       if (seq === requestSeq.current) setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -413,8 +451,8 @@ export function ProductsCatalogue({
       return;
     }
     setPage(1);
-    fetchProducts(debouncedQuery, activeCategoryIdsParam, sortBy, 1);
-  }, [debouncedQuery, activeCategoryIdsParam, sortBy]);
+    fetchProducts(debouncedQuery, activeCategoryIdsParam, effectiveSort, 1);
+  }, [debouncedQuery, activeCategoryIdsParam, effectiveSort]);
 
   // Clean landing on every category / search change. The default catalogue view
   // carries a very tall opening scroll-hero (~3.5k px) that unmounts the instant
@@ -443,7 +481,7 @@ export function ProductsCatalogue({
 
   const goToPage = (p: number) => {
     setPage(p);
-    fetchProducts(debouncedQuery, activeCategoryIdsParam, sortBy, p);
+    fetchProducts(debouncedQuery, activeCategoryIdsParam, effectiveSort, p);
     // Jump to the START OF THE GRID so the next page's products are the first
     // thing the user sees. Use the always-mounted anchor (gridSectionRef) — the
     // grid itself is unmounted behind the loading skeleton, so gridTopRef would
@@ -455,6 +493,7 @@ export function ProductsCatalogue({
 
   const handleClearAll = () => {
     setSortBy("alpha");
+    setSortChosenFor(null);
     setQuery("");
     router.push('/products/');
   };
@@ -464,6 +503,15 @@ export function ProductsCatalogue({
   // Showcase extras (scroll hero, phone mockups, spotlight, dock) appear only on
   // the plain catalogue view — never while searching or drilled into a category.
   const defaultView = !debouncedQuery && !activeCategoryId;
+
+  // The search's category chips: the categories the words name first (the
+  // facets are a sample of the matches, which for "mobile phones" is mostly
+  // cases and holders), then the facets, no category twice.
+  const searchChips = useMemo(() => {
+    const best = (searchInfo?.primary ?? []).map((p) => ({ id: p.id, name: p.name, count: p.total, best: true }));
+    const seen = new Set(best.map((b) => b.id));
+    return [...best, ...facets.filter((f) => !seen.has(f.id)).map((f) => ({ id: f.id, name: f.name, count: f.count, best: false }))];
+  }, [searchInfo, facets]);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans pt-28">
@@ -483,12 +531,54 @@ export function ProductsCatalogue({
             {debouncedQuery ? (
               <>
                 <p className="text-sm font-semibold text-brand-dark uppercase tracking-wider">Search results</p>
+                {/* What was searched: corrected if a word was misspelt, with
+                    the way back to exactly what was typed. */}
                 <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
-                  &ldquo;{debouncedQuery}&rdquo;
+                  &ldquo;{searchInfo?.corrected ? searchInfo.text : debouncedQuery}&rdquo;
                 </h1>
-                <p className="text-slate-500 mt-2 tabular-nums min-h-[3rem] sm:min-h-[1.5rem]">
-                  {totalCapped ? `${totalProductCount.toLocaleString("en-US")}+` : totalProductCount.toLocaleString("en-US")} matching products
+                {searchInfo?.corrected && (
+                  <p className="mt-1 text-sm text-slate-500">
+                    Showing results for <span className="font-semibold text-slate-700">{searchInfo.text}</span>.{" "}
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/products/?q=${encodeURIComponent(debouncedQuery)}&exact=1`)}
+                      className="font-semibold text-brand-dark underline-offset-2 hover:underline"
+                    >
+                      Search for &ldquo;{searchInfo.typed || debouncedQuery}&rdquo; instead
+                    </button>
+                  </p>
+                )}
+                <p className="text-slate-500 mt-2 tabular-nums min-h-[1.5rem]">
+                  {totalCapped ? `${totalProductCount.toLocaleString("en-US")}+` : totalProductCount.toLocaleString("en-US")} {searchInfo?.loose ? "close matches" : "matching products"}
+                  {searchInfo?.loose && <span className="text-slate-400"> · no product has every word</span>}
+                  {/* Nothing listed is quite it: the request, already written
+                      (the budget row below carries its own). */}
+                  {searchInfo?.loose && !(searchInfo.budget || searchInfo.quantity) && (
+                    <>
+                      {" "}
+                      <a href={sourcingHref(debouncedQuery, searchInfo)} className="whitespace-nowrap font-semibold text-brand-dark underline-offset-2 hover:underline">
+                        Not what you need? We&apos;ll source it &rarr;
+                      </a>
+                    </>
+                  )}
                 </p>
+                {/* What else the query said, taken out of the match: a budget
+                    and a quantity. There are no prices to filter by (every
+                    order is quoted), so the budget goes with the request. */}
+                {(searchInfo?.budget || searchInfo?.quantity) && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px]">
+                    {searchInfo.budget && (
+                      <span className="inline-flex items-center rounded-full bg-amber-50 px-3 py-1 font-semibold text-amber-800 ring-1 ring-amber-200">Budget: {searchInfo.budget.label}</span>
+                    )}
+                    {searchInfo.quantity && (
+                      <span className="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-800 ring-1 ring-emerald-200">Quantity: {searchInfo.quantity.label}</span>
+                    )}
+                    <span className="text-slate-500">Prices are quoted to order.</span>
+                    <a href={sourcingHref(debouncedQuery, searchInfo)} className="font-semibold text-brand-dark underline-offset-2 hover:underline">
+                      Request a quote within your budget &rarr;
+                    </a>
+                  </div>
+                )}
               </>
             ) : (
               <>
@@ -516,10 +606,10 @@ export function ProductsCatalogue({
         {/* Search facets — Alibaba-style "narrow by category" rail derived from
             the actual result set, so a shopper can pivot into the exact
             category their query hit. Shown only while searching. */}
-        {debouncedQuery && facets.length > 0 && (
+        {debouncedQuery && searchChips.length > 0 && (
           <div className="mb-6 liquid-glass-card p-4 sm:p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Related categories</span>
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{searchChips[0]?.best ? "Best match, and related categories" : "Related categories"}</span>
               {activeCategoryId && (
                 <button
                   onClick={() => goToCategory(null)}
@@ -540,14 +630,16 @@ export function ProductsCatalogue({
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <div ref={facetScrollRef} className="flex flex-nowrap gap-2 overflow-x-auto scrollbar-hide scroll-smooth md:px-7">
-                {facets.map((f) => (
+                {searchChips.map((f) => (
                   <button
                     key={f.id}
                     onClick={() => goToCategory(f.id)}
                     className={`shrink-0 inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-semibold transition-colors whitespace-nowrap ${
                       activeCategoryId === f.id
                         ? "bg-brand-dark text-white border-brand"
-                        : "bg-slate-50 text-slate-700 border-slate-200 hover:border-brand/40 hover:text-brand-dark"
+                        : f.best
+                          ? "bg-brand/[0.07] text-brand-dark border-brand/40 hover:bg-brand/10"
+                          : "bg-slate-50 text-slate-700 border-slate-200 hover:border-brand/40 hover:text-brand-dark"
                     }`}
                   >
                     <span>{f.name}</span>
@@ -688,7 +780,19 @@ export function ProductsCatalogue({
           <div className="relative z-40 flex flex-wrap items-center gap-3 liquid-glass-card p-3 rounded-xl">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400 uppercase tracking-wider ml-1">Sort</span>
-              <SortDropdown value={sortBy} onChange={setSortBy} />
+              <SortDropdown
+                value={effectiveSort}
+                options={debouncedQuery ? SEARCH_SORT_OPTIONS : SORT_OPTIONS}
+                onChange={(v) => {
+                  // "Best match" is the search's own order, not one to keep for browsing.
+                  if (v === "relevance") {
+                    setSortChosenFor(null);
+                    return;
+                  }
+                  setSortChosenFor(debouncedQuery);
+                  setSortBy(v);
+                }}
+              />
             </div>
 
             <div className="h-6 w-px bg-slate-200 hidden sm:block mx-1"></div>
@@ -726,13 +830,13 @@ export function ProductsCatalogue({
               <div ref={gridTopRef} className="scroll-mt-28 mb-4 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
                   <span className="inline-flex items-center rounded-full bg-brand/10 px-3 py-1 text-sm font-bold text-brand-dark">Page {page}</span>
-                  {sortBy === "alpha" && (
+                  {effectiveSort === "alpha" && (
                     <span className="text-sm font-semibold text-slate-500">
                       {products[0].name.trim()[0]?.toUpperCase()} – {products[products.length - 1].name.trim()[0]?.toUpperCase()}
                     </span>
                   )}
                 </div>
-                <span className="text-xs font-medium text-slate-400">of {totalPages.toLocaleString("en-US")} pages</span>
+                <span className="text-xs font-medium text-slate-400">of {totalPages.toLocaleString("en-US")} {totalPages === 1 ? "page" : "pages"}</span>
               </div>
             )}
 
@@ -762,12 +866,48 @@ export function ProductsCatalogue({
             )}
 
             {!error && products.length === 0 && (
-              <div className="mt-12 text-center text-slate-500 py-12 liquid-glass-card">
+              // A search with nothing listed is still a sourcing request: the
+              // catalogue shows what can be sourced, not all of it. So the way
+              // forward is to ask, with the words, budget and quantity written in.
+              <div className="mt-12 text-center text-slate-500 py-12 px-5 liquid-glass-card">
                 <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Search className="w-8 h-8 text-slate-300" />
                 </div>
-                <p className="text-lg font-medium text-slate-900">No products found</p>
-                <p className="mt-1">Try adjusting your search or filters.</p>
+                {debouncedQuery && searchInfo?.empty ? (
+                  <>
+                    <p className="text-lg font-medium text-slate-900">Tell us what you&apos;re looking for</p>
+                    <p className="mt-1">Search for a product, such as &ldquo;led bulbs&rdquo; or &ldquo;women bags&rdquo;, and add your budget or quantity if you like.</p>
+                  </>
+                ) : debouncedQuery ? (
+                  <>
+                    <p className="text-lg font-medium text-slate-900">Nothing listed for &ldquo;{searchInfo?.text || debouncedQuery}&rdquo; yet</p>
+                    <p className="mx-auto mt-1 max-w-xl">Our catalogue shows what we source, not all of it. Tell us what you need and our team in China will find it, check it and ship it to you.</p>
+                    <a
+                      href={sourcingHref(debouncedQuery, searchInfo)}
+                      className="mt-5 inline-flex items-center gap-2 rounded-full bg-brand-dark px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-deep"
+                    >
+                      Request this product
+                      <ChevronRight className="h-4 w-4" />
+                    </a>
+                    {(searchInfo?.related.length ?? 0) > 0 && (
+                      <div className="mt-6">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Or look in</p>
+                        <div className="mt-2 flex flex-wrap justify-center gap-2">
+                          {searchInfo!.related.slice(0, 6).map((c) => (
+                            <button key={c.id} onClick={() => goToCategory(c.id)} className="rounded-full border border-slate-200 bg-slate-50 px-3.5 py-1.5 text-sm font-semibold text-slate-700 hover:border-brand/40 hover:text-brand-dark">
+                              {c.name} <span className="text-[11px] font-bold text-slate-400">{c.total.toLocaleString("en-US")}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <p className="text-lg font-medium text-slate-900">No products found</p>
+                    <p className="mt-1">Try adjusting your search or filters.</p>
+                  </>
+                )}
               </div>
             )}
 

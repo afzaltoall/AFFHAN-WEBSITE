@@ -1,11 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
-import Image from "next/image";
 import Link from "next/link";
-import { Camera, Check, Loader2, Sparkles, Upload, X } from "lucide-react";
+import { ArrowRight, Camera, ImagePlus, Link2, Loader2, RefreshCw, Search, SwitchCamera, Upload, Video, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 // Loaded on demand, not with the page.
 //
@@ -19,26 +18,18 @@ import { lockBodyScroll } from "@/lib/scrollLock";
 import { useBackDismiss, overlayHandoff, overlayWillNavigate } from "@/lib/useBackDismiss";
 import { capturePhoto, hasNativeCamera, CameraCancelled } from "@/lib/nativeCamera";
 import { cn } from "@/lib/utils";
+import "./image-search.css";
 
-type Result = {
-  id: number;
-  name: string;
-  imageUrl: string | null;
-  category: string | null;
-};
-
-type Category = { id: string; name: string; parentName: string | null };
-
-type Response = {
-  isProduct?: boolean;
-  productType?: string;
-  terms?: string[];
-  searchQuery?: string;
-  categories?: Category[];
-  products?: Result[];
-  message?: string;
-  error?: string;
-};
+type Hit = { id: number; name: string; imageUrl: string | null; category: string | null };
+/** `best`: the category the words name, rather than one the matches happen to sit in. */
+type Cat = { id: string; name: string; parentName: string | null; total?: number; best?: boolean };
+/** One product the photo holds, as /api/search/image found it: what to call it, what to search, where it is (0–1000). */
+type Item = { label: string; query: string; terms: string[]; box: [number, number, number, number] | null };
+/** What the catalogue has for one search. */
+type View = { query: string; products: Hit[]; categories: Cat[]; total: number; capped: boolean; loose: boolean };
+/** `deferred`: the items only, asked for with phase=items; the products are this page's to fetch. */
+type Reply = Partial<View> & { isProduct?: boolean; items?: Item[]; searchQuery?: string; message?: string; error?: string; deferred?: boolean };
+type Phase = "camera" | "reading" | "results" | "none" | "error";
 
 /* Kept in step with ACCEPTED_IMAGE_TYPES in lib/imageSearch. Anything beyond
    JPEG/PNG/WebP is transcoded to JPEG server-side before it reaches a vision
@@ -69,200 +60,274 @@ const MAX_BYTES = 5 * 1024 * 1024;
 const PANEL_W = 380;
 const PANEL_MARGIN = 12;
 
-/** Each step names a phase that genuinely happens server-side, in the order it
- *  happens, with a rough duration so its bar can fill while it runs. The
- *  timings approximate a ~2s round trip rather than being progress reported by
- *  the server — nothing here claims work that is not being done, but it is an
- *  estimate and worth saying so. */
-const STEPS = [
-  {
-    label: "Reading your image",
-    detail: "Checking the file format, size and orientation",
-    at: 0,
-    dur: 350,
-    activeText: "Scanning file…",
-  },
-  {
-    label: "Identifying the product",
-    detail: "Working out what the object in the photo actually is",
-    at: 350,
-    dur: 750,
-    activeText: "Analyzing photo…",
-  },
-  {
-    label: "Searching the catalogue",
-    detail: "Matching those terms across 10 lakh+ products",
-    at: 1100,
-    dur: 700,
-    activeText: "Searching catalogue…",
-  },
-  {
-    label: "Matching categories",
-    detail: "Finding which branch of the catalogue it belongs to",
-    at: 1800,
-    dur: 800,
-    activeText: "Matching categories…",
-  },
-];
+/** Products shown per search; the rest are a link away (the server sends the same number). */
+const SHOWN = 24;
 
-/** Rotates inside the mascot's speech bubble. Deliberately about the service
- *  rather than the search in progress, so no line can turn out to be wrong
- *  about a particular result. */
-const QUOTES = [
-  "Send me a photo and I will find who makes it.",
-  "A close match is enough — we source to your specification.",
-  "Nothing in here is stock. It is what our factories can build.",
-  "Our buyers check the plant before your deposit moves.",
-];
+const fmt = (n: number) => n.toLocaleString("en-US");
 
-function ThinkingSteps({ complete = false }: { complete?: boolean }) {
-  const [elapsed, setElapsed] = useState(0);
-  const [quote, setQuote] = useState(0);
+/** Longest edge uploaded: what the vision step reads at (MAX_EDGE in lib/imageSearch). */
+const UPLOAD_EDGE = 1024;
 
-  useEffect(() => {
-    const started = Date.now();
-    const tick = setInterval(() => setElapsed(Date.now() - started), 80);
-    const rotate = setInterval(() => setQuote((q) => (q + 1) % QUOTES.length), 3600);
-    return () => {
-      clearInterval(tick);
-      clearInterval(rotate);
-    };
-  }, []);
+/**
+ * The photo at the size the search reads it, drawn here before it is sent: a
+ * phone's 4–12MB picture becomes ~150KB, which on a mobile connection was
+ * most of the wait. Turned upright first (EXIF), on white (a cut-out PNG
+ * would otherwise turn black), and the file name kept, since it can name
+ * one of our own products. Anything the browser cannot draw (HEIC outside
+ * Safari) goes as it is, and the server converts it.
+ */
+async function shrinkForUpload(file: File): Promise<File> {
+  if (file.size < 300 * 1024 && /^image\/(jpeg|png|webp)$/.test(file.type)) return file;
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, UPLOAD_EDGE / Math.max(bitmap.width, bitmap.height));
+    const w = Math.max(1, Math.round(bitmap.width * scale));
+    const h = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, w, h);
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.86));
+    if (!blob || blob.size >= file.size) return file;
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "photo"}.jpg`, { type: "image/jpeg" });
+  } catch {
+    return file;
+  }
+}
 
-  const startedCount = complete ? STEPS.length : STEPS.filter((s) => elapsed >= s.at).length;
-  const railPct = complete
-    ? 100
-    : ((Math.max(1, startedCount) - 1) / (STEPS.length - 1)) * 100;
+const emptyView = (query: string): View => ({ query, products: [], categories: [], total: 0, capped: false, loose: false });
 
+/** Dispatched on window to open the photo panel from elsewhere: the search box's "Search with a photo" row. */
+export const OPEN_PHOTO_SEARCH = "affhan:open-photo-search";
+
+/** Why a file cannot be searched, or null when it can. One rule for every way in: paste, drop, browse, camera. */
+function refuse(file: File): string | null {
+  const looksRight = file.type ? ACCEPTED_TYPES.includes(file.type) : ACCEPTED_EXTS.test(file.name);
+  if (!looksRight) return "That file type will not work. Use a JPEG, PNG, WebP, AVIF, HEIC, GIF, TIFF or BMP.";
+  if (file.size > MAX_BYTES) return `That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. The limit is 5MB.`;
+  return null;
+}
+
+/**
+ * The catalogue's search for some words, the way the photo results show it:
+ * the same /api/products the results page reads, so an item picked from the
+ * photo, or words typed into the box, find what they would anywhere else.
+ */
+async function fetchView(query: string): Promise<View> {
+  const params = new URLSearchParams({ q: query, limit: String(SHOWN), page: "1", sortBy: "relevance", getChips: "true" });
+  const res = await fetch(`/api/products/?${params}`);
+  if (!res.ok) throw new Error(`products ${res.status}`);
+  const j = (await res.json()) as {
+    data?: { id: number; name: string; imageUrl: string | null; category: string | null; categoryRef?: { name: string | null } | null }[];
+    facets?: { id: string; name: string; parentName: string | null; count: number }[];
+    search?: { primary?: { id: string; name: string; total: number; path?: string[] }[]; loose?: boolean } | null;
+    pagination?: { total?: number; totalCapped?: boolean };
+  };
+  const seen = new Set<string>();
+  const categories: Cat[] = [];
+  for (const c of [
+    ...(j.search?.primary ?? []).map((h) => ({ id: h.id, name: h.name, parentName: h.path?.[h.path.length - 1] ?? null, total: h.total, best: true })),
+    // One match in a category is a coincidence ("Brooches 1" for water shoes), not a branch to offer.
+    ...(j.facets ?? []).filter((f) => f.count > 1).map((f) => ({ id: f.id, name: f.name, parentName: f.parentName ?? null, total: f.count })),
+  ]) {
+    if (seen.has(c.id)) continue;
+    seen.add(c.id);
+    categories.push(c);
+    if (categories.length >= 6) break;
+  }
+  const products = (j.data ?? []).map((p) => ({ id: p.id, name: p.name, imageUrl: p.imageUrl ?? null, category: p.categoryRef?.name ?? p.category ?? null }));
+  return { query, products, categories, total: j.pagination?.total ?? products.length, capped: !!j.pagination?.totalCapped, loose: !!j.search?.loose };
+}
+
+/** A search worth showing: it names a category, or finds plenty with every word. */
+const strong = (v: View) => !v.loose && (v.categories.some((c) => c.best) || v.total >= 24);
+
+/**
+ * An item's products, the way the server finds the first one's
+ * (searchItem in /api/search/image): its full words ("cream leather office
+ * chair") and its plain name ("office chair"), the first worth showing.
+ */
+async function fetchItemView(item: Item): Promise<View> {
+  const ladder = [...new Set([item.query, item.label].map((s) => s.trim().toLowerCase()).filter(Boolean))];
+  const found = await Promise.all(ladder.map((q) => fetchView(q)));
+  return found.find(strong) ?? [...found].filter((v) => !v.loose).sort((a, b) => b.total - a.total)[0] ?? found[0];
+}
+
+/**
+ * The shopper's photo, as the stage: a sweep down it while it is read, then
+ * each product found outlined where it is, the one being searched lit and
+ * the rest of the picture dimmed. Boxes are 0–1000 of the upright image,
+ * and the stage is exactly the image's size, so percentages place them.
+ */
+function PhotoStage({ src, items, active, scanning, onSelect }: { src: string; items: Item[]; active: number; scanning: boolean; onSelect: (i: number) => void }) {
   return (
-    <div className="mx-auto max-w-2xl px-1 py-4">
-      {/* Mascot and speech bubble */}
-      <div className="mb-8 flex items-center gap-4 sm:gap-5">
-        <div className="affhan-drift shrink-0" aria-hidden="true">
-          <Image
-            src="/affhan-robot.webp"
-            alt="AFFHAN Assistant"
-            width={72}
-            height={71}
-            className="size-16 object-contain drop-shadow-[0_8px_18px_rgba(39,168,196,0.35)] sm:size-[72px]"
-            priority
-          />
+    <div className="isx-stage">
+      {/* eslint-disable-next-line @next/next/no-img-element -- blob: or remote URL, nothing for next/image to optimise */}
+      <img src={src} alt="Your photo" className="max-h-[28svh] w-auto md:max-h-[62svh]" />
+      {scanning ? (
+        <div className="isx-layer isx-scan" aria-hidden="true">
+          <span className="isx-corner" data-c="tl" />
+          <span className="isx-corner" data-c="tr" />
+          <span className="isx-corner" data-c="bl" />
+          <span className="isx-corner" data-c="br" />
         </div>
-
-        <div className="relative min-w-0 flex-1">
-          <span
-            className="absolute -left-1.5 top-1/2 size-3 -translate-y-1/2 rotate-45 rounded-[2px] border-b border-l border-slate-200/80 bg-slate-50"
-            aria-hidden="true"
-          />
-          <div className="rounded-2xl border border-slate-200/80 bg-gradient-to-r from-slate-50 via-cyan-50/20 to-slate-50 p-4 shadow-sm">
-            <div className="mb-1 flex items-center gap-1.5">
-              <Sparkles size={13} className="text-[#27a8c4]" />
-              <span className="text-[11px] font-bold uppercase tracking-wider text-[#176579]">
-                AFFHAN AI Sourcing
-              </span>
-            </div>
-            <p key={quote} className="text-sm font-medium leading-relaxed text-slate-700 motion-safe:animate-[fadeIn_450ms_ease-out]">
-              {QUOTES[quote]}
-            </p>
-          </div>
+      ) : items.some((it) => it.box) ? (
+        <div className="isx-layer">
+          {items.map((it, i) =>
+            it.box ? (
+              <button
+                key={`${it.query}-${i}`}
+                type="button"
+                className="isx-box"
+                data-active={i === active}
+                aria-pressed={i === active}
+                aria-label={`Search for ${it.label}`}
+                onClick={() => onSelect(i)}
+                style={{
+                  top: `${it.box[0] / 10}%`,
+                  left: `${it.box[1] / 10}%`,
+                  height: `${(it.box[2] - it.box[0]) / 10}%`,
+                  width: `${(it.box[3] - it.box[1]) / 10}%`,
+                  animationDelay: `${i * 90}ms`,
+                }}
+              >
+                <span className="isx-tag">{it.label}</span>
+              </button>
+            ) : null,
+          )}
         </div>
-      </div>
-
-      <ol className="relative">
-        <span className="absolute left-[11px] top-3 bottom-6 w-0.5 rounded-full bg-slate-200/80" aria-hidden="true" />
-        <span
-          className="step-rail-fill absolute left-[11px] top-3 w-0.5 rounded-full bg-gradient-to-b from-[#27a8c4] to-[#176579]"
-          style={{ height: `calc((100% - 2.25rem) * ${railPct / 100})` }}
-          aria-hidden="true"
-        />
-
-        {STEPS.map((s, i) => {
-          const isDone = complete || (i < STEPS.length - 1 ? elapsed >= STEPS[i + 1].at : complete);
-          const isStarted = complete || elapsed >= s.at;
-          const isActive = !isDone && isStarted;
-
-          const raw = isStarted ? Math.min(1, (elapsed - s.at) / s.dur) : 0;
-          const fillWidth = isDone ? 100 : isActive ? Math.min(92, Math.max(18, Math.round(raw * 100))) : 0;
-
-          return (
-            <li key={s.label} className="relative flex gap-4 pb-6 last:pb-0">
-              <span
-                className={cn(
-                  "relative z-10 mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 bg-white transition-all duration-300",
-                  isDone
-                    ? "border-[#176579] bg-gradient-to-br from-[#27a8c4] to-[#176579] text-white shadow-[0_2px_8px_rgba(23,101,121,0.3)]"
-                    : isActive
-                      ? "border-[#27a8c4] text-[#176579] shadow-[0_0_0_4px_rgba(39,168,196,0.18)]"
-                      : "border-slate-200 text-slate-300",
-                )}
-              >
-                {isDone ? (
-                  <Check size={13} strokeWidth={3} className="motion-safe:animate-[fadeIn_200ms_ease-out]" />
-                ) : isActive ? (
-                  <Loader2 size={13} className="animate-spin text-[#176579]" />
-                ) : (
-                  <span className="size-2 rounded-full bg-slate-300" />
-                )}
-              </span>
-
-              <span
-                className={cn(
-                  "min-w-0 flex-1 transition-opacity duration-300",
-                  isStarted ? "opacity-100" : "opacity-45",
-                )}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-sm font-semibold text-slate-800">{s.label}</span>
-                  <div className="shrink-0">
-                    {isDone ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 border border-emerald-200/60 shadow-xs">
-                        <Check size={10} strokeWidth={3} className="text-emerald-600" /> Done
-                      </span>
-                    ) : isActive ? (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-cyan-50 px-2.5 py-0.5 text-[11px] font-semibold text-[#176579] border border-cyan-200/70 shadow-xs">
-                        <span className="relative flex size-1.5">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#27a8c4] opacity-75" />
-                          <span className="relative inline-flex size-1.5 rounded-full bg-[#176579]" />
-                        </span>
-                        {s.activeText}
-                      </span>
-                    ) : (
-                      <span className="text-[11px] font-medium text-slate-600">Waiting</span>
-                    )}
-                  </div>
-                </div>
-                <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">{s.detail}</span>
-
-                {/* Progress bar */}
-                <span className="relative mt-2.5 block h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
-                  {isDone ? (
-                    <span className="block h-full w-full rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] transition-all duration-300" />
-                  ) : isActive ? (
-                    <span className="relative block h-full w-full overflow-hidden rounded-full bg-slate-100">
-                      <span
-                        className="step-bar-fill absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579]"
-                        style={{ width: `${fillWidth}%` }}
-                      />
-                      <span className="step-active-shimmer absolute inset-0 w-1/2 bg-gradient-to-r from-transparent via-white/60 to-transparent" />
-                    </span>
-                  ) : null}
-                </span>
-              </span>
-            </li>
-          );
-        })}
-      </ol>
+      ) : null}
     </div>
   );
 }
 
 /**
- * Search the catalogue by photograph.
+ * A camera in the page, for a computer: hold the thing up to the webcam and
+ * press the shutter. Phones get their own camera app instead (the capture
+ * input), which takes a far better picture than a video frame.
+ */
+function WebcamView({ onCapture, onUpload }: { onCapture: (file: File) => void; onUpload: () => void }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [facing, setFacing] = useState<"environment" | "user">("environment");
+  const [ready, setReady] = useState(false);
+  const [canFlip, setCanFlip] = useState(false);
+  const [mirrored, setMirrored] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    let stream: MediaStream | null = null;
+    setReady(false);
+    navigator.mediaDevices
+      .getUserMedia({ video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false })
+      .then(async (s) => {
+        if (!live) {
+          s.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        stream = s;
+        // A laptop's camera faces the user, and a mirror is what people expect to see.
+        setMirrored(s.getVideoTracks()[0]?.getSettings().facingMode !== "environment");
+        const v = videoRef.current;
+        if (v) {
+          v.srcObject = s;
+          await v.play().catch(() => {});
+        }
+        setReady(true);
+        const devices = await navigator.mediaDevices.enumerateDevices().catch(() => []);
+        if (live) setCanFlip(devices.filter((d) => d.kind === "videoinput").length > 1);
+      })
+      .catch((e: unknown) => {
+        if (!live) return;
+        const name = e instanceof DOMException ? e.name : "";
+        setError(
+          name === "NotAllowedError"
+            ? "Camera access was declined. Allow it from the icon in the address bar, or upload a photo instead."
+            : "No camera could be opened. Upload a photo instead.",
+        );
+      });
+    return () => {
+      live = false;
+      stream?.getTracks().forEach((t) => t.stop());
+    };
+  }, [facing]);
+
+  const snap = () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    canvas.getContext("2d")?.drawImage(v, 0, 0);
+    canvas.toBlob((b) => b && onCapture(new File([b], "webcam.jpg", { type: "image/jpeg" })), "image/jpeg", 0.92);
+  };
+
+  return (
+    <div className="flex w-full flex-col bg-[#0b1f29]">
+      <div className="relative flex min-h-[46svh] flex-1 items-center justify-center overflow-hidden md:min-h-[60svh]">
+        <video ref={videoRef} playsInline muted className={cn("h-full max-h-[70svh] w-full object-contain", mirrored && "-scale-x-100")} />
+        {ready && (
+          <div className="isx-layer" aria-hidden="true">
+            <span className="isx-corner" data-c="tl" />
+            <span className="isx-corner" data-c="tr" />
+            <span className="isx-corner" data-c="bl" />
+            <span className="isx-corner" data-c="br" />
+          </div>
+        )}
+        {!ready && !error && <Loader2 size={28} className="absolute animate-spin text-white/70" />}
+        {error && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
+            <p className="max-w-sm text-sm text-white/85">{error}</p>
+            <button type="button" onClick={onUpload} className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#0b2a36]">
+              <Upload size={15} /> Upload a photo
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center justify-center gap-6 px-4 py-4">
+        <span className="w-11" />
+        <button
+          type="button"
+          onClick={snap}
+          disabled={!ready}
+          aria-label="Take the photo"
+          className="grid size-16 place-items-center rounded-full border-4 border-white/90 bg-white/15 transition hover:bg-white/25 disabled:opacity-40"
+        >
+          <span className="size-11 rounded-full bg-white" />
+        </button>
+        {canFlip ? (
+          <button
+            type="button"
+            onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
+            aria-label="Switch camera"
+            className="grid size-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          >
+            <SwitchCamera size={18} />
+          </button>
+        ) : (
+          <span className="w-11" />
+        )}
+      </div>
+      <p className="pb-4 text-center text-[12px] text-white/60">Hold the product up to the camera, filling the frame.</p>
+    </div>
+  );
+}
+
+/**
+ * Search the catalogue by photograph, the way a shopper would point at a
+ * thing: a product shot, a screenshot, a photo of someone wearing it.
  *
- * Posts the file to /api/search/image, which identifies what the object is and
- * then runs the ordinary catalogue search on those terms. Everything shown
- * below is a real row from the product table — the model never sees product
- * data and never produces any, so there is nothing here it could have invented.
+ * Posts the file to /api/search/image, which finds every product in the
+ * photo and where it is, and searches the catalogue for the first. The page
+ * draws them on the photo; tapping one, or a chip, searches that one instead,
+ * and the words can be edited ("red football jersey" → "… for kids"). Every
+ * product shown is a real row: the model never sees product data and never
+ * produces any.
  *
  * The dialog is portalled to document.body, and that is not optional. This
  * button lives inside the search pill, which carries `liquid-glass-card` and
@@ -274,17 +339,36 @@ function ThinkingSteps({ complete = false }: { complete?: boolean }) {
  * only needs to exist for the length of the request, and keeping it client-side
  * avoids putting customer photographs in S3 for no reason.
  */
-export function ImageSearchButton({ className }: { className?: string }) {
+export function ImageSearchButton({ className, onOpen }: { className?: string; /** Called as the photo panel opens: the search box closes its own dropdown, so the two never stack. */ onOpen?: () => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const previewUrl = useRef<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
   const [mounted, setMounted] = useState(false);
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [complete, setComplete] = useState(false);
+  const [phase, setPhase] = useState<Phase>("reading");
   const [preview, setPreview] = useState<string | null>(null);
-  const [result, setResult] = useState<Response | null>(null);
-  const [inquiry, setInquiry] = useState<Result | null>(null);
+  const [items, setItems] = useState<Item[]>([]);
+  const [active, setActive] = useState(0);
+  const [query, setQuery] = useState("");
+  const [view, setView] = useState<View | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [describe, setDescribe] = useState("");
+  const [dropping, setDropping] = useState(false);
+  const [inquiry, setInquiry] = useState<Hit | null>(null);
+  /** Searches already made for this photo, by their words. */
+  const views = useRef(new Map<string, View>());
+  /** Each item's products, by its place in the list: being found, and found. */
+  const itemViews = useRef(new Map<number, Promise<View>>());
+  const itemFound = useRef(new Map<number, View>());
+  /** The last photo sent, for "Try again". */
+  const lastInput = useRef<{ file: File | null; url?: string } | null>(null);
+  const [retryable, setRetryable] = useState(false);
+  /** Guards against an older answer landing after a newer request. */
+  const pickSeq = useRef(0);
+  const viewSeq = useRef(0);
 
   /* Whether a real camera can be opened, which is true only inside the Android
      app. Resolved in an effect rather than during render because the Capacitor
@@ -294,14 +378,20 @@ export function ImageSearchButton({ className }: { className?: string }) {
      everyone and the camera button is the addition. */
   const [nativeCamera, setNativeCamera] = useState(false);
   const [capturing, setCapturing] = useState(false);
+  /** A touch-first device: its own camera app and photo library, not paste and drag. */
+  const [touch, setTouch] = useState(false);
+  /** A computer with a camera the page may ask for. */
+  const [webcam, setWebcam] = useState(false);
 
   // The upload panel that drops from the camera: paste, drag-drop, or browse.
   const camRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelOpen, setPanelOpen] = useState(false);
+  const panelOpenRef = useRef(false);
   const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
+  const [link, setLink] = useState("");
   // Windows says Ctrl, macOS says Cmd. Showing the wrong one is a small lie in
   // the one place the panel is actually instructing the user.
   const [isMac, setIsMac] = useState(false);
@@ -324,7 +414,14 @@ export function ImageSearchButton({ className }: { className?: string }) {
     setMounted(true);
     setIsMac(/Mac|iPhone|iPad|iPod/.test(navigator.userAgent));
     setNativeCamera(hasNativeCamera());
+    const coarse = window.matchMedia("(pointer: coarse)").matches;
+    setTouch(coarse);
+    setWebcam(!coarse && !!navigator.mediaDevices?.getUserMedia);
   }, []);
+
+  useEffect(() => {
+    panelOpenRef.current = panelOpen;
+  }, [panelOpen]);
 
   /* The panel is portalled to document.body and positioned from the button's
      own rect, rather than absolutely inside the search pill. The pill carries
@@ -347,14 +444,44 @@ export function ImageSearchButton({ className }: { className?: string }) {
     setPanelError(null);
   }, []);
 
+  // The search box's own dropdown goes first, every way the panel opens.
+  const onOpenRef = useRef(onOpen);
+  useEffect(() => {
+    onOpenRef.current = onOpen;
+  });
+  const openPanel = useCallback(() => {
+    onOpenRef.current?.();
+    placePanel();
+    setPanelOpen(true);
+  }, [placePanel]);
+
+  // "Search with a photo" in the search box's dropdown (SearchAssist) opens
+  // this panel from there.
+  useEffect(() => {
+    const on = () => openPanel();
+    window.addEventListener(OPEN_PHOTO_SEARCH, on);
+    return () => window.removeEventListener(OPEN_PHOTO_SEARCH, on);
+  }, [openPanel]);
+
   const reset = useCallback(() => {
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
     previewUrl.current = null;
+    pickSeq.current++;
+    viewSeq.current++;
+    views.current.clear();
+    itemViews.current.clear();
+    itemFound.current.clear();
     setPreview(null);
-    setResult(null);
+    setItems([]);
+    setActive(0);
+    setQuery("");
+    setView(null);
+    setViewLoading(false);
+    setMessage(null);
+    setDescribe("");
+    setDropping(false);
     setInquiry(null);
-    setBusy(false);
-    setComplete(false);
+    setPhase("reading");
     setOpen(false);
     if (inputRef.current) inputRef.current.value = "";
   }, []);
@@ -380,89 +507,178 @@ export function ImageSearchButton({ className }: { className?: string }) {
     };
   }, [open, reset, inquiry]);
 
+  // Into the dialog when it opens, so the keyboard is where the eyes are.
+  useEffect(() => {
+    if (open) dialogRef.current?.focus();
+  }, [open]);
+
+  /** Shows the catalogue's answer for some words, from this photo's searches if already made. */
+  const showQuery = useCallback(async (words: string) => {
+    const text = words.trim();
+    if (!text) return;
+    const seq = ++viewSeq.current;
+    const cached = views.current.get(text.toLowerCase());
+    if (cached) {
+      setView(cached);
+      setViewLoading(false);
+      return;
+    }
+    setViewLoading(true);
+    try {
+      const v = await fetchView(text);
+      views.current.set(text.toLowerCase(), v);
+      if (seq === viewSeq.current) setView(v);
+    } catch {
+      if (seq === viewSeq.current) setView({ query: text, products: [], categories: [], total: 0, capped: false, loose: false });
+    } finally {
+      if (seq === viewSeq.current) setViewLoading(false);
+    }
+  }, []);
+
   const onPick = useCallback(async (file: File | null, sourceUrl?: string) => {
+    const seq = ++pickSeq.current;
+    lastInput.current = { file, url: sourceUrl };
+    setRetryable(true);
     if (previewUrl.current) URL.revokeObjectURL(previewUrl.current);
+    previewUrl.current = null;
     if (file) {
       const url = URL.createObjectURL(file);
       previewUrl.current = url;
       setPreview(url);
-    } else if (sourceUrl) {
-      previewUrl.current = null;
-      setPreview(sourceUrl);
+    } else {
+      setPreview(sourceUrl ?? null);
     }
-    setResult(null);
+    viewSeq.current++;
+    views.current.clear();
+    itemViews.current.clear();
+    itemFound.current.clear();
+    setItems([]);
+    setActive(0);
+    setQuery("");
+    setView(null);
+    setViewLoading(false);
+    setMessage(null);
+    setDescribe("");
     setOpen(true);
-    setBusy(true);
-    setComplete(false);
-
-    const startTime = Date.now();
+    setPhase("reading");
 
     try {
       const body = new FormData();
       if (file) {
-        body.append("image", file);
+        const sent = await shrinkForUpload(file);
+        if (seq !== pickSeq.current) return;
+        body.append("image", sent);
         if (file.name) body.append("fileName", file.name);
       }
       if (sourceUrl) body.append("sourceUrl", sourceUrl);
-      const res = await fetch("/api/search/image", { method: "POST", body });
-      const data: Response = await res.json().catch(() => ({ error: "Something went wrong." }));
-
-      // Ensure minimum step pacing so the user experiences the smooth AI sourcing progression
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 1400) {
-        await new Promise((resolve) => setTimeout(resolve, 1400 - elapsed));
+      body.append("phase", "items");
+      const res = await fetch("/api/search/image/", { method: "POST", body });
+      const data: Reply = await res.json().catch(() => ({ error: "Something went wrong." }));
+      if (seq !== pickSeq.current) return;
+      if (!res.ok || data.error) {
+        setMessage(data.error ?? "Something went wrong.");
+        setPhase("error");
+        return;
       }
-
-      // Mark all steps as completely Done with checkmarks before revealing results
-      setComplete(true);
-      await new Promise((resolve) => setTimeout(resolve, 380));
-
-      setResult(res.ok ? data : { error: data.error ?? "Something went wrong." });
+      if (data.isProduct === false || !data.items?.length) {
+        setMessage(data.message ?? null);
+        setPhase("none");
+        return;
+      }
+      if (data.deferred) {
+        // What the photo holds, drawn at once; its products follow, the first
+        // item's straight away and the others' once those are in.
+        const found = data.items;
+        setItems(found);
+        setActive(0);
+        setQuery(found[0].query);
+        setView(null);
+        setViewLoading(true);
+        setPhase("results");
+        const v0 = ++viewSeq.current;
+        const load = (i: number) => {
+          // Already asked for (the shopper tapped it first): the same answer, not a second request.
+          const pending = itemViews.current.get(i) ?? fetchItemView(found[i]).catch(() => emptyView(found[i].query));
+          itemViews.current.set(i, pending);
+          return pending.then((v) => {
+            if (seq !== pickSeq.current) return;
+            itemFound.current.set(i, v);
+            if (i === 0 && v0 === viewSeq.current) {
+              setView(v);
+              setQuery(v.query);
+              setViewLoading(false);
+            }
+          });
+        };
+        void load(0).then(() => found.slice(1).forEach((_, k) => void load(k + 1)));
+        return;
+      }
+      const words = data.query ?? data.searchQuery ?? data.items[0].query;
+      const first: View = {
+        query: words,
+        products: data.products ?? [],
+        categories: data.categories ?? [],
+        total: data.total ?? data.products?.length ?? 0,
+        capped: !!data.capped,
+        loose: !!data.loose,
+      };
+      views.current.set(words.toLowerCase(), first);
+      itemViews.current.set(0, Promise.resolve(first));
+      itemFound.current.set(0, first);
+      setItems(data.items);
+      setActive(0);
+      setQuery(words);
+      setView(first);
+      setPhase("results");
+      // The other things in the photo, ready before they are tapped.
+      data.items.slice(1).forEach((it, k) => {
+        const i = k + 1;
+        const pending = fetchItemView(it).catch(() => emptyView(it.query));
+        itemViews.current.set(i, pending);
+        void pending.then((v) => seq === pickSeq.current && itemFound.current.set(i, v));
+      });
     } catch {
-      setResult({ error: "Could not reach the server. Check your connection and try again." });
-    } finally {
-      setBusy(false);
-      setComplete(false);
+      if (seq !== pickSeq.current) return;
+      setMessage("Could not reach the server. Check your connection and try again.");
+      setPhase("error");
     }
   }, []);
 
-  /* One gate for all three routes in — paste, drop and browse. Checking here
-     rather than in each handler means a 20MB TIFF is refused identically
+  /* One gate for every route in — paste, drop, browse, camera, link. Checking
+     here rather than in each handler means a 20MB TIFF is refused identically
      however it arrived, and the user is told which rule it broke instead of
-     watching the panel open and fail. */
+     watching the dialog open and fail. */
   const acceptFile = useCallback(
     (file: File | null | undefined, sourceUrl?: string) => {
       if (!file && !sourceUrl) {
         setPanelError("That did not contain an image.");
         return;
       }
-      if (file) {
-        const looksRight = file.type
-          ? ACCEPTED_TYPES.includes(file.type)
-          : ACCEPTED_EXTS.test(file.name);
-        if (!looksRight) {
-          setPanelError("That file type will not work. Use a JPEG, PNG, WebP, AVIF, HEIC, GIF, TIFF or BMP.");
-          return;
+      const why = file ? refuse(file) : null;
+      if (why) {
+        if (panelOpenRef.current) setPanelError(why);
+        else {
+          setMessage(why);
+          setPhase("error");
         }
-        if (file.size > MAX_BYTES) {
-          setPanelError(`That image is ${(file.size / 1024 / 1024).toFixed(1)}MB. The limit is 5MB.`);
-          return;
-        }
+        return;
       }
       // The panel is closing because the results are opening. Without this the
       // panel's history pop arrives after the dialog has pushed its own entry
       // and closes it on the spot — the photo is taken and nothing appears.
-      overlayHandoff();
-      closePanel();
+      if (panelOpenRef.current) {
+        overlayHandoff();
+        closePanel();
+      }
       void onPick(file || null, sourceUrl);
     },
     [closePanel, onPick],
   );
 
-  /* The fourth way in, and the only one that needs the app: photograph the
-     thing you want sourced. Everything after the shutter is shared — the
-     capture becomes a File and goes through acceptFile like a pasted or
-     dropped one, so the size and type rules apply to it unchanged. */
+  /* The Android app's camera: photograph the thing you want sourced.
+     Everything after the shutter is shared — the capture becomes a File and
+     goes through acceptFile like a pasted or dropped one, so the size and
+     type rules apply to it unchanged. */
   const takePhoto = useCallback(async () => {
     if (capturing) return;
     setCapturing(true);
@@ -474,13 +690,76 @@ export function ImageSearchButton({ className }: { className?: string }) {
       // anything here would put an error under a panel the user just chose to
       // leave.
       if (err instanceof CameraCancelled) return;
-      setPanelError(
-        "The camera would not open. Check the app's camera permission, or upload a photo instead.",
-      );
+      setPanelError("The camera would not open. Check the app's camera permission, or upload a photo instead.");
     } finally {
       setCapturing(false);
     }
   }, [acceptFile, capturing]);
+
+  /** A camera for this device: the app's, the phone's own camera app, or the webcam in the page. */
+  const openCamera = useCallback(() => {
+    if (nativeCamera) return void takePhoto();
+    if (touch || !webcam) return cameraInputRef.current?.click();
+    if (panelOpenRef.current) {
+      overlayHandoff();
+      closePanel();
+    }
+    pickSeq.current++;
+    setPreview(null);
+    setOpen(true);
+    setPhase("camera");
+  }, [closePanel, nativeCamera, takePhoto, touch, webcam]);
+
+  /** Another photo, from wherever this device takes them. */
+  const anotherPhoto = useCallback(() => inputRef.current?.click(), []);
+
+  const selectItem = useCallback(
+    (i: number) => {
+      const it = items[i];
+      if (!it) return;
+      setActive(i);
+      scrollerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+      const seq = ++viewSeq.current;
+      const done = itemFound.current.get(i);
+      if (done) {
+        setView(done);
+        setQuery(done.query);
+        setViewLoading(false);
+        return;
+      }
+      setQuery(it.query);
+      setViewLoading(true);
+      let pending = itemViews.current.get(i);
+      if (!pending) {
+        pending = fetchItemView(it).catch(() => emptyView(it.query));
+        itemViews.current.set(i, pending);
+      }
+      void pending.then((v) => {
+        itemFound.current.set(i, v);
+        if (seq !== viewSeq.current) return;
+        setView(v);
+        setQuery(v.query);
+        setViewLoading(false);
+      });
+    },
+    [items],
+  );
+
+  const refine = (e: FormEvent) => {
+    e.preventDefault();
+    void showQuery(query);
+  };
+
+  /** No product found: the words instead, searched the same way. */
+  const searchDescribed = (e: FormEvent) => {
+    e.preventDefault();
+    const text = describe.trim();
+    if (!text) return;
+    setItems([]);
+    setQuery(text);
+    setPhase("results");
+    void showQuery(text);
+  };
 
   // Back closes the results, then the upload panel, before it touches the page.
   useBackDismiss(open, reset);
@@ -495,33 +774,49 @@ export function ImageSearchButton({ className }: { className?: string }) {
     reset();
   }, [reset]);
 
-  // Ctrl/Cmd+V anywhere while the panel is open. Bound to the window rather
-  // than to a focused input, because there is no text field here to paste into
-  // and asking the user to click a box first would be a step for nothing.
+  // Ctrl/Cmd+V: into the panel while it is open, and into the dialog too, so
+  // one image after another can be searched without closing anything. Bound
+  // to the window because there is no text field to paste into.
   useEffect(() => {
-    if (!panelOpen) return;
+    if (!panelOpen && !(open && phase !== "camera")) return;
     const onPaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
       let sourceUrl = "";
       const html = e.clipboardData?.getData("text/html") || "";
       const text = e.clipboardData?.getData("text/plain") || "";
       const imgMatch = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-      if (imgMatch) {
-        sourceUrl = imgMatch[1];
-      } else if (/^https?:\/\/.+/i.test(text.trim())) {
-        sourceUrl = text.trim();
-      }
-
+      if (imgMatch) sourceUrl = imgMatch[1];
+      else if (/^https?:\/\/\S+$/i.test(text.trim())) sourceUrl = text.trim();
       const item = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith("image/"));
-      if (!item) {
-        setPanelError("There is no image on the clipboard. Copy an image first, then paste.");
+      if (!item && !sourceUrl) {
+        if (panelOpenRef.current) setPanelError("There is no image on the clipboard. Copy an image first, then paste.");
         return;
       }
       e.preventDefault();
-      acceptFile(item.getAsFile(), sourceUrl);
+      acceptFile(item?.getAsFile() ?? null, sourceUrl || undefined);
     };
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
-  }, [panelOpen, acceptFile]);
+  }, [panelOpen, open, phase, acceptFile]);
+
+  // A picture pasted into the search box this button sits in is searched as a
+  // photo, the way a search engine takes one; text pastes in as text. Only
+  // while neither the panel nor the dialog is open: they take pastes above.
+  useEffect(() => {
+    if (panelOpen || open) return;
+    const onPaste = (e: ClipboardEvent) => {
+      const form = camRef.current?.closest("form");
+      if (!form || !(e.target instanceof Node) || !form.contains(e.target)) return;
+      const file = Array.from(e.clipboardData?.items ?? []).find((i) => i.type.startsWith("image/"))?.getAsFile();
+      if (!file) return;
+      e.preventDefault();
+      onOpenRef.current?.();
+      acceptFile(file);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [panelOpen, open, acceptFile]);
 
   // Dismissal and re-anchoring. Scroll is captured so the panel also follows
   // when an inner scroller moves, not just the page.
@@ -547,8 +842,49 @@ export function ImageSearchButton({ className }: { className?: string }) {
     };
   }, [panelOpen, closePanel, placePanel]);
 
-  const products = result?.products ?? [];
-  const categories = result?.categories ?? [];
+  /** An image dropped from the desktop, or dragged from another page (its file, or its address). */
+  const takeDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    let sourceUrl = "";
+    const uri = e.dataTransfer.getData("text/uri-list");
+    const html = e.dataTransfer.getData("text/html");
+    if (uri) sourceUrl = uri.split("\n")[0].trim();
+    else if (html) {
+      const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+      if (m) sourceUrl = m[1];
+    }
+    let file = e.dataTransfer.files?.[0];
+    if (!file && sourceUrl) {
+      try {
+        const res = await fetch(sourceUrl);
+        if (res.ok) {
+          const blob = await res.blob();
+          const cleanName = sourceUrl.split("/").pop()?.split("?")[0] || "product.jpg";
+          file = new File([blob], cleanName, { type: blob.type || "image/jpeg" });
+        }
+      } catch {
+        // Fetching it here failed (CORS, most likely): the server fetches the address instead.
+      }
+    }
+    acceptFile(file, sourceUrl || undefined);
+  };
+
+  const submitLink = (e: FormEvent) => {
+    e.preventDefault();
+    const url = link.trim();
+    if (!/^https?:\/\/\S+$/i.test(url)) {
+      setPanelError("Paste a full image link, starting with http:// or https://.");
+      return;
+    }
+    setLink("");
+    acceptFile(null, url);
+  };
+
+  const hint = (
+    <p className="mt-3 text-center text-[11.5px] leading-relaxed text-slate-500">
+      Works best with the item in view: a product shot, a screenshot, or someone wearing or holding it.
+    </p>
+  );
 
   const uploadPanel = !panelOpen || !panelPos ? null : (
     <div
@@ -560,9 +896,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
       className="fixed z-[210] rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_-12px_rgba(8,31,42,0.35)] motion-safe:animate-[fadeIn_140ms_ease-out]"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
-        <h2 className="text-sm font-semibold tracking-[-0.01em] text-slate-900">
-          Find products with a photo
-        </h2>
+        <h2 className="text-sm font-semibold tracking-[-0.01em] text-slate-900">Find products with a photo</h2>
         <button
           type="button"
           onClick={closePanel}
@@ -573,257 +907,370 @@ export function ImageSearchButton({ className }: { className?: string }) {
         </button>
       </div>
 
-      {/* The drop target. onDragOver must preventDefault or the browser
-          refuses the drop and navigates to the file instead. */}
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={async (e) => {
-          e.preventDefault();
-          setDragOver(false);
-          let sourceUrl = "";
-          const uri = e.dataTransfer.getData("text/uri-list");
-          const html = e.dataTransfer.getData("text/html");
-          if (uri) {
-            sourceUrl = uri;
-          } else if (html) {
-            const m = html.match(/<img[^>]+src=["']([^"']+)["']/i);
-            if (m) sourceUrl = m[1];
-          }
-          let file = e.dataTransfer.files?.[0];
-          if (!file && sourceUrl) {
-            try {
-              const res = await fetch(sourceUrl);
-              if (res.ok) {
-                const blob = await res.blob();
-                const cleanName = sourceUrl.split("/").pop()?.split("?")[0] || "product.jpg";
-                file = new File([blob], cleanName, { type: blob.type || "image/jpeg" });
-              }
-            } catch {
-              // Direct fetch failed (e.g. CORS), fallback to passing sourceUrl to the server
-            }
-          }
-          acceptFile(file, sourceUrl);
-        }}
-        className={cn(
-          "rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors duration-150",
-          dragOver ? "border-[#27a8c4] bg-[#27a8c4]/[0.07]" : "border-slate-300 bg-slate-50/70",
-        )}
-      >
-        {nativeCamera ? (
-          <>
-            <Camera size={26} className="mx-auto mb-2.5 text-[#176579]" aria-hidden="true" />
-
-            <p className="text-[13px] font-semibold text-slate-800">Photograph the product</p>
-            <p className="mt-1 text-[13px] leading-[1.5] text-slate-600">
-              Point the camera at a sample and we&rsquo;ll search the catalogue for
-              what matches it.
-            </p>
-
-            <button
-              type="button"
-              onClick={() => void takePhoto()}
-              disabled={capturing}
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)] transition-all duration-200 hover:shadow-[0_10px_22px_rgba(23,101,121,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"
-            >
-              <Camera size={15} aria-hidden="true" />
-              {capturing ? "Opening camera…" : "Take a photo"}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="mx-auto mt-3 block rounded text-[13px] font-semibold text-[#176579] underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50"
-            >
-              Choose an existing photo
-            </button>
-          </>
-        ) : (
-          <>
-            <Upload
-              size={26}
-              className={cn("mx-auto mb-2.5 transition-colors", dragOver ? "text-[#176579]" : "text-slate-500")}
-              aria-hidden="true"
-            />
-
+      {touch || nativeCamera ? (
+        <div className="flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={openCamera}
+            disabled={capturing}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#27a8c4] to-[#176579] text-[14px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)] disabled:opacity-60"
+          >
+            <Camera size={17} aria-hidden="true" />
+            {capturing ? "Opening camera…" : "Take a photo"}
+          </button>
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white text-[14px] font-semibold text-slate-700"
+          >
+            <ImagePlus size={17} aria-hidden="true" />
+            Choose from your photos
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* The drop target. onDragOver must preventDefault or the browser
+              refuses the drop and navigates to the file instead. */}
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              setDragOver(false);
+              void takeDrop(e);
+            }}
+            className={cn(
+              "rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors duration-150",
+              dragOver ? "border-[#27a8c4] bg-[#27a8c4]/[0.07]" : "border-slate-300 bg-slate-50/70",
+            )}
+          >
+            <Upload size={24} className={cn("mx-auto mb-2 transition-colors", dragOver ? "text-[#176579]" : "text-slate-500")} aria-hidden="true" />
             <p className="text-[13px] text-slate-700">
-              Paste an image with{" "}
-              <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">
-                {isMac ? "⌘" : "Ctrl"}
-              </kbd>{" "}
-              <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">
-                V
-              </kbd>
+              Drop an image here, or paste it with{" "}
+              <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">{isMac ? "⌘" : "Ctrl"}</kbd>{" "}
+              <kbd className="rounded border border-slate-300 bg-white px-1.5 py-0.5 font-sans text-[11px] font-semibold text-slate-700 shadow-sm">V</kbd>
             </p>
-            <p className="mt-1 text-[13px] text-slate-600">or drag and drop one here</p>
-
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)] transition-all duration-200 hover:shadow-[0_10px_22px_rgba(23,101,121,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50 focus-visible:ring-offset-2 motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0"
-            >
-              Upload a file
-            </button>
-          </>
-        )}
-      </div>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] px-4 py-2.5 text-[13px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)] transition-all duration-200 hover:shadow-[0_10px_22px_rgba(23,101,121,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50 focus-visible:ring-offset-2"
+              >
+                <ImagePlus size={15} aria-hidden="true" />
+                Upload a photo
+              </button>
+              {webcam && (
+                <button
+                  type="button"
+                  onClick={openCamera}
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-[#27a8c4] hover:text-[#176579] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27a8c4]/50"
+                >
+                  <Video size={15} aria-hidden="true" />
+                  Use your webcam
+                </button>
+              )}
+            </div>
+          </div>
+          <form onSubmit={submitLink} className="mt-3 flex items-center gap-2 rounded-xl border border-slate-200 px-2.5 focus-within:border-[#27a8c4] focus-within:ring-2 focus-within:ring-[#27a8c4]/20">
+            <Link2 size={15} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <input
+              type="url"
+              value={link}
+              onChange={(e) => setLink(e.target.value)}
+              placeholder="Or paste an image link"
+              aria-label="Image link"
+              className="h-10 min-w-0 flex-1 bg-transparent text-[13px] text-slate-800 outline-none placeholder:text-slate-500"
+            />
+            {link.trim() && (
+              <button type="submit" className="rounded-lg bg-[#176579] px-3 py-1.5 text-[12px] font-bold text-white">
+                Search
+              </button>
+            )}
+          </form>
+        </>
+      )}
 
       {panelError ? (
         <p role="alert" className="mt-3 text-[12px] font-semibold text-red-600">
           {panelError}
         </p>
       ) : (
-        <p className="mt-3 text-center text-[11px] text-slate-500">
-          JPEG, PNG, WebP, AVIF, HEIC, GIF, TIFF or BMP · up to 5MB
-        </p>
+        hint
       )}
     </div>
   );
+
+  const countLine = (v: View) =>
+    v.loose
+      ? "Close matches: nothing listed has every word"
+      : v.total > 0
+        ? `${v.capped ? `${fmt(v.total)}+` : fmt(v.total)} ${v.total === 1 ? "product" : "products"} like this`
+        : "Nothing listed like this yet";
+
+  const results = view && (
+    <>
+      <div className="mt-4 flex flex-wrap gap-2">
+        {view.categories.map((c) => (
+          <Link
+            key={c.id}
+            href={`/products/?categoryId=${c.id}`}
+            onClick={navigateAway}
+            className={cn(
+              "group inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors",
+              c.best ? "border-[#27a8c4]/50 bg-[#27a8c4]/[0.07] text-[#176579] hover:border-[#176579]" : "border-slate-200 bg-white text-slate-700 hover:border-[#27a8c4]/60 hover:text-[#176579]",
+            )}
+          >
+            {c.best && <span className="text-[9.5px] font-bold uppercase tracking-wider text-[#176579]/80">Best match</span>}
+            {c.name}
+            {c.total ? <span className="font-medium text-slate-400">{fmt(c.total)}</span> : null}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold tabular-nums text-slate-800">{countLine(view)}</p>
+        {viewLoading && (
+          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#176579]">
+            <Loader2 size={13} className="animate-spin" /> Searching…
+          </span>
+        )}
+      </div>
+
+      {view.products.length ? (
+        <div className={cn("mt-3 grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-3", viewLoading && "opacity-50")}>
+          {view.products.map((p) => (
+            <ProductCard key={p.id} product={p} onClick={() => setInquiry(p)} />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-5 py-8 text-center">
+          <p className="mx-auto max-w-sm text-sm text-slate-600">
+            The catalogue is a guide to what we can source, not stock we hold: we can find who makes it.
+          </p>
+        </div>
+      )}
+
+      <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
+        {view.total > view.products.length ? (
+          <Link
+            href={`/products/?q=${encodeURIComponent(view.query)}`}
+            onClick={navigateAway}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#176579] hover:text-[#27a8c4]"
+          >
+            See all {view.capped ? `${fmt(view.total)}+` : fmt(view.total)} results <ArrowRight size={15} />
+          </Link>
+        ) : (
+          <span />
+        )}
+        <Link
+          href={`/contact/?message=${encodeURIComponent(`I'm looking for: ${view.query} (found with a photo search)`)}`}
+          onClick={navigateAway}
+          className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#081f2a] px-4 py-2.5 text-[13px] font-bold text-white transition-colors hover:bg-[#176579]"
+        >
+          Request a quote for this <ArrowRight size={15} />
+        </Link>
+      </div>
+    </>
+  );
+
+  const skeletonGrid = (
+    <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3" aria-hidden="true">
+      {Array.from({ length: 6 }, (_, i) => (
+        <div key={i} className="overflow-hidden rounded-2xl border border-slate-100">
+          <div className="aspect-square animate-pulse bg-slate-100" />
+          <div className="space-y-2 p-3">
+            <div className="h-3 animate-pulse rounded bg-slate-100" />
+            <div className="h-3 w-2/3 animate-pulse rounded bg-slate-100" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const body =
+    phase === "reading" ? (
+      <div aria-live="polite">
+        <p className="text-lg font-bold tracking-[-0.01em] text-slate-900">Looking for products in your photo</p>
+        <p className="mt-1 text-sm text-slate-600">Spotting each item, then matching it across 10 lakh+ products.</p>
+        <div className="mt-5 flex gap-2" aria-hidden="true">
+          {[96, 120, 84].map((w) => (
+            <span key={w} className="h-8 animate-pulse rounded-full bg-slate-100" style={{ width: w }} />
+          ))}
+        </div>
+        {skeletonGrid}
+      </div>
+    ) : phase === "results" ? (
+      <div>
+        {items.length > 0 && (
+          <>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              {items.length > 1 ? `${items.length} things in your photo` : "In your photo"}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {items.map((it, i) => (
+                <button
+                  key={`${it.query}-${i}`}
+                  type="button"
+                  onClick={() => selectItem(i)}
+                  aria-pressed={i === active}
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition-colors",
+                    i === active ? "border-[#176579] bg-[#176579] text-white" : "border-slate-200 bg-white text-slate-700 hover:border-[#27a8c4]/60 hover:text-[#176579]",
+                  )}
+                >
+                  {it.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+        <form onSubmit={refine} className={items.length ? "mt-4" : ""}>
+          <label htmlFor="isx-query" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Searching for
+          </label>
+          <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 focus-within:border-[#27a8c4] focus-within:bg-white focus-within:ring-2 focus-within:ring-[#27a8c4]/20">
+            <Search size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <input
+              id="isx-query"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="h-11 min-w-0 flex-1 bg-transparent text-[15px] font-semibold text-slate-900 outline-none"
+            />
+            {query.trim() && query.trim().toLowerCase() !== view?.query.toLowerCase() && (
+              <button type="submit" className="rounded-lg bg-[#176579] px-3 py-1.5 text-[12px] font-bold text-white">
+                Search
+              </button>
+            )}
+          </div>
+          <p className="mt-1.5 text-[11.5px] text-slate-500">Add a detail to narrow it: a colour, a material, &ldquo;for kids&rdquo;.</p>
+        </form>
+        {results || (viewLoading ? skeletonGrid : null)}
+      </div>
+    ) : phase === "none" ? (
+      <div>
+        <p className="text-lg font-bold tracking-[-0.01em] text-slate-900">We couldn&rsquo;t spot a product here</p>
+        <p className="mt-1 text-sm text-slate-600">
+          It works best with the item in view: a product shot, a screenshot, or someone wearing or holding it.
+        </p>
+        <button
+          type="button"
+          onClick={anotherPhoto}
+          className="mt-4 inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-[#27a8c4] to-[#176579] px-5 py-2.5 text-[13px] font-bold text-white shadow-[0_6px_16px_rgba(39,168,196,0.32)]"
+        >
+          <ImagePlus size={15} /> Try another photo
+        </button>
+        <form onSubmit={searchDescribed} className="mt-6">
+          <label htmlFor="isx-describe" className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+            Or describe what you&rsquo;re looking for
+          </label>
+          <div className="mt-1.5 flex items-center gap-2 rounded-xl border border-slate-200 px-3 focus-within:border-[#27a8c4] focus-within:ring-2 focus-within:ring-[#27a8c4]/20">
+            <Search size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
+            <input
+              id="isx-describe"
+              value={describe}
+              onChange={(e) => setDescribe(e.target.value)}
+              placeholder="e.g. red football jersey"
+              className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
+            />
+            {describe.trim() && (
+              <button type="submit" className="rounded-lg bg-[#176579] px-3 py-1.5 text-[12px] font-bold text-white">
+                Search
+              </button>
+            )}
+          </div>
+        </form>
+        <Link href="/contact/" onClick={navigateAway} className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-[#176579] hover:text-[#27a8c4]">
+          Or send it to our sourcing team <ArrowRight size={15} />
+        </Link>
+      </div>
+    ) : phase === "error" ? (
+      <div role="alert">
+        <p className="text-lg font-bold tracking-[-0.01em] text-slate-900">That didn&rsquo;t work</p>
+        <p className="mt-1 text-sm text-slate-600">{message ?? "Something went wrong."}</p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {retryable && (
+            <button
+              type="button"
+              onClick={() => lastInput.current && void onPick(lastInput.current.file, lastInput.current.url)}
+              className="inline-flex items-center gap-2 rounded-full bg-[#176579] px-5 py-2.5 text-[13px] font-bold text-white"
+            >
+              <RefreshCw size={15} /> Try again
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={anotherPhoto}
+            className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-5 py-2.5 text-[13px] font-semibold text-slate-700"
+          >
+            <ImagePlus size={15} /> Try another photo
+          </button>
+        </div>
+      </div>
+    ) : null;
 
   const dialog = !open ? null : (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Search by photo results"
-      className="fixed inset-0 z-[200] flex items-center justify-center overflow-y-auto bg-[#081f2a]/50 p-4 backdrop-blur-md sm:p-8"
+      aria-label="Search by photo"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-[#081f2a]/55 p-3 backdrop-blur-md sm:p-6"
       onClick={(e) => {
         if (e.target === e.currentTarget) reset();
       }}
     >
-      {/* Glass panel: translucent white over the blurred page, a light top-left
-          border to catch the light, and a soft ring so it reads as a raised
-          surface rather than a flat sheet. */}
-      <div className="my-auto flex max-h-[90svh] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] border border-slate-200/80 bg-white shadow-[0_24px_70px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-900/5">
-        <div className="flex shrink-0 items-start gap-4 border-b border-slate-200 bg-slate-50/60 p-5">
-          {preview ? (
-            <div className="relative size-16 shrink-0 overflow-hidden rounded-2xl border border-white/80 bg-slate-100 shadow-sm ring-1 ring-slate-900/10">
-              {/* eslint-disable-next-line @next/next/no-img-element -- blob: URL, nothing for next/image to optimise */}
-              <img src={preview} alt="The photo you uploaded" className="size-full object-cover" />
-              {busy && (
-                <span className="scan-laser-beam absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-cyan-400 to-transparent shadow-[0_0_8px_rgba(34,211,238,0.9)]" />
-              )}
-            </div>
-          ) : null}
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-semibold tracking-[-0.01em] text-slate-900">
-              {busy ? "Search by photo" : result?.productType || "Search by photo"}
-            </h2>
-            <p className="mt-0.5 text-sm text-slate-700">
-              {busy
-                ? "Reading the image and matching it to the catalogue."
-                : result?.error
-                  ? result.error
-                  : result?.isProduct === false
-                    ? result.message
-                    : products.length
-                      ? `${products.length} similar ${products.length === 1 ? "product" : "products"} we can source.`
-                      : "Nothing close in the catalogue — send it to us and we will find who makes it."}
-            </p>
-            {!busy && result?.terms?.length ? (
-              <p className="mt-1.5 text-xs text-slate-600">Matched on: {result.terms.join(", ")}</p>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={reset}
-            aria-label="Close"
-            className="shrink-0 rounded-full p-1.5 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div
-          ref={scrollerRef}
-          onScroll={onScroll}
-          data-scrolling="false"
-          className="scroll-panel min-h-0 flex-1 overflow-y-auto p-5"
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="relative flex max-h-[94svh] w-full max-w-5xl flex-col overflow-hidden rounded-[28px] bg-white shadow-[0_24px_70px_-20px_rgba(15,23,42,0.5)] outline-none ring-1 ring-slate-900/5 md:max-h-[88svh] md:flex-row"
+        onDragOver={(e) => {
+          if (phase === "camera") return;
+          e.preventDefault();
+          setDropping(true);
+        }}
+        onDragLeave={(e) => {
+          // Leaving for a child is not leaving.
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropping(false);
+        }}
+        onDrop={(e) => {
+          if (phase === "camera") return;
+          setDropping(false);
+          void takeDrop(e);
+        }}
+      >
+        <button
+          type="button"
+          onClick={reset}
+          aria-label="Close"
+          className="absolute right-3 top-3 z-30 grid size-9 place-items-center rounded-full bg-white/95 text-slate-600 shadow-md ring-1 ring-slate-900/10 transition-colors hover:bg-white hover:text-slate-900"
         >
-          {busy ? (
-            <ThinkingSteps complete={complete} />
-          ) : (
-            <>
-              {categories.length > 0 && (
-                <div className="mb-6">
-                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-wider text-slate-600">
-                    Categories to explore
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {categories.map((c) => (
-                      <Link
-                        key={c.id}
-                        href={`/products/?categoryId=${c.id}`}
-                        onClick={navigateAway}
-                        className="group inline-flex items-baseline gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm shadow-sm transition-all hover:border-[#27a8c4] hover:bg-slate-50 hover:shadow"
-                      >
-                        {c.parentName ? (
-                          <span className="text-xs text-slate-500 group-hover:text-slate-600">
-                            {c.parentName} ›
-                          </span>
-                        ) : null}
-                        <span className="font-medium text-slate-700 group-hover:text-[#176579]">
-                          {c.name}
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
+          <X size={18} />
+        </button>
 
-              {products.length ? (
-                <div
-                  className={cn(
-                    "mx-auto grid gap-4",
-                    products.length === 1
-                      ? "max-w-[220px] grid-cols-1"
-                      : products.length === 2
-                        ? "max-w-md grid-cols-2"
-                        : products.length === 3
-                          ? "max-w-2xl grid-cols-2 sm:grid-cols-3"
-                          : "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4",
-                  )}
-                >
-                  {products.map((p) => (
-                    <ProductCard key={p.id} product={p} onClick={() => setInquiry(p)} />
-                  ))}
-                </div>
+        {phase === "camera" ? (
+          <WebcamView onCapture={(f) => void onPick(f)} onUpload={() => inputRef.current?.click()} />
+        ) : (
+          <>
+            <div className="flex shrink-0 flex-col items-center justify-center gap-3 bg-[#0b1f29] px-4 pb-4 pt-12 md:w-[42%] md:px-6 md:py-8">
+              {preview ? (
+                <PhotoStage src={preview} items={items} active={active} scanning={phase === "reading"} onSelect={selectItem} />
               ) : null}
-
-              {products.length >= 48 && result?.searchQuery ? (
-                <p className="mt-6 text-center text-sm text-slate-600">
-                  Showing the closest {products.length}.{" "}
-                  <Link
-                    href={`/products/?q=${encodeURIComponent(result.searchQuery)}`}
-                    onClick={navigateAway}
-                    className="font-semibold text-[#176579] transition-colors hover:text-[#27a8c4] hover:underline"
-                  >
-                    See every match for &ldquo;{result.searchQuery}&rdquo;
-                  </Link>
-                </p>
-              ) : null}
-
-              {products.length ? null : (
-                <div className="py-10 text-center">
-                  <p className="mx-auto max-w-md text-sm text-slate-600">
-                    The catalogue is a guide to what we can source, not stock we hold — so a close match is
-                    normal and an exact one is not required.
-                  </p>
-                  <Link
-                    href="/contact/"
-                    onClick={navigateAway}
-                    className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-[#176579] transition-colors hover:text-[#27a8c4] hover:underline"
-                  >
-                    Send us the product instead
-                    <span aria-hidden="true">→</span>
-                  </Link>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+              <button
+                type="button"
+                onClick={anotherPhoto}
+                className="inline-flex items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-[12.5px] font-semibold text-white transition-colors hover:bg-white/20"
+              >
+                <ImagePlus size={14} /> Try another photo
+              </button>
+              {!touch && <p className="hidden text-center text-[11.5px] text-white/55 md:block">or drop or paste an image anywhere here</p>}
+            </div>
+            <div ref={scrollerRef} onScroll={onScroll} data-scrolling="false" className="scroll-panel min-h-0 flex-1 overflow-y-auto p-5 md:p-7 md:pt-8">
+              {body}
+            </div>
+          </>
+        )}
+        {dropping && <div className="isx-drop">Drop to search this image</div>}
       </div>
     </div>
   );
@@ -848,7 +1295,22 @@ export function ImageSearchButton({ className }: { className?: string }) {
           // value afterwards matters: without it, picking the same file again
           // fires no change event and the panel appears to ignore the click.
           e.target.value = "";
-          acceptFile(f);
+          if (f) acceptFile(f);
+        }}
+      />
+      {/* The phone's own camera app, straight away: capture asks for the
+          camera rather than the photo library. */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        aria-label="Search by image — take a photo"
+        className="sr-only"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          e.target.value = "";
+          if (f) acceptFile(f);
         }}
       />
 
@@ -868,38 +1330,52 @@ export function ImageSearchButton({ className }: { className?: string }) {
 
             group/cam moves here too, so the hairline divider no longer
             triggers the tooltip. */}
-        <span className="group/cam relative flex">
+        <span className="group/cam isx-cam relative flex">
           <button
             ref={camRef}
             type="button"
-            onClick={() => {
-              if (panelOpen) return closePanel();
-              placePanel();
-              setPanelOpen(true);
-            }}
+            onClick={() => (panelOpen ? closePanel() : openPanel())}
             aria-label="Search by photo"
             aria-haspopup="dialog"
             aria-expanded={panelOpen}
-          // Hover inverts to the same dark the tooltip uses, so the button and
-          // the label read as one object rather than a pale chip with an
-          // unrelated black box under it. focus-visible mirrors hover, so the
-          // keyboard path gets the same state and not just a ring.
+            // Hover inverts to the same dark the tooltip uses, so the button and
+            // the label read as one object rather than a pale chip with an
+            // unrelated black box under it. focus-visible mirrors hover, so the
+            // keyboard path gets the same state and not just a ring.
             className="inline-flex size-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-all duration-200 hover:bg-[#081f2a] hover:text-white hover:shadow-[0_4px_14px_rgba(8,31,42,0.35)] focus-visible:bg-[#081f2a] focus-visible:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:ring-offset-1 motion-safe:hover:scale-105 motion-safe:active:scale-95 md:size-9"
           >
             <Camera size={16} className="md:size-[18px]" />
           </button>
 
-          {/* Hidden from assistive tech: aria-label already names the button, so
-              announcing this too would repeat it. */}
+          {/* What the button does, above it: below, it sat under the search
+              box's own dropdown whenever the box was in use, and only its
+              top edge showed (the owner's screenshot, 2026-10-06). A card
+              rather than a bare label, since nobody knows to look for this:
+              what it takes, and the paste that also works. Hidden from
+              assistive tech, which has the button's aria-label; not on
+              phones, which have no hover. */}
           <span
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute left-1/2 top-[calc(100%+12px)] z-50 -translate-x-1/2 whitespace-nowrap rounded-lg bg-[#081f2a] px-2.5 py-1.5 text-[11px] font-medium text-white opacity-0 shadow-lg transition-opacity duration-200 group-hover/cam:opacity-100 group-focus-within/cam:opacity-100",
+              "pointer-events-none absolute bottom-[calc(100%+12px)] left-1/2 z-50 w-[240px] -translate-x-1/2 translate-y-1 rounded-2xl bg-[#081f2a] p-3 text-left text-white opacity-0 shadow-[0_16px_36px_-12px_rgba(8,31,42,0.65)] ring-1 ring-white/10 transition-[opacity,transform] duration-200 ease-out group-hover/cam:translate-y-0 group-hover/cam:opacity-100 group-focus-within/cam:translate-y-0 group-focus-within/cam:opacity-100 motion-reduce:transition-none max-sm:hidden",
               panelOpen && "!opacity-0",
             )}
           >
-            Search by photo
-            <span className="absolute -top-1 left-1/2 size-2 -translate-x-1/2 rotate-45 bg-[#081f2a]" />
+            <span className="flex items-center gap-2.5">
+              <span className="isx-tip-lens" />
+              <span className="text-[12.5px] font-bold leading-tight">Search by photo</span>
+            </span>
+            <span className="mt-1.5 block text-[11.5px] leading-snug text-white/70">
+              Snap, upload or drop a picture of what you need, and we find it in the catalogue.
+            </span>
+            {!touch && (
+              <span className="mt-2 flex items-center gap-1 text-[10.5px] text-white/55">
+                Or paste one into the search box
+                <kbd className="ml-0.5 rounded border border-white/20 bg-white/10 px-1 font-sans text-[10px] font-semibold text-white/80">{isMac ? "⌘" : "Ctrl"}</kbd>
+                <kbd className="rounded border border-white/20 bg-white/10 px-1 font-sans text-[10px] font-semibold text-white/80">V</kbd>
+              </span>
+            )}
+            <span className="absolute -bottom-1 left-1/2 size-2 -translate-x-1/2 rotate-45 bg-[#081f2a]" />
           </span>
         </span>
       </span>
@@ -908,12 +1384,7 @@ export function ImageSearchButton({ className }: { className?: string }) {
 
       {mounted && dialog ? createPortal(dialog, document.body) : null}
 
-      {mounted && inquiry
-        ? createPortal(
-            <InquiryModal product={inquiry} onClose={() => setInquiry(null)} />,
-            document.body,
-          )
-        : null}
+      {mounted && inquiry ? createPortal(<InquiryModal product={inquiry} onClose={() => setInquiry(null)} />, document.body) : null}
     </>
   );
 }

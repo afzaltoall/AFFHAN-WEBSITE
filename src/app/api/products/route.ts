@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { Prisma } from ".prisma/client";
 import { prisma } from "../../../lib/prisma";
-import { parseQuery, buildSearchWhere, buildSearchOrderBy, categoryNameMatches, buildFuzzyWhere, buildFuzzyOrderBy } from "@/lib/search";
+import { parseQuery, buildFuzzyWhere, buildFuzzyOrderBy } from "@/lib/search";
+import { primaryLeaves, resolveSearch, searchKindWhere, searchLooseWhere, searchScore, searchTextWhere, searchWhere, type ResolvedSearch } from "@/lib/searchServer";
 import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList } from "@/lib/moderation";
 import { MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
 
@@ -78,11 +79,19 @@ export async function GET(request: Request) {
 
     const anchorId = searchParams.get("anchorId");
 
-    // Shared search core (src/lib/search.ts): FTS on the product name (stemmed,
-    // GIN-indexed) OR a categoryId match, with phrase/prefix/category relevance
-    // boosts. The homepage hero, navbar autocomplete and this grid all rank
-    // through the same code so results can never disagree.
+    // The search (lib/searchServer.ts, the owner's report of 2026-10-06 that
+    // search was "very dumb"): the query read for what it means (budget and
+    // quantity out, filler dropped, typos corrected), the category it names
+    // found by whole words and read through its whole subtree, and products
+    // ranked category first, then by how well their names match, a device's
+    // accessories after the device. The as-you-type suggestions read the same
+    // way, so the two never disagree. `pq` stays for the fuzzy last resort.
     const pq = parseQuery(query);
+    // exact=1: "search instead for" what was typed, uncorrected.
+    const resolved: ResolvedSearch | null = query && query.trim() ? await resolveSearch(query, { exact: searchParams.get("exact") === "1" }) : null;
+    // Only filler ("best price") or only a budget: nothing to match.
+    const searching = !!resolved && !resolved.intent.empty;
+    const searchCond = resolved ? searchWhere(resolved) : null;
 
     // Load the (small) category table once; do all category work in memory so
     // the search SQL stays join-free and the FTS index remains usable.
@@ -108,14 +117,6 @@ export async function GET(request: Request) {
       moderationExclusion.push(Prisma.sql`p."id" NOT IN (${Prisma.join(blockedProductIds)})`);
     }
 
-    // Resolve which categories the text matches (name contains every word) —
-    // fed to the core as categoryIds so a "bags" search returns every product
-    // in a Bags category, without a SQL join.
-    const matchedCatIds = pq.isValid
-      ? allCats.filter((c) => categoryNameMatches(c.name, pq)).map((c) => c.id)
-      : [];
-    const searchOpts = { categoryIds: matchedCatIds };
-
     // All conditions reference ONLY the Product `p`.
     // conditions       = final filtered query (search + category + anchor)
     // facetConditions  = search + anchor only (NO active-category filter), so
@@ -135,10 +136,12 @@ export async function GET(request: Request) {
       facetConditions.push(anchor);
     }
 
-    if (pq.isValid) {
-      const searchCond = buildSearchWhere(pq, searchOpts);
+    if (searching && searchCond) {
       conditions.push(searchCond);
       facetConditions.push(searchCond);
+    } else if (resolved && !searching) {
+      // A query with nothing to match finds nothing, rather than the whole catalogue.
+      conditions.push(Prisma.sql`FALSE`);
     }
 
     if (categoryId) {
@@ -182,11 +185,30 @@ export async function GET(request: Request) {
       : sortBy === "za" ? Prisma.sql`p."name" DESC, p."id" DESC`
       : sortBy === "oldest" ? Prisma.sql`p."id" ASC`
       : Prisma.sql`p."id" DESC`; // "newest" / default
-    const orderSql = pq.isValid ? buildSearchOrderBy(pq, baseOrderSql, searchOpts) : baseOrderSql;
+    // A search is in its own order (searchScore) unless the shopper chose
+    // one: "A – Z" on results is the matches from A to Z. The app sends no
+    // sortBy and the results page sends "relevance", so both keep the
+    // search's order.
+    const chosenSort = sortBy === "alpha" || sortBy === "za" || sortBy === "oldest" || sortBy === "newest";
+    const ranked = searching && !!resolved && !chosenSort;
+    // A search's A–Z reads names the way a reader does. The database's
+    // collation is C, byte order: the 4,872 names that start with spaces
+    // come first, and the 1,831 that start lower-case after every capital
+    // (measured 2026-10-06). A search orders a few thousand rows, so the
+    // expression costs nothing there; the catalogue's own A–Z, over 1.08M
+    // rows, keeps the name index and its order.
+    const readerName = Prisma.sql`btrim(p."name") COLLATE "und-x-icu"`;
+    const chosenOrderSql =
+      sortBy === "alpha" ? Prisma.sql`${readerName} ASC, p."id" DESC`
+      : sortBy === "za" ? Prisma.sql`${readerName} DESC, p."id" DESC`
+      : baseOrderSql;
+    const orderSql = !searching || !resolved ? baseOrderSql : ranked ? Prisma.sql`${searchScore(resolved)} DESC, ${baseOrderSql}` : chosenOrderSql;
 
     let products: MappedProduct[] = [];
     let total = 0;
     let totalCapped = false;
+    /** Nothing had every word: these are close matches (some words, or a near spelling). */
+    let looseMatch = false;
     let facets: Array<{ id: string; name: string; parentName: string | null; thumbnailUrl: string | null; count: number }> = [];
 
     // Homepage hero (no filters, page 1 only) -> a diverse mix drawn ONLY
@@ -227,8 +249,8 @@ export async function GET(request: Request) {
       // Unfiltered browse (the A–Z full catalogue, page 2+, etc.) would
       // otherwise pay a full COUNT with the moderation regex over 600k+ rows
       // (~4s). The grand total barely moves, so reuse the cached count instead.
-      const isUnfilteredBrowse = conditions.length === 0 && !pq.isValid;
-      const countSql = pq.isValid
+      const isUnfilteredBrowse = conditions.length === 0 && !searching;
+      const countSql = searching
         ? Prisma.sql`SELECT COUNT(*)::int AS count FROM (SELECT 1 FROM "Product" p ${whereSql} LIMIT ${SEARCH_COUNT_CAP}) x`
         : isUnfilteredBrowse
         ? Prisma.sql`SELECT 0::int AS count`
@@ -240,7 +262,7 @@ export async function GET(request: Request) {
       // Grouped by categoryId over a bounded SAMPLE of matches (names resolved
       // in memory afterwards) so a broad query like "bags" doesn't pay a
       // multi-second GROUP BY; category ORDERING stays stable.
-      const wantFacets = Boolean(getChips && pq.isValid && facetConditions.length > 0);
+      const wantFacets = Boolean(getChips && searching && facetConditions.length > 0);
       const facetConds = [...facetConditions, ...moderationExclusion];
       const facetWhere = wantFacets ? Prisma.sql`WHERE ${Prisma.join(facetConds, " AND ")}` : Prisma.empty;
       const FACET_SAMPLE = 4000;
@@ -266,9 +288,37 @@ export async function GET(request: Request) {
       const useLateral =
         browseCatIds !== null &&
         browseCatIds.length > 0 &&
-        !pq.isValid &&
+        !searching &&
         idOrdered &&
         skip + limit <= LATERAL_MAX_TAKE;
+
+      // The bounded set a search is ranked over (see rankWindow below), for
+      // pages within it; deeper pages rank every match, as before.
+      const RANK_PRIMARY = 2500;
+      const RANK_TEXT = 3000;
+      const otherConds = [...conditions.filter((c) => c !== searchCond), ...moderationExclusion];
+      const otherWhere = otherConds.length ? Prisma.sql`AND ${Prisma.join(otherConds, " AND ")}` : Prisma.empty;
+      const leaves = resolved ? primaryLeaves(resolved) : [];
+      const textCond = resolved ? searchTextWhere(resolved) : null;
+      // The thing itself whatever its colour, when the category is wider
+      // than the words (lib/searchServer.ts kindMatch): "water & shoe" for
+      // "black water shoes", which every-word matching would leave out.
+      const kindCond = resolved ? searchKindWhere(resolved) : null;
+      // In the search's order a part is any of its rows (the score orders
+      // the set); in a chosen order, each part's first rows in that order,
+      // so the set's first pages are exactly the matches' first pages.
+      const partOrder = ranked ? Prisma.empty : Prisma.sql`ORDER BY ${chosenOrderSql}`;
+      const rankWindow =
+        searching && resolved && skip + limit <= (ranked ? RANK_TEXT : RANK_PRIMARY) && (leaves.length || textCond || kindCond)
+          ? Prisma.join(
+              [
+                ...(leaves.length ? [Prisma.sql`(SELECT p."id" FROM "Product" p WHERE p."categoryId" IN (${Prisma.join(leaves)}) ${otherWhere} ${partOrder} LIMIT ${RANK_PRIMARY})`] : []),
+                ...(textCond ? [Prisma.sql`(SELECT p."id" FROM "Product" p WHERE ${textCond} ${otherWhere} ${partOrder} LIMIT ${RANK_TEXT})`] : []),
+                ...(kindCond ? [Prisma.sql`(SELECT p."id" FROM "Product" p WHERE ${kindCond} ${otherWhere} ${partOrder} LIMIT ${RANK_TEXT})`] : []),
+              ],
+              " UNION ",
+            )
+          : null;
 
       const rowsQuery = useLateral
         ? prisma
@@ -292,6 +342,25 @@ export async function GET(request: Request) {
             // The LATERAL returns the global first skip+limit rows; drop the
             // pages already served to leave this one.
             .then((r) => r.slice(skip))
+        : rankWindow
+        ? // A search, ranked over a bounded set: the category it names (its
+          // subtree, by the categoryId index) and the first names the text
+          // index matches, never every match. "mobile phone" matches 22,314
+          // names; ranking all of them took 1.6s, ranking these ~5,500 a
+          // fraction of that. Each part has the page's other conditions
+          // (moderation, a chosen category, the anchor), and the order is
+          // the full searchScore within the set, or the order chosen.
+          prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
+            Prisma.sql`
+              WITH cand AS (
+                ${rankWindow}
+              )
+              SELECT p."id", p."name", p."imageUrl", p."category", p."categoryId"
+              FROM "Product" p JOIN cand ON cand."id" = p."id"
+              ORDER BY ${orderSql}
+              LIMIT ${limit} OFFSET ${skip}
+            `
+          )
         : prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
             Prisma.sql`
               SELECT p."id", p."name", p."imageUrl", p."category", p."categoryId"
@@ -305,7 +374,7 @@ export async function GET(request: Request) {
       // Plain category browsing gets the cached subtree count; anything with a
       // search or an anchor narrows the set further and must count for real.
       const countQuery: Promise<number> =
-        browseCatIds !== null && browseCatIds.length > 0 && !pq.isValid && !anchorId
+        browseCatIds !== null && browseCatIds.length > 0 && !searching && !anchorId
           ? getCachedCategoryProductCount(browseCatIds)
           : prisma
               .$queryRaw<Array<{ count: number }>>(countSql)
@@ -326,25 +395,58 @@ export async function GET(request: Request) {
         categoryRef: r.categoryId ? { name: catById.get(r.categoryId)?.name ?? null } : null
       }));
       total = isUnfilteredBrowse ? await getCachedProductCount() : countValue;
-      totalCapped = pq.isValid && total >= SEARCH_COUNT_CAP;
+      totalCapped = searching && total >= SEARCH_COUNT_CAP;
 
       facets = facetRows
         .map((f) => ({ id: f.categoryId, cat: f.categoryId ? catById.get(f.categoryId) : undefined, count: Number(f.count) }))
         .filter((f): f is { id: string; cat: CategoryLite; count: number } => Boolean(f.id && f.cat))
         .map((f) => ({ id: f.id, name: f.cat.name, parentName: f.cat.parentName, thumbnailUrl: f.cat.thumbnailUrl, count: f.count }));
 
-      // Typo-tolerant fallback: an exact search that finds nothing (e.g. "iphn
-      // cabel") retries with pg_trgm fuzzy matching so the shopper still gets
-      // close results instead of an empty page. Only on page 1, so pagination
-      // stays coherent.
-      if (products.length === 0 && pq.isValid && page === 1) {
-        const fuzzyWhere = Prisma.sql`WHERE ${Prisma.join([buildFuzzyWhere(pq), ...moderationExclusion], " AND ")}`;
+      // Nothing has every word: products with some of them, best first, so
+      // "red leather office chair" still finds chairs. Page 1 only, so
+      // pagination stays coherent.
+      const relaxed = searching && resolved && products.length === 0 && page === 1 ? searchLooseWhere(resolved) : null;
+      if (relaxed && resolved) {
+        // The best of them always; shown in the shopper's order if they chose
+        // one. Ranked over a bounded set, as the main search is: an any-word
+        // match can be hundreds of thousands of names.
+        const best = Prisma.sql`
+            WITH cand AS (
+              SELECT p."id" FROM "Product" p
+              WHERE ${Prisma.join([relaxed, ...moderationExclusion], " AND ")}
+              LIMIT 6000
+            )
+            SELECT p."id", p."name", p."imageUrl", p."category", p."categoryId"
+            FROM "Product" p JOIN cand ON cand."id" = p."id"
+            ORDER BY ${searchScore(resolved)} DESC, p."id" DESC
+            LIMIT ${limit}
+          `;
+        const looseRows = await prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
+          ranked ? best : Prisma.sql`SELECT * FROM (${best}) p ORDER BY ${chosenOrderSql}`
+        );
+        products = looseRows.map((r) => ({
+          id: r.id,
+          name: r.name,
+          imageUrl: r.imageUrl,
+          category: r.category,
+          categoryRef: r.categoryId ? { name: catById.get(r.categoryId)?.name ?? null } : null,
+        }));
+        total = products.length;
+        looseMatch = products.length > 0;
+      }
+
+      // Typo-tolerant last resort: still nothing (e.g. "iphn cabel") retries
+      // with pg_trgm fuzzy matching on what was left to match, so the shopper
+      // gets close results instead of an empty page.
+      if (products.length === 0 && searching && resolved && page === 1) {
+        const fuzzyPq = { ...pq, phrase: resolved.intent.text };
+        const fuzzyWhere = Prisma.sql`WHERE ${Prisma.join([buildFuzzyWhere(fuzzyPq), ...moderationExclusion], " AND ")}`;
         const fuzzyRows = await prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
           Prisma.sql`
             SELECT p."id", p."name", p."imageUrl", p."category", p."categoryId"
             FROM "Product" p
             ${fuzzyWhere}
-            ORDER BY ${buildFuzzyOrderBy(pq)}
+            ORDER BY ${buildFuzzyOrderBy(fuzzyPq)}
             LIMIT ${limit}
           `
         );
@@ -356,6 +458,7 @@ export async function GET(request: Request) {
           categoryRef: r.categoryId ? { name: catById.get(r.categoryId)?.name ?? null } : null,
         }));
         total = products.length;
+        looseMatch = products.length > 0;
       }
     }
 
@@ -369,6 +472,23 @@ export async function GET(request: Request) {
         success: true,
         data: products,
         facets,
+        // How the query was read, for the results page to say so: what was
+        // searched (and what was typed, if a typo was corrected), the budget
+        // and quantity taken out of it, the category it names, and whether
+        // these are only close matches.
+        search: resolved
+          ? {
+              text: resolved.intent.text,
+              typed: resolved.read.text,
+              corrected: resolved.corrected,
+              empty: resolved.intent.empty,
+              budget: resolved.intent.budget,
+              quantity: resolved.intent.quantity,
+              primary: resolved.categories.primary.map((h) => ({ id: h.id, name: h.name, total: h.total, path: h.path })),
+              related: resolved.categories.related.slice(0, 8).map((h) => ({ id: h.id, name: h.name, total: h.total })),
+              loose: looseMatch,
+            }
+          : null,
         pagination: {
           total,
           totalCapped,

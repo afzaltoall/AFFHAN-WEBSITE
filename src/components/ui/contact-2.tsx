@@ -59,6 +59,15 @@ export const Contact2 = ({
   const [status, setStatus] = React.useState<"idle" | "submitting" | "success" | "error">("idle");
   const [feedback, setFeedback] = React.useState<string>("");
 
+  // ?message=…: a request written for the visitor elsewhere on the site (the
+  // search's "We'll source it for you": what they searched for, their budget
+  // and quantity). Only into an empty box, and read after mount, so the
+  // server's render and the first client render agree.
+  React.useEffect(() => {
+    const prefill = new URLSearchParams(window.location.search).get("message");
+    if (prefill) setForm((f) => (f.message ? f : { ...f, message: prefill.slice(0, 1000) }));
+  }, []);
+
   const setField = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setForm((f) => ({ ...f, [key]: e.target.value }));
     if (status === "error" || status === "success") { setStatus("idle"); setFeedback(""); }

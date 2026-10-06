@@ -1,81 +1,53 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from ".prisma/client";
-import { prisma } from "@/lib/prisma";
-import { parseQuery, buildSearchWhere, buildRelevanceExpr } from "@/lib/search";
-import { isCategoryBlocked, isNameBlocked } from "@/lib/moderation";
+import { isCategoryBlocked } from "@/lib/moderation";
+import { MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
+import { categoryCard, resolveSearch, suggestProducts, suggestText } from "@/lib/searchServer";
 
 export const dynamic = "force-dynamic";
 
-// Live autocomplete. Returns matching CATEGORIES (so "sh" surfaces "Shirts",
-// "Shoes"…) and top-ranked PRODUCTS, using the shared search core so the
-// dropdown ranks results exactly like the full results page.
+/**
+ * Live autocomplete (lib/searchServer.ts): what a query is read as, what to
+ * complete it to, the categories it names, and a few products, ranked the way
+ * the results page ranks them.
+ *
+ * The site's own search boxes work out the completions and categories in the
+ * browser as each key is pressed (SearchAssist) and only need the products
+ * from here; the rest is for anything that asks this endpoint alone (the
+ * app). The response keeps the old shape (`categories`, `products`,
+ * `suggestions`) and adds to it.
+ *
+ * The same query gets the same answer for everyone, so the edge keeps it for
+ * a minute: a popular prefix is served without waking the function.
+ */
 export async function GET(request: NextRequest) {
+  const q = (request.nextUrl.searchParams.get("q") ?? "").slice(0, 120);
+  if (!q.trim()) return NextResponse.json({ categories: [], products: [], suggestions: [], completions: [] });
   try {
-    const pq = parseQuery(request.nextUrl.searchParams.get("q"));
-    if (!pq.isValid) {
-      return NextResponse.json({ categories: [], products: [], suggestions: [] });
-    }
-
-    // prefix: true — the last word is still being typed, so "cabl" matches
-    // "cable" for live-as-you-type autocomplete.
-    const where = buildSearchWhere(pq, { prefix: true });
-    const relevance = buildRelevanceExpr(pq, { prefix: true });
-
-    // Category matches: every token must appear in the category name, only
-    // product-bearing categories (thumbnailUrl is the "has products" proxy),
-    // prefix matches first then shortest/most-relevant names.
-    const catTokenClauses = pq.tokens.map((tok) => {
-      const like = `%${tok.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
-      return Prisma.sql`"name" ILIKE ${like}`;
-    });
-    const catWhere = catTokenClauses.length
-      ? Prisma.sql`(${Prisma.join(catTokenClauses, " AND ")})`
-      : Prisma.sql`"name" ILIKE ${`%${pq.phrase}%`}`;
-    const prefixLike = `${pq.phrase.replace(/[\\%_]/g, (m) => `\\${m}`)}%`;
-
-    const [categories, products] = await Promise.all([
-      prisma.$queryRaw<Array<{ id: string; name: string; parentName: string | null; thumbnailUrl: string | null }>>(
-        Prisma.sql`
-          SELECT "id", "name", "parentName", "thumbnailUrl"
-          FROM "Category"
-          WHERE ${catWhere} AND "thumbnailUrl" IS NOT NULL
-          ORDER BY ("name" ILIKE ${prefixLike}) DESC, length("name") ASC, "name" ASC
-          LIMIT 6
-        `
-      ),
-      prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryName: string | null }>>(
-        Prisma.sql`
-          SELECT p."id", p."name", p."imageUrl", p."category", c."name" AS "categoryName"
-          FROM "Product" p
-          LEFT JOIN "Category" c ON p."categoryId" = c."id"
-          WHERE ${where}
-          ORDER BY ${relevance} DESC, p."id" DESC
-          LIMIT 14
-        `
-      ),
-    ]);
-
-    // Drop moderation-blocked categories and products from autocomplete. A leaf
-    // whose parent is blocked (e.g. "Boxers" under "Underwear & Loungewear") is
-    // dropped too.
-    const visibleCategories = categories
-      .filter((c) => !isCategoryBlocked(c.name) && !isCategoryBlocked(c.parentName))
+    const r = await resolveSearch(q, { typing: true });
+    const [products, text] = await Promise.all([suggestProducts(r, 7), suggestText(q, 8)]);
+    const categories = (await Promise.all(text.categories.map((c) => categoryCard(c.id))))
+      .filter((c): c is NonNullable<typeof c> => !!c && !isCategoryBlocked(c.name) && !isCategoryBlocked(c.parentName))
       .slice(0, 6);
-    const mappedProducts = products
-      .filter((p) => !isCategoryBlocked(p.categoryName) && !isNameBlocked(p.name))
-      .slice(0, 7)
-      .map((p) => ({
-        id: p.id,
-        name: p.name,
-        imageUrl: p.imageUrl,
-        category: p.categoryName || p.category,
-        categoryRef: p.categoryName ? { name: p.categoryName } : null,
-      }));
-
-    // `suggestions` kept for backward-compatibility with older callers.
-    return NextResponse.json({ categories: visibleCategories, products: mappedProducts, suggestions: mappedProducts });
+    const mapped = products.map((p) => ({ id: p.id, name: p.name, imageUrl: p.imageUrl, category: p.category, categoryRef: p.category ? { name: p.category } : null }));
+    return NextResponse.json(
+      {
+        intent: {
+          text: r.intent.text,
+          corrected: r.corrected ? r.intent.text : null,
+          original: r.read.text,
+          budget: r.intent.budget,
+          quantity: r.intent.quantity,
+          primary: r.categories.primary.map((h) => ({ id: h.id, name: h.name, total: h.total })),
+        },
+        completions: text.completions,
+        categories,
+        products: mapped,
+        suggestions: mapped,
+      },
+      { headers: { "Cache-Control": MODERATION_SENSITIVE_CACHE_CONTROL } },
+    );
   } catch (error) {
     console.error("Search suggestions error:", error);
-    return NextResponse.json({ categories: [], products: [], suggestions: [] }, { status: 500 });
+    return NextResponse.json({ categories: [], products: [], suggestions: [], completions: [] }, { status: 500 });
   }
 }
