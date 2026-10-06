@@ -85,21 +85,37 @@
 .isx-box:hover {
   border-color: #fff;
 }
+/* The chosen one is lit, but keeps its place in the stack (by size, set in
+   PhotoStage), so the boxes inside it can still be pressed. */
 .isx-box[data-active="true"] {
-  z-index: 1;
   border-color: #6fdcf1;
-  box-shadow: 0 0 0 9999px rgba(8, 31, 42, 0.42), 0 0 0 4px rgba(111, 220, 241, 0.35);
+  box-shadow: 0 0 0 1px rgba(8, 31, 42, 0.3), 0 0 0 4px rgba(111, 220, 241, 0.35);
+}
+/* The rest of the picture dimmed around the chosen one: a layer of its own
+   over the boxes, taking no presses, gliding as the choice moves. */
+.isx-dim {
+  position: absolute;
+  z-index: 50;
+  border-radius: 14px;
+  box-shadow: 0 0 0 9999px rgba(8, 31, 42, 0.42);
+  pointer-events: none;
+  transition: top 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), width 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .isx-box:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 2px;
 }
+/* Each label set where no other is (placeTags), over the dimming, and a
+   press on it chooses its item. Unseen until it has its place. */
 .isx-tag {
   position: absolute;
-  left: 6px;
-  top: 6px;
-  /* A narrow box (a bag at the edge of the frame) still gets a readable label. */
-  max-width: max(calc(100% - 12px), 9.5rem);
+  left: 0;
+  top: 0;
+  z-index: 60;
+  max-width: 11rem;
+  visibility: hidden;
+  pointer-events: auto;
+  cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -112,9 +128,19 @@
   color: #0b2a36;
   box-shadow: 0 2px 8px rgba(8, 31, 42, 0.25);
 }
-.isx-box[data-active="true"] .isx-tag {
+.isx-tag[data-placed] {
+  visibility: visible;
+  animation: isx-pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+.isx-tag[data-active="true"] {
   background: #176579;
   color: #fff;
+}
+.isx-tag:hover {
+  background: #fff;
+}
+.isx-tag[data-active="true"]:hover {
+  background: #1b7389;
 }
 @keyframes isx-pop {
   from {
@@ -191,7 +217,11 @@
   }
   .isx-scan .isx-corner,
   .isx-box,
+  .isx-tag[data-placed],
   .isx-tip-lens::after {
     animation: none;
+  }
+  .isx-dim {
+    transition: none;
   }
 }

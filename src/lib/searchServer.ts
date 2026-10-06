@@ -7,6 +7,7 @@ import lexicon from "@/lib/searchLexicon.json";
 import {
   ACCESSORY_TERMS,
   accessoriesSink,
+  audiencesAsked,
   buildCategoryIndex,
   buildVocabulary,
   correctWords,
@@ -14,6 +15,7 @@ import {
   isDescriptive,
   nameWords,
   resolveCategories,
+  someoneElse,
   stem,
   understandQuery,
   type CategoryHit,
@@ -122,6 +124,13 @@ export interface ResolvedSearch {
    * from a photo of water shoes answered with heels and boots.
    */
   wider: boolean;
+  /**
+   * The words say whom it is for ("men's blazer"): the categories for
+   * someone else, and the words a name says them with (someoneElse). Their
+   * products come after the rest (searchScore). Null when the words say no
+   * one.
+   */
+  elsewhere: { leaves: string[]; theirWords: string[]; askedWords: string[] } | null;
 }
 
 /** Do the words say a kind of thing the primary categories' names do not? Colours, cuts and whom-for words do not count. */
@@ -168,6 +177,7 @@ export async function resolveSearch(raw: string, { typing = false, exact = false
     prefixLast: open && last.length >= 3 && !k.completer.isWord(last),
     guess,
     wider: isWider(guess ?? intent, categories, k),
+    elsewhere: someoneElse(audiencesAsked(guess ?? intent), k.index),
   };
 }
 
@@ -346,7 +356,25 @@ export function searchScore(r: ResolvedSearch): Prisma.Sql {
     parts.push(Prisma.sql`(CASE WHEN p."name" ILIKE ${`${esc}%`} THEN 120 WHEN p."name" ILIKE ${`%${esc}%`} THEN 60 ELSE 0 END)`);
   }
   if (accessoriesSink(r.intent)) parts.push(Prisma.sql`(CASE WHEN p."name" ~* ${ACCESSORY_RE} THEN -350 ELSE 0 END)`);
+  // Someone else's (the words say whom it is for, and this is another's: by
+  // its name, or by the category it is in), after everyone's own: below
+  // what the category bonus and the kind bonus can lift it to, so a woman's
+  // blazer follows every man's jacket for "men's blazer", and still shows
+  // when there is nothing else. Unless its name says theirs too ("Men Women
+  // Couple Sneakers").
+  const e = r.elsewhere;
+  if (e) {
+    const theirs = e.leaves.length
+      ? Prisma.sql`(p."name" ~* ${wordsRe(e.theirWords)} OR p."categoryId" IN (${Prisma.join(e.leaves)}))`
+      : Prisma.sql`p."name" ~* ${wordsRe(e.theirWords)}`;
+    parts.push(Prisma.sql`(CASE WHEN ${theirs} AND p."name" !~* ${wordsRe(e.askedWords)} THEN -900 ELSE 0 END)`);
+  }
   return Prisma.sql`(${Prisma.join(parts, " + ")})`;
+}
+
+/** Whole words, for Postgres (\m … \M) or, `js`, for a RegExp. */
+function wordsRe(words: string[], js = false): string {
+  return js ? `\\b(?:${words.join("|")})\\b` : `\\m(${words.join("|")})\\M`;
 }
 
 // ---- As you type -------------------------------------------------------------
@@ -448,6 +476,13 @@ export async function suggestProducts(typed: ResolvedSearch, limit = 6): Promise
     const c = id ? k.index.byId.get(id) : undefined;
     return !!c && [...c.ownStems, ...c.pathStems].some((s) => PET_STEMS.has(s));
   };
+  // Someone else's after everyone's own, as searchScore.
+  const e = r.elsewhere;
+  const theirName = e ? new RegExp(wordsRe(e.theirWords, true), "i") : null;
+  const askedName = e ? new RegExp(wordsRe(e.askedWords, true), "i") : null;
+  const theirLeaves = new Set(e?.leaves ?? []);
+  const someoneElses = (p: { name: string; categoryId: string | null }) =>
+    !!theirName && !!askedName && (theirName.test(p.name) || (!!p.categoryId && theirLeaves.has(p.categoryId))) && !askedName.test(p.name);
   const seen = new Set<number>();
   return rows
     .filter((p) => !seen.has(p.id) && seen.add(p.id) && !isNameBlocked(p.name) && !isProductIdBlocked(p.id))
@@ -461,7 +496,7 @@ export async function suggestProducts(typed: ResolvedSearch, limit = 6): Promise
       // The phrase first in the name is what the product is; far down, a word about it ("…Skull Frame Hair Dryer Decorative Lights").
       const at = phrase ? n.indexOf(phrase) : -1;
       const placed = at === 0 ? 10 : at > 0 && at < 24 ? 7 : at > 0 ? 3 : 0;
-      const score = where + covered * 30 + placed - (sink && ACCESSORY_JS.test(p.name) ? 60 : 0) - (!petsAsked && forPets(p.categoryId) ? 30 : 0);
+      const score = where + covered * 30 + placed - (sink && ACCESSORY_JS.test(p.name) ? 60 : 0) - (!petsAsked && forPets(p.categoryId) ? 30 : 0) - (someoneElses(p) ? 150 : 0);
       return { p, score };
     })
     .sort((a, b) => b.score - a.score || b.p.id - a.p.id)

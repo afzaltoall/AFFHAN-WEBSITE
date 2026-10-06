@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { ArrowRight, Camera, ImagePlus, Link2, Loader2, RefreshCw, Search, SwitchCamera, Upload, Video, X } from "lucide-react";
+import { ArrowRight, Camera, CameraOff, ImagePlus, Link2, Loader2, RefreshCw, Search, SwitchCamera, Upload, Video, X } from "lucide-react";
 import { ProductCard } from "@/components/ui/ProductCard";
 // Loaded on demand, not with the page.
 //
@@ -158,15 +158,121 @@ async function fetchItemView(item: Item): Promise<View> {
   return found.find(strong) ?? [...found].filter((v) => !v.loose).sort((a, b) => b.total - a.total)[0] ?? found[0];
 }
 
+/** A box's place on the stage: boxes are 0–1000 of the upright image, and the stage is exactly the image's size. */
+const boxStyle = (b: NonNullable<Item["box"]>) => ({
+  top: `${b[0] / 10}%`,
+  left: `${b[1] / 10}%`,
+  height: `${(b[2] - b[0]) / 10}%`,
+  width: `${(b[3] - b[1]) / 10}%`,
+});
+const boxArea = (b: Item["box"]) => (b ? (b[2] - b[0]) * (b[3] - b[1]) : 0);
+
+/**
+ * Where each label sits, in pixels of the stage: the first of six spots by
+ * its box (inside its top corner, over it, inside its foot, under it, then
+ * the right-hand corners) that no label placed before it overlaps. The
+ * smallest box is placed first, so the tightest gets the spot in its own
+ * corner, and the order does not depend on which item is chosen: labels
+ * stay where they are as the choice moves.
+ *
+ * When there is not room for every label apart (a phone's small photo, four
+ * things close together), the chosen one's goes first and any that would
+ * cover another is left off (null); its item is still on its box and in the
+ * chips above.
+ */
+function placeTags(items: Item[], stage: HTMLElement, tags: (HTMLElement | null)[], active: number): ({ x: number; y: number } | null)[] {
+  const W = stage.clientWidth;
+  const H = stage.clientHeight;
+  if (!W || !H) return items.map(() => null);
+  const run = (order: number[], strict: boolean) => {
+    const spots: ({ x: number; y: number } | null)[] = items.map(() => null);
+    const placed: { x: number; y: number; w: number; h: number }[] = [];
+    let clashes = 0;
+    for (const i of order) {
+      const b = items[i].box;
+      const el = tags[i];
+      if (!b || !el) continue;
+      const w = el.offsetWidth;
+      const h = el.offsetHeight;
+      const top = (b[0] / 1000) * H;
+      const left = (b[1] / 1000) * W;
+      const bottom = (b[2] / 1000) * H;
+      const right = (b[3] / 1000) * W;
+      const fit = (x: number, y: number) => ({ x: Math.min(Math.max(x, 4), Math.max(4, W - w - 4)), y: Math.min(Math.max(y, 4), Math.max(4, H - h - 4)) });
+      const spotsToTry = [
+        fit(left + 6, top + 6),
+        fit(left, top - h - 5),
+        fit(left + 6, bottom - h - 6),
+        fit(left, bottom + 5),
+        fit(right - w - 6, top + 6),
+        fit(right - w - 6, bottom - h - 6),
+      ];
+      const clash = (c: { x: number; y: number }) =>
+        placed.reduce((sum, r) => sum + Math.max(0, Math.min(c.x + w + 3, r.x + r.w) - Math.max(c.x - 3, r.x)) * Math.max(0, Math.min(c.y + h + 3, r.y + r.h) - Math.max(c.y - 3, r.y)), 0);
+      let best = spotsToTry[0];
+      let least = Infinity;
+      for (const c of spotsToTry) {
+        const o = clash(c);
+        if (o < least) {
+          best = c;
+          least = o;
+        }
+        if (o === 0) break;
+      }
+      if (least > 0) {
+        clashes++;
+        if (strict && i !== active) continue;
+      }
+      placed.push({ ...best, w, h });
+      spots[i] = best;
+    }
+    return { spots, clashes };
+  };
+  const bySize = items
+    .map((it, i) => ({ i, area: boxArea(it.box) }))
+    .sort((a, b) => a.area - b.area)
+    .map((o) => o.i);
+  const steady = run(bySize, false);
+  if (!steady.clashes) return steady.spots;
+  return run([active, ...bySize.filter((i) => i !== active)], true).spots;
+}
+
 /**
  * The shopper's photo, as the stage: a sweep down it while it is read, then
  * each product found outlined where it is, the one being searched lit and
- * the rest of the picture dimmed. Boxes are 0–1000 of the upright image,
- * and the stage is exactly the image's size, so percentages place them.
+ * the rest of the picture dimmed.
+ *
+ * Every box can be pressed, a box inside another included (a shirt under a
+ * blazer, a microphone in a hand, the owner's photo of 2026-10-06): bigger
+ * boxes sit under smaller ones, so a press lands on the smallest box under
+ * it, and the dimming is a layer of its own that takes no presses. Each box's
+ * label is set where no other label is (placeTags), measured, so labels never
+ * pile up, and pressing a label chooses its item too.
  */
 function PhotoStage({ src, items, active, scanning, onSelect }: { src: string; items: Item[]; active: number; scanning: boolean; onSelect: (i: number) => void }) {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const tagRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [spots, setSpots] = useState<({ x: number; y: number } | null)[]>([]);
+  const boxed = !scanning && items.some((it) => it.box);
+
+  // Placed before the browser paints, and again whenever the stage or a label changes size (or, short of room, the choice).
+  useLayoutEffect(() => {
+    const stage = stageRef.current;
+    if (!boxed || !stage) return;
+    const place = () => setSpots(placeTags(items, stage, tagRefs.current, active));
+    place();
+    const watch = new ResizeObserver(place);
+    watch.observe(stage);
+    tagRefs.current.forEach((t) => t && watch.observe(t));
+    return () => watch.disconnect();
+  }, [items, boxed, active]);
+
+  // How many boxes are bigger than each: its place in the stack, the smallest on top.
+  const areas = items.map((it) => boxArea(it.box));
+  const lit = items[active]?.box;
+
   return (
-    <div className="isx-stage">
+    <div ref={stageRef} className="isx-stage">
       {/* eslint-disable-next-line @next/next/no-img-element -- blob: or remote URL, nothing for next/image to optimise */}
       <img src={src} alt="Your photo" className="max-h-[28svh] w-auto md:max-h-[62svh]" />
       {scanning ? (
@@ -176,7 +282,7 @@ function PhotoStage({ src, items, active, scanning, onSelect }: { src: string; i
           <span className="isx-corner" data-c="bl" />
           <span className="isx-corner" data-c="br" />
         </div>
-      ) : items.some((it) => it.box) ? (
+      ) : boxed ? (
         <div className="isx-layer">
           {items.map((it, i) =>
             it.box ? (
@@ -188,15 +294,28 @@ function PhotoStage({ src, items, active, scanning, onSelect }: { src: string; i
                 aria-pressed={i === active}
                 aria-label={`Search for ${it.label}`}
                 onClick={() => onSelect(i)}
-                style={{
-                  top: `${it.box[0] / 10}%`,
-                  left: `${it.box[1] / 10}%`,
-                  height: `${(it.box[2] - it.box[0]) / 10}%`,
-                  width: `${(it.box[3] - it.box[1]) / 10}%`,
-                  animationDelay: `${i * 90}ms`,
+                style={{ ...boxStyle(it.box), zIndex: 1 + areas.filter((a) => a > areas[i]).length, animationDelay: `${i * 90}ms` }}
+              />
+            ) : null,
+          )}
+          {lit && <span aria-hidden="true" className="isx-dim" style={boxStyle(lit)} />}
+          {items.map((it, i) =>
+            it.box ? (
+              <button
+                key={`tag-${it.query}-${i}`}
+                ref={(el) => {
+                  tagRefs.current[i] = el;
                 }}
+                type="button"
+                tabIndex={-1}
+                aria-hidden="true"
+                className="isx-tag"
+                data-active={i === active}
+                data-placed={spots[i] ? "" : undefined}
+                onClick={() => onSelect(i)}
+                style={{ ...(spots[i] ? { left: spots[i]!.x, top: spots[i]!.y } : null), animationDelay: `${i * 90 + 120}ms` }}
               >
-                <span className="isx-tag">{it.label}</span>
+                {it.label}
               </button>
             ) : null,
           )}
@@ -207,9 +326,34 @@ function PhotoStage({ src, items, active, scanning, onSelect }: { src: string; i
 }
 
 /**
+ * Why the camera did not open, in words a shopper can act on. Browsers name
+ * the reason (a DOMException's name), and Chrome adds "by system" when the
+ * computer's own privacy settings, not the site, are what refused.
+ */
+function cameraTrouble(e: unknown): string {
+  const name = e instanceof DOMException ? e.name : e instanceof Error ? e.name : "";
+  const message = e instanceof Error ? e.message : "";
+  if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+    return /system/i.test(message)
+      ? "Your computer's privacy settings are keeping the browser from the camera. On Windows: Settings › Privacy & security › Camera, and let your browser use it. On a Mac: System Settings › Privacy & Security › Camera."
+      : "The camera is blocked for this site. Allow it from the camera icon in the address bar, or in this site's settings, then try again.";
+  }
+  if (name === "NotFoundError" || name === "DevicesNotFoundError" || name === "OverconstrainedError") return "No camera was found on this computer.";
+  if (name === "NotReadableError" || name === "TrackStartError" || name === "AbortError") return "The camera is busy in another app, such as a video call. Close it, then try again.";
+  if (name === "SecurityError") return "The camera opens only on a secure (https) page.";
+  return "The camera could not be opened.";
+}
+
+/**
  * A camera in the page, for a computer: hold the thing up to the webcam and
  * press the shutter. Phones get their own camera app instead (the capture
  * input), which takes a far better picture than a video frame.
+ *
+ * When it cannot open, it says why, in words that say what to do (the
+ * owner's report, 2026-10-06: "declined", on a laptop whose camera nobody
+ * had refused; the site's own Permissions-Policy had banned it, next.config),
+ * and offers to try again or to upload a photo. The shutter shows only for a
+ * camera that is on.
  */
 function WebcamView({ onCapture, onUpload }: { onCapture: (file: File) => void; onUpload: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -218,13 +362,25 @@ function WebcamView({ onCapture, onUpload }: { onCapture: (file: File) => void; 
   const [canFlip, setCanFlip] = useState(false);
   const [mirrored, setMirrored] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Each "Try again" asks the browser afresh. */
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
     let stream: MediaStream | null = null;
     setReady(false);
-    navigator.mediaDevices
-      .getUserMedia({ video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false })
+    setError(null);
+    const open = async () => {
+      const wanted: MediaStreamConstraints = { video: { facingMode: { ideal: facing }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false };
+      try {
+        return await navigator.mediaDevices.getUserMedia(wanted);
+      } catch (e) {
+        // A camera that cannot do what was hoped for still does a picture.
+        if (e instanceof DOMException && e.name === "OverconstrainedError") return navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        throw e;
+      }
+    };
+    open()
       .then(async (s) => {
         if (!live) {
           s.getTracks().forEach((t) => t.stop());
@@ -243,19 +399,13 @@ function WebcamView({ onCapture, onUpload }: { onCapture: (file: File) => void; 
         if (live) setCanFlip(devices.filter((d) => d.kind === "videoinput").length > 1);
       })
       .catch((e: unknown) => {
-        if (!live) return;
-        const name = e instanceof DOMException ? e.name : "";
-        setError(
-          name === "NotAllowedError"
-            ? "Camera access was declined. Allow it from the icon in the address bar, or upload a photo instead."
-            : "No camera could be opened. Upload a photo instead.",
-        );
+        if (live) setError(cameraTrouble(e));
       });
     return () => {
       live = false;
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [facing]);
+  }, [facing, attempt]);
 
   const snap = () => {
     const v = videoRef.current;
@@ -270,7 +420,7 @@ function WebcamView({ onCapture, onUpload }: { onCapture: (file: File) => void; 
   return (
     <div className="flex w-full flex-col bg-[#0b1f29]">
       <div className="relative flex min-h-[46svh] flex-1 items-center justify-center overflow-hidden md:min-h-[60svh]">
-        <video ref={videoRef} playsInline muted className={cn("h-full max-h-[70svh] w-full object-contain", mirrored && "-scale-x-100")} />
+        <video ref={videoRef} playsInline muted className={cn("h-full max-h-[70svh] w-full object-contain", mirrored && "-scale-x-100", error && "invisible")} />
         {ready && (
           <div className="isx-layer" aria-hidden="true">
             <span className="isx-corner" data-c="tl" />
@@ -281,39 +431,59 @@ function WebcamView({ onCapture, onUpload }: { onCapture: (file: File) => void; 
         )}
         {!ready && !error && <Loader2 size={28} className="absolute animate-spin text-white/70" />}
         {error && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 p-8 text-center">
-            <p className="max-w-sm text-sm text-white/85">{error}</p>
-            <button type="button" onClick={onUpload} className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#0b2a36]">
-              <Upload size={15} /> Upload a photo
-            </button>
+          <div role="alert" className="absolute inset-0 flex flex-col items-center justify-center gap-5 p-8 text-center">
+            <span className="grid size-14 place-items-center rounded-full bg-white/10 text-white/80">
+              <CameraOff size={24} aria-hidden />
+            </span>
+            <p className="max-w-md text-[14.5px] leading-relaxed text-white/85">{error}</p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setAttempt((n) => n + 1)}
+                className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-[13px] font-bold text-[#0b2a36] transition hover:bg-white/90"
+              >
+                <RefreshCw size={15} aria-hidden /> Try again
+              </button>
+              <button
+                type="button"
+                onClick={onUpload}
+                className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2.5 text-[13px] font-bold text-white ring-1 ring-white/25 transition hover:bg-white/20"
+              >
+                <Upload size={15} aria-hidden /> Upload a photo
+              </button>
+            </div>
           </div>
         )}
       </div>
-      <div className="flex items-center justify-center gap-6 px-4 py-4">
-        <span className="w-11" />
-        <button
-          type="button"
-          onClick={snap}
-          disabled={!ready}
-          aria-label="Take the photo"
-          className="grid size-16 place-items-center rounded-full border-4 border-white/90 bg-white/15 transition hover:bg-white/25 disabled:opacity-40"
-        >
-          <span className="size-11 rounded-full bg-white" />
-        </button>
-        {canFlip ? (
-          <button
-            type="button"
-            onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
-            aria-label="Switch camera"
-            className="grid size-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
-          >
-            <SwitchCamera size={18} />
-          </button>
-        ) : (
-          <span className="w-11" />
-        )}
-      </div>
-      <p className="pb-4 text-center text-[12px] text-white/60">Hold the product up to the camera, filling the frame.</p>
+      {!error && (
+        <>
+          <div className="flex items-center justify-center gap-6 px-4 py-4">
+            <span className="w-11" />
+            <button
+              type="button"
+              onClick={snap}
+              disabled={!ready}
+              aria-label="Take the photo"
+              className="grid size-16 place-items-center rounded-full border-4 border-white/90 bg-white/15 transition hover:bg-white/25 disabled:opacity-40"
+            >
+              <span className="size-11 rounded-full bg-white" />
+            </button>
+            {canFlip ? (
+              <button
+                type="button"
+                onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
+                aria-label="Switch camera"
+                className="grid size-11 place-items-center rounded-full bg-white/10 text-white hover:bg-white/20"
+              >
+                <SwitchCamera size={18} />
+              </button>
+            ) : (
+              <span className="w-11" />
+            )}
+          </div>
+          <p className="pb-4 text-center text-[12px] text-white/60">Hold the product up to the camera, filling the frame.</p>
+        </>
+      )}
     </div>
   );
 }
@@ -1039,7 +1209,18 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
       </div>
 
       {view.products.length ? (
-        <div className={cn("mt-3 grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-3", viewLoading && "opacity-50")}>
+        <div
+          className={cn("mt-3 grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-3", viewLoading && "opacity-50")}
+          // A card's picture and name link to the product's page (ProductCard): the
+          // dialog closes on the way, as for every link out of the results
+          // (navigateAway), or the page opened behind it and the press looked
+          // dead (the owner's report, 2026-10-06). "Inquire Now" is a button,
+          // and opens the quote form over the dialog.
+          onClickCapture={(e) => {
+            if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+            if (e.target instanceof Element && e.target.closest("a[href]")) navigateAway();
+          }}
+        >
           {view.products.map((p) => (
             <ProductCard key={p.id} product={p} onClick={() => setInquiry(p)} />
           ))}

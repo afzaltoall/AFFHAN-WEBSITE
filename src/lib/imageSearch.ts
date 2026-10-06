@@ -211,12 +211,13 @@ function isTransient(status: number) {
 const PROMPT = `You find the products in photographs so they can be looked up in a B2B sourcing catalogue.
 
 Reply with ONLY compact JSON on one line, no prose, no code fences, in this shape:
-{"items":[{"label":"Office chair","query":"black leather office chair","box":[120,80,940,610]}]}
+{"items":[{"label":"Blazer","query":"navy blue blazer","for":"men","box":[180,240,990,770]}]}
 
 Rules:
 - List the physical things in the photo that someone could buy, most prominent first, at most 4. Things a person is wearing, holding or using count: in a photo of a footballer, the jersey, the shorts and the boots are the products.
 - "label": 1 to 3 words naming the thing, e.g. "Football jersey", "Running shoes", "Desk lamp".
 - "query": a short catalogue search for it: a generic noun with at most two visible attributes such as colour, material or style, e.g. "red football jersey", "white leather sneakers", "LED desk lamp".
+- "for": clothing, shoes and worn accessories only: "men", "women" or "kids", whose cut it is, as the item itself and the way it is worn show. Leave it out when it could be anyone's, and for everything else.
 - "box": where the item is, as [ymin, xmin, ymax, xmax], each scaled 0 to 1000.
 - Never identify or name a person. Never use a brand, team, club, logo or character name; describe only what the item is.
 - Do not guess price, size, dimensions, model numbers or country of origin.
@@ -448,6 +449,11 @@ function readBox(value: unknown): DetectedItem["box"] {
   return y1 - y0 >= 20 && x1 - x0 >= 20 ? [y0, x0, y1, x1] : null;
 }
 
+/** The answer's "for", as a search says it. */
+const FOR: Record<string, string> = { men: "men's", man: "men's", women: "women's", woman: "women's", kids: "kids'", kid: "kids'", children: "kids'" };
+/** Words that already say whose it is. */
+const SAYS_WHO = /\b(?:men|man|women|woman|ladies|lady|kids?|boys?|girls?|child(?:ren)?|bab(?:y|ies)|toddlers?|unisex)(?:'s|s'|s)?(?![a-z])/i;
+
 /**
  * The model's answer, as data the rest of the app can trust: it is untrusted
  * input, and it flows into the catalogue search. Takes the item list, or the
@@ -467,7 +473,12 @@ export function readDescription(parsed: unknown): ImageDescription {
     const query = typeof r.query === "string" ? r.query.trim().slice(0, 80) : "";
     const label = typeof r.label === "string" && r.label.trim() ? r.label.trim().slice(0, 40) : query;
     const terms = strings(r.terms, 6, 40);
-    const q = query || terms.join(" ");
+    const said = query || terms.join(" ");
+    // Whose cut it is goes on the search, unless the words say it already:
+    // "navy blue blazer" for a man is "men's navy blue blazer", or the
+    // catalogue's bigger women's shelf answers it (2026-10-06).
+    const who = typeof r.for === "string" ? FOR[r.for.trim().toLowerCase()] : undefined;
+    const q = who && said && !SAYS_WHO.test(said) ? `${who} ${said}` : said;
     if (!q || seen.has(q.toLowerCase())) continue;
     seen.add(q.toLowerCase());
     items.push({ label: label || q, query: q, terms, box: readBox(r.box) });

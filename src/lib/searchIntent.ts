@@ -737,6 +737,55 @@ const COMPATIBLE: Record<string, string[]> = {
   child: ["child", "girl", "boy"], pet: ["pet"],
 };
 
+/** Whom the words ask for ("men's blazer": men), as audienceOf reads them; none for words that say no one. */
+export function audiencesAsked(intent: QueryIntent): string[] {
+  return [...new Set(intent.stems.map(audienceOf).filter((a): a is string => !!a))];
+}
+
+/** How a product's own name says whom it is for. "Baby blue" and "baby pink" are colours; "cat" is left out ("cat eye", "Cat6"). */
+const AUDIENCE_NAME_WORDS: Record<string, string[]> = {
+  men: ["men", "mens", "man", "male", "males", "gentleman", "gentlemen"],
+  women: ["women", "womens", "woman", "ladies", "lady", "female", "females", "maternity"],
+  girl: ["girl", "girls"],
+  boy: ["boy", "boys"],
+  child: ["kid", "kids", "child", "children", "baby(?!\\s+(?:blue|pink))", "babies", "toddler", "toddlers", "infant", "infants"],
+  pet: ["pet", "pets", "dog", "dogs", "puppy", "puppies", "kitten"],
+};
+
+/**
+ * For a search that says whom it is for, what is someone else's: the
+ * categories for someone the words did not ask for and for no one they did
+ * (their own name or their family's says so, as resolveCategories judges
+ * it: Women's Clothing and everything under it for "men's blazer"), as leaf
+ * ids, and the words a product's own name would say it with. Whom it asks
+ * for, and the compatible ones, are the words that keep a product its place
+ * ("Men Women Couple Sneakers" is a man's too). searchScore sets someone
+ * else's below the rest: a woman's blazer is not a man's, however well its
+ * name matches the other words (the owner's photo of a man in a blue blazer,
+ * answered with women's blazers, 2026-10-06). None for a search that says no
+ * one.
+ */
+export function someoneElse(
+  asked: string[],
+  index: CategoryIndex,
+): { leaves: string[]; theirWords: string[]; askedWords: string[] } | null {
+  if (!asked.length) return null;
+  const fits = (a: string) => asked.some((x) => COMPATIBLE[x].includes(a));
+  const theirs = Object.keys(COMPATIBLE).filter((a) => !fits(a));
+  if (!theirs.length) return null;
+  const leaves = new Set<string>();
+  for (const c of index.all) {
+    if (c.total === 0) continue;
+    const forWhom = [...c.ownStems, ...c.pathStems].map(audienceOf).filter((a): a is string => !!a);
+    if (forWhom.length && !forWhom.some(fits)) for (const id of c.subtree) leaves.add(id);
+  }
+  return {
+    leaves: [...leaves],
+    theirWords: theirs.flatMap((a) => AUDIENCE_NAME_WORDS[a]),
+    askedWords: Object.keys(COMPATIBLE).filter(fits).flatMap((a) => AUDIENCE_NAME_WORDS[a]),
+  };
+}
+
 /**
  * Which categories the words name, on whole words, never substrings:
  *  - coverage: how much of the query the category explains, the head noun

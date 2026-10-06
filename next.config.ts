@@ -120,8 +120,13 @@ const nextConfig: NextConfig = {
             value: "strict-origin-when-cross-origin",
           },
           {
+            // camera=(self): search by photo opens the computer's camera in the
+            // page (ImageSearchButton). "camera=()" banned it for this site too, so
+            // every browser refused at once, without asking, and the page said
+            // access was declined (the owner's report, 2026-10-06). No embedded page
+            // gets the camera, and nothing gets the microphone or location.
             key: "Permissions-Policy",
-            value: "camera=(), microphone=(), geolocation=()",
+            value: "camera=(self), microphone=(), geolocation=()",
           },
         ],
       },
