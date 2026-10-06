@@ -96,17 +96,30 @@ export const getCachedPreferredCategories = unstable_cache(
 
 export const getCachedDefaultHeroPool = unstable_cache(
   async (sourceCatIds: string[]): Promise<HeroProduct[]> => {
+    // Each category's six newest products with a picture, read straight off
+    // the ("categoryId", id DESC) index: a handful of rows per category. It
+    // used to rank every product in these categories first (ROW_NUMBER over
+    // all of them, then rn <= 6), which read 586,586 rows across 440
+    // categories, ran the name filter on each, and took 10 to 27 seconds on
+    // the live database (5 Oct 2026), 0.3s this way. All that time it held
+    // one of the pool's ten connections, and requests queued behind a few
+    // such runs gave up after 30s (P2024). Same rows in the same order:
+    // checked against the old query on the live data.
     return await prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
       Prisma.sql`
         SELECT "id", "name", "imageUrl", "category", "categoryId" FROM (
-          SELECT "id", "name", "imageUrl", "category", "categoryId",
-            ROW_NUMBER() OVER (PARTITION BY "categoryId" ORDER BY "id" DESC) as rn
-          FROM "Product"
-          WHERE "categoryId" IN (${Prisma.join(sourceCatIds)})
-            AND "name" !~* ${blockedNameRegex()}
-            AND "imageUrl" IS NOT NULL
+          SELECT p.*, ROW_NUMBER() OVER (PARTITION BY p."categoryId" ORDER BY p."id" DESC) AS rn
+          FROM unnest(ARRAY[${Prisma.join(sourceCatIds)}]::text[]) AS c(id)
+          CROSS JOIN LATERAL (
+            SELECT "id", "name", "imageUrl", "category", "categoryId"
+            FROM "Product"
+            WHERE "categoryId" = c.id
+              AND "name" !~* ${blockedNameRegex()}
+              AND "imageUrl" IS NOT NULL
+            ORDER BY "id" DESC
+            LIMIT 6
+          ) p
         ) ranked
-        WHERE rn <= 6
         ORDER BY rn ASC, "categoryId" ASC
         LIMIT 600
       `
