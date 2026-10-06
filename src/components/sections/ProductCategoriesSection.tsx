@@ -13,6 +13,24 @@ interface Cat {
   productCount: number;
 }
 
+/** The buying end: where the sourcing happens, and how it works. */
+const BUYING_LINKS = [
+  { href: "/china-sourcing-company/", label: "China sourcing company" },
+  { href: "/china-sourcing-office-guangzhou/", label: "Guangzhou office" },
+  { href: "/sourcing-from-china/", label: "Sourcing from China guide" },
+];
+/** The near end: the location pages. */
+const LOCATION_LINKS = [
+  { href: "/sourcing-company-chennai/", label: "Chennai" },
+  { href: "/sourcing-company-dubai/", label: "Dubai" },
+  { href: "/sourcing-company-singapore/", label: "Singapore" },
+  { href: "/sourcing-company-malaysia/", label: "Malaysia" },
+  { href: "/sourcing-company-uk/", label: "UK" },
+  { href: "/sourcing-company-france/", label: "France" },
+];
+const CHIP =
+  "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[13px] font-medium text-slate-700 transition-colors hover:border-brand/40 hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40";
+
 function CategoryTile({ cat }: { cat: Cat }) {
   const [failed, setFailed] = useState(false);
   return (
@@ -94,18 +112,36 @@ export function ProductCategoriesSection({
             <h2 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900">
               Explore our sourcing categories
             </h2>
-            {/* All eight location pages are linked from here, not two.
-
-                This paragraph is the homepage's only contextual link into the
-                location pages, and it used to reach Chennai and Dubai alone —
-                the other six were left to the footer, which is boilerplate on
-                every URL and carries far less weight than a body link that
-                describes where it goes. Split along the way the business
-                actually works, buying end then delivery end, so eight links
-                read as two sentences rather than as a list of cities. */}
             <p className="mt-2 text-slate-500 max-w-2xl">
-              Browse across {total.toLocaleString()} verified categories — every product we can source for you. The buying happens in China: our <Link href="/china-sourcing-company/" className="text-brand-dark hover:underline font-medium">China sourcing company</Link> works out of the <Link href="/china-sourcing-office-guangzhou/" className="text-brand-dark hover:underline font-medium">Guangzhou office</Link>, and our guide to <Link href="/sourcing-from-china/" className="text-brand-dark hover:underline font-medium">sourcing from China</Link> sets out how an order moves from quote to container. Wherever you are, the sourcing company in <Link href="/sourcing-company-chennai/" className="text-brand-dark hover:underline font-medium">Chennai</Link>, <Link href="/sourcing-company-dubai/" className="text-brand-dark hover:underline font-medium">Dubai</Link>, <Link href="/sourcing-company-singapore/" className="text-brand-dark hover:underline font-medium">Singapore</Link>, <Link href="/sourcing-company-malaysia/" className="text-brand-dark hover:underline font-medium">Malaysia</Link>, the <Link href="/sourcing-company-uk/" className="text-brand-dark hover:underline font-medium">UK</Link> or <Link href="/sourcing-company-france/" className="text-brand-dark hover:underline font-medium">France</Link> handles procurement, quality checks and freight forwarding end to end — the sourcing and the logistics with one import export company rather than three.
+              Browse {total.toLocaleString()} verified categories, every product we can source for you. One import-export company handles the procurement, quality checks and freight forwarding, end to end.
             </p>
+            {/* All nine pages are linked from here, not from the footer alone.
+
+                This block is the homepage's only contextual link into the
+                China and location pages: the footer is boilerplate on every URL
+                and carries far less weight than a body link. They were one long
+                sentence with nine links in it, which the owner found clumsy
+                (2026-10-06); now the same links, in the same order, as two rows
+                the way the business works, the buying end then the near end,
+                each row's label saying where its links go. */}
+            <dl className="mt-5 grid gap-x-5 gap-y-3 sm:grid-cols-[auto_1fr] sm:items-center">
+              <dt className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">In China</dt>
+              <dd className="flex flex-wrap gap-2">
+                {BUYING_LINKS.map((l) => (
+                  <Link key={l.href} href={l.href} className={CHIP}>
+                    {l.label}
+                  </Link>
+                ))}
+              </dd>
+              <dt className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Sourcing company in</dt>
+              <dd className="flex flex-wrap gap-2">
+                {LOCATION_LINKS.map((l) => (
+                  <Link key={l.href} href={l.href} className={CHIP}>
+                    {l.label}
+                  </Link>
+                ))}
+              </dd>
+            </dl>
           </div>
           <Link
             href="/products/"

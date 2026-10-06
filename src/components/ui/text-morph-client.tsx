@@ -56,7 +56,10 @@ export function TextMorph({
             exit={{ opacity: 0, y: -5, filter: "blur(5px)" }}
             transition={{ delay: i * 0.03, duration: 0.3 }}
           >
-            {char}
+            {/* Each letter is a flex item, and a flex item holding only a space
+                has no width: "OEM supply" read "OEMsupply", "Auto Parts"
+                "AutoParts". A non-breaking space keeps its width. */}
+            {char === " " ? " " : char}
           </motion.span>
         ))}
       </motion.span>

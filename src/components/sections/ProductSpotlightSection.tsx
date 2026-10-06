@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { SPOTLIGHT_COUNT } from "@/lib/heroPool";
-import { Sparkles } from "lucide-react";
 import dynamic from 'next/dynamic';
 const CircularTestimonials = dynamic(() => import("@/components/ui/circular-testimonials").then(mod => mod.CircularTestimonials), { ssr: true });
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then(mod => mod.InquiryModal), { ssr: false });
@@ -48,9 +47,9 @@ export function ProductSpotlightSection({ initialProducts = [] }: { initialProdu
     <section className="bg-slate-50 px-4 sm:px-6 lg:px-8 py-10 sm:py-12 border-t border-slate-200">
       <div className="mx-auto max-w-[1200px]">
         <div className="text-center mb-6 sm:mb-8">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-dark">
-            <Sparkles size={14} /> Product Spotlight
-          </span>
+          {/* Words only, like every other section's label: the sparkle read as
+              decoration added by a machine (the owner, 2026-10-06). */}
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-dark">Product Spotlight</span>
           <h2 className="mt-2 text-2xl sm:text-4xl font-black tracking-tight text-slate-900">
             A closer look at what we source
           </h2>

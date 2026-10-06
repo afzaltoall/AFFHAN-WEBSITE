@@ -37,7 +37,8 @@ export function TextMorph({
       <span className={`inline-flex gap-[0.5px] overflow-hidden ${className ?? ""}`}>
         {chars.map((char, i) => (
           <span key={i} className={charClassName}>
-            {char}
+            {/* A space alone in a flex item has no width (see text-morph-client). */}
+            {char === " " ? " " : char}
           </span>
         ))}
       </span>

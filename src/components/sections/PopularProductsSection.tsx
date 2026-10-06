@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { POPULAR_COUNT } from "@/lib/heroPool";
 import Link from "next/link";
-import { ChevronRight, Flame } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import dynamic from 'next/dynamic';
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then(mod => mod.InquiryModal), { ssr: false });
 import { TextMorph } from "@/components/ui/text-morph-wrapper";
@@ -42,9 +42,9 @@ export function PopularProductsSection({ initialProducts = [] }: { initialProduc
     <section id="popular-products" className="w-full bg-slate-50 py-10 sm:py-14 px-4 sm:px-6 lg:px-8 overflow-hidden">
       <div className="max-w-[1600px] mx-auto">
         <div className="flex flex-col items-center text-center gap-2 sm:gap-3 mb-2 sm:mb-4">
-          <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.2em] text-brand-dark">
-            <Flame size={14} /> Popular Products
-          </span>
+          {/* Words only, like every other section's label: the flame read as
+              decoration added by a machine (the owner, 2026-10-06). */}
+          <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-dark">Popular Products</span>
           <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 flex flex-wrap items-center justify-center gap-x-2.5">
             <span>Trending products ready for</span>
             <div className="flex justify-start min-w-[110px] sm:min-w-[140px] lg:min-w-[180px]">
