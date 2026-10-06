@@ -1,6 +1,7 @@
 /* /free-china-trip/registered/ (RegisteredExperience): the participants board.
    Tokens come from the film's .cx block (cinematic.css): the same black, gold
-   and crimson as the landing page and the application. */
+   and crimson as the landing page and the application. Two rows under the
+   heading: the pass beside the draw, then one live panel for everyone. */
 
 .tr {
   background: #050406;
@@ -79,15 +80,14 @@
   font-size: 16px;
   line-height: 1.6;
   color: var(--cx-mute);
+  text-wrap: pretty;
 }
 @media (min-width: 768px) {
   .tr-lede { font-size: 17px; }
 }
 
 /* ---- Panels ------------------------------------------------------------------------------- */
-.tr-panel,
-.tr-board,
-.tr-countries {
+.tr-panel {
   position: relative;
   border-radius: 22px;
   padding: 1.35rem 1.4rem;
@@ -96,9 +96,7 @@
   backdrop-filter: blur(14px) saturate(1.2);
   box-shadow: 0 30px 70px -40px rgb(0 0 0 / 0.9), inset 0 1px 0 rgb(255 248 230 / 0.05);
 }
-.tr-panel::before,
-.tr-board::before,
-.tr-countries::before {
+.tr-panel::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -111,7 +109,7 @@
   pointer-events: none;
 }
 @media (min-width: 768px) {
-  .tr-panel, .tr-board, .tr-countries { padding: 1.6rem 1.75rem; }
+  .tr-panel { padding: 1.6rem 1.75rem; }
 }
 .tr-panel-title {
   font-size: 11px;
@@ -149,110 +147,89 @@
   100% { box-shadow: 0 0 0 9px rgb(91 227 155 / 0); }
 }
 
-/* ---- The count ---------------------------------------------------------------------------- */
-.tr-total {
-  position: relative;
-  margin-top: 0.5rem;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  font-family: var(--font-cx-display), Georgia, serif;
-  font-variation-settings: "opsz" 11;
-  font-size: clamp(64px, 16vw, 104px);
-  line-height: 1;
-  color: var(--cx-white);
+/* ---- The first row: the pass, the draw ---------------------------------------------------- */
+/* The pass fills its row, so the two end together. */
+.tr-pass-wrap { display: flex; }
+.tr-pass-wrap > .tr-pass { flex: 1; }
+/* Before it is known who is reading: the row keeps its height, and shows nothing. */
+.tr-apply-wait {
+  min-height: 18rem;
+  background: none;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
-.tr-total-wait { color: rgb(244 239 230 / 0.25); }
-.tr-gained {
-  margin-top: 0.4em;
-  border-radius: 999px;
-  background: rgb(214 168 78 / 0.16);
-  padding: 0.25em 0.55em;
-  font-family: var(--font-sans, inherit);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: var(--cx-gold-hi);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .tr-gained { animation: tr-pop 0.6s cubic-bezier(0.2, 0.7, 0.2, 1.4) both; }
-}
-@keyframes tr-pop { from { opacity: 0; transform: translateY(10px) scale(0.6); } }
-.tr-places {
-  margin-top: 0.4rem;
-  font-size: 14px;
-  color: var(--cx-mute);
-}
-.tr-stats {
-  margin-top: 1.1rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.tr-stats li {
-  border-radius: 999px;
-  border: 1px solid rgb(244 239 230 / 0.12);
-  padding: 0.35rem 0.8rem;
-  font-size: 12.5px;
-  color: rgb(244 239 230 / 0.85);
-  font-variant-numeric: tabular-nums;
-}
-/* The drums. */
-.tr-odo {
-  display: inline-flex;
-  font-variant-numeric: tabular-nums;
-}
-.tr-odo-window {
-  display: inline-block;
-  height: 1em;
-  overflow: hidden;
-}
-.tr-odo-strip {
+.tr-apply-wait::before { display: none; }
+
+/* ---- The draw: five places, the countdown, the day -------------------------------------- */
+/* Above the live panel, so the calendar's menu opens over it. */
+.tr-draw {
+  z-index: 2;
   display: flex;
   flex-direction: column;
-  transition: transform 1.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
-/* Each figure lit like a dial: ivory at the top, gold at the foot. */
-.tr-odo-strip > span {
-  height: 1em;
+.tr-draw-title {
+  margin-top: 0.6rem;
+  /* Optical size 11: the Didone's hairlines thicken, so the 5 stays a 5. */
+  font-variation-settings: "opsz" 11;
+  font-size: clamp(34px, 8vw, 46px);
+  font-weight: 400;
   line-height: 1;
-  background: linear-gradient(180deg, #fffaf0 8%, #f4e6c8 52%, #d6a84e 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
+  text-transform: uppercase;
+  color: var(--cx-white);
 }
-
-/* ---- The five places and the countdown -------------------------------------------------- */
-.tr-pool-line {
-  font-size: 12.5px;
+.tr-draw-line {
+  margin-top: 0.5rem;
+  font-size: 14px;
+  line-height: 1.5;
   color: var(--cx-mute);
-  text-align: right;
 }
-.tr-seats {
-  margin-top: 1rem;
+/* Five golden tickets, a light running along them now and then. */
+.tr-tickets {
+  margin-top: 1.15rem;
   display: grid;
+  max-width: 24rem;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.6rem;
+  gap: 0.55rem;
 }
-.tr-seat {
+.tr-ticket { filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.5)); }
+.tr-ticket-face {
+  position: relative;
   display: grid;
-  aspect-ratio: 1;
-  max-height: 64px;
+  height: 3rem;
   place-items: center;
-  border-radius: 16px;
-  border: 1px solid rgb(214 168 78 / 0.38);
-  background: radial-gradient(circle at 50% 30%, rgb(214 168 78 / 0.14), rgb(214 168 78 / 0.02) 70%);
-  color: var(--cx-gold-hi);
+  overflow: hidden;
+  border-radius: 8px;
+  color: #6b4a14;
+  background: linear-gradient(135deg, #fbf0d6 0%, #efd6a2 45%, #d6ad64 100%);
+  /* The notches either side, as a ticket's. */
+  -webkit-mask:
+    radial-gradient(circle at 0 50%, #0000 6px, #000 6.5px) left / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 50%, #0000 6px, #000 6.5px) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle at 0 50%, #0000 6px, #000 6.5px) left / 51% 100% no-repeat,
+    radial-gradient(circle at 100% 50%, #0000 6px, #000 6.5px) right / 51% 100% no-repeat;
+}
+.tr-ticket-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.6) 50%, transparent 65%);
+  transform: translateX(-120%);
 }
 @media (prefers-reduced-motion: no-preference) {
-  .tr-seat { animation: tr-seat 3.2s ease-in-out calc(var(--i) * 0.3s) infinite; }
+  .tr-ticket-face::after { animation: tr-ticket-light 6s ease-in-out calc(1.4s + var(--i) * 0.16s) infinite; }
 }
-@keyframes tr-seat {
-  0%, 100% { box-shadow: 0 0 0 0 rgb(242 211 142 / 0); }
-  50% { box-shadow: 0 0 22px -4px rgb(242 211 142 / 0.55); }
+@keyframes tr-ticket-light {
+  0%, 64% { transform: translateX(-120%); }
+  84%, 100% { transform: translateX(120%); }
+}
+/* At the foot of the panel, however tall the row. */
+.tr-draw-when {
+  margin-top: auto;
+  padding-top: 1.4rem;
 }
 .tr-pool-when {
-  margin-top: 1.1rem;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.24em;
@@ -294,24 +271,224 @@
   font-size: 15px;
   color: var(--cx-gold-hi);
 }
+/* Add to calendar, and its two ways. */
+.tr-cal {
+  position: relative;
+  display: inline-block;
+  margin-top: 1rem;
+}
+.tr-cal-button {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgb(214 168 78 / 0.45);
+  background: rgb(214 168 78 / 0.06);
+  padding: 0 0.95rem;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cx-gold-hi);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+.tr-cal-button:hover { background: rgb(214 168 78 / 0.14); border-color: rgb(242 211 142 / 0.7); }
+.tr-cal-button:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 3px; }
+.tr-cal-chev { transition: rotate 0.2s ease; }
+.tr-cal-chev.is-open { rotate: 180deg; }
+.tr-cal-menu {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 6px);
+  z-index: 30;
+  min-width: 17rem;
+  border-radius: 14px;
+  padding: 0.35rem;
+  background: #17131a;
+  box-shadow: 0 22px 50px -18px rgb(0 0 0 / 0.9), inset 0 0 0 1px rgb(242 211 142 / 0.22);
+}
+.tr-cal-menu a,
+.tr-cal-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  border-radius: 10px;
+  padding: 0 0.8rem;
+  font-size: 13.5px;
+  color: var(--cx-white);
+  text-align: left;
+}
+.tr-cal-menu a:hover,
+.tr-cal-menu button:hover { background: rgb(244 239 230 / 0.07); }
+.tr-cal-menu a:focus-visible,
+.tr-cal-menu button:focus-visible { outline: 2px solid var(--cx-gold-hi); outline-offset: -2px; }
+
+/* ---- Everyone, live: the count and where from, beside the board ------------------------- */
+.tr-live-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+.tr-summary {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+@media (min-width: 1024px) {
+  .tr-live-grid { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 0; }
+  .tr-summary { padding-right: 2.25rem; }
+  .tr-board { padding-left: 2.25rem; border-left: 1px solid rgb(244 239 230 / 0.08); }
+}
+@media (max-width: 1023px) {
+  .tr-board { padding-top: 1.4rem; border-top: 1px solid rgb(244 239 230 / 0.08); }
+}
+.tr-total {
+  position: relative;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-variation-settings: "opsz" 11;
+  font-size: clamp(64px, 16vw, 104px);
+  line-height: 1;
+  color: var(--cx-white);
+}
+.tr-total-wait { color: rgb(244 239 230 / 0.25); }
+/* A registration arriving while the page is open: said for a moment, then gone. */
+.tr-arrived {
+  border-radius: 999px;
+  background: rgb(91 227 155 / 0.12);
+  box-shadow: inset 0 0 0 1px rgb(120 220 160 / 0.3);
+  padding: 0.35em 0.75em;
+  font-family: var(--font-sans);
+  font-variation-settings: normal;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: #9ef0c2;
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-arrived { animation: tr-pop 0.6s cubic-bezier(0.2, 0.7, 0.2, 1.4) both; }
+}
+@keyframes tr-pop { from { opacity: 0; transform: translateY(10px) scale(0.6); } }
+.tr-places {
+  margin-top: 0.45rem;
+  font-size: 14px;
+  color: var(--cx-mute);
+}
+.tr-pace {
+  margin-top: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 13px;
+  color: rgb(244 239 230 / 0.86);
+  font-variant-numeric: tabular-nums;
+}
+.tr-pace-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: #5be39b;
+}
+/* The drums. */
+.tr-odo {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+}
+.tr-odo-window {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+}
+.tr-odo-strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 1.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Each figure lit like a dial: ivory at the top, gold at the foot. */
+.tr-odo-strip > span {
+  height: 1em;
+  line-height: 1;
+  background: linear-gradient(180deg, #fffaf0 8%, #f4e6c8 52%, #d6a84e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+/* Where from: one country by name, several as a short ranking of bars. */
+.tr-from { margin-top: 1.6rem; }
+.tr-from-title { font-size: 10.5px; color: rgb(214 168 78 / 0.85); }
+.tr-from-one {
+  margin-top: 0.65rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cx-white);
+}
+.tr-from-list {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.55rem;
+}
+.tr-from-list li {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 9.5rem) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 13px;
+  color: rgb(244 239 230 / 0.88);
+}
+.tr-from-bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(244 239 230 / 0.08);
+}
+.tr-from-bar > span {
+  display: block;
+  height: 100%;
+  width: calc(var(--p) * 100%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, #b88a3a, #f2d38e);
+}
+.tr-from-n {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--cx-gold-hi);
+}
+.tr-from-more {
+  margin-top: 0.55rem;
+  font-size: 12px;
+  color: var(--cx-mute);
+}
+.tr-flag {
+  width: 20px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.15);
+}
+.tr-flag-none { display: inline-block; background: rgb(244 239 230 / 0.1); }
 
 /* ---- The departures board ---------------------------------------------------------------- */
-.tr-board-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
+.tr-board { min-width: 0; }
 .tr-board-cols,
 .tr-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.75fr);
   align-items: center;
   gap: 0.75rem;
 }
 .tr-board-cols {
-  margin-top: 1.1rem;
-  padding: 0 0.75rem 0.55rem;
+  margin-top: 1rem;
+  padding: 0 0.7rem 0.55rem;
   border-bottom: 1px solid rgb(244 239 230 / 0.1);
   font-size: 10px;
   font-weight: 600;
@@ -319,23 +496,15 @@
   text-transform: uppercase;
   color: rgb(244 239 230 / 0.5);
 }
+.tr-board-cols span:last-child { text-align: right; }
 .tr-board-rows {
-  margin-top: 0.4rem;
   display: grid;
-  gap: 0.35rem;
-  max-height: 23.5rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
   perspective: 900px;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(214 168 78 / 0.45) transparent;
-  padding-right: 0.15rem;
 }
 .tr-row {
-  min-height: 2.75rem;
-  border-radius: 12px;
-  padding: 0.5rem 0.75rem;
-  background: rgb(244 239 230 / 0.035);
+  min-height: 3.15rem;
+  padding: 0.45rem 0.7rem;
+  border-bottom: 1px solid rgb(244 239 230 / 0.06);
   font-size: 13.5px;
   color: rgb(244 239 230 / 0.88);
   transform-origin: 50% 0;
@@ -348,60 +517,99 @@
 @keyframes tr-flip { from { opacity: 0; transform: rotateX(-88deg); } }
 @keyframes tr-lit {
   0% { background: rgb(214 168 78 / 0.3); box-shadow: 0 0 30px -6px rgb(242 211 142 / 0.6); }
-  100% { background: rgb(244 239 230 / 0.035); box-shadow: none; }
+  100% { background: transparent; box-shadow: none; }
 }
 .tr-row-id {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  font-variant-numeric: tabular-nums;
+  gap: 0.6rem;
   white-space: nowrap;
+}
+/* The split-flap tiles: one character to a tile, the split across its middle. */
+.tr-flap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.tr-flap-tile {
+  position: relative;
+  display: inline-grid;
+  width: 1.12em;
+  height: 1.62em;
+  place-items: center;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #231d26 0%, #1b161d 49.5%, #110d13 50.5%, #18131a 100%);
+  box-shadow: inset 0 0 0 1px rgb(255 248 230 / 0.07), 0 1px 1px rgb(0 0 0 / 0.6);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: #f6e6c2;
+  font-variant-numeric: tabular-nums;
+}
+.tr-flap-tile::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 0.5px);
+  height: 1px;
+  background: rgb(0 0 0 / 0.7);
+}
+.tr-flap-dash {
+  width: 0.45em;
+  height: 2px;
+  margin: 0 1px;
+  border-radius: 1px;
+  background: rgb(246 230 194 / 0.5);
 }
 .tr-row-from {
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-size: 12.5px;
+  gap: 0.55rem;
+  font-size: 13px;
 }
 .tr-row-when {
+  justify-self: end;
   font-size: 12.5px;
   color: var(--cx-mute);
   white-space: nowrap;
 }
-.tr-row-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  justify-self: end;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #9ef0c2;
-  white-space: nowrap;
-}
 /* The visitor's own line. */
 .tr-row-you {
-  background: linear-gradient(90deg, rgb(214 168 78 / 0.2), rgb(214 168 78 / 0.06));
-  box-shadow: inset 0 0 0 1px rgb(214 168 78 / 0.45);
+  border-radius: 10px;
+  border-bottom-color: transparent;
+  background: linear-gradient(90deg, rgb(214 168 78 / 0.18), rgb(214 168 78 / 0.04));
+  box-shadow: inset 0 0 0 1px rgb(214 168 78 / 0.42);
   color: var(--cx-white);
 }
-.tr-row-you .tr-row-id { color: var(--cx-gold-hi); }
+.tr-row-you .tr-flap-tile {
+  color: #ffe2a0;
+  box-shadow: inset 0 0 0 1px rgb(242 211 142 / 0.3), 0 1px 1px rgb(0 0 0 / 0.6);
+}
 .tr-row-you-tag {
   border-radius: 999px;
   background: var(--cx-gold);
-  padding: 0.1rem 0.45rem;
+  padding: 0.12rem 0.45rem;
   font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #1b1307;
+}
+/* Between the newest and the visitor's own line, further down. */
+.tr-row-gap {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  padding: 0.55rem 0;
+}
+.tr-row-gap span {
+  width: 4px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(244 239 230 / 0.28);
 }
 .tr-row-skeleton span {
   height: 0.7rem;
@@ -414,69 +622,54 @@
 }
 @keyframes tr-shimmer { to { background-position: -200% 0; } }
 .tr-board-empty {
-  padding: 1.4rem 0.75rem;
+  padding: 1.4rem 0.7rem;
   font-size: 14px;
   color: var(--cx-mute);
 }
+.tr-board-more {
+  display: inline-flex;
+  min-height: 40px;
+  margin-top: 0.9rem;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgb(244 239 230 / 0.16);
+  padding: 0 1rem;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgb(244 239 230 / 0.85);
+  transition: border-color 0.2s ease, color 0.2s ease;
+}
+.tr-board-more:hover { border-color: rgb(242 211 142 / 0.55); color: var(--cx-gold-hi); }
+.tr-board-more:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 3px; }
 .tr-board-error {
   margin-top: 0.8rem;
   font-size: 12.5px;
   color: var(--cx-error);
 }
 .tr-board-privacy {
-  margin-top: 0.9rem;
+  margin-top: 1.3rem;
+  border-top: 1px solid rgb(244 239 230 / 0.07);
+  padding-top: 0.95rem;
   font-size: 11.5px;
   line-height: 1.5;
   color: rgb(244 239 230 / 0.45);
 }
-/* Phones: the board keeps three columns (the time moves under the Trip ID). */
+/* Phones: two lines to a row. */
 @media (max-width: 520px) {
   .tr-board-cols { display: none; }
   .tr-row {
     grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "id status" "from when";
-    row-gap: 0.25rem;
+    /* The Trip ID (and "You") alone on top; where from and when under it. */
+    grid-template-areas: "id id" "from when";
+    row-gap: 0.35rem;
+    padding: 0.6rem 0.55rem;
   }
   .tr-row-id { grid-area: id; }
-  .tr-row-status { grid-area: status; }
   .tr-row-from { grid-area: from; }
-  .tr-row-when { grid-area: when; justify-self: end; }
-}
-
-/* ---- Countries ------------------------------------------------------------------------- */
-.tr-country-list {
-  margin-top: 0.9rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.tr-country {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border-radius: 999px;
-  border: 1px solid rgb(244 239 230 / 0.12);
-  padding: 0.35rem 0.75rem 0.35rem 0.55rem;
-  font-size: 12.5px;
-  color: rgb(244 239 230 / 0.88);
-}
-.tr-country-n {
-  min-width: 1.4rem;
-  border-radius: 999px;
-  background: rgb(214 168 78 / 0.18);
-  padding: 0 0.4rem;
-  text-align: center;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--cx-gold-hi);
-}
-.tr-flag {
-  width: 20px;
-  height: 14px;
-  flex-shrink: 0;
-  border-radius: 2px;
-  object-fit: cover;
-  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.15);
+  .tr-row-when { grid-area: when; }
+  .tr-flap-tile { font-size: 11.5px; }
 }
 
 /* ---- Not registered yet ---------------------------------------------------------------- */
@@ -484,6 +677,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  justify-content: center;
   gap: 1rem;
 }
 .tr-apply-mark {
@@ -501,7 +695,7 @@
 .tr-pass {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 7.5rem;
+  grid-template-columns: minmax(0, 1fr) 8rem;
   border-radius: 22px;
   color: #1b1307;
   background:
@@ -513,10 +707,23 @@
     0 0 60px -20px rgb(242 211 142 / 0.45);
   overflow: hidden;
 }
+/* Phones: the stub along the foot; the brand alone in the head ("Boarding pass" goes: the pass
+   says it), and the last two fields one under the other. Through .tr-pass, so these win over
+   the rules for the parts, which come later. */
 @media (max-width: 520px) {
   .tr-pass { grid-template-columns: minmax(0, 1fr); }
+  .tr-pass .tr-pass-brand { white-space: nowrap; }
+  .tr-pass .tr-pass-kind { display: none; }
+  .tr-pass .tr-pass-grid { grid-template-columns: minmax(0, 1fr); }
 }
-.tr-pass-main { padding: 1.25rem 1.4rem 1.3rem; }
+.tr-pass-main {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1.4rem 1.3rem;
+}
+@media (min-width: 768px) {
+  .tr-pass-main { padding: 1.45rem 1.6rem 1.5rem; }
+}
 .tr-pass-head {
   display: flex;
   align-items: baseline;
@@ -538,10 +745,13 @@
   text-transform: uppercase;
   color: rgb(27 19 7 / 0.6);
 }
+/* However tall its row, the fields share out the height. */
 .tr-pass-grid {
   margin-top: 0.9rem;
   display: grid;
+  flex: 1;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: space-between;
   gap: 0.85rem 1.2rem;
 }
 .tr-pass-wide { grid-column: 1 / -1; }
@@ -571,7 +781,8 @@
 .tr-pass-route {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(3.5rem, 1fr) minmax(0, 1fr);
-  align-items: center;
+  /* From and To level, whether or not a city is under one of them. */
+  align-items: start;
   gap: 0.6rem;
 }
 .tr-pass-place { display: flex; min-width: 0; flex-direction: column; gap: 0.2rem; }
@@ -589,19 +800,21 @@
 .tr-pass-sub { font-size: 12px; color: rgb(27 19 7 / 0.62); overflow-wrap: anywhere; }
 .tr-pass-flight {
   display: flex;
+  /* On the line of the cities, under the labels. */
+  margin-top: 0.95rem;
   align-items: center;
   gap: 0.35rem;
   color: #8e6a26;
 }
 .tr-pass-dash { flex: 1; border-top: 1.5px dashed rgb(142 106 38 / 0.6); }
 .tr-pass-plane { transform: rotate(45deg); flex-shrink: 0; }
+/* The stub: the status at its head, the seal under it. */
 .tr-pass-stub {
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 0.35rem;
-  padding: 1.2rem 1rem 1.2rem 1.35rem;
+  gap: 0.3rem;
+  padding: 1.45rem 0.9rem 1.3rem 1.3rem;
   background: linear-gradient(180deg, rgb(27 19 7 / 0.08), rgb(27 19 7 / 0.14));
 }
 .tr-pass-perf {
@@ -612,6 +825,7 @@
   border-left: 2px dotted rgb(27 19 7 / 0.32);
 }
 @media (max-width: 520px) {
+  .tr-pass-stub { min-height: 7.25rem; justify-content: center; padding: 1.2rem 7.5rem 1.2rem 1.4rem; }
   .tr-pass-perf { left: 0.6rem; right: 0.6rem; top: 0; bottom: auto; border-left: 0; border-top: 2px dotted rgb(27 19 7 / 0.32); }
 }
 /* The notches the perforation runs between. */
@@ -632,46 +846,39 @@
   .tr-pass-stub::after { top: -11px; bottom: auto; left: auto; right: -11px; }
 }
 .tr-pass-status { font-size: 14px; font-weight: 800; line-height: 1.25; }
-.tr-pass-stub-line { font-size: 11px; font-weight: 600; color: rgb(27 19 7 / 0.62); }
-/* The seal, pressed on as a new participant arrives: across the route, between
-   the two countries, where it covers nothing but the dashed line. */
-.tr-stamp {
+/* The entry seal: red ink sunk into the gold, across the perforation, as a
+   passport's stamp lands. A circle, so turning it costs no room. */
+.tr-seal {
   position: absolute;
-  left: calc((100% - 7.5rem) / 2);
-  top: 67%;
-  border: 3px double rgb(142 30 44 / 0.85);
-  border-radius: 10px;
-  padding: 0.35rem 0.8rem;
-  font-size: 15px;
-  font-weight: 900;
-  letter-spacing: 0.26em;
-  text-transform: uppercase;
-  color: rgb(142 30 44 / 0.9);
-  transform: translate(-50%, -50%) rotate(-12deg);
+  left: calc(50% - 0.6rem);
+  bottom: 1.1rem;
+  width: 6.75rem;
+  height: 6.75rem;
+  margin-left: -3.375rem;
+  overflow: visible;
+  color: rgb(146 28 44);
+  opacity: 0.86;
   mix-blend-mode: multiply;
+  transform: rotate(-13deg);
   pointer-events: none;
 }
-/* Phones: the stub runs along the foot, its right half empty; the seal goes there. */
 @media (max-width: 520px) {
-  .tr-stamp { left: auto; right: 1.4rem; top: auto; bottom: 1.5rem; font-size: 13px; transform: rotate(-12deg); }
+  .tr-seal { left: auto; right: 1rem; bottom: auto; top: 50%; width: 5.75rem; height: 5.75rem; margin: -2.875rem 0 0; }
 }
+.tr-seal-rim { font-size: 11px; font-weight: 800; letter-spacing: 2.3px; }
+.tr-seal-rim-sm { font-size: 9.4px; letter-spacing: 1.8px; }
+.tr-seal-day { font-size: 17px; font-weight: 900; letter-spacing: 0.4px; }
+.tr-seal-year { font-size: 11px; font-weight: 800; letter-spacing: 3px; }
+/* Arriving from the application: the pass prints, and the seal comes down on it. */
 @media (prefers-reduced-motion: no-preference) {
   .tr-pass-stamp { animation: tr-pass-print 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
-  .tr-stamp { animation: tr-stamp 0.55s cubic-bezier(0.3, 1.6, 0.4, 1) 1.15s both; }
-}
-@media (prefers-reduced-motion: no-preference) and (max-width: 520px) {
-  .tr-stamp { animation-name: tr-stamp-phone; }
-}
-@keyframes tr-stamp-phone {
-  0% { opacity: 0; transform: rotate(-12deg) scale(2.4); }
-  60% { opacity: 1; }
-  100% { opacity: 1; transform: rotate(-12deg) scale(1); }
+  .tr-pass-stamp .tr-seal { animation: tr-seal-down 0.55s cubic-bezier(0.3, 1.5, 0.45, 1) 1.15s both; }
 }
 @keyframes tr-pass-print { from { clip-path: inset(0 0 100% 0); transform: translateY(-18px); } }
-@keyframes tr-stamp {
-  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-12deg) scale(2.4); }
-  60% { opacity: 1; }
-  100% { opacity: 1; transform: translate(-50%, -50%) rotate(-12deg) scale(1); }
+@keyframes tr-seal-down {
+  0% { opacity: 0; transform: rotate(-13deg) scale(2.3); }
+  55% { opacity: 0.86; }
+  100% { opacity: 0.86; transform: rotate(-13deg) scale(1); }
 }
 
 /* ---- The way on -------------------------------------------------------------------------- */
