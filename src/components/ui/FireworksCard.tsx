@@ -12,6 +12,13 @@ import { useEffect, useRef } from "react";
  * picture underneath is never dimmed, zoomed or covered: hovering only lifts
  * the card.
  *
+ * Inside a host (an ancestor marked data-fireworks-host, which is also a
+ * Tailwind `group`), the card and what belongs to it are one: the pointer is
+ * read on the whole host, so a pointer on a button under the card lifts it
+ * and plays the show as well, its shells climbing out of the button into the
+ * picture, and a press on the button bursts one above it. Keyboard focus
+ * anywhere in the host lifts the card as a pointer does.
+ *
  * Every stage of a real shell is drawn:
  *  1. Lift. A thin glittering tail climbs, wobbling a little and slowing.
  *  2. Break. It coasts to a near stop at the top and bursts, with a flash.
@@ -166,10 +173,28 @@ const FEATHER =
  * `contained` keeps the show inside the card's own rounded frame instead of
  * spilling past its edges: for a card with a neighbour (the hero's promo row
  * below xl), where sparks drifting over the next card read as a mess.
+ *
+ * `paused` holds the show: no shells, and a pointer or a press brings none.
+ * For the trip banner while it is locked (TripLockOverlay): nothing to
+ * celebrate yet. When it is lifted, the show opens with a celebration (a gold
+ * burst where the lock was, a salvo across the card, a willow crown) and
+ * then carries on as ever. A card that is never paused never celebrates.
  */
-export function FireworksCard({ children, className = "", contained = false }: { children: React.ReactNode; className?: string; contained?: boolean }) {
+export function FireworksCard({
+  children,
+  className = "",
+  contained = false,
+  paused = false,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  contained?: boolean;
+  paused?: boolean;
+}) {
   const boxRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pausedRef = useRef(paused);
+  const show = useRef<{ update: () => void; celebrate: () => void } | null>(null);
 
   useEffect(() => {
     const box = boxRef.current;
@@ -250,7 +275,7 @@ export function FireworksCard({ children, className = "", contained = false }: {
       canvas.height = Math.round(h * dpr);
     };
 
-    const running = () => started && onScreen && !document.hidden && !reduced.matches;
+    const running = () => started && onScreen && !document.hidden && !reduced.matches && !pausedRef.current;
     const busy = () => stars.length > 0 || rockets.length > 0 || flashes.length > 0;
 
     // ---- the shells -------------------------------------------------------
@@ -364,10 +389,14 @@ export function FireworksCard({ children, className = "", contained = false }: {
 
     // ---- the show's rhythm ------------------------------------------------
 
+    /** The pointer is under the card: on its host's call to action (below). */
+    const underCard = () => pointer.y > card.y + card.h;
     const atPointer = () =>
       launch(
         Math.min(card.x + card.w - 6, Math.max(card.x + 6, pointer.x)),
-        Math.min(card.y + card.h * 0.62, Math.max(card.y + card.h * 0.12, pointer.y)),
+        // From a button under the card, the shells climb out of it into the
+        // picture's upper half; over the picture, they go to the pointer.
+        underCard() ? card.y + card.h * rand(0.16, 0.42) : Math.min(card.y + card.h * 0.62, Math.max(card.y + card.h * 0.12, pointer.y)),
       );
 
     function fire() {
@@ -385,6 +414,19 @@ export function FireworksCard({ children, className = "", contained = false }: {
         const extra = Math.random() < 0.5 ? 1 : 2;
         for (let i = 1; i <= extra; i++) pending.push(setTimeout(() => running() && (hovering ? atPointer() : launch()), i * rand(150, 260)));
       }
+    }
+
+    /** The pause is lifted (the trip banner's lock has just broken). */
+    function celebrate() {
+      if (!running()) return;
+      burst(card.x + card.w / 2, card.y + card.h * 0.5, "chrysanthemum", GOLD, 1.25);
+      for (let i = 0; i < 6; i++) {
+        pending.push(setTimeout(() => running() && launch(card.x + card.w * (0.08 + 0.168 * i) + rand(-8, 8), card.y + card.h * rand(0.08, 0.45)), 140 + i * 130));
+      }
+      pending.push(setTimeout(() => running() && launch(card.x + card.w * 0.5, card.y + card.h * 0.1, "willow"), 1150));
+      nextFinale = performance.now() + rand(14000, 18000);
+      quietFor = 0;
+      loop();
     }
 
     function schedule() {
@@ -587,14 +629,24 @@ export function FireworksCard({ children, className = "", contained = false }: {
     const onDown = (e: PointerEvent) => {
       if (!running()) return;
       at(e);
-      burst(pointer.x, pointer.y, pick(["peony", "pistil", "chrysanthemum", "crackle", "strobe"] as const), pick(SHELL_COLOURS), 1.1);
+      // A press under the card (its button) bursts in the picture above it,
+      // and sends one more shell up out of the button after it.
+      const under = underCard();
+      const x = under ? Math.min(card.x + card.w - 12, Math.max(card.x + 12, pointer.x)) : pointer.x;
+      const y = under ? card.y + card.h * 0.4 : pointer.y;
+      burst(x, y, pick(["peony", "pistil", "chrysanthemum", "crackle", "strobe"] as const), pick(SHELL_COLOURS), 1.1);
+      if (under) launch(x, card.y + card.h * 0.2);
       quietFor = 0;
       loop();
     };
-    box.addEventListener("pointerenter", onEnter);
-    box.addEventListener("pointermove", at);
-    box.addEventListener("pointerleave", onLeave);
-    box.addEventListener("pointerdown", onDown);
+    // The pointer is read on the card's host if it has one: the card and
+    // what belongs to it (data-fireworks-host), so a pointer on its button
+    // under it plays the show as a pointer on the card does.
+    const host = box.closest<HTMLElement>("[data-fireworks-host]") ?? box;
+    host.addEventListener("pointerenter", onEnter);
+    host.addEventListener("pointermove", at);
+    host.addEventListener("pointerleave", onLeave);
+    host.addEventListener("pointerdown", onDown);
 
     const io = new IntersectionObserver(([entry]) => {
       onScreen = entry.isIntersecting;
@@ -621,18 +673,20 @@ export function FireworksCard({ children, className = "", contained = false }: {
     };
     if (document.readyState === "complete") begin();
     else window.addEventListener("load", begin, { once: true });
+    show.current = { update, celebrate };
 
     return () => {
+      show.current = null;
       started = false;
       if (timer) clearTimeout(timer);
       while (pending.length) clearTimeout(pending.pop()!);
       if (raf) cancelAnimationFrame(raf);
       if (iw.cancelIdleCallback) iw.cancelIdleCallback(idle); else clearTimeout(idle);
       window.removeEventListener("load", begin);
-      box.removeEventListener("pointerenter", onEnter);
-      box.removeEventListener("pointermove", at);
-      box.removeEventListener("pointerleave", onLeave);
-      box.removeEventListener("pointerdown", onDown);
+      host.removeEventListener("pointerenter", onEnter);
+      host.removeEventListener("pointermove", at);
+      host.removeEventListener("pointerleave", onLeave);
+      host.removeEventListener("pointerdown", onDown);
       io.disconnect();
       ro.disconnect();
       document.removeEventListener("visibilitychange", update);
@@ -641,13 +695,22 @@ export function FireworksCard({ children, className = "", contained = false }: {
     };
   }, []);
 
+  // Paused or not (see above): held, or let go with a celebration.
+  useEffect(() => {
+    const was = pausedRef.current;
+    pausedRef.current = paused;
+    if (was === paused) return;
+    show.current?.update();
+    if (was) show.current?.celebrate();
+  }, [paused]);
+
   return (
     // The pointer is caught on a box that never moves, the size of the card;
     // the card inside it is what lifts, so a pointer resting on the bottom rim
     // cannot flicker the hover. translate by name in the transition: Tailwind
     // 4 lifts with the translate property, not transform.
     <div ref={boxRef} className={`group relative ${className}`}>
-      <div className="relative isolate h-full w-full overflow-hidden rounded-2xl shadow-md ring-1 ring-brand/20 transition-[translate,box-shadow] duration-300 ease-out group-hover:-translate-y-0.5 group-hover:shadow-xl group-hover:ring-brand/40 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0">
+      <div className="relative isolate h-full w-full overflow-hidden rounded-2xl shadow-md ring-1 ring-brand/20 transition-[translate,box-shadow] duration-300 ease-out group-hover:-translate-y-0.5 group-hover:shadow-xl group-hover:ring-brand/40 group-has-[:focus-visible]:-translate-y-0.5 group-has-[:focus-visible]:shadow-xl group-has-[:focus-visible]:ring-brand/40 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 motion-reduce:group-has-[:focus-visible]:translate-y-0">
         {children}
       </div>
       {/* Outside the card's clip, and larger than it by SPILL, so the show

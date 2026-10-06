@@ -1,5 +1,5 @@
 import {
-  Activity, Globe, Inbox, LayoutList, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Timer, Trash2,
+  Activity, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Timer, Trash2,
   TrendingUp, UserCog, Users, type LucideIcon,
 } from "lucide-react";
 
@@ -18,7 +18,7 @@ import {
  */
 
 export type RailKey =
-  | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trash"
+  | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-lock" | "trash"
   | "staff" | "team-performance" | "queue" | "activity"
   | "suppliers" | "videos"
   | "website-users" | "app-users" | "app-inquiries";
@@ -60,10 +60,22 @@ export const RAIL_GROUPS: RailGroup[] = [
       { key: "contacts", href: "/admin/?view=contacts", label: "Contact Us", icon: MessageSquare, view: "contacts" },
       // Freight quote requests from the form on /shipping/.
       { key: "shipping", href: "/admin/?view=shipping", label: "Shipping", icon: Ship, view: "shipping" },
-      // Applications for the free China business trip, from /free-china-trip/apply/.
-      // A page of its own rather than a dashboard view, so it links from both rails.
-      { key: "trips", href: "/admin/trip-applications/", label: "Trip applications", icon: Plane },
       { key: "trash", href: "/admin/?view=trash", label: "Recently Deleted", icon: Trash2, view: "trash" },
+    ],
+  },
+  {
+    // The Free China Business Trip: everyone who registered, with their
+    // account and Trip ID (/free-china-trip/apply/). A section of its own on
+    // the owner's request (it was "Trip applications" under Leads), though it
+    // holds one row; a page of its own rather than a dashboard view, so it
+    // links from both rails.
+    label: "Free China Trip",
+    items: [
+      { key: "trips", href: "/admin/trip-applications/", label: "Participants", icon: Plane },
+      // The key to the homepage trip banner's lock (TripLockPanel), one click
+      // from anywhere in the console, its row saying which way it stands
+      // (TripLockRailStatus). The owner's request of 2026-10-06.
+      { key: "trip-lock", href: "/admin/trip-applications/#trip-lock", label: "Trip lock", icon: Lock },
     ],
   },
   {

@@ -18,10 +18,34 @@ import gsap from "gsap";
  * Transform, opacity and a stroke's dash only. The layer is TakeOffLayer.
  * Under reduced motion the page simply fades to black and no light is
  * carried over.
+ *
+ * The application's Submit flies the same plane (ApplyExperience), with
+ * { dim: false, bloom: false }: the page does not dim and no light fills the
+ * frame, because the submission's own stage takes over as the plane leaves.
  */
 export const ARRIVAL_KEY = "cx-arrive";
 
-export function takeOff(btn: HTMLElement, layer: HTMLElement, reduced: boolean, done: () => void) {
+/**
+ * The top of what can be seen, in px: the navbar's foot while it shows, the
+ * screen's top once it has scrolled away (Navbar.tsx publishes it as
+ * --nav-shift, 4rem or 0px). The layer covers the whole screen under the
+ * bar, so the flight aims past this edge, not the layer's.
+ */
+function visibleTop() {
+  const root = document.documentElement;
+  const v = getComputedStyle(root).getPropertyValue("--nav-shift").trim();
+  const n = parseFloat(v);
+  if (!Number.isFinite(n)) return 64;
+  return v.endsWith("rem") ? n * parseFloat(getComputedStyle(root).fontSize) : n;
+}
+
+export function takeOff(
+  btn: HTMLElement,
+  layer: HTMLElement,
+  reduced: boolean,
+  done: () => void,
+  { dim = true, bloom = true }: { dim?: boolean; bloom?: boolean } = {},
+) {
   const q = <T extends Element = HTMLElement>(key: string) => layer.querySelector<T>(`[data-cx='${key}']`);
   // Shown now, not on the timeline's first tick: the flight is measured from
   // it below (hidden, it measured 0 wide, and the plane flew to the top left).
@@ -32,13 +56,14 @@ export function takeOff(btn: HTMLElement, layer: HTMLElement, reduced: boolean, 
     return tl;
   }
 
-  // The flight: from the porthole, a climbing curve to beyond the top right.
+  // The flight: from the porthole, a climbing curve to beyond the top right
+  // of what can be seen (under a navbar that shows, it goes behind the bar).
   const box = layer.getBoundingClientRect();
   const port = (btn.querySelector(".cx-apply-port") ?? btn).getBoundingClientRect();
   const x0 = port.left + port.width / 2 - box.left;
   const y0 = port.top + port.height / 2 - box.top;
   const x3 = box.width + 90;
-  const y3 = -70;
+  const y3 = visibleTop() - box.top - 70;
   const f1 = (v: number) => v.toFixed(1);
   const d = `M${f1(x0)} ${f1(y0)} C${f1(x0 + (x3 - x0) * 0.38)} ${f1(y0 - Math.min(80, (y0 - y3) * 0.12))} ${f1(x0 + (x3 - x0) * 0.72)} ${f1(y3 + (y0 - y3) * 0.3)} ${f1(x3)} ${f1(y3)}`;
   const core = q<SVGPathElement>("exit-path");
@@ -86,8 +111,8 @@ export function takeOff(btn: HTMLElement, layer: HTMLElement, reduced: boolean, 
   tl.to(btn, { scale: 1, duration: 0.35, ease: "power2.out" }, 0.12);
   tl.set(plane, { autoAlpha: 1 }, 0.08);
   tl.fromTo(flight, { p: 0 }, { p: 1, duration: 0.9, ease: "power2.in", onUpdate: place, immediateRender: false }, 0.08);
-  tl.fromTo(q("exit-dim"), { autoAlpha: 0 }, { autoAlpha: 0.55, duration: 0.75, ease: "power1.in" }, 0.15);
+  if (dim) tl.fromTo(q("exit-dim"), { autoAlpha: 0 }, { autoAlpha: 0.55, duration: 0.75, ease: "power1.in" }, 0.15);
   // Where it leaves, the light blooms and fills the frame.
-  tl.fromTo(q("exit-bloom"), { autoAlpha: 0, scale: 0.04 }, { autoAlpha: 1, scale: 1, duration: 0.5, ease: "power2.in" }, 0.7);
+  if (bloom) tl.fromTo(q("exit-bloom"), { autoAlpha: 0, scale: 0.04 }, { autoAlpha: 1, scale: 1, duration: 0.5, ease: "power2.in" }, 0.7);
   return tl;
 }

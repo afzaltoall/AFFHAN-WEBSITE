@@ -23,16 +23,17 @@ import {
 /**
  * Applications for the free China business trip, from /free-china-trip/apply/.
  *
- * Public, like /api/contact: no sign-in needed. If the applicant is signed in
- * their account is linked, the way freight requests are. Every rule the form
+ * Signed-in only: every application belongs to an account (the website's
+ * cookie or the app's Bearer token, verifyMobileSession), so the team can see
+ * who registered by their account and their Trip ID. Every rule the form
  * applies is applied again here (lib/trip-application.ts is shared), because
  * the form is only a convenience and anyone can post to this URL:
  *
  *  - only from 5 October to 25 November 2026 (Terms, clause 1; a production
  *    build keeps the window, a development server is always open);
  *  - one application per person (Terms, clause 2): none is taken from an
- *    email address or mobile number that already has one (unless the team
- *    deleted it);
+ *    account, an email address or a mobile number that already has one
+ *    (unless the team deleted it);
  *  - only the business answers the chosen business journey asks are kept
  *    (relevantBusiness); anything else sent is dropped, never stored;
  *  - the three consents are required and recorded one by one.
@@ -42,8 +43,8 @@ import {
  * applications found eligible (Terms, clause 3), and no answer has any part in
  * that.
  *
- * Returns the reference number the table's DEFAULT wrote (TRIP-26-00001), which
- * the success screen shows. Nothing sensitive is logged: failures log the
+ * Returns the reference number the table's DEFAULT wrote (TRIP-26-00001) and
+ * when it was recorded, which the success screen shows. Nothing sensitive is logged: failures log the
  * error, never the application.
  */
 
@@ -116,6 +117,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error, reason: "closed" }, { status: 403 });
   }
 
+  // Signed in, always: the application belongs to the account.
+  const user = await verifyMobileSession(req).catch(() => null);
+  if (!user) {
+    return NextResponse.json({ error: "Please sign in to send your application.", reason: "signin" }, { status: 401 });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = (await req.json()) as Record<string, unknown>;
@@ -141,16 +148,16 @@ export async function POST(req: NextRequest) {
   const phoneKey = customerKeyOf({ phone: a.personal.phone });
 
   try {
-    // One application per person: the same email (in any case) or the same
-    // mobile number already has one the team has not deleted.
+    // One application per person: this account, the same email (in any case)
+    // or the same mobile number already has one the team has not deleted.
     const existing = await prisma.$queryRaw<{ id: string }[]>`
       SELECT id FROM "TripApplication"
       WHERE status <> 'deleted'
-        AND (lower(email) = lower(${a.personal.email}) OR (${phoneKey}::text IS NOT NULL AND "customerKey" = ${phoneKey}))
+        AND ("userId" = ${user.id} OR lower(email) = lower(${a.personal.email}) OR (${phoneKey}::text IS NOT NULL AND "customerKey" = ${phoneKey}))
       LIMIT 1`;
     if (existing.length) {
       return NextResponse.json(
-        { error: "We have already received an application from this email address or mobile number. To change anything in it, write to info@affhan.com.", reason: "duplicate" },
+        { error: "We have already received an application from this account, email address or mobile number. To change anything in it, write to info@affhan.com.", reason: "duplicate" },
         { status: 409 },
       );
     }
@@ -159,7 +166,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "We couldn't record your application." }, { status: 500 });
   }
 
-  const user = await verifyMobileSession(req).catch(() => null);
   const orNull = (v: string) => v || null;
 
   try {
@@ -192,7 +198,7 @@ export async function POST(req: NextRequest) {
         consentAccuracy: a.consent.accuracy,
         consentTerms: a.consent.terms,
         customerKey,
-        userId: user?.id ?? null,
+        userId: user.id,
       },
       select: { id: true, referenceNo: true, createdAt: true },
     });
@@ -205,7 +211,7 @@ export async function POST(req: NextRequest) {
       console.error("trip application customer code:", e instanceof Error ? e.message : e);
     }
 
-    return NextResponse.json({ referenceNo: saved.referenceNo }, { status: 201 });
+    return NextResponse.json({ referenceNo: saved.referenceNo, createdAt: saved.createdAt.toISOString() }, { status: 201 });
   } catch (e) {
     console.error("trip application save failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "We couldn't record your application." }, { status: 500 });

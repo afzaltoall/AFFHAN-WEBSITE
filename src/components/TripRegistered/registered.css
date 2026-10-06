@@ -1,0 +1,705 @@
+/* /free-china-trip/registered/ (RegisteredExperience): the participants board.
+   Tokens come from the film's .cx block (cinematic.css): the same black, gold
+   and crimson as the landing page and the application. */
+
+.tr {
+  background: #050406;
+  color: var(--cx-white);
+}
+
+/* ---- The ground ---------------------------------------------------------------------------- */
+.tr-ground {
+  position: fixed;
+  inset: 4rem 0 0 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 60% at 82% 12%, rgb(214 168 78 / 0.14), transparent 70%),
+    radial-gradient(55% 50% at 6% 96%, rgb(163 22 44 / 0.2), transparent 72%),
+    #050406;
+}
+.tr-wash {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(40px);
+  will-change: transform;
+}
+.tr-wash-a {
+  right: -16vmax;
+  top: -22vmax;
+  width: 60vmax;
+  height: 60vmax;
+  background: radial-gradient(closest-side, rgb(214 168 78 / 0.22), transparent);
+  animation: tr-drift-a 40s ease-in-out infinite alternate;
+}
+.tr-wash-b {
+  left: -26vmax;
+  bottom: -30vmax;
+  width: 70vmax;
+  height: 70vmax;
+  background: radial-gradient(closest-side, rgb(163 22 44 / 0.24), transparent);
+  animation: tr-drift-b 48s ease-in-out infinite alternate;
+}
+@keyframes tr-drift-a { to { transform: translate(-8vmax, 6vmax) scale(1.12); } }
+@keyframes tr-drift-b { to { transform: translate(7vmax, -5vmax) scale(0.94); } }
+/* Out of the landing page's take-off: the light it ended on opens out. */
+.tr-arrive {
+  position: fixed;
+  inset: 4rem 0 0 0;
+  z-index: 60;
+  overflow: hidden;
+  pointer-events: none;
+  animation: tr-arrive 1.3s ease 0.15s both;
+}
+@keyframes tr-arrive { to { opacity: 0; transform: scale(1.3); } }
+
+/* ---- Entrances: each piece rises in, in turn (--d) ------------------------------------------ */
+@media (prefers-reduced-motion: no-preference) {
+  .tr-in { animation: tr-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) var(--d, 0s) both; }
+}
+@keyframes tr-rise { from { opacity: 0; transform: translateY(22px); filter: blur(6px); } }
+
+/* ---- The heading -------------------------------------------------------------------------- */
+.tr-title {
+  margin-top: 0.9rem;
+  font-size: clamp(38px, 9vw, 60px);
+  font-weight: 400;
+  line-height: 0.95;
+  text-transform: uppercase;
+  text-wrap: balance;
+  color: var(--cx-white);
+}
+@media (min-width: 768px) {
+  .tr-title { font-size: clamp(52px, 5.4vw, 84px); }
+}
+.tr-lede {
+  margin-top: 1rem;
+  max-width: 44rem;
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--cx-mute);
+}
+@media (min-width: 768px) {
+  .tr-lede { font-size: 17px; }
+}
+
+/* ---- Panels ------------------------------------------------------------------------------- */
+.tr-panel,
+.tr-board,
+.tr-countries {
+  position: relative;
+  border-radius: 22px;
+  padding: 1.35rem 1.4rem;
+  background: linear-gradient(180deg, rgb(20 17 22 / 0.72), rgb(10 9 12 / 0.78));
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 30px 70px -40px rgb(0 0 0 / 0.9), inset 0 1px 0 rgb(255 248 230 / 0.05);
+}
+.tr-panel::before,
+.tr-board::before,
+.tr-countries::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(170deg, rgb(242 211 142 / 0.4), rgb(242 211 142 / 0.08) 30%, rgb(244 239 230 / 0.05) 65%, rgb(214 168 78 / 0.18));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+@media (min-width: 768px) {
+  .tr-panel, .tr-board, .tr-countries { padding: 1.6rem 1.75rem; }
+}
+.tr-panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--cx-gold);
+}
+.tr-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgb(120 220 160 / 0.28);
+  padding: 0.3rem 0.7rem;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: #9ef0c2;
+  white-space: nowrap;
+}
+.tr-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #5be39b;
+  box-shadow: 0 0 0 0 rgb(91 227 155 / 0.6);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-live-dot { animation: tr-pulse 1.8s ease-out infinite; }
+}
+@keyframes tr-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(91 227 155 / 0.55); }
+  100% { box-shadow: 0 0 0 9px rgb(91 227 155 / 0); }
+}
+
+/* ---- The count ---------------------------------------------------------------------------- */
+.tr-total {
+  position: relative;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-variation-settings: "opsz" 11;
+  font-size: clamp(64px, 16vw, 104px);
+  line-height: 1;
+  color: var(--cx-white);
+}
+.tr-total-wait { color: rgb(244 239 230 / 0.25); }
+.tr-gained {
+  margin-top: 0.4em;
+  border-radius: 999px;
+  background: rgb(214 168 78 / 0.16);
+  padding: 0.25em 0.55em;
+  font-family: var(--font-sans, inherit);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--cx-gold-hi);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-gained { animation: tr-pop 0.6s cubic-bezier(0.2, 0.7, 0.2, 1.4) both; }
+}
+@keyframes tr-pop { from { opacity: 0; transform: translateY(10px) scale(0.6); } }
+.tr-places {
+  margin-top: 0.4rem;
+  font-size: 14px;
+  color: var(--cx-mute);
+}
+.tr-stats {
+  margin-top: 1.1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tr-stats li {
+  border-radius: 999px;
+  border: 1px solid rgb(244 239 230 / 0.12);
+  padding: 0.35rem 0.8rem;
+  font-size: 12.5px;
+  color: rgb(244 239 230 / 0.85);
+  font-variant-numeric: tabular-nums;
+}
+/* The drums. */
+.tr-odo {
+  display: inline-flex;
+  font-variant-numeric: tabular-nums;
+}
+.tr-odo-window {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+}
+.tr-odo-strip {
+  display: flex;
+  flex-direction: column;
+  transition: transform 1.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Each figure lit like a dial: ivory at the top, gold at the foot. */
+.tr-odo-strip > span {
+  height: 1em;
+  line-height: 1;
+  background: linear-gradient(180deg, #fffaf0 8%, #f4e6c8 52%, #d6a84e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ---- The five places and the countdown -------------------------------------------------- */
+.tr-pool-line {
+  font-size: 12.5px;
+  color: var(--cx-mute);
+  text-align: right;
+}
+.tr-seats {
+  margin-top: 1rem;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.tr-seat {
+  display: grid;
+  aspect-ratio: 1;
+  max-height: 64px;
+  place-items: center;
+  border-radius: 16px;
+  border: 1px solid rgb(214 168 78 / 0.38);
+  background: radial-gradient(circle at 50% 30%, rgb(214 168 78 / 0.14), rgb(214 168 78 / 0.02) 70%);
+  color: var(--cx-gold-hi);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-seat { animation: tr-seat 3.2s ease-in-out calc(var(--i) * 0.3s) infinite; }
+}
+@keyframes tr-seat {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(242 211 142 / 0); }
+  50% { box-shadow: 0 0 22px -4px rgb(242 211 142 / 0.55); }
+}
+.tr-pool-when {
+  margin-top: 1.1rem;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cx-mute);
+}
+.tr-count {
+  margin-top: 0.6rem;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.6rem;
+}
+.tr-count-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 14px;
+  background: rgb(244 239 230 / 0.04);
+  padding: 0.6rem 0.25rem 0.5rem;
+}
+.tr-count-num {
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-variation-settings: "opsz" 11;
+  font-size: clamp(26px, 6vw, 36px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--cx-white);
+}
+.tr-count-label {
+  margin-top: 0.35rem;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cx-mute);
+}
+.tr-count-reached {
+  margin-top: 0.8rem;
+  font-size: 15px;
+  color: var(--cx-gold-hi);
+}
+
+/* ---- The departures board ---------------------------------------------------------------- */
+.tr-board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.tr-board-cols,
+.tr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.2fr) minmax(0, 0.9fr) minmax(0, 0.9fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+.tr-board-cols {
+  margin-top: 1.1rem;
+  padding: 0 0.75rem 0.55rem;
+  border-bottom: 1px solid rgb(244 239 230 / 0.1);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgb(244 239 230 / 0.5);
+}
+.tr-board-rows {
+  margin-top: 0.4rem;
+  display: grid;
+  gap: 0.35rem;
+  max-height: 23.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  perspective: 900px;
+  scrollbar-width: thin;
+  scrollbar-color: rgb(214 168 78 / 0.45) transparent;
+  padding-right: 0.15rem;
+}
+.tr-row {
+  min-height: 2.75rem;
+  border-radius: 12px;
+  padding: 0.5rem 0.75rem;
+  background: rgb(244 239 230 / 0.035);
+  font-size: 13.5px;
+  color: rgb(244 239 230 / 0.88);
+  transform-origin: 50% 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-row:not(.tr-row-new):not(.tr-row-skeleton) { animation: tr-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) calc(0.45s + var(--i, 0) * 0.06s) both; }
+  /* A line that arrives while the page is open flips down into place, lit. */
+  .tr-row-new { animation: tr-flip 0.9s cubic-bezier(0.22, 1, 0.36, 1) both, tr-lit 2.4s ease-out both; }
+}
+@keyframes tr-flip { from { opacity: 0; transform: rotateX(-88deg); } }
+@keyframes tr-lit {
+  0% { background: rgb(214 168 78 / 0.3); box-shadow: 0 0 30px -6px rgb(242 211 142 / 0.6); }
+  100% { background: rgb(244 239 230 / 0.035); box-shadow: none; }
+}
+.tr-row-id {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tr-row-from {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 12.5px;
+}
+.tr-row-when {
+  font-size: 12.5px;
+  color: var(--cx-mute);
+  white-space: nowrap;
+}
+.tr-row-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  justify-self: end;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9ef0c2;
+  white-space: nowrap;
+}
+/* The visitor's own line. */
+.tr-row-you {
+  background: linear-gradient(90deg, rgb(214 168 78 / 0.2), rgb(214 168 78 / 0.06));
+  box-shadow: inset 0 0 0 1px rgb(214 168 78 / 0.45);
+  color: var(--cx-white);
+}
+.tr-row-you .tr-row-id { color: var(--cx-gold-hi); }
+.tr-row-you-tag {
+  border-radius: 999px;
+  background: var(--cx-gold);
+  padding: 0.1rem 0.45rem;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #1b1307;
+}
+.tr-row-skeleton span {
+  height: 0.7rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgb(244 239 230 / 0.06), rgb(244 239 230 / 0.12), rgb(244 239 230 / 0.06));
+  background-size: 200% 100%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-row-skeleton span { animation: tr-shimmer 1.4s linear infinite; }
+}
+@keyframes tr-shimmer { to { background-position: -200% 0; } }
+.tr-board-empty {
+  padding: 1.4rem 0.75rem;
+  font-size: 14px;
+  color: var(--cx-mute);
+}
+.tr-board-error {
+  margin-top: 0.8rem;
+  font-size: 12.5px;
+  color: var(--cx-error);
+}
+.tr-board-privacy {
+  margin-top: 0.9rem;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: rgb(244 239 230 / 0.45);
+}
+/* Phones: the board keeps three columns (the time moves under the Trip ID). */
+@media (max-width: 520px) {
+  .tr-board-cols { display: none; }
+  .tr-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "id status" "from when";
+    row-gap: 0.25rem;
+  }
+  .tr-row-id { grid-area: id; }
+  .tr-row-status { grid-area: status; }
+  .tr-row-from { grid-area: from; }
+  .tr-row-when { grid-area: when; justify-self: end; }
+}
+
+/* ---- Countries ------------------------------------------------------------------------- */
+.tr-country-list {
+  margin-top: 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+.tr-country {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgb(244 239 230 / 0.12);
+  padding: 0.35rem 0.75rem 0.35rem 0.55rem;
+  font-size: 12.5px;
+  color: rgb(244 239 230 / 0.88);
+}
+.tr-country-n {
+  min-width: 1.4rem;
+  border-radius: 999px;
+  background: rgb(214 168 78 / 0.18);
+  padding: 0 0.4rem;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--cx-gold-hi);
+}
+.tr-flag {
+  width: 20px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.15);
+}
+
+/* ---- Not registered yet ---------------------------------------------------------------- */
+.tr-apply {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+.tr-apply-mark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 999px;
+  border: 1px solid rgb(214 168 78 / 0.5);
+  color: var(--cx-gold-hi);
+}
+.tr-apply-line { font-size: 16px; line-height: 1.55; color: var(--cx-white); }
+
+/* ---- The boarding pass ------------------------------------------------------------------- */
+.tr-pass {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 7.5rem;
+  border-radius: 22px;
+  color: #1b1307;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgb(255 250 236 / 0.95), transparent 60%),
+    linear-gradient(135deg, #f8ecd0 0%, #ecd3a0 48%, #d8b06a 100%);
+  box-shadow:
+    0 34px 70px -34px rgb(0 0 0 / 0.95),
+    0 0 0 1px rgb(255 246 222 / 0.5) inset,
+    0 0 60px -20px rgb(242 211 142 / 0.45);
+  overflow: hidden;
+}
+@media (max-width: 520px) {
+  .tr-pass { grid-template-columns: minmax(0, 1fr); }
+}
+.tr-pass-main { padding: 1.25rem 1.4rem 1.3rem; }
+.tr-pass-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px dashed rgb(27 19 7 / 0.25);
+  padding-bottom: 0.7rem;
+}
+.tr-pass-brand {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+.tr-pass-kind {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgb(27 19 7 / 0.6);
+}
+.tr-pass-grid {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1.2rem;
+}
+.tr-pass-wide { grid-column: 1 / -1; }
+.tr-pass-field { display: flex; min-width: 0; flex-direction: column; gap: 0.15rem; }
+.tr-pass-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgb(27 19 7 / 0.55);
+}
+.tr-pass-name {
+  /* Optical size 11: the Didone's hairlines thicken, so the A keeps its bar on the gold. */
+  font-variation-settings: "opsz" 11;
+  font-size: clamp(22px, 5.4vw, 30px);
+  line-height: 1.05;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.tr-pass-id {
+  font-size: clamp(22px, 5vw, 28px);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+}
+.tr-pass-value { font-size: 14px; font-weight: 600; }
+.tr-pass-route {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(3.5rem, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+}
+.tr-pass-place { display: flex; min-width: 0; flex-direction: column; gap: 0.2rem; }
+.tr-pass-place-to { align-items: flex-end; text-align: right; }
+.tr-pass-city {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tr-pass-sub { font-size: 12px; color: rgb(27 19 7 / 0.62); overflow-wrap: anywhere; }
+.tr-pass-flight {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #8e6a26;
+}
+.tr-pass-dash { flex: 1; border-top: 1.5px dashed rgb(142 106 38 / 0.6); }
+.tr-pass-plane { transform: rotate(45deg); flex-shrink: 0; }
+.tr-pass-stub {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1.2rem 1rem 1.2rem 1.35rem;
+  background: linear-gradient(180deg, rgb(27 19 7 / 0.08), rgb(27 19 7 / 0.14));
+}
+.tr-pass-perf {
+  position: absolute;
+  left: 0;
+  top: 0.6rem;
+  bottom: 0.6rem;
+  border-left: 2px dotted rgb(27 19 7 / 0.32);
+}
+@media (max-width: 520px) {
+  .tr-pass-perf { left: 0.6rem; right: 0.6rem; top: 0; bottom: auto; border-left: 0; border-top: 2px dotted rgb(27 19 7 / 0.32); }
+}
+/* The notches the perforation runs between. */
+.tr-pass-stub::before,
+.tr-pass-stub::after {
+  content: "";
+  position: absolute;
+  left: -11px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #050406;
+}
+.tr-pass-stub::before { top: -11px; }
+.tr-pass-stub::after { bottom: -11px; }
+@media (max-width: 520px) {
+  .tr-pass-stub::before { top: -11px; left: -11px; }
+  .tr-pass-stub::after { top: -11px; bottom: auto; left: auto; right: -11px; }
+}
+.tr-pass-status { font-size: 14px; font-weight: 800; line-height: 1.25; }
+.tr-pass-stub-line { font-size: 11px; font-weight: 600; color: rgb(27 19 7 / 0.62); }
+/* The seal, pressed on as a new participant arrives: across the route, between
+   the two countries, where it covers nothing but the dashed line. */
+.tr-stamp {
+  position: absolute;
+  left: calc((100% - 7.5rem) / 2);
+  top: 67%;
+  border: 3px double rgb(142 30 44 / 0.85);
+  border-radius: 10px;
+  padding: 0.35rem 0.8rem;
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgb(142 30 44 / 0.9);
+  transform: translate(-50%, -50%) rotate(-12deg);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+/* Phones: the stub runs along the foot, its right half empty; the seal goes there. */
+@media (max-width: 520px) {
+  .tr-stamp { left: auto; right: 1.4rem; top: auto; bottom: 1.5rem; font-size: 13px; transform: rotate(-12deg); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-pass-stamp { animation: tr-pass-print 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
+  .tr-stamp { animation: tr-stamp 0.55s cubic-bezier(0.3, 1.6, 0.4, 1) 1.15s both; }
+}
+@media (prefers-reduced-motion: no-preference) and (max-width: 520px) {
+  .tr-stamp { animation-name: tr-stamp-phone; }
+}
+@keyframes tr-stamp-phone {
+  0% { opacity: 0; transform: rotate(-12deg) scale(2.4); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: rotate(-12deg) scale(1); }
+}
+@keyframes tr-pass-print { from { clip-path: inset(0 0 100% 0); transform: translateY(-18px); } }
+@keyframes tr-stamp {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-12deg) scale(2.4); }
+  60% { opacity: 1; }
+  100% { opacity: 1; transform: translate(-50%, -50%) rotate(-12deg) scale(1); }
+}
+
+/* ---- The way on -------------------------------------------------------------------------- */
+.tr-links {
+  margin-top: 2.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.6rem;
+  border-top: 1px solid rgb(244 239 230 / 0.1);
+  padding-top: 1.4rem;
+}
+.tr-links a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgb(244 239 230 / 0.7);
+  text-underline-offset: 6px;
+}
+.tr-links a:first-child { color: var(--cx-gold); }
+.tr-links a:hover { color: var(--cx-white); text-decoration: underline; }
+.tr-links a:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 4px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tr-wash, .tr-arrive { animation: none; }
+  .tr-arrive { display: none; }
+  .tr-odo-strip { transition: none; }
+}

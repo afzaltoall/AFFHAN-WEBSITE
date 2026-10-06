@@ -1,0 +1,151 @@
+/* ---- The lock on the homepage's trip banner (TripLockOverlay.tsx) -----------
+   Frosted glass over the picture, inside the card's rounded clip, and one
+   lock badge in the middle. Sized to the card with container units, so the
+   same rules serve the 200x75 corner, the 320x120 one and a phone's full
+   width. At rest only transform and opacity move (the halo, the light across
+   the glass), and none of it for reduced motion. The opening and the locking
+   are the Web Animations API's (TripLockOverlay). */
+
+.tlo {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  container-type: size;
+  -webkit-tap-highlight-color: transparent;
+}
+/* On the homepage, where a press on it shakes it (the console's preview takes none). */
+.tlo[data-press] {
+  cursor: not-allowed;
+}
+/* Once it is opening it takes no more presses: they go to the banner. */
+.tlo[data-state="breaking"] {
+  pointer-events: none;
+}
+
+/* The glass: the banner frosted, lighter at the top, with a fine light edge,
+   the way a pane catches the light.
+
+   The frost is the banner's own picture (public/china-trip-hero.webp) made
+   small and soft ahead of time, inlined here (1.3 KB), not a live blur over
+   the picture: Chrome's backdrop-filter smears the picture's edge pixels
+   into sharp streaks along the card's bottom and right edges (seen
+   2026-10-06), and an inline picture needs nothing to load, so the sharp
+   banner never shows for a moment before the glass does. It reaches 6px
+   past the card on every side, so its own soft edge stays out of sight.
+   Remake it if the banner's picture changes, with sharp:
+     sharp("public/china-trip-hero.webp").resize(120, 45).blur(2.6)
+       .modulate({ saturation: 1.12, brightness: 0.86 })
+       .webp({ quality: 88, smartSubsample: true })  -> base64 */
+.tlo-glass {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.tlo-frost {
+  position: absolute;
+  inset: -6px;
+  background: url("data:image/webp;base64,UklGRhgFAABXRUJQVlA4IAwFAABwHACdASp4AC0APj0WiUMiISEbWl5IIAPEtgBOmUI6Z81/F/2BKX/ffw5tqhIO2fI/6nf0f/uvcA/U3poft36o/2z9Uz0veaP/seuq3pP9yPSqwPned+Y8F/J7xi4hlxZxDQUoBdaKyUiFqMtitC2O2+Y6mVRz81zqbV4ylAvE0qN2Ib8ZDXD2F3ToYntzPvVGRfkxennborbGt3TSNacNKpDa5WDlnBmfvJQYERIDAlBBC+S85kS6O83SdQBRvP9zo5wCy2kqd/cvrrmgAi7qxV/YPL+zC2q1KDOZw5y04U+jYM7zsptWWhNZAAD+/iv6yED+vMVAJyg0CA8+vnxaj53zAvFMxfrBXnncIN4qhqk+UhS5Xcy9Tr/+A945VPiGjGVZA4JsUq1BVl5Qg84o8EM6DcbMX5ovqGZ8oW/UI+nnGNbHFjMWLIfGBcCZC+mnldNloD0fxv7rX/jF87NXZQ3zR+ulA0lkBfk8ScNUpx763N00vYswCymb6SaAPuv/eL+9e9rKuMM0+pFgYURNIuO167/WVLMTSDqCQGvA4ckkLz5wUtOfxguxjt/y4Fehq2UN4fEfnxZaJ8gtFk8jV5z5hBgNu3qj8mgSRNyOqbFO2+6hIZ5IEo/e1kLp5XUOTuN1KPIIhkhhiOiph34hplze6740fUtG6hFEK04DHm9nxoL8AAdYlhAoFgYWzknKu+et/1oXCkI4qRjgEyRXNWYb/Qjn13mZkv4tmRwnkrHWPFV+RXqH6fMQ0iqqlmB4vHz+WXrFMsUCJBf5pUo7/stNnYoVHh1yEv3jVCBStx24SJ124YkyM7Ljub6EFvyyzCKrAEZORVJfIkmowWaPGe7wGiKXVbFsopJVBpeOwkdo7Q8wLs4/ks24f+yyZ1r/Ptp4fTlxWWAxassHf8ng6UYkaIMObdFb1CHaZaJVbCyNqmPwTquj++srhR439JsmRrjBUI+w/QQR0SDn+CX3dR/PAYgjCJZJpM3x+dh0GewnFKfp2AgtWYZJ7FlCh+bQ+4pvniTKgFyKwgY5MX+qh/HQpf73orMM/X109tJLoit9m0kqsJLnzfzmdNv4z91hFGraNLP/RPhkX/s2mQ8jLTskLcO3IWLlk2Tb3Runm4L3ivOHwrKU0G9Cc2WadVpl+6GQESe3JHTnthS4igb4evRjjLJgbjqLLLFhnOF1rfc4OJr+hCX+RoNL3k7orN4QzroEv/PpA6Ly0KxYnGQ/QftvaISK9PEUwYGt3NfvOpa9DUAqKm83WNeKLzn+qtEBdLTVyg1Pk0DehOZLQIXXSn797D5OPb/Jw/NGu6Od+62w3OondBRQRntpqB1UXtP7XrEBNeivud5vrfkdLD53ISlNzt2OZEmki0aptds5KenEbnMA8W8wB7ROKEegIAiHrJU5jx3/NG2jIYnB4n4jwXEL0hlyEoaDa6t9DIL5gBbddfalysXQZUZEYm83YcmWaZo6CtdJTIjVfzXr2TvuuwMG/eD9osusxwuzZMd9GJQKy0BCVayVVWUOUzFfY5Bf9eNfQc2Fx2AyXC+QxNmsRSKkw9s8AjjCZOtXilwSgZ6VtUs9caznLMbCTx5BpjfZRttNnrkGmIsX9MEspIctbCWsAqmpE8il93n2wevowJDDJTLtVM2lZzE+27pbaEsZ3txRQdAY6cq86ioTo7H8ThzsZdwP8dqxVxEyZZ2Fo0hyo/Or/XVEAAAAAA==") center / cover no-repeat;
+  filter: blur(1.5px);
+}
+.tlo-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.1), rgb(10 8 5 / 0.22));
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.2),
+    inset 0 1px 0 rgb(255 255 255 / 0.32);
+}
+/* A light passing across the glass, now and then. */
+.tlo-sheen,
+.tlo-reveal {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 32%, rgb(255 255 255 / 0.14) 45%, rgb(255 255 255 / 0.3) 50%, rgb(255 255 255 / 0.14) 55%, transparent 68%);
+  transform: translateX(-120%);
+}
+/* The opening's last light, over the picture itself (TripLockOverlay). */
+.tlo-reveal {
+  opacity: 0;
+  background: linear-gradient(105deg, transparent 30%, rgb(255 246 222 / 0.32) 46%, rgb(255 255 255 / 0.55) 50%, rgb(255 246 222 / 0.32) 54%, transparent 70%);
+}
+
+/* The badge, centred: a disc a little under half the card's height. */
+.tlo-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: clamp(30px, 46cqh, 66px);
+  aspect-ratio: 1;
+  translate: -50% -50%;
+}
+.tlo-disc {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 9999px;
+  background:
+    radial-gradient(120% 120% at 30% 20%, rgb(255 255 255 / 0.16), transparent 55%),
+    rgb(20 15 9 / 0.66);
+  box-shadow:
+    0 0 0 1px rgb(242 207 134 / 0.75),
+    0 0 0 3px rgb(20 15 9 / 0.18),
+    0 6px 18px -6px rgb(0 0 0 / 0.6),
+    inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+.tlo-padlock {
+  width: 54%;
+  height: 54%;
+  overflow: visible;
+  transform-origin: 50% 30%;
+  filter: drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.45));
+}
+/* The shackle turns on the top of its right leg. */
+.tlo-shackle {
+  transform-box: view-box;
+  transform-origin: 16.4px 10.6px;
+}
+/* The halo that breathes out of the disc, and the ring the opening bursts. */
+.tlo-halo,
+.tlo-burst {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  box-shadow: 0 0 0 1.5px rgb(242 207 134 / 0.8), 0 0 14px rgb(242 207 134 / 0.45);
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tlo-halo {
+    animation: tlo-halo 2.8s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+  }
+  .tlo-sheen {
+    animation: tlo-sheen 6s ease-in-out 1.5s infinite;
+  }
+  /* A pointer on the banner or its button: the disc comes up to meet it. */
+  @media (hover: hover) and (pointer: fine) {
+    .tlo-disc {
+      transition: scale 0.25s ease, box-shadow 0.25s ease;
+    }
+    .trip-unit:hover .tlo[data-state="locked"] .tlo-disc {
+      scale: 1.06;
+      box-shadow:
+        0 0 0 1px rgb(255 226 160 / 0.95),
+        0 0 0 3px rgb(20 15 9 / 0.2),
+        0 10px 24px -8px rgb(0 0 0 / 0.65),
+        inset 0 1px 0 rgb(255 255 255 / 0.22);
+    }
+  }
+}
+@keyframes tlo-halo {
+  0% { opacity: 0; transform: scale(1); }
+  12% { opacity: 0.7; }
+  70%, 100% { opacity: 0; transform: scale(1.55); }
+}
+@keyframes tlo-sheen {
+  0%, 55% { transform: translateX(-120%); }
+  85%, 100% { transform: translateX(120%); }
+}

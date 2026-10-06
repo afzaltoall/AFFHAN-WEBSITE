@@ -1055,6 +1055,21 @@ model CustomerCode {
   @@index([firstContactAt])
 }
 
+/// The lock on the homepage's Free China Business Trip banner (the owner's
+/// request of 2026-10-05): the banner and its button open nothing
+/// until an admin unlocks them from the console's Free China Trip page, and
+/// an admin can lock them again from there. One row per lock, keyed by what it
+/// locks; "trip-banner" is the only one. No row means locked: the lock fails
+/// shut (lib/trip-lock.ts).
+model TripLock {
+  id         String    @id
+  /// When an admin unlocked it; null while it is locked.
+  unlockedAt DateTime?
+  /// The admin who last unlocked or locked it (their sign-in email).
+  changedBy  String?
+  updatedAt  DateTime  @updatedAt
+}
+
 /// An application for the free China business trip, from the five-step form
 /// at /free-china-trip/apply/. The admin console lists them under Leads.
 ///
@@ -1138,12 +1153,14 @@ model TripApplication {
   /// customerKeyOf({ phone, email }), as on every other lead.
   customerKey String?
 
-  /// The account that sent it, when the applicant was signed in. SetNull: a
-  /// deleted account must not take the application with it.
+  /// The account that sent it. Signing in is required to apply, so every new
+  /// application has one; one application per account (the API checks). SetNull:
+  /// a deleted account must not take the application with it.
   userId String?
   user   MobileUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([status])
   @@index([createdAt])
   @@index([customerKey])
+  @@index([userId])
 }

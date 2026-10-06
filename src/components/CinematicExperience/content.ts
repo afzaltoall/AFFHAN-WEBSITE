@@ -78,7 +78,9 @@ export const CHAPTERS = [
 export const CAPTIONS = {
   passport: { eyebrow: "Passport", title: "The journey starts here." },
   boarding: { eyebrow: "Boarding", title: "India to China." },
-  plane: { eyebrow: "Flight", title: "Wheels up." },
+  // The climb's readout under the caption: an airliner's own figures (cruise
+  // at 35,000 ft, about 900 km/h), not the trip's flight.
+  plane: { eyebrow: "Flight", title: "Wheels up.", altitude: "Altitude", speed: "Speed", ft: "ft", kmh: "km/h" },
   globe: { eyebrow: "The route", title: "One line across the map.", from: "India", to: "China" },
   map: { eyebrow: "Destination", title: "China", hanzi: "中国" },
   foshan: { eyebrow: "Arrival", title: "You've arrived." },

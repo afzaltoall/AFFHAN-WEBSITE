@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import gsap from "gsap";
 import { COUNTER } from "./content";
 import { DISPLAY } from "./parts";
@@ -9,7 +9,11 @@ import { DISPLAY } from "./parts";
  * The opening count: 00 to 100 in large editorial numerals over the whole
  * screen, on every arrival (a first visit, a refresh, a link back to the
  * page), then opened from the centre like an iris onto the hero, whose own
- * entrance plays through the opening.
+ * entrance plays through the opening. At 100 the count completes its ring: a
+ * line of light runs once round it, led by a point of light, and closes at
+ * the top in a flash, while light runs through the figures themselves; then
+ * the closed ring flares outward as the black opens. The numerals are sized
+ * to the ring, so 100 always stands inside it.
  *
  * It counts from the very first frame, before any script has run:
  *  - The tens and the units are reels (0 to 9 in one column) in slots that
@@ -57,6 +61,11 @@ const EARLIEST_MS = 600;
 const HURRY_MS = 450;
 /** If the script never arrives, the black lets go by itself (s). */
 const FAILSAFE_S = 20;
+/** The ring's last turn as 100 arrives (deg)... */
+const FINAL_TURN = 18;
+/** ...so the line of light that completes it starts this far round (SVG
+ *  degrees, 0 = three o'clock) and the turn brings its end to the top. */
+const CLOSE_FROM = -90 - FINAL_TURN;
 
 /**
  * Ease-in-out cubic, and the moment it first reaches a value. Plain arithmetic
@@ -133,11 +142,14 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
     const hundred = root.querySelector<HTMLElement>("[data-count-hundred]");
     const group = root.querySelector<HTMLElement>("[data-count-group]");
     const ring = root.querySelector<HTMLElement>("[data-count-ring]");
+    const ringIn = root.querySelector<HTMLElement>("[data-count-ring-in]");
     const numerals = root.querySelector<HTMLElement>("[data-count-numerals]");
     const caption = root.querySelector<HTMLElement>("[data-count-caption]");
     const glow = root.querySelector<HTMLElement>("[data-count-glow]");
-    const sweep = root.querySelector<HTMLElement>("[data-count-sweep]");
-    if (!tens || !units || !hundred || !group || !ring || !numerals || !caption || !glow || !sweep) return;
+    const close = root.querySelectorAll<SVGCircleElement>("[data-count-close], [data-count-close-glow]");
+    const head = root.querySelector<SVGGElement>("[data-count-head]");
+    const flash = root.querySelector<HTMLElement>("[data-count-flash]");
+    if (!tens || !units || !hundred || !group || !ring || !ringIn || !numerals || !caption || !glow || !close.length || !head || !flash) return;
 
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const tweens: Array<gsap.core.Animation> = [];
@@ -240,19 +252,38 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
         tl.to(root, { autoAlpha: 0, duration: 0.6, ease: "power1.out" }, 0.7);
         return;
       }
+      // The ring's own tightening (the stylesheet's) may still be running if
+      // the count was hurried: let it finish quickly, so the line of light
+      // below meets a ring at its final size.
+      const ringAnim = ringIn.getAnimations?.().find((a) => (a as CSSAnimation).animationName === "cx-count-ring");
+      if (ringAnim && ringAnim.playState === "running") {
+        const left = RUN_MS - Number(ringAnim.currentTime ?? RUN_MS);
+        if (left > 300) ringAnim.playbackRate = left / 300;
+      }
       // 100 ARRIVES: the "1" drops into its window as the row settles to the
       // centre, the ring takes its last turn.
       tl.to(group, { xPercent: 0, duration: 0.5, ease: "power3.out" }, 0);
       tl.fromTo(hundred, { autoAlpha: 0, yPercent: -70, filter: "blur(8px)" }, { autoAlpha: 1, yPercent: 0, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, 0);
-      tl.to(ring, { rotation: "+=18", duration: 0.7, ease: "power2.out" }, 0);
-      // ...AND HOLDS, LIT: the warm glow swells behind it and a band of light
-      // crosses the figures (colour-dodge: it only brightens the gold).
+      tl.to(ring, { rotation: `+=${FINAL_TURN}`, duration: 0.7, ease: "power2.out" }, 0);
+      // ...AND THE COUNT COMPLETES THE RING: a line of light runs once round
+      // it, led by a point of light, and closes at the top in a flash.
+      const CLOSE = 0.05;
+      const ROUND = 0.62;
+      tl.fromTo(close, { attr: { "stroke-dashoffset": 100 } }, { attr: { "stroke-dashoffset": 0 }, duration: ROUND, ease: "power2.inOut" }, CLOSE);
+      tl.fromTo(head, { rotation: CLOSE_FROM, svgOrigin: "0 0" }, { rotation: CLOSE_FROM + 360, svgOrigin: "0 0", duration: ROUND, ease: "power2.inOut" }, CLOSE);
+      tl.to(head, { opacity: 1, duration: 0.08 }, CLOSE);
+      tl.to(head, { opacity: 0, duration: 0.14 }, CLOSE + ROUND - 0.05);
+      gsap.set(flash, { xPercent: -50, yPercent: -50 });
+      tl.fromTo(flash, { autoAlpha: 0, scale: 0.2 }, { autoAlpha: 1, scale: 1, duration: 0.16, ease: "power2.out" }, CLOSE + ROUND - 0.06);
+      tl.to(flash, { autoAlpha: 0, scale: 1.7, duration: 0.5, ease: "power1.out" }, CLOSE + ROUND + 0.1);
+      // ...AND HOLDS, LIT: the warm glow swells behind it, and light runs
+      // through the figures themselves (on their glyphs: cinematic.css).
       tl.fromTo(glow, { autoAlpha: 0, scale: 0.7 }, { autoAlpha: 0.95, scale: 1, duration: 0.55, ease: "power2.out" }, 0.08);
-      tl.fromTo(sweep, { xPercent: -130, autoAlpha: 1 }, { xPercent: 330, duration: 0.75, ease: "power2.inOut" }, 0.38);
-      tl.set(sweep, { autoAlpha: 0 }, 1.13);
-      // THEN IT OPENS: the ring flares outwards, the figures lift and blur,
-      // and the black opens from the centre behind them, onto the hero.
-      const OPEN = 1.1;
+      tl.fromTo(numerals, { "--sx": "-1.4em" }, { "--sx": "2.7em", duration: 0.8, ease: "power2.inOut" }, 0.42);
+      // THEN IT OPENS: the ring, closed and lit, flares outwards, the figures
+      // lift and blur, and the black opens from the centre behind them, onto
+      // the hero.
+      const OPEN = 1.2;
       tl.to(caption, { autoAlpha: 0, duration: 0.3 }, OPEN - 0.2);
       tl.to(ring, { scale: 3, opacity: 0, duration: 0.95, ease: "power2.in" }, OPEN - 0.1);
       tl.to(glow, { autoAlpha: 0, scale: 1.6, duration: 0.7, ease: "power2.in" }, OPEN);
@@ -315,7 +346,7 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
 
       {/* One thin gold ring, tightening and turning as the count climbs. */}
       <div data-count-ring className="pointer-events-none absolute aspect-square w-[min(66vh,86vw)]">
-        <div className="cx-count-ring-in h-full w-full">
+        <div data-count-ring-in className="cx-count-ring-in h-full w-full">
           <svg viewBox="-100 -100 200 200" className="h-full w-full overflow-visible">
             <defs>
               <linearGradient id="cx-count-ring" x1="0" y1="0" x2="1" y2="1">
@@ -332,22 +363,49 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
             ))}
           </svg>
         </div>
+        {/* At 100 the count completes the ring: a line of light runs once round
+            it and closes where it began, at the top. Outside the turning inner
+            ring, so only the finale's own turn (+18°) moves it: it starts 18°
+            before the top, and the turn carries its end onto it. */}
+        <svg viewBox="-100 -100 200 200" className="absolute inset-0 h-full w-full overflow-visible">
+          <defs>
+            <filter id="cx-count-close-glow" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="2.4" />
+            </filter>
+          </defs>
+          <g transform={`rotate(${CLOSE_FROM})`}>
+            <circle data-count-close-glow r="96" fill="none" stroke="#f2d38e" strokeOpacity="0.6" strokeWidth="3.4" pathLength={100} strokeDasharray="100 100" strokeDashoffset={100} filter="url(#cx-count-close-glow)" />
+            <circle data-count-close r="96" fill="none" stroke="#fff4d6" strokeWidth="0.95" pathLength={100} strokeDasharray="100 100" strokeDashoffset={100} />
+          </g>
+          {/* Its head: a point of light leading the line round. */}
+          <g data-count-head opacity={0}>
+            <circle cx="96" cy="0" r="6" fill="#f2d38e" opacity={0.45} filter="url(#cx-count-close-glow)" />
+            <circle cx="96" cy="0" r="1.7" fill="#fffaf0" />
+          </g>
+        </svg>
       </div>
+
+      {/* The flash where the ring closes, at its top: outside the ring, so it never turns. */}
+      <div
+        data-count-flash
+        className="pointer-events-none absolute left-1/2 h-[20vmin] w-[20vmin] rounded-full opacity-0"
+        style={{ top: "calc(50% - min(66vh, 86vw) * 0.48)", background: "radial-gradient(closest-side, rgb(255 250 235 / 0.95), rgb(242 211 142 / 0.4) 32%, rgb(214 168 78 / 0) 100%)" }}
+      />
 
       {/* The warm light the numerals flare into at 100. */}
       <div data-count-glow className="cx-glow-gold pointer-events-none absolute h-[46vmin] w-[86vmin] opacity-0" />
 
-      {/* The numerals: three fixed-width slots, so nothing shifts as they change. */}
+      {/* The numerals: three fixed-width slots, so nothing shifts as they change.
+          --slot is each one's place along the row, for the light that runs
+          through 100 (cinematic.css). */}
       <div data-count-numerals className={`${DISPLAY} cx-count-num relative`}>
-        {/* The light that crosses 100 as it holds (colour-dodge: black stays black). */}
-        <span data-count-sweep aria-hidden className="cx-sweep pointer-events-none absolute inset-y-[-12%] left-0 z-10 w-[42%] opacity-0" />
         <div className="cx-count-enter">
           <span data-count-group className="cx-count-group">
-            <span data-count-hundred className="cx-count-slot cx-count-ink" />
-            <span className="cx-count-slot">
+            <span data-count-hundred className="cx-count-slot cx-count-ink" style={{ "--slot": 0 } as CSSProperties} />
+            <span className="cx-count-slot" style={{ "--slot": 1 } as CSSProperties}>
               <span data-reel="tens" className="cx-count-reel" />
             </span>
-            <span className="cx-count-slot">
+            <span className="cx-count-slot" style={{ "--slot": 2 } as CSSProperties}>
               <span data-reel="units" className="cx-count-reel" />
             </span>
           </span>

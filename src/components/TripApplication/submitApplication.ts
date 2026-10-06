@@ -15,7 +15,8 @@ import type { FieldErrors, TripApplicationPayload } from "@/lib/trip-application
  */
 
 export type SubmitResult =
-  | { ok: true; referenceNo: string | null }
+  /** Recorded: the Trip ID the database wrote, and when (ISO). */
+  | { ok: true; referenceNo: string | null; registeredAt: string | null }
   /** The server refused some answers: back to that step, errors in place. */
   | { ok: false; reason: "invalid"; message: string; fields: FieldErrors }
   /** Too many applications from this connection. */
@@ -24,6 +25,8 @@ export type SubmitResult =
   | { ok: false; reason: "duplicate"; message: string }
   /** Outside the application window, by the server's clock. */
   | { ok: false; reason: "closed"; message: string }
+  /** Nobody signed in any more: the application needs the account. */
+  | { ok: false; reason: "signin"; message: string }
   /** The request never arrived, or the server couldn't record it. */
   | { ok: false; reason: "network" | "server"; message: string };
 
@@ -45,19 +48,26 @@ export async function submitApplication(payload: TripApplicationPayload): Promis
     return { ok: false, reason: "network", message: "" };
   }
 
-  let data: { referenceNo?: unknown; error?: unknown; fields?: unknown; reason?: unknown } = {};
+  let data: { referenceNo?: unknown; createdAt?: unknown; error?: unknown; fields?: unknown; reason?: unknown } = {};
   try {
     data = await res.json();
   } catch {
     /* an empty or non-JSON body: the status still says what happened */
   }
 
-  if (res.ok) return { ok: true, referenceNo: typeof data.referenceNo === "string" ? data.referenceNo : null };
+  if (res.ok) {
+    return {
+      ok: true,
+      referenceNo: typeof data.referenceNo === "string" ? data.referenceNo : null,
+      registeredAt: typeof data.createdAt === "string" ? data.createdAt : null,
+    };
+  }
   const message = typeof data.error === "string" ? data.error : "";
   if (res.status === 400 && data.fields && typeof data.fields === "object") {
     return { ok: false, reason: "invalid", message, fields: data.fields as FieldErrors };
   }
   if (res.status === 429) return { ok: false, reason: "limited", message };
+  if (res.status === 401) return { ok: false, reason: "signin", message };
   if (res.status === 409 && data.reason === "duplicate") return { ok: false, reason: "duplicate", message };
   if (res.status === 403 && data.reason === "closed") return { ok: false, reason: "closed", message };
   return { ok: false, reason: "server", message };
@@ -66,5 +76,5 @@ export async function submitApplication(payload: TripApplicationPayload): Promis
 /** Stands in for the API: a realistic wait, then success without a reference. */
 async function mockSubmit(): Promise<SubmitResult> {
   await new Promise((resolve) => setTimeout(resolve, 1400));
-  return { ok: true, referenceNo: null };
+  return { ok: true, referenceNo: null, registeredAt: null };
 }

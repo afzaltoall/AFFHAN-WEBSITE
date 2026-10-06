@@ -7,6 +7,8 @@ import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
 import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
+import { TripLockPanel } from "@/components/admin/TripLockPanel";
+import { TripLockRailDot, TripLockRailPill } from "@/components/admin/TripLockRailStatus";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 import type { EmployeeOption, Theme } from "@/components/admin/console-theme";
 import { useRouter } from "next/navigation";
@@ -1107,9 +1109,11 @@ export function AdminConsole({ data }: Props) {
         <span className={sideIconCol}>
           <item.icon size={17} className={active ? "text-brand" : t.soft} />
           {dot !== undefined && dot > 0 && <span className={sideDot}>{fmtBadge(dot)}</span>}
+          {item.key === "trip-lock" && <TripLockRailDot open={sideOpen} />}
         </span>
         <span className={`flex-1 ${sideLabel}`}>{item.label}</span>
         {count !== undefined && <span className={sidePill}>{fmtNum(count)}</span>}
+        {item.key === "trip-lock" && <TripLockRailPill open={sideOpen} dark={dark} />}
         {/* Beside the rotating figure rather than added to it: the two numbers
             mean different things, and only one of them is somebody's job to fix
             today. The word rides along because two bare numbers side by side
@@ -1289,6 +1293,10 @@ export function AdminConsole({ data }: Props) {
               that is a wall of numbers about something else standing between
               you and the list you came for. "All" is where the state of the
               business belongs; the other views get straight to their work. */}
+          {/* The Free China Trip banner's lock, and the key to it, first
+              thing on the dashboard (the owner's request of 2026-10-06), as
+              well as on the Free China Trip page. */}
+          {view === "all" && <TripLockPanel t={t} dark={dark} />}
           {view === "all" && (
           <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
             {statCards.map((s) => (

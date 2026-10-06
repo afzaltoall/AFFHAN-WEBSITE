@@ -23,7 +23,8 @@ through a gold and silk transition (`goApply` in `CinematicExperience.tsx`).
 The trip has its own Terms & Conditions (17 clauses) and Privacy Policy (17
 sections): the owner's revised text of 2026-10-01, word for word, in
 `src/lib/trip-legal.ts`. They are published at `/free-china-trip/terms/` and
-`/free-china-trip/privacy/` (`components/TripLegal/`), and they are **not**
+`/free-china-trip/privacy/` (`components/TripLegal/`), which end with the
+document and no site footer (the owner's request, 2026-10-02), and they are **not**
 the website's `/terms-conditions/` and `/privacy-policy/`, which are the
 main site's and are untouched. Every place that shows them reads that one
 file: the two pages, the popup, the dates in How it works, the countdown,
@@ -41,23 +42,24 @@ popup instead.
 | `Scene01Opening.tsx` … `Scene16Countdown.tsx` | One file per scene: markup only (the countdown also keeps its own clock). There is no 13: the terms section came out. |
 | `Motifs.tsx` | The red silk and gold trail layers that recur through the film, and the atmosphere. |
 | `warp.ts`, `WarpToFoshan.tsx` | The jump from Guangzhou to Foshan: gold streaks out of a vanishing point, drawn from the film's progress (scrolls back too), and the coordinates readout. |
+| `mapNetwork.ts`, `mapLight.ts` | The China map's market network (its routes, pins and names, read off the artwork, and the order they light in) and its light: the map arrives at night and lights up out from Guangzhou, drawn by WebGL from the film's progress (scrolls back too). |
 | `particles.ts`, `GoldDust.tsx` | The FREE particles (scroll-driven, no loop) and the ambient gold dust (on screen only). |
 | `cinematic.css` | Palette tokens, the opening's CSS entrance, masks and gradients. Scoped to `.cx`. |
 | `clockSound.ts` | The countdown, heard: the owner's tick and tock, scheduled on the audio clock for each second as it turns (Scene16's speaker, top right). |
 
 ## Must be settled before launch
 
-1. **The boarding-pass artwork (`03-boarding-pass`) prints a flight number,
-   CA528, and a date, 18 OCT 2024**, twice. Both are baked into the
-   flattened image, and the date is in the past. They read as the trip's
-   flight and date, which nobody has confirmed. The artwork needs to be
-   regenerated without them.
-2. **When the application accepts applications.** The Terms open
-   applications on 5 October 2026 and close them on 25 November 2026
-   (clause 1), but the application takes one whenever it is sent. Whether it
-   should refuse them outside those dates is the owner's call; nothing
-   enforces the dates yet.
-3. **The host (`14-host-presenter`) is uncaptioned on purpose.** No name or
+1. **The boarding-pass artwork (`03-boarding-pass`) prints a flight, CA528,
+   a date, 1 DEC 2026, gate A7 and seat 24A** on both tickets, baked into
+   the flattened image. 1 December 2026 is when the Terms announce the
+   winners (clause 4), not a travel date (the Terms leave that to be
+   announced to the winners), but on a boarding pass it reads as the
+   flight's date. The owner's version of 2026-10-02 flies Chennai to
+   Guangzhou (it was Shanghai), but the skyline on its stub is still
+   Shanghai's: the tower with two spheres is the Oriental Pearl Tower, not
+   Guangzhou's Canton Tower. The passport picture (`02-passport`) still
+   prints SHANGHAI on the passes tucked into it.
+2. **The host (`14-host-presenter`) is uncaptioned on purpose.** No name or
    title was supplied. If Affhan wants him named, add it to `FINAL_CTA` in
    `content.ts` and render it in `Scene14FinalCta.tsx`.
 
@@ -68,8 +70,16 @@ popup instead.
   confirmed. If it does visit them, that can be said. On 2026-10-01, on the
   owner's request, Shanghai and Beijing came out, so Guangzhou is the first
   city, and Foshan (the owner's picture of its furniture market) replaced
-  Yiwu as the arrival. The China map still marks Beijing, Shanghai and Yiwu,
-  and not Foshan, because that is the artwork.
+  Yiwu as the arrival.
+- **The market map** (since 2026-10-05, the owner's "Red-Gold China Market
+  Map") names six markets on routes from the two cities: Shaxi, Baima and
+  New Asia from Guangzhou; Louvre, Shunde and Sunlink from Foshan. The Terms
+  say markets will be visited as part of the group itinerary (clause 8) but
+  leave the itinerary itself to be announced (clause 1), so a visitor may
+  read these six as the plan. It is a diagram, not geography: Guangzhou is
+  drawn mid-country (it is on the south coast, with Foshan beside it) and
+  the markets are spread across China. The artwork sets the market names in
+  lower case ("shaxi market"), except New Asia.
 - **The countdown** (`COUNTDOWN` in `content.ts`) runs to 1 December 2026,
   midnight IST: the day the Terms announce the winners (clause 4). At zero it
   rests at 00 00 00 00.
@@ -88,18 +98,59 @@ popup instead.
 
 To `/free-china-trip/apply/`, which posts to `POST /api/trip-applications/`:
 each one is stored in the `TripApplication` table with a reference number
-(`TRIP-26-00001`) and the applicant's customer number, and shown to the team
-at **Admin → Leads → Trip applications**.
+(`TRIP-26-00001`, the applicant's Trip ID), their account and their customer
+number, and shown to the team at **Admin → Free China Trip → Participants**.
+Only a signed-in account can apply, and only from 5 October to 25 November
+2026 (Terms, clause 1): a production build refuses an application outside
+those dates (`applicationWindow` in `src/lib/trip-application.ts`); a
+development server always takes one.
 
 ## Pictures
 
 `public/free-china-trip/`, WebP, each at full size and as a `-960` phone
 copy chosen by `srcset` (the opening picture also at 1200px, for 2x phones):
-3.2 MB and 1.4 MB for the two sets, from 25 MB of
+3.1 MB and 1.4 MB for the two sets, from 25 MB of
 PNG. The source PNGs are not shipped. Only the opening picture loads with the
 page; the rest are fed in after load, in film order (`CinematicExperience.tsx`).
 To replace a picture, keep its file name and update `w`/`h` in `assets.ts`;
 if its subject moves, update `ANCHORS` there too.
+
+The boarding pass (`03-boarding-pass`) is made from the owner's `BOARDING
+PASS.png` fitted into the place the first ticket took in the 1600 x 903
+frame, so the film's framing never changes with it (the version of
+2026-10-02: scaled 0.876, at 102, 53). It carries a third file,
+`03-boarding-pass-plane.webp` (1.8 KB): the little plane printed on its
+route, lifted off the paper so the film can fly it to CHN (`PASS_PLANE`, and
+the route's three points in `ANCHORS`). A new pass needs both remade.
+
+The two planes are one flight (owner's request, 2026-10-05: the plane's
+position jumped and the flight stopped and started). The little printed
+plane gathers speed along the route and takes off at the dot before CHN; the
+airliner is born there in a flash of gold, at the little plane's size and
+heading and at its speed (worked out on every screen from where the pass
+and the plane really are: `PASS_PLANE.body`, `PLANE_PARTS.axis`). From
+there it flies one smooth curve to the end of chapter 04 (`animations.ts`,
+THE FLIGHT): it climbs out towards the camera as the pass falls away beneath
+it, the camera rides alongside while the climb reads out, and it pulls away
+past the globe, never stopping on the way.
+
+The China map (`06-china-map`) is built, with the field its light is drawn
+from, by `node scripts/build_trip_map.mjs` from the owner's `Red-Gold China
+Market Map.png` (330 KB and 150 KB, and the field 62 KB, lossless: when
+each pixel lights). The light follows the artwork's own routes, pins and
+names, read off it into `mapNetwork.ts`, so a new map needs its points
+re-read there and the script run again; the dive into Guangzhou aims at
+`ANCHORS.mapGuangzhou`. The light is drawn only with WebGL: without it, or
+until its field has loaded, the map is simply the picture, as printed.
+
+The plane (`04-airplane`) has its working parts read off it into
+`PLANE_PARTS` (`assets.ts`): its two fan faces (ellipses fitted to the dark
+discs in the intakes) and where its lights are. While it is on screen its
+engines turn, its navigation lights burn (red on the near wing, green on the
+far one), its wingtip strobes double-flash and its belly beacon pulses, in
+real time (`cinematic.css`), and under the caption the climb reads out,
+altitude and speed, with the scroll. A new plane picture needs its parts
+re-read.
 
 ## The clock's sound
 
@@ -121,6 +172,9 @@ screen, never under the Apply popup, never past zero.
 
 With `prefers-reduced-motion: reduce`: no smooth scrolling, no entrances, no
 parallax, travel, zoom or blur. Each chapter dissolves to the next at its
-resting composition; the host simply fades in where he stands. Every word
+resting composition; the host simply fades in where he stands, the
+China map is lit from the start, as printed, and the plane's engines and
+lights hold still (its navigation lights stay on, and the climb's readout
+shows cruise). Every word
 and every call to action are unchanged; the countdown's figures change in
 place (no roll, no wind-up) and the Apply transition is a plain fade.

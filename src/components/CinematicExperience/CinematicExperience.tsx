@@ -8,6 +8,8 @@ import { useGSAP } from "@gsap/react";
 import Lenis from "lenis";
 import "lenis/dist/lenis.css";
 import { agreeToTripTerms } from "@/components/TripLegal/approval";
+import { useTripStatus } from "@/components/TripAccess/useTripStatus";
+import { TRIP_REGISTERED_HREF } from "@/lib/trip-legal";
 import { ConsentGate } from "@/components/TripLegal/ConsentGate";
 import "./cinematic.css";
 import {
@@ -22,6 +24,7 @@ import {
 } from "./animations";
 import { APPLY_HREF, CHAPTERS, INCLUDED, INCLUDED_EYEBROW } from "./content";
 import { FilmHud } from "./FilmHud";
+import { MapLight } from "./mapLight";
 import { Motifs } from "./Motifs";
 import { NumberLoadingOpener } from "./NumberLoadingOpener";
 import { GatherField } from "./particles";
@@ -155,7 +158,7 @@ export function CinematicExperience() {
    * stays.
    */
   const takeOffFrom = useCallback(
-    (from: HTMLElement) => {
+    (from: HTMLElement, to: string = APPLY_HREF) => {
       if (leaving.current) return;
       leaving.current = true;
       lenisRef.current?.stop();
@@ -168,7 +171,7 @@ export function CinematicExperience() {
             /* the application simply opens from dark */
           }
         }
-        router.push(APPLY_HREF);
+        router.push(to);
       };
       const layer = rootRef.current?.querySelector<HTMLElement>("[data-cx='exit']");
       if (!layer) return go();
@@ -181,19 +184,23 @@ export function CinematicExperience() {
    * Every "Apply for the Trip" (hero, film readout, final call, countdown)
    * asks first, every time it is pressed: the trip's Terms & Conditions and
    * Privacy Policy, in the consent popup, held open by the button that was
-   * pressed. Agreed, the trip takes off from that button. Ctrl, ⌘, Shift or
+   * pressed. Agreed, the trip takes off from that button. Someone who has
+   * registered already has nothing to agree to: the trip takes off straight
+   * to the participants board, where their Trip ID is. Ctrl, ⌘, Shift or
    * middle click still open a new tab, as links do, and the application asks
    * there instead.
    */
   const [askedFrom, setAskedFrom] = useState<HTMLElement | null>(null);
+  const { registration } = useTripStatus();
   const goApply = useCallback(
     (e: MouseEvent<HTMLAnchorElement>) => {
       if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       e.preventDefault();
       if (leaving.current) return;
-      setAskedFrom(e.currentTarget);
+      if (registration) takeOffFrom(e.currentTarget, TRIP_REGISTERED_HREF);
+      else setAskedFrom(e.currentTarget);
     },
-    [],
+    [registration, takeOffFrom],
   );
   const closeConsent = useCallback(() => setAskedFrom(null), []);
   const agreed = useCallback(() => {
@@ -293,6 +300,13 @@ export function CinematicExperience() {
         const warpCanvas = stage.querySelector<HTMLCanvasElement>("[data-cx='warp']");
         const warp = !reduce && warpCanvas ? new WarpField(warpCanvas, desktop ? 420 : 220) : null;
         warp?.layout();
+        // The China map's network, lit out from Guangzhou (mapLight.ts): ready
+        // once its picture and field have loaded; until then, and without
+        // WebGL, the map is simply the picture.
+        const mapCanvas = stage.querySelector<HTMLCanvasElement>("[data-cx='map-light']");
+        const mapImg = stage.querySelector<HTMLImageElement>("[data-cx='map'] img");
+        const mapLight = !reduce && mapCanvas && mapImg ? new MapLight(mapCanvas, mapImg) : null;
+        void mapLight?.start();
         const relayout = () => {
           void particles?.layout();
           warp?.layout();
@@ -303,7 +317,14 @@ export function CinematicExperience() {
         const starsDim = root.querySelector<HTMLElement>("[data-cx='stars-dim']");
         if (stars) buildStars(root, stars, reduce);
         if (reduce) buildFilmReduced(film, stage, desktop, { onProgress, squat });
-        else buildFilm(film, stage, desktop, particles, { onProgress, starsDim, squat, warp: warp ? (p) => warp.render(p) : undefined });
+        else
+          buildFilm(film, stage, desktop, particles, {
+            onProgress,
+            starsDim,
+            squat,
+            warp: warp ? (p) => warp.render(p) : undefined,
+            mapLight: mapLight ? (p) => mapLight.render(p) : undefined,
+          });
         // THE FILM'S WAY OUT ScrollTrigger: as its stage lets go and rises off
         // the screen, the last chapter (FREE, What's included) dissolves, as
         // How it works does into the final call (buildSteps), so no chapter
@@ -336,6 +357,7 @@ export function CinematicExperience() {
           root_.removeAttribute("data-film-on");
           particles?.clear();
           warp?.clear();
+          mapLight?.clear();
           undoSteps();
           revertTextFx();
           if (tick) gsap.ticker.remove(tick);

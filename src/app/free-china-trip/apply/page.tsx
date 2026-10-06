@@ -5,6 +5,7 @@ import { ASSETS, srcSetOf } from "@/components/CinematicExperience/assets";
 import { displayFont } from "@/components/CinematicExperience/fonts";
 import { ApplyExperience } from "@/components/TripApplication/ApplyExperience";
 import { NO_SCRIPT } from "@/components/TripApplication/content";
+import { TripSignInGate } from "@/components/TripAccess/SignInGate";
 
 /**
  * The application for the free China business trip: the chapter after the
@@ -12,6 +13,8 @@ import { NO_SCRIPT } from "@/components/TripApplication/content";
  * components/TripApplication/ (see its README.md for what is placeholder).
  * The navbar comes from the root layout, untouched; the 64px of padding is
  * the room every page leaves for it. No footer, on the owner's request.
+ * For signed-in visitors only (TripSignInGate): every application belongs to
+ * an account.
  *
  * Not indexed: it is a form, and /free-china-trip/ is the page to find.
  */
@@ -49,6 +52,7 @@ export default function FreeChinaTripApplyPage() {
         </p>
       </noscript>
       <ApplyExperience />
+      <TripSignInGate />
     </main>
   );
 }

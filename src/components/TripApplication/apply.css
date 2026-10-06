@@ -327,3 +327,125 @@
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .ax-pane { background: rgb(8 7 10 / 0.88); }
 }
+
+/* ---- The submission: the light of time (SubmitStage) -------------------------------------
+   A clock face of light, the film's own sixty ticks: a point of light sweeps
+   round it like a second hand while the application is processed, its gold
+   trail behind it (the hand turns, and ApplyExperience lights the ticks as it
+   passes them). Submitted, the full circle flashes and folds into a line of
+   light (.ax-send-line), the horizon the words rise from. */
+.ax-clock {
+  position: relative;
+  width: min(54vmin, 40svh, 330px);
+  aspect-ratio: 1;
+}
+.ax-clock-core {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ax-clock-core { animation: ax-core 2.4s ease-in-out infinite; }
+}
+@keyframes ax-core {
+  50% { opacity: 0.5; transform: scale(0.88); }
+}
+/* The hand: a ring at the clock's radius (88 of 100), turned by its angle. */
+.ax-hand {
+  position: absolute;
+  inset: 6%;
+  border-radius: 999px;
+  will-change: transform;
+}
+.ax-hand-trail {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(from 0deg, transparent 0deg 250deg, rgb(214 168 78 / 0.05) 268deg, rgb(242 211 142 / 0.8) 359.5deg, transparent 360deg);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2.6px), #000 calc(100% - 1.4px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2.6px), #000 calc(100% - 1.4px));
+}
+.ax-hand-head {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 9px;
+  height: 9px;
+  margin: -4.5px 0 0 -4.5px;
+  border-radius: 999px;
+  background: #fff8e4;
+  box-shadow: 0 0 10px 3px rgb(255 244 214 / 0.9), 0 0 30px 10px rgb(242 211 142 / 0.5);
+}
+/* The time in India at the clock's centre: each figure rolls in as it
+   changes, the colons breathe with the seconds (the film's countdown hand). */
+.ax-clock-time {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.ax-clock-digits {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: clamp(24px, 7.2vmin, 40px);
+  font-weight: 400;
+  /* Optical size 11: a 4 reads as a 4, a 1 as a 1, at this size. */
+  font-variation-settings: "opsz" 11;
+  line-height: 1;
+  color: var(--cx-white);
+}
+.ax-clock-cell {
+  display: inline-block;
+  width: 0.6em;
+  height: 1.08em;
+  overflow: hidden;
+  text-align: center;
+}
+.ax-clock-digit {
+  display: block;
+  background: linear-gradient(180deg, #fffaf0 10%, #f4e6c8 55%, #d6a84e 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.ax-clock-colon {
+  margin: 0 0.04em;
+  color: var(--cx-gold);
+}
+.ax-clock-zone {
+  margin-top: 0.55rem;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgb(244 239 230 / 0.42);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ax-clock-digit { animation: ax-clock-roll 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .ax-clock-colon { animation: ax-clock-beat 1s ease-out infinite; }
+}
+@keyframes ax-clock-roll {
+  from { transform: translateY(-100%); opacity: 0; filter: blur(3px); }
+}
+@keyframes ax-clock-beat {
+  0% { opacity: 1; }
+  100% { opacity: 0.35; }
+}
+
+/* The line of light the clock folds into. */
+.ax-send-line {
+  width: min(72vw, 560px);
+}
+/* The Trip ID, set like a ticket's number. */
+.ax-trip-id {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.85rem 1.7rem 0.95rem;
+  border: 1px solid rgb(214 168 78 / 0.42);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgb(214 168 78 / 0.12), rgb(214 168 78 / 0.03));
+  box-shadow: inset 0 1px 0 rgb(255 246 222 / 0.08);
+}

@@ -3,15 +3,19 @@ import { Plane } from "lucide-react";
 const SPARKS = 12;
 
 /**
- * The way out to the application (takeoff.ts moves it): fixed below the
- * navbar, hidden until an Apply button is pressed. A dimmer for the page, the
- * contrail (a soft glow and a bright core, drawn by their dash), sparks shed
- * along it, the plane, the bloom of light where it leaves, and plain black
- * for reduced motion.
+ * The way out to the application (takeoff.ts moves it): fixed over the whole
+ * screen, under the navbar, hidden until an Apply button is pressed. While
+ * the bar shows it stays on top, as it always has; once it has scrolled away
+ * (it hides as the page goes down, so it is gone by the countdown) the light
+ * reaches the top edge too. It used to start 64px down whatever the bar was
+ * doing, and with the bar away that strip kept showing the page above the
+ * light. A dimmer for the page, the contrail (a soft glow and a bright core,
+ * drawn by their dash), sparks shed along it, the plane, the bloom of light
+ * where it leaves, and plain black for reduced motion.
  */
 export function TakeOffLayer() {
   return (
-    <div data-cx="exit" aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 top-16 z-[90] hidden overflow-hidden">
+    <div data-cx="exit" aria-hidden className="pointer-events-none fixed inset-0 z-[90] hidden overflow-hidden">
       <div data-cx="exit-dim" className="absolute inset-0 bg-[#050505] opacity-0" />
       <svg className="absolute inset-0 h-full w-full overflow-visible">
         <path data-cx="exit-glow" className="cx-exit-glow" fill="none" stroke="rgb(242 211 142 / 0.45)" strokeWidth="12" strokeLinecap="round" />

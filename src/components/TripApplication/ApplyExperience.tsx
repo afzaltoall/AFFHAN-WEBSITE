@@ -1,10 +1,16 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { SplitText } from "gsap/SplitText";
 import { applicationWindow, validateAll, type FieldErrors, type WindowState } from "@/lib/trip-application";
-import { ARRIVAL_KEY } from "@/components/CinematicExperience/takeoff";
+import { ARRIVAL_KEY, takeOff } from "@/components/CinematicExperience/takeoff";
+import { TakeOffLayer } from "@/components/CinematicExperience/TakeOffLayer";
+import { TRIP_SIGN_IN } from "@/components/TripAccess/content";
+import { WELCOME_KEY, useTripStatus } from "@/components/TripAccess/useTripStatus";
+import { useQuoteGate } from "@/context/QuoteGateContext";
+import { TRIP_REGISTERED_HREF } from "@/lib/trip-legal";
 import { revertTextFx, textIn } from "@/components/CinematicExperience/textfx";
 import { agreeToTripTerms, hasAgreedToTripTerms } from "@/components/TripLegal/approval";
 import { ConsentGate } from "@/components/TripLegal/ConsentGate";
@@ -23,7 +29,7 @@ import { StepReview } from "./StepReview";
 import { StepScroll } from "./StepScroll";
 import { StepTravel } from "./StepTravel";
 import { SubmitStage } from "./SubmitStage";
-import { submitApplication, type SubmitResult } from "./submitApplication";
+import { submitApplication } from "./submitApplication";
 import { toPayload, useApplication } from "./useApplication";
 
 /**
@@ -98,6 +104,9 @@ const sleep = (ms: number) => new Promise<null>((resolve) => window.setTimeout((
 
 export function ApplyExperience() {
   const app = useApplication();
+  const router = useRouter();
+  const { requireLogin } = useQuoteGate();
+  const { registration } = useTripStatus();
   const root = useRef<HTMLDivElement>(null);
   const liveRef = useRef<HTMLParagraphElement>(null);
   const [phase, setPhase] = useState<Phase>("intro");
@@ -107,9 +116,13 @@ export function ApplyExperience() {
   const [headerDir, setHeaderDir] = useState(1);
   const [editing, setEditing] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
+  /** When the database recorded it (ISO), for the submitted moment. */
+  const [registeredAt, setRegisteredAt] = useState<string | null>(null);
   const [failure, setFailure] = useState("");
   /** The failure cannot be cured by sending again (a duplicate, or the window closed): no Try again. */
   const [failureFinal, setFailureFinal] = useState(false);
+  /** The sign-in ended while the form was open: Sign in, in place of Try again. */
+  const [signInFailure, setSignInFailure] = useState(false);
   /** Whether applications are being taken (lib/trip-application.ts): read in the browser, after the first render. */
   const [win, setWin] = useState<WindowState>("open");
   /** The consent popup, asked for by Start (the button focus goes back to). */
@@ -121,7 +134,6 @@ export function ApplyExperience() {
   const dir = useRef(1);
   const reduce = useRef(false);
   const indicatorShown = useRef(false);
-  const spin = useRef<gsap.core.Tween | null>(null);
   const introTl = useRef<gsap.core.Timeline | null>(null);
   /** Opened through the landing page's take-off: decided once (the flag is
    *  read and cleared), kept here so a development re-run of the intro
@@ -261,7 +273,6 @@ export function ApplyExperience() {
     const set = running.current;
     return () => {
       set.forEach((a) => a.kill());
-      spin.current?.kill();
     };
   }, []);
 
@@ -293,6 +304,12 @@ export function ApplyExperience() {
   useEffect(() => {
     setWin(applicationWindow());
   }, []);
+
+  // Registered already (one application per person): to the participants
+  // board, where their Trip ID is, instead of a second application.
+  useEffect(() => {
+    if (registration && (phase === "intro" || phase === "form")) router.replace(TRIP_REGISTERED_HREF);
+  }, [registration, phase, router]);
 
   /** The application starts: the button glows, a gold trail passes, the intro leaves, 01 arrives. */
   const start = async () => {
@@ -487,77 +504,128 @@ export function ApplyExperience() {
   };
 
   // ---- Sending --------------------------------------------------------------------
-  /** The button becomes a point; light, an orbit, particles on it. */
+  /** The flight layer (TakeOffLayer): the plane Submit launches. */
+  const flightLayer = () => root.current?.querySelector<HTMLElement>("[data-cx='exit']") ?? null;
+
+  /**
+   * The light of time: a point of light sweeping the clock face like a second
+   * hand, the ticks flaring as it passes and fading behind it. Driven from
+   * GSAP's ticker by an angle that only grows, so it can quicken smoothly
+   * (speed is tweenable) and, once `fillFrom` is set, light every tick it
+   * passes for good; when it has gone all the way round from there, onFull.
+   */
+  const clock = useRef<{
+    angle: number;
+    speed: number;
+    fillFrom: number | null;
+    full: boolean;
+    onFull: (() => void) | null;
+    stop: () => void;
+  } | null>(null);
+  const stopClock = () => {
+    clock.current?.stop();
+    clock.current = null;
+  };
+  const startClock = () => {
+    stopClock();
+    const ticks = $$("send-tick");
+    const hand = $("send-hand");
+    const TRAIL = 56;
+    const st = {
+      angle: 0,
+      speed: 150,
+      fillFrom: null as number | null,
+      full: false,
+      onFull: null as (() => void) | null,
+      stop: () => gsap.ticker.remove(advance),
+    };
+    const render = () => {
+      if (hand) hand.style.transform = `rotate(${(st.angle % 360).toFixed(2)}deg)`;
+      for (let i = 0; i < ticks.length; i++) {
+        const t = i * 6;
+        let o = 0.16;
+        const behind = (((st.angle - t) % 360) + 360) % 360;
+        if (behind < TRAIL) o = 0.16 + Math.pow(1 - behind / TRAIL, 1.6) * 0.84;
+        if (st.fillFrom !== null) {
+          const reached = st.fillFrom + ((((t - st.fillFrom) % 360) + 360) % 360);
+          if (st.angle >= reached) o = Math.max(o, 0.95);
+        }
+        ticks[i].setAttribute("opacity", o.toFixed(3));
+      }
+      if (st.fillFrom !== null && !st.full && st.angle - st.fillFrom >= 360) {
+        st.full = true;
+        st.onFull?.();
+      }
+    };
+    function advance(_time: number, deltaTime: number) {
+      st.angle += (Math.min(deltaTime, 64) / 1000) * st.speed;
+      render();
+    }
+    gsap.ticker.add(advance);
+    clock.current = st;
+    render();
+  };
+  // The ticker stops with the page.
+  useEffect(() => () => stopClock(), []);
+
+  /** Back to the start: the clock whole again, the line put away (for another attempt). */
+  const resetStage = () => {
+    gsap.set($("send-clock"), { clearProps: "transform" });
+    gsap.set($("send-line"), { autoAlpha: 0, scaleX: 1, y: 0 });
+    gsap.set($("send-full"), { attr: { "stroke-dashoffset": 1 }, opacity: 1 });
+    gsap.set($("send-wave"), { opacity: 0 });
+    gsap.set($("send-hand"), { autoAlpha: 1 });
+    gsap.set($$("send-tick"), { attr: { opacity: 0.16 } });
+  };
+
+  /**
+   * Submit pressed: the plane leaves the button's porthole on its gold
+   * contrail (takeoff.ts, without the landing page's dim and bloom), the
+   * screen darkens, and the clock face of light opens at its centre, its
+   * point of light already sweeping: "Processing your application". Resolves
+   * once it is in place; the light keeps sweeping until the server answers.
+   */
   const playSending = (btn: HTMLElement | null) =>
     new Promise<void>((resolve) => {
-      const point = $("send-point");
-      const row = $("send-row");
-      spin.current?.kill();
-      spin.current = track(gsap.to($("send-orbiters"), { rotation: 360, duration: 7, ease: "none", repeat: -1, paused: true }));
+      resetStage();
       const tl = track(gsap.timeline({ onComplete: resolve }));
-      tl.set([$("send-caption"), $("done-details")], { autoAlpha: 0 }, 0);
-      tl.set($("send-ring"), { strokeDashoffset: 1 }, 0);
-      tl.set($$("send-orbiter"), { autoAlpha: 0, scale: 0 }, 0);
-      tl.set($("send-orbiters"), { rotation: 0 }, 0);
+      tl.set([$("send-caption"), $("done"), $("fail")], { autoAlpha: 0 }, 0);
       tl.to($("host"), { autoAlpha: 0, duration: 0.6, ease: "power1.out" }, 0);
       if (reduce.current) {
-        tl.to($("send-dark"), { autoAlpha: 0.85, duration: 0.4 }, 0);
-        tl.set([$("send-orbit"), ...$$("send-orbiter")], { autoAlpha: 1, scale: 1 }, 0.2);
-        tl.set($("send-ring"), { strokeDashoffset: 0 }, 0.2);
-        tl.to($("send-light"), { autoAlpha: 0.6, scale: 1, duration: 0.4 }, 0.2);
+        tl.set($$("send-tick"), { attr: { opacity: 0.4 } }, 0);
+        tl.set($("send-hand"), { autoAlpha: 0 }, 0);
+        tl.to($("send-dark"), { autoAlpha: 0.9, duration: 0.4 }, 0);
+        tl.to([$("send-clock"), $("send-caption")], { autoAlpha: 1, duration: 0.4 }, 0.2);
+        tl.to($("send-light"), { autoAlpha: 0.5, duration: 0.4 }, 0.2);
         return;
       }
-      if (btn && point && row) {
-        const b = btn.getBoundingClientRect();
-        const r = row.getBoundingClientRect();
-        const dx = b.left + b.width / 2 - (r.left + r.width / 2);
-        const dy = b.top + b.height / 2 - (r.top + r.height / 2);
-        tl.to(Array.from(btn.children).slice(1), { autoAlpha: 0, duration: 0.18 }, 0);
-        tl.to(btn, { scaleX: b.height / b.width, duration: 0.34, ease: "power3.in" }, 0.05);
-        tl.to(btn, { scale: 0.14, autoAlpha: 0, duration: 0.26, ease: "power3.in" }, 0.37);
-        tl.fromTo(point, { x: dx, y: dy, scale: 0.5, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.18, ease: "power2.out" }, 0.52);
-        tl.to(point, { x: 0, y: 0, duration: 0.75, ease: "power3.inOut" }, 0.66);
-      } else {
-        tl.fromTo(point, { x: 0, y: 0, scale: 0, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.4 }, 0.3);
+      // The flight: the plane leaves Submit's porthole for the top of the screen.
+      const layer = flightLayer();
+      if (btn && layer) {
+        gsap.set(layer, { autoAlpha: 1 });
+        track(takeOff(btn, layer, false, () => {}, { dim: false, bloom: false }));
+        tl.to(layer, { autoAlpha: 0, duration: 0.7, ease: "power1.out" }, 1.1);
       }
-      tl.to($("send-dark"), { autoAlpha: 0.75, duration: 0.9, ease: "power1.inOut" }, 0.4);
-      tl.fromTo($("send-light"), { scale: 0, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 0.95, ease: "power2.out" }, 1.3);
-      tl.set($("send-orbit"), { autoAlpha: 1 }, 1.4);
-      tl.to($("send-ring"), { strokeDashoffset: 0, duration: 1.0, ease: "power2.inOut" }, 1.4);
-      tl.to($$("send-orbiter"), { autoAlpha: 1, scale: 1, duration: 0.45, stagger: 0.06, ease: "power2.out" }, 1.85);
-      tl.call(() => void spin.current?.play(), [], 1.85);
+      tl.to($("send-dark"), { autoAlpha: 0.97, duration: 1.0, ease: "power1.inOut" }, 0.2);
+      tl.fromTo($("send-light"), { scale: 0.2, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: 1.1, ease: "power2.out" }, 0.55);
+      // The clock face opens out of the light, its light of time already sweeping.
+      tl.call(startClock, [], 0.6);
+      tl.fromTo($("send-clock"), { autoAlpha: 0, scale: 1.18, filter: "blur(10px)" }, { autoAlpha: 1, scale: 1, filter: "blur(0px)", duration: 1.0, ease: "power3.out", clearProps: "filter,transform" }, 0.6);
+      tl.fromTo($("send-caption"), { autoAlpha: 0, y: 8 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 1.1);
     });
 
-  /** Red silk, then darkness: the moment before APPLICATION RECEIVED. */
-  const intoDarkness = () =>
-    new Promise<void>((resolve) => {
-      const tl = track(gsap.timeline());
-      if (reduce.current) {
-        tl.to($("send-dark"), { autoAlpha: 1, duration: 0.4, onComplete: resolve }, 0);
-        return;
-      }
-      const s = $("send-silk");
-      tl.set(s, { xPercent: -110, rotation: -6, autoAlpha: 0 }, 0);
-      tl.to(s, { xPercent: 100, rotation: 3, duration: 1.5, ease: "power2.inOut" }, 0);
-      tl.to(s, { autoAlpha: 0.95, duration: 0.4 }, 0);
-      tl.to(s, { autoAlpha: 0, duration: 0.5 }, 1.0);
-      tl.to($("send-dark"), { autoAlpha: 1, duration: 0.6, ease: "power2.inOut" }, 0.25);
-      tl.to($("send-point"), { autoAlpha: 0, scale: 0.4, duration: 0.4 }, 0.2);
-      tl.to($("send-light"), { autoAlpha: 0.4, scale: 1.25, duration: 1.1, ease: "power1.inOut" }, 0.2);
-      // Dark enough: the reveal can begin while the silk finishes its pass.
-      tl.call(resolve, [], 0.9);
-    });
-
-  /** Undo the button's collapse (for another attempt, or the review). */
+  /** Undo the button's take-off (for another attempt, or the review). */
   const restoreSubmit = () => {
     const btn = root.current?.querySelector<HTMLElement>("[data-ax-submit]");
-    if (btn) gsap.set([btn, ...Array.from(btn.children)], { clearProps: "all" });
+    if (!btn) return;
+    btn.classList.remove("cx-apply-launch");
+    gsap.set([btn, ...Array.from(btn.children)], { clearProps: "all" });
   };
 
   /** The overlay lifts off the form (the review, or a step the server questioned). */
   const lift = (tl: gsap.core.Timeline) => {
-    spin.current?.pause();
-    tl.to([$("send-dark"), $("send-light"), $("send-orbit"), $("send-point"), $("send-caption"), $("fail"), $("send-line")], { autoAlpha: 0, duration: reduce.current ? 0.2 : 0.45 }, 0);
+    stopClock();
+    tl.to([$("send-dark"), $("send-light"), $("send-clock"), $("send-line"), $("send-caption"), $("fail"), $("done")], { autoAlpha: 0, duration: reduce.current ? 0.2 : 0.45 }, 0);
     restoreSubmit();
   };
 
@@ -579,26 +647,21 @@ export function ApplyExperience() {
     busy.current = true;
     setFailure("");
     setFailureFinal(false);
+    setSignInFailure(false);
     setPhase("sending");
 
     const request = submitApplication(toPayload(app.state));
     // One frame for the pinned frame to be in place before anything is measured.
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await playSending(fromButton ?? root.current?.querySelector<HTMLElement>("[data-ax-submit]") ?? null);
-    let result: SubmitResult | null = await Promise.race([request, sleep(40)]);
-    if (!result) {
-      // Still recording: say so quietly and keep the orbit turning.
-      track(gsap.to($("send-caption"), { autoAlpha: 1, duration: 0.6 }));
-      announce(`${SUBMIT.holding}…`);
-      result = await request;
-      track(gsap.to($("send-caption"), { autoAlpha: 0, duration: 0.3 }));
-    }
+    announce(`${SUBMIT.processing}…`);
+    // The light sweeps a moment at least, so the processing reads as a moment, not a flicker.
+    const [result] = await Promise.all([request, sleep(reduce.current ? 300 : 1100)]);
 
     if (result.ok) {
       setReference(result.referenceNo);
+      setRegisteredAt(result.registeredAt);
       app.clearDraft();
-      await intoDarkness();
-      toTop(true);
       setPhase("received");
       return;
     }
@@ -618,8 +681,8 @@ export function ApplyExperience() {
       return;
     }
     // A duplicate, or the window closed: sending again would only be refused again.
-    const final = result.reason === "duplicate" || result.reason === "closed";
-    setFailureFinal(final);
+    setFailureFinal(result.reason === "duplicate" || result.reason === "closed");
+    setSignInFailure(result.reason === "signin");
     setFailure(
       result.reason === "limited"
         ? result.message || FAILURE.limited
@@ -627,65 +690,132 @@ export function ApplyExperience() {
           ? result.message || FAILURE.duplicate
           : result.reason === "closed"
             ? result.message || FAILURE.closed
-            : "",
+            : result.reason === "signin"
+              ? FAILURE.signin
+              : result.reason === "server"
+                ? FAILURE.server
+                : "",
     );
     setPhase("failed");
   };
 
-  // ---- Received: the line draws across and the words rise out of it --------------
+  /**
+   * On to the participants board (TRIP_REGISTERED_HREF), which greets the new
+   * participant (WELCOME_KEY). The screen fades as it goes.
+   */
+  const leavingRef = useRef(false);
+  const toBoard = () => {
+    if (leavingRef.current) return;
+    leavingRef.current = true;
+    try {
+      sessionStorage.setItem(WELCOME_KEY, JSON.stringify({ ref: reference, at: Date.now() }));
+    } catch {
+      /* the board opens without its greeting */
+    }
+    const go = () => router.push(TRIP_REGISTERED_HREF);
+    if (reduce.current) go();
+    else track(gsap.to($("send"), { autoAlpha: 0, duration: 0.4, ease: "power1.in", onComplete: go }));
+  };
+
+  // ---- Submitted: time completes, the light folds into a line, the words rise ----------
   useIsoLayoutEffect(() => {
     if (phase !== "received") return;
-    const details = $("done-details");
-    const items = Array.from(details?.children ?? []).filter((el) => reference || (el as HTMLElement).dataset.ax !== "done-ref");
-    const tl = track(gsap.timeline({ defaults: { ease: "power3.out" } }));
-    toMood(tl, "done", 0);
-    if (reduce.current) {
-      tl.to([$("done-eyebrow"), $("done-title"), details, $("done-host")], { autoAlpha: 1, duration: 0.5, stagger: 0.05 }, 0);
-      tl.set(items, { autoAlpha: 1 }, 0);
-      tl.to($("send-dark"), { autoAlpha: 0.25, duration: 0.8 }, 0.3);
-      tl.set($("host"), { ...HOST.done, autoAlpha: 0 }, 0.3);
-      tl.to($("host"), { autoAlpha: HOST.done.autoAlpha, duration: 0.6 }, 0.35);
+    const items = [$("done-eyebrow"), $("done-line"), $("done-ref"), $("done-next")].filter((el): el is HTMLElement => !!el);
+    let tl: gsap.core.Timeline | null = null;
+    let waiting = 0;
+
+    /** The words, the line filling, and on to the board. */
+    const words = (t: gsap.core.Timeline, at: number) => {
+      // When the page carries on by itself (the button goes at once).
+      const CONTINUE = at + (reduce.current ? 3.0 : 3.6);
+      t.set($("done"), { autoAlpha: 1 }, at);
+      if (reduce.current) {
+        t.fromTo($("done"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.4 }, at);
+      } else {
+        t.fromTo($("done-title"), { yPercent: 110 }, { yPercent: 0, duration: 0.95, ease: "power3.out" }, at);
+        t.fromTo(items, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.12, ease: "power3.out" }, at + 0.3);
+      }
+      t.fromTo($("done-bar"), { scaleX: 0 }, { scaleX: 1, duration: CONTINUE - (at + 0.6), ease: "none" }, at + 0.6);
+      t.call(
+        () => {
+          $("done-title")?.focus({ preventScroll: true });
+          announce(`${SUCCESS.title}. ${reference ? `${SUCCESS.reference}: ${reference}.` : ""} ${SUCCESS.next}.`);
+          busy.current = false;
+        },
+        [],
+        at + 0.4,
+      );
+      t.call(() => toBoard(), [], CONTINUE);
+    };
+
+    if (reduce.current || !clock.current) {
+      tl = track(gsap.timeline());
+      toMood(tl, "done", 0);
+      tl.to([$("send-caption"), $("send-clock")], { autoAlpha: 0, duration: 0.3 }, 0);
+      tl.set($("done"), { autoAlpha: 1 }, 0.3);
+      tl.to($("send-line"), { autoAlpha: 1, duration: 0.3 }, 0.3);
+      words(tl, 0.4);
     } else {
-      tl.fromTo($("send-line"), { autoAlpha: 1, scaleX: 0 }, { scaleX: 1, duration: 0.9, ease: "power3.inOut" }, 0);
-      tl.set($("done-title"), { autoAlpha: 1 }, 0.5);
-      tl.fromTo($("done-title"), { yPercent: 110 }, { yPercent: 0, duration: 1.0 }, 0.5);
-      tl.fromTo($("done-eyebrow"), { autoAlpha: 0, y: 10 }, { autoAlpha: 1, y: 0, duration: 0.6 }, 0.85);
-      tl.set(details, { autoAlpha: 1 }, 0.95);
-      tl.fromTo(items, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.7, stagger: 0.1 }, 0.95);
-      tl.fromTo($("done-host"), { autoAlpha: 0, y: 16 }, { autoAlpha: 1, y: 0, duration: 0.9 }, 0.6);
-      tl.to($("send-dark"), { autoAlpha: 0.2, duration: 1.5, ease: "power1.inOut" }, 0.8);
-      tl.set($("host"), { ...HOST.done, x: 40, autoAlpha: 0 }, 0.9);
-      tl.to($("host"), { x: 0, autoAlpha: HOST.done.autoAlpha, duration: 1.4 }, 0.9);
-      if (spin.current) tl.to(spin.current, { timeScale: 0.3, duration: 1.5, ease: "power1.out" }, 0.7);
-      tl.to($("send-line"), { autoAlpha: 0.35, duration: 1.2 }, 1.3);
-      // Silk passes once more, slowly, behind everything.
-      const bg = $("silk");
-      tl.set(bg, { xPercent: -80, rotation: -3, autoAlpha: 0 }, 1.3);
-      tl.to(bg, { xPercent: 30, rotation: 2, duration: 4, ease: "power1.inOut" }, 1.3);
-      tl.to(bg, { autoAlpha: 0.22, duration: 1.2 }, 1.3);
-      tl.to(bg, { autoAlpha: 0, duration: 1.4 }, 3.9);
+      // Time completes: the light quickens and lights every tick it passes, once round.
+      const st = clock.current;
+      st.fillFrom = st.angle;
+      gsap.to(st, { speed: 760, duration: 0.5, ease: "power2.in" });
+      track(gsap.to($("send-caption"), { autoAlpha: 0, y: -8, duration: 0.3 }));
+      const fold = () => {
+        tl = track(gsap.timeline({ defaults: { ease: "power3.out" } }));
+        toMood(tl, "done", 0);
+        // The full circle flashes; a ring of light goes out from it.
+        tl.set($("send-full"), { attr: { "stroke-dashoffset": 0 } }, 0);
+        tl.fromTo($("send-full"), { opacity: 1 }, { opacity: 0.85, duration: 0.3 }, 0);
+        tl.to($("send-hand"), { autoAlpha: 0, duration: 0.25 }, 0);
+        tl.fromTo($("send-wave"), { opacity: 0.95, scale: 1, transformOrigin: "50% 50%" }, { opacity: 0, scale: 1.5, duration: 1.0, ease: "power2.out" }, 0);
+        tl.to($("send-light"), { scale: 1.25, duration: 0.5, ease: "power2.out" }, 0);
+        tl.call(stopClock, [], 0.35);
+        // It folds into a line of light at the centre, and the line rises and
+        // opens out to become the horizon the words rise from.
+        tl.to($("send-clock"), { scaleY: 0.012, duration: 0.55, ease: "power3.inOut" }, 0.3);
+        tl.call(
+          () => {
+            const clockEl = $("send-clock");
+            const line = $("send-line");
+            if (!clockEl || !line) return;
+            const c = clockEl.getBoundingClientRect();
+            const l = line.getBoundingClientRect();
+            gsap.set($("done"), { autoAlpha: 1 });
+            gsap.set(line, { autoAlpha: 1, y: c.top + c.height / 2 - (l.top + l.height / 2), scaleX: Math.min(1, c.width / Math.max(1, line.offsetWidth)) });
+            gsap.set(clockEl, { autoAlpha: 0 });
+          },
+          [],
+          0.84,
+        );
+        tl.to($("send-line"), { y: 0, scaleX: 1, duration: 0.85, ease: "power3.inOut" }, 0.86);
+        tl.to($("send-light"), { autoAlpha: 0.35, duration: 1.2, ease: "power1.inOut" }, 0.8);
+        words(tl, 1.35);
+      };
+      st.onFull = fold;
+      // Should the ticker stall (a hidden tab), the fold still comes.
+      waiting = window.setTimeout(() => {
+        if (clock.current && !clock.current.full) {
+          clock.current.full = true;
+          fold();
+        }
+      }, 1600);
     }
-    tl.call(
-      () => {
-        $("done-title")?.focus({ preventScroll: true });
-        announce(`${SUCCESS.title}. ${reference ? `${SUCCESS.reference} ${reference}.` : ""}`);
-        busy.current = false;
-      },
-      [],
-      reduce.current ? 0.5 : 1.4,
-    );
-    return () => void tl.kill();
+    return () => {
+      window.clearTimeout(waiting);
+      tl?.kill();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, reference]);
 
-  // ---- Failed: the orbit goes out, the message comes up, the answers wait ----------
+  // ---- Failed: the light goes out, the message comes up, the answers wait ----------
   useIsoLayoutEffect(() => {
     if (phase !== "failed") return;
-    spin.current?.pause();
+    stopClock();
     const tl = track(gsap.timeline());
-    tl.to([$("send-point"), $("send-light"), $("send-orbit"), $("send-caption")], { autoAlpha: 0, duration: reduce.current ? 0.2 : 0.5 }, 0);
+    tl.to([$("send-light"), $("send-clock"), $("send-caption")], { autoAlpha: 0, duration: reduce.current ? 0.2 : 0.5 }, 0);
     tl.to($("send-dark"), { autoAlpha: 0.92, duration: 0.5 }, 0);
-    tl.fromTo($("fail"), { autoAlpha: 0, y: reduce.current ? 0 : 16 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power3.out" }, reduce.current ? 0.1 : 0.35);
+    tl.fromTo($("fail"), { autoAlpha: 0, y: reduce.current ? 0 : 16 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power3.out" }, reduce.current ? 0.2 : 0.55);
     tl.call(
       () => {
         $("fail-title")?.focus({ preventScroll: true });
@@ -693,7 +823,7 @@ export function ApplyExperience() {
         busy.current = false;
       },
       [],
-      reduce.current ? 0.3 : 0.8,
+      reduce.current ? 0.3 : 0.9,
     );
     return () => void tl.kill();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -702,7 +832,14 @@ export function ApplyExperience() {
   const retry = () => {
     if (busy.current) return;
     track(gsap.to($("fail"), { autoAlpha: 0, duration: 0.35 }));
+    restoreSubmit();
     void send(root.current?.querySelector<HTMLElement>("[data-ax-retry]") ?? null);
+  };
+
+  /** The sign-in ended while the form was open: sign in again, then send. */
+  const signInAgain = () => {
+    if (busy.current) return;
+    requireLogin(() => retry(), TRIP_SIGN_IN.reason);
   };
 
   const backToReview = () => {
@@ -740,8 +877,11 @@ export function ApplyExperience() {
       <Atmosphere />
       <Host />
       {/* The light the landing page's take-off ended on (takeoff.ts): shown in
-          the first frame only when the visitor came through it, then opened. */}
-      <div data-ax="arrive" aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 top-16 z-[95] overflow-hidden opacity-0">
+          the first frame only when the visitor came through it, then opened.
+          The whole screen under the navbar, like the take-off's layer: the
+          bar is usually away when the visitor leaves the countdown, and comes
+          back down over the light here. */}
+      <div data-ax="arrive" aria-hidden className="pointer-events-none fixed inset-0 z-[95] overflow-hidden opacity-0">
         <div className="cx-bloom" />
       </div>
 
@@ -789,12 +929,19 @@ export function ApplyExperience() {
       <SubmitStage
         active={phase === "sending" || phase === "failed" || phase === "received"}
         pinned={covered}
+        phase={phase}
         reference={reference}
+        registeredAt={registeredAt}
+        firstName={app.state.personal.fullName.trim().split(/\s+/)[0] ?? ""}
         failure={failure}
         canRetry={!failureFinal}
         onRetry={retry}
         onReview={backToReview}
+        onSignIn={signInFailure ? signInAgain : undefined}
+        onContinue={toBoard}
       />
+      {/* The plane Submit launches (takeoff.ts), above the stage. */}
+      <TakeOffLayer />
 
       <ConsentGate open={asking !== null} onClose={() => setAsking(null)} onAgree={agreed} returnFocus={asking?.from} />
     </div>

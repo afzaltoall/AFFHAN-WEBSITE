@@ -8,6 +8,8 @@ import { GET as getCategories } from "@/app/api/categories/route";
 import { getHeroFeed } from "@/lib/products";
 import { splitHeroPool, HOMEPAGE_PRODUCT_COUNT } from "@/lib/heroPool";
 import { buildCategoryTree, type CategoryTreeNode } from "@/lib/categoryTree";
+import { applicationWindow } from "@/lib/trip-application";
+import { tripLock } from "@/lib/trip-lock";
 import { ORG_ID, SITE_URL } from "@/lib/brand";
 
 // Ten rows at the widest breakpoint (lg is 6 columns), so the grid still reads
@@ -75,7 +77,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function Home() {
-  const [categoriesRes, productsResult] = await Promise.all([
+  const [categoriesRes, productsResult, banner] = await Promise.all([
     getCategories(),
     // Exactly what the three sections render, and nothing else.
     //
@@ -89,6 +91,8 @@ export default async function Home() {
     // and everyone inside that hour sees the same set. The rotation moved to
     // the server; the variety stayed.
     getHeroFeed(HOMEPAGE_PRODUCT_COUNT),
+    // The trip banner's lock. Locked if it cannot be read.
+    tripLock(),
   ]);
 
   const categoriesJson = await categoriesRes.json();
@@ -139,6 +143,14 @@ export default async function Home() {
         initialProducts={heroPool.hero}
         sidebarCategories={sidebarCategories}
         searchCategories={searchCategories}
+        // Whether the trip is taking applications as this render sees it, so
+        // the trip banner's call is right on its first paint (it keeps
+        // itself right after that). At most a minute old (revalidate).
+        tripWindow={applicationWindow()}
+        // Whether the banner is locked. An admin's unlock or lock
+        // refreshes this page at once (revalidatePath, /api/admin/trip-lock/),
+        // and a page that went out locked asks again by itself.
+        tripLocked={banner.locked}
       />
       <PopularProductsSection initialProducts={heroPool.popular} />
       {/* Sliced here, not in the component. Handing it all ~600 and rendering

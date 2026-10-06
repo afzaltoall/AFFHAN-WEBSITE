@@ -1,8 +1,9 @@
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import type { GatherField } from "./particles";
+import { PASS_ROUTE } from "./Scene03BoardingPass";
 import { ROUTE_POINTS } from "./Scene05Globe";
-import { ANCHORS } from "./assets";
+import { ANCHORS, ASSETS, PLANE_PARTS } from "./assets";
 import { warpTravel } from "./warp";
 import { SplitText } from "gsap/SplitText";
 import { hold, textIn, type TextFx } from "./textfx";
@@ -62,6 +63,38 @@ function picker(root: ParentNode) {
     keys.flatMap((k) => Array.from(root.querySelectorAll<HTMLElement | SVGElement>(`[data-cx="${k}"]`)));
 }
 
+/** A key on a curve: at this time, this value, changing at this rate (per unit of time). */
+type Key = readonly [time: number, value: number, slope: number];
+
+/**
+ * A value over time through keys, drawn as one smooth curve (cubic Hermite):
+ * it passes every key at that key's rate, so whatever it drives never halts,
+ * lurches or turns a corner between them. Held at its first and last keys
+ * outside them.
+ */
+function curve(keys: readonly Key[]) {
+  return (t: number) => {
+    if (t <= keys[0][0]) return keys[0][1];
+    const last = keys[keys.length - 1];
+    if (t >= last[0]) return last[1];
+    let i = 0;
+    while (t > keys[i + 1][0]) i++;
+    const [t0, v0, m0] = keys[i];
+    const [t1, v1, m1] = keys[i + 1];
+    const h = t1 - t0;
+    const s = (t - t0) / h;
+    const s2 = s * s;
+    const s3 = s2 * s;
+    return (2 * s3 - 3 * s2 + 1) * v0 + (s3 - 2 * s2 + s) * h * m0 + (3 * s2 - 2 * s3) * v1 + (s3 - s2) * h * m1;
+  };
+}
+
+/** 0 up to a, 1 from b, easing in and out between. */
+function smooth(a: number, b: number, t: number) {
+  const s = Math.min(1, Math.max(0, (t - a) / (b - a)));
+  return s * s * (3 - 2 * s);
+}
+
 /** A pinned section is as tall as its scroll plus one screen for the sticky stage. */
 function sizePinned(section: HTMLElement, units: number, beat: number) {
   section.style.height = `calc(${(units * beat).toFixed(1)}svh + 100svh)`;
@@ -91,6 +124,8 @@ export interface FilmHooks {
   starsDim?: HTMLElement | null;
   /** Draws the jump to Foshan (warp.ts) for its progress, 0..1. */
   warp?: (p: number) => void;
+  /** Draws the China map's light (mapLight.ts) for its progress, 0..1. */
+  mapLight?: (p: number) => void;
   /** A landscape phone or any screen under 540px tall: the FREE lockup has to
    *  get smaller and higher to leave the included rows their room. */
   squat?: boolean;
@@ -113,14 +148,161 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   gsap.set($("city-guangzhou", "city-foshan"), { filter: "blur(0px) brightness(1)" });
   gsap.set($("globe-art"), { filter: "brightness(1) saturate(1)" });
   gsap.set($("boarding", "map"), { transformPerspective: 1400 });
+  gsap.set($("pass-ink"), { scaleX: 0, transformOrigin: "0% 50%", opacity: 1 });
   gsap.set($("route-head"), { x: ROUTE_POINTS[0].x, y: ROUTE_POINTS[0].y });
   gsap.set($("free-blur", "free-word", "free-glow", "free-sub-char"), { autoAlpha: 0 });
   gsap.set($("free-sweep"), { xPercent: -100 });
   gsap.set($("free-sweep-inner"), { xPercent: 24 });
 
+  // The plane's engines and lights run in real time, but only while it is on
+  // screen (Scene04, cinematic.css): from just before it enters to just after
+  // it has flown off past the globe.
+  const [planeScene] = Array.from(stage.querySelectorAll<HTMLElement>('[data-cx-scene="plane"]'));
+  const planeLive = (time: number) => planeScene?.toggleAttribute("data-live", time > 3.0 && time < 6.15);
+
+  // THE TAKE-OFF (03 -> 04). The little plane printed on the boarding pass
+  // does not stop at the dot before CHN: it takes off there at TAKEOFF, and
+  // the airliner is born where it does, in a flash of light (plane-bloom):
+  // its fuselage as long as the little plane's (lifted off the paper, LIFT),
+  // its middle on that plane's, heading its way at its speed. One plane, one
+  // flight; never two on screen in two places. The pass is at rest by then,
+  // close on its route (CLOSE), so that spot is worked out exactly on any
+  // screen, from where the pass and the plane really are.
+  const TAKEOFF = 3.44;
+  const CLOSE = { scale: d ? 1.3 : 1.4, x: d ? 7 : 16, y: -2, rotation: -3.5 };
+  const LIFT = 1.16;
+  /** The little plane's run along the route, from 3.1 to the take-off. */
+  const RUN = TAKEOFF - 3.1;
+  /** How fast the airliner grows as it is born (its size's logarithm, per
+   *  unit of time): the little plane climbs off the paper as fast. */
+  const CLIMB_OUT = 2.6;
+  // THE FLIGHT (04), from there, as one curve (position, size and tilt, each
+  // keyed below and drawn smooth through its keys: curve()), so the plane
+  // never stops, starts again or turns a corner. It climbs out towards the
+  // camera as the pass falls away beneath it (to HERO), the camera rides
+  // alongside while the climb reads out (to AWAY), and it pulls away up and
+  // to the right past the globe (to GONE), pitching up from the little
+  // plane's heading as it climbs and levelling off as it goes. Its streak
+  // (plane-smear) and its softness follow from the curve.
+  const HERO = 4.1;
+  const AWAY = 4.95;
+  const GONE = 6.05;
+  const [plane] = $("plane") as HTMLElement[];
+  const [smear] = $("plane-smear") as HTMLElement[];
+  const [pass] = $("boarding") as HTMLElement[];
+  gsap.set(plane, { x: 0, y: 0, rotation: 0, scale: 1, autoAlpha: 0, filter: "none" });
+  gsap.set(smear, { opacity: 0 });
+  type Flight = { x: (t: number) => number; y: (t: number) => number; s: (t: number) => number; r: (t: number) => number; bloom: { x: number; y: number }; vw: number };
+  let path: Flight | null = null;
+  let pathFor = "";
+  const flightPath = (): Flight => {
+    const screen = `${innerWidth}x${innerHeight}`;
+    if (path && pathFor === screen) return path;
+    // The screen's units as CSS has them (vw counts a scrollbar; on a phone
+    // vh is the tallest the screen gets): the pass's offsets are in them.
+    const probe = document.createElement("div");
+    probe.style.cssText = "position:absolute;left:0;top:0;width:100vw;height:100vh;visibility:hidden;pointer-events:none";
+    document.body.appendChild(probe);
+    const VW = probe.offsetWidth / 100;
+    const VH = probe.offsetHeight / 100;
+    probe.remove();
+    const rad = Math.PI / 180;
+    // The little plane at the take-off, on the stage, as px from its centre:
+    // the pass's picture is centred there, at rest at CLOSE, turned and
+    // scaled about its own centre.
+    const to = PASS_ROUTE.takeoff;
+    const pw = pass.offsetWidth;
+    const ph = (pw * ASSETS.boardingPass.h) / ASSETS.boardingPass.w;
+    const lx = (to.x - 0.5) * pw * CLOSE.scale;
+    const ly = (to.y - 0.5) * ph * CLOSE.scale;
+    const cr = Math.cos(CLOSE.rotation * rad);
+    const sr = Math.sin(CLOSE.rotation * rad);
+    const bx = CLOSE.x * VW + lx * cr - ly * sr;
+    const by = CLOSE.y * VH + lx * sr + ly * cr;
+    const heading = to.heading + CLOSE.rotation;
+    // Its speed there, along its heading: power1.in ends at twice its mean.
+    const v = (2 * Math.hypot(PASS_ROUTE.flight.x, PASS_ROUTE.flight.y) * (pw / ASSETS.boardingPass.w) * CLOSE.scale) / RUN;
+    // The airliner as that plane: its fuselage (PLANE_PARTS.axis) as long,
+    // turned onto its heading, and placed so the fuselage's middle is on its.
+    const { tail, nose } = PLANE_PARTS.axis;
+    const k = plane.offsetWidth / ASSETS.airplane.w;
+    const s0 = (to.length * pw * CLOSE.scale * LIFT) / (Math.hypot(nose[0] - tail[0], nose[1] - tail[1]) * k);
+    const r0 = heading - Math.atan2(nose[1] - tail[1], nose[0] - tail[0]) / rad;
+    const mx = ((tail[0] + nose[0]) / 2 - ASSETS.airplane.w / 2) * k * s0;
+    const my = ((tail[1] + nose[1]) / 2 - ASSETS.airplane.h / 2) * k * s0;
+    const ca = Math.cos(r0 * rad);
+    const sa = Math.sin(r0 * rad);
+    const x0 = bx - (mx * ca - my * sa);
+    const y0 = by - (mx * sa + my * ca);
+    // Then where the camera takes it: [x vw, y vh, scale] at HERO, AWAY and
+    // GONE, and its velocity there [vw, vh per unit]. A phone's plane is
+    // wider than its screen (Scene04), so there it flies bigger and further.
+    const K = d
+      ? { hero: [6, -6.5, 0.95], heroV: [5, -3], away: [11, -10, 1.02], awayV: [9, -6], gone: [64, -42, 0.46], goneV: [90, -55] }
+      : { hero: [4, -4, 1.12], heroV: [5, -3], away: [10, -7, 1.2], awayV: [10, -5], gone: [95, -42, 0.6], goneV: [130, -55] };
+    path = {
+      x: curve([[TAKEOFF, x0, v * Math.cos(heading * rad)], [HERO, K.hero[0] * VW, K.heroV[0] * VW], [AWAY, K.away[0] * VW, K.awayV[0] * VW], [GONE, K.gone[0] * VW, K.goneV[0] * VW]]),
+      y: curve([[TAKEOFF, y0, v * Math.sin(heading * rad)], [HERO, K.hero[1] * VH, K.heroV[1] * VH], [AWAY, K.away[1] * VH, K.awayV[1] * VH], [GONE, K.gone[1] * VH, K.goneV[1] * VH]]),
+      // Its size, as a logarithm: a steady rate of that reads as a steady approach.
+      s: curve([[TAKEOFF, Math.log(s0), CLIMB_OUT], [HERO, Math.log(K.hero[2]), 0.25], [AWAY, Math.log(K.away[2]), -0.1], [GONE, Math.log(K.gone[2]), -1.4]]),
+      // Its tilt: the little plane's heading, pitched up for the climb, then levelling off.
+      r: curve([[TAKEOFF, r0, -12], [HERO, -3, 2], [AWAY, 0, 4], [GONE, 5, 5]]),
+      bloom: { x: bx, y: by },
+      vw: VW,
+    };
+    pathFor = screen;
+    return path;
+  };
+  const setX = gsap.quickSetter(plane, "x", "px") as (v: number) => void;
+  const setY = gsap.quickSetter(plane, "y", "px") as (v: number) => void;
+  // (quickSetter takes no shorthands: scale is its two halves.)
+  const setScaleX = gsap.quickSetter(plane, "scaleX") as (v: number) => void;
+  const setScaleY = gsap.quickSetter(plane, "scaleY") as (v: number) => void;
+  const setTilt = gsap.quickSetter(plane, "rotation", "deg") as (v: number) => void;
+  const setShown = gsap.quickSetter(plane, "opacity") as (v: number) => void;
+  const setStreak = gsap.quickSetter(smear, "opacity") as (v: number) => void;
+  /** Draws the plane at film time t. */
+  const fly = (t: number) => {
+    const f = flightPath();
+    // Out of the light, and fading as it goes.
+    const shown = smooth(TAKEOFF, TAKEOFF + 0.12, t) * (t <= 5.1 ? 1 : Math.max(0, 1 - ((t - 5.1) / (GONE - 5.1)) ** 2));
+    setShown(shown);
+    plane.style.visibility = shown > 0 ? "inherit" : "hidden";
+    if (shown <= 0) {
+      setStreak(0);
+      return;
+    }
+    setX(f.x(t));
+    setY(f.y(t));
+    const size = Math.exp(f.s(t));
+    setScaleX(size);
+    setScaleY(size);
+    setTilt(f.r(t));
+    // Soft as it comes out of the light, and as it goes.
+    const blur = 6 * (1 - smooth(TAKEOFF, TAKEOFF + 0.3, t)) + (t > AWAY ? 6 * ((t - AWAY) / (GONE - AWAY)) ** 2 : 0);
+    plane.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : "none";
+    // Its streak follows its speed: across the screen (vw per unit), and
+    // towards or away from the camera (its size's rate, weighted).
+    const e = 0.004;
+    const across = Math.hypot(f.x(t + e) - f.x(t - e), f.y(t + e) - f.y(t - e)) / (2 * e) / f.vw;
+    const depth = (10 * Math.abs(f.s(t + e) - f.s(t - e))) / (2 * e);
+    setStreak(0.45 * shown * smooth(12, 45, across + depth));
+  };
+  const clock = { t: TAKEOFF };
+
   // THE FILM'S ScrollTrigger: the stage is sticky inside `film`; this reads
   // how far through `film` the page is and scrubs every chapter below.
-  const tl = pinnedTimeline(film, FILM_END, 0.6, { onUpdate: (self) => hooks.onProgress(self.progress * FILM_END, self.progress) });
+  const tl = pinnedTimeline(film, FILM_END, 0.6, {
+    onUpdate: (self) => {
+      hooks.onProgress(self.progress * FILM_END, self.progress);
+      planeLive(self.progress * FILM_END);
+    },
+    // A new screen moves the take-off, and the flight keyed in vw and vh.
+    onRefresh: () => {
+      path = null;
+      fly(clock.t);
+    },
+  });
 
   /**
    * A chapter's caption. Named effects (textfx.ts) give each its own entrance,
@@ -177,31 +359,70 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
   tl.fromTo($("boarding"), { autoAlpha: 0, scale: 0.34, x: X(24, 22), y: vh(-20), rotation: 9, rotationY: -26, filter: "blur(10px)" },
     { autoAlpha: 0.75, scale: 0.42, filter: "blur(6px)", ease: "power1.out", duration: 0.6 }, 1.15);
   tl.to($("boarding"), { autoAlpha: 1, scale: d ? 0.96 : 1.02, x: 0, y: 0, rotation: -2, rotationY: 0, rotationX: 8, filter: "blur(0px)", ease: "power2.inOut", duration: 0.95 }, 1.95);
-  // Floating while held.
-  tl.to($("boarding"), { y: vh(-2), rotationX: 0, rotation: -3.5, ease: "sine.inOut", duration: 0.75 }, 2.9);
+  // Floating while held, and still by the take-off.
+  tl.to($("boarding"), { y: vh(CLOSE.y), rotationX: 0, rotation: CLOSE.rotation, ease: "sine.inOut", duration: TAKEOFF - 2.9 }, 2.9);
   // The light sweep across the paper.
   tl.fromTo($("boarding-sweep"), { xPercent: -110 }, { xPercent: 110, ease: "power1.inOut", duration: 0.7 }, 2.55);
-  tl.to($("boarding"), { autoAlpha: 0, scale: 0.72, x: X(30, 40), y: vh(-26), rotation: 7, filter: "blur(10px)", ease: "power2.in", duration: 0.6 }, 3.6);
+  // The camera moves in on the route (IND to CHN, the left of the ticket)...
+  tl.to($("boarding"), { scale: CLOSE.scale, x: `${CLOSE.x}vw`, ease: "power2.inOut", duration: TAKEOFF - 2.92 }, 2.92);
+  // ...the half already flown turns gold, up to the little printed plane...
+  tl.to($("pass-ink"), { scaleX: PASS_ROUTE.flownShare, ease: "power1.inOut", duration: 0.14 }, 2.98);
+  // ...which lifts off the paper (its print is covered the same instant, so
+  // nothing jumps) and flies on towards CHN, gathering speed (power1.in),
+  // the gold following it...
+  tl.set($("pass-gap", "pass-plane"), { opacity: 1 }, 3.1);
+  tl.to($("pass-plane"), { x: PASS_ROUTE.flight.x, y: PASS_ROUTE.flight.y, ease: "power1.in", duration: RUN }, 3.1);
+  tl.to($("pass-ink"), { scaleX: 1, ease: "power1.in", duration: RUN }, 3.1);
+  tl.to($("pass-plane-lift"), { scale: LIFT, transformOrigin: "50% 50%", ease: "power2.out", duration: 0.12 }, 3.1);
+  tl.to($("pass-plane-shadow"), { opacity: 1, ease: "power2.out", duration: 0.12 }, 3.1);
+  // ...and takes off at the dot: on at the speed it reached (power1.in ends
+  // at twice its mean; a straight line keeps it), climbing off the paper as
+  // fast as the airliner grows, its shadow left behind, into the light.
+  const OUT = 0.12;
+  const on = 1 + (2 * OUT) / RUN;
+  tl.to($("pass-plane"), { x: PASS_ROUTE.flight.x * on, y: PASS_ROUTE.flight.y * on, ease: "none", duration: OUT }, TAKEOFF);
+  tl.to($("pass-plane-lift"), { scale: LIFT * Math.exp(CLIMB_OUT * OUT), ease: "none", duration: OUT }, TAKEOFF);
+  tl.to($("pass-plane-shadow"), { opacity: 0, ease: "power1.out", duration: OUT * 0.6 }, TAKEOFF);
+  tl.to($("pass-plane"), { opacity: 0, ease: "power1.in", duration: OUT }, TAKEOFF);
+  // The dot catches the light as it goes, and a ring of light goes out from it.
+  tl.fromTo($("pass-dot"), { opacity: 0 }, { opacity: 1, duration: 0.06 }, 3.42);
+  tl.fromTo($("pass-ring"), { opacity: 0, scale: 0.3, transformOrigin: "50% 50%" }, { opacity: 0.95, scale: 1, ease: "power2.out", duration: 0.07 }, 3.42);
+  tl.to($("pass-ring"), { opacity: 0, scale: 1.9, ease: "power1.out", duration: 0.16 }, 3.49);
+  // The camera climbs with the airliner: the pass falls away beneath it,
+  // tilting back as it goes, and starting from rest (power2.in), as it was.
+  tl.to($("boarding"), { autoAlpha: 0, scale: d ? 0.8 : 0.9, x: X(-4, -6), y: vh(26), rotation: -7, rotationX: 34, filter: "blur(10px)", ease: "power2.in", duration: 0.72 }, TAKEOFF);
   caption("cap-boarding", 2.6, 3.5, { eyebrow: "scramble", title: "scramble" });
 
-  // ---- 04 AIRPLANE: enters from below left, becomes the hero, carries on ----
-  tl.fromTo($("plane"), { autoAlpha: 0, scale: 0.36, x: X(-46, -60), y: vh(36), rotation: -5, filter: "blur(12px)" },
-    { autoAlpha: 1, scale: d ? 0.6 : 0.78, x: X(-20, -18), y: vh(17), filter: "blur(3px)", ease: "power1.out", duration: 0.65 }, 3.1);
-  tl.to($("plane"), { scale: d ? 1 : 1.18, x: X(3, 4), y: vh(-1), rotation: 0, filter: "blur(0px)", ease: "power2.out", duration: 0.8 }, 3.75);
-  // The camera follows it.
-  tl.to($("plane"), { x: X(10, 12), y: vh(-6), rotation: 2, scale: d ? 1.04 : 1.22, duration: 0.55 }, 4.55);
-  // Past the globe and away.
-  tl.to($("plane"), { x: X(64, 95), y: vh(-42), scale: d ? 0.46 : 0.6, rotation: 5, autoAlpha: 0, filter: "blur(6px)", ease: "power2.in", duration: 0.95 }, 5.1);
-  // Motion blur follows speed.
-  tl.fromTo($("plane-smear"), { autoAlpha: 0 }, { autoAlpha: 0.45, duration: 0.3 }, 3.15);
-  tl.to($("plane-smear"), { autoAlpha: 0, duration: 0.35 }, 3.95);
-  tl.to($("plane-smear"), { autoAlpha: 0.4, duration: 0.3 }, 5.1);
-  tl.to($("plane-smear"), { autoAlpha: 0, duration: 0.3 }, 5.7);
-  // The gold trail streams out behind it...
-  tl.fromTo($("gold-back"), { autoAlpha: 0, x: X(-60, -80), y: vh(30), rotation: -18, scale: 0.8 },
-    { autoAlpha: 0.85, x: X(-34, -44), y: vh(14), rotation: -14, scale: 0.95, ease: "power1.out", duration: 0.8 }, 3.3);
-  tl.to($("gold-back"), { x: X(-26, -34), y: vh(8), rotation: -12, duration: 1.0 }, 4.1);
-  caption("cap-plane", 3.9, 4.9, { eyebrow: "words", title: "rush" });
+  // ---- 04 AIRPLANE: born in the little plane's light, one flight ------------
+  // The flash it is born in, where the little plane takes off.
+  const [bloom] = $("plane-bloom");
+  gsap.set(bloom, { xPercent: -50, yPercent: -50 });
+  tl.set(bloom, { x: () => flightPath().bloom.x, y: () => flightPath().bloom.y }, TAKEOFF - 0.05);
+  tl.fromTo(bloom, { autoAlpha: 0, scale: 0.2 }, { autoAlpha: 1, scale: 1, ease: "power2.out", duration: 0.07 }, TAKEOFF - 0.04);
+  tl.to(bloom, { autoAlpha: 0, scale: 2.4, ease: "power1.out", duration: 0.34 }, TAKEOFF + 0.03);
+  // The flight (see THE FLIGHT above), drawn from the film's time.
+  tl.fromTo(clock, { t: TAKEOFF }, { t: GONE, ease: "none", duration: GONE - TAKEOFF, onUpdate: () => fly(clock.t) }, TAKEOFF);
+  fly(TAKEOFF);
+  // The gold trail streams out of the take-off behind it, and on with it...
+  tl.fromTo($("gold-back"), { x: X(-8, -12), y: vh(2), rotation: -17, scale: 0.3 },
+    { x: X(-26, -34), y: vh(8), rotation: -12, scale: 0.95, ease: "power2.out", duration: 5.1 - (TAKEOFF + 0.02) }, TAKEOFF + 0.02);
+  tl.fromTo($("gold-back"), { autoAlpha: 0 }, { autoAlpha: 0.85, ease: "power1.out", duration: 0.5 }, TAKEOFF + 0.02);
+  caption("cap-plane", 3.9, 4.9, { eyebrow: "words", title: "rush", hud: "fade" });
+  // The climb, read out under the caption while it is up: altitude levels
+  // off towards cruise as an airliner's does, speed builds from take-off's.
+  // Pure functions of the scroll, so scrolling back winds them back.
+  const climb = { p: 0 };
+  const [altOut] = $("plane-alt");
+  const [speedOut] = $("plane-speed");
+  const readClimb = () => {
+    const p = climb.p;
+    const alt = (Math.round((35000 * (1 - (1 - p) ** 3)) / 10) * 10).toLocaleString("en-US");
+    const speed = String(Math.round(290 + 610 * (1 - (1 - p) ** 2)));
+    if (altOut && altOut.textContent !== alt) altOut.textContent = alt;
+    if (speedOut && speedOut.textContent !== speed) speedOut.textContent = speed;
+  };
+  tl.fromTo(climb, { p: 0 }, { p: 1, ease: "none", duration: 0.9, onUpdate: readClimb }, 3.95);
+  readClimb();
   tl.to($("haze-crimson"), { autoAlpha: 0, duration: 0.6 }, 4.4);
   tl.fromTo($("haze-deep"), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.6 }, 4.4);
 
@@ -246,23 +467,32 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
     { autoAlpha: 0.9, x: X(0, -10), y: vh(-26), rotation: 2, scale: 1, ease: "power2.out", duration: 0.55 }, 6.35);
   tl.to($("gold-front"), { x: X(130, 170), y: vh(-22), rotation: -8, autoAlpha: 0, ease: "power2.in", duration: 0.55 }, 6.9);
   caption("cap-map", 7.2, 8.2, { eyebrow: "words", title: "wipe" });
-  // Dive into the Guangzhou marker, at the foot of the map's little Canton
-  // Tower: the city rises out of it. Zooming about a point is scale plus the
-  // translate that keeps the point still, -(s1 - s0) x its offset from the
-  // centre, here across and down (ANCHORS, read off the artwork).
+  // The map arrives at night, and its network lights out from Guangzhou: its
+  // three markets along their routes, the route down to Foshan, Foshan's
+  // three, then the whole country along its borders (mapLight.ts draws it
+  // from this progress, so scrolling back runs it back). It starts once the
+  // globe and the gold have cleared the map (7.3), and the map is whole by
+  // 8.3, a beat before the dive.
+  const light = { p: 0 };
+  tl.fromTo(light, { p: 0 }, { p: 1, ease: "none", duration: 1.0, onUpdate: () => hooks.mapLight?.(light.p) }, 7.3);
+  // Dive into Guangzhou, at the foot of the map's Canton Tower: the city
+  // rises out of it. Zooming about a point is scale plus the translate that
+  // keeps the point still, -(s1 - s0) x its offset from the centre, here to
+  // the right and a touch down (ANCHORS, read off the artwork).
   const gz = { x: ANCHORS.mapGuangzhou.x - 0.5, y: ANCHORS.mapGuangzhou.y - 0.5 };
-  tl.to($("map"), { scale: 3.6, xPercent: -(3.6 - 1.05) * gz.x * 100, yPercent: -(3.6 - 1.05) * gz.y * 100, autoAlpha: 0, filter: "blur(10px)", ease: "power2.in", duration: 0.8 }, 8.35);
+  tl.to($("map"), { scale: 3.6, xPercent: -(3.6 - 1.05) * gz.x * 100, yPercent: -(3.6 - 1.05) * gz.y * 100, autoAlpha: 0, filter: "blur(10px)", ease: "power2.in", duration: 0.8 }, 8.4);
 
   // ---- 07 GUANGZHOU: out of its marker, its lights come on, flown into ------
   // The first city, and since October the only one before Foshan (Shanghai and
-  // Beijing came out on the owner's request). It rises from where its marker
-  // was on the map (the map is 62vw / 118vw wide at 1.05, so the marker sits
-  // ~5vw / ~9vw right of centre and ~10vw / ~18vw below it), still dark. As it
-  // lands its lights come on, up past full and settling, while a gold trail
-  // sweeps across the skyline and silk follows. The camera drifts in, then
-  // flies straight into it: it becomes the jump's vanishing point, flaring as
-  // Foshan will come out of the light.
-  tl.fromTo($("city-guangzhou"), { autoAlpha: 0, scale: 0.22, x: X(5, 9), y: d ? "10vw" : "18vw", filter: "blur(14px) brightness(0.4)" },
+  // Beijing came out on the owner's request). It rises from where its skyline
+  // was on the map, still dark: the map is at most 62vw wide on a desktop
+  // (56vw on a 16:9 screen, where 100vh is the narrower) and 118vw on a
+  // phone, at 1.05, so its Guangzhou sits ~7vw / ~15vw right of centre, on
+  // the centre line. As it lands its lights come on, up past full and
+  // settling, while a gold trail sweeps across the skyline and silk follows.
+  // The camera drifts in, then flies straight into it: it becomes the jump's
+  // vanishing point, flaring as Foshan will come out of the light.
+  tl.fromTo($("city-guangzhou"), { autoAlpha: 0, scale: 0.22, x: X(7, 15), y: 0, filter: "blur(14px) brightness(0.4)" },
     { autoAlpha: 1, scale: d ? 0.94 : 1, x: X(0, 0), y: 0, filter: "blur(0px) brightness(0.7)", ease: "power2.out", duration: 0.85 }, 8.5);
   tl.to($("city-guangzhou"), { filter: "blur(0px) brightness(1.22)", ease: "power2.out", duration: 0.35 }, 9.35);
   tl.to($("city-guangzhou"), { filter: "blur(0px) brightness(1)", ease: "power1.inOut", duration: 0.5 }, 9.7);
@@ -413,6 +643,11 @@ export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop:
   gsap.set($("free-word", "free-glow", "free-sub-char"), { autoAlpha: 1 });
   gsap.set($("free-blur"), { autoAlpha: 0 });
   gsap.set($("inc-line"), { scaleX: 1 });
+  // The climb's readout, at cruise rather than counting up to it.
+  for (const [key, value] of [["plane-alt", "35,000"], ["plane-speed", "900"]]) {
+    const [el] = $(key);
+    if (el) el.textContent = value;
+  }
   // Foshan rests where the full film puts it, above its caption (desktop).
   if (desktop) gsap.set($("city-foshan"), { y: "-7vh" });
 

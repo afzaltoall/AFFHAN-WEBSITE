@@ -7,15 +7,18 @@ import { useEffect, useRef, useState, type MouseEvent } from "react";
  * read: the document is whole and readable without it.
  *
  *  - A thin gold bar under the navbar, as far along as the reader is.
- *  - The contents list (desktop: sticky beside the text) marks the section
- *    being read, and its gold rail fills with the reading.
+ *  - The contents (desktop: beside the text, as tall as the screen) are a
+ *    route, a stop for each section. The stop being read glows, the stops
+ *    read before it are gold, and the gold line runs from stop to stop as the
+ *    reader goes: halfway through a section, it is halfway to the next stop.
  *  - Each section's number lights as the section reaches the reading line,
  *    and stays lit: a record of what has been read. Under reduced motion it
  *    simply lights, with no transition.
  *  - Contents links glide to their section, the navbar allowed for (CSS
  *    scroll-margin), and update the address so a clause can be shared.
- *  - The pass beside the text (LegalPage, the widest screens) says which
- *    section is being read, and its bar fills with the reading.
+ *  - The pass beside the text (LegalPage, the widest screens) shows the
+ *    section being read, its number rolling on to the next, and its bar
+ *    fills with the reading.
  */
 /** One entry of the contents: its number, title and anchor. */
 export interface ReaderItem {
@@ -24,12 +27,17 @@ export interface ReaderItem {
   id: string;
 }
 
-export function LegalReader({ items, label, total }: { items: ReaderItem[]; label: string; total: number }) {
+/** A stop's centre, from the top of its entry: the entry's padding and half its first line. */
+const DOT = 15;
+
+export function LegalReader({ items, label, count, total }: { items: ReaderItem[]; label: string; count: string; total: number }) {
   const [active, setActive] = useState(items[0]?.n ?? 1);
+  const [read, setRead] = useState(0);
+  const routeRef = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLOListElement>(null);
-  // The two bars are set directly, not through state: they move every frame.
+  // The bars and the route's gold are set directly, not through state: they move every frame.
   const barRef = useRef<HTMLSpanElement>(null);
-  const railRef = useRef<HTMLSpanElement>(null);
+  const fillRef = useRef<HTMLSpanElement>(null);
 
   // The reading line: a section counts as being read once its top passes 35%
   // of the screen, and stays lit after.
@@ -37,31 +45,30 @@ export function LegalReader({ items, label, total }: { items: ReaderItem[]; labe
     const root = document.documentElement;
     root.setAttribute("data-tl-js", "");
     const sections = items.map((it) => document.getElementById(it.id)).filter((el): el is HTMLElement => !!el);
-    const passNow = document.querySelector<HTMLElement>("[data-tl-now]");
     const passBar = document.querySelector<HTMLElement>("[data-tl-passbar]");
     let raf = 0;
+    let furthest = 0;
     const update = () => {
       raf = 0;
       const line = window.innerHeight * 0.35;
-      let current = items[0]?.n ?? 1;
-      for (const el of sections) {
-        const top = el.getBoundingClientRect().top;
-        if (top <= line) {
-          current = Number(el.dataset.tlSection);
+      let at = 0;
+      sections.forEach((el, i) => {
+        if (el.getBoundingClientRect().top <= line) {
+          at = i;
           el.setAttribute("data-tl-seen", "");
         }
-      }
+      });
       // The last section may never reach the line on a tall screen: at the
       // foot of the page, it is the one being read.
       const atEnd = window.innerHeight + window.scrollY >= root.scrollHeight - 4;
       if (atEnd && sections.length) {
-        const last = sections[sections.length - 1];
-        last.setAttribute("data-tl-seen", "");
-        current = Number(last.dataset.tlSection);
+        at = sections.length - 1;
+        sections[at].setAttribute("data-tl-seen", "");
       }
-      setActive(current);
-      const now = String(Math.min(current, total)).padStart(2, "0");
-      if (passNow && passNow.textContent !== now) passNow.textContent = now;
+      furthest = Math.max(furthest, at);
+      setActive(Number(sections[at]?.dataset.tlSection ?? items[0]?.n ?? 1));
+      setRead(furthest);
+
       const first = sections[0];
       const end = sections[sections.length - 1];
       if (first && end) {
@@ -69,9 +76,27 @@ export function LegalReader({ items, label, total }: { items: ReaderItem[]; labe
         const stop = end.getBoundingClientRect().bottom + window.scrollY - window.innerHeight;
         const p = Math.max(0, Math.min(1, (window.scrollY - start) / Math.max(1, stop - start)));
         if (barRef.current) barRef.current.style.transform = `scaleX(${p.toFixed(4)})`;
-        if (railRef.current) railRef.current.style.transform = `scaleY(${p.toFixed(4)})`;
         if (passBar) passBar.style.transform = `scaleX(${p.toFixed(4)})`;
       }
+
+      // The route's gold: to the stop being read, and on towards the next as
+      // far as the reader is through that section.
+      const stops = listRef.current?.children;
+      const fill = fillRef.current;
+      if (stops && stops.length && fill) {
+        const y = (i: number) => (stops[i] as HTMLElement).offsetTop + DOT;
+        let to = y(at);
+        if (atEnd) to = y(stops.length - 1);
+        else if (at < stops.length - 1 && sections[at]) {
+          const r = sections[at].getBoundingClientRect();
+          const f = Math.max(0, Math.min(1, (line - r.top) / Math.max(1, r.height)));
+          to += f * (y(at + 1) - y(at));
+        }
+        fill.style.top = `${y(0)}px`;
+        fill.style.height = `${Math.max(0, to - y(0)).toFixed(1)}px`;
+      }
+      const route = routeRef.current;
+      if (route) route.toggleAttribute("data-overflow", route.scrollHeight > route.clientHeight + 1);
     };
     const onScroll = () => {
       if (!raf) raf = requestAnimationFrame(update);
@@ -87,13 +112,32 @@ export function LegalReader({ items, label, total }: { items: ReaderItem[]; labe
     };
   }, [items, total]);
 
-  // Keep the active entry in view inside a long contents list.
+  // The pass's stub: the section being read, its number rolling on.
+  const shown = useRef(active);
   useEffect(() => {
-    const list = listRef.current;
-    const el = list?.querySelector<HTMLElement>(`[data-n="${active}"]`);
-    if (!list || !el) return;
-    const top = el.offsetTop - list.clientHeight / 2;
-    list.scrollTo({ top, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    if (shown.current === active) return;
+    const forward = active > shown.current;
+    shown.current = active;
+    const n = document.querySelector<HTMLElement>("[data-tl-now]");
+    const title = document.querySelector<HTMLElement>("[data-tl-now-title]");
+    const item = items.find((it) => it.n === active);
+    if (!n || !title || !item) return;
+    n.textContent = String(Math.min(active, total)).padStart(2, "0");
+    title.textContent = item.title;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || typeof n.animate !== "function") return;
+    const from = forward ? "0.5em" : "-0.5em";
+    const ease = "cubic-bezier(0.22, 1, 0.36, 1)";
+    n.animate([{ transform: `translateY(${from})`, opacity: 0, filter: "blur(6px)" }, { transform: "none", opacity: 1, filter: "blur(0)" }], { duration: 520, easing: ease });
+    title.animate([{ transform: "translateY(6px)", opacity: 0 }, { transform: "none", opacity: 1 }], { duration: 480, delay: 90, easing: ease, fill: "backwards" });
+  }, [active, items, total]);
+
+  // Keep the stop being read in view inside a long contents list.
+  useEffect(() => {
+    const route = routeRef.current;
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-n="${active}"]`);
+    if (!route || !el || route.scrollHeight <= route.clientHeight + 1) return;
+    const top = el.offsetTop - route.clientHeight / 2;
+    route.scrollTo({ top, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
   }, [active]);
 
   const go = (e: MouseEvent<HTMLAnchorElement>, id: string) => {
@@ -114,26 +158,30 @@ export function LegalReader({ items, label, total }: { items: ReaderItem[]; labe
         <span ref={barRef} />
       </div>
       <nav aria-label={label} className="tl-toc">
-        <p className="tl-toc-label">{label}</p>
-        <div className="tl-toc-rail" aria-hidden>
-          <span ref={railRef} />
+        <p className="tl-toc-label">
+          <span>{label}</span>
+          <span className="tl-toc-count">{count}</span>
+        </p>
+        <div ref={routeRef} className="tl-toc-route">
+          <span ref={fillRef} aria-hidden className="tl-toc-fill" />
+          <ol ref={listRef} className="tl-toc-list">
+            {items.map((it, i) => (
+              <li key={it.n}>
+                <a
+                  href={`#${it.id}`}
+                  data-n={it.n}
+                  data-read={i <= read || undefined}
+                  aria-current={active === it.n ? "location" : undefined}
+                  onClick={(e) => go(e, it.id)}
+                  className="tl-toc-link"
+                >
+                  <span className="tl-toc-num">{String(it.n).padStart(2, "0")}</span>
+                  <span>{it.title}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
         </div>
-        <ol ref={listRef} className="tl-toc-list">
-          {items.map((it) => (
-            <li key={it.n}>
-              <a
-                href={`#${it.id}`}
-                data-n={it.n}
-                aria-current={active === it.n ? "location" : undefined}
-                onClick={(e) => go(e, it.id)}
-                className="tl-toc-link"
-              >
-                <span className="tl-toc-num">{String(it.n).padStart(2, "0")}</span>
-                <span>{it.title}</span>
-              </a>
-            </li>
-          ))}
-        </ol>
       </nav>
     </>
   );

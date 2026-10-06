@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { preload } from "react-dom";
 import { RevealNoScriptFallback } from "@/components/ui/Reveal";
 import { CinematicExperience } from "@/components/CinematicExperience/CinematicExperience";
+import { TripSignInGate } from "@/components/TripAccess/SignInGate";
 import { ASSETS, srcSetOf } from "@/components/CinematicExperience/assets";
 import { displayFont } from "@/components/CinematicExperience/fonts";
 
@@ -14,7 +15,8 @@ import { displayFont } from "@/components/CinematicExperience/fonts";
  * preload the first frame needs, and the 64px of padding the site's fixed
  * navbar needs on every page. The navbar itself comes from the root layout
  * and is not touched. No footer, on the owner's request: the page ends on
- * the countdown.
+ * the countdown. For signed-in visitors only: TripSignInGate frosts the page
+ * and asks anyone else to sign in (the static page itself is unchanged).
  */
 
 const TITLE = "Free China Business Trip | AFFHAN";
@@ -55,6 +57,7 @@ export default function FreeChinaTripPage() {
           entrance plays at once. */}
       <noscript dangerouslySetInnerHTML={{ __html: "<style>[data-cx-counter],[data-cx-clock]{display:none!important}[data-intro] .cx-enter-push,[data-intro] .cx-enter-glow,[data-intro] .cx-enter-silk,[data-intro] .cx-enter-rise{animation-play-state:running!important}</style>" }} />
       <CinematicExperience />
+      <TripSignInGate />
     </main>
   );
 }

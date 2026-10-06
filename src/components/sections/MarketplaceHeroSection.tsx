@@ -16,6 +16,11 @@ import { buildCategoryTree, getCategoryIcon, type CategoryTreeNode } from "@/lib
 import { ShippingBar } from "@/components/ui/ShippingBar";
 import { FireworksCard } from "@/components/ui/FireworksCard";
 import { loadAllCategories } from "@/lib/categoriesClient";
+import { useTripStatus } from "@/components/TripAccess/useTripStatus";
+import { TripLockOverlay } from "@/components/TripAccess/TripLockOverlay";
+import { useTripBannerLock, type TripBannerLock } from "@/components/TripAccess/useTripBannerLock";
+import { TripCall, useOpenTrip } from "@/components/ui/TripCall";
+import type { WindowState } from "@/lib/trip-application";
 
 /**
  * The grid's column count at each width, and whether the category sidebar
@@ -45,27 +50,90 @@ function beyondWholeRows(index: number, count: number): string {
     .join(" ");
 }
 
-/** The China trip banner: the owner's picture on a fireworks card, linking to the trip. */
-function TripBanner({ className, src, width, height, sizes, contained = false }: { className: string; src: string; width: number; height: number; sizes: string; contained?: boolean }) {
+/** Where the trip's call sits: under the banner in the corner (xl), or in the flow under it. */
+const TRIP_CALL_PLACE = {
+  corner: "absolute left-1/2 top-full -translate-x-1/2 pt-3 [--call-fs:12px] [--call-h:30px] min-[1600px]:[--call-fs:13px] min-[1600px]:[--call-h:34px]",
+  below: "pt-2.5 [--call-fs:14px] [--call-h:40px]",
+} as const;
+
+/**
+ * The China trip banner: the owner's picture on a fireworks card, and its
+ * call to action under it (TripCall), made one thing to press (the owner's
+ * request of 2026-10-05). A pointer on either lifts the card and lights the
+ * button (the host is a `group`, and trip-unit for TripCall's styles), the
+ * fireworks climb out of the button into the picture (data-fireworks-host,
+ * FireworksCard), and the gap between them is the call's own padding, so the
+ * pointer never falls out of the pair on its way from one to the other.
+ * Either opens the trip (useOpenTrip): the sign-in popup first if nobody is
+ * signed in (the trip opens the moment they are), then the trip's page, or
+ * the participants board for someone registered already. Ctrl, ⌘, Shift or
+ * middle click still open a new tab, as links do, and the trip's own gate
+ * asks there. A keyboard and a screen reader have the button alone, which
+ * says where it goes: the picture is the same link again, for a mouse or a
+ * finger, so it is kept out of the tab order and hidden from them.
+ *
+ * Until an admin unlocks it (lib/trip-lock.ts, the owner's request of
+ * 2026-10-05) the pair is locked: frosted glass with a lock on it lies over
+ * the picture (TripLockOverlay) and takes every press on it, which shakes the
+ * lock; the call is the locked button, which shakes too; the fireworks hold
+ * (paused). When it is unlocked it opens in front of whoever is watching,
+ * and as it lets go the call turns into the red button and the fireworks
+ * celebrate (`lock`, useTripBannerLock). The picture's link is under the
+ * glass all along, so nothing about the picture changes when it goes.
+ */
+function TripBanner({
+  className,
+  src,
+  width,
+  height,
+  sizes,
+  contained = false,
+  place,
+  tripWindow,
+  registered,
+  lock,
+}: {
+  className: string;
+  src: string;
+  width: number;
+  height: number;
+  sizes: string;
+  contained?: boolean;
+  place: keyof typeof TRIP_CALL_PLACE;
+  tripWindow: WindowState;
+  registered: boolean;
+  lock: TripBannerLock;
+}) {
+  const open = useOpenTrip();
+  const shut = lock.phase === "locked" || lock.phase === "breaking";
   return (
-    <FireworksCard className={className} contained={contained}>
-      <Link
-        href="/free-china-trip/"
-        aria-label="Free China business trip: what's included, and how to apply"
-        className="block h-full w-full focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-inset focus-visible:ring-[#176579]"
-      >
-        <Image
-          src={src}
-          alt=""
-          width={width}
-          height={height}
-          sizes={sizes}
-          loading="lazy"
-          fetchPriority="low"
-          className="h-full w-full object-cover"
-        />
-      </Link>
-    </FireworksCard>
+    <div data-fireworks-host className={`trip-unit group relative ${place === "below" ? "flex flex-col" : ""}`}>
+      <FireworksCard className={className} contained={contained} paused={shut}>
+        <Link href="/free-china-trip/" onClick={open} tabIndex={-1} aria-hidden className="block h-full w-full">
+          <Image
+            src={src}
+            alt=""
+            width={width}
+            height={height}
+            sizes={sizes}
+            loading="lazy"
+            fetchPriority="low"
+            className="h-full w-full object-cover"
+          />
+        </Link>
+        {lock.phase !== "open" && (
+          <TripLockOverlay state={lock.phase === "locked" ? "locked" : "breaking"} rattle={lock.rattle} onPress={lock.press} />
+        )}
+      </FireworksCard>
+      <TripCall
+        initialWindow={tripWindow}
+        registered={registered}
+        className={TRIP_CALL_PLACE[place]}
+        lock={lock.phase === "locked" ? "locked" : lock.phase === "breaking" ? "unlocking" : lock.live ? "fresh" : undefined}
+        rattle={lock.rattle}
+        onLockedPress={lock.press}
+      />
+    </div>
   );
 }
 
@@ -82,14 +150,26 @@ export function MarketplaceHeroSection({
   initialProducts = [],
   sidebarCategories = [],
   searchCategories = [],
+  tripWindow = "open",
+  tripLocked = false,
 }: {
   initialProducts?: ProductCardData[];
   /** Top-level names for the sidebar rail. */
   sidebarCategories?: SidebarCategory[];
   /** The eight biggest categories, as search shortcuts. */
   searchCategories?: SearchCategory[];
+  /** Whether the trip is taking applications, as the server saw it at render (TripCall). */
+  tripWindow?: WindowState;
+  /** The trip banner's lock, as the server saw it at render (lib/trip-lock.ts). */
+  tripLocked?: boolean;
 }) {
   const router = useRouter();
+  // Read once for both of the trip's calls: someone registered already is
+  // not asked to apply again (TripCall).
+  const trip = useTripStatus();
+  const tripRegistered = !!trip.registration;
+  // And the banner's lock, once for both copies of it (useTripBannerLock).
+  const tripLock = useTripBannerLock(tripLocked);
   // The full grid, rendered in one go — no infinite scroll, no pagination.
   // The server sends exactly HERO_GRID_COUNT products, already rotated for
   // this ISR cycle, so this renders what it is given.
@@ -244,14 +324,31 @@ export function MarketplaceHeroSection({
                 pointer on hover; the card, its lift and the rounded frame are
                 FireworksCard's. It links to the trip's own page, and a press
                 still bursts a shell where it lands before the page opens.
-                The link's name says where it goes, so the picture is alt="". */}
-            <div className="absolute right-10 top-1/2 hidden -translate-y-[29px] xl:block">
+                The call under it is the pair's one control for a keyboard
+                and a screen reader (TripBanner), so the picture is alt="".
+                Under it, its call to action (TripCall, the owner's request of
+                2026-10-05: say that it is there to be clicked), out of the
+                flow so it never widens this corner: 12px under the banner,
+                centred on it, and clear of the search row at every size (it
+                takes 30-36px and the line under it 13px; there are 91px to
+                the search row from 1600, 136px at 1280, measured).
+                z-[61]: the search section below is a full-width box at
+                z-[60] (HeroSearchSection, for its suggestions) whose top
+                reaches up past the call, and it took the call's clicks.
+                61 puts this corner just over it and still under everything
+                that must cover it: the navbar (100) and the category panel
+                (70). Nothing of the search row is under the corner. */}
+            <div className="absolute right-10 top-1/2 z-[61] hidden -translate-y-[29px] xl:block">
               <TripBanner
                 className="h-[75px] w-[200px] min-[1440px]:h-[90px] min-[1440px]:w-[240px] min-[1536px]:h-[105px] min-[1536px]:w-[280px] min-[1600px]:h-[120px] min-[1600px]:w-[320px]"
                 src="/china-trip-hero.webp"
                 width={640}
                 height={240}
                 sizes="320px"
+                place="corner"
+                tripWindow={tripWindow}
+                registered={tripRegistered}
+                lock={tripLock}
               />
             </div>
             <style dangerouslySetInnerHTML={{
@@ -605,6 +702,8 @@ export function MarketplaceHeroSection({
             - below sm, one column, shipping first, max 560px, centred. */}
         <div className="-mt-2 mb-6 mx-auto grid w-full max-w-[560px] grid-cols-1 items-stretch gap-4 sm:max-w-2xl sm:grid-cols-2 lg:max-w-[1024px] xl:hidden">
           <ShippingBar variant="card" />
+          {/* The banner and its call under it, which makes this row a call
+              taller; the shipping card fills its cell, so it stays level. */}
           <TripBanner
             className="aspect-[620/232] w-full"
             src="/china-trip-hero-1280.webp"
@@ -612,6 +711,10 @@ export function MarketplaceHeroSection({
             height={480}
             sizes="(min-width: 640px) 50vw, 100vw"
             contained
+            place="below"
+            tripWindow={tripWindow}
+            registered={tripRegistered}
+            lock={tripLock}
           />
         </div>
 

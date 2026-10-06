@@ -4,9 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Download, Mail, MessageCircle, Phone, RefreshCw, Search, X } from "lucide-react";
 import { businessStatusBrief } from "@/lib/trip-application";
+import { TripLockPanel } from "./TripLockPanel";
 
 /**
- * Free China trip applications, for the office.
+ * The Free China Business Trip's participants, for the office (the admin
+ * rail's "Free China Trip" section).
+ *
+ * Every application belongs to an account (signing in is required to apply),
+ * so each row shows the participant's Trip ID (TRIP-26-00001, the
+ * application's own number), their account (AFFHAN customer number, how they
+ * sign in, when the account was made) and every answer they gave. Above the
+ * list: how many have registered, today, this week, and from how many
+ * countries.
  *
  * Newest first, in the triage the other leads use (new, handled, spam, and a
  * soft delete). A row opens every answer the applicant gave, grouped the way
@@ -60,7 +69,35 @@ interface Application {
   consentTerms: boolean;
   userId: string | null;
   source: string;
+  /** AFFHAN-0001: the customer's number (CustomerCode), when one has been issued. */
+  customerCode: string | null;
+  /** The account that sent it. Null only for an application from before sign-in was required. */
+  user: Account | null;
 }
+
+interface Account {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  authProvider: string;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  profileImage: string | null;
+  accountStatus: string;
+  loginCount: number;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
+/** How the account signs in, in the office's words. */
+const SIGN_IN: Record<string, string> = {
+  EMAIL: "Email & password",
+  GOOGLE: "Google",
+  EMAIL_AND_GOOGLE: "Email & Google",
+  PHONE: "Mobile number",
+};
+const signInOf = (p: string) => SIGN_IN[p] ?? p;
 
 const TABS: { key: "new" | "handled" | "spam" | "all"; label: string }[] = [
   { key: "new", label: "New" },
@@ -116,12 +153,29 @@ export function TripApplicationsBoard() {
     return c;
   }, [rows]);
 
+  /** The figures over the list: registrations (not spam), today and this week in India's time, and countries. */
+  const [now] = useState(() => Date.now());
+  const stats = useMemo(() => {
+    const real = (rows ?? []).filter((r) => r.status !== "spam");
+    const IST = 5.5 * 3600 * 1000;
+    const day = new Date(now + IST);
+    day.setUTCHours(0, 0, 0, 0);
+    const today = day.getTime() - IST;
+    const week = today - 6 * 86400 * 1000;
+    return {
+      total: real.length,
+      today: real.filter((r) => Date.parse(r.createdAt) >= today).length,
+      week: real.filter((r) => Date.parse(r.createdAt) >= week).length,
+      countries: new Set(real.map((r) => r.country)).size,
+    };
+  }, [rows, now]);
+
   const list = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return (rows ?? []).filter((r) => {
       if (tab !== "all" && r.status !== tab) return false;
       if (!needle) return true;
-      return [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory, r.areaOfInterest, businessStatusBrief(r.businessStatus)]
+      return [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory, r.areaOfInterest, businessStatusBrief(r.businessStatus), r.customerCode, r.user?.email, r.user?.name]
         .filter(Boolean)
         .join(" ")
         .toLowerCase()
@@ -156,7 +210,8 @@ export function TripApplicationsBoard() {
   const exportExcel = async () => {
     const XLSX = await import("xlsx");
     const headers = [
-      "Reference", "Received", "Status", "Full name", "Email", "Mobile", "Country", "City", "Website / LinkedIn",
+      "Trip ID", "Registered", "Status", "Customer no.", "Account ID", "Account email", "Signs in with", "Account created",
+      "Full name", "Email", "Mobile", "Country", "City", "Website / LinkedIn",
       "Business journey", "Company / brand", "Role", "Business category / area", "Company website", "Years in business",
       "About the business", "Planning to build", "Area of interest", "Would like to explore",
       "Interested in", "Products of interest", "Hoping to explore", "Nationality", "Valid passport", "Been to China",
@@ -164,7 +219,8 @@ export function TripApplicationsBoard() {
     ];
     const yes = (v: boolean) => (v ? "Yes" : "No");
     const data = list.map((r) => [
-      r.referenceNo, fmtDate(r.createdAt), r.status, r.fullName, r.email, r.phone, r.country, r.city, r.profileUrl ?? "",
+      r.referenceNo, fmtDate(r.createdAt), r.status, r.customerCode ?? "", r.user?.id ?? "", r.user?.email ?? "", r.user ? signInOf(r.user.authProvider) : "", r.user ? fmtDate(r.user.createdAt) : "",
+      r.fullName, r.email, r.phone, r.country, r.city, r.profileUrl ?? "",
       businessStatusBrief(r.businessStatus), r.companyName ?? "", r.role ?? "", r.businessCategory ?? "", r.companyWebsite ?? "", r.yearsInBusiness ?? "",
       r.businessDescription ?? "", r.businessPlan ?? "", r.areaOfInterest ?? "", r.exploreGoal ?? "",
       r.interests.join(", "), r.productsOfInterest, r.exploreNotes ?? "", r.nationality, yes(r.hasPassport), yes(r.travelledToChina),
@@ -173,7 +229,7 @@ export function TripApplicationsBoard() {
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
     // Mobile numbers as text, or Excel shows 919876543210 as 9.19E+11.
     for (let row = 1; row <= data.length; row++) {
-      const cell = ws[XLSX.utils.encode_cell({ r: row, c: 5 })];
+      const cell = ws[XLSX.utils.encode_cell({ r: row, c: headers.indexOf("Mobile") })];
       if (cell) {
         cell.t = "s";
         cell.z = "@";
@@ -181,8 +237,8 @@ export function TripApplicationsBoard() {
       }
     }
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Trip applications");
-    XLSX.writeFile(wb, `trip-applications-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, "Free China Trip");
+    XLSX.writeFile(wb, `free-china-trip-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   return (
@@ -197,9 +253,9 @@ export function TripApplicationsBoard() {
             <ArrowLeft size={16} />
           </Link>
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Trip applications</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Free China Trip</h1>
             <p className="text-[13px] text-[#86868b]">
-              Applications for the free China business trip, from affhan.com/free-china-trip/apply
+              Everyone registered for the Free China Business Trip, with their account and Trip ID
               {rows ? ` · ${counts.new} new` : ""}
             </p>
           </div>
@@ -220,7 +276,26 @@ export function TripApplicationsBoard() {
           </button>
         </div>
 
+        {/* The homepage banner's chain lock, and the key to it. */}
+        <TripLockPanel />
+
         {error && <p className="mb-4 rounded-xl bg-red-500/10 px-4 py-2.5 text-[13px] font-medium text-red-700">{error}</p>}
+
+        {rows && rows.length > 0 && (
+          <dl className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ["Registered", stats.total],
+              ["Today", stats.today],
+              ["This week", stats.week],
+              ["Countries", stats.countries],
+            ].map(([label, n]) => (
+              <div key={label} className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-black/[0.06]">
+                <dt className="text-[12px] text-[#86868b]">{label}</dt>
+                <dd className="mt-0.5 text-[24px] font-semibold tabular-nums tracking-tight">{n}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div role="tablist" aria-label="Filter by status" className="flex rounded-full bg-white p-1 shadow-sm ring-1 ring-black/[0.06]">
@@ -243,7 +318,7 @@ export function TripApplicationsBoard() {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search name, company, email, reference…"
+              placeholder="Search name, Trip ID, email, customer no., company…"
               className="h-9 w-full rounded-full bg-white pl-9 pr-4 text-[13px] shadow-sm ring-1 ring-black/[0.06] outline-none focus:ring-2 focus:ring-[#0071e3]/40"
             />
           </label>
@@ -266,7 +341,10 @@ export function TripApplicationsBoard() {
                     onClick={() => setOpenId(r.id)}
                     className="grid w-full grid-cols-1 gap-1 px-5 py-4 text-left transition-colors hover:bg-black/[0.02] sm:grid-cols-[9rem_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_6rem] sm:items-center sm:gap-4"
                   >
-                    <span className="font-mono text-[12px] text-[#86868b]">{r.referenceNo}</span>
+                    <span className="min-w-0">
+                      <span className="block font-mono text-[12.5px] font-semibold text-[#0058b0]">{r.referenceNo}</span>
+                      <span className="block truncate text-[12px] text-[#86868b]">{r.customerCode ?? (r.user ? "Account linked" : "No account")}</span>
+                    </span>
                     <span className="min-w-0">
                       <span className="block truncate text-[14px] font-semibold">{r.fullName}</span>
                       <span className="block truncate text-[12px] text-[#86868b]">{r.email}</span>
@@ -347,7 +425,9 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
       >
         <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-black/[0.06] bg-[#f5f5f7]/95 px-6 py-4 backdrop-blur">
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[12px] text-[#86868b]">{a.referenceNo} · {fmtDate(a.createdAt)}</p>
+            <p className="text-[12px] text-[#86868b]">
+              <span className="font-mono font-semibold text-[#0058b0]">{a.referenceNo}</span> · Registered {fmtDate(a.createdAt)}
+            </p>
             <h2 id="trip-app-title" className="mt-0.5 truncate text-xl font-semibold tracking-tight">{a.fullName}</h2>
             <p className="truncate text-[13px] text-[#86868b]">{[a.role, a.companyName].filter(Boolean).join(", ") || businessStatusBrief(a.businessStatus)}</p>
           </div>
@@ -393,8 +473,25 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
             ["City", a.city],
             ["Country", a.country],
             ["Website / LinkedIn", a.profileUrl ? <a className="text-[#0058b0] underline" href={href(a.profileUrl)} target="_blank" rel="noopener noreferrer">{a.profileUrl}</a> : null],
-            ["Signed in", a.userId ? "Yes, with an Affhan account" : "No"],
           ])}
+          {section("Account", a.user
+            ? [
+                ["Trip ID", <span key="t" className="font-mono font-semibold">{a.referenceNo}</span>],
+                ["Customer no.", a.customerCode],
+                ["Account name", a.user.name],
+                ["Account email", a.user.email ? `${a.user.email}${a.user.emailVerified ? " (verified)" : ""}` : null],
+                ["Account mobile", a.user.phone ? `${a.user.phone}${a.user.phoneVerified ? " (verified)" : ""}` : null],
+                ["Signs in with", signInOf(a.user.authProvider)],
+                ["Account created", fmtDate(a.user.createdAt)],
+                ["Last signed in", a.user.lastLoginAt ? `${fmtDate(a.user.lastLoginAt)} (${a.user.loginCount} sign-ins)` : null],
+                ["Account status", a.user.accountStatus === "ACTIVE" ? "Active" : a.user.accountStatus],
+                ["Account ID", <span key="i" className="font-mono text-[12px]">{a.user.id}</span>],
+              ]
+            : [
+                ["Trip ID", <span key="t" className="font-mono font-semibold">{a.referenceNo}</span>],
+                ["Customer no.", a.customerCode],
+                ["Account", "None: sent before signing in was required"],
+              ])}
           {section("Business journey", businessRows(a))}
           {section("Business profile", [
             ["Interested in", a.interests.join(", ")],

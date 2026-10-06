@@ -3,7 +3,6 @@ import { ArrowRight, Plane } from "lucide-react";
 import "@/components/CinematicExperience/cinematic.css";
 import "./trip-legal.css";
 import { displayFont } from "@/components/CinematicExperience/fonts";
-import { FooterSection } from "@/components/sections/FooterSection";
 import { sectionAnchor, TRIP_APPLY_HREF, TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS_HREF, type LegalDoc } from "@/lib/trip-legal";
 import { LegalReader } from "./LegalReader";
 import { LegalSections } from "./LegalSections";
@@ -16,11 +15,14 @@ import { LegalSections } from "./LegalSections";
  *
  * Built for reading a long legal text, across the whole screen rather than
  * in a narrow column down its middle: on a wide screen the contents run
- * down the left edge, the text (a measure of about 77 characters) between,
- * and a pass down the right edge, set like the boarding-pass stub in the
- * consent popup, holds the key facts (each opening its clause), how far
- * the reader has got, and the way to apply. Narrower, the pass gives way to
- * the key dates above the text; on a phone the contents fold above it.
+ * down the left edge as a route, a stop for each clause, lit as it is read;
+ * the text (a measure of about 77 characters) between; and a pass down the
+ * right edge, set like the boarding-pass stub in the consent popup, with
+ * the key facts (each opening its clause), the clause being read and the
+ * way to apply. The contents and the pass are one height, the screen's, so
+ * the text is framed edge to edge with nothing left empty below either.
+ * Narrower, the pass gives way to the key dates above the text; on a phone
+ * the contents fold above it.
  * Every section is anchored (#clause-7, #section-3) so a clause can be
  * linked. Everything is server-rendered and readable without script;
  * LegalReader only adds the reading bar and the place-keeping.
@@ -124,37 +126,58 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
           </div>
         </header>
 
-        {/* The pass: the widest screens only, down the right edge, staying in view. */}
+        {/* The pass: the widest screens only, down the right edge, as tall as
+            the contents beside the text, staying in view with them. Its stub
+            follows the reading: the clause open now, rolling on as the
+            reader moves (LegalReader), and the way in. */}
         <aside className="tl-rail" aria-label={kind === "terms" ? "At a glance" : "Key sections"}>
           <div className="tl-pass">
             <div className="tl-pass-top">
               <p className="tl-pass-eyebrow">{kind === "terms" ? "At a glance" : "Key sections"}</p>
               <p className={`${DISPLAY} tl-pass-title`}>Free China Business Trip</p>
-              <dl className="tl-pass-rows">
+              <dl className={kind === "terms" ? "tl-pass-rows" : "tl-pass-rows tl-pass-rows-index"}>
                 {rows.map((r) => (
                   <div key={r.label} className="tl-pass-row">
-                    <dt>{r.label}</dt>
+                    <dt>
+                      {kind === "terms" ? (
+                        r.label
+                      ) : (
+                        <>
+                          <span className="sr-only">Section </span>
+                          {pad(r.n)}
+                        </>
+                      )}
+                    </dt>
                     <dd>
-                      <a href={`#${prefix}-${r.n}`} className={kind === "terms" ? `${DISPLAY} tl-pass-value` : "tl-pass-value tl-pass-value-text"}>
+                      <a
+                        href={`#${prefix}-${r.n}`}
+                        aria-label={`${r.value}: ${unit} ${r.n}`}
+                        className={kind === "terms" ? `${DISPLAY} tl-pass-value` : "tl-pass-value tl-pass-value-text"}
+                      >
                         {r.value}
                       </a>
-                      <span aria-hidden className="tl-pass-n">
-                        {pad(r.n)}
-                      </span>
                     </dd>
                   </div>
                 ))}
               </dl>
             </div>
             <div className="tl-pass-stub">
-              <p className="tl-pass-now">
-                <span>
-                  Reading {unit.toLowerCase()} <b data-tl-now>01</b> of {total}
-                </span>
+              <div className="tl-now">
+                <p className="tl-now-label">Now reading</p>
+                <p className="tl-now-line">
+                  <span className="sr-only">{unit} </span>
+                  <span className={`${DISPLAY} tl-now-n`} data-tl-now>
+                    01
+                  </span>
+                  <span className="tl-now-of">of {total}</span>
+                </p>
+                <p className="tl-now-title" data-tl-now-title>
+                  {items[0]?.title}
+                </p>
                 <span aria-hidden className="tl-pass-bar">
                   <span data-tl-passbar />
                 </span>
-              </p>
+              </div>
               <ApplyLink />
               <p className="tl-pass-links">
                 <Link href={other.href} className="tl-link">
@@ -172,7 +195,7 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
         </aside>
 
         <aside className="tl-aside">
-          <LegalReader items={items} label="Contents" total={total} />
+          <LegalReader items={items} label="Contents" count={count} total={total} />
         </aside>
 
         <article aria-labelledby="tl-title" className="tl-article">
@@ -215,12 +238,6 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
             </div>
           </footer>
         </article>
-      </div>
-
-      {/* The site's own footer, as on its other pages: the document ends,
-          the site goes on. */}
-      <div className="tl-site-footer">
-        <FooterSection />
       </div>
     </main>
   );

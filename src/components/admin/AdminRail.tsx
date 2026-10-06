@@ -12,6 +12,7 @@ import {
   type RailCountMap, type RailItem,
 } from "@/components/admin/rail-sections";
 import type { RailCounts } from "@/lib/admin-rail-counts";
+import { TripLockRailDot, TripLockRailPill } from "@/components/admin/TripLockRailStatus";
 
 /**
  * The console's rail, for every admin page that is not the dashboard.
@@ -178,9 +179,11 @@ export function AdminRail({
                     <span className={iconCol}>
                       <item.icon size={17} className={active ? "text-brand" : t.soft} />
                       {dot !== undefined && dot > 0 && <span className={dotCls}>{fmtRailBadge(dot)}</span>}
+                      {item.key === "trip-lock" && <TripLockRailDot open={open} />}
                     </span>
                     <span className={`flex-1 ${label}`}>{item.label}</span>
                     {count !== undefined && <span className={pillCls}>{fmtRailNum(count)}</span>}
+                    {item.key === "trip-lock" && <TripLockRailPill open={open} dark={dark} />}
                     {/* Beside the rotating figure rather than added to it: the
                         two numbers mean different things, and only one of them
                         is somebody's job to fix today. The word rides along

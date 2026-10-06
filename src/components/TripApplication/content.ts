@@ -108,7 +108,8 @@ export const REVIEW = {
 } as const;
 
 export const SUBMIT = {
-  holding: "Recording your application",
+  /** Under the AFFHAN emblem while the application is sent and recorded. */
+  processing: "Processing your application",
   /** Beside Submit while it cannot be pressed (StepNav): the box, or boxes, still to tick. */
   needsConsent: (missing: readonly ("privacy" | "accuracy" | "terms")[]) =>
     missing.length > 1
@@ -121,25 +122,33 @@ export const SUBMIT = {
   needsAnswers: (steps: string) => `Some answers need another look before you can submit: ${steps}.`,
 } as const;
 
+/** The moment after the server confirms: then on to the participants board. */
 export const SUCCESS = {
   eyebrow: "AFFHAN International",
-  title: "Application received",
-  line: "Thank you for applying to the Free China Business Trip.",
-  next: "Your application has been recorded. We'll be in touch with the next steps.",
-  reference: "Your reference",
-  home: { href: "/", label: "Back to AFFHAN" },
-  trip: { href: "/free-china-trip/", label: "View trip details" },
+  title: "Application submitted",
+  line: (firstName: string) => (firstName ? `Welcome aboard, ${firstName}.` : "Welcome aboard."),
+  reference: "Your Trip ID",
+  /** Before the moment the database recorded it (India time). */
+  recorded: "Recorded at",
+  next: "Taking you to the participants",
+  go: "See the participants",
 } as const;
 
 export const FAILURE = {
   title: "We couldn't complete your application",
+  /** The request never arrived. */
   line: "Please check your connection and try again.",
+  /** It arrived, and the server could not record it. */
+  server: "We couldn't record your application just now. Please try again in a moment.",
+  /** The sign-in ended while the form was open (the API needs the account). */
+  signin: "Your sign-in has ended. Sign in again to send your application.",
+  signInAgain: "Sign in",
   /** When the server says too many applications came from this connection. */
   limited: "Too many applications from this connection. Please try again later.",
   /** The window closed (or had not opened) on the server's clock: the server says which. */
   closed: `Applications closed on ${TRIP_FACTS.applicationsClose}.`,
   /** One application per person: the server found one from this email or mobile. */
-  duplicate: "We have already received an application from this email address or mobile number. To change anything in it, write to info@affhan.com.",
+  duplicate: "We have already received an application from this account, email address or mobile number. To change anything in it, write to info@affhan.com.",
   retry: "Try again",
   review: "Review your answers",
   kept: "Everything you entered is still here.",

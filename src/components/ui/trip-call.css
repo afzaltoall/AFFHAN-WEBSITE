@@ -1,0 +1,316 @@
+/* ---- The trip banner's call to action (TripCall.tsx) ------------------------
+   A red button under the Free China Business Trip banner, in the banner's own
+   red and gold, that says what a press on it does, and a live line under it.
+
+   One 4.8s loop moves three things in turn, so the eye is led along the
+   button the way it reads: its little plane takes off up and away along its
+   heading and another glides in to take its place (0-28%), a light sweeps
+   across it (30-56%), and its gold arrow nudges on twice (54-78%); then it
+   rests. The line's red dot pings, as a live thing does. A pointer on it,
+   or on the banner it belongs to (.trip-unit, the pair: TripBanner), plays
+   the sweep and the take-off at once and holds the arrow forward, so the
+   picture and the button read as one thing to press; pressing either sinks
+   the button a little.
+
+   Only transform and opacity move, which the compositor does by itself, so
+   the loop costs the page nothing. None of it plays for reduced motion.
+
+   Sized where it is placed: --call-h is the button's height (36px if not
+   set), --call-fs its type (13.5px); every other measure is drawn from
+   those two. They are only read here, with those fallbacks, never set: a
+   plain stylesheet outranks Tailwind's layered utilities, which would
+   otherwise lose to a default set here. */
+
+.trip-call {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.trip-call-button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--call-h, 36px) * 0.2);
+  height: var(--call-h, 36px);
+  padding-inline: calc(var(--call-h, 36px) * 0.36) calc(var(--call-h, 36px) * 0.13);
+  border-radius: 9999px;
+  color: #ffffff;
+  font-size: var(--call-fs, 13.5px);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.005em;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #ef3b45 0%, #d21f30 55%, #b9172a 100%);
+  box-shadow:
+    0 10px 22px -12px rgb(190 18 38 / 0.85),
+    0 2px 6px -2px rgb(190 18 38 / 0.35),
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 0 rgb(110 0 12 / 0.3);
+  transition: translate 0.25s ease, box-shadow 0.25s ease, filter 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.trip-call-button:focus-visible {
+  outline: 3px solid #176579;
+  outline-offset: 3px;
+}
+
+/* The sweep: behind the words (z-index -1 inside the isolated button), over
+   its red. */
+.trip-call-button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 28%, rgb(255 226 160 / 0.55) 46%, rgb(255 255 255 / 0.7) 50%, rgb(255 226 160 / 0.55) 54%, transparent 72%);
+  transform: translateX(-110%);
+  animation: trip-call-sweep 4.8s ease-in-out 1.2s infinite;
+}
+
+.trip-call-plane {
+  flex: none;
+  width: calc(var(--call-fs, 13.5px) * 1.2);
+  height: calc(var(--call-fs, 13.5px) * 1.2);
+  animation: trip-call-takeoff 4.8s ease-in-out 1.2s infinite;
+}
+
+.trip-call-label {
+  padding-block: 1px;
+}
+
+/* The arrow, on a gold coin like the banner's FREE. */
+.trip-call-go {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: calc(var(--call-h, 36px) - 8px);
+  height: calc(var(--call-h, 36px) - 8px);
+  border-radius: 9999px;
+  color: #8f1020;
+  background: linear-gradient(180deg, #ffe39a 0%, #f2b43c 100%);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.65), 0 1px 2px rgb(110 0 12 / 0.4);
+  transition: transform 0.2s ease;
+  animation: trip-call-nudge 4.8s ease-in-out 1.2s infinite;
+}
+.trip-call-go svg {
+  width: 60%;
+  height: 60%;
+  stroke-width: 2.6;
+}
+
+/* "Click" for a mouse, "Tap" for a finger. */
+.trip-call-tap {
+  display: none;
+}
+@media (hover: none) {
+  .trip-call-click {
+    display: none;
+  }
+  .trip-call-tap {
+    display: inline;
+  }
+}
+
+.trip-call-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: #475569;
+  white-space: nowrap;
+}
+.trip-call-status strong {
+  font-weight: 650;
+  color: #0f172a;
+}
+.trip-call-dot {
+  position: relative;
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #94a3b8;
+}
+.trip-call-dot.is-live {
+  background: #e11d48;
+}
+.trip-call-dot.is-live::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: trip-call-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes trip-call-takeoff {
+  0%, 6% { transform: none; opacity: 1; }
+  16% { transform: translate(7px, -7px) scale(0.85); opacity: 0; }
+  17% { transform: translate(-6px, 6px) scale(0.85); opacity: 0; }
+  28%, 100% { transform: none; opacity: 1; }
+}
+@keyframes trip-call-sweep {
+  0%, 30% { transform: translateX(-110%); }
+  56%, 100% { transform: translateX(110%); }
+}
+@keyframes trip-call-nudge {
+  0%, 54% { transform: none; }
+  60% { transform: translateX(3px); }
+  66% { transform: none; }
+  72% { transform: translateX(3px); }
+  78%, 100% { transform: none; }
+}
+@keyframes trip-call-ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  75%, 100% { transform: scale(2.8); opacity: 0; }
+}
+@keyframes trip-call-sweep-now {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(110%); }
+}
+@keyframes trip-call-takeoff-now {
+  0% { transform: none; opacity: 1; }
+  35% { transform: translate(7px, -7px) scale(0.85); opacity: 0; }
+  36% { transform: translate(-6px, 6px) scale(0.85); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .trip-call-button:hover,
+  .trip-unit:hover .trip-call-button {
+    translate: 0 -1px;
+    filter: brightness(1.05) saturate(1.05);
+    box-shadow:
+      0 14px 26px -12px rgb(190 18 38 / 0.95),
+      0 3px 8px -2px rgb(190 18 38 / 0.4),
+      inset 0 1px 0 rgb(255 255 255 / 0.3),
+      inset 0 -1px 0 rgb(110 0 12 / 0.3);
+  }
+  .trip-call-button:hover::after,
+  .trip-unit:hover .trip-call-button::after {
+    animation: trip-call-sweep-now 0.85s ease-out;
+  }
+  .trip-call-button:hover .trip-call-plane,
+  .trip-unit:hover .trip-call-plane {
+    animation: trip-call-takeoff-now 0.9s ease-in-out;
+  }
+  .trip-call-button:hover .trip-call-go,
+  .trip-unit:hover .trip-call-go {
+    animation: none;
+    transform: translateX(3px);
+  }
+}
+/* Pressed, on the button or the picture: it sinks under the finger. */
+.trip-call-button:active,
+.trip-unit:active .trip-call-button {
+  translate: 0 1px;
+  filter: brightness(0.96);
+  transition-duration: 0.06s;
+}
+
+/* ---- Locked: the banner is locked (TripLockOverlay) --------------------------
+   A dark button lettered in the lock's gold, that opens nothing: a padlock
+   where the plane was, a key on the gold coin where the arrow was. On the
+   same 4.8s loop, and in the same places, as the open button's take-off and
+   nudge: the padlock jiggles as if tried (0-19%), the gold light sweeps
+   across, and the key turns (54-78%). A pointer on it or on the banner turns
+   the key and holds it there; a press shakes the button (TripCall). The dot
+   under it is gold, and pings slower: waiting, not live. */
+.trip-call-button.is-locked {
+  color: #f6dd9c;
+  cursor: not-allowed;
+  background: linear-gradient(180deg, #3b3127 0%, #241d16 55%, #17130e 100%);
+  box-shadow:
+    0 10px 22px -12px rgb(24 14 4 / 0.9),
+    0 2px 6px -2px rgb(24 14 4 / 0.45),
+    inset 0 1px 0 rgb(255 232 176 / 0.22),
+    inset 0 -1px 0 rgb(0 0 0 / 0.45),
+    inset 0 0 0 1px rgb(214 168 78 / 0.38);
+}
+.trip-call-button.is-locked::after {
+  background: linear-gradient(105deg, transparent 30%, rgb(246 210 130 / 0.3) 47%, rgb(255 244 214 / 0.4) 50%, rgb(246 210 130 / 0.3) 53%, transparent 70%);
+}
+.trip-call-lock {
+  flex: none;
+  width: calc(var(--call-fs, 13.5px) * 1.2);
+  height: calc(var(--call-fs, 13.5px) * 1.2);
+  transform-origin: 50% 20%;
+  animation: trip-call-jiggle 4.8s ease-in-out 1.2s infinite;
+}
+.trip-call-button.is-locked .trip-call-go {
+  color: #6b4a10;
+  animation: trip-call-key 4.8s ease-in-out 1.2s infinite;
+}
+.trip-call-dot.is-waiting {
+  background: #d6a84e;
+}
+.trip-call-dot.is-waiting::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: inherit;
+  animation: trip-call-ping 2.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes trip-call-jiggle {
+  0%, 3% { transform: none; }
+  7% { transform: rotate(-14deg); }
+  11% { transform: rotate(11deg); }
+  15% { transform: rotate(-6deg); }
+  19%, 100% { transform: none; }
+}
+@keyframes trip-call-key {
+  0%, 54% { transform: none; }
+  62%, 70% { transform: rotate(-35deg); }
+  78%, 100% { transform: none; }
+}
+@media (hover: hover) and (pointer: fine) {
+  .trip-call-button.is-locked:hover,
+  .trip-unit:hover .trip-call-button.is-locked {
+    translate: none;
+    box-shadow:
+      0 14px 26px -12px rgb(24 14 4 / 0.95),
+      0 3px 8px -2px rgb(24 14 4 / 0.5),
+      inset 0 1px 0 rgb(255 232 176 / 0.26),
+      inset 0 -1px 0 rgb(0 0 0 / 0.45),
+      inset 0 0 0 1px rgb(214 168 78 / 0.55);
+  }
+  .trip-call-button.is-locked:hover .trip-call-go,
+  .trip-unit:hover .trip-call-button.is-locked .trip-call-go {
+    animation: none;
+    transform: rotate(-35deg);
+  }
+}
+
+/* Just opened, in front of the visitor: the red button arrives with a pop. */
+.trip-call-button.is-fresh {
+  animation: trip-call-open 0.8s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes trip-call-open {
+  0% { transform: scale(0.88); filter: brightness(1.7) saturate(1.2); }
+  55% { transform: scale(1.06); }
+  100% { transform: none; filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trip-call-button,
+  .trip-call-plane,
+  .trip-call-lock,
+  .trip-call-go,
+  .trip-call-dot.is-live::after,
+  .trip-call-dot.is-waiting::after {
+    animation: none !important;
+    transition: none;
+  }
+  .trip-call-button::after {
+    display: none;
+  }
+}

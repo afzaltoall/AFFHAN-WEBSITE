@@ -1,167 +1,236 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { ASSETS } from "@/components/CinematicExperience/assets";
-import { DISPLAY, EYEBROW, FilmImage } from "@/components/CinematicExperience/parts";
+"use client";
+
+import { useEffect, useState } from "react";
+import { DISPLAY, EYEBROW } from "@/components/CinematicExperience/parts";
 import { FAILURE, SUBMIT, SUCCESS } from "./content";
 import { GoldButton } from "./StepNav";
 
-/** Eight particles on the orbit, at fixed angles and sizes (no randomness). */
-const ORBITERS = [0, 41, 97, 142, 188, 233, 281, 322].map((deg, i) => ({
-  left: 50 + 50 * Math.cos((deg * Math.PI) / 180),
-  top: 50 + 50 * Math.sin((deg * Math.PI) / 180),
-  size: [6, 4, 5, 3, 6, 4, 5, 3][i],
-}));
+/** The clock face's sixty ticks (every fifth one longer, as on the film's countdown). */
+const TICKS = Array.from({ length: 60 }, (_, i) => i);
 
 const TEXT_BUTTON =
   "inline-flex min-h-11 items-center text-[12px] font-semibold uppercase tracking-[0.22em] text-(--cx-white)/75 underline-offset-[6px] transition-colors hover:text-(--cx-white) hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white)";
 
+const IST_TIME = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+const IST_STAMP = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" });
+/** "18:42:07, 1 October 2026" (India) */
+function stamp(iso: string) {
+  const p = Object.fromEntries(IST_STAMP.formatToParts(new Date(iso)).map((x) => [x.type, x.value]));
+  return `${p.hour}:${p.minute}:${p.second}, ${p.day} ${p.month} ${p.year}`;
+}
+
 /**
- * The submission, and what comes after it.
+ * The time in India at the clock's centre, to the second, each figure rolling
+ * in as it changes (the film's countdown hand). Running only while `run`.
+ */
+function ClockTime({ run }: { run: boolean }) {
+  const [now, setNow] = useState<string | null>(null);
+  useEffect(() => {
+    if (!run) return;
+    let t = 0;
+    const tick = () => {
+      setNow(IST_TIME.format(Date.now()));
+      t = window.setTimeout(tick, 1000 - (Date.now() % 1000) + 8);
+    };
+    tick();
+    return () => window.clearTimeout(t);
+  }, [run]);
+  const text = now ?? "··:··:··";
+  return (
+    <div className="ax-clock-time" aria-hidden>
+      <span className={`${DISPLAY} ax-clock-digits`}>
+        {text.split("").map((c, i) =>
+          c === ":" ? (
+            <span key={`c${i}`} className="ax-clock-colon">
+              :
+            </span>
+          ) : (
+            <span key={i} className="ax-clock-cell">
+              <span key={c} className="ax-clock-digit">
+                {c}
+              </span>
+            </span>
+          ),
+        )}
+      </span>
+      <span className="ax-clock-zone">India</span>
+    </div>
+  );
+}
+
+/**
+ * The submission, and what comes after it: the light of time.
  *
- * Always mounted, invisible until used, and moved only by ApplyExperience:
- * the submit button contracts into a gold point, the point finds the centre,
- * light expands from it, a thin orbit draws, particles travel it, red silk
- * crosses, everything falls into darkness, a gold line draws across, and
- * APPLICATION RECEIVED rises out of it. If the server hasn't answered by the
- * time the orbit is complete, the orbit keeps turning and one quiet line says
- * the application is being recorded: success is never shown before the
- * server confirms it.
+ * Always mounted, invisible until used, and moved only by ApplyExperience.
+ * Three layers, each centred on the screen on its own, so nothing shifts as
+ * one gives way to the next:
  *
- * The frame is sticky and one screen tall, so it plays in view wherever the
- * review had been scrolled to. Every block below the line (the holding line,
- * the success details, the failure) is always in the page, stacked in one
- * grid cell and hidden until shown, so nothing shifts when the phase changes.
- * The form stays mounted underneath the failure with every answer intact.
+ *  1. Processing. The plane leaves Submit's porthole and flies off on its gold
+ *     contrail (takeoff.ts); the form frosts away; at the exact centre a clock
+ *     face of light opens, the film's own sixty ticks, a point of light
+ *     sweeping round it like a second hand (the ticks flare as it passes), the
+ *     time in India rolling at its centre, second by second: "Processing your
+ *     application".
+ *  2. Submitted, when the server confirms (never before). The light sweeps
+ *     once more and lights every tick, the full circle flashes, and it folds
+ *     into a line of light that rises to become the horizon APPLICATION
+ *     SUBMITTED rises from: the Trip ID the database wrote, the moment it was
+ *     recorded, and a thin line filling while the page carries the applicant
+ *     on to the participants board (or at once, from the button).
+ *  3. Failed: the reason, and the way on. The form stays mounted underneath
+ *     with every answer intact.
  */
 export function SubmitStage({
   active,
   pinned,
+  phase,
   reference,
+  registeredAt,
+  firstName,
   failure,
   canRetry = true,
   onRetry,
   onReview,
+  onSignIn,
+  onContinue,
 }: {
   active: boolean;
   /** While sending or failed: fixed to the screen, over everything but the navbar. */
   pinned: boolean;
+  /** The page's phase: the clock's time runs while sending. */
+  phase: string;
   reference: string | null;
+  /** When the database recorded it (ISO). */
+  registeredAt: string | null;
+  /** For "Welcome aboard, …". */
+  firstName: string;
   failure: string;
   /** False when sending again could only be refused again (a duplicate, the window closed). */
   canRetry?: boolean;
   onRetry: () => void;
   onReview: () => void;
+  /** Offered in place of Try again when the sign-in has ended. */
+  onSignIn?: () => void;
+  /** On to the participants board, now. */
+  onContinue: () => void;
 }) {
   return (
     <div data-ax="send" className={`absolute inset-0 z-30 ${active ? "" : "pointer-events-none"}`} aria-hidden={active ? undefined : true}>
-      {/* Fixed to the screen while the sequence plays; once received, the
-          application's one screen (ApplyExperience), which never scrolls. */}
-      <div className={`${pinned ? "fixed inset-x-0 bottom-0 top-16" : "absolute inset-0"} flex flex-col items-center justify-center overflow-hidden px-6 text-center`}>
-        <div data-ax="send-dark" className="absolute inset-0 bg-(--ax-base) opacity-0" />
-        <div data-ax="send-silk" className="pointer-events-none absolute left-[-10%] top-[30%] w-[120%] opacity-0">
-          <FilmImage asset={ASSETS.silk} alt="" sizes="120vw" eager className="cx-feather-x" />
+      <div className={`${pinned ? "fixed inset-x-0 bottom-0 top-16" : "absolute inset-0"} overflow-hidden text-center`}>
+        {/* The form behind, frosted and darkened away. */}
+        <div data-ax="send-dark" className="absolute inset-0 bg-(--ax-base) opacity-0 backdrop-blur-[10px]" />
+        <div
+          data-ax="send-light"
+          className="pointer-events-none absolute left-1/2 top-1/2 -ml-[42vmin] -mt-[42vmin] h-[84vmin] w-[84vmin] rounded-full bg-[radial-gradient(closest-side,rgb(242_211_142/0.26),rgb(214_168_78/0.08)_48%,transparent)] opacity-0"
+        />
+
+        {/* 1. Processing: the clock of light at the exact centre, its line below it. */}
+        <div className="absolute inset-0 z-10 grid place-items-center px-6">
+          <div className="relative">
+            <div data-ax="send-clock" className="ax-clock opacity-0">
+              <svg viewBox="-100 -100 200 200" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
+                <defs>
+                  <radialGradient id="ax-clock-core">
+                    <stop offset="0" stopColor="#f2d38e" stopOpacity="0.2" />
+                    <stop offset="1" stopColor="#f2d38e" stopOpacity="0" />
+                  </radialGradient>
+                </defs>
+                <circle r="64" fill="url(#ax-clock-core)" className="ax-clock-core" />
+                <circle r="88" fill="none" stroke="rgb(244 239 230 / 0.07)" strokeWidth="0.8" />
+                {TICKS.map((i) => (
+                  <line
+                    key={i}
+                    data-ax="send-tick"
+                    x1="0"
+                    y1="-97"
+                    x2="0"
+                    y2={i % 5 === 0 ? -89.5 : -93}
+                    stroke="#fff3d2"
+                    strokeWidth={i % 5 === 0 ? 1.3 : 0.8}
+                    strokeLinecap="round"
+                    opacity="0.16"
+                    transform={`rotate(${i * 6})`}
+                  />
+                ))}
+                {/* Submitted: the whole circle, lit, and a ring of light going out from it. */}
+                <circle data-ax="send-full" r="88" fill="none" stroke="#f2d38e" strokeWidth="1.4" pathLength={1} strokeDasharray="1" strokeDashoffset="1" transform="rotate(-90)" />
+                <circle data-ax="send-wave" r="88" fill="none" stroke="#fff3d2" strokeWidth="1.6" opacity="0" />
+              </svg>
+              {/* The light of time: a point sweeping the face, its gold trail behind it. */}
+              <div data-ax="send-hand" className="ax-hand">
+                <span className="ax-hand-trail" />
+                <span className="ax-hand-head" />
+              </div>
+              <ClockTime run={phase === "sending"} />
+            </div>
+            <p data-ax="send-caption" data-ax-hide className="absolute left-1/2 top-full mt-8 w-max max-w-[86vw] -translate-x-1/2 text-[12px] font-semibold uppercase tracking-[0.34em] text-(--cx-gold) md:mt-10">
+              {SUBMIT.processing}
+            </p>
+          </div>
         </div>
 
-        {/* Above the line: the success heading. */}
-        <div className="relative z-10 flex flex-col items-center">
-          <div data-ax="done-host" data-ax-hide className="mb-5 h-[min(20svh,160px)] w-[min(38vw,150px)] overflow-hidden [mask-image:linear-gradient(to_bottom,black_70%,transparent)] lg:hidden">
-            <FilmImage asset={ASSETS.host} alt="" sizes="40vw" eager className="-scale-x-100" />
-          </div>
-          <p data-ax="done-eyebrow" data-ax-hide className={EYEBROW}>
-            {SUCCESS.eyebrow}
-          </p>
-          <div className="mt-4 overflow-hidden pb-2">
+        {/* 2. Submitted, centred on its own. */}
+        <div data-ax="done" data-ax-hide className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6">
+          <span data-ax="send-line" aria-hidden className="ax-rule ax-send-line block h-px" />
+          <div className="mt-7 overflow-hidden pb-1 md:mt-9">
             <h2
               data-ax="done-title"
-              data-ax-hide
               tabIndex={-1}
-              className={`${DISPLAY} text-balance text-[clamp(38px,9vw,56px)] font-normal uppercase leading-[0.95] tracking-[0.01em] text-(--cx-white) outline-none md:text-[clamp(54px,6vw,96px)]`}
+              className={`${DISPLAY} text-balance text-[clamp(36px,9vw,56px)] font-normal uppercase leading-[0.95] tracking-[0.01em] text-(--cx-white) outline-none md:text-[clamp(52px,5.6vw,84px)]`}
             >
               {SUCCESS.title}
             </h2>
           </div>
-        </div>
-
-        {/* The line: the point, the light and the orbit are centred on it. */}
-        <div data-ax="send-row" className="relative my-6 h-px self-stretch md:my-8">
-          <div
-            data-ax="send-light"
-            className="absolute left-1/2 top-1/2 -ml-[36vmin] -mt-[36vmin] h-[72vmin] w-[72vmin] rounded-full bg-[radial-gradient(closest-side,rgb(242_211_142/0.5),rgb(214_168_78/0.16)_48%,transparent)] opacity-0"
-          />
-          <div data-ax="send-orbit" className="absolute left-1/2 top-1/2 -ml-[23vmin] -mt-[23vmin] h-[46vmin] w-[46vmin] opacity-0">
-            <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full overflow-visible">
-              <defs>
-                <linearGradient id="ax-ring" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0" stopColor="#d6a84e" stopOpacity="0.15" />
-                  <stop offset="0.55" stopColor="#f2d38e" stopOpacity="0.85" />
-                  <stop offset="1" stopColor="#d6a84e" stopOpacity="0.3" />
-                </linearGradient>
-              </defs>
-              <circle data-ax="send-ring" cx="50" cy="50" r="49.5" fill="none" stroke="url(#ax-ring)" strokeWidth="1" vectorEffect="non-scaling-stroke" pathLength={1} strokeDasharray="1" strokeDashoffset="1" />
-            </svg>
-            <div data-ax="send-orbiters" className="absolute inset-0">
-              {ORBITERS.map((o, i) => (
-                <span
-                  key={i}
-                  data-ax="send-orbiter"
-                  className="absolute rounded-full bg-(--cx-gold-hi) opacity-0 shadow-[0_0_12px_3px_rgb(242_211_142/0.55)]"
-                  style={{ left: `${o.left}%`, top: `${o.top}%`, width: o.size, height: o.size, marginLeft: -o.size / 2, marginTop: -o.size / 2 }}
-                />
-              ))}
-            </div>
-          </div>
-          <div data-ax="send-line" className="ax-rule absolute inset-x-0 top-0 h-px origin-center opacity-0" />
-          <div data-ax="send-point" className="absolute left-1/2 top-1/2 -ml-1.5 -mt-1.5 h-3 w-3 rounded-full bg-(--cx-gold-hi) opacity-0 shadow-[0_0_24px_8px_rgb(242_211_142/0.6)]" />
-        </div>
-
-        {/* Below the line: three blocks in one cell, one shown at a time. */}
-        <div className="relative z-10 grid w-full max-w-[36rem] justify-items-center [&>*]:[grid-area:1/1]">
-          <p data-ax="send-caption" data-ax-hide className="self-start text-[11px] font-semibold uppercase tracking-[0.34em] text-(--cx-gold)">
-            {SUBMIT.holding}
+          <p data-ax="done-eyebrow" className={`${EYEBROW} mt-4`}>
+            {SUCCESS.eyebrow}
           </p>
-
-          <div data-ax="done-details" data-ax-hide className="flex flex-col items-center">
-            <p data-ax="done-item" className="text-[18px] leading-snug text-(--cx-white) md:text-[20px]">
-              {SUCCESS.line}
-            </p>
-            <p data-ax="done-item" className="mt-3 text-[15px] leading-relaxed text-(--cx-mute) md:text-[16px]">
-              {SUCCESS.next}
-            </p>
-            <p data-ax="done-ref" className={`mt-5 text-[13px] text-(--cx-mute) ${reference ? "" : "invisible"}`}>
-              {SUCCESS.reference} <span className="font-semibold tabular-nums tracking-[0.12em] text-(--cx-gold-hi)">{reference ?? " "}</span>
-            </p>
-            <div data-ax="done-item" className="mt-8 flex w-full flex-col items-center gap-5 sm:w-auto sm:flex-row">
-              <Link
-                href={SUCCESS.home.href}
-                className="group inline-flex min-h-[3.25rem] w-full items-center justify-between gap-4 rounded-full bg-(--cx-gold) py-2.5 pl-7 pr-2.5 text-[13px] font-semibold uppercase tracking-[0.16em] text-(--cx-ink) shadow-[0_14px_50px_-12px_rgb(214_168_78/0.75)] transition-colors duration-300 hover:bg-(--cx-gold-hi) focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-(--cx-white) sm:w-auto"
-              >
-                {SUCCESS.home.label}
-                <span aria-hidden className="flex h-9 w-9 items-center justify-center rounded-full bg-(--cx-ink)/10">
-                  <ArrowRight size={17} />
+          <p data-ax="done-line" className="mt-3 text-[17px] leading-snug text-(--cx-white)/90 md:text-[19px]">
+            {SUCCESS.line(firstName)}
+          </p>
+          {reference && (
+            <div data-ax="done-ref" className="ax-trip-id mt-6">
+              <span className="text-[10.5px] font-semibold uppercase tracking-[0.3em] text-(--cx-mute)">{SUCCESS.reference}</span>
+              <span className="mt-1.5 block text-[24px] font-semibold tabular-nums tracking-[0.14em] text-(--cx-gold-hi) md:text-[28px]">{reference}</span>
+              {registeredAt && (
+                <span className="mt-1.5 block text-[12px] tabular-nums text-(--cx-mute)">
+                  {SUCCESS.recorded} {stamp(registeredAt)}
                 </span>
-              </Link>
-              <Link href={SUCCESS.trip.href} className={TEXT_BUTTON}>
-                {SUCCESS.trip.label}
-              </Link>
+              )}
             </div>
+          )}
+          <div data-ax="done-next" className="mt-7 flex w-full max-w-[22rem] flex-col items-center gap-3">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.26em] text-(--cx-mute)">{SUCCESS.next}</span>
+            <span aria-hidden className="relative block h-px w-full overflow-hidden bg-(--cx-white)/12">
+              <span data-ax="done-bar" className="absolute inset-0 origin-left scale-x-0 bg-gradient-to-r from-(--cx-gold-deep) via-(--cx-gold) to-(--cx-gold-hi)" />
+            </span>
+            <button type="button" onClick={onContinue} data-ax-continue className={`${TEXT_BUTTON} mt-1 text-(--cx-gold)`}>
+              {SUCCESS.go}
+            </button>
           </div>
+        </div>
 
-          <div data-ax="fail" data-ax-hide className="flex flex-col items-center">
-            <h2 data-ax="fail-title" tabIndex={-1} className={`${DISPLAY} text-balance text-[clamp(28px,6vw,34px)] font-normal uppercase leading-[1.05] text-(--cx-white) outline-none md:text-[40px]`}>
-              {FAILURE.title}
-            </h2>
-            <p className="mt-4 text-[16px] leading-relaxed text-(--cx-mute)">{failure || FAILURE.line}</p>
-            <p className="mt-1 text-[14px] text-(--cx-mute)">{FAILURE.kept}</p>
-            <div className="mt-8 flex w-full flex-col items-center gap-5 sm:w-auto sm:flex-row">
-              {canRetry && (
+        {/* 3. Failed, centred on its own. */}
+        <div data-ax="fail" data-ax-hide className="absolute inset-0 z-10 flex flex-col items-center justify-center px-6">
+          <h2 data-ax="fail-title" tabIndex={-1} className={`${DISPLAY} max-w-[40rem] text-balance text-[clamp(28px,6vw,34px)] font-normal uppercase leading-[1.05] text-(--cx-white) outline-none md:text-[40px]`}>
+            {FAILURE.title}
+          </h2>
+          <p className="mt-4 max-w-[36rem] text-[16px] leading-relaxed text-(--cx-mute)">{failure || FAILURE.line}</p>
+          <p className="mt-1 text-[14px] text-(--cx-mute)">{FAILURE.kept}</p>
+          <div className="mt-8 flex w-full flex-col items-center gap-5 sm:w-auto sm:flex-row">
+            {onSignIn ? (
+              <GoldButton type="button" onClick={onSignIn} data-ax-retry className="w-full sm:w-auto">
+                {FAILURE.signInAgain}
+              </GoldButton>
+            ) : (
+              canRetry && (
                 <GoldButton type="button" onClick={onRetry} data-ax-retry className="w-full sm:w-auto">
                   {FAILURE.retry}
                 </GoldButton>
-              )}
-              <button type="button" onClick={onReview} className={TEXT_BUTTON}>
-                {FAILURE.review}
-              </button>
-            </div>
+              )
+            )}
+            <button type="button" onClick={onReview} className={TEXT_BUTTON}>
+              {FAILURE.review}
+            </button>
           </div>
         </div>
       </div>

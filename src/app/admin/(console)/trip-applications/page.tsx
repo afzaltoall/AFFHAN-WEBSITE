@@ -6,12 +6,13 @@ import { TripApplicationsBoard } from "@/components/admin/TripApplicationsBoard"
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Trip applications | Affhan Admin",
+  title: "Free China Trip | Affhan Admin",
   robots: { index: false, follow: false },
 };
 
 /**
- * Applications for the free China business trip, from /free-china-trip/apply/.
+ * The Free China Business Trip: everyone who registered, with their account
+ * and Trip ID (the rail's Free China Trip section), from /free-china-trip/apply/.
  * The board loads its own rows (/api/admin/trip-applications/), as the
  * dashboard's Shipping view does, so this page adds nothing to the console's
  * own load.

@@ -112,6 +112,14 @@ public/static/images/map*.png
 !scripts/create_shipment_ref_seq.mjs
 # The same for TripApplication.referenceNo (the trip's TRIP-26-00001 numbers).
 !scripts/create_trip_ref_seq.mjs
+# The trip film's China map, built with the field its light is drawn from out
+# of the owner's artwork. The light follows points read off that artwork
+# (mapNetwork.ts), so a new map is this script run again; the README says so.
+!scripts/build_trip_map.mjs
+# The search's lexicon (src/lib/searchLexicon.json): the words and phrases the
+# search box completes to, read from the catalogue's own product names. A
+# catalogue that has changed a lot is this script run again.
+!scripts/build_search_lexicon.mjs
 # The one-time reset that cleared what testing recorded against the live
 # database. Kept because it documents exactly what was removed and what was
 # deliberately left alone, and because its dry run is the safe way to ask the

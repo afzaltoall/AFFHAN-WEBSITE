@@ -13,6 +13,10 @@
   isolation: isolate;
   /* The reading measure: about 77 characters of the body face at 16px. */
   --tl-measure: 34rem;
+  /* The contents and the pass stand this far from the navbar and from the
+     foot of the screen, and are as tall as what is left: one frame. */
+  --tl-frame: 28px;
+  --tl-pillar: calc(100svh - var(--nav-shift, 4rem) - 2 * var(--tl-frame));
 }
 /* The sky, still: warm light high on the right, a breath of crimson on the
    left, and two layers of fixed dust. No twinkle. */
@@ -68,9 +72,12 @@
 }
 .tl-rail { display: none; }
 @media (min-width: 1024px) {
+  /* The page ends where the frame does: the contents, the text and the pass
+     finish on one line, the frame's width above the foot of the screen. */
   .tl-shell {
     grid-template-columns: 250px minmax(0, 1fr);
     column-gap: 64px;
+    padding-bottom: var(--tl-frame);
   }
   .tl-hero { grid-column: 1 / -1; }
   .tl-aside { grid-column: 1; }
@@ -86,7 +93,8 @@
     justify-content: space-between;
     column-gap: 48px;
   }
-  .tl-hero { grid-column: 1 / 3; grid-row: 1; }
+  /* The header's top lines up with the pass's: one edge across the screen. */
+  .tl-hero { grid-column: 1 / 3; grid-row: 1; padding-top: var(--tl-frame); }
   .tl-rail { display: block; grid-column: 3; grid-row: 1 / 3; }
   .tl-aside { grid-column: 1; grid-row: 2; }
   .tl-article { grid-column: 2; grid-row: 2; }
@@ -275,37 +283,30 @@
 
 .tl-article { min-width: 0; padding-top: 8px; }
 
-/* The site's footer closes the page: a gold rule where the document meets it. */
-.tl-site-footer {
-  position: relative;
-}
-.tl-site-footer::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto;
-  z-index: 1;
-  height: 1px;
-  background: linear-gradient(90deg, rgb(214 168 78 / 0), var(--cx-gold) 30%, var(--cx-gold-hi) 50%, var(--cx-gold) 70%, rgb(214 168 78 / 0));
-  box-shadow: 0 0 14px rgb(242 211 142 / 0.45);
-}
-
 /* ---- The pass: the key facts, the reading, the way in -------------------------------------
    Set like the stub of the boarding pass in the consent popup: a card torn
    along a perforation, with a notch at each end of it. It stays in view
-   beside the text (sticky), and follows the navbar as it slides away. */
+   beside the text (sticky), follows the navbar as it slides away, and is as
+   tall as the contents opposite (--tl-pillar), so the two frame the text
+   with nothing empty below either. Its stub takes the height: the clause
+   being read sits in the middle of it, the way in at its foot. */
 .tl-pass {
   position: sticky;
-  top: calc(var(--nav-shift, 4rem) + 32px);
-  margin-top: clamp(40px, 7vw, 88px);
+  top: calc(var(--nav-shift, 4rem) + var(--tl-frame));
+  margin-top: var(--tl-frame);
+  height: var(--tl-pillar);
+  display: flex;
+  flex-direction: column;
   filter: drop-shadow(0 28px 50px rgb(0 0 0 / 0.5));
-  transition: top 0.35s ease;
+  transition: top 0.35s ease, height 0.35s ease;
 }
 .tl-pass-top,
 .tl-pass-stub {
   border: 1px solid rgb(214 168 78 / 0.26);
 }
 .tl-pass-top {
-  padding: 26px 26px 18px;
+  flex: none;
+  padding: 24px 26px 16px;
   border-bottom: 0;
   border-radius: 22px 22px 0 0;
   background:
@@ -320,9 +321,12 @@
     radial-gradient(circle at 100% 100%, transparent 11px, #000 11.5px) 100% 0 / 51% 100% no-repeat;
 }
 .tl-pass-stub {
-  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
   gap: 16px;
-  justify-items: start;
   padding: 18px 26px 24px;
   border-top: 1.5px dashed rgb(214 168 78 / 0.5);
   border-radius: 0 0 22px 22px;
@@ -354,7 +358,7 @@
 .tl-pass-row {
   display: grid;
   gap: 3px;
-  padding: 11px 0;
+  padding: clamp(7px, 1.2svh, 11px) 0;
   border-top: 1px solid var(--cx-faint);
 }
 .tl-pass-row dt {
@@ -364,12 +368,19 @@
   text-transform: uppercase;
   color: var(--cx-mute);
 }
-.tl-pass-row dd {
-  margin: 0;
-  display: flex;
+.tl-pass-row dd { margin: 0; }
+/* The Policy's key sections, an index: each on one line, its number first. */
+.tl-pass-rows-index .tl-pass-row {
+  grid-template-columns: 2rem minmax(0, 1fr);
   align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 0 4px;
+  padding: clamp(6px, 1svh, 9px) 0;
+}
+.tl-pass-rows-index .tl-pass-row dt {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  color: var(--cx-gold);
 }
 .tl-pass-value {
   font-size: 18px;
@@ -386,28 +397,86 @@
 .tl-pass-value:hover { color: var(--cx-white); text-decoration: underline; text-underline-offset: 4px; text-decoration-color: rgb(244 239 230 / 0.35); }
 .tl-pass-value-text:hover { color: var(--cx-gold-hi); }
 .tl-pass-value:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; border-radius: 2px; }
-.tl-pass-n {
-  flex: none;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  font-variant-numeric: tabular-nums;
-  color: rgb(214 168 78 / 0.55);
-}
-.tl-pass-now {
-  display: grid;
-  gap: 8px;
+/* The clause being read: its number large, rolling on to the next as the
+   reader goes (LegalReader), its title under it, and how far through the
+   whole the reader is. It takes whatever height the stub has to spare and
+   sizes itself to it (a size container): the number scales with that
+   height, and on a short screen the title, then the label, give way, so
+   nothing ever runs into the way in below. */
+.tl-now {
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
-  font-size: 12.5px;
-  color: var(--cx-mute);
+  container-type: size;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
 }
-.tl-pass-now b {
+.tl-now-label {
+  font-size: 10.5px;
   font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--cx-gold);
+}
+.tl-now-line {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.tl-now-n {
+  display: inline-block;
+  font-size: clamp(28px, 34cqh, 86px);
+  line-height: 1;
+  font-variation-settings: "opsz" 11;
   font-variant-numeric: tabular-nums;
   color: var(--cx-gold-hi);
+  text-shadow: 0 0 28px rgb(242 211 142 / 0.28);
+}
+.tl-now-of {
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cx-mute);
+}
+.tl-now-title {
+  min-height: 2.7em;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--cx-white);
+  text-wrap: balance;
+}
+.tl-now .tl-pass-bar { margin-top: 6px; }
+@container (max-height: 132px) {
+  .tl-now-title {
+    min-height: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+@container (max-height: 100px) {
+  .tl-now-label { display: none; }
+}
+@container (max-height: 76px) {
+  .tl-now-title { display: none; }
+}
+/* A short screen: the pass's rows close up a little, to leave the stub room. */
+@media (max-height: 820px) {
+  .tl-pass-top { padding-top: 20px; }
+  .tl-pass-title { font-size: 20px; }
+  .tl-pass-rows { margin-top: 10px; }
+  .tl-pass-row { padding: 6px 0; }
+  .tl-pass-value { font-size: 17px; }
+  .tl-pass-value-text { font-size: 14.5px; }
+  .tl-pass-stub { gap: 12px; padding-top: 14px; padding-bottom: 18px; }
 }
 .tl-pass-bar {
   display: block;
+  width: 100%;
   height: 2px;
   border-radius: 2px;
   background: var(--cx-faint);
@@ -451,50 +520,93 @@
   transform-origin: left;
 }
 
-/* Contents beside the text (desktop); folded above it on a phone. */
+/* Contents beside the text (desktop), as tall as the pass opposite; folded
+   above the text on a phone. */
 .tl-toc { display: none; }
 @media (min-width: 1024px) {
   .tl-toc {
-    display: block;
+    display: flex;
+    flex-direction: column;
     position: sticky;
-    top: calc(var(--nav-shift, 4rem) + 40px);
-    padding-left: 18px;
-    transition: top 0.35s ease;
+    top: calc(var(--nav-shift, 4rem) + var(--tl-frame));
+    height: var(--tl-pillar);
+    transition: top 0.35s ease, height 0.35s ease;
   }
 }
 .tl-toc-label {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding-right: 10px;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.32em;
   text-transform: uppercase;
   color: var(--cx-gold);
-  margin-bottom: 12px;
 }
-.tl-toc-rail {
-  position: absolute;
-  left: 0;
-  top: 30px;
-  bottom: 0;
-  width: 1px;
-  background: var(--cx-faint);
+.tl-toc-count {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: none;
+  color: var(--cx-mute);
 }
-.tl-toc-rail span {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, var(--cx-gold-hi), var(--cx-gold));
-  transform: scaleY(0);
-  transform-origin: top;
+/* The route: a stop for each section, a line between them, and the gold
+   that runs down it with the reading (LegalReader sets its top and height).
+   The entries share out the height, so the route runs the pillar's length;
+   on a short screen they keep their size and the route scrolls, fading at
+   its foot. --tl-dot is a stop's centre below the top of its entry. */
+.tl-toc-route {
+  --tl-dot: 15px;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.tl-toc-route::-webkit-scrollbar { display: none; }
+.tl-toc-route[data-overflow] {
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 36px), transparent);
+  mask-image: linear-gradient(180deg, #000 calc(100% - 36px), transparent);
 }
 .tl-toc-list {
   list-style: none;
   margin: 0;
-  padding: 0 6px 0 0;
-  max-height: calc(100svh - var(--nav-shift, 4rem) - 126px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgb(214 168 78 / 0.35) transparent;
+  padding: 0 6px 0 26px;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.tl-toc-list li {
+  position: relative;
+  flex: 1 1 auto;
+}
+/* The line from each stop to the next. */
+.tl-toc-list li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: -17.5px;
+  top: var(--tl-dot);
+  bottom: calc(-1 * var(--tl-dot));
+  width: 1px;
+  background: rgb(244 239 230 / 0.13);
+}
+.tl-toc-fill {
+  position: absolute;
+  z-index: 1;
+  left: 8.5px;
+  top: var(--tl-dot);
+  width: 1px;
+  height: 0;
+  background: linear-gradient(180deg, var(--cx-gold), var(--cx-gold-hi));
+  box-shadow: 0 0 10px rgb(242 211 142 / 0.55);
+  pointer-events: none;
 }
 .tl-toc-link {
+  position: relative;
   display: grid;
   grid-template-columns: 2rem minmax(0, 1fr);
   gap: 4px;
@@ -505,16 +617,42 @@
   color: var(--cx-mute);
   transition: color 0.2s, background 0.2s;
 }
+/* A stop: open until the reader reaches it, gold once read, alight while
+   being read. */
+.tl-toc-link::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  left: -21.5px;
+  top: calc(var(--tl-dot) - 4.5px);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1px solid rgb(214 168 78 / 0.45);
+  background: var(--cx-ink);
+  transition: background 0.4s, border-color 0.4s, box-shadow 0.4s, transform 0.4s;
+}
+.tl-toc-link[data-read]::before {
+  background: var(--cx-gold);
+  border-color: var(--cx-gold);
+}
 .tl-toc-link:hover { color: var(--cx-white); }
 .tl-toc-link[aria-current] {
   color: var(--cx-white);
   background: rgb(214 168 78 / 0.09);
+}
+.tl-toc-link[aria-current]::before {
+  background: var(--cx-gold-hi);
+  border-color: var(--cx-gold-hi);
+  box-shadow: 0 0 0 4px rgb(214 168 78 / 0.2), 0 0 16px rgb(242 211 142 / 0.85);
+  transform: scale(1.15);
 }
 .tl-toc-num {
   font-variant-numeric: tabular-nums;
   color: rgb(244 239 230 / 0.38);
   transition: color 0.2s;
 }
+.tl-toc-link[data-read] .tl-toc-num { color: rgb(214 168 78 / 0.7); }
 .tl-toc-link[aria-current] .tl-toc-num { color: var(--cx-gold); }
 .tl-toc-link:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; }
 
@@ -848,7 +986,6 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
 @media print {
   .tl-sky,
   .tl-progress,
-  .tl-site-footer,
   .tl-rail,
   .tl-aside,
   .tl-toc-mobile,
