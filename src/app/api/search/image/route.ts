@@ -44,22 +44,26 @@ async function searchFor(query: string, origin: string): Promise<Found> {
   const res = await searchProducts(new Request(new URL(`/api/products?${params}`, origin)));
   const j = (await res.json()) as {
     data?: { id: number; name: string; imageUrl: string | null; category: string | null; categoryRef?: { name: string | null } | null }[];
-    facets?: { id: string; name: string; parentName: string | null; count: number }[];
-    search?: { primary?: { id: string; name: string; total: number; path?: string[] }[]; loose?: boolean } | null;
+    facets?: { id: string; name: string; label?: string; parentName: string | null; count: number }[];
+    search?: { primary?: { id: string; name: string; label?: string; total: number; path?: string[] }[]; loose?: boolean } | null;
     pagination?: { total?: number; totalCapped?: boolean };
   };
   const products = (j.data ?? [])
     .filter((p) => !isNameBlocked(p.name))
     .map((p) => ({ id: p.id, name: p.name, imageUrl: p.imageUrl ?? null, category: p.categoryRef?.name ?? p.category ?? null }));
   // The category the words name first, then the ones the matches sit in.
+  // `name` is the chip's words ("Solid T-Shirts"), `real` the category's own, for moderation.
   const seen = new Set<string>();
   const categories: Cat[] = [];
-  for (const c of [
-    ...(j.search?.primary ?? []).map((h) => ({ id: h.id, name: h.name, parentName: h.path?.[h.path.length - 1] ?? null, total: h.total, best: true })),
-    // One match in a category is a coincidence ("Brooches 1" for water shoes), not a branch to offer.
-    ...(j.facets ?? []).filter((f) => f.count > 1).map((f) => ({ id: f.id, name: f.name, parentName: f.parentName ?? null, total: f.count })),
-  ]) {
-    if (seen.has(c.id) || isCategoryBlocked(c.name) || isCategoryBlocked(c.parentName)) continue;
+  // One match in a category is a coincidence ("Brooches 1" for water shoes), and so is a
+  // hundredth of the largest ("Furniture 3" beside 1,859 boots for "men shoes"): not a branch to offer.
+  const floor = Math.max(2, 0.01 * Math.max(0, ...(j.facets ?? []).map((f) => f.count)));
+  const offered: (Cat & { real: string })[] = [
+    ...(j.search?.primary ?? []).map((h) => ({ id: h.id, name: h.label ?? h.name, real: h.name, parentName: h.path?.[h.path.length - 1] ?? null, total: h.total, best: true })),
+    ...(j.facets ?? []).filter((f) => f.count >= floor).map((f) => ({ id: f.id, name: f.label ?? f.name, real: f.name, parentName: f.parentName ?? null, total: f.count })),
+  ];
+  for (const { real, ...c } of offered) {
+    if (seen.has(c.id) || isCategoryBlocked(real) || isCategoryBlocked(c.parentName)) continue;
     seen.add(c.id);
     categories.push(c);
     if (categories.length >= 6) break;

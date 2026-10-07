@@ -10,7 +10,9 @@ import {
   audiencesAsked,
   buildCategoryIndex,
   buildVocabulary,
+  coloursAsked,
   correctWords,
+  detailsAsked,
   equivalents,
   isDescriptive,
   nameWords,
@@ -141,7 +143,7 @@ function isWider(intent: QueryIntent, categories: CategoryIntent, k: Kit): boole
     const c = k.index.byId.get(h.id);
     if (c) for (const s of [...c.ownStems, ...c.pathStems]) named.add(s);
   }
-  return intent.words.some((w) => !isDescriptive(w) && !equivalents(w).some((e) => named.has(stem(e))));
+  return intent.words.some((w) => !isDescriptive(w, intent.head) && !equivalents(w).some((e) => named.has(stem(e))));
 }
 
 /**
@@ -225,14 +227,14 @@ export function kindTsqueryFor(r: ResolvedSearch): string {
   const last = ws.length - 1;
   return ws
     .map((w, i) => ({ w, i }))
-    .filter(({ w }) => !isDescriptive(w))
+    .filter(({ w }) => !isDescriptive(w, r.intent.head))
     .map(({ w, i }) => term(w, r.prefixLast && i === last))
     .join(" & ");
 }
 
 /** The words that say what it is, next to each other ("water <-> shoe"), when there are two or more; else "". */
 function kindPhraseFor(r: ResolvedSearch): string {
-  const ws = r.intent.words.filter((w) => safe(w) && !isDescriptive(w));
+  const ws = r.intent.words.filter((w) => safe(w) && !isDescriptive(w, r.intent.head));
   return ws.length >= 2 ? ws.map((w) => term(w, false)).join(" <-> ") : "";
 }
 
@@ -307,7 +309,7 @@ export function searchTextWhere(r: ResolvedSearch, { any = false } = {}): Prisma
  */
 export function searchLooseWhere(r: ResolvedSearch): Prisma.Sql | null {
   const ws = r.intent.words.filter((w) => safe(w));
-  const kinds = ws.filter((w) => !isDescriptive(w));
+  const kinds = ws.filter((w) => !isDescriptive(w, r.intent.head));
   const use = kinds.length ? kinds : ws;
   if (!use.length) return null;
   return Prisma.sql`to_tsvector('english', p."name") @@ to_tsquery('english', ${use.map((w) => term(w, false)).join(" | ")})`;
@@ -317,6 +319,17 @@ export function searchLooseWhere(r: ResolvedSearch): Prisma.Sql | null {
 export function searchKindWhere(r: ResolvedSearch): Prisma.Sql | null {
   const m = kindMatch(r);
   return m.extends ? Prisma.sql`to_tsvector('english', p."name") @@ to_tsquery('english', ${m.kind})` : null;
+}
+
+/**
+ * Names that say a colour the words ask for (coloursAsked), for the set a
+ * search is ranked over: a category larger than that set is read in no
+ * particular order, and the few listings in it that say "red" must be among
+ * those ranked. Null when no colour is asked.
+ */
+export function searchColourWhere(r: ResolvedSearch): Prisma.Sql | null {
+  const colour = coloursAsked(r.intent);
+  return colour ? Prisma.sql`p."name" ~* ${wordsRe(colour.asked)}` : null;
 }
 
 /**
@@ -354,6 +367,28 @@ export function searchScore(r: ResolvedSearch): Prisma.Sql {
   if (phrase) {
     const esc = phrase.replace(/[\\%_]/g, (m) => `\\${m}`);
     parts.push(Prisma.sql`(CASE WHEN p."name" ILIKE ${`${esc}%`} THEN 120 WHEN p."name" ILIKE ${`%${esc}%`} THEN 60 ELSE 0 END)`);
+  }
+  // A colour asked for orders what it is asked of (the owner's photo of a
+  // man in a red shirt beside one in grey, 2026-10-07: a colour counted only
+  // in a name with every other word too, so the two came back the same, in
+  // the same order): a name that says it alone first, then one that says it
+  // with another ("Red And White"), then one that says no colour, then one
+  // that says only another colour. All of it below the thing and its
+  // category, which a colour never outweighs (a black heel is not a black
+  // water shoe). Most listings never say their colour (130 of Men's Shirts'
+  // 2,918 names), so this orders the few that do. A material, pattern or
+  // garment detail asked for orders a little within that (detailsAsked),
+  // matched as a word with its endings: the text search drops "up" and
+  // "down" as stop words.
+  const colour = coloursAsked(r.intent);
+  if (colour) {
+    const asked = wordsRe(colour.asked);
+    const others = wordsRe(colour.others);
+    parts.push(Prisma.sql`(CASE WHEN p."name" ~* ${asked} THEN (CASE WHEN p."name" ~* ${others} THEN 220 ELSE 300 END) WHEN p."name" ~* ${others} THEN -150 ELSE 0 END)`);
+  }
+  for (const d of detailsAsked(r.intent).slice(0, 3)) {
+    const forms = [...new Set(equivalents(d).map(safe).filter(Boolean))];
+    if (forms.length) parts.push(Prisma.sql`(CASE WHEN p."name" ~* ${`\\m(${forms.join("|")})(s|es|d|ed)?\\M`} THEN 60 ELSE 0 END)`);
   }
   if (accessoriesSink(r.intent)) parts.push(Prisma.sql`(CASE WHEN p."name" ~* ${ACCESSORY_RE} THEN -350 ELSE 0 END)`);
   // Someone else's (the words say whom it is for, and this is another's: by
@@ -468,8 +503,12 @@ export async function suggestProducts(typed: ResolvedSearch, limit = 6): Promise
   const inNear = new Set(near);
   const sink = accessoriesSink(r.intent);
   const words = r.intent.words.map((w) => w.toLowerCase());
-  const kindWords = words.filter((w) => !isDescriptive(w));
+  const kindWords = words.filter((w) => !isDescriptive(w, r.intent.head));
   const phrase = r.intent.text.toLowerCase();
+  // The colour asked for first and another colour after, as searchScore.
+  const colour = coloursAsked(r.intent);
+  const askedColour = colour ? new RegExp(wordsRe(colour.asked, true), "i") : null;
+  const otherColour = colour ? new RegExp(wordsRe(colour.others, true), "i") : null;
   // Pets' things only when asked for ("hair dryer" is not a dog's).
   const petsAsked = r.intent.stems.some((s) => PET_STEMS.has(s));
   const forPets = (id: string | null) => {
@@ -496,7 +535,8 @@ export async function suggestProducts(typed: ResolvedSearch, limit = 6): Promise
       // The phrase first in the name is what the product is; far down, a word about it ("…Skull Frame Hair Dryer Decorative Lights").
       const at = phrase ? n.indexOf(phrase) : -1;
       const placed = at === 0 ? 10 : at > 0 && at < 24 ? 7 : at > 0 ? 3 : 0;
-      const score = where + covered * 30 + placed - (sink && ACCESSORY_JS.test(p.name) ? 60 : 0) - (!petsAsked && forPets(p.categoryId) ? 30 : 0) - (someoneElses(p) ? 150 : 0);
+      const hue = askedColour?.test(p.name) ? (otherColour?.test(p.name) ? 25 : 35) : otherColour?.test(p.name) ? -20 : 0;
+      const score = where + covered * 30 + placed + hue - (sink && ACCESSORY_JS.test(p.name) ? 60 : 0) - (!petsAsked && forPets(p.categoryId) ? 30 : 0) - (someoneElses(p) ? 150 : 0);
       return { p, score };
     })
     .sort((a, b) => b.score - a.score || b.p.id - a.p.id)

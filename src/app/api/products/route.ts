@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { Prisma } from ".prisma/client";
 import { prisma } from "../../../lib/prisma";
 import { parseQuery, buildFuzzyWhere, buildFuzzyOrderBy } from "@/lib/search";
-import { primaryLeaves, resolveSearch, searchKindWhere, searchLooseWhere, searchScore, searchTextWhere, searchWhere, type ResolvedSearch } from "@/lib/searchServer";
+import { primaryLeaves, resolveSearch, searchColourWhere, searchKindWhere, searchLooseWhere, searchScore, searchTextWhere, searchWhere, type ResolvedSearch } from "@/lib/searchServer";
+import { categoryLabel } from "@/lib/searchIntent";
 import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList } from "@/lib/moderation";
 import { MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
 
@@ -209,7 +210,8 @@ export async function GET(request: Request) {
     let totalCapped = false;
     /** Nothing had every word: these are close matches (some words, or a near spelling). */
     let looseMatch = false;
-    let facets: Array<{ id: string; name: string; parentName: string | null; thumbnailUrl: string | null; count: number }> = [];
+    /** `label`: the name as a chip says it (categoryLabel: "Solid T-Shirts" for "Solid"). */
+    let facets: Array<{ id: string; name: string; label: string; parentName: string | null; thumbnailUrl: string | null; count: number }> = [];
 
     // Homepage hero (no filters, page 1 only) -> a diverse mix drawn ONLY
     // from these 5 preferred top-level categories. Fixed (not re-randomized
@@ -273,7 +275,8 @@ export async function GET(request: Request) {
               FROM (SELECT p."categoryId" FROM "Product" p ${facetWhere} LIMIT ${FACET_SAMPLE}) s
               WHERE s."categoryId" IS NOT NULL
               GROUP BY s."categoryId"
-              ORDER BY count DESC
+              -- Equal counts in a stable order, so the chips do not swap places between loads.
+              ORDER BY count DESC, s."categoryId"
               LIMIT 18
             `
           )
@@ -304,6 +307,11 @@ export async function GET(request: Request) {
       // than the words (lib/searchServer.ts kindMatch): "water & shoe" for
       // "black water shoes", which every-word matching would leave out.
       const kindCond = resolved ? searchKindWhere(resolved) : null;
+      // The listings that say the colour asked for, in the category and among
+      // the thing itself: the parts below read at most RANK_PRIMARY of a
+      // category, and RANK_TEXT of the thing, in no particular order, and Men's
+      // Shirts alone has 2,918, of which 10 say red.
+      const colourCond = resolved ? searchColourWhere(resolved) : null;
       // In the search's order a part is any of its rows (the score orders
       // the set); in a chosen order, each part's first rows in that order,
       // so the set's first pages are exactly the matches' first pages.
@@ -313,6 +321,8 @@ export async function GET(request: Request) {
           ? Prisma.join(
               [
                 ...(leaves.length ? [Prisma.sql`(SELECT p."id" FROM "Product" p WHERE p."categoryId" IN (${Prisma.join(leaves)}) ${otherWhere} ${partOrder} LIMIT ${RANK_PRIMARY})`] : []),
+                ...(colourCond && leaves.length ? [Prisma.sql`(SELECT p."id" FROM "Product" p WHERE p."categoryId" IN (${Prisma.join(leaves)}) AND ${colourCond} ${otherWhere} ${partOrder} LIMIT ${RANK_PRIMARY})`] : []),
+                ...(colourCond && kindCond ? [Prisma.sql`(SELECT p."id" FROM "Product" p WHERE ${kindCond} AND ${colourCond} ${otherWhere} ${partOrder} LIMIT ${RANK_PRIMARY})`] : []),
                 ...(textCond ? [Prisma.sql`(SELECT p."id" FROM "Product" p WHERE ${textCond} ${otherWhere} ${partOrder} LIMIT ${RANK_TEXT})`] : []),
                 ...(kindCond ? [Prisma.sql`(SELECT p."id" FROM "Product" p WHERE ${kindCond} ${otherWhere} ${partOrder} LIMIT ${RANK_TEXT})`] : []),
               ],
@@ -400,7 +410,18 @@ export async function GET(request: Request) {
       facets = facetRows
         .map((f) => ({ id: f.categoryId, cat: f.categoryId ? catById.get(f.categoryId) : undefined, count: Number(f.count) }))
         .filter((f): f is { id: string; cat: CategoryLite; count: number } => Boolean(f.id && f.cat))
-        .map((f) => ({ id: f.id, name: f.cat.name, parentName: f.cat.parentName, thumbnailUrl: f.cat.thumbnailUrl, count: f.count }));
+        .map((f) => ({ id: f.id, name: f.cat.name, label: categoryLabel(f.cat.name, f.cat.parentName), parentName: f.cat.parentName, thumbnailUrl: f.cat.thumbnailUrl, count: f.count }));
+      // Words that say whom it is for ("men's red button down shirt") are not
+      // offered someone else's categories to narrow to: the owner's photo
+      // search showed Blouses & Shirts and Women's Long-Sleeved Shirts first
+      // among the chips for a man's shirt (2026-10-07). Their products still
+      // come, after everyone's own (searchScore); the chips are for the rest,
+      // unless they are all there is.
+      const theirs = resolved?.elsewhere ? new Set(resolved.elsewhere.leaves) : null;
+      if (theirs) {
+        const own = facets.filter((f) => !theirs.has(f.id));
+        if (own.length) facets = own;
+      }
 
       // Nothing has every word: products with some of them, best first, so
       // "red leather office chair" still finds chairs. Page 1 only, so
@@ -484,7 +505,7 @@ export async function GET(request: Request) {
               empty: resolved.intent.empty,
               budget: resolved.intent.budget,
               quantity: resolved.intent.quantity,
-              primary: resolved.categories.primary.map((h) => ({ id: h.id, name: h.name, total: h.total, path: h.path })),
+              primary: resolved.categories.primary.map((h) => ({ id: h.id, name: h.name, label: categoryLabel(h.name, h.path[h.path.length - 1]), total: h.total, path: h.path })),
               related: resolved.categories.related.slice(0, 8).map((h) => ({ id: h.id, name: h.name, total: h.total })),
               loose: looseMatch,
             }

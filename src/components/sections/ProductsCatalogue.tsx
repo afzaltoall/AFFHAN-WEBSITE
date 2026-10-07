@@ -19,6 +19,8 @@ import type { ProductCardData } from "@/components/ui/ProductCard";
 interface FacetChip {
   id: string;
   name: string;
+  /** The name as a chip says it ("Solid T-Shirts" for "Solid"); missing from a response older than it. */
+  label?: string;
   parentName: string | null;
   thumbnailUrl: string | null;
   count: number;
@@ -68,7 +70,7 @@ interface SearchInfo {
   empty: boolean;
   budget: { label: string } | null;
   quantity: { label: string } | null;
-  primary: { id: string; name: string; total: number; path: string[] }[];
+  primary: { id: string; name: string; label?: string; total: number; path: string[] }[];
   related: { id: string; name: string; total: number }[];
   loose: boolean;
 }
@@ -508,9 +510,9 @@ export function ProductsCatalogue({
   // facets are a sample of the matches, which for "mobile phones" is mostly
   // cases and holders), then the facets, no category twice.
   const searchChips = useMemo(() => {
-    const best = (searchInfo?.primary ?? []).map((p) => ({ id: p.id, name: p.name, count: p.total, best: true }));
+    const best = (searchInfo?.primary ?? []).map((p) => ({ id: p.id, name: p.label ?? p.name, count: p.total, best: true }));
     const seen = new Set(best.map((b) => b.id));
-    return [...best, ...facets.filter((f) => !seen.has(f.id)).map((f) => ({ id: f.id, name: f.name, count: f.count, best: false }))];
+    return [...best, ...facets.filter((f) => !seen.has(f.id)).map((f) => ({ id: f.id, name: f.label ?? f.name, count: f.count, best: false }))];
   }, [searchInfo, facets]);
 
   return (

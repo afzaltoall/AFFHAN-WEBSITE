@@ -26,7 +26,8 @@ type Cat = { id: string; name: string; parentName: string | null; total?: number
 /** One product the photo holds, as /api/search/image found it: what to call it, what to search, where it is (0–1000). */
 type Item = { label: string; query: string; terms: string[]; box: [number, number, number, number] | null };
 /** What the catalogue has for one search. */
-type View = { query: string; products: Hit[]; categories: Cat[]; total: number; capped: boolean; loose: boolean };
+/** `failed`: the catalogue did not answer (an error, or no answer in time), which is not the same as finding nothing. */
+type View = { query: string; products: Hit[]; categories: Cat[]; total: number; capped: boolean; loose: boolean; failed?: boolean };
 /** `deferred`: the items only, asked for with phase=items; the products are this page's to fetch. */
 type Reply = Partial<View> & { isProduct?: boolean; items?: Item[]; searchQuery?: string; message?: string; error?: string; deferred?: boolean };
 type Phase = "camera" | "reading" | "results" | "none" | "error";
@@ -101,6 +102,20 @@ async function shrinkForUpload(file: File): Promise<File> {
 }
 
 const emptyView = (query: string): View => ({ query, products: [], categories: [], total: 0, capped: false, loose: false });
+/** A search the catalogue did not answer: said as such, with a way to ask again, never as "nothing like this". */
+const failedView = (query: string): View => ({ ...emptyView(query), failed: true });
+
+/**
+ * How long the page waits. The photo's own answer comes in 2–3s (measured on
+ * affhan.com, 2026-10-07), and the server gives up on the image service at
+ * 12s; past these the request is stuck (a stalled upload, a server that never
+ * answered), and the shopper is told so rather than left watching the sweep
+ * (the owner's report of the same day: "the scanner sticks sometimes").
+ */
+const PHOTO_WAIT_MS = 25_000;
+const PRODUCTS_WAIT_MS = 15_000;
+/** When the photo is still being read after this, the page says it is taking longer than usual. */
+const SLOW_READ_MS = 6_000;
 
 /** Dispatched on window to open the photo panel from elsewhere: the search box's "Search with a photo" row. */
 export const OPEN_PHOTO_SEARCH = "affhan:open-photo-search";
@@ -120,20 +135,23 @@ function refuse(file: File): string | null {
  */
 async function fetchView(query: string): Promise<View> {
   const params = new URLSearchParams({ q: query, limit: String(SHOWN), page: "1", sortBy: "relevance", getChips: "true" });
-  const res = await fetch(`/api/products/?${params}`);
+  const res = await fetch(`/api/products/?${params}`, { signal: AbortSignal.timeout(PRODUCTS_WAIT_MS) });
   if (!res.ok) throw new Error(`products ${res.status}`);
   const j = (await res.json()) as {
     data?: { id: number; name: string; imageUrl: string | null; category: string | null; categoryRef?: { name: string | null } | null }[];
-    facets?: { id: string; name: string; parentName: string | null; count: number }[];
-    search?: { primary?: { id: string; name: string; total: number; path?: string[] }[]; loose?: boolean } | null;
+    facets?: { id: string; name: string; label?: string; parentName: string | null; count: number }[];
+    search?: { primary?: { id: string; name: string; label?: string; total: number; path?: string[] }[]; loose?: boolean } | null;
     pagination?: { total?: number; totalCapped?: boolean };
   };
   const seen = new Set<string>();
   const categories: Cat[] = [];
+  // One match in a category is a coincidence ("Brooches 1" for water shoes), and so is a
+  // hundredth of the largest ("Furniture 3" beside 1,859 boots for "men shoes"): not a branch to offer.
+  const floor = Math.max(2, 0.01 * Math.max(0, ...(j.facets ?? []).map((f) => f.count)));
   for (const c of [
-    ...(j.search?.primary ?? []).map((h) => ({ id: h.id, name: h.name, parentName: h.path?.[h.path.length - 1] ?? null, total: h.total, best: true })),
-    // One match in a category is a coincidence ("Brooches 1" for water shoes), not a branch to offer.
-    ...(j.facets ?? []).filter((f) => f.count > 1).map((f) => ({ id: f.id, name: f.name, parentName: f.parentName ?? null, total: f.count })),
+    // As a chip says it ("Solid T-Shirts", not "Solid").
+    ...(j.search?.primary ?? []).map((h) => ({ id: h.id, name: h.label ?? h.name, parentName: h.path?.[h.path.length - 1] ?? null, total: h.total, best: true })),
+    ...(j.facets ?? []).filter((f) => f.count >= floor).map((f) => ({ id: f.id, name: f.label ?? f.name, parentName: f.parentName ?? null, total: f.count })),
   ]) {
     if (seen.has(c.id)) continue;
     seen.add(c.id);
@@ -154,7 +172,10 @@ const strong = (v: View) => !v.loose && (v.categories.some((c) => c.best) || v.t
  */
 async function fetchItemView(item: Item): Promise<View> {
   const ladder = [...new Set([item.query, item.label].map((s) => s.trim().toLowerCase()).filter(Boolean))];
-  const found = await Promise.all(ladder.map((q) => fetchView(q)));
+  // One of the two not answering leaves the other's answer, which is still worth showing.
+  const settled = await Promise.allSettled(ladder.map((q) => fetchView(q)));
+  const found = settled.flatMap((s) => (s.status === "fulfilled" ? [s.value] : []));
+  if (!found.length) throw new Error("the catalogue did not answer");
   return found.find(strong) ?? [...found].filter((v) => !v.loose).sort((a, b) => b.total - a.total)[0] ?? found[0];
 }
 
@@ -536,6 +557,9 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
   /** The last photo sent, for "Try again". */
   const lastInput = useRef<{ file: File | null; url?: string } | null>(null);
   const [retryable, setRetryable] = useState(false);
+  // The photo has been reading for longer than usual (SLOW_READ_MS): the page says so.
+  const [slowRead, setSlowRead] = useState(false);
+  const slowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** Guards against an older answer landing after a newer request. */
   const pickSeq = useRef(0);
   const viewSeq = useRef(0);
@@ -652,6 +676,8 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
     setDropping(false);
     setInquiry(null);
     setPhase("reading");
+    if (slowTimer.current) clearTimeout(slowTimer.current);
+    setSlowRead(false);
     setOpen(false);
     if (inputRef.current) inputRef.current.value = "";
   }, []);
@@ -699,7 +725,7 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
       views.current.set(text.toLowerCase(), v);
       if (seq === viewSeq.current) setView(v);
     } catch {
-      if (seq === viewSeq.current) setView({ query: text, products: [], categories: [], total: 0, capped: false, loose: false });
+      if (seq === viewSeq.current) setView(failedView(text));
     } finally {
       if (seq === viewSeq.current) setViewLoading(false);
     }
@@ -731,6 +757,11 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
     setDescribe("");
     setOpen(true);
     setPhase("reading");
+    setSlowRead(false);
+    if (slowTimer.current) clearTimeout(slowTimer.current);
+    slowTimer.current = setTimeout(() => {
+      if (seq === pickSeq.current) setSlowRead(true);
+    }, SLOW_READ_MS);
 
     try {
       const body = new FormData();
@@ -742,9 +773,12 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
       }
       if (sourceUrl) body.append("sourceUrl", sourceUrl);
       body.append("phase", "items");
-      const res = await fetch("/api/search/image/", { method: "POST", body });
-      const data: Reply = await res.json().catch(() => ({ error: "Something went wrong." }));
+      // Never longer than PHOTO_WAIT_MS: a request that has not answered by then is stuck, not slow.
+      const res = await fetch("/api/search/image/", { method: "POST", body, signal: AbortSignal.timeout(PHOTO_WAIT_MS) });
+      // A gateway's own error page (504 at the server's time limit) is not JSON: said as what it was.
+      const data: Reply = await res.json().catch(() => ({ error: res.status === 504 ? "That took too long. Try again in a moment." : "Something went wrong." }));
       if (seq !== pickSeq.current) return;
+      if (slowTimer.current) clearTimeout(slowTimer.current);
       if (!res.ok || data.error) {
         setMessage(data.error ?? "Something went wrong.");
         setPhase("error");
@@ -768,7 +802,7 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
         const v0 = ++viewSeq.current;
         const load = (i: number) => {
           // Already asked for (the shopper tapped it first): the same answer, not a second request.
-          const pending = itemViews.current.get(i) ?? fetchItemView(found[i]).catch(() => emptyView(found[i].query));
+          const pending = itemViews.current.get(i) ?? fetchItemView(found[i]).catch(() => failedView(found[i].query));
           itemViews.current.set(i, pending);
           return pending.then((v) => {
             if (seq !== pickSeq.current) return;
@@ -803,13 +837,19 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
       // The other things in the photo, ready before they are tapped.
       data.items.slice(1).forEach((it, k) => {
         const i = k + 1;
-        const pending = fetchItemView(it).catch(() => emptyView(it.query));
+        const pending = fetchItemView(it).catch(() => failedView(it.query));
         itemViews.current.set(i, pending);
         void pending.then((v) => seq === pickSeq.current && itemFound.current.set(i, v));
       });
-    } catch {
+    } catch (err) {
       if (seq !== pickSeq.current) return;
-      setMessage("Could not reach the server. Check your connection and try again.");
+      if (slowTimer.current) clearTimeout(slowTimer.current);
+      const name = err instanceof DOMException || err instanceof Error ? err.name : "";
+      setMessage(
+        name === "TimeoutError" || name === "AbortError"
+          ? "That took too long, so we stopped waiting. Try again in a moment."
+          : "Could not reach the server. Check your connection and try again.",
+      );
       setPhase("error");
     }
   }, []);
@@ -901,7 +941,7 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
       setViewLoading(true);
       let pending = itemViews.current.get(i);
       if (!pending) {
-        pending = fetchItemView(it).catch(() => emptyView(it.query));
+        pending = fetchItemView(it).catch(() => failedView(it.query));
         itemViews.current.set(i, pending);
       }
       void pending.then((v) => {
@@ -914,6 +954,21 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
     },
     [items],
   );
+
+  /** Asks the catalogue again for products that did not load: the item's own search, or the words typed. */
+  const retryView = useCallback(() => {
+    if (!view) return;
+    const words = view.query.trim().toLowerCase();
+    const it = items[active];
+    if (it && [it.query, it.label].some((s) => s.trim().toLowerCase() === words)) {
+      itemViews.current.delete(active);
+      itemFound.current.delete(active);
+      selectItem(active);
+    } else {
+      views.current.delete(words);
+      void showQuery(view.query);
+    }
+  }, [view, items, active, selectItem, showQuery]);
 
   const refine = (e: FormEvent) => {
     e.preventDefault();
@@ -1199,16 +1254,32 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
         ))}
       </div>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
-        <p className="text-sm font-semibold tabular-nums text-slate-800">{countLine(view)}</p>
-        {viewLoading && (
-          <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#176579]">
-            <Loader2 size={13} className="animate-spin" /> Searching…
-          </span>
-        )}
-      </div>
+      {(!view.failed || viewLoading) && (
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <p className="text-sm font-semibold tabular-nums text-slate-800">{view.failed ? "" : countLine(view)}</p>
+          {viewLoading && (
+            <span className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-[#176579]">
+              <Loader2 size={13} className="animate-spin" /> Searching…
+            </span>
+          )}
+        </div>
+      )}
 
-      {view.products.length ? (
+      {view.failed && !viewLoading ? (
+        <div role="alert" className="mt-3 rounded-2xl border border-slate-200 bg-slate-50/60 px-5 py-7 text-center">
+          <p className="text-sm font-semibold text-slate-800">These products didn&rsquo;t load</p>
+          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-600">The catalogue didn&rsquo;t answer just now. Your photo is still here.</p>
+          <button
+            type="button"
+            onClick={retryView}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#176579] px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-[#1b7389]"
+          >
+            <RefreshCw size={14} /> Try again
+          </button>
+        </div>
+      ) : view.failed ? (
+        <div aria-hidden="true" className="mt-3 h-44 animate-pulse rounded-2xl bg-slate-100" />
+      ) : view.products.length ? (
         <div
           className={cn("mt-3 grid grid-cols-2 gap-3 transition-opacity sm:grid-cols-3", viewLoading && "opacity-50")}
           // A card's picture and name link to the product's page (ProductCard): the
@@ -1273,8 +1344,10 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
   const body =
     phase === "reading" ? (
       <div aria-live="polite">
-        <p className="text-lg font-bold tracking-[-0.01em] text-slate-900">Looking for products in your photo</p>
-        <p className="mt-1 text-sm text-slate-600">Spotting each item, then matching it across 10 lakh+ products.</p>
+        <p className="text-lg font-bold tracking-[-0.01em] text-slate-900">{slowRead ? "Still looking at your photo" : "Looking for products in your photo"}</p>
+        <p className="mt-1 text-sm text-slate-600">
+          {slowRead ? "This one is taking longer than usual. It is still working, and will tell you if it can't finish." : "Spotting each item, then matching it across 10 lakh+ products."}
+        </p>
         <div className="mt-5 flex gap-2" aria-hidden="true">
           {[96, 120, 84].map((w) => (
             <span key={w} className="h-8 animate-pulse rounded-full bg-slate-100" style={{ width: w }} />

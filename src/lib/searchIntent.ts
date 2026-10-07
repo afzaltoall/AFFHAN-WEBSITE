@@ -142,6 +142,8 @@ const GROUPS: string[][] = [
   ["light", "lighting"],
   ["car", "auto", "automobile", "vehicle"],
   ["kit", "set"],
+  // Most listings spell it "Gray": "grey & shirt" found 13 names, "gray & shirt" 46 (2026-10-07).
+  ["grey", "gray"],
 ];
 
 /** GROUPS joined where they share a word ("bulb", "light", "lamp", "lighting" are one), by word and by stem. */
@@ -457,12 +459,14 @@ export function equivalents(word: string): string[] {
 
 /**
  * Does a word only describe the thing — its colour, material or cut, whom
- * it is for, a number, a selling word — rather than say what it is? "black"
- * and "men" do; "water" in "black water shoes" does not.
+ * it is for, a number, a selling word, and beside a garment's name how it is
+ * made — rather than say what it is? "black" and "men" do, and "button" in
+ * "button down shirt" (`head`: the words' head noun, intent.head); "water"
+ * in "black water shoes" and "button" in "sewing buttons" do not.
  */
-export function isDescriptive(word: string): boolean {
+export function isDescriptive(word: string, head?: string | null): boolean {
   const s = stem(word);
-  return /\d/.test(s) || ATTRIBUTE.has(s) || AUDIENCE.has(s) || GENERIC.has(s) || DECORATIVE.has(s) || STOP.has(s);
+  return /\d/.test(s) || ATTRIBUTE.has(s) || AUDIENCE.has(s) || GENERIC.has(s) || DECORATIVE.has(s) || STOP.has(s) || describesGarment(s, head);
 }
 
 /** Does the search ask for an accessory itself ("phone case", "laptop charger")? */
@@ -621,6 +625,145 @@ const ATTRIBUTE = new Set([
   "neon", "pastel", "matte", "glossy", "metallic", "dark",
 ]);
 
+/**
+ * How a garment is made, rather than what it is: "button down", "collared",
+ * "hooded", "v neck", "long sleeve". Beside a garment's name these describe
+ * it, as its colour does; anywhere else they may be the thing or part of its
+ * name ("sewing buttons", "pocket knife", "neck pillow"), so they count only
+ * there, and never as the head (describesGarment). Found 2026-10-07 from the
+ * owner's photo of a man in a red shirt, read as "men's red button down
+ * shirt": "button" and "down" counted against Men's Shirts, which then went
+ * unnamed, and his red shirt and a grey one came back with the same twelve
+ * button-down shirts in the same order.
+ */
+const DETAIL = new Set(
+  ["button", "buttoned", "down", "up", "collar", "collared", "lapel", "pocket", "zip", "zipper", "zipped", "hood", "hooded",
+   "crew", "neck", "sleeve", "sleeved", "cuff", "cuffed", "pleat", "pleated", "ruffle", "ruffled", "drawstring", "graphic",
+   "print", "printed", "plain", "solid", "check", "checked", "checkered", "embroidered", "ripped", "distressed", "formal",
+   "fit", "waist", "waisted", "front"].map(stem),
+);
+/** What a garment's name ends on: the heads beside which DETAIL words only describe. */
+const GARMENT = new Set(
+  ["shirt", "shirts", "tshirt", "blouse", "top", "tops", "polo", "dress", "dresses", "skirt", "jacket", "coat", "blazer", "suit",
+   "vest", "waistcoat", "hoodies", "hoodie", "sweater", "cardigan", "sweatshirt", "sweatshirts", "pants", "trousers", "jeans",
+   "shorts", "leggings", "jumpsuit", "romper", "overalls", "gown", "kurta", "kurti", "abaya", "jersey", "pajamas", "pyjamas",
+   "robe", "tracksuit", "parka", "windbreaker", "bodysuit", "camisole", "uniform"].map(stem),
+);
+
+/** Does this word describe the garment the words are for ("button" in "button down shirt"), rather than name a thing? */
+function describesGarment(s: string, head: string | null | undefined): boolean {
+  return !!head && s !== head && GARMENT.has(head) && DETAIL.has(s);
+}
+
+/**
+ * The words a product's name says a colour with: the colour, and the shades
+ * someone asking for it would take ("red": burgundy, maroon, wine red).
+ */
+const COLOUR_FAMILY: Record<string, string[]> = {
+  red: ["red", "burgundy", "maroon", "wine", "crimson", "scarlet", "claret"],
+  burgundy: ["burgundy", "maroon", "wine", "claret"],
+  maroon: ["maroon", "burgundy", "wine", "claret"],
+  pink: ["pink", "fuchsia", "magenta", "blush"],
+  orange: ["orange"],
+  yellow: ["yellow", "mustard", "lemon"],
+  green: ["green", "olive", "emerald", "mint", "sage"],
+  olive: ["olive"],
+  mint: ["mint"],
+  teal: ["teal", "turquoise"],
+  turquoise: ["turquoise", "teal"],
+  blue: ["blue", "navy", "cobalt", "azure"],
+  navy: ["navy"],
+  purple: ["purple", "violet", "lavender", "lilac", "plum"],
+  lavender: ["lavender", "lilac"],
+  brown: ["brown", "coffee", "chocolate", "camel", "tan"],
+  camel: ["camel", "tan"],
+  beige: ["beige", "khaki", "cream", "apricot", "nude"],
+  khaki: ["khaki", "beige"],
+  cream: ["cream", "ivory"],
+  ivory: ["ivory", "cream"],
+  nude: ["nude", "beige"],
+  black: ["black"],
+  white: ["white", "ivory"],
+  grey: ["grey", "gray", "charcoal"],
+  gray: ["grey", "gray", "charcoal"],
+  charcoal: ["charcoal"],
+  silver: ["silver"],
+  gold: ["gold", "golden"],
+  golden: ["gold", "golden"],
+  coral: ["coral"],
+  multicolor: ["multicolor", "multicolour", "colorful", "colourful", "rainbow"],
+  colorful: ["multicolor", "multicolour", "colorful", "colourful", "rainbow"],
+  transparent: ["transparent", "clear"],
+  clear: ["clear", "transparent"],
+};
+/**
+ * Colour names a product's name never uses for anything but its colour, for
+ * telling that it is another colour than the one asked for. Not "coffee",
+ * "mint", "wine", "cream", "lemon": those are as often what the thing is or
+ * holds. Nor silver and gold, which are as often what it is made of.
+ */
+const COLOUR_NAMES = [
+  "red", "burgundy", "maroon", "crimson", "scarlet", "pink", "fuchsia", "magenta", "orange", "yellow", "mustard", "green",
+  "olive", "emerald", "teal", "turquoise", "blue", "navy", "cobalt", "purple", "violet", "lavender", "lilac", "brown", "camel",
+  "beige", "khaki", "ivory", "black", "white", "grey", "gray", "charcoal", "multicolor", "multicolour", "colorful", "colourful",
+];
+
+/**
+ * The colours the words ask for, as the words a product's name would say
+ * them with (`asked`), and every other colour (`others`), for searchScore to
+ * set the asked colour first and another colour last. Null when the words ask
+ * for none.
+ */
+export function coloursAsked(intent: QueryIntent): { asked: string[]; others: string[] } | null {
+  const asked = new Set<string>();
+  for (const w of intent.words) for (const c of COLOUR_FAMILY[w] ?? COLOUR_FAMILY[stem(w)] ?? []) asked.add(c);
+  if (!asked.size) return null;
+  return { asked: [...asked], others: COLOUR_NAMES.filter((c) => !asked.has(c)) };
+}
+
+/**
+ * What else the words say the thing is like, besides its colour and whom it
+ * is for: its material, pattern or cut, or how a garment is made ("leather",
+ * "floral", "button", "down"), for searchScore to set the names that say so
+ * a little higher.
+ */
+export function detailsAsked(intent: QueryIntent): string[] {
+  return intent.words.filter((w) => {
+    const s = stem(w);
+    return !COLOUR_FAMILY[w] && !COLOUR_FAMILY[s] && (ATTRIBUTE.has(s) || describesGarment(s, intent.head)) && !/\d/.test(s) && s.length >= 3;
+  });
+}
+
+/** Words in a category's name that say only how its things look or are made, for categoryLabel. */
+const LOOKS = new Set(["geometric", "cartoon", "letter", "abstract", "camouflage", "camo", "genuine", "real"].map(stem));
+
+/**
+ * A category's name as a chip should say it. Most say what their things are;
+ * a few under a garment say only how they look ("Solid", "Print",
+ * "Striped", "3D", "Men's Long-Sleeved", all under T-Shirts; "Leather &
+ * Suede" under Outerwear & Jackets), and a chip reading "Solid 172" says
+ * nothing (the owner's photo search, 2026-10-07). Those take the garment from
+ * their parent's name: "Solid T-Shirts", "Leather & Suede Jackets". Anything
+ * else keeps its own name ("Lace" under Arts, Crafts & Sewing is lace).
+ */
+export function categoryLabel(name: string, parentName: string | null | undefined): string {
+  if (!parentName) return name;
+  const own = nameTokens(name);
+  const looksOnly = own.length > 0 && own.every((w) => {
+    const s = stem(w);
+    return /\d/.test(s) || ATTRIBUTE.has(s) || AUDIENCE.has(s) || DECORATIVE.has(s) || DETAIL.has(s) || LOOKS.has(s);
+  });
+  if (!looksOnly) return name;
+  const garment = parentName
+    .split(/\s*(?:&|,|\band\b)\s*/i)
+    .map((part) => part.trim())
+    .find((part) => {
+      const last = nameTokens(part).pop();
+      return !!last && GARMENT.has(stem(last));
+    });
+  return garment ? `${name} ${garment}` : name;
+}
+
 /** Things that are for children by nature: a "toys" search is not asking for something else by reaching them. */
 const FOR_CHILDREN = new Set(["toy", "doll", "stroller", "pram", "crib", "diaper", "nappy", "pacifier", "rattle", "teether", "romper", "plush"]);
 
@@ -709,7 +852,7 @@ function reach(word: string): { same: Set<string>; broader: Set<string> } {
 function weightOf(s: string, head: string | null): number {
   if (s === head) return 2;
   if (/^\d+$/.test(s)) return 0.25;
-  if (/\d/.test(s) || AUDIENCE.has(s) || QUALIFIER_AUDIENCE.has(s) || ATTRIBUTE.has(s) || GENERIC.has(s)) return 0.5;
+  if (/\d/.test(s) || AUDIENCE.has(s) || QUALIFIER_AUDIENCE.has(s) || ATTRIBUTE.has(s) || GENERIC.has(s) || describesGarment(s, head)) return 0.5;
   return 1;
 }
 
@@ -845,22 +988,23 @@ export function resolveCategories(intent: QueryIntent, index: CategoryIndex): Ca
       if (same.length) {
         explained += q.w;
         for (const s of same) ownHit.add(s);
-        if (ATTRIBUTE.has(q.s)) described += 1;
+        if (ATTRIBUTE.has(q.s) || describesGarment(q.s, headStem)) described += 1;
       } else if (broader.length) {
         explained += q.w * 0.85;
         for (const s of broader) ownHit.add(s);
       } else if ([...c.pathStems].some((s) => q.same.has(s) || q.broader.has(s))) {
         explained += q.w * 0.8;
-      } else if (ATTRIBUTE.has(q.s)) {
+      } else if (ATTRIBUTE.has(q.s) || describesGarment(q.s, headStem)) {
         undescribed += q.w;
       }
     }
     if (!ownHit.size) continue;
     // A colour, material, pattern or cut the category's name does not use
     // describes the products in it, not another category ("blue floral
-    // sleeveless dress" is Lady Dresses; "red football jersey" is Jerseys),
-    // so it does not count against it. One its name does use counts for it
-    // (`described`: "leather jacket" is Leather Jackets before Jackets).
+    // sleeveless dress" is Lady Dresses; "red football jersey" is Jerseys;
+    // "men's red button down shirt" is Men's Shirts), so it does not count
+    // against it. One its name does use counts for it (`described`: "leather
+    // jacket" is Leather Jackets before Jackets).
     const coverage = explained / Math.max(0.01, totalWeight - undescribed);
     if (coverage < 0.34) continue;
 

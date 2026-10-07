@@ -56,17 +56,33 @@ const imageSearchLimiter = redis
     })
   : null;
 
+/**
+ * How long a photo search waits on the limiter. Redis that is down already
+ * lets the search through; Redis that is slow held it with nothing to show
+ * but the page's sweep (the owner's report, 2026-10-07: "the scanner sticks
+ * sometimes"), so slow lets it through too.
+ */
+const IMAGE_LIMIT_WAIT_MS = 1_500;
+
 export async function checkImageSearchRateLimit(req: NextRequest) {
   if (!imageSearchLimiter) return { success: true };
-  
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     const ip = getClientIp(req);
-    const { success, limit, remaining, reset } = await imageSearchLimiter.limit(`search_image:${ip}`);
+    const { success, limit, remaining, reset } = await Promise.race([
+      imageSearchLimiter.limit(`search_image:${ip}`),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`no answer in ${IMAGE_LIMIT_WAIT_MS}ms`)), IMAGE_LIMIT_WAIT_MS);
+      }),
+    ]);
     return { success, limit, remaining, reset };
   } catch (error) {
     console.error("Redis Image Search RateLimit Error:", error);
-    // Fail safely (open) if Redis is down
+    // Fail safely (open) if Redis is down, or too slow to wait for
     return { success: true };
+  } finally {
+    clearTimeout(timer);
   }
 }
 
