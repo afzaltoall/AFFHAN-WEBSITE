@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { getCdnUrl } from "@/lib/cdn";
 import { useAuth } from "@/context/AuthContext";
@@ -9,7 +9,8 @@ import { COUNTRIES } from '@/lib/countries';
 import { isValidMobile } from '@/lib/phone';
 import { lockBodyScroll } from '@/lib/scrollLock';
 import { useQuoteGate } from '@/context/QuoteGateContext';
-import { useBackDismiss } from "@/lib/useBackDismiss";
+import { overlayWillNavigate, useBackDismiss } from "@/lib/useBackDismiss";
+import { InquiryReceipt, type SentRequest } from "@/components/ui/InquiryReceipt";
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch';
 import { ZoomIn, ZoomOut, Maximize, X, ChevronLeft, ChevronRight, Loader2, CheckCircle2, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -35,9 +36,15 @@ interface InquiryModalProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   product: any;
   onClose: () => void;
+  /**
+   * The customer is leaving for another page from inside this modal (My
+   * Inquiries, from the confirmation). Only for an overlay that opened it and
+   * would otherwise stay open over that page: the photo-search dialog.
+   */
+  onNavigate?: () => void;
 }
 
-export function InquiryModal({ product, onClose }: InquiryModalProps) {
+export function InquiryModal({ product, onClose, onNavigate }: InquiryModalProps) {
   const [isVisible, setIsVisible] = useState(true);
   // Only to save a signed-in customer retyping what we already know. The form
   // stays fully usable signed out — `user` is simply null then.
@@ -49,6 +56,7 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
     if (product) {
       setIsVisible(true);
       setSubmitted(false);
+      setSent(null);
     }
   }, [product]);
 
@@ -86,6 +94,9 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
   }, [user]);
 
   const [submitted, setSubmitted] = useState(false);
+  // What went, as the form had it: the confirmation shows it back (InquiryReceipt).
+  const [sent, setSent] = useState<SentRequest | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   // Shown in the form rather than thrown at the window. Every failure path
   // here used to call alert(): a native dialog over a styled modal, which
@@ -181,7 +192,14 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
         }),
       });
       if (response.ok) {
+        setSent({
+          name: inquiryForm.name,
+          moq: MOQ_OPTIONS.find((o) => String(o.value) === inquiryForm.quantity)?.label ?? inquiryForm.quantity,
+          message: inquiryForm.message,
+        });
         setSubmitted(true);
+        // On a phone the product sits above the form; the receipt is what to see now.
+        scrollerRef.current?.scrollTo({ top: 0 });
       } else if (response.status === 401) {
         // The gate let this through on a session the browser still held a
         // cookie for but the server has since expired. Not something retrying
@@ -250,9 +268,10 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
               </button>
             </div>
 
-            <div className="flex flex-col md:flex-row h-full max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarGutter: "stable" }}>
-              
-              <div className="w-full md:w-[45%] bg-gradient-to-b from-slate-50 to-white p-6 sm:p-10 flex flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-slate-100">
+            <div ref={scrollerRef} className="flex flex-col md:flex-row h-full max-h-[80vh] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarGutter: "stable" }}>
+
+              {/* Once sent, a phone shows the receipt alone (it has the product on it): above it, this pushed the confirmation out of view. */}
+              <div className={`w-full md:w-[45%] bg-gradient-to-b from-slate-50 to-white p-6 sm:p-10 ${submitted ? "hidden md:flex" : "flex"} flex-col items-center justify-center text-center border-b md:border-b-0 md:border-r border-slate-100`}>
                 <div 
                   className="relative w-full max-w-[320px] aspect-square rounded-2xl overflow-hidden border border-slate-200 bg-white shadow-sm mb-6 cursor-zoom-in group"
                   onClick={() => images.length > 0 && setIsLightboxOpen(true)}
@@ -277,57 +296,26 @@ export function InquiryModal({ product, onClose }: InquiryModalProps) {
                   {product.name}
                 </h3>
                 <p className="mt-4 text-sm text-slate-500 font-medium max-w-[280px]">
-                  Request a quote — our sourcing team will get this for you.
+                  {submitted ? "Sent to our sourcing team." : "Request a quote — our sourcing team will get this for you."}
                 </p>
               </div>
 
               <div className="w-full md:w-[55%] p-6 sm:p-10 bg-white relative">
                 <AnimatePresence mode="wait">
                   {submitted ? (
-                    <motion.div
+                    <InquiryReceipt
                       key="success"
-                      initial={{ opacity: 0, scale: 0.95 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      className="relative h-full flex flex-col items-center justify-center text-center py-10"
-                    >
-                      {/* Soft brand glow behind the confirmation */}
-                      <div className="pointer-events-none absolute inset-x-0 top-6 mx-auto h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(51,104,136,0.14),transparent_70%)] blur-xl" />
-
-                      <motion.div
-                        initial={{ scale: 0, rotate: -20 }}
-                        animate={{ scale: 1, rotate: 0 }}
-                        transition={{ type: "spring", stiffness: 220, damping: 16, delay: 0.05 }}
-                        className="relative mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg shadow-emerald-500/30"
-                      >
-                        <motion.span
-                          initial={{ opacity: 0.6, scale: 0.9 }}
-                          animate={{ opacity: 0, scale: 1.7 }}
-                          transition={{ repeat: Infinity, duration: 1.8, ease: "easeOut" }}
-                          className="absolute inset-0 rounded-full bg-emerald-400/40"
-                        />
-                        <CheckCircle2 className="relative z-10 h-12 w-12" strokeWidth={2.4} />
-                      </motion.div>
-
-                      <motion.h4 initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="text-2xl font-black tracking-tight text-slate-900">
-                        Inquiry Submitted!
-                      </motion.h4>
-                      <motion.p initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22 }} className="mt-2 max-w-sm text-[15px] leading-relaxed text-slate-500">
-                        Our sourcing team will review your request and get back to you with a quote — usually within 24 hours.
-                      </motion.p>
-
-                      {product?.name && (
-                        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mt-5 flex max-w-xs items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-600">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
-                          <span className="truncate">{product.name}</span>
-                        </motion.div>
-                      )}
-
-                      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mt-8 w-full max-w-[300px]">
-                        <button onClick={handleClose} className="w-full rounded-xl bg-[#336888] py-3.5 text-base font-bold text-white shadow-md transition-all hover:bg-[#27506a] hover:shadow-lg">
-                          Continue browsing
-                        </button>
-                      </motion.div>
-                    </motion.div>
+                      product={product}
+                      image={images[0] ?? null}
+                      sent={sent}
+                      onClose={handleClose}
+                      onTrack={() => {
+                        // Leaving for My Inquiries: the back-dismiss entry must not cancel the navigation.
+                        overlayWillNavigate();
+                        onNavigate?.();
+                        onClose();
+                      }}
+                    />
                   ) : (
                     <motion.form 
                       key="form"

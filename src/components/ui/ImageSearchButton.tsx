@@ -1638,7 +1638,7 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
 
       {mounted && dialog ? createPortal(dialog, document.body) : null}
 
-      {mounted && inquiry ? createPortal(<InquiryModal product={inquiry} onClose={() => setInquiry(null)} />, document.body) : null}
+      {mounted && inquiry ? createPortal(<InquiryModal product={inquiry} onClose={() => setInquiry(null)} onNavigate={navigateAway} />, document.body) : null}
     </>
   );
 }
