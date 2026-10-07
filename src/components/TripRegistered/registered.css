@@ -752,7 +752,7 @@
   .tr-row:not(.tr-row-new):not(.tr-row-skeleton):not(.tr-row-more) { animation: tr-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) calc(0.45s + var(--i, 0) * 0.06s) both; }
   /* The lines "Show all" opens: in at once, a ripple down them, no wait and no blur (they used to
      wait their turn behind the page's own entrance, unseen, while the panel had already grown). */
-  .tr-row-more { animation: tr-row-open 0.32s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--k, 0) * 0.03s) both; }
+  .tr-row-more { animation: tr-row-open 0.26s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--k, 0) * 0.018s) both; }
   /* A line that arrives while the page is open flips down into place, lit. */
   .tr-row-new { animation: tr-flip 0.9s cubic-bezier(0.22, 1, 0.36, 1) both, tr-lit 2.4s ease-out both; }
 }
