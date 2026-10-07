@@ -284,33 +284,54 @@
   line-height: 1.5;
   color: var(--cx-mute);
 }
-/* One row of the cabin, five seats in it (SeatRow): a light passes along them, one after another. */
-.tr-seats-svg {
+/* The aircraft in flight, its five windows lit (FlightSeats): the clouds go by beneath and above
+   it at three speeds, it rides the air, a light passes from one lit window to the next, a sheen
+   runs along it, its beacon blinks. All of it still under reduced motion. */
+.tr-fs {
   display: block;
   width: 100%;
-  max-width: 560px;
+  max-width: 680px;
   height: auto;
-  margin-top: 1.1rem;
+  margin-top: 0.9rem;
+  overflow: visible;
 }
-.tr-seat-code {
-  font-family: var(--font-cx-display), Georgia, serif;
-  font-variation-settings: "opsz" 11;
-  font-size: 22px;
-  fill: var(--cx-gold-hi);
-}
-.tr-seats-row {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  fill: rgb(244 239 230 / 0.4);
-}
-.tr-seat-glow { opacity: 0; }
+.tr-fs-halo { opacity: 0.7; }
 @media (prefers-reduced-motion: no-preference) {
-  .tr-seat-glow { animation: tr-seat-wait 6s ease-in-out calc(1s + var(--i) * 0.45s) infinite; }
+  .tr-fs-clouds { animation: tr-fs-drift 44s linear infinite; }
+  .tr-fs-high { animation-duration: 90s; }
+  .tr-fs-front { animation-duration: 21s; }
+  .tr-fs-plane {
+    transform-box: view-box;
+    transform-origin: 340px 125px;
+    animation: tr-fs-ride 7s ease-in-out infinite;
+  }
+  .tr-fs-trail {
+    stroke-dasharray: 26 14;
+    animation: tr-fs-trail 0.9s linear infinite;
+  }
+  .tr-fs-halo { animation: tr-fs-light 7.5s ease-in-out calc(1.2s + var(--i) * 0.55s) infinite; }
+  .tr-fs-sheen { animation: tr-fs-sheen 8s cubic-bezier(0.45, 0, 0.3, 1) 2.5s infinite; }
+  .tr-fs-beacon { animation: tr-fs-beacon 1.6s steps(1, end) infinite; }
 }
-@keyframes tr-seat-wait {
-  0%, 30%, 100% { opacity: 0; }
-  15% { opacity: 1; }
+@keyframes tr-fs-drift { to { transform: translateX(-680px); } }
+@keyframes tr-fs-ride {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3.5px) rotate(-0.4deg); }
+}
+/* Away from the engine: the path starts there. */
+@keyframes tr-fs-trail { to { stroke-dashoffset: -40; } }
+@keyframes tr-fs-light {
+  0%, 34%, 100% { opacity: 0.7; }
+  14% { opacity: 1; }
+}
+@keyframes tr-fs-sheen {
+  0% { transform: translateX(0); }
+  55%, 100% { transform: translateX(860px); }
+}
+@keyframes tr-fs-beacon {
+  0%, 100% { opacity: 0.25; }
+  8% { opacity: 1; }
+  16% { opacity: 0.25; }
 }
 .tr-pool-when {
   font-size: 11px;

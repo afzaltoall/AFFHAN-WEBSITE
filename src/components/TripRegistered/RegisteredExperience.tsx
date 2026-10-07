@@ -17,7 +17,7 @@ import { DepartureBoard, ago } from "./DepartureBoard";
 import { DrawCountdown } from "./DrawCountdown";
 import { DrawGlobe, type DrawGlobeHandle } from "./DrawGlobe";
 import { Odometer } from "./Odometer";
-import { SeatRow } from "./SeatRow";
+import { FlightSeats } from "./FlightSeats";
 import { flyTicketIn } from "./ticketFlight";
 import "./registered.css";
 
@@ -76,8 +76,9 @@ interface Toast {
  *    flies in, where it glows, and the air mixes it in (the owner's idea of
  *    2026-10-07). Someone signed in who has not applied has the way in where
  *    the pass would be;
- *  - the draw: five places, as five seats in one row of the cabin (SeatRow),
- *    the time left until the winners are announced, the day to add to a
+ *  - the draw: five places, as the five lit windows of the aircraft that
+ *    will fly the winners, in flight over moving clouds (FlightSeats), the
+ *    time left until the winners are announced, the day to add to a
  *    calendar;
  *  - everyone, live, in one panel: how many have registered, today's and the
  *    last hour's when they say something the count does not, the countries,
@@ -344,7 +345,7 @@ export function RegisteredExperience() {
                 {P.title}
               </h2>
               <p className="tr-draw-line">{P.line}</p>
-              <SeatRow seats={P.seats} label={P.seatsLabel} />
+              <FlightSeats lit={P.flight.lit} label={P.flight.label} />
             </div>
             <div className="tr-draw-when">
               <p className="tr-pool-when">

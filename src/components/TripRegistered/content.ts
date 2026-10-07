@@ -60,15 +60,17 @@ export const REGISTERED = {
     line: `${TRIP_FACTS.winners} are drawn at random from the eligible applications on ${TRIP_FACTS.winnersAnnounced}.`,
     label: (n: number, mine: boolean) =>
       `A glass globe holding a ticket for each of the ${n.toLocaleString("en-IN")} registrations${mine ? ", yours among them" : ""}.`,
-    shake: "Press to stir the globe",
+    shake: "Press to mix the tickets",
   },
   pool: {
     eyebrow: "The draw",
     title: `${TRIP_FACTS.winners} places`,
     line: "Five seats on the trip to China, drawn at random from the eligible applications.",
-    /** The five places, as seats in one row of the cabin: a name for each, not a rank. */
-    seats: ["1A", "1B", "1C", "1D", "1E"],
-    seatsLabel: "Five seats, 1A to 1E, each still to be drawn",
+    /** The places as the aircraft's lit windows (FlightSeats): one for each, the Terms' own number. */
+    flight: {
+      lit: TRIP_FACTS.winners,
+      label: `The aircraft to China, ${TRIP_FACTS.winners} of its windows lit: ${TRIP_FACTS.winners} seats, each still to be drawn`,
+    },
     announced: "Winners announced",
     date: TRIP_FACTS.winnersAnnounced,
     units: ["Days", "Hours", "Min", "Sec"],

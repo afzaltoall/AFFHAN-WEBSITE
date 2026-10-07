@@ -18,14 +18,21 @@ interface Ticket {
   y: number;
   vx: number;
   vy: number;
-  /** Turned in the plane of the picture. */
+  /** Turned in the plane of the picture, and how fast it turns. */
   a: number;
   va: number;
-  /** Flipped over, the paper turning in the air, and how fast this one turns. */
+  /** Turned over (0 face up, π face down), and how fast it turns over while the air lifts it. */
   f: number;
   ff: number;
+  /** Its swing from side to side as it falls, as a leaf's: where in the swing, and how fast. */
+  phase: number;
+  sway: number;
+  /** Its turn in the picture's plane while the air lifts it. */
+  spin: number;
   /** How hard the air takes this one, 0 to 1. */
   lift: number;
+  /** Lying on the glass or on another ticket: 1, fading to 0 once it is free. */
+  rest: number;
   mine: boolean;
   /** Falling in through the opening: not yet held by the glass. */
   entering: boolean;
@@ -48,7 +55,7 @@ interface Sim {
   lid: number;
   lidV: number;
   lidUntil: number;
-  /** The air mixing the tickets: its strength now, the gust under way, the next one. */
+  /** The air: its strength now, the mix under way, one due, the next one on its own. */
   air: number;
   gust: { t: number; power: number } | null;
   gustAt: { at: number; power: number } | null;
@@ -63,16 +70,38 @@ interface Sim {
 
 /** Tickets drawn at most; the caption beside the globe says how many there are. */
 const MAX = 150;
-const SHADES = ["#e9c675", "#dcb265", "#f1d58f", "#d6a952"];
-/** Their backs, a shade darker, seen as they turn over. */
-const BACKS = ["#b98d3f", "#ad8136", "#c39a4c", "#a97c31"];
-/** How long a gust of air lasts; between them, on its own, a gentler one every 10 to 16 seconds. */
-const GUST_S = 1.9;
-const IDLE_GUST = { from: 10_000, spread: 6000, power: 0.7 };
+/** Gold foil, light to dark: four shades; the visitor's, brighter; one catching the light; the backs. */
+const FOILS = [
+  ["#fff1c8", "#e9c675", "#b98a36"],
+  ["#fbe8b8", "#dcb265", "#ad7f2f"],
+  ["#fff6d8", "#f1d58f", "#c39a4c"],
+  ["#f8e3ae", "#d6a952", "#a2752a"],
+] as const;
+const MINE_FOIL = ["#fffaf0", "#ffe7a6", "#d9ab52"] as const;
+const GLINT_FOIL = ["#ffffff", "#fff0c8", "#e2b862"] as const;
+const BACK_FOIL = ["#d2a656", "#a67a33", "#7d5a1e"] as const;
+/**
+ * The simulation's own clock: 240 steps a second, however often the screen
+ * draws. Stepped once a frame instead, a 240 Hz laptop pushed the tickets
+ * four times as hard as a 60 Hz screen, and they rode up the glass in a chain
+ * (2026-10-07).
+ */
+const STEP = 1 / 240;
+/** Paper in air: how quickly a ticket takes the air's speed, so it never falls faster than gravity / DRAG. */
+const DRAG = 2.4;
+/** A mix: how long the fountain runs; between mixes, on its own, a gentler one every 20 to 30 seconds. */
+const GUST_S = 2.8;
+const IDLE_GUST = { from: 20_000, spread: 10_000, power: 0.8 };
+/** After a ticket comes in, the mix that takes it in: once it has floated down to the heap. */
+const SETTLE_MS = 1400;
 /** The lid opens to about 105 degrees, and stays open this long after the last ticket in. */
 const LID_OPEN = 1.83;
 const LID_HOLD = 900;
 const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const ease = (x: number) => {
+  const k = Math.max(0, Math.min(1, x));
+  return k * k * (3 - 2 * k);
+};
 
 /**
  * The draw, as a golden glass globe on a stand: one golden ticket in it for
@@ -81,20 +110,24 @@ const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matc
  * registration goes into one globe, and five are drawn from it.
  *
  * The lid at the top opens for tickets and shuts after them. The first time
- * the globe is seen the tickets pour in, one after another; `drop()` drops
- * another in at any time (a registration arriving while the page is open,
- * or the visitor's own, flying in from their boarding pass), and `expect()`
- * opens the lid for one on its way. Every so often, and after each ticket
- * comes in, air rises through the globe as in a draw machine: the tickets
- * lift off the heap, swirl and turn over, and settle again. A pointer on it
- * turns it faster; a press sends the air through it.
+ * the globe is seen the tickets pour in, one after another, and float down
+ * onto the heap; `drop()` drops another in at any time (a registration
+ * arriving while the page is open, or the visitor's own, flying in from
+ * their boarding pass), and `expect()` opens the lid for one on its way.
+ * Every so often, and once each new ticket has settled, the tickets are
+ * mixed: air rises through the middle of the globe like a fountain, lifts
+ * them off the heap, turning them over slowly, carries them out along the
+ * top and down the sides, and they float back down, swinging like leaves,
+ * to lie flat again. A pointer on it turns its lines faster; a press mixes
+ * them.
  *
- * Drawn on a canvas, with a little physics: gravity, the glass, the turning
- * wall carrying the heap up the side until it slides back, the air, and the
- * tickets pushing each other apart. It runs only while it is in view and the
- * tab is visible. It fills its wrap, square, as large as the wrap allows.
- * Under reduced motion the tickets lie at rest inside a still globe, its lid
- * shut. For screen readers it is one picture with its words (`label`).
+ * Drawn on a canvas with a little physics, on its own clock (STEP): gravity,
+ * the air, the glass, and the tickets resting on each other. Each kind of
+ * ticket is painted once and stamped from there. It runs only while it is in
+ * view and the tab is visible, and fills its wrap, square, as large as the
+ * wrap allows. Under reduced motion the tickets lie at rest inside a still
+ * globe, its lid shut. For screen readers it is one picture with its words
+ * (`label`).
  */
 export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: boolean; holdMine: boolean; label: string; shakeLabel: string }>(
   function DrawGlobe({ count, mine, holdMine, label, shakeLabel }, ref) {
@@ -197,29 +230,76 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         const { R } = geometry(s.size);
         const total = Math.max(30, s.tickets.length + s.queue.length);
         const tw = R * Math.max(0.085, 0.2 * Math.sqrt(30 / total));
-        return { tw, th: tw * 0.56, r: tw * 0.43 };
+        return { tw, th: tw * 0.5, r: tw * 0.43 };
+      };
+
+      // Each kind of ticket painted once at the screen's resolution, and stamped from there; painted
+      // again when the tickets change size.
+      const sprites = new Map<string, HTMLCanvasElement>();
+      let paintedAt = 0;
+      const sprite = (key: string, foil: readonly string[], front: boolean, w: number, h: number) => {
+        const at = Math.round(w * 4);
+        if (at !== paintedAt) {
+          sprites.clear();
+          paintedAt = at;
+        }
+        const id = `${key}:${front ? "f" : "b"}`;
+        let c = sprites.get(id);
+        if (!c) {
+          c = document.createElement("canvas");
+          c.width = Math.ceil((w + 8) * dpr);
+          c.height = Math.ceil((h + 8) * dpr);
+          const g = c.getContext("2d");
+          if (g) {
+            g.setTransform(dpr, 0, 0, dpr, c.width / 2, c.height / 2);
+            paintTicket(g, w, h, front ? foil : BACK_FOIL, front, dpr);
+          }
+          sprites.set(id, c);
+        }
+        return c;
+      };
+      const stamp = (t: Ticket, w: number, h: number, key: string, foil: readonly string[], scale: number, glow: number) => {
+        const c = Math.cos(t.f);
+        const img = sprite(key, foil, c >= 0, w, h);
+        ctx.save();
+        ctx.translate(t.x, t.y);
+        ctx.rotate(t.a);
+        ctx.scale(scale, scale * Math.max(0.14, Math.abs(c)));
+        if (glow > 0) {
+          ctx.shadowColor = "rgba(255, 220, 140, 0.95)";
+          ctx.shadowBlur = glow;
+        }
+        const sw = img.width / dpr;
+        const sh = img.height / dpr;
+        ctx.drawImage(img, -sw / 2, -sh / 2, sw, sh);
+        ctx.restore();
       };
 
       const spawn = (isMine: boolean, now: number, settled = false) => {
         const { cx, cy, R } = geometry(s.size);
         const { th } = ticketSize();
+        const side = () => (Math.random() < 0.5 ? -1 : 1);
         const ticket = {
           a: Math.random() * Math.PI,
+          va: 0,
           f: 0,
-          ff: (Math.random() < 0.5 ? -1 : 1) * (5 + Math.random() * 6),
+          ff: side() * (2.2 + Math.random() * 1.4),
+          phase: Math.random() * Math.PI * 2,
+          sway: 3.2 + Math.random() * 1.4,
+          spin: side() * (0.6 + Math.random() * 0.8),
           lift: Math.random(),
           mine: isMine,
-          shade: Math.floor(Math.random() * SHADES.length),
+          shade: Math.floor(Math.random() * FOILS.length),
           glint: 0,
         };
         if (settled) {
           // At rest in the bowl of the globe (reduced motion): somewhere in its lower half.
           const ang = Math.PI * (0.15 + Math.random() * 0.7);
           const rr = R * (0.25 + Math.random() * 0.6);
-          s.tickets.push({ ...ticket, x: cx + Math.cos(ang) * rr * 0.9, y: cy + Math.sin(ang) * rr * 0.75, vx: 0, vy: 0, va: 0, entering: false });
+          s.tickets.push({ ...ticket, x: cx + Math.cos(ang) * rr * 0.9, y: cy + Math.sin(ang) * rr * 0.75, vx: 0, vy: 0, rest: 1, entering: false });
         } else {
-          s.tickets.push({ ...ticket, x: cx + (Math.random() - 0.5) * R * 0.08, y: cy - R - th * 1.5, vx: (Math.random() - 0.5) * R * 0.3, vy: R * 1.6, va: (Math.random() - 0.5) * 8, entering: true });
-          s.boost = Math.max(s.boost, isMine ? 1.9 : 0.9);
+          s.tickets.push({ ...ticket, x: cx + (Math.random() - 0.5) * R * 0.06, y: cy - R - th * 1.5, vx: 0, vy: R * 1.4, rest: 0, entering: true });
+          s.boost = Math.max(s.boost, isMine ? 1.4 : 0.6);
           s.flash = 1;
           s.lidUntil = Math.max(s.lidUntil, now + LID_HOLD);
         }
@@ -227,49 +307,49 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         canvas.dataset.tickets = String(s.tickets.length);
       };
 
-      // A gust of air up through the globe; one under way is made stronger and lasts longer.
+      // A mix; one under way is made stronger, and held for longer.
       s.blow = (power: number) => {
         if (s.gust) {
           s.gust.power = Math.max(s.gust.power, power);
-          s.gust.t = Math.min(s.gust.t, GUST_S * 0.3);
+          if (s.gust.t > GUST_S * 0.5) s.gust.t = GUST_S * 0.3;
         } else s.gust = { t: 0, power };
         s.wake();
       };
 
-      const step = (h: number) => {
+      // One step of the clock.
+      const step = () => {
+        const h = STEP;
         const { cx, cy, R } = geometry(s.size);
         const { r } = ticketSize();
-        const G = R * 6;
-        // The glass carries the heap no faster than this, however fast its lines turn (a pointer on
-        // it, a ticket landing): faster, the heap would ride up the side as a chain.
-        const wall = Math.min(s.spin, 0.55) * R;
-        const air = s.air;
+        const G = R * 3.2;
+        const U = R * 2.6 * s.air;
         for (const t of s.tickets) {
-          t.vy += G * h;
-          if (air > 0 && !t.entering) {
-            const dx = t.x - cx;
-            const dy = t.y - cy;
-            const d = Math.hypot(dx, dy) || 1;
-            // The air comes up from the foot, strongest low in the globe, and swirls round the
-            // way the glass turns; each ticket takes it a little differently.
-            const low = Math.max(0, Math.min(1, 0.4 + 0.6 * (dy / R + 0.35)));
-            t.vy -= G * air * (1.15 + 0.4 * t.lift) * low * h;
-            t.vx += (-dy / d) * R * 3.2 * air * h;
-            t.vy += (dx / d) * R * 3.2 * air * h;
-            t.vx += (Math.random() - 0.5) * R * 18 * air * h;
-            t.vy += (Math.random() - 0.5) * R * 18 * air * h;
-            t.va += (Math.random() - 0.5) * 40 * air * h;
+          t.rest = Math.max(0, t.rest - 4 * h);
+          // The air: still, or the fountain of a mix, up through the middle, out along the top, down
+          // the sides and in along the foot; each ticket taking it a little differently.
+          let fx = 0;
+          let fy = 0;
+          if (U > 0 && !t.entering) {
+            const nx = (t.x - cx) / R;
+            const ny = (t.y - cy) / R;
+            fy = -U * (1 - 2 * nx * nx) * (0.75 + 0.5 * t.lift);
+            fx = U * 1.1 * nx * -ny;
           }
-          t.vx *= 1 - (0.2 + 1.4 * air) * h;
-          t.vy *= 1 - (0.06 + 1.4 * air) * h;
+          t.vx += (fx - t.vx) * DRAG * h;
+          t.vy += ((fy - t.vy) * DRAG + G) * h;
+          // Falling free, it swings from side to side as a leaf does, rocking as it swings.
+          t.phase += t.sway * h;
+          const falling = !t.entering && t.rest < 0.3 && t.vy > R * 0.3;
+          if (falling) t.vx += Math.cos(t.phase) * R * 1.1 * h;
           t.x += t.vx * h;
           t.y += t.vy * h;
+          // Lifted, it turns over slowly; otherwise it settles face up or face down, flat.
+          const rising = Math.max(0, Math.min(1, -t.vy / R));
+          if (rising > 0.05) t.f += t.ff * rising * h;
+          else t.f += (Math.round(t.f / Math.PI) * Math.PI + (falling ? 0.5 * Math.sin(t.phase) : 0) - t.f) * Math.min(1, 5 * h);
+          t.va += ((falling ? 0.8 * Math.cos(t.phase) : rising > 0.05 ? t.spin : 0) - t.va) * Math.min(1, 3 * h);
           t.a += t.va * h;
-          t.va *= 1 - 1.6 * h;
-          // Paper turns over as it flies, and lies flat again once it stops.
-          const moving = Math.max(0, Math.min(1, (Math.hypot(t.vx, t.vy) - R * 0.5) / R));
-          if (moving > 0) t.f += t.ff * moving * h;
-          else t.f += (Math.round(t.f / Math.PI) * Math.PI - t.f) * Math.min(1, 6 * h);
+          // The glass: it stops what reaches it, and what slides along it slows.
           const dx = t.x - cx;
           const dy = t.y - cy;
           const d = Math.hypot(dx, dy) || 1;
@@ -284,22 +364,16 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
             t.y = cy + ny * (R - r);
             const vn = t.vx * nx + t.vy * ny;
             if (vn > 0) {
-              t.vx -= 1.32 * vn * nx;
-              t.vy -= 1.32 * vn * ny;
+              t.vx -= 1.15 * vn * nx;
+              t.vy -= 1.15 * vn * ny;
             }
-            // The turning glass carries what lies on it, but only up the lower half: past it the
-            // side is too steep to hold, and the tickets tumble back, as in a draw drum.
-            const tx = -ny;
-            const ty = nx;
-            const vt = t.vx * tx + t.vy * ty;
-            const grip = 0.07 * Math.max(0, Math.min(1, ny + 0.1));
-            const dv = (wall - vt) * grip;
-            t.vx += dv * tx;
-            t.vy += dv * ty;
-            t.va += (vt - wall) * 0.015;
+            const vt = -t.vx * ny + t.vy * nx;
+            t.vx += vt * ny * 6 * h;
+            t.vy -= vt * nx * 6 * h;
+            t.rest = 1;
           }
         }
-        // Tickets push each other apart.
+        // Tickets lie on each other, and do not pass through each other.
         const min = r * 2;
         const T = s.tickets;
         for (let i = 0; i < T.length; i++) {
@@ -322,12 +396,14 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
             b.y += ny * push;
             const rv = (b.vx - a.vx) * nx + (b.vy - a.vy) * ny;
             if (rv < 0) {
-              const k = (-1.15 * rv) / 2;
+              const k = (-1.1 * rv) / 2;
               a.vx -= k * nx;
               a.vy -= k * ny;
               b.vx += k * nx;
               b.vy += k * ny;
             }
+            a.rest = 1;
+            b.rest = 1;
           }
         }
       };
@@ -420,10 +496,10 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
             mineAt = t;
             continue;
           }
-          if (t.glint > 0) ticket(ctx, t, tw * (1 + 0.12 * t.glint), th * (1 + 0.12 * t.glint), "#fff0c8", BACKS[t.shade], tw * 0.8 * t.glint);
-          else ticket(ctx, t, tw, th, SHADES[t.shade], BACKS[t.shade], 0);
+          if (t.glint > 0) stamp(t, tw, th, "glint", GLINT_FOIL, 1 + 0.12 * t.glint, tw * 0.8 * t.glint);
+          else stamp(t, tw, th, `s${t.shade}`, FOILS[t.shade], 1, 0);
         }
-        if (mineAt) ticket(ctx, mineAt, tw * 1.12, th * 1.12, "#ffe7a6", "#d9ab52", tw * (0.75 + 0.25 * Math.sin(s.clock * 0.004)));
+        if (mineAt) stamp(mineAt, tw, th, "mine", MINE_FOIL, 1.12, tw * (0.75 + 0.25 * Math.sin(s.clock * 0.004)));
         ctx.restore();
 
         // The near halves of the lines, over the tickets.
@@ -498,7 +574,7 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         // "You", over the visitor's own.
         if (mineAt && !mineAt.entering) {
           const lx = mineAt.x;
-          const ly = mineAt.y - th * 1.25;
+          const ly = mineAt.y - th * 1.45;
           ctx.font = `800 ${Math.max(9, R * 0.065)}px system-ui, sans-serif`;
           const w = ctx.measureText("YOU").width + 10;
           const hh = Math.max(13, R * 0.09);
@@ -517,11 +593,11 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
       // Under reduced motion: everything at rest and the lid shut, drawn once (and again for each new ticket).
       if (still) {
         for (const isMine of s.queue.splice(0)) spawn(isMine, 0, true);
-        for (let i = 0; i < 240; i++) step(1 / 120);
+        for (let i = 0; i < 480; i++) step();
         draw();
         s.wake = () => {
           for (const isMine of s.queue.splice(0)) spawn(isMine, 0, true);
-          for (let i = 0; i < 120; i++) step(1 / 120);
+          for (let i = 0; i < 240; i++) step();
           draw();
         };
         const resize = new ResizeObserver(() => {
@@ -534,10 +610,11 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
 
       let raf = 0;
       let last = 0;
+      let behind = 0;
       const frame = (now: number) => {
         raf = 0;
         if (!s.visible || document.visibilityState !== "visible") return;
-        const dt = Math.min(1 / 30, last ? (now - last) / 1000 : 1 / 60);
+        const dt = Math.min(1 / 15, last ? (now - last) / 1000 : 1 / 60);
         last = now;
         s.clock = now;
         // The lid springs open for what is coming, and shuts a moment after the last, with a bounce;
@@ -549,14 +626,14 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
           s.lid = 0;
           s.lidV = -s.lidV * 0.3;
         }
-        // The pour: one at a time through the open lid, faster the more there are. The last of a
-        // pour is mixed in by the air, unless the visitor's own is still to come.
+        // The pour: one at a time through the open lid, faster the more there are. Once the last of
+        // a pour has settled the tickets are mixed, unless the visitor's own is still to come.
         const every = Math.max(28, Math.min(110, 1600 / Math.max(1, s.queue.length + s.tickets.length)));
         if (s.queue.length && s.lid > 0.8 && now - s.lastPour > every) {
           s.lastPour = now;
           const isMine = s.queue.shift() as boolean;
           spawn(isMine, now);
-          if (!s.queue.length && (s.mineIn || !holdMine)) s.gustAt = { at: now + 1000, power: isMine ? 1.15 : 0.85 };
+          if (!s.queue.length && (s.mineIn || !holdMine)) s.gustAt = { at: now + SETTLE_MS, power: isMine ? 1 : 0.9 };
         }
         if (s.gustAt && now >= s.gustAt.at) {
           s.blow(s.gustAt.power);
@@ -570,7 +647,7 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
             s.gust = null;
             s.air = 0;
             s.nextGust = now + IDLE_GUST.from + Math.random() * IDLE_GUST.spread;
-          } else s.air = Math.sin(Math.PI * e) * s.gust.power;
+          } else s.air = s.gust.power * ease(e / 0.22) * (1 - ease((e - 0.68) / 0.32));
         }
         s.boost = Math.max(0, s.boost - dt * 0.8);
         s.flash = Math.max(0, s.flash - dt * 1.8);
@@ -578,8 +655,15 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         const target = s.spinTarget + s.boost;
         s.spin += (target - s.spin) * Math.min(1, dt * 3);
         s.turn += s.spin * dt * 0.45;
-        step(dt / 2);
-        step(dt / 2);
+        // The physics on its own clock: as many steps as the time since the last frame holds.
+        behind += dt;
+        let steps = 0;
+        while (behind >= STEP && steps < 16) {
+          step();
+          behind -= STEP;
+          steps++;
+        }
+        if (steps === 16) behind = 0;
         draw();
         raf = requestAnimationFrame(frame);
       };
@@ -614,7 +698,7 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // A pointer on it turns it faster; a press sends the air through it.
+    // A pointer on it turns its lines faster; a press mixes the tickets.
     const faster = (on: boolean) => {
       const s = sim.current;
       if (!s) return;
@@ -624,8 +708,8 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
     const stir = () => {
       const s = sim.current;
       if (!s || reduced()) return;
-      s.boost = 1.6;
-      s.blow(1.3);
+      s.boost = 0.8;
+      s.blow(1.1);
     };
 
     return (
@@ -723,49 +807,78 @@ function lines(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number,
   }
 }
 
+/** A ticket's outline, centred: rounded corners, and a round notch cut into each end. */
+function ticketPath(c: CanvasRenderingContext2D, w: number, h: number) {
+  const x = w / 2;
+  const y = h / 2;
+  const n = h * 0.17;
+  const rr = h * 0.2;
+  c.beginPath();
+  c.moveTo(-x + rr, -y);
+  c.lineTo(x - rr, -y);
+  c.arcTo(x, -y, x, -y + rr, rr);
+  c.lineTo(x, -n);
+  c.arc(x, 0, n, -Math.PI / 2, Math.PI / 2, true);
+  c.lineTo(x, y - rr);
+  c.arcTo(x, y, x - rr, y, rr);
+  c.lineTo(-x + rr, y);
+  c.arcTo(-x, y, -x, y - rr, rr);
+  c.lineTo(-x, n);
+  c.arc(-x, 0, n, Math.PI / 2, -Math.PI / 2, true);
+  c.lineTo(-x, -y + rr);
+  c.arcTo(-x, -y, -x + rr, -y, rr);
+  c.closePath();
+}
+
 /**
- * One golden ticket, turned over by `t.f` (squashed as it turns, its back a
- * shade darker): notched at the ends, a perforation near one end, a
- * highlight along its top; `glow`, lit from within (the visitor's, or one
- * catching the light).
+ * One golden ticket, painted once (DrawGlobe stamps it): gold foil, light at
+ * one corner to dark at the other, a soft shadow round it so tickets lying
+ * on each other stay apart, and the notches cut through. Its face has the
+ * perforation before the stub, a small seal on the stub, two lines of print
+ * and light along its top edge; its back is plain.
  */
-function ticket(ctx: CanvasRenderingContext2D, t: Ticket, tw: number, th: number, fill: string, back: string, glow: number) {
-  const c = Math.cos(t.f);
-  const front = c >= 0;
-  ctx.save();
-  ctx.translate(t.x, t.y);
-  ctx.rotate(t.a);
-  ctx.scale(1, Math.max(0.14, Math.abs(c)));
-  if (glow > 0) {
-    ctx.shadowColor = "rgba(255, 220, 140, 0.95)";
-    ctx.shadowBlur = glow;
-  }
-  ctx.fillStyle = front ? fill : back;
-  ctx.beginPath();
-  ctx.roundRect(-tw / 2, -th / 2, tw, th, th * 0.22);
-  ctx.fill();
-  ctx.shadowBlur = 0;
-  // The notches either end, and the perforation.
-  ctx.fillStyle = "rgba(20, 14, 10, 0.85)";
-  ctx.beginPath();
-  ctx.arc(-tw / 2, 0, th * 0.2, 0, Math.PI * 2);
-  ctx.arc(tw / 2, 0, th * 0.2, 0, Math.PI * 2);
-  ctx.fill();
-  if (front) {
-    ctx.strokeStyle = "rgba(110, 76, 22, 0.55)";
-    ctx.lineWidth = Math.max(0.6, tw * 0.03);
-    ctx.setLineDash([th * 0.12, th * 0.12]);
-    ctx.beginPath();
-    ctx.moveTo(tw * 0.22, -th / 2 + 1);
-    ctx.lineTo(tw * 0.22, th / 2 - 1);
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // A highlight along the top edge.
-    ctx.strokeStyle = "rgba(255, 250, 230, 0.55)";
-    ctx.beginPath();
-    ctx.moveTo(-tw / 2 + th * 0.3, -th / 2 + 1);
-    ctx.lineTo(tw / 2 - th * 0.3, -th / 2 + 1);
-    ctx.stroke();
-  }
-  ctx.restore();
+function paintTicket(c: CanvasRenderingContext2D, w: number, h: number, foil: readonly string[], front: boolean, dpr: number) {
+  c.save();
+  c.shadowColor = "rgba(0, 0, 0, 0.45)";
+  c.shadowBlur = 2.2 * dpr;
+  ticketPath(c, w, h);
+  const g = c.createLinearGradient(-w / 2, -h / 2, w / 2, h / 2);
+  g.addColorStop(0, foil[0]);
+  g.addColorStop(0.45, foil[1]);
+  g.addColorStop(1, foil[2]);
+  c.fillStyle = g;
+  c.fill();
+  c.restore();
+  if (!front) return;
+  c.save();
+  ticketPath(c, w, h);
+  c.clip();
+  c.strokeStyle = "rgba(110, 76, 22, 0.5)";
+  c.lineWidth = Math.max(0.6, h * 0.05);
+  c.setLineDash([h * 0.1, h * 0.09]);
+  c.beginPath();
+  c.moveTo(w * 0.2, -h / 2);
+  c.lineTo(w * 0.2, h / 2);
+  c.stroke();
+  c.setLineDash([]);
+  c.strokeStyle = "rgba(110, 76, 22, 0.4)";
+  c.beginPath();
+  c.arc(w * 0.35, 0, h * 0.17, 0, Math.PI * 2);
+  c.stroke();
+  c.strokeStyle = "rgba(110, 76, 22, 0.32)";
+  c.lineWidth = Math.max(0.5, h * 0.07);
+  c.lineCap = "round";
+  c.beginPath();
+  c.moveTo(-w * 0.34, -h * 0.1);
+  c.lineTo(w * 0.04, -h * 0.1);
+  c.moveTo(-w * 0.34, h * 0.13);
+  c.lineTo(-w * 0.1, h * 0.13);
+  c.stroke();
+  c.strokeStyle = "rgba(255, 252, 238, 0.65)";
+  c.lineWidth = Math.max(0.6, h * 0.06);
+  c.beginPath();
+  c.moveTo(-w / 2 + h * 0.2, -h / 2 + 0.8);
+  c.lineTo(w / 2 - h * 0.2, -h / 2 + 0.8);
+  c.stroke();
+  c.restore();
 }
