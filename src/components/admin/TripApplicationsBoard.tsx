@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Download, Mail, MessageCircle, Phone, RefreshCw, Search, X } from "lucide-react";
 import { businessStatusBrief } from "@/lib/trip-application";
 import { TripLockPanel } from "./TripLockPanel";
+import { TripStagePanel } from "./TripStagePanel";
 
 /**
  * The Free China Business Trip's participants, for the office (the admin
@@ -278,6 +279,8 @@ export function TripApplicationsBoard() {
 
         {/* The homepage banner's chain lock, and the key to it. */}
         <TripLockPanel />
+        {/* How far the trip has got: what every applicant's "What happens next" shows. */}
+        <TripStagePanel />
 
         {error && <p className="mb-4 rounded-xl bg-red-500/10 px-4 py-2.5 text-[13px] font-medium text-red-700">{error}</p>}
 

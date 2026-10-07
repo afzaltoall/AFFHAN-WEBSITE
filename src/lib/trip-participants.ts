@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { COUNTRIES } from "@/lib/countries";
+import { tripStage, type TripStageName } from "@/lib/trip-stage";
 
 /**
  * The Free China Business Trip's participants, as the participants board
@@ -58,11 +59,13 @@ export interface ParticipantsSnapshot {
   recent: ParticipantRow[];
   /** When this was read (ISO). */
   at: string;
+  /** How far the trip has got, as the team set it (lib/trip-stage.ts): "What happens next" follows it. */
+  stage: TripStageName;
 }
 
 export async function participantsSnapshot(viewerId: string | null): Promise<ParticipantsSnapshot> {
   const now = new Date();
-  const [total, today, lastHour, byCountry, recent] = await Promise.all([
+  const [total, today, lastHour, byCountry, recent, stage] = await Promise.all([
     prisma.tripApplication.count({ where: COUNTED }),
     prisma.tripApplication.count({ where: { ...COUNTED, createdAt: { gte: startOfIndiaDay(now) } } }),
     prisma.tripApplication.count({ where: { ...COUNTED, createdAt: { gte: new Date(now.getTime() - 3600 * 1000) } } }),
@@ -73,6 +76,7 @@ export async function participantsSnapshot(viewerId: string | null): Promise<Par
       take: RECENT,
       select: { referenceNo: true, country: true, createdAt: true, userId: true },
     }),
+    tripStage(),
   ]);
   return {
     total,
@@ -89,6 +93,7 @@ export async function participantsSnapshot(viewerId: string | null): Promise<Par
       you: !!viewerId && r.userId === viewerId,
     })),
     at: now.toISOString(),
+    stage: stage.stage,
   };
 }
 

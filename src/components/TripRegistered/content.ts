@@ -49,7 +49,7 @@ export const REGISTERED = {
       earlier: (when: string) => `Applied ${when}`,
       line: (ref: string, country: string) => `${ref} from ${country}`,
       mineTitle: "You're in the draw",
-      mine: (ref: string) => `Your ticket ${ref} is now in the draw globe`,
+      mine: (ref: string) => `Your ticket ${ref} is in the draw globe.`,
     },
     /** The board's own clock, India time, as an airport board shows the time (BoardClock). */
     clock: {
@@ -92,11 +92,16 @@ export const REGISTERED = {
         `AFFHAN announces the ${TRIP_FACTS.winners} winners of the Free China Business Trip, picked at random from the eligible applications.${ref ? ` Your Trip ID: ${ref}.` : ""}`,
     },
   },
-  /** After applying, step by step, as the Terms set it out (sections 1, 3 and 4). */
+  /**
+   * After applying, step by step, as the Terms set it out (sections 1, 3 and 4), following the stage
+   * the team sets in the console (lib/trip-stage.ts): the steps it has passed done, the one it is at
+   * "Now". For someone who has not applied, the first step is the applications themselves.
+   */
   next: {
     title: "What happens next",
     applied: { title: "You applied", line: (date: string) => `Received on ${date}.` },
-    apply: { title: "Apply", line: "It takes a few minutes." },
+    apply: { title: "Applications", line: `Open until ${TRIP_FACTS.applicationsClose}.` },
+    tags: { done: "Done", now: "Now", next: "Next" },
     steps: [
       { title: "Eligibility check", line: "Each application is checked against the requirements." },
       { title: "Random draw", line: `${TRIP_FACTS.winners} winners are picked at random from the eligible applications.` },

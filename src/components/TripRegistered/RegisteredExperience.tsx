@@ -429,7 +429,7 @@ export function RegisteredExperience() {
 
               {/* What happens after applying: the left side holds more than the count, so a long board
                   never leaves it bare. */}
-              {ready && signedIn && <NextSteps appliedOn={registration ? appliedOn(registration.createdAt) : null} />}
+              {ready && signedIn && <NextSteps appliedOn={registration ? appliedOn(registration.createdAt) : null} stage={snap?.stage ?? "open"} />}
             </div>
 
             <DepartureBoard rows={snap?.recent ?? []} total={snap?.total ?? 0} loaded={!!snap} failed={failed} />

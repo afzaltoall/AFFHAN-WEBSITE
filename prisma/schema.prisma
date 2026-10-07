@@ -1061,6 +1061,17 @@ model CustomerCode {
 /// an admin can lock them again from there. One row per lock, keyed by what it
 /// locks; "trip-banner" is the only one. No row means locked: the lock fails
 /// shut (lib/trip-lock.ts).
+/// How far the Free China Business Trip has got, as the team sets it in the console's Free China
+/// Trip page (lib/trip-stage.ts): the participants page's "What happens next" follows it. One row.
+model TripStage {
+  id        String   @id
+  /// "open" (applications open), "checking", "drawing", "announced" or "dates"
+  stage     String   @default("open")
+  /// The admin who last moved it (their sign-in email).
+  changedBy String?
+  updatedAt DateTime @updatedAt
+}
+
 model TripLock {
   id         String    @id
   /// When an admin unlocked it; null while it is locked.
