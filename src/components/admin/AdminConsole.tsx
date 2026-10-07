@@ -19,9 +19,11 @@ import {
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
   MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, SlidersHorizontal, UserCog,
-  Ship, Plane, Boxes,
+  Ship, Plane, Boxes, Smartphone, ExternalLink,
   type LucideIcon,
 } from "lucide-react";
+import { readableProvider } from "@/components/admin/CustomerList";
+import { GoogleG } from "@/components/ui/GoogleG";
 import { getCdnUrl } from "@/lib/cdn";
 import { countryFlagUrl } from "@/lib/countryFlag";
 import { groupCustomers, buildCustomerSheet, customerKeyOf, type CustomerGroup } from "@/lib/customerGroups";
@@ -43,6 +45,9 @@ interface Inquiry {
   // Set when the inquiry was raised by someone signed in. Null for the
   // anonymous majority, and for every row that predates the account linkage.
   userId: string | null;
+  /** How that account signs in (MobileUser.authProvider: EMAIL, GOOGLE,
+   *  EMAIL_AND_GOOGLE or PHONE), for the mark beside the name; null for a guest. */
+  signIn: string | null;
   // The lifecycle the CUSTOMER sees, distinct from `status` above, which is
   // internal triage. See the note on the Inquiry model in schema.prisma.
   customerStatus: string; statusNote: string | null; statusUpdatedAt: string | null;
@@ -1335,7 +1340,7 @@ export function AdminConsole({ data }: Props) {
                     <Thumb t={t} src={i.productImage} alt={i.productName} />
                     <div className="min-w-0 flex-1">
                       <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand-dark ${asStatus(i.status) !== "new" ? "line-through opacity-60" : ""}`}>{i.productName}</p>
-                      <p className={`text-[12px] font-medium ${t.mid}`}>{i.customerName} · {i.country}</p>
+                      <p className={`flex flex-wrap items-center gap-x-1 text-[12px] font-medium ${t.mid}`}><span>{i.customerName}</span><SignInMark provider={i.signIn} /><span>· {i.country}</span></p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(i.status)].chip}`}>{STATUS_META[asStatus(i.status)].label}</span>
                   </button>
@@ -1740,7 +1745,7 @@ export function AdminConsole({ data }: Props) {
                                   name, number and address are what the row is
                                   scanned for, so they carry the contrast. */}
                               <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Users className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-semibold">{i.customerName}</span></span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Users className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-semibold">{i.customerName}</span><SignInMark provider={i.signIn} /></span>
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{i.country}</span></span>
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{i.phone}</span></span>
                                 {i.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{i.email}</span></span>}
@@ -1785,7 +1790,7 @@ export function AdminConsole({ data }: Props) {
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-[13px] font-semibold leading-snug opacity-70 hover:text-brand-dark">{i.productName}</p>
                               <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Users className="h-3 w-3 shrink-0" /><span className="truncate">{i.customerName}</span></span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Users className="h-3 w-3 shrink-0" /><span className="truncate">{i.customerName}</span><SignInMark provider={i.signIn} /></span>
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{i.phone}</span></span>
                               </div>
                             </div>
@@ -2243,6 +2248,8 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
               {inquiry.email && <Row t={t} icon={Mail} label="Email" value={inquiry.email} />}
               <Row t={t} icon={Inbox} label="Received" value={fmtDateTime(inquiry.createdAt)} />
             </dl>
+            {/* The account behind it: how they sign in, and what the account itself says. */}
+            <InquiryAccount inquiry={inquiry} t={t} />
             {inquiry.message && (
               <div className={`mt-4 rounded-xl p-3 ${t.thumb}`}>
                 <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Message</p>
@@ -4150,6 +4157,173 @@ function StatusControl({ value, onChange, t, big }: { value: Status; onChange: (
   );
 }
 
+/** How someone signs in, in the office's words: Google, an AFFHAN account of their own, both, or a phone number. */
+function signInWords(provider: string) {
+  const google = provider.includes("GOOGLE");
+  const password = provider.includes("EMAIL");
+  const phone = provider.includes("PHONE");
+  if (google && password) return "Google, and an AFFHAN password";
+  if (google) return "Google";
+  if (password) return "AFFHAN account (email and password)";
+  if (phone) return "Phone number (one-time code)";
+  return readableProvider(provider);
+}
+
+/**
+ * How a signed-in customer signs in, as a small mark beside their name in the
+ * inquiry list: Google's G, a key for an AFFHAN password, a phone for a
+ * one-time code, side by side when the account has more than one. Nothing for
+ * a guest. Its title says it in words.
+ *
+ * One disc for all three, white with a hairline ring in either theme: Google's
+ * G is only shown on white, and the key and the phone match it so the three
+ * read as a set. On the console's grey chip they all but disappeared.
+ */
+function SignInMark({ provider }: { provider: string | null }) {
+  if (!provider) return null;
+  const google = provider.includes("GOOGLE");
+  const password = provider.includes("EMAIL");
+  const phone = provider.includes("PHONE");
+  const words = `Signs in with ${signInWords(provider)}`;
+  const disc = "flex h-4 w-4 items-center justify-center rounded-full bg-white text-[#3a3a3c] ring-1 ring-black/10";
+  return (
+    <span title={words} aria-label={words} role="img" className="inline-flex shrink-0 items-center gap-1">
+      {google && (
+        <span className={disc}>
+          <GoogleG size={10} />
+        </span>
+      )}
+      {password && (
+        <span className={disc}>
+          <KeyRound className="h-[11px] w-[11px]" strokeWidth={2.25} />
+        </span>
+      )}
+      {phone && (
+        <span className={disc}>
+          <Smartphone className="h-[11px] w-[11px]" strokeWidth={2.25} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+interface AccountFacts {
+  authProvider: string;
+  email: string | null;
+  emailVerified: boolean;
+  phone: string | null;
+  phoneVerified: boolean;
+  accountStatus: string;
+  loginCount: number;
+  lastLoginAt: string | null;
+  createdAt: string;
+  sessions: { platform: string | null; createdAt: string }[];
+}
+
+/**
+ * The account behind a signed-in inquiry, for the office (the owner's request
+ * of 2026-10-07): how they sign in (Google, an AFFHAN account, both, or a phone
+ * number), the account's own email and phone and whether each is verified,
+ * with a word when the email typed on the inquiry is a different one; when
+ * they joined, how often and when they last signed in, and whether on the
+ * website or the app; the account's status; and the way to its own page.
+ *
+ * Read when the inquiry is opened, from the admin-only route the account page
+ * itself uses, which never sends a password or a Google id. A guest's
+ * inquiry has no account behind it, and says so.
+ */
+function InquiryAccount({ inquiry, t }: { inquiry: Inquiry; t: Theme }) {
+  const [facts, setFacts] = useState<AccountFacts | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!inquiry.userId) return;
+    let live = true;
+    setFacts(null);
+    setFailed(false);
+    fetch(`/api/admin/mobile-users/${inquiry.userId}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((j: { user?: AccountFacts }) => {
+        if (!live) return;
+        if (j.user) setFacts(j.user);
+        else setFailed(true);
+      })
+      .catch(() => live && setFailed(true));
+    return () => {
+      live = false;
+    };
+  }, [inquiry.userId]);
+
+  const heading = <p className={`text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Signed in with</p>;
+  if (!inquiry.userId) {
+    return (
+      <div className={`mt-4 rounded-xl p-3 ${t.thumb}`}>
+        {heading}
+        <p className={`mt-1 text-sm font-medium ${t.mid}`}>Not signed in: sent as a guest, so there is no account behind it.</p>
+      </div>
+    );
+  }
+  const verified = (yes: boolean) =>
+    yes ? <span className="ml-1.5 text-[11px] font-semibold text-emerald-600">✓ Verified</span> : <span className={`ml-1.5 text-[11px] font-medium ${t.soft}`}>Not verified</span>;
+  const lastOn = facts?.sessions[0]?.platform === "APP" ? "the app" : facts?.sessions[0]?.platform === "WEB" ? "the website" : null;
+  const otherEmail = facts?.email && inquiry.email && facts.email.toLowerCase() !== inquiry.email.toLowerCase();
+  return (
+    <div className={`mt-4 rounded-xl p-3 ${t.thumb}`}>
+      <div className="flex items-center justify-between gap-3">
+        {heading}
+        <Link href={`/admin/users/${inquiry.userId}`} className={`inline-flex items-center gap-1 text-[12px] font-semibold hover:underline ${t.strong}`}>
+          Open account <ExternalLink className="h-3 w-3" />
+        </Link>
+      </div>
+      {!facts && !failed && <p className={`mt-1.5 text-sm ${t.soft}`}>Reading the account…</p>}
+      {failed && <p className="mt-1.5 text-sm font-medium text-red-600">Could not read the account just now. Open it from the link above.</p>}
+      {facts && (
+        <>
+          <p className={`mt-1.5 flex flex-wrap items-center gap-2 text-sm font-semibold ${t.strong}`}>
+            <SignInMark provider={facts.authProvider} />
+            {signInWords(facts.authProvider)}
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${facts.accountStatus === "ACTIVE" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"}`}>
+              {facts.accountStatus === "ACTIVE" ? "Active" : facts.accountStatus.charAt(0) + facts.accountStatus.slice(1).toLowerCase()}
+            </span>
+          </p>
+          <dl className="mt-2 grid gap-1.5 text-[13px]">
+            {facts.email && (
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <dt className={`w-[106px] shrink-0 text-xs uppercase tracking-wide ${t.soft}`}>Account email</dt>
+                <dd className={`min-w-0 break-words font-semibold ${t.strong}`}>
+                  {facts.email}
+                  {verified(facts.emailVerified)}
+                  {otherEmail && (
+                    <span className={`mt-0.5 flex items-start gap-1 text-[12px] font-medium ${t.mid}`}>
+                      <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0 text-amber-500" />
+                      <span className="min-w-0 break-words">Not the email typed on this inquiry ({inquiry.email}).</span>
+                    </span>
+                  )}
+                </dd>
+              </div>
+            )}
+            {facts.phone && (
+              <div className="flex flex-wrap items-baseline gap-x-2">
+                <dt className={`w-[106px] shrink-0 text-xs uppercase tracking-wide ${t.soft}`}>Account phone</dt>
+                <dd className={`min-w-0 break-words font-semibold tabular-nums ${t.strong}`}>
+                  {facts.phone}
+                  {verified(facts.phoneVerified)}
+                </dd>
+              </div>
+            )}
+          </dl>
+          <p className={`mt-2 text-[12.5px] ${t.mid}`}>
+            Joined {fmtDate(facts.createdAt)}
+            {" · "}
+            {facts.lastLoginAt ? `last signed in ${timeAgo(facts.lastLoginAt)}${lastOn ? `, on ${lastOn}` : ""}` : "never signed in since joining"}
+            {" · "}
+            {facts.loginCount === 1 ? "1 sign-in" : `${facts.loginCount.toLocaleString("en-IN")} sign-ins`}
+          </p>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Row({ icon: Icon, label, value, t }: { icon: LucideIcon; label: string; value: string; t?: Theme }) {
   return (
     // items-start, because a long value now wraps to a second line and the
@@ -4276,6 +4450,11 @@ function CustomerGroupRow({
                 >
                   {g.customerName}
                 </button>
+                {g.signIn && (
+                  <span className="relative">
+                    <SignInMark provider={g.signIn} />
+                  </span>
+                )}
                 {code && (
                   <span className="relative">
                     <CustomerCodeBadge code={code} chip={t.chip} />
@@ -4556,8 +4735,9 @@ function AllSection({
                         <Users className="h-4 w-4" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        <p className={`line-clamp-2 break-words text-[14px] font-semibold leading-snug sm:line-clamp-1 sm:text-[13.5px] ${t.strong}`}>
-                          {g.customerName}
+                        <p className={`flex min-w-0 items-center gap-1.5 text-[14px] font-semibold leading-snug sm:text-[13.5px] ${t.strong}`}>
+                          <span className="line-clamp-2 break-words sm:line-clamp-1">{g.customerName}</span>
+                          <SignInMark provider={g.signIn} />
                         </p>
                         {g.altNames.length > 0 && (
                           <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>

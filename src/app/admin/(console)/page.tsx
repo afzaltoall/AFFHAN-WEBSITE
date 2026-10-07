@@ -72,7 +72,9 @@ export default async function AdminPage() {
       prisma.inquiry.findMany({
         orderBy: { createdAt: "desc" },
         take: 5500,
-        include: { product: { select: { imageUrl: true } } },
+        // How the customer signs in, for the mark beside their name (one short word, and only for the
+        // signed-in few); the rest of their account is read when an inquiry is opened.
+        include: { product: { select: { imageUrl: true } }, user: { select: { authProvider: true } } },
       }),
       prisma.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 400 }),
       // The country filter's option list, and the counts behind the
@@ -185,6 +187,7 @@ export default async function AdminPage() {
     message: i.message,
     status: i.status,
     userId: i.userId,
+    signIn: i.user?.authProvider ?? null,
     assignedToId: i.assignedToId,
     lastStatus: outcomeByLead.get(`inquiry:${i.id}`) ?? null,
     customerStatus: i.customerStatus,

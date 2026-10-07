@@ -45,6 +45,8 @@ export interface GroupableInquiry {
   assignedToId?: string | null;
   /** Its newest sales outcome, so the customer can show where they stand. */
   lastStatus?: GroupedOutcome | null;
+  /** How the account it was sent from signs in (MobileUser.authProvider); null for a guest. */
+  signIn?: string | null;
 }
 
 /** One product line inside a grouped customer. */
@@ -67,6 +69,8 @@ export interface GroupedProduct {
   assignedToId?: string | null;
   /** Its own newest outcome, which can differ from the customer's newest. */
   lastStatus?: GroupedOutcome | null;
+  /** How the account it was sent from signs in; null for a guest. */
+  signIn?: string | null;
 }
 
 /** A single de-duplicated customer with all of their inquiries folded in. */
@@ -99,6 +103,12 @@ export interface CustomerGroup {
   assignees: (string | null)[];
   /** The newest outcome across their products, whichever product it was on. */
   lastStatus: GroupedOutcome | null;
+  /**
+   * How they sign in, from the newest of their inquiries sent signed in; null
+   * when every one came as a guest. For the console's mark beside the name;
+   * the export does not carry it.
+   */
+  signIn: string | null;
 }
 
 /**
@@ -169,6 +179,7 @@ export function groupCustomers(rows: GroupableInquiry[]): CustomerGroup[] {
         inquiryIds: [],
         assignees: [],
         lastStatus: null,
+        signIn: null,
       };
       map.set(key, g);
     }
@@ -193,6 +204,7 @@ export function groupCustomers(rows: GroupableInquiry[]): CustomerGroup[] {
       message: r.message ?? null,
       assignedToId: r.assignedToId ?? null,
       lastStatus: r.lastStatus ?? null,
+      signIn: r.signIn ?? null,
     });
     g.totalQuantity += r.quantity || 0;
     g.inquiryCount += 1;
@@ -210,6 +222,7 @@ export function groupCustomers(rows: GroupableInquiry[]): CustomerGroup[] {
   groups.forEach((g) => {
     g.products.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     g.inquiryIds = g.products.map((p) => p.inquiryId).filter((id): id is string => Boolean(id));
+    g.signIn = g.products.find((p) => p.signIn)?.signIn ?? null;
   });
   groups.sort((a, b) => (a.lastInquiry < b.lastInquiry ? 1 : -1));
   return groups;
