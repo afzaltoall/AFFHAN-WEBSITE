@@ -133,11 +133,18 @@ export function DepartureBoard({ rows, total, loaded, failed }: { rows: Particip
 
   const line = (r: ParticipantRow, i: number) => {
     const isNew = fresh.has(r.ref);
+    // The lines "Show all" opens: in at once, one after another (registered.css, .tr-row-more), so
+    // the board never opens onto an empty panel while they wait their turn.
+    const more = all && i >= SHOWN && !isNew;
     // Down the board in turn: the visitor's own, kept under the six, right after them; the lines
-    // "Show all" opens, in turn from the first of them.
-    const delay = isNew ? 0 : (all ? (i < SHOWN ? i : i - SHOWN) : Math.min(i, SHOWN)) * 85;
+    // "Show all" opens, in turn from the first of them, quicker.
+    const delay = isNew ? 0 : more ? (i - SHOWN) * 45 : Math.min(i, SHOWN) * 85;
     return (
-      <li key={r.ref} className={`tr-row ${r.you ? "tr-row-you" : ""} ${isNew ? "tr-row-new" : ""}`} style={{ ["--i" as string]: Math.min(i, 12) }}>
+      <li
+        key={r.ref}
+        className={`tr-row ${r.you ? "tr-row-you" : ""} ${isNew ? "tr-row-new" : ""} ${more ? "tr-row-more" : ""}`}
+        style={{ ["--i" as string]: Math.min(i, 12), ["--k" as string]: more ? i - SHOWN : 0 }}
+      >
         <span className="tr-row-id">
           <FlapId text={r.ref} play={isNew || seenOnce} delay={delay} />
           {r.you && <span className="tr-row-you-tag">{B.you}</span>}

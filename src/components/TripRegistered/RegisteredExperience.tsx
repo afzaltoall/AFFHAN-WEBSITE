@@ -336,7 +336,8 @@ export function RegisteredExperience() {
           </section>
         </div>
 
-        {/* The draw: five seats, and the day. */}
+        {/* The draw: the five seats, and the day. On a wide screen the words and the clock on the left,
+            the aircraft on the right; on a phone the aircraft between them (registered.css, .tr-draw-grid). */}
         <section className="tr-panel tr-draw tr-in mt-6 lg:mt-8" style={{ ["--d" as string]: "0.32s" }} aria-labelledby="tr-draw-title">
           <div className="tr-draw-grid">
             <div className="tr-draw-places">
@@ -345,8 +346,8 @@ export function RegisteredExperience() {
                 {P.title}
               </h2>
               <p className="tr-draw-line">{P.line}</p>
-              <FlightSeats lit={P.flight.lit} label={P.flight.label} />
             </div>
+            <FlightSeats lit={P.flight.lit} label={P.flight.label} note={P.flight.note} />
             <div className="tr-draw-when">
               <p className="tr-pool-when">
                 {P.announced} · <span className="whitespace-nowrap text-(--cx-gold-hi)">{P.date}</span>

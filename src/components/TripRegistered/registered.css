@@ -189,8 +189,9 @@
   /* The heading keeps to its column, on one line. */
   .tr-title { font-size: clamp(48px, calc(5.6vw - 8px), 80px); }
 }
-/* The pass fills its row, so it and the globe end together. */
-.tr-pass-wrap { display: flex; }
+/* The pass at its own height, a boarding pass's proportions: stretched to the globe's height beside
+   it, it stood 540px tall with its fields far apart (the owner, 2026-10-07: "ticket looks very big"). */
+.tr-pass-wrap { display: flex; align-self: start; }
 .tr-pass-wrap > .tr-pass { flex: 1; }
 /* Before it is known who is reading: the row keeps its height, and shows nothing. */
 .tr-apply-wait {
@@ -220,9 +221,9 @@
   text-wrap: balance;
   color: var(--cx-white);
 }
-/* Square, as wide as it may be; on a wide screen it also takes any height the heading and the pass
-   leave it (and, larger than they are, makes the pass as tall). The canvas (DrawGlobe) takes the
-   largest square that fits, in the middle. */
+/* Square, as wide as it may be; on a wide screen, all the height the heading and the pass leave it
+   and no more, so the globe never makes the pass taller. The canvas (DrawGlobe) takes the largest
+   square that fits, in the middle. */
 .tr-globe-wrap {
   position: relative;
   width: 100%;
@@ -231,7 +232,8 @@
   margin-top: 0.4rem;
 }
 @media (min-width: 1024px) {
-  .tr-globe-wrap { flex: 1 0 auto; max-width: 560px; }
+  .tr-globe-wrap { flex: 1 1 0; min-height: 300px; max-width: 560px; aspect-ratio: auto; }
+  .tr-globe-title { font-size: clamp(20px, 1.7vw, 26px); }
 }
 .tr-globe-canvas {
   position: absolute;
@@ -252,20 +254,33 @@
   text-wrap: balance;
 }
 
-/* ---- The draw: five seats, the countdown, the day --------------------------------------- */
+/* ---- The draw: the five seats, the countdown, the day ----------------------------------- */
 /* Above the live panel, so the calendar's menu opens over it. */
 .tr-draw { z-index: 2; }
+/* A phone: the words, the aircraft, then the clock. A wide screen: the words over the clock on the
+   left, the aircraft on the right, the two halves level about their middle. */
 .tr-draw-grid {
   display: grid;
-  gap: 1.6rem;
+  grid-template-areas: "text" "plane" "when";
+  gap: 1.4rem;
+}
+.tr-draw-places { grid-area: text; }
+.tr-draw-grid > .tr-fs { grid-area: plane; }
+.tr-draw-when {
+  grid-area: when;
+  padding-top: 1.4rem;
+  border-top: 1px solid rgb(244 239 230 / 0.08);
 }
 @media (min-width: 1024px) {
-  .tr-draw-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 0; align-items: center; }
-  .tr-draw-places { padding-right: 2.25rem; }
-  .tr-draw-when { padding-left: 2.25rem; border-left: 1px solid rgb(244 239 230 / 0.08); }
-}
-@media (max-width: 1023px) {
-  .tr-draw-when { padding-top: 1.4rem; border-top: 1px solid rgb(244 239 230 / 0.08); }
+  .tr-draw-grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-rows: 1fr 1fr;
+    grid-template-areas: "text plane" "when plane";
+    gap: 1.5rem 2.5rem;
+    align-items: center;
+  }
+  .tr-draw-places { align-self: end; }
+  .tr-draw-when { align-self: start; }
 }
 .tr-draw-title {
   margin-top: 0.6rem;
@@ -284,54 +299,113 @@
   line-height: 1.5;
   color: var(--cx-mute);
 }
-/* The aircraft in flight, its five windows lit (FlightSeats): the clouds go by beneath and above
-   it at three speeds, it rides the air, a light passes from one lit window to the next, a sheen
-   runs along it, its beacon blinks. All of it still under reduced motion. */
+/* The aircraft that will fly the winners, five of its windows lit (FlightSeats): the film's own
+   airliner, alive as in the film (PlaneLife, cinematic.css). It flies in the first time it is seen,
+   then rides the air; a light passes from one lit window to the next; the note pointing to them
+   comes up once it is in. All of it in place and still under reduced motion. */
 .tr-fs {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+}
+/* A warm light behind it, so it sits in the panel's night rather than on it. */
+.tr-fs::before {
+  content: "";
+  position: absolute;
+  inset: 2% 4% 4% 22%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(242 196 112 / 0.18), transparent 74%);
+  pointer-events: none;
+}
+.tr-fs-fly,
+.tr-fs-plane { position: relative; }
+.tr-fs-image {
   display: block;
   width: 100%;
-  max-width: 680px;
   height: auto;
-  margin-top: 0.9rem;
+  user-select: none;
+}
+/* A lit window: a warm light on its glass, blended as screen, so it shows on the dark window and
+   hardly at all on the white fuselage round it. The box is centred on the window, which is 12 x 22
+   of the picture's 1600 x 900. */
+.tr-fs-window {
+  position: absolute;
+  width: 3.2%;
+  aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.tr-fs-halo,
+.tr-fs-pane {
+  position: absolute;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+}
+.tr-fs-halo {
+  inset: -22%;
+  opacity: 0.7;
+  background: radial-gradient(closest-side, rgb(255 214 140 / 0.5), rgb(255 186 96 / 0.16) 56%, transparent 76%);
+}
+.tr-fs-pane {
+  left: 50%;
+  top: 50%;
+  width: 26%;
+  height: 46%;
+  transform: translate(-50%, -50%) rotate(12deg);
+  background: radial-gradient(closest-side, #fff6dc, #ffd98d 58%, rgb(255 196 104 / 0.35));
+}
+/* The note, and the line from it to the lit windows. */
+.tr-fs-leader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   overflow: visible;
+  pointer-events: none;
 }
-.tr-fs-halo { opacity: 0.7; }
+.tr-fs-leader path { stroke: rgb(242 211 142 / 0.8); stroke-width: 1.2px; }
+.tr-fs-leader circle { fill: #f2d38e; }
+.tr-fs-note {
+  position: absolute;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  padding: 0.32rem 0.75rem;
+  background: rgb(14 11 16 / 0.84);
+  box-shadow: inset 0 0 0 1px rgb(242 211 142 / 0.5), 0 10px 24px -12px rgb(0 0 0 / 0.8);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--cx-gold-hi);
+}
+@media (max-width: 520px) {
+  .tr-fs-note { padding: 0.25rem 0.55rem; font-size: 9px; letter-spacing: 0.12em; }
+}
 @media (prefers-reduced-motion: no-preference) {
-  .tr-fs-clouds { animation: tr-fs-drift 44s linear infinite; }
-  .tr-fs-high { animation-duration: 90s; }
-  .tr-fs-front { animation-duration: 21s; }
-  .tr-fs-plane {
-    transform-box: view-box;
-    transform-origin: 340px 125px;
-    animation: tr-fs-ride 7s ease-in-out infinite;
+  .tr-fs-fly {
+    opacity: 0;
+    transform: translate3d(-9%, 7%, 0) scale(0.93) rotate(2deg);
+    transition: opacity 0.9s ease, transform 1.8s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .tr-fs-trail {
-    stroke-dasharray: 26 14;
-    animation: tr-fs-trail 0.9s linear infinite;
+  .tr-fs.is-arrived .tr-fs-fly { opacity: 1; transform: none; }
+  .tr-fs-plane { animation: tr-fs-ride 8s ease-in-out infinite; }
+  .tr-fs-halo { animation: tr-fs-light 7.5s ease-in-out calc(1.6s + var(--i) * 0.55s) infinite; }
+  .tr-fs-note,
+  .tr-fs-leader {
+    opacity: 0;
+    transition: opacity 0.6s ease 1.5s;
   }
-  .tr-fs-halo { animation: tr-fs-light 7.5s ease-in-out calc(1.2s + var(--i) * 0.55s) infinite; }
-  .tr-fs-sheen { animation: tr-fs-sheen 8s cubic-bezier(0.45, 0, 0.3, 1) 2.5s infinite; }
-  .tr-fs-beacon { animation: tr-fs-beacon 1.6s steps(1, end) infinite; }
+  .tr-fs.is-arrived .tr-fs-note,
+  .tr-fs.is-arrived .tr-fs-leader { opacity: 1; }
 }
-@keyframes tr-fs-drift { to { transform: translateX(-680px); } }
 @keyframes tr-fs-ride {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50% { transform: translateY(-3.5px) rotate(-0.4deg); }
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0.6%, -2.2%, 0) rotate(-0.7deg); }
 }
-/* Away from the engine: the path starts there. */
-@keyframes tr-fs-trail { to { stroke-dashoffset: -40; } }
 @keyframes tr-fs-light {
   0%, 34%, 100% { opacity: 0.7; }
   14% { opacity: 1; }
-}
-@keyframes tr-fs-sheen {
-  0% { transform: translateX(0); }
-  55%, 100% { transform: translateX(860px); }
-}
-@keyframes tr-fs-beacon {
-  0%, 100% { opacity: 0.25; }
-  8% { opacity: 1; }
-  16% { opacity: 0.25; }
 }
 .tr-pool-when {
   font-size: 11px;
@@ -675,11 +749,15 @@
   transform-origin: 50% 0;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .tr-row:not(.tr-row-new):not(.tr-row-skeleton) { animation: tr-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) calc(0.45s + var(--i, 0) * 0.06s) both; }
+  .tr-row:not(.tr-row-new):not(.tr-row-skeleton):not(.tr-row-more) { animation: tr-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) calc(0.45s + var(--i, 0) * 0.06s) both; }
+  /* The lines "Show all" opens: in at once, a ripple down them, no wait and no blur (they used to
+     wait their turn behind the page's own entrance, unseen, while the panel had already grown). */
+  .tr-row-more { animation: tr-row-open 0.32s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--k, 0) * 0.03s) both; }
   /* A line that arrives while the page is open flips down into place, lit. */
   .tr-row-new { animation: tr-flip 0.9s cubic-bezier(0.22, 1, 0.36, 1) both, tr-lit 2.4s ease-out both; }
 }
 @keyframes tr-flip { from { opacity: 0; transform: rotateX(-88deg); } }
+@keyframes tr-row-open { from { opacity: 0; transform: translateY(6px); } }
 @keyframes tr-lit {
   0% { background: rgb(214 168 78 / 0.3); box-shadow: 0 0 30px -6px rgb(242 211 142 / 0.6); }
   100% { background: transparent; box-shadow: none; }

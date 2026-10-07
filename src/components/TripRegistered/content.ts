@@ -66,10 +66,11 @@ export const REGISTERED = {
     eyebrow: "The draw",
     title: `${TRIP_FACTS.winners} places`,
     line: "Five seats on the trip to China, drawn at random from the eligible applications.",
-    /** The places as the aircraft's lit windows (FlightSeats): one for each, the Terms' own number. */
+    /** The places as the aircraft's lit windows (FlightSeats): one for each, the Terms' own number, and the note pointing to them. */
     flight: {
       lit: TRIP_FACTS.winners,
       label: `The aircraft to China, ${TRIP_FACTS.winners} of its windows lit: ${TRIP_FACTS.winners} seats, each still to be drawn`,
+      note: `${TRIP_FACTS.winners} seats, still to be drawn`,
     },
     announced: "Winners announced",
     date: TRIP_FACTS.winnersAnnounced,

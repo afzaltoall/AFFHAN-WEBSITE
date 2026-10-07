@@ -54,7 +54,7 @@ function Fan({ fan }: { fan: (typeof PLANE_PARTS.fans)[number] }) {
   );
 }
 
-function PlaneLife() {
+export function PlaneLife() {
   return (
     <span aria-hidden className="pointer-events-none absolute inset-0">
       {PLANE_PARTS.fans.map((fan) => (
