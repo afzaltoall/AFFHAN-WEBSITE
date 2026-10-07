@@ -1,7 +1,8 @@
 /* /free-china-trip/registered/ (RegisteredExperience): the participants board.
    Tokens come from the film's .cx block (cinematic.css): the same black, gold
-   and crimson as the landing page and the application. Two rows under the
-   heading: the pass beside the draw, then one live panel for everyone. */
+   and crimson as the landing page and the application. The heading with the
+   pass under it and the globe beside both; the draw; then one live panel for
+   everyone. */
 
 .tr {
   background: #050406;
@@ -154,14 +155,41 @@
 }
 @media (prefers-reduced-motion: no-preference) {
   .tr-live-dot { animation: tr-pulse 1.8s ease-out infinite; }
+  /* Each read of the board: a blink, then the pulse again. */
+  .tr-live-dot.is-beat { animation: tr-beat 0.8s ease-out, tr-pulse 1.8s ease-out 0.8s infinite; }
+}
+@keyframes tr-beat {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgb(91 227 155 / 0.85); }
+  35% { transform: scale(1.7); }
+  100% { transform: scale(1); box-shadow: 0 0 0 12px rgb(91 227 155 / 0); }
 }
 @keyframes tr-pulse {
   0% { box-shadow: 0 0 0 0 rgb(91 227 155 / 0.55); }
   100% { box-shadow: 0 0 0 9px rgb(91 227 155 / 0); }
 }
 
-/* ---- The first row: the pass, the draw ---------------------------------------------------- */
-/* The pass fills its row, so the two end together. */
+/* ---- The top: the heading, the pass under it, the globe beside both ------------------------ */
+.tr-top {
+  display: grid;
+  grid-template-areas: "head" "pass" "globe";
+  row-gap: 2rem;
+}
+.tr-head { grid-area: head; }
+.tr-pass-wrap,
+.tr-apply { grid-area: pass; }
+.tr-globe { grid-area: globe; }
+@media (min-width: 1024px) {
+  .tr-top {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "head globe" "pass globe";
+    column-gap: 2rem;
+    row-gap: 2.5rem;
+  }
+  /* The heading keeps to its column, on one line. */
+  .tr-title { font-size: clamp(48px, calc(5.6vw - 8px), 80px); }
+}
+/* The pass fills its row, so it and the globe end together. */
 .tr-pass-wrap { display: flex; }
 .tr-pass-wrap > .tr-pass { flex: 1; }
 /* Before it is known who is reading: the row keeps its height, and shows nothing. */
@@ -174,12 +202,70 @@
 }
 .tr-apply-wait::before { display: none; }
 
-/* ---- The draw: five places, the countdown, the day -------------------------------------- */
-/* Above the live panel, so the calendar's menu opens over it. */
-.tr-draw {
-  z-index: 2;
+/* ---- The globe: a ticket in it for each registration (DrawGlobe) ------------------------- */
+.tr-globe {
   display: flex;
+  min-width: 0;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.tr-globe-title {
+  margin-top: 0.5rem;
+  font-variation-settings: "opsz" 11;
+  font-size: clamp(24px, 5vw, 30px);
+  font-weight: 400;
+  line-height: 1.1;
+  text-transform: uppercase;
+  text-wrap: balance;
+  color: var(--cx-white);
+}
+/* Square, as wide as it may be; on a wide screen it also takes any height the heading and the pass
+   leave it (and, larger than they are, makes the pass as tall). The canvas (DrawGlobe) takes the
+   largest square that fits, in the middle. */
+.tr-globe-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  aspect-ratio: 1;
+  margin-top: 0.4rem;
+}
+@media (min-width: 1024px) {
+  .tr-globe-wrap { flex: 1 0 auto; max-width: 560px; }
+}
+.tr-globe-canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
+  display: block;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.tr-globe-line {
+  max-width: 24rem;
+  margin-top: 0.2rem;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cx-mute);
+  text-wrap: balance;
+}
+
+/* ---- The draw: five seats, the countdown, the day --------------------------------------- */
+/* Above the live panel, so the calendar's menu opens over it. */
+.tr-draw { z-index: 2; }
+.tr-draw-grid {
+  display: grid;
+  gap: 1.6rem;
+}
+@media (min-width: 1024px) {
+  .tr-draw-grid { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 0; align-items: center; }
+  .tr-draw-places { padding-right: 2.25rem; }
+  .tr-draw-when { padding-left: 2.25rem; border-left: 1px solid rgb(244 239 230 / 0.08); }
+}
+@media (max-width: 1023px) {
+  .tr-draw-when { padding-top: 1.4rem; border-top: 1px solid rgb(244 239 230 / 0.08); }
 }
 .tr-draw-title {
   margin-top: 0.6rem;
@@ -192,63 +278,39 @@
   color: var(--cx-white);
 }
 .tr-draw-line {
+  max-width: 34rem;
   margin-top: 0.5rem;
   font-size: 14px;
   line-height: 1.5;
   color: var(--cx-mute);
 }
-/* Five golden tickets, a light running along them now and then. */
-.tr-tickets {
-  margin-top: 1.15rem;
-  display: grid;
-  max-width: 24rem;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.55rem;
+/* One row of the cabin, five seats in it (SeatRow): a light passes along them, one after another. */
+.tr-seats-svg {
+  display: block;
+  width: 100%;
+  max-width: 560px;
+  height: auto;
+  margin-top: 1.1rem;
 }
-.tr-ticket {
-  filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.5));
-  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+.tr-seat-code {
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-variation-settings: "opsz" 11;
+  font-size: 22px;
+  fill: var(--cx-gold-hi);
 }
+.tr-seats-row {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  fill: rgb(244 239 230 / 0.4);
+}
+.tr-seat-glow { opacity: 0; }
 @media (prefers-reduced-motion: no-preference) {
-  .tr-ticket { animation: tr-deal 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.25) calc(0.6s + var(--i) * 0.11s) backwards; }
-  .tr-ticket:hover { transform: translateY(-4px) rotate(-3deg); }
+  .tr-seat-glow { animation: tr-seat-wait 6s ease-in-out calc(1s + var(--i) * 0.45s) infinite; }
 }
-@keyframes tr-deal { from { opacity: 0; transform: translate(-22px, 12px) rotate(-12deg) scale(0.9); } }
-.tr-ticket-face {
-  position: relative;
-  display: grid;
-  height: 3rem;
-  place-items: center;
-  overflow: hidden;
-  border-radius: 8px;
-  color: #6b4a14;
-  background: linear-gradient(135deg, #fbf0d6 0%, #efd6a2 45%, #d6ad64 100%);
-  /* The notches either side, as a ticket's. */
-  -webkit-mask:
-    radial-gradient(circle at 0 50%, #0000 6px, #000 6.5px) left / 51% 100% no-repeat,
-    radial-gradient(circle at 100% 50%, #0000 6px, #000 6.5px) right / 51% 100% no-repeat;
-  mask:
-    radial-gradient(circle at 0 50%, #0000 6px, #000 6.5px) left / 51% 100% no-repeat,
-    radial-gradient(circle at 100% 50%, #0000 6px, #000 6.5px) right / 51% 100% no-repeat;
-}
-.tr-ticket-face::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.6) 50%, transparent 65%);
-  transform: translateX(-120%);
-}
-@media (prefers-reduced-motion: no-preference) {
-  .tr-ticket-face::after { animation: tr-ticket-light 6s ease-in-out calc(1.4s + var(--i) * 0.16s) infinite; }
-}
-@keyframes tr-ticket-light {
-  0%, 64% { transform: translateX(-120%); }
-  84%, 100% { transform: translateX(120%); }
-}
-/* At the foot of the panel, however tall the row. */
-.tr-draw-when {
-  margin-top: auto;
-  padding-top: 1.4rem;
+@keyframes tr-seat-wait {
+  0%, 30%, 100% { opacity: 0; }
+  15% { opacity: 1; }
 }
 .tr-pool-when {
   font-size: 11px;
@@ -1071,6 +1133,121 @@
 .tr-links a:first-child { color: var(--cx-gold); }
 .tr-links a:hover { color: var(--cx-white); text-decoration: underline; }
 .tr-links a:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 4px; }
+
+/* ---- Registrations arriving: their messages at the foot of the screen --------------------- */
+.tr-toasts {
+  position: fixed;
+  left: 1rem;
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 150;
+  display: flex;
+  width: min(22rem, calc(100vw - 6.5rem));
+  flex-direction: column;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+.tr-toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow: hidden;
+  border-radius: 16px;
+  padding: 0.7rem 0.9rem;
+  background: rgb(18 14 20 / 0.94);
+  box-shadow: 0 18px 44px -18px rgb(0 0 0 / 0.9), inset 0 0 0 1px rgb(242 211 142 / 0.28);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--cx-white);
+}
+.tr-toast.is-mine {
+  box-shadow: 0 18px 44px -18px rgb(0 0 0 / 0.9), inset 0 0 0 1px rgb(242 211 142 / 0.65), 0 0 34px -10px rgb(242 211 142 / 0.6);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-toast { animation: tr-toast-in 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; }
+}
+@keyframes tr-toast-in { from { opacity: 0; transform: translateX(-24px) scale(0.96); } }
+.tr-toast-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #f6dfa6, #d6a84e);
+  color: #1b1307;
+}
+.tr-toast-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.tr-toast-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cx-gold-hi);
+}
+.tr-toast-line {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.45rem;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* How long it has left. */
+.tr-toast-time {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #d6a84e, #f2d38e);
+  transform-origin: 0 50%;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-toast-time { animation: tr-toast-time var(--ms, 6500ms) linear both; }
+}
+@keyframes tr-toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* The visitor's ticket on its way from the pass to the globe (ticketFlight.ts): over everything,
+   its notches the dark of the page it crosses. */
+.tr-flying-ticket {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 80;
+  display: grid;
+  width: 118px;
+  height: 56px;
+  place-items: center;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #fff3d6 0%, #f0d48e 45%, #d4a54e 100%);
+  box-shadow: 0 14px 30px -10px rgb(0 0 0 / 0.75), 0 0 26px -4px rgb(255 220 140 / 0.75);
+  color: #2a1d0a;
+  font: 800 11px/1 var(--font-sans);
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+.tr-flying-ticket::before,
+.tr-flying-ticket::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin-top: -7px;
+  border-radius: 999px;
+  background: #0b090c;
+}
+.tr-flying-ticket::before { left: -7px; }
+.tr-flying-ticket::after { right: -7px; }
 
 @media (prefers-reduced-motion: reduce) {
   .tr-wash, .tr-arrive { animation: none; }

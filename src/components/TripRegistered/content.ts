@@ -37,11 +37,38 @@ export const REGISTERED = {
     lastHour: (n: number) => `${n.toLocaleString("en-IN")} in the last hour`,
     from: "From",
     moreCountries: (n: number) => `and ${n} more ${n === 1 ? "country" : "countries"}`,
+    /**
+     * A registration arriving while the page is open, or, on arriving, one of the day's last few
+     * told as it was, with its real time ("4 min ago", DepartureBoard's `ago`). Anonymous, as the
+     * board (Privacy Policy, sections 5 and 12).
+     */
+    toast: {
+      title: "Just registered",
+      earlier: (when: string) => `Registered ${when}`,
+      line: (ref: string, country: string) => `${ref} from ${country}`,
+      mineTitle: "You're in the draw",
+      mine: (ref: string) => `Your ticket ${ref} is in the globe`,
+    },
+    /** The LIVE pill's title: when the board last asked. */
+    checked: "Checked a moment ago; it asks again every few seconds.",
+  },
+  /** The draw globe: one ticket in it for each registration (DrawGlobe). */
+  globe: {
+    eyebrow: "In the draw",
+    title: "Every registration, a ticket",
+    mine: "Yours is the one that glows.",
+    line: `${TRIP_FACTS.winners} are drawn at random from the eligible applications on ${TRIP_FACTS.winnersAnnounced}.`,
+    label: (n: number, mine: boolean) =>
+      `A glass globe holding a ticket for each of the ${n.toLocaleString("en-IN")} registrations${mine ? ", yours among them" : ""}.`,
+    shake: "Press to stir the globe",
   },
   pool: {
     eyebrow: "The draw",
     title: `${TRIP_FACTS.winners} places`,
-    line: "Drawn at random from the eligible applications.",
+    line: "Five seats on the trip to China, drawn at random from the eligible applications.",
+    /** The five places, as seats in one row of the cabin: a name for each, not a rank. */
+    seats: ["1A", "1B", "1C", "1D", "1E"],
+    seatsLabel: "Five seats, 1A to 1E, each still to be drawn",
     announced: "Winners announced",
     date: TRIP_FACTS.winnersAnnounced,
     units: ["Days", "Hours", "Min", "Sec"],
