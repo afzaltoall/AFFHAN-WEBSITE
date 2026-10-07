@@ -45,10 +45,6 @@ interface Sim {
   tickets: Ticket[];
   queue: boolean[];
   size: number;
-  spin: number;
-  spinTarget: number;
-  boost: number;
-  turn: number;
   flash: number;
   lastPour: number;
   /** The lid: 0 shut, 1 open (a spring, so it overshoots a little), and until when it is held open. */
@@ -118,8 +114,7 @@ const ease = (x: number) => {
  * mixed: air rises through the middle of the globe like a fountain, lifts
  * them off the heap, turning them over slowly, carries them out along the
  * top and down the sides, and they float back down, swinging like leaves,
- * to lie flat again. A pointer on it turns its lines faster; a press mixes
- * them.
+ * to lie flat again. A press mixes them.
  *
  * Drawn on a canvas with a little physics, on its own clock (STEP): gravity,
  * the air, the glass, and the tickets resting on each other. Each kind of
@@ -181,10 +176,6 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         tickets: [],
         queue,
         size: 0,
-        spin: 0.45,
-        spinTarget: 0.45,
-        boost: 0,
-        turn: 0,
         flash: 0,
         lastPour: 0,
         lid: 0,
@@ -299,7 +290,6 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
           s.tickets.push({ ...ticket, x: cx + Math.cos(ang) * rr * 0.9, y: cy + Math.sin(ang) * rr * 0.75, vx: 0, vy: 0, rest: 1, entering: false });
         } else {
           s.tickets.push({ ...ticket, x: cx + (Math.random() - 0.5) * R * 0.06, y: cy - R - th * 1.5, vx: 0, vy: R * 1.4, rest: 0, entering: true });
-          s.boost = Math.max(s.boost, isMine ? 1.4 : 0.6);
           s.flash = 1;
           s.lidUntil = Math.max(s.lidUntil, now + LID_HOLD);
         }
@@ -414,56 +404,21 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         const { tw, th } = ticketSize();
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, S, S);
-        const foot = Math.min(S - 6, cy + R * 1.3);
+        const foot = Math.min(S - 4, cy + R * 1.5);
+        // Polished gold, as the light falls on a turned piece: dark at its edges, bright down its middle.
+        const metal = metalAcross(ctx, cx - R * 0.6, cx + R * 0.6);
 
-        // Gold light about the globe, brighter for a moment as a ticket comes in, and the pool of
-        // it on the floor under the stand.
+        // Gold light about the globe, brighter for a moment as a ticket comes in; on the floor
+        // under the stand, a pool of that light and the stand's own shadow in it.
         const halo = ctx.createRadialGradient(cx, cy, R * 0.85, cx, cy, S * 0.5);
         halo.addColorStop(0, `rgba(242, 200, 120, ${0.16 + 0.12 * s.flash + 0.06 * s.air})`);
         halo.addColorStop(1, "rgba(242, 200, 120, 0)");
         ctx.fillStyle = halo;
         ctx.fillRect(0, 0, S, S);
-        ctx.save();
-        ctx.translate(cx, foot - R * 0.03);
-        ctx.scale(1, 0.18);
-        const pool = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.95);
-        pool.addColorStop(0, "rgba(255, 214, 140, 0.3)");
-        pool.addColorStop(1, "rgba(255, 214, 140, 0)");
-        ctx.fillStyle = pool;
-        ctx.beginPath();
-        ctx.arc(0, 0, R * 0.95, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        floor(ctx, cx, foot, R);
 
-        // The stand: a neck and a wide foot, in polished gold.
-        const metal = ctx.createLinearGradient(cx - R * 0.6, 0, cx + R * 0.6, 0);
-        metal.addColorStop(0, "#6f5018");
-        metal.addColorStop(0.35, "#e6c06a");
-        metal.addColorStop(0.5, "#fff0c4");
-        metal.addColorStop(0.65, "#d4a548");
-        metal.addColorStop(1, "#6f5018");
-        ctx.fillStyle = metal;
-        const neckTop = cy + R * 0.93;
-        ctx.beginPath();
-        ctx.moveTo(cx - R * 0.16, neckTop);
-        ctx.lineTo(cx + R * 0.16, neckTop);
-        ctx.lineTo(cx + R * 0.28, foot - R * 0.06);
-        ctx.lineTo(cx - R * 0.28, foot - R * 0.06);
-        ctx.closePath();
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(cx, foot - R * 0.04, R * 0.6, R * 0.085, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = "rgba(0,0,0,0.25)";
-        ctx.beginPath();
-        ctx.ellipse(cx, foot - R * 0.075, R * 0.5, R * 0.035, 0, 0, Math.PI * 2);
-        ctx.fill();
-        // The collar the globe sits in.
-        ctx.strokeStyle = metal;
-        ctx.lineWidth = Math.max(2, R * 0.035);
-        ctx.beginPath();
-        ctx.arc(cx, cy, R * 1.02, Math.PI * 0.22, Math.PI * 0.78);
-        ctx.stroke();
+        // The stand: a stepped base and a turned stem, behind the globe.
+        stand(ctx, cx, cy, R, foot);
 
         // The glass, clear and touched with gold: lit from below by the stand, brightest at its
         // edge where it is seen most obliquely.
@@ -477,8 +432,9 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         ctx.arc(cx, cy, R, 0, Math.PI * 2);
         ctx.fill();
 
-        // The gold lines of a world globe, turning: the far halves faint, behind the tickets.
-        lines(ctx, cx, cy, R, s.turn, false);
+        // The gold band round its middle, where its two halves meet: the far half, seen through the
+        // glass behind the tickets.
+        band(ctx, cx, cy, R, false, metal);
 
         // The lid, open, stands behind what falls in; shut, it is drawn over the opening below.
         const theta = Math.max(0, s.lid) * LID_OPEN;
@@ -502,8 +458,8 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         if (mineAt) stamp(mineAt, tw, th, "mine", MINE_FOIL, 1.12, tw * (0.75 + 0.25 * Math.sin(s.clock * 0.004)));
         ctx.restore();
 
-        // The near halves of the lines, over the tickets.
-        lines(ctx, cx, cy, R, s.turn, true);
+        // The band's near half, over the tickets.
+        band(ctx, cx, cy, R, true, metal);
 
         // The light on the glass: its rim, a window's reflection high on the left with a bright
         // sliver beside it, a softer one opposite, and the light gathered low in it.
@@ -527,11 +483,22 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         ctx.ellipse(0, 0, R * 0.3, R * 0.13, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
-        ctx.lineCap = "round";
-        ctx.strokeStyle = "rgba(255, 252, 240, 0.42)";
-        ctx.lineWidth = Math.max(1.5, R * 0.014);
+        // The glass's thickness: its inner face, a hair inside the outer.
+        ctx.strokeStyle = "rgba(255, 240, 205, 0.24)";
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(cx, cy, R * 0.93, Math.PI * 1.08, Math.PI * 1.3);
+        ctx.arc(cx, cy, R * 0.962, 0, Math.PI * 2);
+        ctx.stroke();
+        // A long reflection down the upper left, following the curve of the glass.
+        ctx.lineCap = "round";
+        const sweep = ctx.createLinearGradient(cx - R * 0.95, cy + R * 0.1, cx - R * 0.1, cy - R * 0.95);
+        sweep.addColorStop(0, "rgba(255, 252, 240, 0)");
+        sweep.addColorStop(0.45, "rgba(255, 252, 240, 0.34)");
+        sweep.addColorStop(1, "rgba(255, 252, 240, 0)");
+        ctx.strokeStyle = sweep;
+        ctx.lineWidth = Math.max(3, R * 0.05);
+        ctx.beginPath();
+        ctx.arc(cx, cy, R * 0.885, Math.PI * 1.02, Math.PI * 1.44);
         ctx.stroke();
         ctx.strokeStyle = "rgba(255, 255, 255, 0.14)";
         ctx.lineWidth = Math.max(2, R * 0.025);
@@ -551,22 +518,28 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         ctx.fill();
         ctx.restore();
 
-        // The opening at the top, where the tickets go in, and its ring of light as one does.
+        // The cup the globe sits in: a band of gold round its foot, in front of the glass.
+        cup(ctx, cx, cy, R);
+
+        // The opening at the top, where the tickets go in, on its short gold neck, and its ring of
+        // light as one does.
+        const neck = cy - R * NECK;
+        drum(ctx, cx, neck, R * 0.205, R * 0.058, R * 0.04, metal, faceAcross(ctx, cx - R * 0.205, cx + R * 0.205));
         if (s.flash > 0) {
           ctx.strokeStyle = `rgba(255, 236, 180, ${0.7 * s.flash})`;
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.ellipse(cx, cy - R, R * (0.2 + (1 - s.flash) * 0.35), R * (0.05 + (1 - s.flash) * 0.09), 0, 0, Math.PI * 2);
+          ctx.ellipse(cx, neck, R * (0.2 + (1 - s.flash) * 0.35), R * (0.05 + (1 - s.flash) * 0.09), 0, 0, Math.PI * 2);
           ctx.stroke();
         }
         ctx.fillStyle = "rgba(10, 8, 8, 0.92)";
         ctx.beginPath();
-        ctx.ellipse(cx, cy - R + 1, R * 0.17, R * 0.045, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, neck, R * 0.17, R * 0.045, 0, 0, Math.PI * 2);
         ctx.fill();
         ctx.strokeStyle = metal;
         ctx.lineWidth = Math.max(2, R * 0.03);
         ctx.beginPath();
-        ctx.ellipse(cx, cy - R + 1, R * 0.19, R * 0.055, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, neck, R * 0.19, R * 0.055, 0, 0, Math.PI * 2);
         ctx.stroke();
         if (theta > 0.35) hinge(ctx, cx, cy, R, metal);
         if (theta < 0.8) lid(ctx, cx, cy, R, theta, metal);
@@ -649,12 +622,8 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
             s.nextGust = now + IDLE_GUST.from + Math.random() * IDLE_GUST.spread;
           } else s.air = s.gust.power * ease(e / 0.22) * (1 - ease((e - 0.68) / 0.32));
         }
-        s.boost = Math.max(0, s.boost - dt * 0.8);
         s.flash = Math.max(0, s.flash - dt * 1.8);
         for (const t of s.tickets) if (t.glint > 0) t.glint = Math.max(0, t.glint - dt * 0.6);
-        const target = s.spinTarget + s.boost;
-        s.spin += (target - s.spin) * Math.min(1, dt * 3);
-        s.turn += s.spin * dt * 0.45;
         // The physics on its own clock: as many steps as the time since the last frame holds.
         behind += dt;
         let steps = 0;
@@ -698,17 +667,10 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
-    // A pointer on it turns its lines faster; a press mixes the tickets.
-    const faster = (on: boolean) => {
-      const s = sim.current;
-      if (!s) return;
-      s.spinTarget = on ? 1.3 : 0.45;
-      s.wake();
-    };
+    // A press mixes the tickets.
     const stir = () => {
       const s = sim.current;
       if (!s || reduced()) return;
-      s.boost = 0.8;
       s.blow(1.1);
     };
 
@@ -718,8 +680,6 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
         role="img"
         aria-label={label}
         title={shakeLabel}
-        onPointerEnter={(e) => e.pointerType === "mouse" && faster(true)}
-        onPointerLeave={() => faster(false)}
         onClick={stir}
         className="tr-globe-canvas"
       />
@@ -727,9 +687,150 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
   },
 );
 
-/** Where the globe sits on its square: in the middle, room above it for the lid standing open, the stand under it. */
+/** Where the globe sits on its square: room above it for the lid standing open on its neck, and under it for the stand. */
 function geometry(S: number) {
-  return { cx: S / 2, cy: S * 0.5, R: S * 0.33 };
+  return { cx: S / 2, cy: S * 0.48, R: S * 0.315 };
+}
+/** How far above the globe's middle the top of its neck is, in radii. */
+const NECK = 1.035;
+
+/** Polished gold across a turned piece from x0 to x1: dark at its edges, bright down its middle. */
+function metalAcross(ctx: CanvasRenderingContext2D, x0: number, x1: number) {
+  const g = ctx.createLinearGradient(x0, 0, x1, 0);
+  g.addColorStop(0, "#4f3810");
+  g.addColorStop(0.18, "#a87b2c");
+  g.addColorStop(0.38, "#efd18a");
+  g.addColorStop(0.48, "#fff4cf");
+  g.addColorStop(0.58, "#e3b960");
+  g.addColorStop(0.8, "#a07228");
+  g.addColorStop(1, "#4a340f");
+  return g;
+}
+/** The same gold on a flat face, which catches the light more evenly. */
+function faceAcross(ctx: CanvasRenderingContext2D, x0: number, x1: number) {
+  const g = ctx.createLinearGradient(x0, 0, x1, 0);
+  g.addColorStop(0, "#8c6524");
+  g.addColorStop(0.42, "#f3d78f");
+  g.addColorStop(0.55, "#fbe9b8");
+  g.addColorStop(1, "#86601f");
+  return g;
+}
+
+/**
+ * A short turned drum seen from a little above: its side from the face at y down h, then its
+ * face, an ellipse rx by ry, and the face's near edge caught by the light.
+ */
+function drum(ctx: CanvasRenderingContext2D, cx: number, y: number, rx: number, ry: number, h: number, side: CanvasGradient, face: CanvasGradient) {
+  ctx.fillStyle = side;
+  ctx.beginPath();
+  ctx.moveTo(cx - rx, y);
+  ctx.lineTo(cx - rx, y + h);
+  ctx.ellipse(cx, y + h, rx, ry, 0, Math.PI, 0, true);
+  ctx.lineTo(cx + rx, y);
+  ctx.ellipse(cx, y, rx, ry, 0, 0, Math.PI, false);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = face;
+  ctx.beginPath();
+  ctx.ellipse(cx, y, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 246, 214, 0.7)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(cx, y, rx, ry, 0, 0.06 * Math.PI, 0.94 * Math.PI);
+  ctx.stroke();
+}
+
+/** The floor under the stand: the globe's light in a pool, and the stand's shadow in it. */
+function floor(ctx: CanvasRenderingContext2D, cx: number, foot: number, R: number) {
+  ctx.save();
+  ctx.translate(cx, foot + R * 0.04);
+  ctx.scale(1, 0.14);
+  const pool = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 1.05);
+  pool.addColorStop(0, "rgba(255, 214, 140, 0.3)");
+  pool.addColorStop(1, "rgba(255, 214, 140, 0)");
+  ctx.fillStyle = pool;
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 1.05, 0, Math.PI * 2);
+  ctx.fill();
+  const shade = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.7);
+  shade.addColorStop(0, "rgba(0, 0, 0, 0.6)");
+  shade.addColorStop(1, "rgba(0, 0, 0, 0)");
+  ctx.fillStyle = shade;
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.7, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * The stand, turned from gold: a wide lower step and a narrower upper one, and on them a stem,
+ * slender at the top, swelling to a knop at its middle, flaring to its foot, a line of light down
+ * it. The globe sits on its top in a cup (drawn over the glass, cup()).
+ */
+function stand(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, foot: number) {
+  drum(ctx, cx, foot - R * 0.11, R * 0.64, R * 0.09, R * 0.06, metalAcross(ctx, cx - R * 0.64, cx + R * 0.64), faceAcross(ctx, cx - R * 0.64, cx + R * 0.64));
+  drum(ctx, cx, foot - R * 0.22, R * 0.4, R * 0.06, R * 0.05, metalAcross(ctx, cx - R * 0.4, cx + R * 0.4), faceAcross(ctx, cx - R * 0.4, cx + R * 0.4));
+  const top = cy + R * 0.97;
+  const bot = foot - R * 0.22;
+  const m = top + (bot - top) * 0.45;
+  ctx.fillStyle = metalAcross(ctx, cx - R * 0.15, cx + R * 0.15);
+  ctx.beginPath();
+  ctx.moveTo(cx - R * 0.07, top);
+  ctx.bezierCurveTo(cx - R * 0.055, m - R * 0.09, cx - R * 0.15, m - R * 0.05, cx - R * 0.15, m);
+  ctx.bezierCurveTo(cx - R * 0.15, m + R * 0.045, cx - R * 0.06, m + R * 0.05, cx - R * 0.07, m + R * 0.09);
+  ctx.bezierCurveTo(cx - R * 0.08, bot - R * 0.06, cx - R * 0.16, bot - R * 0.02, cx - R * 0.2, bot);
+  ctx.lineTo(cx + R * 0.2, bot);
+  ctx.bezierCurveTo(cx + R * 0.16, bot - R * 0.02, cx + R * 0.08, bot - R * 0.06, cx + R * 0.07, m + R * 0.09);
+  ctx.bezierCurveTo(cx + R * 0.06, m + R * 0.05, cx + R * 0.15, m + R * 0.045, cx + R * 0.15, m);
+  ctx.bezierCurveTo(cx + R * 0.15, m - R * 0.05, cx + R * 0.055, m - R * 0.09, cx + R * 0.07, top);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 250, 228, 0.55)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(cx - R * 0.025, top + R * 0.02);
+  ctx.lineTo(cx - R * 0.045, m);
+  ctx.lineTo(cx - R * 0.03, bot - R * 0.02);
+  ctx.stroke();
+}
+
+/** The cup the globe sits in: a band of gold round the foot of the glass, its rim lit. */
+function cup(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number) {
+  ctx.fillStyle = metalAcross(ctx, cx - R * 0.8, cx + R * 0.8);
+  ctx.beginPath();
+  ctx.arc(cx, cy, R * 1.055, Math.PI * 0.28, Math.PI * 0.72);
+  ctx.arc(cx, cy, R * 0.985, Math.PI * 0.72, Math.PI * 0.28, true);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 246, 214, 0.75)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(cx, cy, R * 0.99, Math.PI * 0.3, Math.PI * 0.7);
+  ctx.stroke();
+}
+
+/**
+ * The gold band round the globe's middle, where its two halves of glass meet, seen from a little
+ * above: its far half, faint through the glass and behind the tickets, or its near half over them.
+ */
+function band(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, near: boolean, metal: CanvasGradient) {
+  const ry = R * 0.2;
+  ctx.save();
+  ctx.lineCap = "round";
+  ctx.lineWidth = Math.max(2, R * 0.03);
+  ctx.strokeStyle = near ? metal : "rgba(214, 168, 78, 0.3)";
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, R * 0.995, ry, 0, near ? 0 : Math.PI, near ? Math.PI : Math.PI * 2);
+  ctx.stroke();
+  if (near) {
+    ctx.strokeStyle = "rgba(255, 246, 214, 0.6)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - R * 0.012, R * 0.99, ry, 0, 0.12 * Math.PI, 0.88 * Math.PI);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 /**
@@ -740,7 +841,7 @@ function geometry(S: number) {
  */
 function lid(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, theta: number, metal: CanvasGradient) {
   const a = R * 0.2;
-  const oy = cy - R + 1;
+  const oy = cy - R * NECK;
   const se = 0.29;
   const ce = 0.957;
   const up = a * (ce * Math.sin(theta) + se * (1 - Math.cos(theta)));
@@ -768,43 +869,8 @@ function hinge(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number,
   const h = Math.max(2.5, R * 0.032);
   ctx.fillStyle = metal;
   ctx.beginPath();
-  ctx.roundRect(cx - w / 2, cy - R + 1 - a * 0.29 - h / 2, w, h, h / 2);
+  ctx.roundRect(cx - w / 2, cy - R * NECK - a * 0.29 - h / 2, w, h, h / 2);
   ctx.fill();
-}
-
-/** The globe's gold lines, meridians and parallels on a tilted axis turning by `turn`; the near or the far halves. */
-function lines(ctx: CanvasRenderingContext2D, cx: number, cy: number, R: number, turn: number, near: boolean) {
-  const tilt = 0.38;
-  const ct = Math.cos(tilt);
-  const st = Math.sin(tilt);
-  ctx.strokeStyle = near ? "rgba(242, 211, 142, 0.5)" : "rgba(214, 168, 78, 0.16)";
-  ctx.lineWidth = near ? 1.1 : 0.9;
-  const curve = (pt: (u: number) => [number, number, number]) => {
-    let drawing = false;
-    ctx.beginPath();
-    for (let i = 0; i <= 64; i++) {
-      const [x, y, z] = pt((i / 64) * Math.PI * 2);
-      // Tilt the axis towards the viewer.
-      const y2 = y * ct - z * st;
-      const z2 = y * st + z * ct;
-      const show = near ? z2 >= 0 : z2 < 0;
-      if (show) {
-        if (!drawing) ctx.moveTo(cx + x, cy + y2);
-        else ctx.lineTo(cx + x, cy + y2);
-        drawing = true;
-      } else drawing = false;
-    }
-    ctx.stroke();
-  };
-  for (let k = 0; k < 4; k++) {
-    const lon = turn + (k * Math.PI) / 4;
-    curve((u) => [R * Math.cos(u) * Math.sin(lon), -R * Math.sin(u), R * Math.cos(u) * Math.cos(lon)]);
-  }
-  for (const lat of [-0.55, 0, 0.55]) {
-    const rr = R * Math.cos(lat);
-    const yy = -R * Math.sin(lat);
-    curve((u) => [rr * Math.sin(u + turn), yy, rr * Math.cos(u + turn)]);
-  }
 }
 
 /** A ticket's outline, centred: rounded corners, and a round notch cut into each end. */

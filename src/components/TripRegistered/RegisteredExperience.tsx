@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Plane, Ticket } from "lucide-react";
+import { ArrowRight, House, Plane, ScrollText, ShieldCheck, Ticket } from "lucide-react";
 import { DISPLAY, EYEBROW } from "@/components/CinematicExperience/parts";
 import { GoldDust } from "@/components/CinematicExperience/GoldDust";
 import { ARRIVAL_KEY } from "@/components/CinematicExperience/takeoff";
@@ -11,11 +11,13 @@ import { flagUrl } from "@/lib/countries";
 import type { ParticipantsSnapshot } from "@/lib/trip-participants";
 import "@/components/CinematicExperience/cinematic.css";
 import { AddToCalendar } from "./AddToCalendar";
+import { BoardClock } from "./BoardClock";
 import { BoardingPass } from "./BoardingPass";
 import { REGISTERED } from "./content";
 import { DepartureBoard, ago } from "./DepartureBoard";
 import { DrawCountdown } from "./DrawCountdown";
 import { DrawGlobe, type DrawGlobeHandle } from "./DrawGlobe";
+import { NextSteps } from "./NextSteps";
 import { Odometer } from "./Odometer";
 import { FlightSeats } from "./FlightSeats";
 import { flyTicketIn } from "./ticketFlight";
@@ -38,6 +40,11 @@ const FLIGHT_AT = { opened: 3000, arrived: 3400 } as const;
  */
 const REPLAY = { at: 5600, gap: 2600, most: 3, within: 24 * 3600_000 } as const;
 const TOLD_KEY = "affhan:trip-told";
+/** The page's foot: each link's mark (content.ts names them). */
+const CLOSE_ICONS = { plane: Plane, terms: ScrollText, privacy: ShieldCheck, home: House } as const;
+const DAY = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" });
+/** The day someone applied, as the route after applying shows it: "7 Oct 2026", India time. */
+const appliedOn = (iso: string) => DAY.format(new Date(iso));
 
 function readTold(): Set<string> {
   try {
@@ -86,10 +93,12 @@ interface Toast {
  *
  * Live: every figure is the real one, read from the database every 12
  * seconds while the tab is visible (/api/trip-applications/participants/),
- * and the LIVE light blinks each time it is read. A registration that arrives
- * while the page is open drops into the globe, flips onto the board, rolls
- * the count, and says so in a message at the foot of the screen: "Just
- * registered", its Trip ID and its country. On arriving, the past day's last
+ * and the board's own clock (India time, in its split-flap tiles) says how
+ * long ago that was. Beside the count, what happens next, step by step
+ * (NextSteps). A registration that arrives while the page is open drops into
+ * the globe, flips onto the board, rolls the count, and says so in a message
+ * at the foot of the screen: "New application", its Trip ID and its
+ * country. On arriving, the past day's last
  * few are told the same way, once a visit, with their real times
  * ("Registered 12 min ago"), a ticket in the globe catching the light as each
  * is. Anonymous by design, never a name: the trip's Privacy Policy publishes
@@ -106,8 +115,8 @@ export function RegisteredExperience() {
   const [arrived, setArrived] = useState<{ n: number; at: number } | null>(null);
   const [stamp, setStamp] = useState(false);
   const [arriving, setArriving] = useState(false);
-  /** Each read of the board, for the LIVE light's blink. */
-  const [beat, setBeat] = useState(0);
+  /** When the board was last read, for its clock's "Updated … ago". */
+  const [readAt, setReadAt] = useState<number | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const last = useRef<number | null>(null);
   const seenRefs = useRef<Set<string> | null>(null);
@@ -173,7 +182,7 @@ export function RegisteredExperience() {
       seenRefs.current = new Set([...(before ?? []), ...next.recent.map((r) => r.ref)]);
       setSnap(next);
       setFailed(false);
-      setBeat((b) => b + 1);
+      setReadAt(Date.now());
     } catch {
       setFailed(true);
     }
@@ -366,10 +375,7 @@ export function RegisteredExperience() {
                 <h2 id="tr-count-title" className="tr-panel-title">
                   {L.label}
                 </h2>
-                <span className="tr-live" title={L.checked}>
-                  <span key={beat} aria-hidden className={`tr-live-dot ${beat > 1 ? "is-beat" : ""}`} />
-                  {L.tag}
-                </span>
+                <BoardClock readAt={readAt} />
               </div>
               <div className="tr-total">
                 {snap ? <Odometer value={snap.total} label={L.total(snap.total)} /> : <span className="tr-total-wait" aria-hidden>··</span>}
@@ -420,6 +426,10 @@ export function RegisteredExperience() {
                   {countries.length > COUNTRIES_SHOWN && <p className="tr-from-more">{L.moreCountries(countries.length - COUNTRIES_SHOWN)}</p>}
                 </div>
               )}
+
+              {/* What happens after applying: the left side holds more than the count, so a long board
+                  never leaves it bare. */}
+              {ready && signedIn && <NextSteps appliedOn={registration ? appliedOn(registration.createdAt) : null} />}
             </div>
 
             <DepartureBoard rows={snap?.recent ?? []} total={snap?.total ?? 0} loaded={!!snap} failed={failed} />
@@ -427,12 +437,30 @@ export function RegisteredExperience() {
           <p className="tr-board-privacy">{REGISTERED.board.privacy}</p>
         </section>
 
-        <nav aria-label="Free China Business Trip" className="tr-links tr-in" style={{ ["--d" as string]: "0.5s" }}>
-          {REGISTERED.links.map((l) => (
-            <Link key={l.href} href={l.href}>
-              {l.label}
-            </Link>
-          ))}
+        {/* The foot: torn off along a perforation, as the stub of a ticket, then where to go next, each
+            with a word on what is there. */}
+        <nav aria-label="Free China Business Trip" className="tr-close tr-in" style={{ ["--d" as string]: "0.5s" }}>
+          <span aria-hidden className="tr-close-tear" />
+          <ul className="tr-close-links">
+            {REGISTERED.close.links.map((l) => {
+              const Icon = CLOSE_ICONS[l.icon];
+              return (
+                <li key={l.href}>
+                  <Link href={l.href} className="tr-close-link">
+                    <span aria-hidden className="tr-close-icon">
+                      <Icon size={18} strokeWidth={1.8} />
+                    </span>
+                    <span className="tr-close-text">
+                      <span className="tr-close-label">{l.label}</span>
+                      <span className="tr-close-line">{l.line}</span>
+                    </span>
+                    <ArrowRight aria-hidden size={16} strokeWidth={2} className="tr-close-arrow" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="tr-close-sign">{REGISTERED.close.sign}</p>
         </nav>
       </div>
 

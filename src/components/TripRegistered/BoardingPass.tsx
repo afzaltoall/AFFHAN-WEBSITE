@@ -29,9 +29,11 @@ function cityName(city: string) {
 }
 
 /**
- * The participant's own registration, as a boarding pass: their name, their
- * Trip ID, where from, when they registered, and when the winners are
- * announced; a perforated stub with the status, and an entry seal stamped
+ * The participant's own registration, as a boarding pass, laid out as tight
+ * as a real one (the owner, 2026-10-07: no empty patches): their name and
+ * Trip ID side by side, a barcode down the edge, where from, when they
+ * applied, and when the winners are announced; a perforated stub with the
+ * status and the Trip ID again, and an entry seal stamped
  * across the perforation, as a passport's is: "Registered" over its rim,
  * "Free China Trip" under it, the day they registered in its middle. On the
  * stub, so it covers nothing (it once sat across the route, and the plane
@@ -85,15 +87,20 @@ export function BoardingPass({ reg, stamp }: { reg: TripRegistration; stamp: boo
           <span className="tr-pass-kind">{P.kind}</span>
         </header>
         <div className="tr-pass-grid">
-          <div className="tr-pass-field tr-pass-wide">
+          <div className="tr-pass-field">
             <span className="tr-pass-label">{P.passenger}</span>
             <span className={`${DISPLAY} tr-pass-name`}>{reg.fullName}</span>
           </div>
-          <div className="tr-pass-field tr-pass-wide">
+          <div className="tr-pass-field">
             <span className="tr-pass-label">{P.tripId}</span>
             <span className="tr-pass-id">{reg.referenceNo}</span>
           </div>
-          <div className="tr-pass-route tr-pass-wide" aria-hidden>
+          {/* As a real pass has: a barcode down its edge, its Trip ID printed beside it. */}
+          <span aria-hidden className="tr-pass-code">
+            <Barcode text={reg.referenceNo} />
+            <span className="tr-pass-code-text">{reg.referenceNo}</span>
+          </span>
+          <div className="tr-pass-route tr-pass-two" aria-hidden>
             <span className="tr-pass-place">
               <span className="tr-pass-label">{P.from}</span>
               <span className="tr-pass-city">
@@ -137,9 +144,49 @@ export function BoardingPass({ reg, stamp }: { reg: TripRegistration; stamp: boo
         <span aria-hidden className="tr-pass-perf" />
         <span className="tr-pass-label">{P.statusLabel}</span>
         <span className="tr-pass-status">{P.status}</span>
+        {/* The stub keeps the Trip ID, as a pass's stub keeps the flight. */}
+        <span className="tr-pass-label tr-pass-stub-label">{P.tripId}</span>
+        <span className="tr-pass-stub-id">{reg.referenceNo}</span>
         <Seal iso={reg.createdAt} />
       </div>
     </article>
+  );
+}
+
+/**
+ * A barcode down the pass's edge, drawn from its Trip ID: guard bars, then
+ * each character's last five bits as a wide or narrow bar, then guards again.
+ * The same pass always has the same code. Decoration, as the rest of the
+ * pass is: it is not meant to be scanned.
+ */
+function Barcode({ text }: { text: string }) {
+  const bars: { at: number; w: number }[] = [];
+  let at = 0;
+  const put = (dark: boolean, w: number) => {
+    if (dark) bars.push({ at, w });
+    at += w;
+  };
+  const guard = () => {
+    put(true, 1);
+    put(false, 1);
+    put(true, 1);
+    put(false, 1.4);
+  };
+  guard();
+  for (const ch of text) {
+    const c = ch.charCodeAt(0);
+    for (let b = 4; b >= 0; b--) {
+      put(true, (c >> b) & 1 ? 2.3 : 1);
+      put(false, b === 0 ? 1.8 : 1);
+    }
+  }
+  guard();
+  return (
+    <svg className="tr-pass-bars" viewBox={`0 0 10 ${at.toFixed(2)}`} preserveAspectRatio="none">
+      {bars.map((b) => (
+        <rect key={b.at} x="0" y={b.at.toFixed(2)} width="10" height={b.w} />
+      ))}
+    </svg>
   );
 }
 

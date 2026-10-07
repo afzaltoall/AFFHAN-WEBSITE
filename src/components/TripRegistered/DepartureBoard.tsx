@@ -19,8 +19,11 @@ export function ago(iso: string, now: number) {
 
 const AT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
-/** How many lines the board shows before "Show all". */
-const SHOWN = 6;
+/**
+ * How many lines the board shows before "Show all": six on a phone; ten on a wide screen, where the
+ * count and what happens next stand beside it about as tall (six left the board half empty there).
+ */
+const SHOWN = { narrow: 6, wide: 10 } as const;
 const FLAP = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
 
 /** A tile's turns before it settles: the first after 4 frames, each next one 1.4 later, left to right. */
@@ -95,6 +98,15 @@ export function DepartureBoard({ rows, total, loaded, failed }: { rows: Particip
     return () => window.clearInterval(id);
   }, []);
   const [all, setAll] = useState(false);
+  // Six until the page is running in the browser and knows how wide the screen is.
+  const [few, setFew] = useState<number>(SHOWN.narrow);
+  useEffect(() => {
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const set = () => setFew(wide.matches ? SHOWN.wide : SHOWN.narrow);
+    set();
+    wide.addEventListener("change", set);
+    return () => wide.removeEventListener("change", set);
+  }, []);
 
   // The board seen for the first time: its lines well inside the window, not just peeking in at
   // the foot of it as the page opens (a wide screen shows its first line there): it updates.
@@ -127,23 +139,23 @@ export function DepartureBoard({ rows, total, loaded, failed }: { rows: Particip
   }, [rows, loaded]);
 
   const B = REGISTERED.board;
-  const shown = all ? rows : rows.slice(0, SHOWN);
+  const shown = all ? rows : rows.slice(0, few);
   const mineAt = rows.findIndex((r) => r.you);
-  const mine = !all && mineAt >= SHOWN ? rows[mineAt] : null;
+  const mine = !all && mineAt >= few ? rows[mineAt] : null;
 
   const line = (r: ParticipantRow, i: number) => {
     const isNew = fresh.has(r.ref);
     // The lines "Show all" opens: in at once, one after another (registered.css, .tr-row-more), so
     // the board never opens onto an empty panel while they wait their turn.
-    const more = all && i >= SHOWN && !isNew;
-    // Down the board in turn: the visitor's own, kept under the six, right after them; the lines
+    const more = all && i >= few && !isNew;
+    // Down the board in turn: the visitor's own, kept under the newest few, right after them; the lines
     // "Show all" opens, in turn from the first of them, quicker.
-    const delay = isNew ? 0 : more ? (i - SHOWN) * 45 : Math.min(i, SHOWN) * 85;
+    const delay = isNew ? 0 : more ? (i - few) * 45 : Math.min(i, few) * 85;
     return (
       <li
         key={r.ref}
         className={`tr-row ${r.you ? "tr-row-you" : ""} ${isNew ? "tr-row-new" : ""} ${more ? "tr-row-more" : ""}`}
-        style={{ ["--i" as string]: Math.min(i, 12), ["--k" as string]: more ? i - SHOWN : 0 }}
+        style={{ ["--i" as string]: Math.min(i, 12), ["--k" as string]: more ? i - few : 0 }}
       >
         <span className="tr-row-id">
           <FlapId text={r.ref} play={isNew || seenOnce} delay={delay} />
@@ -177,7 +189,7 @@ export function DepartureBoard({ rows, total, loaded, failed }: { rows: Particip
       </div>
       <ol className="tr-board-rows" aria-live="polite" aria-relevant="additions">
         {!loaded &&
-          Array.from({ length: SHOWN }, (_, i) => (
+          Array.from({ length: few }, (_, i) => (
             <li key={i} className="tr-row tr-row-skeleton" aria-hidden>
               <span />
               <span />
@@ -197,7 +209,7 @@ export function DepartureBoard({ rows, total, loaded, failed }: { rows: Particip
           </>
         )}
       </ol>
-      {loaded && rows.length > SHOWN && (
+      {loaded && rows.length > few && (
         <button type="button" className="tr-board-more" aria-expanded={all} onClick={() => setAll((v) => !v)}>
           {all ? B.fewer : B.more(rows.length, total)}
         </button>

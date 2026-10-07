@@ -113,9 +113,13 @@ export function WhatsAppButton() {
 
   // Not on the admin console: it is a customer-facing "chat to us" bubble, and
   // it sits over the bottom-right of every admin screen where the table is.
+  // Not on the Free China Business Trip's pages either (the owner, 2026-10-07):
+  // they have their own way round, and the dock sat over the participants' board.
   const bare = pathname?.replace(/\/$/, "") ?? "";
   if (
     pathname?.includes("experience") ||
+    bare === "/free-china-trip" ||
+    bare.startsWith("/free-china-trip/") ||
     bare === "/admin" ||
     bare.startsWith("/admin/") ||
     bare === "/employee" ||
