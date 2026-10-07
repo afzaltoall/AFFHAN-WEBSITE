@@ -1,4 +1,6 @@
-import { useId } from "react";
+"use client";
+
+import { useId, useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { Plane } from "lucide-react";
 import { flagUrl } from "@/lib/countries";
 import type { TripRegistration } from "@/components/TripAccess/useTripStatus";
@@ -35,13 +37,48 @@ function cityName(city: string) {
  * stub, so it covers nothing (it once sat across the route, and the plane
  * printed through it). Their own details, shown to them only.
  *
+ * It is brought to life as the page opens (registered.css): the plane flies
+ * the route from their country to China and leaves it lit gold, then the
+ * seal comes down on the stub. Now and then a light passes over the foil,
+ * and with a mouse the pass leans a little towards the pointer, catching the
+ * light where it is. None of it for reduced motion.
+ *
  * `stamp`, for the moment they arrive from the application: the pass prints
- * and the seal comes down on it.
+ * first, and the flight and the seal follow it.
  */
 export function BoardingPass({ reg, stamp }: { reg: TripRegistration; stamp: boolean }) {
   const P = REGISTERED.pass;
+  const ref = useRef<HTMLElement>(null);
+  // The lean: a few degrees, from where the pointer is over the pass.
+  const lean = (e: ReactPointerEvent<HTMLElement>) => {
+    const el = ref.current;
+    if (!el || e.pointerType !== "mouse" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const r = el.getBoundingClientRect();
+    const x = (e.clientX - r.left) / r.width;
+    const y = (e.clientY - r.top) / r.height;
+    el.style.setProperty("--ry", `${((x - 0.5) * 7).toFixed(2)}deg`);
+    el.style.setProperty("--rx", `${((0.5 - y) * 5).toFixed(2)}deg`);
+    el.style.setProperty("--gx", `${(x * 100).toFixed(1)}%`);
+    el.style.setProperty("--gy", `${(y * 100).toFixed(1)}%`);
+    el.classList.add("is-leaning");
+  };
+  const rest = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.setProperty("--rx", "0deg");
+    el.style.setProperty("--ry", "0deg");
+    el.classList.remove("is-leaning");
+  };
   return (
-    <article className={`tr-pass ${stamp ? "tr-pass-stamp" : ""}`} aria-label={`${P.kind}: ${reg.fullName}, ${P.tripId} ${reg.referenceNo}`}>
+    <article
+      ref={ref}
+      onPointerMove={lean}
+      onPointerLeave={rest}
+      className={`tr-pass ${stamp ? "tr-pass-stamp" : ""}`}
+      aria-label={`${P.kind}: ${reg.fullName}, ${P.tripId} ${reg.referenceNo}`}
+    >
+      <span aria-hidden className="tr-pass-foil" />
+      <span aria-hidden className="tr-pass-glare" />
       <div className="tr-pass-main">
         <header className="tr-pass-head">
           <span className="tr-pass-brand">{P.brand}</span>
@@ -68,10 +105,11 @@ export function BoardingPass({ reg, stamp }: { reg: TripRegistration; stamp: boo
               </span>
               <span className="tr-pass-sub">{cityName(reg.city)}</span>
             </span>
+            {/* The route: dashed, then lit gold behind the plane as it flies it. */}
             <span className="tr-pass-flight">
-              <span className="tr-pass-dash" />
+              <span className="tr-pass-track" />
+              <span className="tr-pass-trace" />
               <Plane size={18} strokeWidth={1.8} className="tr-pass-plane" />
-              <span className="tr-pass-dash" />
             </span>
             <span className="tr-pass-place tr-pass-place-to">
               <span className="tr-pass-label">{P.to}</span>

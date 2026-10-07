@@ -140,7 +140,8 @@ export function RegisteredExperience() {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto max-w-[1320px] px-5 pb-28 pt-8 sm:px-8 sm:pb-12 md:pt-10 lg:px-12">
+      {/* As wide as the rest of the site (1600px), so a wide screen is not two dark margins round a column. */}
+      <div className="relative z-10 mx-auto max-w-[1600px] px-5 pb-28 pt-8 sm:px-8 sm:pb-12 md:pt-10 lg:px-12 2xl:px-16">
         {/* Held, unseen, until it is known who is reading (the sign-in and the registration are read in
             the browser), then risen in: the heading never says "The participants" to a participant first. */}
         <header key={ready ? "known" : "reading"} className={`tr-in ${ready ? "" : "invisible"}`} style={{ ["--d" as string]: "0s" }}>

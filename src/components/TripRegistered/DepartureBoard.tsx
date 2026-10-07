@@ -23,43 +23,52 @@ const AT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "nu
 const SHOWN = 6;
 const FLAP = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789";
 
+/** A tile's turns before it settles: the first after 4 frames, each next one 1.4 later, left to right. */
+const settlesAt = (i: number) => 4 + i * 1.4;
+
 /**
  * A Trip ID on the board's split-flap tiles, one character to a tile, as an
- * airport departures board sets it. A line that has just arrived flaps
- * through the board's alphabet and settles, left to right; the text is the
- * real ID throughout for screen readers.
+ * airport departures board sets it. When it plays (a line just arrived, or
+ * the board seen for the first time), each tile flutters through the board's
+ * alphabet and settles, left to right, after `delay`, so lines settle one
+ * after another down the board. At rest it is the ID itself, and the text is
+ * the real ID throughout for screen readers.
  */
-function FlapId({ text, play }: { text: string; play: boolean }) {
-  const [shown, setShown] = useState(text);
+function FlapId({ text, play, delay = 0 }: { text: string; play: boolean; delay?: number }) {
+  /** The frame of the turn, or null at rest. */
+  const [frame, setFrame] = useState<number | null>(null);
   useEffect(() => {
     if (!play || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setShown(text);
+      setFrame(null);
       return;
     }
-    let frame = 0;
-    const id = window.setInterval(() => {
-      frame++;
-      setShown(
-        text
-          .split("")
-          .map((c, i) => (c === "-" || frame > 4 + i * 1.4 ? c : FLAP[(frame * 7 + i * 13) % FLAP.length]))
-          .join(""),
-      );
-      if (frame > 4 + text.length * 1.4) window.clearInterval(id);
-    }, 42);
-    return () => window.clearInterval(id);
-  }, [text, play]);
+    let f = 0;
+    let tick = 0;
+    const begin = window.setTimeout(() => {
+      tick = window.setInterval(() => {
+        f++;
+        if (f > settlesAt(text.length)) {
+          window.clearInterval(tick);
+          setFrame(null);
+        } else setFrame(f);
+      }, 42);
+    }, delay);
+    return () => {
+      window.clearTimeout(begin);
+      window.clearInterval(tick);
+    };
+  }, [text, play, delay]);
   return (
     <span className="tr-flap" aria-label={text} role="img">
-      {shown.split("").map((c, i) =>
-        c === "-" ? (
-          <span key={i} aria-hidden className="tr-flap-dash" />
-        ) : (
-          <span key={i} aria-hidden className="tr-flap-tile">
-            {c}
+      {text.split("").map((c, i) => {
+        if (c === "-") return <span key={i} aria-hidden className="tr-flap-dash" />;
+        const turning = frame !== null && frame <= settlesAt(i);
+        return (
+          <span key={i} aria-hidden className={`tr-flap-tile${turning ? " is-turning" : ""}`}>
+            {turning ? FLAP[(frame * 7 + i * 13) % FLAP.length] : c}
           </span>
-        ),
-      )}
+        );
+      })}
     </span>
   );
 }
@@ -73,6 +82,10 @@ function FlapId({ text, play }: { text: string; play: boolean }) {
  * arrive while the page is open flip in at the top. "Show all" opens the
  * rest in place: the page grows, nothing scrolls inside it.
  *
+ * The first time the board comes into view it updates as a departures board
+ * does: line after line, every Trip ID flutters and settles, top to bottom;
+ * so do the lines "Show all" opens. It reads at rest before and after.
+ *
  * Anonymous by design (lib/trip-participants.ts).
  */
 export function DepartureBoard({ rows, total, loaded, failed }: { rows: ParticipantRow[]; total: number; loaded: boolean; failed: boolean }) {
@@ -82,6 +95,25 @@ export function DepartureBoard({ rows, total, loaded, failed }: { rows: Particip
     return () => window.clearInterval(id);
   }, []);
   const [all, setAll] = useState(false);
+
+  // The board seen for the first time: its lines well inside the window, not just peeking in at
+  // the foot of it as the page opens (a wide screen shows its first line there): it updates.
+  const boardRef = useRef<HTMLElement>(null);
+  const [seenOnce, setSeenOnce] = useState(false);
+  useEffect(() => {
+    const el = boardRef.current;
+    if (!loaded || seenOnce || !el || typeof IntersectionObserver === "undefined") return;
+    const watch = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        setSeenOnce(true);
+        watch.disconnect();
+      },
+      { threshold: 0.2, rootMargin: "0px 0px -30% 0px" },
+    );
+    watch.observe(el);
+    return () => watch.disconnect();
+  }, [loaded, seenOnce]);
 
   // Which lines are new since the page opened (the first load is not "new").
   // Before the browser paints them, so a new line never shows unflipped first.
@@ -101,10 +133,13 @@ export function DepartureBoard({ rows, total, loaded, failed }: { rows: Particip
 
   const line = (r: ParticipantRow, i: number) => {
     const isNew = fresh.has(r.ref);
+    // Down the board in turn: the visitor's own, kept under the six, right after them; the lines
+    // "Show all" opens, in turn from the first of them.
+    const delay = isNew ? 0 : (all ? (i < SHOWN ? i : i - SHOWN) : Math.min(i, SHOWN)) * 85;
     return (
       <li key={r.ref} className={`tr-row ${r.you ? "tr-row-you" : ""} ${isNew ? "tr-row-new" : ""}`} style={{ ["--i" as string]: Math.min(i, 12) }}>
         <span className="tr-row-id">
-          <FlapId text={r.ref} play={isNew} />
+          <FlapId text={r.ref} play={isNew || seenOnce} delay={delay} />
           {r.you && <span className="tr-row-you-tag">{B.you}</span>}
         </span>
         <span className="tr-row-from">
@@ -124,7 +159,7 @@ export function DepartureBoard({ rows, total, loaded, failed }: { rows: Particip
   };
 
   return (
-    <section className="tr-board" aria-labelledby="tr-board-title">
+    <section ref={boardRef} className="tr-board" aria-labelledby="tr-board-title">
       <h2 id="tr-board-title" className="tr-panel-title">
         {B.title}
       </h2>

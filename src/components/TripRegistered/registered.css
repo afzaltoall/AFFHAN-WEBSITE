@@ -74,6 +74,19 @@
 @media (min-width: 768px) {
   .tr-title { font-size: clamp(52px, 5.4vw, 84px); }
 }
+/* As it rises in, a gold light passes along it, once. */
+@media (prefers-reduced-motion: no-preference) {
+  .tr-title {
+    background: linear-gradient(100deg, var(--cx-white) 0 36%, #e0b04f 45%, #fff1c4 50%, #e0b04f 55%, var(--cx-white) 64% 100%);
+    background-size: 260% 100%;
+    background-position: 100% 0;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: tr-shine 2.4s cubic-bezier(0.45, 0, 0.25, 1) 0.55s both;
+  }
+}
+@keyframes tr-shine { from { background-position: 100% 0; } to { background-position: 0% 0; } }
 .tr-lede {
   margin-top: 1rem;
   max-width: 44rem;
@@ -192,7 +205,15 @@
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 0.55rem;
 }
-.tr-ticket { filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.5)); }
+.tr-ticket {
+  filter: drop-shadow(0 10px 14px rgb(0 0 0 / 0.5));
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-ticket { animation: tr-deal 0.65s cubic-bezier(0.2, 0.9, 0.3, 1.25) calc(0.6s + var(--i) * 0.11s) backwards; }
+  .tr-ticket:hover { transform: translateY(-4px) rotate(-3deg); }
+}
+@keyframes tr-deal { from { opacity: 0; transform: translate(-22px, 12px) rotate(-12deg) scale(0.9); } }
 .tr-ticket-face {
   position: relative;
   display: grid;
@@ -245,21 +266,80 @@
 .tr-count-unit {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  border-radius: 14px;
-  background: rgb(244 239 230 / 0.04);
-  padding: 0.6rem 0.25rem 0.5rem;
+  align-items: stretch;
+  gap: 0.45rem;
 }
-.tr-count-num {
+/* A split-flap card: the two halves of one figure, a seam between them, the
+   leaves of a turn over them (FlipCard). */
+.tr-flip {
+  position: relative;
+  display: block;
+  height: 1.55em;
   font-family: var(--font-cx-display), Georgia, serif;
   font-variation-settings: "opsz" 11;
   font-size: clamp(26px, 6vw, 36px);
   line-height: 1;
   font-variant-numeric: tabular-nums;
   color: var(--cx-white);
+  perspective: 22rem;
 }
+.tr-flip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - 0.5px);
+  z-index: 4;
+  height: 1px;
+  background: rgb(0 0 0 / 0.7);
+  box-shadow: 0 1px 0 rgb(255 248 230 / 0.05);
+}
+.tr-flip-half {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 50%;
+  overflow: hidden;
+  backface-visibility: hidden;
+}
+.tr-flip-half > span {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: grid;
+  height: 200%;
+  place-items: center;
+}
+.tr-flip-top {
+  top: 0;
+  border-radius: 12px 12px 0 0;
+  background: linear-gradient(180deg, #29232c, #201b23);
+  transform-origin: 50% 100%;
+}
+.tr-flip-top > span { top: 0; }
+.tr-flip-bottom {
+  bottom: 0;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, #1a161c, #141117);
+  transform-origin: 50% 0;
+}
+.tr-flip-bottom > span { bottom: 0; }
+.tr-flip-leaves > .tr-flip-half { z-index: 2; }
+.tr-flip-leaves > .tr-flip-fall { z-index: 3; }
+/* A turn: the old figure's top falls forward, then the new one's foot lands. */
+@media (prefers-reduced-motion: no-preference) {
+  .tr-flip-fall { animation: tr-flip-fall 0.3s cubic-bezier(0.55, 0.05, 0.85, 0.4) both; }
+  .tr-flip-land { animation: tr-flip-land 0.34s cubic-bezier(0.15, 0.6, 0.35, 1) 0.28s both; }
+  .tr-flip-stay { animation: tr-flip-stay 0.3s steps(1, end) both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tr-flip-leaves { display: none; }
+}
+@keyframes tr-flip-fall { from { transform: rotateX(0deg); } to { transform: rotateX(-90deg); } }
+@keyframes tr-flip-land { from { transform: rotateX(90deg); } to { transform: rotateX(0deg); } }
+@keyframes tr-flip-stay { to { visibility: hidden; } }
 .tr-count-label {
-  margin-top: 0.35rem;
+  text-align: center;
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.22em;
@@ -335,7 +415,8 @@
 }
 @media (min-width: 1024px) {
   .tr-live-grid { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 0; }
-  .tr-summary { padding-right: 2.25rem; }
+  /* Kept in view beside a long board ("Show all"), under the navbar. */
+  .tr-summary { position: sticky; top: 5.5rem; align-self: start; padding-right: 2.25rem; }
   .tr-board { padding-left: 2.25rem; border-left: 1px solid rgb(244 239 230 / 0.08); }
 }
 @media (max-width: 1023px) {
@@ -482,7 +563,8 @@
 .tr-board-cols,
 .tr-row {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.75fr);
+  /* Where from beside the Trip ID however wide the board, and when at the end. */
+  grid-template-columns: minmax(0, 17.5rem) minmax(0, 1fr) auto;
   align-items: center;
   gap: 0.75rem;
 }
@@ -547,6 +629,14 @@
   color: #f6e6c2;
   font-variant-numeric: tabular-nums;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .tr-flap-tile.is-turning {
+    animation: tr-flutter 84ms linear infinite;
+    background: linear-gradient(180deg, #2e2731 0%, #241e27 49.5%, #18131b 50.5%, #1f1922 100%);
+    color: #fff6dc;
+  }
+}
+@keyframes tr-flutter { 50% { transform: scaleY(0.72); } }
 .tr-flap-tile::after {
   content: "";
   position: absolute;
@@ -706,6 +796,40 @@
     0 0 0 1px rgb(255 246 222 / 0.5) inset,
     0 0 60px -20px rgb(242 211 142 / 0.45);
   overflow: hidden;
+  /* When the flight starts and the seal comes down (later, arriving from the application). */
+  --fly-at: 0.95s;
+  --seal-at: 2.35s;
+  transform: perspective(1400px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.tr-pass.is-leaning { transition-duration: 0.15s; }
+.tr-pass-stamp { --fly-at: 1.3s; --seal-at: 2.7s; }
+.tr-pass-foil,
+.tr-pass-glare {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.tr-pass-foil {
+  background: linear-gradient(112deg, transparent 36%, rgb(255 255 255 / 0.42) 47%, rgb(255 236 190 / 0.3) 52%, transparent 63%);
+  mix-blend-mode: soft-light;
+  transform: translateX(-130%);
+}
+.tr-pass-glare {
+  opacity: 0;
+  background: radial-gradient(460px circle at var(--gx, 50%) var(--gy, 50%), rgb(255 255 255 / 0.4), transparent 62%);
+  mix-blend-mode: soft-light;
+  transition: opacity 0.4s ease;
+}
+.tr-pass.is-leaning .tr-pass-glare { opacity: 1; }
+@media (prefers-reduced-motion: no-preference) {
+  .tr-pass-foil { animation: tr-foil 9s cubic-bezier(0.45, 0, 0.25, 1) 3.6s infinite; }
+}
+@keyframes tr-foil {
+  0%, 72% { transform: translateX(-130%); }
+  92%, 100% { transform: translateX(130%); }
 }
 /* Phones: the stub along the foot; the brand alone in the head ("Boarding pass" goes: the pass
    says it), and the last two fields one under the other. Through .tr-pass, so these win over
@@ -799,15 +923,57 @@
 }
 .tr-pass-sub { font-size: 12px; color: rgb(27 19 7 / 0.62); overflow-wrap: anywhere; }
 .tr-pass-flight {
-  display: flex;
+  position: relative;
+  display: block;
+  height: 18px;
   /* On the line of the cities, under the labels. */
   margin-top: 0.95rem;
-  align-items: center;
-  gap: 0.35rem;
   color: #8e6a26;
+  container-type: inline-size;
 }
-.tr-pass-dash { flex: 1; border-top: 1.5px dashed rgb(142 106 38 / 0.6); }
-.tr-pass-plane { transform: rotate(45deg); flex-shrink: 0; }
+.tr-pass-track,
+.tr-pass-trace {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  border-top: 1.5px dashed rgb(142 106 38 / 0.55);
+}
+.tr-pass-trace {
+  display: none;
+  top: calc(50% - 1px);
+  height: 2px;
+  border: 0;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgb(184 134 46 / 0.35), #c8922e 30%, #e9bd5c);
+  box-shadow: 0 0 6px rgb(233 189 92 / 0.85), 0 0 1px rgb(120 80 20 / 0.6);
+}
+/* At rest, mid-route; flown, it lands by China and the route behind it is lit. */
+.tr-pass-plane {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translateX(calc(50cqw - 9px)) rotate(45deg);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tr-pass-trace {
+    display: block;
+    animation: tr-trace 1.5s cubic-bezier(0.5, 0, 0.25, 1) var(--fly-at) both;
+  }
+  .tr-pass-plane {
+    transform: translateX(calc(100cqw - 18px)) rotate(45deg);
+    animation: tr-fly 1.5s cubic-bezier(0.5, 0, 0.25, 1) var(--fly-at) both;
+  }
+}
+@keyframes tr-trace {
+  from { clip-path: inset(-4px 100% -4px 0); }
+  to { clip-path: inset(-4px 0 -4px 0); }
+}
+@keyframes tr-fly {
+  0% { opacity: 0; transform: translateX(0) rotate(45deg) scale(0.6); }
+  12% { opacity: 1; }
+  100% { opacity: 1; transform: translateX(calc(100cqw - 18px)) rotate(45deg) scale(1); }
+}
 /* The stub: the status at its head, the seal under it. */
 .tr-pass-stub {
   position: relative;
@@ -869,10 +1035,11 @@
 .tr-seal-rim-sm { font-size: 9.4px; letter-spacing: 1.8px; }
 .tr-seal-day { font-size: 17px; font-weight: 900; letter-spacing: 0.4px; }
 .tr-seal-year { font-size: 11px; font-weight: 800; letter-spacing: 3px; }
-/* Arriving from the application: the pass prints, and the seal comes down on it. */
+/* The seal comes down once the plane has landed; arriving from the application,
+   the pass prints first. */
 @media (prefers-reduced-motion: no-preference) {
+  .tr-seal { animation: tr-seal-down 0.55s cubic-bezier(0.3, 1.5, 0.45, 1) var(--seal-at) both; }
   .tr-pass-stamp { animation: tr-pass-print 1s cubic-bezier(0.22, 1, 0.36, 1) 0.2s both; }
-  .tr-pass-stamp .tr-seal { animation: tr-seal-down 0.55s cubic-bezier(0.3, 1.5, 0.45, 1) 1.15s both; }
 }
 @keyframes tr-pass-print { from { clip-path: inset(0 0 100% 0); transform: translateY(-18px); } }
 @keyframes tr-seal-down {
@@ -909,4 +1076,5 @@
   .tr-wash, .tr-arrive { animation: none; }
   .tr-arrive { display: none; }
   .tr-odo-strip { transition: none; }
+  .tr-pass { transform: none; transition: none; }
 }
