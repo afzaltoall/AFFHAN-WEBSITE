@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
+import { refuseUnlessCron } from "@/lib/cron-auth";
 
 // Drops the catalogue caches on demand.
 //
@@ -23,14 +24,9 @@ const TAGS: Record<string, string> = {
 const PATHS = ["/", "/products"];
 
 export async function POST(request: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    // Fail closed. An unset secret must not mean "open to everyone".
-    return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
-  }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // Fail closed: an unset secret must not mean "open to everyone" (lib/cron-auth.ts).
+  const refused = refuseUnlessCron(request);
+  if (refused) return refused;
 
   // ?tags=categories,products — default is both, which is what a category
   // merge or a moderation change needs.

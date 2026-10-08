@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runRotation } from "@/lib/lead-queue";
 import { brevoKeepAlive } from "@/lib/brevo";
+import { refuseUnlessCron } from "@/lib/cron-auth";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -42,13 +43,8 @@ export const maxDuration = 60;
  * customer is handed to anybody who is not at work.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
-  }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const refused = refuseUnlessCron(request);
+  if (refused) return refused;
 
   const url = new URL(request.url);
   const dryRun = url.searchParams.get("dryRun") === "1";

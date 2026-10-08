@@ -1,12 +1,16 @@
 import crypto from "crypto";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
+import { authSecret, authSecretOrNull } from "@/lib/secrets";
 
 // Lightweight signed-cookie session (HMAC-SHA256), so we don't need an auth
 // framework or Edge-incompatible deps. Runs in the Node runtime (API routes
 // and server components), which is where we read/verify it.
+//
+// Signed with AUTH_SECRET and nothing else (lib/secrets.ts): there is no
+// fallback key any more, so signing without the variable throws, and checking
+// without it accepts no cookie at all.
 
-const SECRET = process.env.AUTH_SECRET || "affhan_dev_secret";
 export const SESSION_COOKIE = "affhan_session";
 const MAX_AGE = 60 * 60 * 24 * 30; // 30 days
 
@@ -62,7 +66,7 @@ function b64url(input: Buffer | string) {
 
 export function signSession(user: SessionUser): string {
   const payload = b64url(JSON.stringify({ ...user, iat: Date.now() }));
-  const sig = crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
+  const sig = crypto.createHmac("sha256", authSecret()).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
 
@@ -80,7 +84,9 @@ export function readSession(
   if (!token) return null;
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return null;
-  const expected = crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
+  const secret = authSecretOrNull();
+  if (!secret) return null;
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
   // constant-time compare
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);

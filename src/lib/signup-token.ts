@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { authSecret, authSecretOrNull } from "@/lib/secrets";
 
 // ---------------------------------------------------------------------------
 // Short-lived proof that a phone number passed OTP verification.
@@ -15,9 +16,11 @@ import crypto from "crypto";
 //
 // It is not a session. It proves one thing — this number was verified just now
 // — and nothing signed with it can read or change anything.
+//
+// Signed with AUTH_SECRET alone (lib/secrets.ts), never a fallback: issuing
+// without it throws, and reading without it accepts no token.
 // ---------------------------------------------------------------------------
 
-const SECRET = process.env.AUTH_SECRET || "affhan_dev_secret";
 export const SIGNUP_TOKEN_TTL_MS = 5 * 60 * 1000;
 
 interface SignupClaims {
@@ -30,7 +33,7 @@ export function issueSignupToken(phone: string): string {
   const payload = Buffer.from(JSON.stringify({ phone, iat: Date.now() } satisfies SignupClaims)).toString(
     "base64url"
   );
-  const sig = crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
+  const sig = crypto.createHmac("sha256", authSecret()).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
 
@@ -40,7 +43,9 @@ export function readSignupToken(token: unknown): string | null {
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return null;
 
-  const expected = crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
+  const secret = authSecretOrNull();
+  if (!secret) return null;
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   // Constant-time: a byte-by-byte compare leaks how much of a forged signature

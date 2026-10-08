@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { authSecret, authSecretOrNull } from "@/lib/secrets";
 
 // ---------------------------------------------------------------------------
 // Short-lived proof that an email address passed OTP verification.
@@ -13,9 +14,10 @@ import crypto from "crypto";
 //
 // It is not a session. It proves one thing — this address answered a code just
 // now — and the only route that accepts it is the one that sets the password.
+//
+// Signed with AUTH_SECRET alone (lib/secrets.ts), never a fallback: issuing
+// without it throws, and reading without it accepts no token.
 // ---------------------------------------------------------------------------
-
-const SECRET = process.env.AUTH_SECRET || "affhan_dev_secret";
 
 /**
  * Ten minutes: long enough to type a new password twice and think about it,
@@ -74,7 +76,7 @@ export function issueResetToken(
     kind: KIND[audience],
   };
   const payload = Buffer.from(JSON.stringify(claims)).toString("base64url");
-  const sig = crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
+  const sig = crypto.createHmac("sha256", authSecret()).update(payload).digest("base64url");
   return `${payload}.${sig}`;
 }
 
@@ -87,7 +89,9 @@ export function readResetToken(
   const [payload, sig] = token.split(".");
   if (!payload || !sig) return null;
 
-  const expected = crypto.createHmac("sha256", SECRET).update(payload).digest("base64url");
+  const secret = authSecretOrNull();
+  if (!secret) return null;
+  const expected = crypto.createHmac("sha256", secret).update(payload).digest("base64url");
   const a = Buffer.from(sig);
   const b = Buffer.from(expected);
   // Constant-time: a byte-by-byte compare leaks how much of a forged signature
