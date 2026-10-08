@@ -76,10 +76,12 @@ export async function POST(req: Request) {
       message: `OTP sent to ${maskPhone(normPhone)}`,
     });
 
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof Error && err.message.includes("SMS provider not configured")) {
+      // Said in the customer's words; the configuration detail is for the log.
+      console.error("[OTP Send]", err.message);
       return NextResponse.json(
-        { error: err.message },
+        { error: "Sign-in by text message is not available yet. Use email and password or Google." },
         { status: 501 } // Not Implemented
       );
     }

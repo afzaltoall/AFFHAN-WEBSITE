@@ -90,11 +90,10 @@ export async function POST(req: Request) {
       { status: 201 }
     );
   } catch (error: unknown) {
+    // The whole error stays in the server's log. It used to go back as
+    // `details`, which handed Prisma's message (table, column and value) to
+    // whoever sent a bad quantity or product id.
     console.error("Error saving inquiry:", error);
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    return NextResponse.json(
-      { error: "Internal Server Error", details: errorMessage },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "We couldn't save your request. Please try again." }, { status: 500 });
   }
 }

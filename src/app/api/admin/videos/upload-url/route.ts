@@ -31,12 +31,21 @@ export async function POST(req: Request) {
     const { uploadUrl, fields, publicUrl, key } = await createUploadTarget(kind, contentType);
 
     return NextResponse.json({ success: true, uploadUrl, uploadFields: fields, publicUrl, key });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Failed to generate upload URL:", error);
-    // Let the client know if it's an unsupported content type
-    if (error.message?.includes("Unsupported")) {
-      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    // An unsupported type is the caller's to fix, so say which types work; the
+    // thrown message itself (which repeats the caller's input) stays in the log.
+    if (error instanceof Error && error.message.includes("Unsupported")) {
+      return NextResponse.json(
+        { success: false, error: kindOf(error.message) === "video" ? "Use an MP4, WebM or MOV video." : "Use a JPEG, PNG or WebP image." },
+        { status: 400 },
+      );
     }
     return NextResponse.json({ success: false, error: "Internal Server Error" }, { status: 500 });
   }
+}
+
+/** Which kind of upload an "Unsupported <kind> type" error was about. */
+function kindOf(message: string): "video" | "image" {
+  return /Unsupported video type/.test(message) ? "video" : "image";
 }
