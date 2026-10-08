@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/prisma";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
+import { accountForGoogle, GoogleIdentityTaken } from "@/lib/google-account";
 
 export const dynamic = "force-dynamic";
 
@@ -47,37 +48,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const emailNormalized = email.toLowerCase().trim();
-
-    // Existing account by email — including one made by phone — gets Google
-    // attached rather than a second account created for the same person.
-    let user = await prisma.mobileUser.findUnique({ where: { email: emailNormalized } });
-
-    if (user) {
-      if (!user.googleId) {
-        user = await prisma.mobileUser.update({
-          where: { id: user.id },
-          data: {
-            googleId,
-            authProvider: user.authProvider.includes("GOOGLE")
-              ? user.authProvider
-              : `${user.authProvider}_AND_GOOGLE`,
-            profileImage: user.profileImage || picture,
-            emailVerified: true,
-          },
-        });
-      }
-    } else {
-      user = await prisma.mobileUser.create({
-        data: {
-          name: name || "Google User",
-          email: emailNormalized,
-          authProvider: "GOOGLE",
-          googleId,
-          profileImage: picture,
-          emailVerified: true,
-        },
-      });
+    // An existing account by email gets Google attached rather than a second
+    // account for the same person, unless it never proved the address, in
+    // which case it is claimed (lib/google-account.ts).
+    let user;
+    try {
+      user = await accountForGoogle({ email, googleId, name, picture, source: "WEB" });
+    } catch (e) {
+      if (e instanceof GoogleIdentityTaken) return NextResponse.json({ error: e.message }, { status: 409 });
+      throw e;
     }
 
     if (user.accountStatus !== "ACTIVE") {

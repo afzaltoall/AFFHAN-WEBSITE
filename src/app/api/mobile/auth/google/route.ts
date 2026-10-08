@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { OAuth2Client } from "google-auth-library";
 import { prisma } from "@/lib/prisma";
 import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
+import { accountForGoogle, GoogleIdentityTaken } from "@/lib/google-account";
 
 export const dynamic = "force-dynamic";
 
@@ -39,38 +40,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A verified email is required from Google." }, { status: 400 });
     }
 
-    const emailNormalized = email.toLowerCase().trim();
-
-    // Account Linking Policy implementation
-    let user = await prisma.mobileUser.findUnique({
-      where: { email: emailNormalized },
-    });
-
-    if (user) {
-      // Existing user found. Link the account if not already linked.
-      if (!user.googleId) {
-        user = await prisma.mobileUser.update({
-          where: { id: user.id },
-          data: {
-            googleId,
-            authProvider: user.authProvider === "EMAIL" ? "EMAIL_AND_GOOGLE" : user.authProvider,
-            profileImage: user.profileImage || picture,
-            emailVerified: true,
-          },
-        });
-      }
-    } else {
-      // Create new user for Google login
-      user = await prisma.mobileUser.create({
-        data: {
-          name: name || "Google User",
-          email: emailNormalized,
-          authProvider: "GOOGLE",
-          googleId,
-          profileImage: picture,
-          emailVerified: true,
-        },
-      });
+    // The same account rules as the website (lib/google-account.ts): linked when
+    // the account proved its email, claimed when it never did, new otherwise.
+    let user;
+    try {
+      user = await accountForGoogle({ email, googleId, name, picture, source: "APP" });
+    } catch (e) {
+      if (e instanceof GoogleIdentityTaken) return NextResponse.json({ error: e.message }, { status: 409 });
+      throw e;
     }
 
     if (user.accountStatus !== "ACTIVE") {
