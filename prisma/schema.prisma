@@ -630,8 +630,15 @@ model MobilePhoneOtp {
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
 
+  // Which connection asked, as an HMAC of its IP under AUTH_SECRET: enough to
+  // count sends per connection (lib/otp-caps.ts), and not the address itself.
+  // Null on rows written before the caps.
+  ipHash     String?
+
   @@index([phone])
   @@index([expiresAt])
+  @@index([ipHash, createdAt])
+  @@index([createdAt])
 }
 
 // Mobile sessions using cryptographically secure opaque tokens.

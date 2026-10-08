@@ -1,95 +1,22 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
-import {
-  normalisePhone,
-  generateOtp,
-  hashOtp,
-  OTP_TTL_MS,
-  OTP_RESEND_COOLDOWN_MS,
-  sendOtpSms,
-  maskPhone,
-} from "@/lib/mobile-otp";
 
 export const dynamic = "force-dynamic";
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
-    const { phone } = body;
-
-    if (!phone) {
-      return NextResponse.json({ error: "Phone number is required." }, { status: 400 });
-    }
-
-    const normPhone = normalisePhone(phone);
-    if (!normPhone) {
-      return NextResponse.json(
-        { error: "Invalid phone number format. Please enter a valid Indian mobile number." },
-        { status: 400 }
-      );
-    }
-
-    // 1. Rate Limiting: Prevent spamming a phone number.
-    // Check the latest OTP for this phone.
-    const latestOtp = await prisma.mobilePhoneOtp.findFirst({
-      where: { phone: normPhone },
-      orderBy: { createdAt: "desc" },
-    });
-
-    if (latestOtp) {
-      const nowMs = Date.now();
-      const createdMs = latestOtp.createdAt.getTime();
-      const diffMs = nowMs - createdMs;
-
-      if (diffMs < OTP_RESEND_COOLDOWN_MS) {
-        const remaining = Math.ceil((OTP_RESEND_COOLDOWN_MS - diffMs) / 1000);
-        return NextResponse.json(
-          { error: `Please wait ${remaining}s before requesting a new code.` },
-          { status: 429 }
-        );
-      }
-    }
-
-    // 2. Generate and Store OTP
-    const code = generateOtp();
-    const codeHash = hashOtp(code);
-    const expiresAt = new Date(Date.now() + OTP_TTL_MS);
-
-    await prisma.mobilePhoneOtp.create({
-      data: {
-        id: crypto.randomUUID(),
-        phone: normPhone,
-        codeHash,
-        expiresAt,
-      },
-    });
-
-    // 3. Send SMS
-    // This will throw if the provider is missing or unimplemented.
-    const smsResult = await sendOtpSms(normPhone, code);
-
-    return NextResponse.json({
-      success: true,
-      delivered: true,
-      provider: smsResult.provider,
-      message: `OTP sent to ${maskPhone(normPhone)}`,
-    });
-
-  } catch (err: unknown) {
-    if (err instanceof Error && err.message.includes("SMS provider not configured")) {
-      // Said in the customer's words; the configuration detail is for the log.
-      console.error("[OTP Send]", err.message);
-      return NextResponse.json(
-        { error: "Sign-in by text message is not available yet. Use email and password or Google." },
-        { status: 501 } // Not Implemented
-      );
-    }
-
-    console.error("[OTP Send Error]", err);
-    return NextResponse.json(
-      { error: "Failed to send OTP. Please try again." },
-      { status: 500 }
-    );
-  }
+/**
+ * The app's first phone-code route, from before Twilio Verify. Its sender
+ * (sendOtpSms in lib/mobile-otp.ts) is implemented for no provider, so it has
+ * never delivered a code, and it now says so straight away.
+ *
+ * It used to write a code row first and only then fail to send. With a
+ * site-wide cap on codes (lib/otp-caps.ts, security audit 2026-10-08, H7)
+ * those rows would count against it, and anyone could use this route to
+ * switch real codes off for the day. Codes go through
+ * /api/mobile/auth/phone/send-otp (Twilio Verify, with the caps); bringing
+ * this one back would mean sending it through requestPhoneCode as well.
+ */
+export async function POST() {
+  return NextResponse.json(
+    { error: "Sign-in by text message is not available yet. Use email and password or Google." },
+    { status: 501 } // Not Implemented
+  );
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalisePhone } from "@/lib/mobile-otp";
 import { requestPhoneCode } from "@/lib/phone-auth";
+import { getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Enter a valid mobile number." }, { status: 400 });
     }
 
-    const result = await requestPhoneCode(phone);
+    const result = await requestPhoneCode(phone, getClientIp(request));
 
     if (!result.ok) {
       return NextResponse.json(

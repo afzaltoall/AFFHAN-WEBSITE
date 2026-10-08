@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 import { normalisePhone } from "@/lib/mobile-otp";
 import { requestPhoneCode } from "@/lib/phone-auth";
+import { getClientIp } from "@/lib/rate-limit";
 import { checkVerification } from "@/lib/twilio-verify";
 import { publicUser } from "@/lib/web-session";
 import { recordAccountChanges } from "@/lib/account-audit";
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     if (step === "send") {
-      const result = await requestPhoneCode(phone);
+      const result = await requestPhoneCode(phone, getClientIp(request));
       if (!result.ok) {
         return NextResponse.json(
           {

@@ -1,8 +1,12 @@
+import crypto from "crypto";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
-import { checkVerification, sendVerification } from "@/lib/twilio-verify";
+import { checkVerification, sendVerification, twilioConfig } from "@/lib/twilio-verify";
 import { maskPhone, OTP_RESEND_COOLDOWN_MS, OTP_TTL_MS } from "@/lib/mobile-otp";
 import { EMAIL_TAKEN_MESSAGE, phonePlan } from "@/lib/phone-linking";
+import { DAY_MS, HOUR_MS, otpCapReached, siteDailyCap, type OtpCap } from "@/lib/otp-caps";
+import { authSecret } from "@/lib/secrets";
 
 // ---------------------------------------------------------------------------
 // Phone sign-in, shared by the app and the website.
@@ -35,15 +39,51 @@ export type CodeRequestResult =
   | { ok: true; resendAfter: number }
   | { ok: false; status: number; error: string; retryAfter?: number };
 
+/** A connection's IP as stored with a send: an HMAC under AUTH_SECRET, so the table counts connections without holding addresses. */
+function ipFingerprint(ip: string): string {
+  return crypto.createHmac("sha256", authSecret()).update(`otp-ip:${ip}`).digest("hex");
+}
+
+/** What each cap says, in the customer's words. The site-wide one is ours to fix, so it is a 503. */
+const CAP_REPLY: Record<OtpCap, { status: number; error: string }> = {
+  site_day: { status: 503, error: "Text-message codes are paused for today. Sign in with your email and password, or with Google." },
+  ip_day: { status: 429, error: "Too many codes have been asked for from this connection. Try again later." },
+  ip_hour: { status: 429, error: "Too many codes have been asked for from this connection. Try again later." },
+  number_day: { status: 429, error: "Too many codes have been sent to this number. Try again later." },
+  number_hour: { status: 429, error: "Too many codes have been sent to this number. Try again later." },
+};
+
+/** Seconds until the oldest send inside the window leaves it, which is when a refused cap next has room. */
+async function secondsUntilRoom(where: Prisma.MobilePhoneOtpWhereInput, windowMs: number, now: number): Promise<number> {
+  const oldest = await prisma.mobilePhoneOtp.findFirst({
+    where: { ...where, createdAt: { gte: new Date(now - windowMs) } },
+    orderBy: { createdAt: "asc" },
+    select: { createdAt: true },
+  });
+  return oldest ? Math.max(1, Math.ceil((oldest.createdAt.getTime() + windowMs - now) / 1000)) : 60;
+}
+
 /**
  * Ask Twilio to text a code.
  *
  * Twilio rate-limits sends per number itself, but that does not stop a script
- * walking a range of numbers and billing us for each, so there is a cooldown of
- * our own in front of it. The row is written only after Twilio accepts, so a
- * failed send never starts a cooldown for a message that never arrived.
+ * walking a range of numbers and billing us for each. A cooldown of our own
+ * per number is in front of it, and behind that the caps in lib/otp-caps.ts:
+ * per number, per connection (`ip`) and for the whole site (security audit
+ * 2026-10-08, H7). The row is written only after Twilio accepts, so a failed
+ * send never counts against anyone for a message that never arrived.
+ *
+ * A number's rows are cleared when its code signs someone in
+ * (authenticateByPhone), so the caps count the codes nobody used: what
+ * pumping produces, and not a customer who signs in every day.
  */
-export async function requestPhoneCode(phone: string): Promise<CodeRequestResult> {
+export async function requestPhoneCode(phone: string, ip: string): Promise<CodeRequestResult> {
+  // Without Twilio no text can go, so nothing is counted or written either.
+  if (!twilioConfig()) {
+    console.error("[otp] TWILIO_* env vars are missing; no code was sent.");
+    return { ok: false, status: 503, error: "Phone sign-in is not available yet." };
+  }
+
   const lastSend = await prisma.mobilePhoneOtp.findFirst({
     where: { phone },
     orderBy: { createdAt: "desc" },
@@ -63,6 +103,28 @@ export async function requestPhoneCode(phone: string): Promise<CodeRequestResult
     }
   }
 
+  const now = Date.now();
+  const hourAgo = new Date(now - HOUR_MS);
+  const dayAgo = new Date(now - DAY_MS);
+  const ipHash = ipFingerprint(ip);
+  const [numberHour, numberDay, ipHour, ipDay, siteDay] = await Promise.all([
+    prisma.mobilePhoneOtp.count({ where: { phone, createdAt: { gte: hourAgo } } }),
+    prisma.mobilePhoneOtp.count({ where: { phone, createdAt: { gte: dayAgo } } }),
+    prisma.mobilePhoneOtp.count({ where: { ipHash, createdAt: { gte: hourAgo } } }),
+    prisma.mobilePhoneOtp.count({ where: { ipHash, createdAt: { gte: dayAgo } } }),
+    prisma.mobilePhoneOtp.count({ where: { createdAt: { gte: dayAgo } } }),
+  ]);
+  const siteCap = siteDailyCap(process.env.OTP_DAILY_CAP);
+  const cap = otpCapReached({ numberHour, numberDay, ipHour, ipDay, siteDay }, siteCap);
+  if (cap) {
+    const scope: Prisma.MobilePhoneOtpWhereInput =
+      cap === "site_day" ? {} : cap.startsWith("ip_") ? { ipHash } : { phone };
+    const retryAfter = await secondsUntilRoom(scope, cap.endsWith("_hour") ? HOUR_MS : DAY_MS, now);
+    if (cap === "site_day") console.error(`[otp] the site's cap of ${siteCap} codes a day is reached; sends are refused.`);
+    else console.warn(`[otp] ${cap} cap reached for ${maskPhone(phone)}`);
+    return { ok: false, ...CAP_REPLY[cap], retryAfter };
+  }
+
   const sent = await sendVerification(phone);
   if (!sent.ok) {
     if (sent.reason === "unconfigured") {
@@ -73,7 +135,7 @@ export async function requestPhoneCode(phone: string): Promise<CodeRequestResult
   }
 
   await prisma.mobilePhoneOtp.create({
-    data: { phone, expiresAt: new Date(Date.now() + OTP_TTL_MS) },
+    data: { phone, ipHash, expiresAt: new Date(Date.now() + OTP_TTL_MS) },
   });
   console.info(`[otp] code sent to ${maskPhone(phone)}`);
 
