@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
 import { checkLoginRateLimit } from "@/lib/rate-limit"; // Assuming we want to rate limit mobile login too!
+import { beginLoginAttempt, clearLoginFailures, customerLoginKey, verifyPasswordOrNothing } from "@/lib/password";
+import { waitPhrase } from "@/lib/login-lockout";
 
 export const dynamic = "force-dynamic";
 
@@ -22,32 +23,33 @@ export async function POST(request: Request) {
 
     const { email, password } = await request.json();
 
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
       return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
     }
 
     const emailNormalized = email.toLowerCase().trim();
 
+    // The website's lockout, on the same count: the app and the site sign in
+    // the same accounts (lib/password.ts; security audit 2026-10-08, H5).
+    const gate = await beginLoginAttempt(customerLoginKey(emailNormalized));
+    if (gate.locked) {
+      return NextResponse.json(
+        { error: `Too many attempts. Try again in ${waitPhrase(gate.retryAfterMs)}, or reset your password.` },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)) } }
+      );
+    }
+
     const user = await prisma.mobileUser.findUnique({
       where: { email: emailNormalized },
     });
 
-    // Generic error message for both cases
-    const authFailedResponse = NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
-
-    if (!user) {
-      return authFailedResponse;
+    // One answer, after the same bcrypt work, for no account, an account with
+    // no password (Google only), and a wrong password.
+    const isValid = await verifyPasswordOrNothing(password, user?.passwordHash);
+    if (!user || !isValid) {
+      return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
-
-    if (!user.passwordHash) {
-      // User registered with Google and has no password set
-      return authFailedResponse;
-    }
-
-    const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid) {
-      return authFailedResponse;
-    }
+    await clearLoginFailures(customerLoginKey(emailNormalized));
 
     if (user.accountStatus !== "ACTIVE") {
       return NextResponse.json({ error: "Account is suspended." }, { status: 403 });

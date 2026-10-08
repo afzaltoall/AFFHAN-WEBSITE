@@ -1,12 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import {
+  beginLoginAttempt,
   clearLoginFailures,
-  countRecentLoginFailures,
-  LOGIN_MAX_FAILURES,
-  recordLoginFailure,
-  verifyPassword,
+  customerLoginKey,
+  verifyPasswordOrNothing,
 } from "@/lib/password";
+import { waitPhrase } from "@/lib/login-lockout";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
 
 export const dynamic = "force-dynamic";
@@ -45,31 +45,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Per address, counted in the database — Redis is not configured, so a
-    // limiter that lived only there would not exist. Checked before the
+    // limiter that lived only there would not exist. Five failures lock it for
+    // fifteen minutes, each five after that for twice as long
+    // (lib/login-lockout.ts), on one count with the app's sign-in, which signs
+    // in the same accounts (security audit 2026-10-08, H5). Checked before the
     // password is read, so a locked-out address costs no bcrypt work either.
-    if ((await countRecentLoginFailures(email)) >= LOGIN_MAX_FAILURES) {
+    const gate = await beginLoginAttempt(customerLoginKey(email));
+    if (gate.locked) {
       return NextResponse.json(
-        { error: "Too many attempts. Try again in 15 minutes, or reset your password." },
-        { status: 429 }
+        { error: `Too many attempts. Try again in ${waitPhrase(gate.retryAfterMs)}, or reset your password.` },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)) } }
       );
     }
 
     const user = await prisma.mobileUser.findUnique({ where: { email } });
 
-    // One branch for "no account" and "no password", so the two are
-    // indistinguishable from outside — and both still cost a failure, or the
-    // absence of one would itself be the answer.
-    if (!user || !user.passwordHash || user.accountStatus !== "ACTIVE") {
-      await recordLoginFailure(email);
+    // One branch for "no account", "no password" and a wrong one, after the
+    // same bcrypt work, so they are indistinguishable from outside — and each
+    // still costs a failure, or the absence of one would itself be the answer.
+    const matches = await verifyPasswordOrNothing(password, user?.passwordHash);
+    if (!user || user.accountStatus !== "ACTIVE" || !matches) {
       return NextResponse.json({ error: WRONG }, { status: 401 });
     }
 
-    if (!(await verifyPassword(password, user.passwordHash))) {
-      await recordLoginFailure(email);
-      return NextResponse.json({ error: WRONG }, { status: 401 });
-    }
-
-    await clearLoginFailures(email);
+    await clearLoginFailures(customerLoginKey(email));
 
     const updated = await prisma.mobileUser.update({
       where: { id: user.id },

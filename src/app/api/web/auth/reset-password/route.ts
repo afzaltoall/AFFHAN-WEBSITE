@@ -5,6 +5,7 @@ import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
 import { readResetToken } from "@/lib/reset-token";
 import { consumeAllEmailOtps, spendResetToken } from "@/lib/email-otp";
 import { recordAccountChanges } from "@/lib/account-audit";
+import { clearLoginFailures, customerLoginKey } from "@/lib/password";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +97,12 @@ export async function POST(request: NextRequest) {
     // second code requested during the same window would still work after the
     // password had already been changed.
     await consumeAllEmailOtps(email, "PASSWORD_RESET");
+
+    // And the sign-in lock is lifted (lib/login-lockout.ts). The code just
+    // proved the inbox, which no password guess does, and the lock's message
+    // sends people here: with a wait that can grow to a day, a reset that
+    // still left them locked out would be a dead end.
+    await clearLoginFailures(customerLoginKey(email));
 
     // Records that it happened, and nothing about what it became — see
     // lib/account-audit.ts.

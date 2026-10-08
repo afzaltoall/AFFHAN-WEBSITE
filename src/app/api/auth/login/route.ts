@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signSession, SESSION_COOKIE, adminCookieOptions } from "@/lib/session";
 import { checkLoginRateLimit } from "@/lib/rate-limit";
+import { adminLoginKey, beginLoginAttempt, clearLoginFailures, verifyPasswordOrNothing } from "@/lib/password";
+import { waitPhrase } from "@/lib/login-lockout";
 
 export const dynamic = "force-dynamic";
 
@@ -46,22 +47,32 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!email || !password) {
+    if (typeof email !== "string" || typeof password !== "string" || !email || !password) {
       return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
     }
 
-    const normEmail = String(email).trim().toLowerCase();
+    const normEmail = email.trim().toLowerCase();
 
+    // Five wrong passwords lock this address for fifteen minutes, and each five
+    // after that for twice as long (lib/login-lockout.ts). Kept in the
+    // database, so it holds whether or not Upstash is configured (security
+    // audit 2026-10-08, H5).
+    const gate = await beginLoginAttempt(adminLoginKey(normEmail));
+    if (gate.locked) {
+      return NextResponse.json(
+        { error: `Too many attempts. Try again in ${waitPhrase(gate.retryAfterMs)}.` },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)) } }
+      );
+    }
+
+    // One answer, after the same bcrypt work, for an address that is not an
+    // admin's and for a wrong password.
     const admin = await prisma.adminUser.findUnique({ where: { email: normEmail } });
-
-    if (!admin) {
+    const ok = await verifyPasswordOrNothing(password, admin?.passwordHash);
+    if (!admin || !ok) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
-
-    const ok = await bcrypt.compare(password, admin.passwordHash);
-    if (!ok) {
-      return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
-    }
+    await clearLoginFailures(adminLoginKey(normEmail));
 
     const user = {
       id: admin.id,
