@@ -8,6 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile } from "@/lib/phone";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+
 interface Contact2Props {
   title?: string;
   /** Set on a second line of the heading, in the brand teal ("Contact" / "AFFHAN"). */
@@ -58,6 +62,11 @@ export const Contact2 = ({
   });
   const [status, setStatus] = React.useState<"idle" | "submitting" | "success" | "error">("idle");
   const [feedback, setFeedback] = React.useState<string>("");
+  // Cloudflare Turnstile (security audit 2026-10-08, M7). A token is good for
+  // one message, so the widget is reset after every answer.
+  const [turnstileToken, setTurnstileToken] = React.useState<string | null>(null);
+  const [turnstileShowing, setTurnstileShowing] = React.useState(false);
+  const turnstileRef = React.useRef<TurnstileInstance>(null);
 
   // ?message=…: a request written for the visitor elsewhere on the site (the
   // search's "We'll source it for you": what they searched for, their budget
@@ -98,13 +107,19 @@ export const Contact2 = ({
       return;
     }
     if (!form.message.trim()) { setStatus("error"); setFeedback("Please enter a message."); return; }
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setStatus("error");
+      setFeedback("The security check is not finished yet. Complete it if it is showing, or wait a moment and send again.");
+      return;
+    }
 
     setStatus("submitting");
     setFeedback("");
     try {
       const payloadForm = {
         ...form,
-        phone: `${form.phoneCode} ${form.phone}`
+        phone: `${form.phoneCode} ${form.phone}`,
+        turnstileToken,
       };
       const res = await fetch("/api/contact", {
         method: "POST",
@@ -112,6 +127,8 @@ export const Contact2 = ({
         body: JSON.stringify(payloadForm),
       });
       const payload = await res.json().catch(() => ({}));
+      setTurnstileToken(null);
+      turnstileRef.current?.reset();
       if (!res.ok) {
         setStatus("error");
         setFeedback(payload.error || "Something went wrong. Please try again.");
@@ -470,6 +487,28 @@ export const Contact2 = ({
               <Label htmlFor="message" className="text-slate-700 font-semibold tracking-wide">Message / Requirements</Label>
               <Textarea placeholder="Any specific requirements, target price, or shipping preference?" id="message" name="message" value={form.message} onChange={setField("message")} className="bg-slate-50/70 border-slate-200 text-slate-950 placeholder:text-slate-400 focus-visible:ring-[#27a8c4]/30 focus-visible:border-[#27a8c4] focus-visible:bg-white rounded-xl min-h-[120px] transition-all shadow-[inset_0_1.5px_3px_rgba(0,0,0,0.03)] focus-visible:shadow-[0_0_12px_rgba(39,168,196,0.12)]" />
             </div>
+
+            {TURNSTILE_SITE_KEY && (
+              // Shown only when Cloudflare needs the visitor to do something;
+              // otherwise it runs out of sight and out of the layout, so the
+              // form's gap-6 column looks as it did. Full width when it does
+              // show, to line up with the fields.
+              <div
+                className={turnstileShowing ? "[&_iframe]:!w-full" : "absolute h-0 w-0 overflow-hidden"}
+                aria-hidden={!turnstileShowing}
+              >
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={TURNSTILE_SITE_KEY}
+                  onSuccess={setTurnstileToken}
+                  onExpire={() => setTurnstileToken(null)}
+                  onError={() => setTurnstileToken(null)}
+                  onBeforeInteractive={() => setTurnstileShowing(true)}
+                  onAfterInteractive={() => setTurnstileShowing(false)}
+                  options={{ theme: "light", size: "flexible", appearance: "interaction-only" }}
+                />
+              </div>
+            )}
 
             {/* Inline status feedback */}
             {feedback && (

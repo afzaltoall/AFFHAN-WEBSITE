@@ -200,6 +200,34 @@ export async function checkPasswordResetRateLimit(req: HasHeaders): Promise<Limi
 }
 
 // ============================================================================
+// Contact form (5 messages per hour per IP)
+// ============================================================================
+// Public, like the trip applications below, and the same choice when Upstash
+// is not configured: messages go through, because a refused lead is a
+// customer lost. Turnstile and the per-sender cap in the database hold either
+// way (/api/contact; security audit 2026-10-08, M7).
+const contactLimiter = redis
+  ? new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(5, "60 m"),
+      analytics: false,
+    })
+  : null;
+
+export async function checkContactRateLimit(req: HasHeaders): Promise<LimitResult> {
+  if (!contactLimiter) return { success: true };
+  try {
+    const ip = getClientIp(req);
+    const { success } = await contactLimiter.limit(`contact:${ip}`);
+    return { success };
+  } catch (error) {
+    console.error("Redis Contact RateLimit Error:", error);
+    // Fail safely (open) if Redis is down.
+    return { success: true };
+  }
+}
+
+// ============================================================================
 // Free China trip applications (5 per hour per IP)
 // ============================================================================
 // Public and unauthenticated, like the contact form, but each application is
