@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { readSignupToken } from "@/lib/signup-token";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
 import { checkPasswordStrength, hashPassword } from "@/lib/password";
+import { EMAIL_TAKEN_MESSAGE, phonePlan } from "@/lib/phone-linking";
 
 export const dynamic = "force-dynamic";
 
@@ -62,54 +63,42 @@ export async function POST(request: Request) {
     if (!strength.ok) {
       return NextResponse.json({ error: strength.error }, { status: 400 });
     }
-    const passwordHash = await hashPassword(password);
 
     // Between the 409 and this call, the same number could have been signed in
     // on another device. Treat that as a login rather than colliding with the
-    // unique index.
+    // unique index. Nothing typed here is written to that account: the token
+    // proves the number, not the email or a password.
     let user = await prisma.mobileUser.findUnique({ where: { phone } });
 
     if (!user) {
-      // The email may already belong to an account made with Google or a
-      // password. Attach the number to it instead of refusing — it is the same
-      // person, and the unique index would refuse anyway.
-      const byEmail = await prisma.mobileUser.findUnique({ where: { email } });
+      // An email that already had an account used to get this number attached,
+      // a password set if it had none, and a session, so anyone with a phone
+      // could take over somebody else's account by typing their address
+      // (security audit 2026-10-08, C1). It is refused now: the owner signs in
+      // to that account and adds the number from Account.
+      const emailTaken = Boolean(
+        await prisma.mobileUser.findUnique({ where: { email }, select: { id: true } })
+      );
+      if (phonePlan({ accountForPhone: false, hasProfile: true, emailTaken }).kind === "email_taken") {
+        return NextResponse.json({ error: EMAIL_TAKEN_MESSAGE, reason: "email_taken" }, { status: 409 });
+      }
 
-      user = byEmail
-        ? await prisma.mobileUser.update({
-            where: { id: byEmail.id },
-            data: {
-              phone,
-              phoneVerified: true,
-              name: byEmail.name || name,
-              firstName: byEmail.firstName || firstName || null,
-              lastName: byEmail.lastName || lastName || null,
-              // They have just chosen one, so an account that had none gets
-              // it. An account that already had a password keeps it: this
-              // path is reached by proving a phone number, which is not
-              // proof of the old password.
-              ...(byEmail.passwordHash ? {} : { passwordHash }),
-              authProvider: byEmail.authProvider.includes("PHONE")
-                ? byEmail.authProvider
-                : `${byEmail.authProvider}_AND_PHONE`,
-            },
-          })
-        : await prisma.mobileUser.create({
-            data: {
-              name,
-              firstName: firstName || null,
-              lastName: lastName || null,
-              phone,
-              email,
-              passwordHash,
-              phoneVerified: true,
-              // Both ways in from the start: the number that was just proved,
-              // and the password just chosen.
-              authProvider: "PHONE_AND_EMAIL",
-              lastLoginAt: new Date(),
-              loginCount: 1,
-            },
-          });
+      user = await prisma.mobileUser.create({
+        data: {
+          name,
+          firstName: firstName || null,
+          lastName: lastName || null,
+          phone,
+          email,
+          passwordHash: await hashPassword(password),
+          phoneVerified: true,
+          // Both ways in from the start: the number that was just proved,
+          // and the password just chosen.
+          authProvider: "PHONE_AND_EMAIL",
+          lastLoginAt: new Date(),
+          loginCount: 1,
+        },
+      });
     }
 
     if (user.accountStatus !== "ACTIVE") {

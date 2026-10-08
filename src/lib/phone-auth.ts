@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
 import { checkVerification, sendVerification } from "@/lib/twilio-verify";
 import { maskPhone, OTP_RESEND_COOLDOWN_MS, OTP_TTL_MS } from "@/lib/mobile-otp";
+import { EMAIL_TAKEN_MESSAGE, phonePlan } from "@/lib/phone-linking";
 
 // ---------------------------------------------------------------------------
 // Phone sign-in, shared by the app and the website.
@@ -85,7 +86,8 @@ export async function requestPhoneCode(phone: string): Promise<CodeRequestResult
  * Whether this is a signup or a login is not something the caller declares —
  * it is whether the number already has an account, which only the database
  * knows. A new number with no name/email supplied comes back as needsProfile
- * rather than becoming a placeholder account.
+ * rather than becoming a placeholder account, and one whose email already has
+ * an account is refused (lib/phone-linking.ts).
  */
 export async function authenticateByPhone(input: {
   phone: string;
@@ -112,8 +114,23 @@ export async function authenticateByPhone(input: {
     // surnames and mononyms.
     const name = [firstName, lastName].filter(Boolean).join(" ");
     const email = typeof input.email === "string" ? input.email.trim().toLowerCase() : "";
+    const hasProfile = Boolean(name && email);
 
-    if (!name || !email) {
+    if (hasProfile && !EMAIL_RE.test(email)) {
+      return { ok: false, status: 400, error: "Enter a valid email address." };
+    }
+
+    // The code proved the number and nothing else. An email that already had
+    // an account used to get this number attached and a session opened on it,
+    // so anyone with a phone could enter somebody else's account by typing
+    // their address (security audit 2026-10-08, C1). It is refused now: the
+    // owner signs in to that account and adds the number from Account.
+    const emailTaken =
+      hasProfile &&
+      Boolean(await prisma.mobileUser.findUnique({ where: { email }, select: { id: true } }));
+    const plan = phonePlan({ accountForPhone: false, hasProfile, emailTaken });
+
+    if (plan.kind === "needs_profile") {
       return {
         ok: false,
         status: 409,
@@ -121,41 +138,21 @@ export async function authenticateByPhone(input: {
         error: "This number has no account yet. Tell us your name and email to create one.",
       };
     }
-    if (!EMAIL_RE.test(email)) {
-      return { ok: false, status: 400, error: "Enter a valid email address." };
+    if (plan.kind === "email_taken") {
+      return { ok: false, status: 409, error: EMAIL_TAKEN_MESSAGE, reason: "email_taken" };
     }
 
-    // The email may already belong to an account made by password or Google.
-    // Attach the number to it rather than creating a second account for the
-    // same person — the unique index would refuse, and refusing is the wrong
-    // answer to "I am the same customer".
-    const byEmail = await prisma.mobileUser.findUnique({ where: { email } });
-
-    user = byEmail
-      ? await prisma.mobileUser.update({
-          where: { id: byEmail.id },
-          data: {
-            phone: input.phone,
-            phoneVerified: true,
-            name: byEmail.name || name,
-            firstName: byEmail.firstName || firstName || null,
-            lastName: byEmail.lastName || lastName || null,
-            authProvider: byEmail.authProvider.includes("PHONE")
-              ? byEmail.authProvider
-              : `${byEmail.authProvider}_AND_PHONE`,
-          },
-        })
-      : await prisma.mobileUser.create({
-          data: {
-            name,
-            firstName: firstName || null,
-            lastName: lastName || null,
-            email,
-            phone: input.phone,
-            phoneVerified: true,
-            authProvider: "PHONE",
-          },
-        });
+    user = await prisma.mobileUser.create({
+      data: {
+        name,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        email,
+        phone: input.phone,
+        phoneVerified: true,
+        authProvider: "PHONE",
+      },
+    });
   }
 
   if (user.accountStatus !== "ACTIVE") {
