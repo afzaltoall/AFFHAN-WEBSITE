@@ -71,7 +71,9 @@ export async function POST(request: Request) {
       image: admin.image ?? null,
     };
 
-    const token = signSession(user);
+    // Signed against the account's current version, which a password change
+    // moves on, ending every cookie signed before it (lib/session.ts).
+    const token = signSession({ ...user, tokenVersion: admin.tokenVersion });
     const res = NextResponse.json({ user });
     // Written to lapse with the idle window rather than outlive it by a
     // month: the console slides it forward while somebody is working.

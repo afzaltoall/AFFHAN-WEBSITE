@@ -2046,7 +2046,7 @@ function PasswordDialog({ onClose, t }: { onClose: () => void; t: Theme }) {
   const submit = async () => {
     setError(null);
     if (!current || !next) { setError("Please fill in all fields."); return; }
-    if (next.length < 6) { setError("New password must be at least 6 characters."); return; }
+    if (next.length < 12) { setError("New password must be at least 12 characters."); return; }
     if (next !== confirmPwd) { setError("New passwords do not match."); return; }
     if (current === next) { setError("New password must be different from the current one."); return; }
     setBusy(true);

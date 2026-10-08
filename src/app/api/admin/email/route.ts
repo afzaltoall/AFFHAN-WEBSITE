@@ -64,7 +64,14 @@ export async function POST(request: Request) {
       image: updated.image ?? null,
     };
     const res = NextResponse.json({ user: newUser });
-    res.cookies.set(SESSION_COOKIE, signSession(newUser), adminCookieOptions);
+    // On the version the account is on (lib/session.ts): a cookie without it
+    // is refused, so leaving it out would sign the admin out for changing
+    // their email.
+    res.cookies.set(
+      SESSION_COOKIE,
+      signSession({ ...newUser, tokenVersion: updated.tokenVersion }),
+      adminCookieOptions,
+    );
     return res;
   } catch (err) {
     console.error("email change error", err);

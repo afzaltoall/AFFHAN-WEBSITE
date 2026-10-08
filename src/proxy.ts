@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ADMIN_ROLE, SESSION_COOKIE, adminSessionIsFresh, readSession } from "@/lib/session";
+import { ADMIN_ROLE, SESSION_COOKIE, adminSessionIsFresh, readSession } from "@/lib/session-token";
 
 /** The trip's own address. */
 const TRIP = "/free-china-trip";
@@ -62,7 +62,15 @@ export async function proxy(request: NextRequest) {
   return res;
 }
 
-/** An admin signed in to the console, inside its idle window (lib/session.ts). */
+/**
+ * An admin signed in to the console, inside its idle window
+ * (lib/session-token.ts).
+ *
+ * The signature and the window only: the session's version is in the
+ * database (lib/session.ts), and the proxy has none. So a cookie revoked by a
+ * password change can still preview the trip's pages for what is left of its
+ * thirty minutes. The trip's API routes check the version (tripClosedHere).
+ */
 function isAdmin(request: NextRequest) {
   const session = readSession(request.cookies.get(SESSION_COOKIE)?.value);
   return !!session && session.user.role === ADMIN_ROLE && adminSessionIsFresh(session.issuedAt);
