@@ -34,10 +34,12 @@ export type OtpPurpose = "PASSWORD_RESET" | "EMPLOYEE_PASSWORD_RESET";
  * Codes per address per window, enforced in the database.
  *
  * Deliberately not only in Redis. The Upstash limiters in lib/rate-limit.ts
- * fail open when they are not configured — which is the case right now, no
- * UPSTASH_* variables exist — so a limit that lived only there would not exist
- * at all. This one holds whether or not Redis is ever set up, because the rows
- * it counts are the same rows the flow already writes.
+ * used to let everything through when they were not configured, which was
+ * the case for this site; the password-reset one now refuses in production
+ * instead, but a limit that lives only there still disappears under
+ * `next dev` or the day Redis is down. This one holds whether or not Redis is
+ * ever set up, because the rows it counts are the same rows the flow already
+ * writes.
  */
 export const OTP_MAX_PER_EMAIL = 3;
 export const OTP_EMAIL_WINDOW_MS = 15 * 60 * 1000;

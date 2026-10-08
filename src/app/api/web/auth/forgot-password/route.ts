@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
+import { checkPasswordResetRateLimit, limiterUnavailable } from "@/lib/rate-limit";
 import { issueEmailOtp } from "@/lib/email-otp";
 import { canSendEmail, sendEmail } from "@/lib/email";
 import { noPasswordOnAccountEmail, passwordResetCodeEmail } from "@/lib/email-templates";
@@ -38,9 +38,12 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    // Per-IP. The per-address limit is inside issueEmailOtp, in the database,
-    // because this one is inert until Upstash is configured.
+    // Per-IP, and refused in production until Upstash is configured
+    // (lib/rate-limit.ts); a 503 says nothing about the address, which has not
+    // been read yet. The per-address limit is inside issueEmailOtp, in the
+    // database, so it holds with or without Redis.
     const limit = await checkPasswordResetRateLimit(request);
+    if (limit.unavailable) return limiterUnavailable("Password reset");
     if (!limit.success) return generic;
 
     const body = await request.json().catch(() => ({}));

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
+import { checkPasswordResetRateLimit, limiterUnavailable } from "@/lib/rate-limit";
 import { issueEmailOtp } from "@/lib/email-otp";
 import { canSendEmail, sendEmail } from "@/lib/email";
 import { passwordResetCodeEmail } from "@/lib/email-templates";
@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const limit = await checkPasswordResetRateLimit(request);
+    if (limit.unavailable) return limiterUnavailable("Password reset");
     if (!limit.success) return generic;
 
     const body = await request.json().catch(() => ({}));

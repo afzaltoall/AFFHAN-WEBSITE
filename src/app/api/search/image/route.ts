@@ -16,7 +16,7 @@ import {
   type DetectedItem,
   type ImageDescription,
 } from "@/lib/imageSearch";
-import { checkImageSearchRateLimit } from "@/lib/rate-limit";
+import { checkImageSearchRateLimit, limiterUnavailable } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 /** Vision call plus a catalogue query. Comfortably inside the Hobby limit, but
@@ -147,6 +147,7 @@ function ourImageUrl(link: string, depth = 0): string | null {
  */
 export async function POST(request: NextRequest) {
   const rateLimit = await checkImageSearchRateLimit(request);
+  if (rateLimit.unavailable) return limiterUnavailable("Photo search");
   if (!rateLimit.success) {
     return NextResponse.json(
       { error: "Too many image searches. Please try again later." },

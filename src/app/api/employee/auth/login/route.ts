@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkLoginRateLimit } from "@/lib/rate-limit";
+import { checkLoginRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
+import { checkTurnstile } from "@/lib/turnstile";
 import {
   clearLoginFailures,
   countRecentLoginFailures,
@@ -43,29 +44,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email and password are required." }, { status: 400 });
     }
 
-    // Turnstile only when it is configured, matching /api/auth/login: a missing
-    // secret must not lock the team out of a console they can reach locally.
-    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
-    if (turnstileSecret) {
-      if (!turnstileToken) {
-        return NextResponse.json({ error: "Please complete the security check." }, { status: 400 });
-      }
-      const form = new URLSearchParams();
-      form.append("secret", turnstileSecret);
-      form.append("response", turnstileToken);
-      const cf = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        body: form,
-      });
-      const verdict = await cf.json().catch(() => ({ success: false }));
-      if (!verdict.success) {
-        return NextResponse.json({ error: "Security check failed. Please try again." }, { status: 403 });
-      }
+    // Turnstile as /api/auth/login has it (lib/turnstile.ts): skipped under
+    // `next dev` when the secret is missing, so the team can reach a local
+    // console, and refused in production, where skipping meant no check.
+    const human = await checkTurnstile(turnstileToken, getClientIp(request));
+    if (!human.ok) {
+      return NextResponse.json({ error: human.error }, { status: human.status });
     }
 
-    // Two limits, as the customer flow has: per IP in Redis (inert until
-    // UPSTASH_* exist) and per address in the database, which always holds.
+    // Two limits, as the customer flow has: per IP in Redis (refused in
+    // production until UPSTASH_* exist) and per address in the database,
+    // which always holds.
     const perIp = await checkLoginRateLimit(request);
+    if (perIp.unavailable) return limiterUnavailable("Sign-in");
     if (!perIp.success) {
       return NextResponse.json(
         { error: "Too many login attempts. Please try again later." },

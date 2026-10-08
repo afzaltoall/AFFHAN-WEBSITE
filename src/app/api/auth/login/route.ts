@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signSession, SESSION_COOKIE, adminCookieOptions } from "@/lib/session";
-import { checkLoginRateLimit } from "@/lib/rate-limit";
+import { checkLoginRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
 import { adminLoginKey, beginLoginAttempt, clearLoginFailures, verifyPasswordOrNothing } from "@/lib/password";
 import { waitPhrase } from "@/lib/login-lockout";
+import { checkTurnstile } from "@/lib/turnstile";
 
 export const dynamic = "force-dynamic";
 
@@ -11,32 +12,16 @@ export async function POST(request: Request) {
   try {
     const { email, password, turnstileToken } = await request.json();
 
-    // 1. Validate CAPTCHA (Turnstile) first
-    if (!turnstileToken) {
-      return NextResponse.json({ error: "Please complete the security check." }, { status: 400 });
-    }
-
-    const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
-    if (turnstileSecret) {
-      const formData = new URLSearchParams();
-      formData.append("secret", turnstileSecret);
-      formData.append("response", turnstileToken);
-      // Optional: you can also pass remoteip here if needed, but not strictly required by CF unless enabled
-
-      const cfRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-        method: "POST",
-        body: formData,
-      });
-      const cfData = await cfRes.json();
-      if (!cfData.success) {
-        return NextResponse.json({ error: "Security check failed. Please try again." }, { status: 403 });
-      }
-    } else {
-      console.warn("TURNSTILE_SECRET_KEY is missing. Skipping CAPTCHA validation.");
+    // 1. Validate CAPTCHA (Turnstile) first. In production a missing secret
+    // refuses, where it used to skip the check (lib/turnstile.ts).
+    const human = await checkTurnstile(turnstileToken, getClientIp(request));
+    if (!human.ok) {
+      return NextResponse.json({ error: human.error }, { status: human.status });
     }
 
     // 2. Check rate limit
-    const rateLimit = await checkLoginRateLimit(request as any);
+    const rateLimit = await checkLoginRateLimit(request);
+    if (rateLimit.unavailable) return limiterUnavailable("Sign-in");
     if (!rateLimit.success) {
       return NextResponse.json(
         { error: "Too many login attempts. Please try again later." },

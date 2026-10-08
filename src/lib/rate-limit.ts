@@ -1,6 +1,7 @@
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
-import { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { protectionsRequired } from "@/lib/protections";
 
 // Fallback to null if env variables are missing, meaning Redis is not available
 const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
@@ -10,10 +11,63 @@ const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_R
     })
   : null;
 
+/** What every limit here answers. `unavailable`: refused because Upstash is not set up, not because it is spent. */
+export type LimitResult = {
+  success: boolean;
+  limit?: number;
+  remaining?: number;
+  reset?: number;
+  unavailable?: true;
+};
+
+/** Only the headers are read, so a plain Request does as well as a NextRequest. */
+type HasHeaders = Pick<Request, "headers">;
+
+const warned = new Set<string>();
+
+/**
+ * The answer of a limit Upstash is not set up for (security audit 2026-10-08,
+ * H5).
+ *
+ * Sign-in, password reset and photo search (Gemini, paid per call) refuse in
+ * production: until now every limit here let everything through without
+ * Redis, silently, which is how the site has run. Under `next dev` they still
+ * step aside, with a warning (lib/protections.ts). The video-view and
+ * trip-application limits are left as they were.
+ *
+ * Upstash failing at run time is a different case and still lets requests
+ * through: an outage there must not lock every customer out of sign-in, and
+ * the sign-in lockout (lib/password.ts) is in the database, not in Redis.
+ */
+function notSetUp(name: string): LimitResult {
+  const refuse = protectionsRequired();
+  if (!warned.has(name)) {
+    warned.add(name);
+    if (refuse) {
+      console.error(`[rate-limit] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not set: ${name} is refused until they are.`);
+    } else {
+      console.warn(`[rate-limit] Upstash is not configured; the ${name} limit is off (development only).`);
+    }
+  }
+  return refuse ? { success: false, unavailable: true } : { success: true };
+}
+
+/**
+ * The reply for a limit that refused because it is not set up: 503, not 429,
+ * so nobody is told they tried too often when they did not. `what` names the
+ * feature, as in "Sign-in is unavailable right now."
+ */
+export function limiterUnavailable(what: string): NextResponse {
+  return NextResponse.json(
+    { error: `${what} is unavailable right now. Please try again later.` },
+    { status: 503, headers: { "Retry-After": "300" } }
+  );
+}
+
 /**
  * Helper to get the client IP from Next.js headers (Vercel sets x-forwarded-for).
  */
-export function getClientIp(req: NextRequest): string {
+export function getClientIp(req: HasHeaders): string {
   // On Vercel, x-real-ip or x-forwarded-for will contain the client IP
   const ip = req.headers.get("x-real-ip") || req.headers.get("x-forwarded-for");
   // Some headers contain multiple IPs (e.g., 'ip1, ip2'); take the first one
@@ -31,8 +85,8 @@ const loginLimiter = redis
     })
   : null;
 
-export async function checkLoginRateLimit(req: NextRequest) {
-  if (!loginLimiter) return { success: true };
+export async function checkLoginRateLimit(req: HasHeaders): Promise<LimitResult> {
+  if (!loginLimiter) return notSetUp("sign-in");
   
   try {
     const ip = getClientIp(req);
@@ -64,8 +118,8 @@ const imageSearchLimiter = redis
  */
 const IMAGE_LIMIT_WAIT_MS = 1_500;
 
-export async function checkImageSearchRateLimit(req: NextRequest) {
-  if (!imageSearchLimiter) return { success: true };
+export async function checkImageSearchRateLimit(req: HasHeaders): Promise<LimitResult> {
+  if (!imageSearchLimiter) return notSetUp("photo search");
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -97,7 +151,7 @@ const videoViewLimiter = redis
     })
   : null;
 
-export async function checkVideoViewRateLimit(req: NextRequest, videoId: string) {
+export async function checkVideoViewRateLimit(req: HasHeaders, videoId: string) {
   if (!videoViewLimiter) return { success: true };
   
   try {
@@ -116,10 +170,9 @@ export async function checkVideoViewRateLimit(req: NextRequest, videoId: string)
 // Password-reset codes (5 requests per 15 minutes per IP)
 //
 // The per-IP half of the pair. The per-address half lives in lib/email-otp.ts
-// and is enforced in the database, because this one fails open when Upstash is
-// not configured — which it is not today, so treat this as defence that will
-// switch on when UPSTASH_REDIS_REST_* are set, not as the limit that is
-// currently holding.
+// and is enforced in the database. This one refuses in production while
+// UPSTASH_REDIS_REST_* are not set (notSetUp, above), and lets requests
+// through under `next dev`.
 //
 // Five rather than three: one IP is a household, an office or a mobile
 // carrier's NAT, so the address limit is the one that should bite first.
@@ -132,8 +185,8 @@ const passwordResetLimiter = redis
     })
   : null;
 
-export async function checkPasswordResetRateLimit(req: NextRequest) {
-  if (!passwordResetLimiter) return { success: true };
+export async function checkPasswordResetRateLimit(req: HasHeaders): Promise<LimitResult> {
+  if (!passwordResetLimiter) return notSetUp("password reset");
 
   try {
     const ip = getClientIp(req);
@@ -160,7 +213,7 @@ const tripApplicationLimiter = redis
     })
   : null;
 
-export async function checkTripApplicationRateLimit(req: NextRequest) {
+export async function checkTripApplicationRateLimit(req: HasHeaders) {
   if (!tripApplicationLimiter) return { success: true };
   try {
     const ip = getClientIp(req);
