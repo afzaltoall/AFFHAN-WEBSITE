@@ -10,7 +10,6 @@ import type { GridCard, GridCategoryTile, GridProductTile, RankedCard, TilesCard
 
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((m) => m.InquiryModal), { ssr: false });
 
-const fmt = (n: number) => n.toLocaleString("en-US");
 /** A picture at about twice the width it shows at, for sharp screens. */
 const src = (url: string, px: number) => getCdnUrl(url, px) as string;
 const stillPlease = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -172,11 +171,9 @@ function TilesView({ card }: { card: TilesCard }) {
         ))}
       </ul>
       <footer className="self-end pt-0.5">
-        <Link href={card.href} className={MORE_LINK} aria-label={`See all ${fmt(card.count)} products in ${card.title}`}>
-          <span className="truncate">
-            <span className="hidden sm:inline">See all </span>
-            {fmt(card.count)} products
-          </span>
+        {/* As a shop's card says it. No count: numbers on every card read as clutter (the owner, 2026-10-08). */}
+        <Link href={card.href} className={MORE_LINK} aria-label={`See more in ${card.title}`}>
+          <span className="truncate">See more</span>
           <ChevronRight size={14} className="shrink-0" aria-hidden="true" />
         </Link>
       </footer>
@@ -207,9 +204,8 @@ function RankedView({ card }: { card: RankedCard }) {
               >
                 <Image src={src(tile.image, 200)} alt="" fill sizes="96px" className="object-cover mix-blend-multiply transition-transform duration-500 ease-out group-hover:scale-[1.06]" />
               </span>
-              <span className="min-w-0">
-                <span className="line-clamp-2 text-[12.5px] font-medium leading-snug text-slate-800 transition-colors group-hover:text-brand-dark sm:text-[13.5px] min-[100rem]:text-[14.5px]">{tile.name}</span>
-                <span className="hidden truncate text-[11.5px] tabular-nums text-slate-500 sm:block min-[100rem]:text-[12.5px]">{fmt(tile.count)} products</span>
+              <span className="line-clamp-2 min-w-0 text-[13px] font-medium leading-snug text-slate-800 transition-colors group-hover:text-brand-dark sm:text-[14.5px] min-[100rem]:text-[15.5px]">
+                {tile.name}
               </span>
             </Link>
           </li>
@@ -232,12 +228,9 @@ function TopRank({ tile }: { tile: GridCategoryTile }) {
     <Link href={`/products/?categoryId=${tile.id}`} className={`group flex h-full min-w-0 flex-col rounded ${FOCUS}`} onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
       {/* As tall as the list beside it lets it be. */}
       <Frames frames={frames} frame={hover.frame} armed={hover.armed} px={480} sizes="(max-width: 1024px) 45vw, 25vw" className="min-h-[136px] flex-1" />
-      <span className="mt-2 flex min-w-0 items-start gap-2">
+      <span className="mt-2 flex min-w-0 items-center gap-2">
         <Rank n={1} />
-        <span className="min-w-0">
-          <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-slate-900 transition-colors group-hover:text-brand-dark sm:text-[14.5px]">{tile.name}</span>
-          <span className="block text-[11.5px] tabular-nums text-slate-500">{fmt(tile.count)} products</span>
-        </span>
+        <span className="line-clamp-2 min-w-0 text-[13.5px] font-semibold leading-snug text-slate-900 transition-colors group-hover:text-brand-dark sm:text-[15.5px]">{tile.name}</span>
       </span>
     </Link>
   );
@@ -367,10 +360,9 @@ function CategoryTile({ tile }: { tile: GridCategoryTile }) {
   return (
     <Link href={`/products/?categoryId=${tile.id}`} className={`group block rounded ${FOCUS}`} onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
       <Frames frames={frames} frame={hover.frame} armed={hover.armed} px={320} sizes="(max-width: 1024px) 22vw, 12vw" />
-      {/* Room for a name of two lines and its count under it, so every tile of a row is one height. */}
-      <span className="mt-1.5 block min-h-[2lh] text-[11.5px] leading-[1.25] sm:min-h-[calc(2lh+16px)] sm:text-[13px]">
-        <span className="line-clamp-2 font-medium text-slate-800 transition-colors group-hover:text-brand-dark">{tile.name}</span>
-        <span className="hidden truncate text-[11.5px] leading-4 tabular-nums text-slate-500 sm:block">{fmt(tile.count)} products</span>
+      {/* Its name and nothing else, with room held for two lines, so every tile of a row is one height. */}
+      <span className="mt-1.5 line-clamp-2 min-h-[2lh] text-[11.5px] font-medium leading-[1.25] text-slate-800 transition-colors group-hover:text-brand-dark sm:mt-2 sm:text-[13.5px]">
+        {tile.name}
       </span>
     </Link>
   );

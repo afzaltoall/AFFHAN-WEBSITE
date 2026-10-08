@@ -10,7 +10,6 @@ import type { Spotlight, SpotlightProduct, SpotlightShelf } from "@/lib/homeGrid
 
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((m) => m.InquiryModal), { ssr: false });
 
-const fmt = (n: number) => n.toLocaleString("en-US");
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50";
 const ON_DARK_FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70";
 /** Where Amazon's strip says "Bestsellers", the category: the one label here that is always true. */
@@ -27,15 +26,16 @@ const STRIP = "absolute bottom-2 left-0 max-w-[88%] truncate rounded-r-sm bg-[li
  * branch of the family each, four products to a shelf. lib/homeGrid.ts
  * (getSpotlight) picks them all.
  *
- * The family's size is said once, with its unit beside it: a bare "19,020"
- * on the link read as a price (the owner, 2026-10-08). "Get a quote" asks
+ * No product counts: a bare "19,020" on the link read as a price, and a count
+ * at all read as clutter (the owner, 2026-10-08); the line under the name
+ * says what the family holds instead. "Get a quote" asks
  * about that product; the old band's one button asked about the first product,
  * whichever was showing. Nothing here shows a price.
  */
 export function ProductSpotlightSection({ spotlight }: { spotlight: Spotlight | null }) {
   const [quote, setQuote] = useState<SpotlightProduct | null>(null);
   if (!spotlight || spotlight.products.length < 4) return null;
-  const { title, href, count, products, shelves } = spotlight;
+  const { title, subtitle, href, products, shelves } = spotlight;
   return (
     <section aria-labelledby="spotlight-title" className="w-full bg-white px-3 pb-12 sm:px-4 sm:pb-16 lg:px-5">
       <div className="mx-auto max-w-[1920px]">
@@ -45,10 +45,7 @@ export function ProductSpotlightSection({ spotlight }: { spotlight: Spotlight | 
               <h2 id="spotlight-title" className="text-[20px] font-bold leading-tight tracking-tight sm:text-[24px]">
                 {`Spotlight on ${title}`}
               </h2>
-              <p className="mt-1 text-[13px] font-medium leading-snug text-white/85 sm:text-[14.5px]">
-                <span className="tabular-nums">{fmt(count)}</span>
-                {" products to source · A new spotlight every day"}
-              </p>
+              <p className="mt-1 text-[13px] font-medium leading-snug text-white/85 sm:text-[14.5px]">{`${subtitle} · A new spotlight every day`}</p>
             </div>
             <Link href={href} className={`inline-flex shrink-0 items-center gap-0.5 rounded-sm text-[14px] font-semibold text-white hover:underline sm:text-[15px] ${ON_DARK_FOCUS}`}>
               See all

@@ -16,7 +16,8 @@ import { categoryLabel } from "@/lib/searchIntent";
  * Three kinds of card, so the grid does not read as one set repeated:
  *   - "tiles": a family of the catalogue (its four main branches) or one of
  *     its groups (that group's four biggest kinds), each tile a real
- *     category with its real count;
+ *     category, named and pictured, never counted: product counts on every
+ *     tile read as clutter (the owner, 2026-10-08), so none leave the server;
  *   - "weekly": this week's picks, eight products from across the families,
  *     picked afresh every Monday. Not new products: nothing has been added
  *     since 8 September 2026, and the owner asked for weekly picks from the
@@ -35,8 +36,6 @@ export interface GridCategoryTile {
   kind: "category";
   id: string;
   name: string;
-  /** Products under it, its whole subtree. */
-  count: number;
   image: string;
   /** Pictures of more of its products, for the hover preview. */
   previews: string[];
@@ -62,8 +61,6 @@ export interface TilesCard {
   /** One line under the title: what a family holds, or which family a group is in. */
   subtitle: string;
   href: string;
-  /** Products under it, its whole subtree, for the link to all of them. */
-  count: number;
   tiles: GridCategoryTile[];
 }
 /** This week's picks: a band across the grid, under its first row. In the order of cards it is where that row ends. */
@@ -399,7 +396,7 @@ const buildGrid = unstable_cache(
       for (let i = 0; previews.length < 2 && lists.some((l) => l[i]); i++) {
         for (const l of lists) if (l[i] && l[i].imageUrl !== g.thumbnailUrl && previews.length < 2 && !previews.includes(l[i].imageUrl)) previews.push(l[i].imageUrl);
       }
-      return { kind: "category", id: g.id, name: nameOf(g), count: t.total(g.id), image: g.thumbnailUrl as string, previews };
+      return { kind: "category", id: g.id, name: nameOf(g), image: g.thumbnailUrl as string, previews };
     };
     const productTile = (p: (typeof picks)[number]): GridProductTile => {
       const own = Array.isArray(p.allImages) ? (p.allImages as unknown[]).filter((u): u is string => typeof u === "string" && u !== p.imageUrl) : [];
@@ -414,7 +411,6 @@ const buildGrid = unstable_cache(
       title: f.title,
       subtitle: f.subtitle,
       href: `/products/?categoryId=${top.id}`,
-      count: t.total(top.id),
       tiles: tiles.map(categoryTile),
     }));
     const groupCards: TilesCard[] = groups.map(({ f, g, tiles }) => ({
@@ -423,7 +419,6 @@ const buildGrid = unstable_cache(
       title: nameOf(g),
       subtitle: `In ${f.title}`,
       href: `/products/?categoryId=${g.id}`,
-      count: t.total(g.id),
       tiles: tiles.map(categoryTile),
     }));
     const weekly: WeeklyCard | null = picks.length >= TILES ? { kind: "weekly", key: "weekly", span, tiles: picks.map(productTile) } : null;
@@ -439,7 +434,7 @@ const buildGrid = unstable_cache(
     const first = firstBatch(cards);
     return cards.slice(0, cards.length - ((cards.length - first) % ROW));
   },
-  ["home-grid-v3"],
+  ["home-grid-v4"],
   { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
 );
 
@@ -486,9 +481,9 @@ export interface SpotlightShelf {
 export interface Spotlight {
   /** The family, as its card in the grid names it ("Home & Kitchen"). */
   title: string;
+  /** What it holds, as its card in the grid says it ("Storage, kitchenware and textiles"). */
+  subtitle: string;
   href: string;
-  /** Products in the whole family. */
-  count: number;
   products: SpotlightProduct[];
   shelves: SpotlightShelf[];
 }
@@ -556,8 +551,8 @@ const buildSpotlight = unstable_cache(
         .filter((s) => s.products.length >= TILES);
       return {
         title: f.title,
+        subtitle: f.subtitle,
         href: `/products/?categoryId=${top.id}`,
-        count: t.total(top.id),
         products: picks.map(shown),
         // Two or four, so a row of them is never half empty.
         shelves: shelves.slice(0, shelves.length >= 4 ? 4 : shelves.length >= 2 ? 2 : 0),
@@ -565,7 +560,7 @@ const buildSpotlight = unstable_cache(
     }
     return null;
   },
-  ["home-spotlight-v2"],
+  ["home-spotlight-v3"],
   { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
 );
 
