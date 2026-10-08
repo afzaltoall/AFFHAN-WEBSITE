@@ -1,4 +1,7 @@
-// How the homepage's product pool is divided between its three sections.
+// The homepage's product pool, which is now the hero grid's alone. On
+// 2026-10-08 the "Trending products" fan carousel gave way to the category grid
+// and the spotlight became a band of one family a day; both draw their own
+// products (lib/homeGrid.ts), and their 20 and 5 left the pool with them.
 //
 // Deliberately free of any server import: src/lib/products.ts pulls in Prisma,
 // and these values are read by client components.
@@ -36,11 +39,9 @@ export const HERO_GRID_COUNT = 65;      // 5 beside the sidebar + 10 rows of 6
 /// run-to-run variance, not by which product image is chosen. Whatever gets it
 /// under 2.5s is not here.
 export const LCP_STABLE_LEAD = 5;
-export const POPULAR_COUNT = 20;
-export const SPOTLIGHT_COUNT = 5;
 
-/// How many products the homepage actually renders, across all three sections.
-export const HOMEPAGE_PRODUCT_COUNT = HERO_GRID_COUNT + POPULAR_COUNT + SPOTLIGHT_COUNT;
+/// How many products the homepage's pool hands out: the hero grid's.
+export const HOMEPAGE_PRODUCT_COUNT = HERO_GRID_COUNT;
 
 /// Each section gets exactly the slice it renders.
 ///
@@ -64,10 +65,5 @@ export const HOMEPAGE_PRODUCT_COUNT = HERO_GRID_COUNT + POPULAR_COUNT + SPOTLIGH
 /// knob now, and it costs origin renders rather than payload.
 export function splitHeroPool<T extends PoolItem>(pool: readonly T[]) {
   const withImage = pool.filter((p) => (p as { imageUrl?: string | null }).imageUrl);
-  const popularEnd = HERO_GRID_COUNT + POPULAR_COUNT;
-  return {
-    hero: withImage.slice(0, HERO_GRID_COUNT),
-    popular: withImage.slice(HERO_GRID_COUNT, popularEnd),
-    spotlight: withImage.slice(popularEnd, popularEnd + SPOTLIGHT_COUNT),
-  };
+  return { hero: withImage.slice(0, HERO_GRID_COUNT) };
 }

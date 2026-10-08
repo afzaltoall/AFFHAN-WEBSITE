@@ -916,66 +916,6 @@ html.scroll-behavior-auto {
   box-shadow: 0 0 0 3px rgba(29, 126, 147, 0.45);
 }
 
-/* Card-fan carousel (card-fan-carousel.tsx). GSAP drives the transforms;
-   these rules give the layout its height and each card its base size, which
-   the component's responsive multipliers assume. Cards are stacked at the
-   container centre (top/left 50% + negative margins) so GSAP's x/y translate
-   offsets fan them out symmetrically. */
-.fan-layout {
-  position: relative;
-  height: 14rem;
-  perspective: 1400px;
-}
-.fan-card {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 6.5rem;
-  height: 9.75rem;
-  margin-left: -3.25rem;
-  margin-top: -4.875rem;
-  border-radius: 1rem;
-  overflow: hidden;
-  background: #fff;
-  box-shadow: 0 24px 48px -14px rgba(15, 23, 42, 0.4);
-  will-change: transform;
-  transform-origin: center center;
-  outline: none;
-  border: 3px solid #fff;
-}
-/* Until GSAP has positioned them, every card is exactly coincident — the
-   server HTML carries no transforms, so all twenty sit at the container
-   centre at scale 1. Twenty identical shadows superimposed do not read as one
-   shadow: a box-shadow blur is an alpha gradient, and stacking it twenty times
-   compounds to 1-(1-a)^20, which turns a smooth falloff into a steep curve and
-   amplifies 8-bit quantisation into visible concentric rings. That is the dark
-   banded halo, and under a slow first paint it is on screen for seconds.
-
-   So only the card actually on top keeps its shadow until then. :last-child is
-   that card: they all carry z-index auto, so paint order is DOM order. The
-   shadow value is not restated here — the rule only suppresses the nineteen
-   underneath, which are invisible anyway, and .fan-ready (set by the effect
-   that does the positioning, in card-fan-carousel.tsx) lifts it. */
-.fan-layout:not(.fan-ready) .fan-card:not(:last-child) {
-  box-shadow: none;
-}
-@media (min-width: 480px) {
-  .fan-layout { height: 15rem; }
-  .fan-card { width: 7.5rem; height: 11.25rem; margin-left: -3.75rem; margin-top: -5.625rem; }
-}
-@media (min-width: 640px) {
-  .fan-layout { height: 16rem; }
-  .fan-card { width: 8.5rem; height: 12.75rem; margin-left: -4.25rem; margin-top: -6.375rem; }
-}
-@media (min-width: 768px) {
-  .fan-layout { height: 17rem; }
-  .fan-card { width: 9.5rem; height: 14.25rem; margin-left: -4.75rem; margin-top: -7.125rem; }
-}
-@media (min-width: 1024px) {
-  .fan-layout { height: 18rem; }
-  .fan-card { width: 10.5rem; height: 15.75rem; margin-left: -5.25rem; margin-top: -7.875rem; }
-}
-
 /* Premium Skeuomorphic Liquid Glass Card */
 .liquid-glass-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(240, 253, 250, 0.3) 100%) !important;

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 
@@ -13,23 +13,23 @@ interface Cat {
   productCount: number;
 }
 
-/** The buying end: where the sourcing happens, and how it works. */
-const BUYING_LINKS = [
-  { href: "/china-sourcing-company/", label: "China sourcing company" },
-  { href: "/china-sourcing-office-guangzhou/", label: "Guangzhou office" },
-  { href: "/sourcing-from-china/", label: "Sourcing from China guide" },
-];
-/** The near end: the location pages. */
+/**
+ * The near end: the location pages, after the words "Sourcing company in",
+ * each place as its page's title has it (the UK page is London's).
+ */
 const LOCATION_LINKS = [
   { href: "/sourcing-company-chennai/", label: "Chennai" },
   { href: "/sourcing-company-dubai/", label: "Dubai" },
   { href: "/sourcing-company-singapore/", label: "Singapore" },
   { href: "/sourcing-company-malaysia/", label: "Malaysia" },
-  { href: "/sourcing-company-uk/", label: "UK" },
+  { href: "/sourcing-company-uk/", label: "London" },
   { href: "/sourcing-company-france/", label: "France" },
 ];
-const CHIP =
-  "inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1 text-[13px] font-medium text-slate-700 transition-colors hover:border-brand/40 hover:text-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40";
+/** A link inside a sentence: underlined, as a link in running text should be, so it never rests on colour alone. */
+const IN_TEXT =
+  "font-semibold text-slate-800 underline decoration-slate-300 underline-offset-[3px] transition-colors hover:text-brand-dark hover:decoration-brand-dark/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-sm";
+const PLACE =
+  "font-medium text-brand-dark underline decoration-brand/30 underline-offset-[3px] transition-colors hover:decoration-brand-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-sm";
 
 function CategoryTile({ cat }: { cat: Cat }) {
   const [failed, setFailed] = useState(false);
@@ -107,41 +107,61 @@ export function ProductCategoriesSection({
     <section id="product-categories" className="w-full bg-white py-14 sm:py-20 px-4 sm:px-6 lg:px-8">
       <div className="max-w-[1600px] mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
-          <div>
-            <span className="text-xs font-bold uppercase tracking-[0.2em] text-brand-dark">Product Categories</span>
-            <h2 className="mt-2 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900">
-              Explore our sourcing categories
-            </h2>
-            <p className="mt-2 text-slate-500 max-w-2xl">
-              Browse {total.toLocaleString()} verified categories, every product we can source for you. One import-export company handles the procurement, quality checks and freight forwarding, end to end.
-            </p>
+          <div className="max-w-3xl">
+            {/* A heading the size of the grid's above it, and words a buyer would search for. */}
+            <h2 className="text-[19px] font-bold tracking-tight text-slate-900 sm:text-[22px]">Top categories to source from China</h2>
             {/* All nine pages are linked from here, not from the footer alone.
 
                 This block is the homepage's only contextual link into the
                 China and location pages: the footer is boilerplate on every URL
-                and carries far less weight than a body link. They were one long
-                sentence with nine links in it, which the owner found clumsy
-                (2026-10-06); now the same links, in the same order, as two rows
-                the way the business works, the buying end then the near end,
-                each row's label saying where its links go. */}
-            <dl className="mt-5 grid gap-x-5 gap-y-3 sm:grid-cols-[auto_1fr] sm:items-center">
-              <dt className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">In China</dt>
-              <dd className="flex flex-wrap gap-2">
-                {BUYING_LINKS.map((l) => (
-                  <Link key={l.href} href={l.href} className={CHIP}>
-                    {l.label}
-                  </Link>
-                ))}
-              </dd>
-              <dt className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">Sourcing company in</dt>
-              <dd className="flex flex-wrap gap-2">
-                {LOCATION_LINKS.map((l) => (
-                  <Link key={l.href} href={l.href} className={CHIP}>
-                    {l.label}
-                  </Link>
-                ))}
-              </dd>
-            </dl>
+                and carries far less weight than a body link. They have been one
+                long sentence with nine links in it (clumsy, the owner said on
+                2026-10-06), then two rows of pills under spaced capital labels,
+                below an eyebrow, a poster-sized heading and a sales paragraph
+                (made-by-AI, the owner said on 2026-10-08).
+
+                Now: the three China pages inside three short, factual
+                sentences, each link named as its page is titled ("Guangzhou
+                Sourcing Agent & China Buying Office", "Sourcing From China:
+                Costs, Lead Times & Supplier Risks"), and the six places in one
+                plain row after "Sourcing company in", the way a big shop lists
+                its country sites. The category count went with the old
+                paragraph, whose "verified" was a claim nothing here backs; the
+                tiles below carry the counts. */}
+            <p className="mt-2 text-[15px] leading-relaxed text-slate-600">
+              {"AFFHAN has been a "}
+              <Link href="/china-sourcing-company/" className={IN_TEXT}>
+                China sourcing company
+              </Link>
+              {" since 2000, with its own "}
+              <Link href="/china-sourcing-office-guangzhou/" className={IN_TEXT}>
+                buying office in Guangzhou
+              </Link>
+              {". We find the supplier, check the goods and ship them to you, customs included. Our "}
+              <Link href="/sourcing-from-china/" className={IN_TEXT}>
+                sourcing from China guide
+              </Link>
+              {" covers costs, lead times and supplier risks."}
+            </p>
+            <p className="mt-2.5 text-[14px] leading-relaxed text-slate-500">
+              <span className="font-semibold text-slate-700">Sourcing company in</span>{" "}
+              {/* A place keeps its dot; a line may break after the dot, never inside a name. */}
+              {LOCATION_LINKS.map((l, i) => (
+                <Fragment key={l.href}>
+                  <span className="whitespace-nowrap">
+                    <Link href={l.href} className={PLACE}>
+                      {l.label}
+                    </Link>
+                    {i < LOCATION_LINKS.length - 1 && (
+                      <span aria-hidden="true" className="font-bold text-slate-400">
+                        {" ·"}
+                      </span>
+                    )}
+                  </span>
+                  {i < LOCATION_LINKS.length - 1 && " "}
+                </Fragment>
+              ))}
+            </p>
           </div>
           <Link
             href="/products/"

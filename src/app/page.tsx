@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { MarketplaceHeroSection } from "@/components/sections/MarketplaceHeroSection";
-import { PopularProductsSection } from "@/components/sections/PopularProductsSection";
+import { CategoryGridSection } from "@/components/sections/CategoryGridSection";
 import { ProductCategoriesSection } from "@/components/sections/ProductCategoriesSection";
 import { ProductSpotlightSection } from "@/components/sections/ProductSpotlightSection";
 import { GET as getCategories } from "@/app/api/categories/route";
 import { getHeroFeed } from "@/lib/products";
+import { firstCards, getHomeGrid, getSpotlight } from "@/lib/homeGrid";
 import { splitHeroPool, HOMEPAGE_PRODUCT_COUNT } from "@/lib/heroPool";
 import { buildCategoryTree, type CategoryTreeNode } from "@/lib/categoryTree";
 import { applicationWindow } from "@/lib/trip-application";
@@ -77,9 +78,37 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function Home() {
-  const [categoriesRes, productsResult, banner] = await Promise.all([
+  const [categoriesRes, grid, spotlightOfTheDay, banner] = await Promise.all([
     getCategories(),
-    // Exactly what the three sections render, and nothing else.
+    // The category grid, and with it this week's picks (lib/homeGrid.ts): an hourly cache.
+    // The homepage without it, never no homepage.
+    getHomeGrid().catch((e) => {
+      console.error("home grid failed", e);
+      return [];
+    }),
+    // The spotlight band's family of the day (lib/homeGrid.ts). Likewise.
+    getSpotlight().catch((e) => {
+      console.error("home spotlight failed", e);
+      return null;
+    }),
+    // The trip banner's lock. Locked if it cannot be read.
+    tripLock(),
+  ]);
+  // Never the same product twice on one screen: the spotlight leaves out this week's picks, and
+  // the hero's draw leaves out both.
+  const picked = grid.flatMap((c) => (c.kind === "weekly" ? c.tiles.map((t) => t.id) : []));
+  const fresh = <T extends { id: number }>(list: T[], n: number) => list.filter((p) => !picked.includes(p.id)).slice(0, n);
+  const spotlight = spotlightOfTheDay && {
+    ...spotlightOfTheDay,
+    products: fresh(spotlightOfTheDay.products, 6),
+    shelves: (() => {
+      const full = spotlightOfTheDay.shelves.map((s) => ({ ...s, products: fresh(s.products, 4) })).filter((s) => s.products.length === 4);
+      // Two or four, so their row is never half empty.
+      return full.slice(0, full.length >= 4 ? 4 : full.length >= 2 ? 2 : 0);
+    })(),
+  };
+  const productsResult = await getHeroFeed(
+    // Exactly what the hero grid renders, and nothing else.
     //
     // This asked for 400 so the sections could reshuffle after hydration and
     // vary per refresh. 90 were drawn; the other 310 were serialised into the
@@ -90,10 +119,9 @@ export default async function Home() {
     // every call, so with revalidate = 3600 each regeneration picks a fresh 90
     // and everyone inside that hour sees the same set. The rotation moved to
     // the server; the variety stayed.
-    getHeroFeed(HOMEPAGE_PRODUCT_COUNT),
-    // The trip banner's lock. Locked if it cannot be read.
-    tripLock(),
-  ]);
+    HOMEPAGE_PRODUCT_COUNT,
+    [...picked, ...(spotlight ? [...spotlight.products, ...spotlight.shelves.flatMap((s) => s.products)].map((p) => p.id) : [])],
+  );
 
   const categoriesJson = await categoriesRes.json();
   const initialCategories = categoriesJson.data || [];
@@ -127,10 +155,11 @@ export default async function Home() {
     productCount: c.productCount,
   }));
 
-  // Disjoint ranges, one per section. The three used to carve the same array by
-  // hard-coded index (hero 0..60, Popular 61..81, Spotlight 60..65) — the last
-  // two overlapped the first, so the same product could show up twice on one
-  // screen. These ranges cannot overlap.
+  // The hero's slice of the pool. Three sections once carved the same array by
+  // hard-coded index (hero 0..60, Popular 61..81, Spotlight 60..65), and the
+  // last two overlapped the first, so a product could show up twice on one
+  // screen. Now the hero is the pool's only reader: the grid and the spotlight
+  // draw their own products, and the draw above leaves theirs out.
   const heroPool = splitHeroPool(initialProducts);
 
   return (
@@ -152,7 +181,8 @@ export default async function Home() {
         // and a page that went out locked asks again by itself.
         tripLocked={banner.locked}
       />
-      <PopularProductsSection initialProducts={heroPool.popular} />
+      {/* The grid's first twelve columns only; the section reads the rest from /api/home-grid as they come near. */}
+      <CategoryGridSection {...firstCards(grid)} />
       {/* Sliced here, not in the component. Handing it all ~600 and rendering
           60 still serialises all ~600 into the RSC payload, which is most of
           what took the homepage from 716KB to 1.45MB. The true count travels
@@ -161,7 +191,7 @@ export default async function Home() {
         initialCategories={productCategories.slice(0, HOMEPAGE_CATEGORY_TILES)}
         totalCount={productCategories.length}
       />
-      <ProductSpotlightSection initialProducts={heroPool.spotlight} />
+      <ProductSpotlightSection spotlight={spotlight} />
       <FooterSection />
     </main>
   );
