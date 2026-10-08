@@ -10,7 +10,6 @@ interface Cat {
   id: string;
   name: string;
   thumbnailUrl: string | null;
-  productCount: number;
 }
 
 /**
@@ -52,13 +51,11 @@ function CategoryTile({ cat }: { cat: Cat }) {
           <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">No Image</div>
         )}
       </div>
+      {/* Its name alone: a product count under every tile read as clutter (the owner, 2026-10-08). */}
       <div className="p-3">
         <h3 className="text-[13px] font-bold text-slate-800 leading-snug line-clamp-2 group-hover:text-brand-dark transition-colors min-h-[34px]">
           {cat.name}
         </h3>
-        <p className="text-[11px] font-semibold text-slate-400 mt-1">
-          {cat.productCount.toLocaleString("en-US")} products
-        </p>
       </div>
     </Link>
   );
