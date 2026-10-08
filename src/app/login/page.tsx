@@ -13,19 +13,9 @@ import { GoogleButton } from "@/components/ui/GoogleButton";
 import { LoginBrandPanel } from "@/components/ui/LoginBrandPanel";
 import { LoginBackground } from "@/components/ui/LoginBackground";
 import { TiltCard, TravellingEdgeLight } from "@/components/ui/TiltCard";
-
-/**
- * Only same-origin, path-only destinations are followed.
- *
- * `?redirect=` is attacker-controllable — anyone can send a link to
- * /login?redirect=https://evil.example. Refusing anything but a relative path
- * keeps the sign-in page from being used to launder a link to somewhere else.
- */
-function safeRedirect(raw: string | null): string {
-  if (!raw) return "/";
-  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
-  return raw;
-}
+// Only a path on this site is followed: `?redirect=` is attacker-controllable,
+// and the check lives in lib/safe-redirect.ts, where it is tested.
+import { safeRedirect } from "@/lib/safe-redirect";
 
 function LoginPageInner() {
   const router = useRouter();
