@@ -20,9 +20,13 @@ const GROUND = "bg-[#f1f4f5]";
  * A card is three rows of the grid it sits in (its heading, its tiles, its
  * link), shared with the cards beside it through subgrid: a two-line title on
  * one card moves its neighbours' tiles down with it, and every link in a row
- * sits on one line.
+ * sits on one line. Its surface is the product cards' glass (liquid-glass-card
+ * in globals.css: translucent white, a bevelled rim, 28px corners), the
+ * owner's ask of 2026-10-08, so the grid and the hero read as one site.
  */
-const CARD = "row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2 rounded-md bg-white p-2.5 sm:gap-y-3 sm:p-4";
+const CARD = "liquid-glass-card row-span-3 grid min-w-0 grid-rows-subgrid gap-y-2 p-2.5 sm:gap-y-3 sm:p-4";
+/** A picture inside a card: rounder than a tile, less round than the card, so the corners nest. */
+const PICTURE_CORNER = "rounded-xl";
 const GRID = "grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4 lg:gap-4";
 const BETWEEN = "mt-2.5 sm:mt-3 lg:mt-4";
 const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50";
@@ -30,8 +34,9 @@ const MORE_LINK = "inline-flex max-w-full items-center gap-0.5 text-[12px] font-
 
 /**
  * The homepage's category grid, in place of the "Trending products" fan
- * carousel (the owner's plan of 2026-10-08, after Amazon's homepage): white
- * cards edge to edge, four across, each a family of the catalogue or a group
+ * carousel (the owner's plan of 2026-10-08, after Amazon's homepage): glass
+ * cards edge to edge, on the hero's own ground (a grey one dulled the glass and
+ * showed the pale photos as lighter squares), four across, each a family of the catalogue or a group
  * of it; the categories buyers asked for most as a numbered card, first; and
  * this week's picks as a band under the first row (lib/homeGrid.ts says where
  * each comes from, and why it is true).
@@ -91,7 +96,7 @@ export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; m
   const waiting = more > 0 && !rest && state === "reading";
 
   return (
-    <section id="category-grid" aria-labelledby="category-grid-title" className="w-full bg-[#e3eaed] px-3 pb-8 pt-5 sm:px-4 sm:pb-10 sm:pt-7 lg:px-5">
+    <section id="category-grid" aria-labelledby="category-grid-title" className="w-full bg-slate-50 px-3 pb-8 pt-5 sm:px-4 sm:pb-10 sm:pt-7 lg:px-5">
       <div className="mx-auto max-w-[1920px]">
         <div className="mb-2.5 flex items-baseline justify-between gap-4 sm:mb-3.5">
           <h2 id="category-grid-title" className="text-[19px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
@@ -120,7 +125,7 @@ export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; m
                 <span className="h-4 w-2/3 rounded bg-slate-100" />
                 <span className="grid grid-cols-2 content-start gap-2 sm:gap-3">
                   {[0, 1, 2, 3].map((j) => (
-                    <span key={j} className="aspect-square rounded-[4px] bg-slate-100" />
+                    <span key={j} className={`aspect-square ${PICTURE_CORNER} bg-slate-100`} />
                   ))}
                 </span>
                 <span className="h-3 w-1/2 self-end rounded bg-slate-100" />
@@ -197,10 +202,10 @@ function RankedView({ card }: { card: RankedCard }) {
         </li>
         {next.map((tile, i) => (
           <li key={tile.id} className={`min-w-0 py-1 ${i ? "border-t border-slate-100" : ""}`}>
-            <Link href={`/products/?categoryId=${tile.id}`} className={`group flex h-full min-w-0 items-center gap-2 rounded sm:gap-3 ${FOCUS}`}>
+            <Link href={`/products/?categoryId=${tile.id}`} className={`group flex h-full min-w-0 items-center gap-2 rounded-lg sm:gap-3 ${FOCUS}`}>
               <Rank n={i + 2} />
               <span
-                className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-[4px] ${GROUND} sm:h-14 sm:w-14 xl:h-16 xl:w-16 min-[100rem]:h-20 min-[100rem]:w-20 min-[112.5rem]:h-24 min-[112.5rem]:w-24`}
+                className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-lg ${GROUND} sm:h-14 sm:w-14 xl:h-16 xl:w-16 min-[100rem]:h-20 min-[100rem]:w-20 min-[112.5rem]:h-24 min-[112.5rem]:w-24`}
               >
                 <Image src={src(tile.image, 200)} alt="" fill sizes="96px" className="object-cover mix-blend-multiply transition-transform duration-500 ease-out group-hover:scale-[1.06]" />
               </span>
@@ -225,7 +230,7 @@ function TopRank({ tile }: { tile: GridCategoryTile }) {
   const frames = [tile.image, ...tile.previews];
   const hover = useHoverPreview(frames.length);
   return (
-    <Link href={`/products/?categoryId=${tile.id}`} className={`group flex h-full min-w-0 flex-col rounded ${FOCUS}`} onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
+    <Link href={`/products/?categoryId=${tile.id}`} className={`group flex h-full min-w-0 flex-col ${PICTURE_CORNER} ${FOCUS}`} onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
       {/* As tall as the list beside it lets it be. */}
       <Frames frames={frames} frame={hover.frame} armed={hover.armed} px={480} sizes="(max-width: 1024px) 45vw, 25vw" className="min-h-[136px] flex-1" />
       <span className="mt-2 flex min-w-0 items-center gap-2">
@@ -250,7 +255,7 @@ function Rank({ n }: { n: number }) {
 /** This week's picks: a band across the grid, its name on the brand's colour, eight products beside it (in a row to swipe, on a phone). */
 function WeeklyBand({ card, onQuote, className }: { card: WeeklyCard; onQuote: (t: GridProductTile) => void; className: string }) {
   return (
-    <article aria-labelledby="weekly-picks-title" className={`flex min-w-0 flex-col overflow-hidden rounded-md bg-white xl:flex-row ${className}`}>
+    <article aria-labelledby="weekly-picks-title" className={`liquid-glass-card flex min-w-0 flex-col overflow-hidden xl:flex-row ${className}`}>
       <header className="flex items-center justify-between gap-3 bg-brand-dark px-3 py-2.5 text-white sm:px-4 sm:py-3 xl:w-[232px] xl:shrink-0 xl:flex-col xl:items-start xl:justify-between xl:p-5">
         <div className="min-w-0">
           <h3 id="weekly-picks-title" className="text-[16px] font-bold leading-tight sm:text-[18px] xl:text-[20px]">
@@ -335,7 +340,7 @@ function Frames({
   className?: string;
 }) {
   return (
-    <span className={`relative block overflow-hidden rounded-[4px] ${GROUND} ${className}`}>
+    <span className={`relative block overflow-hidden ${PICTURE_CORNER} ${GROUND} ${className}`}>
       {frames.map((url, i) =>
         i === 0 || armed ? (
           // Each picture on a ground of its own, so it melts into that and not into the one fading out under it.
@@ -358,7 +363,7 @@ function CategoryTile({ tile }: { tile: GridCategoryTile }) {
   const frames = [tile.image, ...tile.previews];
   const hover = useHoverPreview(frames.length);
   return (
-    <Link href={`/products/?categoryId=${tile.id}`} className={`group block rounded ${FOCUS}`} onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
+    <Link href={`/products/?categoryId=${tile.id}`} className={`group block ${PICTURE_CORNER} ${FOCUS}`} onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
       <Frames frames={frames} frame={hover.frame} armed={hover.armed} px={320} sizes="(max-width: 1024px) 22vw, 12vw" />
       {/* Its name and nothing else, with room held for two lines, so every tile of a row is one height. */}
       <span className="mt-1.5 line-clamp-2 min-h-[2lh] text-[11.5px] font-medium leading-[1.25] text-slate-800 transition-colors group-hover:text-brand-dark sm:mt-2 sm:text-[13.5px]">
@@ -373,7 +378,7 @@ function PickTile({ tile, onQuote }: { tile: GridProductTile; onQuote: (t: GridP
   const hover = useHoverPreview(frames.length);
   return (
     <div className="group relative" onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
-      <Link href={`/products/${tile.id}/`} className={`block rounded ${FOCUS}`}>
+      <Link href={`/products/${tile.id}/`} className={`block ${PICTURE_CORNER} ${FOCUS}`}>
         <Frames frames={frames} frame={hover.frame} armed={hover.armed} px={320} fit="contain" sizes="(max-width: 1024px) 150px, 11vw" />
         <span className="mt-2 line-clamp-2 text-[12.5px] leading-snug text-slate-800 transition-colors group-hover:text-brand-dark sm:text-[13px]">{tile.name}</span>
         {tile.category && <span className="mt-0.5 block truncate text-[11.5px] text-slate-500">{tile.category}</span>}

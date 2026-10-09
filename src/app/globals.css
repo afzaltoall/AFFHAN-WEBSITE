@@ -1253,6 +1253,18 @@ html.scroll-behavior-auto {
   .step-rail-fill { transition: none; }
 }
 
+/* Homepage category grid ----------------------------------------------------
+   The grid's cards wear the product cards' glass (CategoryGridSection.tsx), on
+   a ground of one flat colour. A blur of a flat colour is that same colour, so
+   the 24px backdrop blur would show nothing there and still cost the GPU a
+   blur for every one of its fifty-odd cards: off, and the glass looks the
+   same. Give the ground a picture or a pattern and the blur is worth turning
+   back on. */
+#category-grid .liquid-glass-card {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Scrolling results panel ---------------------------------------------------
    Cards inside a scrolling container cannot afford backdrop-filter. The blur
    samples whatever is behind the element, so when the element moves the browser
