@@ -603,8 +603,9 @@ model MobileUser {
   favourites   ProductFavourite[]
   changes      AccountChange[]
 
-  @@index([email])
-  @@index([phone])
+  // email and phone are @unique, so each already has an index; the separate
+  // @@index([email]) and @@index([phone]) duplicated them (security audit
+  // 2026-10-08, L2).
 }
 
 // One-time codes for phone sign-in.
@@ -658,7 +659,8 @@ model MobileSession {
   expiresAt DateTime
   createdAt DateTime   @default(now())
 
-  @@index([tokenHash])
+  // tokenHash is @unique, and its unique index is the lookup index too; a
+  // second @@index([tokenHash]) only cost writes (security audit 2026-10-08, L2).
   @@index([userId])
 }
 
