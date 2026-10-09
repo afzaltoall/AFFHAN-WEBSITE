@@ -171,6 +171,12 @@ const nextConfig: NextConfig = {
     ],
   },
   devIndicators: false,
+  // Since Next 16.3, `next dev` started from a coding agent's shell writes a
+  // managed "This is NOT the Next.js you know" block into the project's
+  // CLAUDE.md (or creates AGENTS.md beside it). This repo's CLAUDE.md is the
+  // hand-written project brief, so the upgrade (security audit 2026-10-08, D1)
+  // keeps that off: the behaviour stays as it was on 16.2.
+  agentRules: false,
 };
 
 export default nextConfig;
