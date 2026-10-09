@@ -4,11 +4,11 @@ import { checkLoginRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate
 import { checkTurnstile } from "@/lib/turnstile";
 import {
   clearLoginFailures,
-  countRecentLoginFailures,
-  LOGIN_MAX_FAILURES,
   recordLoginFailure,
   verifyPassword,
+  windowLockRemainingMs,
 } from "@/lib/password";
+import { lockedMessage } from "@/lib/login-lockout";
 import { SESSION_COOKIE } from "@/lib/session";
 import {
   dropLegacyStaffCookie,
@@ -66,10 +66,13 @@ export async function POST(request: NextRequest) {
         }
       );
     }
-    if ((await countRecentLoginFailures(email)) >= LOGIN_MAX_FAILURES) {
+    // The real wait, not a flat fifteen minutes: the window lifts when the
+    // failure that made the count five leaves it.
+    const lockedMs = await windowLockRemainingMs(email);
+    if (lockedMs !== null) {
       return NextResponse.json(
-        { error: "Too many failed attempts. Try again in 15 minutes, or reset your password." },
-        { status: 429, headers: { "Retry-After": "900" } }
+        { error: lockedMessage(lockedMs), reason: "locked" },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(lockedMs / 1000)) } }
       );
     }
 

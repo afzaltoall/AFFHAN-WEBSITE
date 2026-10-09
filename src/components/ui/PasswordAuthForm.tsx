@@ -12,6 +12,7 @@ import {
   authSwitchRow,
   authSwitchLink,
   authFormError,
+  authResetButton,
 } from "@/components/ui/authFieldStyles";
 
 /**
@@ -31,11 +32,16 @@ import {
 export function PasswordAuthForm({
   onSuccess,
   onCreateAccount,
+  onLeave,
   autoFocus = true,
 }: {
   onSuccess?: () => void;
   /** Making a new account, which always starts with a code. */
   onCreateAccount: () => void;
+  /** Called as the person follows a link off the form to reset their password,
+   *  so a dialog around it (LoginModal) can close instead of staying open over
+   *  the reset page. */
+  onLeave?: () => void;
   autoFocus?: boolean;
 }) {
   const { refreshSession } = useAuth();
@@ -45,10 +51,14 @@ export function PasswordAuthForm({
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // The account is locked after too many wrong passwords: the message comes
+  // with a way out, since a reset unlocks it at once.
+  const [locked, setLocked] = useState(false);
 
   const submit = async () => {
     setBusy(true);
     setError(null);
+    setLocked(false);
     try {
       const res = await fetch("/api/web/auth/login-password", {
         method: "POST",
@@ -61,6 +71,7 @@ export function PasswordAuthForm({
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(json?.error ?? "Incorrect email or password.");
+        setLocked(res.status === 429 && json?.reason === "locked");
         return;
       }
       await refreshSession();
@@ -118,6 +129,7 @@ export function PasswordAuthForm({
       <div className="flex justify-end">
         <Link
           href="/forgot-password/"
+          onClick={onLeave}
           className="text-[13px] font-medium text-slate-500 transition-colors hover:text-brand-dark"
         >
           Forgot password?
@@ -148,9 +160,14 @@ export function PasswordAuthForm({
       </p>
 
       {error && (
-        <p role="alert" className={authFormError}>
-          {error}
-        </p>
+        <div role="alert" className={authFormError}>
+          <p>{error}</p>
+          {locked && (
+            <Link href="/forgot-password/" onClick={onLeave} className={authResetButton}>
+              Reset password
+            </Link>
+          )}
+        </div>
       )}
     </div>
   );

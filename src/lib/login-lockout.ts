@@ -44,3 +44,15 @@ export function waitPhrase(ms: number): string {
   const hours = Math.ceil(minutes / 60);
   return `${hours} hour${hours === 1 ? "" : "s"}`;
 }
+
+/**
+ * What a locked sign-in says, on the website, the staff desk and the app (the
+ * owner's wording, 2026-10-09). The second half is true because each reset
+ * clears its sign-in's count: /api/web/auth/reset-password the customer key,
+ * which the app shares, and /api/employee/auth/reset-password the staff one.
+ * The routes send `reason: "locked"` with it, which is what puts a Reset
+ * password button under it.
+ */
+export function lockedMessage(ms: number): string {
+  return `Too many wrong attempts. Try again in ${waitPhrase(ms)}, or reset your password to unlock now.`;
+}

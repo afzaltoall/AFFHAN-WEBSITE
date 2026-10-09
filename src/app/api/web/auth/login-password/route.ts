@@ -6,7 +6,7 @@ import {
   customerLoginKey,
   verifyPasswordOrNothing,
 } from "@/lib/password";
-import { waitPhrase } from "@/lib/login-lockout";
+import { lockedMessage } from "@/lib/login-lockout";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     const gate = await beginLoginAttempt(customerLoginKey(email));
     if (gate.locked) {
       return NextResponse.json(
-        { error: `Too many attempts. Try again in ${waitPhrase(gate.retryAfterMs)}, or reset your password.` },
+        { error: lockedMessage(gate.retryAfterMs), reason: "locked" },
         { status: 429, headers: { "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)) } }
       );
     }

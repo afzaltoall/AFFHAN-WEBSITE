@@ -163,6 +163,7 @@ export function LoginModal({
                   autoFocus={focusFirst}
                   onSuccess={() => onSuccess?.()}
                   onCreateAccount={() => setMethod("signup")}
+                  onLeave={onClose}
                 />
               ) : (
                 <SignupForm

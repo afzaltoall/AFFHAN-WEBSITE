@@ -67,6 +67,23 @@ export async function countRecentLoginFailures(email: string): Promise<number> {
   });
 }
 
+/**
+ * How long this address stays locked under the window above, or null when it
+ * is not. The lock lifts when the failure that made the count five leaves the
+ * window. For the staff sign-in, which says how long to wait.
+ */
+export async function windowLockRemainingMs(email: string): Promise<number | null> {
+  const now = Date.now();
+  const rows = await prisma.loginAttempt.findMany({
+    where: { email: email.trim().toLowerCase(), createdAt: { gte: new Date(now - LOGIN_WINDOW_MS) } },
+    orderBy: { createdAt: "asc" },
+    select: { createdAt: true },
+  });
+  if (rows.length < LOGIN_MAX_FAILURES) return null;
+  const until = rows[rows.length - LOGIN_MAX_FAILURES].createdAt.getTime() + LOGIN_WINDOW_MS;
+  return Math.max(until - now, 1_000);
+}
+
 export async function recordLoginFailure(email: string): Promise<void> {
   await prisma.loginAttempt
     .create({ data: { email: email.trim().toLowerCase() } })

@@ -1,7 +1,7 @@
 // H5 (security audit 2026-10-08): five failures lock a sign-in for 15 minutes, each five after that for twice as long.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { lockedUntil, waitPhrase, LOCKOUT_FIRST_MS, LOCKOUT_LONGEST_MS } from "../../src/lib/login-lockout.ts";
+import { lockedMessage, lockedUntil, waitPhrase, LOCKOUT_FIRST_MS, LOCKOUT_LONGEST_MS } from "../../src/lib/login-lockout.ts";
 
 const MIN = 60_000;
 const T = Date.UTC(2026, 9, 8, 12, 0, 0);
@@ -46,4 +46,9 @@ test("the wait reads as a sign-in form would say it, rounded up", () => {
   assert.equal(waitPhrase(60 * MIN), "1 hour");
   assert.equal(waitPhrase(119 * MIN), "2 hours");
   assert.equal(waitPhrase(LOCKOUT_LONGEST_MS), "24 hours");
+});
+
+test("a locked sign-in says how long, and that a reset unlocks it now (the owner's words, 2026-10-09)", () => {
+  assert.equal(lockedMessage(15 * MIN), "Too many wrong attempts. Try again in 15 minutes, or reset your password to unlock now.");
+  assert.equal(lockedMessage(90 * MIN), "Too many wrong attempts. Try again in 2 hours, or reset your password to unlock now.");
 });

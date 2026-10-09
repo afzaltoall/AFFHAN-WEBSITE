@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { EmployeeAuthShell } from "@/components/ui/EmployeeAuthShell";
-import { authLabel, authPrimaryButton } from "@/components/ui/authFieldStyles";
+import { authLabel, authPrimaryButton, authResetButton } from "@/components/ui/authFieldStyles";
 import { SessionNotice } from "./SessionNotice";
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
@@ -19,6 +19,9 @@ export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Locked after too many wrong passwords: the message comes with the way out,
+  // since a reset unlocks the account at once.
+  const [locked, setLocked] = useState(false);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
 
@@ -29,6 +32,7 @@ export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
       return;
     }
     setError(null);
+    setLocked(false);
     setLoading(true);
     try {
       const res = await fetch("/api/employee/auth/login/", {
@@ -39,6 +43,7 @@ export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data.error || "Sign in failed.");
+        setLocked(res.status === 429 && data.reason === "locked");
         setLoading(false);
         turnstileRef.current?.reset();
         setTurnstileToken(null);
@@ -83,7 +88,16 @@ export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
             className="mt-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[12.5px] font-medium text-red-700"
           >
             <AlertCircle className="mt-px h-4 w-4 shrink-0 text-red-600" aria-hidden="true" />
-            <span>{error}</span>
+            <div>
+              <span>{error}</span>
+              {locked && (
+                <div>
+                  <Link href="/employee/forgot-password/" className={authResetButton}>
+                    Reset password
+                  </Link>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

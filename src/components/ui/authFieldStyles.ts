@@ -38,3 +38,7 @@ export const authSwitchLink =
 export const authFieldError = "mt-1.5 block text-[12px] font-medium text-red-600";
 export const authFormError =
   "rounded-xl border border-red-100 bg-red-50 px-3.5 py-2.5 text-[12.5px] font-medium text-red-700";
+
+/** The way out of a locked sign-in, inside authFormError: a reset unlocks it at once. */
+export const authResetButton =
+  "mt-2 inline-flex items-center justify-center rounded-lg bg-white px-3 py-1.5 text-[12.5px] font-bold text-red-700 ring-1 ring-red-200 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600";

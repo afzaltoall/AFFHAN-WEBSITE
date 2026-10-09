@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
 import { checkLoginRateLimit, limiterUnavailable } from "@/lib/rate-limit"; // Assuming we want to rate limit mobile login too!
 import { beginLoginAttempt, clearLoginFailures, customerLoginKey, verifyPasswordOrNothing } from "@/lib/password";
-import { waitPhrase } from "@/lib/login-lockout";
+import { lockedMessage } from "@/lib/login-lockout";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const gate = await beginLoginAttempt(customerLoginKey(emailNormalized));
     if (gate.locked) {
       return NextResponse.json(
-        { error: `Too many attempts. Try again in ${waitPhrase(gate.retryAfterMs)}, or reset your password.` },
+        { error: lockedMessage(gate.retryAfterMs), reason: "locked" },
         { status: 429, headers: { "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)) } }
       );
     }
