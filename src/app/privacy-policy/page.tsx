@@ -2,7 +2,7 @@
 
 import { FooterSection } from "@/components/sections/FooterSection";
 import { motion } from "framer-motion";
-import { Shield, Database, Activity, Share2, Lock, Mail, ArrowUpRight } from "lucide-react";
+import { Shield, Database, Activity, MailCheck, Share2, Lock, Mail, ArrowUpRight } from "lucide-react";
 import { useState, useEffect } from "react";
 
 const sections = [
@@ -11,14 +11,21 @@ const sections = [
     title: "Information We Collect",
     icon: Database,
     description: "Learn about the types of information we gather from you when you interact with our platform.",
-    content: "We collect information you provide directly to us, such as when you create an account, make a purchase, or contact us for support. This may include your name, email address, phone number, and payment information.",
+    content: "We collect information you provide directly to us, such as when you create an account, request a quote, or contact us for support. This may include your name, email address, phone number, company name, and the details of your request.",
   },
   {
     id: "info-use",
     title: "How We Use Your Information",
     icon: Activity,
     description: "Understand how we utilize your data to enhance, personalize, and maintain our services.",
-    content: "We use the information we collect to provide, maintain, and improve our services, process transactions, send you technical notices and support messages, and communicate with you about products, services, and promotional offers.",
+    content: "We use the information we collect to provide, maintain, and improve our services, respond to your quote requests and messages, send you technical notices and support messages, and communicate with you about the products and services you ask us about.",
+  },
+  {
+    id: "emails",
+    title: "Emails We Send",
+    icon: MailCheck,
+    description: "The emails we send you, and what we do when one can't be delivered.",
+    content: "The only emails affhan.com sends you automatically are about resetting your password. When a password reset is requested for your account, we send a six-digit code to the email address on the account; it expires after 5 minutes and works once. If your account signs in with Google and has no password, we send a short note saying so instead. If you didn't ask for a reset, you can ignore either email. These emails come from noreply@mail.affhan.com and are sent through Amazon Simple Email Service (Amazon SES). We do not send newsletters or promotional email, and our emails contain no tracking images or tracked links. If an email to your address bounces permanently, or you mark one of ours as spam, we stop emailing that address. You can reply to any of our emails; replies go to info@affhan.com.",
   },
   {
     id: "info-sharing",
@@ -39,7 +46,7 @@ const sections = [
     title: "Contact Us",
     icon: Mail,
     description: "Get in touch with our security and compliance team for questions about your privacy.",
-    content: "If you have any questions about this Privacy Policy, please contact us through our website or the contact information provided in our store.",
+    content: "If you have any questions about this Privacy Policy or the emails we send, email info@affhan.com, call +91 90920 09044, or write to AFFHAN INTERNATIONAL PVT LTD, Appavoo Tower West, 69/46, 3, S Madha Church Street, near Harbour Gate, Royapuram, Chennai, Tamil Nadu 600013, India.",
   },
 ];
 
