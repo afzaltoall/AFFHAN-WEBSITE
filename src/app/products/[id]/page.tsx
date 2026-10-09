@@ -13,6 +13,7 @@ import { parseDescription } from "@/lib/productDescription";
 import { isProductHidden, filterHidden } from "@/lib/productVisibility";
 import { getCachedSimilarProducts, SIMILAR_SHOWN } from "@/lib/products";
 import { getRelatedCategories } from "@/lib/homeGrid";
+import { jsonLd } from "@/lib/json-ld";
 
 export const dynamic = "force-dynamic";
 
@@ -302,11 +303,11 @@ export default async function ProductPage({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(productSchema) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema) }}
       />
       {/* Renders nothing; adds this product to the signed-in customer's own
           browsing history. Signed-out visitors record nothing at all. */}

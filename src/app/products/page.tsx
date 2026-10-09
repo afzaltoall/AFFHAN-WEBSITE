@@ -21,6 +21,7 @@ import { GET as getCategories } from "@/app/api/categories/route";
 import { headers } from "next/headers";
 import { CATALOGUE_HERO_IMAGES } from "@/lib/catalogueHeroImages";
 import { getHeroFeed } from "@/lib/products";
+import { jsonLd } from "@/lib/json-ld";
 
 const SITE = "https://affhan.com";
 
@@ -188,7 +189,7 @@ export default async function ProductsPage({
       {breadcrumb && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumb) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumb) }}
         />
       )}
       <ProductsCatalogue 

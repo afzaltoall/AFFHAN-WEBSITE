@@ -28,6 +28,7 @@ import { buildCategoryTree, type CategoryTreeNode } from "@/lib/categoryTree";
 import { applicationWindow } from "@/lib/trip-application";
 import { tripLock } from "@/lib/trip-lock";
 import { ORG_ID, SITE_URL } from "@/lib/brand";
+import { jsonLd } from "@/lib/json-ld";
 
 // Ten rows at the widest breakpoint (lg is 6 columns), so the grid still reads
 // as "a lot of categories" without carrying all ~593 in the document. Defined
@@ -232,7 +233,7 @@ export default async function Home() {
     <main className="w-full overflow-x-hidden scroll-smooth bg-slate-50 supports-[overflow:clip]:overflow-x-clip">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(websiteSchema) }}
       />
       <MarketplaceHeroSection
         initialProducts={heroPool.hero}

@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getCachedProductCount } from "@/lib/products";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { GoogleRating } from "@/components/ui/google-rating";
+import { jsonLd } from "@/lib/json-ld";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -138,7 +139,7 @@ export default async function SourcingFromChinaPage() {
 
   return (
     <main className="w-full bg-slate-50 min-h-screen pb-0">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: jsonLd(schema) }} />
 
       <section className="relative isolate overflow-hidden">
         <div className="hero-aurora z-0" aria-hidden="true">

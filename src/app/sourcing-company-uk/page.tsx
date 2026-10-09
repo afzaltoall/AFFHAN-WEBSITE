@@ -10,6 +10,7 @@ import { getCachedProductCount } from "@/lib/products";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { GoogleRating } from "@/components/ui/google-rating";
 import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
+import { jsonLd } from "@/lib/json-ld";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -164,7 +165,7 @@ export default async function SourcingCompanyUkPage() {
     <main className="w-full bg-slate-50 min-h-screen pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
 
       <section className="relative isolate overflow-hidden">

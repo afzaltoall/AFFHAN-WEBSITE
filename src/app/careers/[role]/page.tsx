@@ -15,6 +15,7 @@ import {
   roleEmploymentType,
   type CareerRole,
 } from "@/lib/careerRoles";
+import { jsonLd } from "@/lib/json-ld";
 
 // One page per job, which is the shape Google actually asks for.
 //
@@ -142,11 +143,11 @@ export default async function RolePage({
     <main className="relative min-h-screen bg-white text-slate-900">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jobPostingSchema(role)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(jobPostingSchema(role)) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema(role)) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbSchema(role)) }}
       />
 
       {/* Header. pt-28 rather than pt-24: the navbar is `fixed` inside a

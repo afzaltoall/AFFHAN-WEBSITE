@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { getCachedProductCount } from "@/lib/products";
 import { GoogleRating } from "@/components/ui/google-rating";
 import { ORG_ID } from "@/lib/brand";
+import { jsonLd } from "@/lib/json-ld";
 
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
 
@@ -252,7 +253,7 @@ export default async function ChinaSourcingCompanyPage() {
     <main className="w-full bg-slate-50 min-h-screen pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
 
       <section className="relative isolate overflow-hidden">

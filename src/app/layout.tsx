@@ -10,6 +10,7 @@ import { FavouritesProvider } from "@/context/FavouritesContext";
 import { QuoteGateProvider } from "@/context/QuoteGateContext";
 import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SITE_URL, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 import { FIRST_PAINT_SCRIPT } from "@/lib/firstPaintHints";
+import { jsonLd } from "@/lib/json-ld";
 
 // Premium, modern sans used site-wide. Plus Jakarta Sans reads far more
 // refined than a generic system/Geist stack — the difference the brief called
@@ -145,7 +146,7 @@ export default function RootLayout({
         {/* LocalBusiness JSON-LD Schema */}
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(organizationSchema) }}
         />
         {/* Wraps the navbar as well as the page: the navbar is where being
             signed in is visible, so it has to sit inside the same provider. */}

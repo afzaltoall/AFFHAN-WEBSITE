@@ -12,6 +12,7 @@ import { getCachedProductCount } from "@/lib/products";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { PinnedScrollPanel } from "@/components/ui/pinned-scroll-panel";
 import { GoogleRating } from "@/components/ui/google-rating";
+import { jsonLd } from "@/lib/json-ld";
 
 const SourcingProcessSection = dynamic(() => import("@/components/sections/SourcingProcessSection").then(mod => mod.SourcingProcessSection), { ssr: true });
 const FaqAccordion = dynamic(() => import("@/components/sections/FaqAccordion").then(mod => mod.FaqAccordion), { ssr: true });
@@ -290,7 +291,7 @@ export default async function SourcingCompanyDubaiPage() {
     <main className="w-full bg-slate-50 min-h-screen pb-0">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
 
       <section className="relative isolate overflow-hidden">

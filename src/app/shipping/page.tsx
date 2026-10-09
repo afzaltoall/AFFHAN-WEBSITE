@@ -4,6 +4,7 @@ import { ShippingQuoteSection } from "@/components/ui/ShippingQuoteSection";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { LOGO_URL, ORG_ID, SITE_URL } from "@/lib/brand";
 import { SHIPPING_FAQS } from "@/lib/shippingFaqs";
+import { jsonLd } from "@/lib/json-ld";
 
 export const metadata: Metadata = {
   title: "Shipping & Freight Forwarding | AFFHAN",
@@ -95,7 +96,7 @@ export default function ShippingPage() {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
+        dangerouslySetInnerHTML={{ __html: jsonLd(schema) }}
       />
       <ShippingContent />
       {/* Here rather than inside ShippingContent, so the page's content can be
