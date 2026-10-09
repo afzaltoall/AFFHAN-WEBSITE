@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff, Loader2, MessageCircle, Phone } from "lucide-react";
 import { LoginBackground } from "@/components/ui/LoginBackground";
 import { checkPasswordStrength } from "@/lib/password-rules";
 
@@ -32,6 +32,8 @@ export default function ForgotPasswordPage() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Set when no code can be sent at all: the API's WhatsApp and phone, shown under its message.
+  const [contact, setContact] = useState<Contact | null>(null);
 
   // A moment to read "your password has been changed" before the sign-in page
   // takes over.
@@ -53,10 +55,12 @@ export default function ForgotPasswordPage() {
   const sendCode = async () => {
     setBusy(true);
     setError(null);
+    setContact(null);
     const { res, json } = await post("forgot-password", { email });
     setBusy(false);
     if (!res.ok) {
       setError(json?.error ?? "Something went wrong. Try again.");
+      if (json?.contact?.whatsapp && json?.contact?.tel) setContact(json.contact);
       return;
     }
     setStep("code");
@@ -235,6 +239,19 @@ export default function ForgotPasswordPage() {
                   {error}
                 </p>
               )}
+
+              {contact && (
+                <div className="flex flex-col gap-2">
+                  <a href={contact.whatsapp} target="_blank" rel="noopener noreferrer" className={contactClass}>
+                    <MessageCircle size={15} aria-hidden="true" />
+                    WhatsApp {contact.whatsappNumber}
+                  </a>
+                  <a href={contact.tel} className={contactClass}>
+                    <Phone size={15} aria-hidden="true" />
+                    Call {contact.phone}
+                  </a>
+                </div>
+              )}
             </div>
 
             <p className="mt-7 text-center text-[13px] text-slate-500">
@@ -251,6 +268,17 @@ export default function ForgotPasswordPage() {
 
 const inputClass =
   "w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20";
+
+const contactClass =
+  "flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50";
+
+/** What /api/web/auth/forgot-password sends when no code can go out. */
+interface Contact {
+  phone: string;
+  tel: string;
+  whatsappNumber: string;
+  whatsapp: string;
+}
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

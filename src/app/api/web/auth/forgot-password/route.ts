@@ -2,12 +2,28 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
 import { issueEmailOtp } from "@/lib/email-otp";
-import { sendEmail } from "@/lib/email";
+import { canDeliverTo, sendEmail } from "@/lib/email";
 import { noPasswordOnAccountEmail, passwordResetCodeEmail } from "@/lib/email-templates";
+import { OFFICES } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/**
+ * Said instead when no email can leave at all (lib/email.ts, canDeliverTo),
+ * with somewhere to go: the head office's number, and the WhatsApp the
+ * company's profiles publish. Chennai publishes no WhatsApp of its own, so
+ * that one is Dubai's.
+ */
+const CANNOT_SEND = "We couldn't send the code right now. Please contact us on WhatsApp or call us.";
+const spaced = (n: string) => n.replace(/-/g, " ");
+const CONTACT = {
+  phone: spaced(OFFICES.chennai.telephone),
+  tel: `tel:${OFFICES.chennai.telephone.replace(/[^+\d]/g, "")}`,
+  whatsappNumber: spaced(OFFICES.dubai.telephone),
+  whatsapp: OFFICES.dubai.whatsapp,
+};
 
 /**
  * Ask for a password reset code.
@@ -23,6 +39,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * asked three times about this address" and thereby confirm it exists. The
  * timing differs a little between branches; closing that gap properly means
  * queueing the work, and it is not the leak worth engineering against here.
+ *
+ * The one other answer, that no code can be sent at all, is decided before any
+ * account is read, and is the same for every address while it holds.
  *
  * The code itself is never logged and never returned.
  */
@@ -40,6 +59,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     if (!email || !EMAIL_RE.test(email)) return generic;
+
+    // Before the account is looked up, so the answer is the same for every
+    // address: it depends on the sender (unconfigured, sandbox, a send that
+    // just failed), never on whether this one is registered. A send that fails
+    // below still answers `generic`; saying otherwise there would confirm the
+    // account. It is that failure which makes the next ask land here.
+    const delivery = await canDeliverTo(email);
+    if (!delivery.ok) {
+      console.warn(`[forgot-password] no code can be sent (${delivery.why}); showed WhatsApp and phone instead.`);
+      return NextResponse.json({ error: CANNOT_SEND, reason: "cannot_send", contact: CONTACT }, { status: 503 });
+    }
 
     const user = await prisma.mobileUser.findUnique({
       where: { email },

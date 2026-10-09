@@ -1,4 +1,4 @@
-import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import { GetAccountCommand, SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { prisma } from "@/lib/prisma";
 
 // ---------------------------------------------------------------------------
@@ -71,6 +71,54 @@ function getClient(): SESv2Client | null {
     });
   }
   return client;
+}
+
+// ---------------------------------------------------------------------------
+// Can a message leave at all?
+//
+// For a page that has to tell a customer "we couldn't send the code" without
+// telling a stranger whether the address has an account. So it is asked about
+// the SENDER, before anything about the recipient is looked up: is SES set up,
+// is the account out of the sandbox, has a send just failed. The one part that
+// reads the address is the sandbox allowlist, a list of test addresses rather
+// than of accounts. The suppression list is left out on purpose: it only ever
+// holds addresses we have mailed, so consulting it here would answer exactly
+// the question this must not.
+//
+// The failure memory is per server instance, so it is a hint rather than a
+// guarantee: an instance that has not seen the failure still tries, and that
+// try is what teaches it.
+// ---------------------------------------------------------------------------
+
+const ACCOUNT_TTL_MS = 10 * 60 * 1000;
+const FAILURE_WINDOW_MS = 10 * 60 * 1000;
+let account: { production: boolean | null; at: number } | null = null;
+let lastFailureAt = 0;
+
+/** Out of the SES sandbox? null when SES will not say (no ses:GetAccount permission, network). Cached. */
+async function productionAccess(ses: SESv2Client): Promise<boolean | null> {
+  if (account && Date.now() - account.at < ACCOUNT_TTL_MS) return account.production;
+  let production: boolean | null = null;
+  try {
+    const out = await ses.send(new GetAccountCommand({}));
+    production = typeof out.ProductionAccessEnabled === "boolean" ? out.ProductionAccessEnabled : null;
+  } catch (error) {
+    console.warn("[email] could not read the SES account state:", error instanceof Error ? error.name : "unknown");
+  }
+  account = { production, at: Date.now() };
+  return production;
+}
+
+export type Deliverability = { ok: true } | { ok: false; why: "unconfigured" | "recent_failure" | "not_allowed" | "sandbox" };
+
+export async function canDeliverTo(address: string): Promise<Deliverability> {
+  const ses = getClient();
+  if (!ses) return { ok: false, why: "unconfigured" };
+  if (lastFailureAt && Date.now() - lastFailureAt < FAILURE_WINDOW_MS) return { ok: false, why: "recent_failure" };
+  if (ALLOWED.length > 0) return ALLOWED.includes(address.trim().toLowerCase()) ? { ok: true } : { ok: false, why: "not_allowed" };
+  // Unknown counts as yes, so a missing permission cannot switch email off;
+  // if the send then fails, that failure answers for the next ten minutes.
+  return (await productionAccess(ses)) === false ? { ok: false, why: "sandbox" } : { ok: true };
 }
 
 export type SendResult =
@@ -171,11 +219,17 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
         },
       })
     );
+    lastFailureAt = 0;
     return { ok: true, messageId: out.MessageId };
   } catch (error) {
     // The message name only — an SES error can quote the destination and the
     // headers, and this is not the place for either.
-    console.error("[email] send failed:", error instanceof Error ? error.name : "unknown");
+    const name = error instanceof Error ? error.name : "unknown";
+    // A malformed address is this message's problem alone. Anything else —
+    // credentials, a missing configuration set, the sandbox, throttling, a
+    // paused account, the network — is the sender's, and canDeliverTo says so.
+    if (name !== "BadRequestException") lastFailureAt = Date.now();
+    console.error("[email] send failed:", name);
     return {
       ok: false,
       reason: "rejected",
