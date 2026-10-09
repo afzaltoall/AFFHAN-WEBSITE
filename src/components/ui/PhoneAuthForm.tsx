@@ -226,7 +226,9 @@ export function PhoneAuthForm({
     onSuccess?.();
   };
 
-  const emailLooksValid = /^[^s@]+@[^s@]+.[^s@]+$/.test(email.trim());
+  // The same shape the server checks (/api/web/auth/complete-profile). It had
+  // lost its backslashes, so [^s@] refused every address with an "s" in it.
+  const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   // The same function the server calls, so the button and the API cannot
   // disagree about what an acceptable password is.
   const passwordCheck = checkPasswordStrength(password);
