@@ -35,6 +35,14 @@ const FROM_NAME = process.env.AWS_SES_FROM_NAME || "Affhan Group";
 const CONFIGURATION_SET = process.env.AWS_SES_CONFIGURATION_SET?.trim() || "affhan-transactional";
 
 /**
+ * Where a reply goes. Mail leaves from a no-reply address, so without this a
+ * customer who answers a reset email writes into nothing. info@affhan.com is
+ * the address the contact page publishes; the templates' footers tell the
+ * reader they can reply.
+ */
+const REPLY_TO = process.env.AWS_SES_REPLY_TO?.trim() || "info@affhan.com";
+
+/**
  * While the identity is in the SES sandbox, only addresses verified in the
  * console can receive anything — SES rejects the rest, and a rejection looks
  * to us like a delivery failure. Setting this to a comma-separated list makes
@@ -76,7 +84,7 @@ export interface EmailMessage {
    *  message is worse than a plain one. */
   text: string;
   html?: string;
-  /** Where a reply should go, if not the no-reply sender. */
+  /** Where a reply should go; REPLY_TO when not given. */
   replyTo?: string;
 }
 
@@ -149,7 +157,7 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
         FromEmailAddress: FROM_NAME ? `${FROM_NAME} <${FROM_ADDRESS}>` : FROM_ADDRESS,
         Destination: { ToAddresses: [to] },
         ConfigurationSetName: CONFIGURATION_SET,
-        ...(message.replyTo ? { ReplyToAddresses: [message.replyTo] } : {}),
+        ReplyToAddresses: [message.replyTo ?? REPLY_TO],
         Content: {
           Simple: {
             Subject: { Data: message.subject, Charset: "UTF-8" },
