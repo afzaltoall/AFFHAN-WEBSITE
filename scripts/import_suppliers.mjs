@@ -20,6 +20,11 @@ import XLSX from "xlsx";
 import { PrismaClient } from "@prisma/client";
 import dotenv from "dotenv";
 
+// SheetJS 0.20's ES-module build does not load the file system itself, so
+// readFile fails ("Cannot access file") until it is handed fs (security audit
+// 2026-10-08, M9: the move off xlsx 0.18.5).
+XLSX.set_fs(fs);
+
 dotenv.config({ quiet: true });
 dotenv.config({ path: ".env.local", override: false, quiet: true });
 
