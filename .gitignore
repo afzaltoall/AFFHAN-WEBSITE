@@ -177,3 +177,21 @@ tools/audit/**/*.json
 tools/audit/**/*.patch
 tools/eprolo/moderation/**/*.png
 tools/eprolo/moderation/*.json
+
+# Scratch scripts and dumps that sat at the repo root (security audit
+# 2026-10-08, L3): one-off CJ sync and speed probes, their progress and cache
+# files, failure logs, saved copies of the live home page and Lighthouse runs,
+# and the old Render config. None held a secret and none is the site. The
+# .mjs scripts and .csv logs among them are covered by the rules above.
+/check-new-categories.js
+/diagnose-v1-vs-v2.js
+/fetch_cj.js
+/test_clicks.js
+/test_hydration.js
+/v1-sync-progress-*.json
+/v1-scan-cache.json
+/lighthouse-*.json
+/live-home*.html
+/git_log.txt
+/null
+/render.yaml

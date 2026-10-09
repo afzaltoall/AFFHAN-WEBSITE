@@ -1,1 +1,0 @@
-fetch('https://affhan.com/').then(r => r.text()).then(h => { const u = h.match(/https:\/\/d294cbym1d7nev\.cloudfront\.net[^"'&]+/g) || []; console.log(Array.from(new Set(u)).slice(0,5).join('\n')); })
