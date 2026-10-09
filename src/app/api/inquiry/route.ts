@@ -3,6 +3,7 @@ import { prisma } from "../../../lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
 import { verifyMobileSession } from "@/lib/mobile-auth";
+import { describeInquiryProblems, inquiryInput } from "@/lib/inquiry-input";
 
 /**
  * A quote request from the website's "Inquire Now" modal.
@@ -28,15 +29,13 @@ import { verifyMobileSession } from "@/lib/mobile-auth";
  */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { productId, productName, quantity, customerName, companyName, email, country, phone, message } = body;
-
-    if (!productName || !quantity || !customerName || !country || !phone) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+    // Types, lengths and formats, in lib/inquiry-input.ts (security audit
+    // 2026-10-08, M6). Keys it does not name are dropped.
+    const parsed = inquiryInput.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) {
+      return NextResponse.json(describeInquiryProblems(parsed.error), { status: 400 });
     }
+    const { productId, productName, quantity, customerName, companyName, email, country, phone, message } = parsed.data;
 
     // A bad session and no session are now the same answer: 401. An expired
     // session gets it too, which is correct — the browser still holds the
@@ -52,9 +51,9 @@ export async function POST(req: Request) {
 
     const newInquiry = await prisma.inquiry.create({
       data: {
-        productId: productId ? parseInt(productId, 10) : undefined,
+        productId,
         productName,
-        quantity: parseInt(quantity, 10),
+        quantity,
         customerName,
         companyName,
         email,
@@ -74,6 +73,7 @@ export async function POST(req: Request) {
           create: { toStatus: "PENDING", note: "Inquiry submitted" },
         },
       },
+      select: { id: true, createdAt: true },
     });
 
     // Their AFFHAN number, issued now if this is the first we have heard from
@@ -85,10 +85,12 @@ export async function POST(req: Request) {
       console.error("customer code:", e);
     }
 
-    return NextResponse.json(
-      { message: "Inquiry saved successfully", inquiry: newInquiry },
-      { status: 201 }
-    );
+    // The new row's id and nothing else. The whole row used to come back,
+    // internal fields (customerKey, assignedToId, status) included; the quote
+    // form reads none of it, only the status. Inquiries have no reference
+    // number of their own (freight requests and trip applications do), so
+    // there is none to send.
+    return NextResponse.json({ id: newInquiry.id }, { status: 201 });
   } catch (error: unknown) {
     // The whole error stays in the server's log. It used to go back as
     // `details`, which handed Prisma's message (table, column and value) to
