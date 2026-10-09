@@ -4329,7 +4329,7 @@ function Row({ icon: Icon, label, value, t }: { icon: LucideIcon; label: string;
           break-words is load-bearing. min-w-0 lets the flex item shrink below
           its content, but an unbroken string like an email address still
           paints straight out of the box — which is exactly what it did once
-          these rows were laid out two to a line: vasimbpharm@gmail.com ran
+          these rows were laid out two to a line: a.long.customer.name@example.com ran
           over the top of the COUNTRY label next to it. */}
       <span className={`min-w-0 flex-1 break-words font-semibold leading-snug ${t?.strong ?? ""}`}>{value}</span>
     </div>

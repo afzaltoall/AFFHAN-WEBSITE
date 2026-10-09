@@ -146,7 +146,12 @@ tools/audit/out/
 # data dumps (products_export.csv alone is 171MB); these are 55KB compliance
 # records of what was flagged, when, and why, and the whole point of an audit
 # log is that it survives in history rather than sitting on one laptop.
-!tools/eprolo/moderation/*.csv
+# Named by kind rather than *.csv: the folder-wide exception let a list of
+# job-alert subscribers' email addresses in with them (security audit
+# 2026-10-08, M8).
+!tools/eprolo/moderation/flagged-*.csv
+!tools/eprolo/moderation/name-scan-*.csv
+!tools/eprolo/moderation/others-*.csv
 flutter-patch-*.js
 
 # Backups written by the one-off data scripts before they change anything.

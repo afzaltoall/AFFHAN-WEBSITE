@@ -91,10 +91,10 @@ export async function GET(req: Request) {
     // clean per-customer table.
     //
     //   #  Customer            Country  Code  Phone        Inquiries  Total Qty
-    //   ── Karthikeyan  ────── India    +91   7502699892   1          50
+    //   ── Asha Menon  ─────── India    +91   9000000001   1          50
     //           Product 1  Children's Bow Hair Clip …                 Qty 50
     //   (blank row)
-    //   ── Navin Kumar ─────── India    +91   8946050558   2          40
+    //   ── Ravi Iyer ───────── India    +91   9000000002   2          40
     //           Product 1  20000mah mobile power …                    Qty 20
     //           Product 2  20000mah mobile power …                    Qty 20
     const { aoa: custAoa, cols: custCols, textCols: custTextCols } = buildCustomerSheet(groups);
