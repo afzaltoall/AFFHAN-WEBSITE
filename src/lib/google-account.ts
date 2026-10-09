@@ -16,10 +16,10 @@ export class GoogleIdentityTaken extends Error {}
  * - The account holds it but never proved it: claimed. Before this, Google
  *   was merged into it as it stood, so whoever registered somebody else's
  *   address first kept their password, and with it the owner's account. Now
- *   the password, every open session and the phone number on it go, in one
- *   transaction with the link; the email is marked proved; and each removal is
- *   written to the account's AccountChange trail. The owner can set a password
- *   from Account afterwards.
+ *   the password and every open session go, in one transaction with the link;
+ *   the email is marked proved; and the password's removal is written to the
+ *   account's AccountChange trail. The phone number stays (lib/google-linking.ts
+ *   says why). The owner can set a password from Account afterwards.
  *
  * A suspended account is returned untouched, for the route to refuse.
  */
@@ -70,7 +70,6 @@ export async function accountForGoogle(input: {
 
     const trail: Prisma.AccountChangeCreateManyInput[] = [
       ...(existing.passwordHash ? [{ userId: existing.id, field: "password", fromValue: null, toValue: null, source: input.source }] : []),
-      ...(existing.phone ? [{ userId: existing.id, field: "phone", fromValue: existing.phone, toValue: null, source: input.source }] : []),
     ];
     const [claimed] = await prisma.$transaction([
       prisma.mobileUser.update({
@@ -80,8 +79,6 @@ export async function accountForGoogle(input: {
           authProvider: plan.authProvider,
           emailVerified: true,
           passwordHash: null,
-          phone: null,
-          phoneVerified: false,
           profileImage: existing.profileImage || input.picture || null,
         },
       }),
