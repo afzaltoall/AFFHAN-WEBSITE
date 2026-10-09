@@ -73,9 +73,20 @@ export async function GET(request: Request) {
     const sortBy = searchParams.get("sortBy");
     const getChips = searchParams.get("getChips");
 
-    // Pagination params
-    const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = parseInt(searchParams.get("limit") || "40", 10);
+    // Pagination params, held to what a page of this site asks for (security
+    // audit 2026-10-08, M2). They reached the SQL exactly as parsed:
+    // ?limit=100000 was a hundred thousand rows a request, and a negative or
+    // non-numeric page was a database error. Now limit is 1 to 100 (the
+    // largest any caller here asks for is the catalogue's 96) and page is a
+    // whole number from 1, anything else reading as the default. Deep pages
+    // are a real feature ("of N pages"), so page's only ceiling is one no
+    // catalogue reaches, there to keep the offset a number Postgres can hold.
+    const wholeParam = (name: string) => {
+      const n = Number.parseInt(searchParams.get(name) ?? "", 10);
+      return Number.isFinite(n) ? n : null;
+    };
+    const page = Math.min(1_000_000, Math.max(1, wholeParam("page") ?? 1));
+    const limit = Math.min(100, Math.max(1, wholeParam("limit") ?? 40));
     const skip = (page - 1) * limit;
 
     const anchorId = searchParams.get("anchorId");
