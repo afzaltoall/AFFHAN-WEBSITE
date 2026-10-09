@@ -8,6 +8,8 @@ import {
 } from "@/lib/password";
 import { lockedMessage } from "@/lib/login-lockout";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
+import { checkTurnstile } from "@/lib/turnstile";
+import { getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +39,13 @@ const WRONG = "Incorrect email or password.";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
+
+    // Turnstile first, before any count or lookup (2026-10-09). The website is
+    // the only caller; the app signs in at /api/mobile/auth/login, which cannot
+    // show the widget.
+    const human = await checkTurnstile(body?.turnstileToken, getClientIp(request));
+    if (!human.ok) return NextResponse.json({ error: human.error }, { status: human.status });
+
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body?.password === "string" ? body.password : "";
 

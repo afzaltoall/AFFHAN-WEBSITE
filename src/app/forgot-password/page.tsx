@@ -1,12 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle2, Eye, EyeOff, Loader2, MessageCircle, Phone } from "lucide-react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { LoginBackground } from "@/components/ui/LoginBackground";
 import { checkPasswordStrength } from "@/lib/password-rules";
+import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 
 /**
  * Reset a forgotten password: ask for a code, type it, choose a new one.
@@ -52,12 +54,24 @@ export default function ForgotPasswordPage() {
     return { res, json: await res.json().catch(() => ({})) };
   };
 
+  // Cloudflare Turnstile on "Send code", checked by the server before anything
+  // else (2026-10-09). A token works once, so each send asks for a fresh one.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
+
   const sendCode = async () => {
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError("Please complete the security check.");
+      setContact(null);
+      return;
+    }
     setBusy(true);
     setError(null);
     setContact(null);
-    const { res, json } = await post("forgot-password", { email });
+    const { res, json } = await post("forgot-password", { email, turnstileToken });
     setBusy(false);
+    turnstileRef.current?.reset();
+    setTurnstileToken(null);
     if (!res.ok) {
       setError(json?.error ?? "Something went wrong. Try again.");
       if (json?.contact?.whatsapp && json?.contact?.tel) setContact(json.contact);
@@ -146,6 +160,18 @@ export default function ForgotPasswordPage() {
                       className={inputClass}
                     />
                   </Field>
+                  {TURNSTILE_SITE_KEY && (
+                    <div className="[&_iframe]:!w-full">
+                      <Turnstile
+                        ref={turnstileRef}
+                        siteKey={TURNSTILE_SITE_KEY}
+                        onSuccess={setTurnstileToken}
+                        onExpire={() => setTurnstileToken(null)}
+                        onError={() => setTurnstileToken(null)}
+                        options={{ theme: "light", size: "flexible", action: "password_reset" }}
+                      />
+                    </div>
+                  )}
                   <Primary onClick={sendCode} busy={busy} disabled={!email.trim()}>
                     Send code
                   </Primary>

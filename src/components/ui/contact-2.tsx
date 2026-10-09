@@ -9,8 +9,7 @@ import { FlagSelect } from "@/components/ui/FlagSelect";
 import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile } from "@/lib/phone";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
-
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 
 interface Contact2Props {
   title?: string;

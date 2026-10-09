@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkPasswordResetRateLimit, limiterUnavailable } from "@/lib/rate-limit";
+import { checkPasswordResetRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
+import { checkTurnstile } from "@/lib/turnstile";
 import { issueEmailOtp } from "@/lib/email-otp";
 import { canSendEmail, sendEmail } from "@/lib/email";
 import { noPasswordOnAccountEmail, passwordResetCodeEmail } from "@/lib/email-templates";
@@ -38,6 +39,13 @@ export async function POST(request: NextRequest) {
   });
 
   try {
+    const body = await request.json().catch(() => ({}));
+
+    // Turnstile first, before the limit is spent or anything read (2026-10-09).
+    // It says nothing about the address either way.
+    const human = await checkTurnstile(body?.turnstileToken, getClientIp(request));
+    if (!human.ok) return NextResponse.json({ error: human.error }, { status: human.status });
+
     // Per-IP, and refused in production until Upstash is configured
     // (lib/rate-limit.ts); a 503 says nothing about the address, which has not
     // been read yet. The per-address limit is inside issueEmailOtp, in the
@@ -46,7 +54,6 @@ export async function POST(request: NextRequest) {
     if (limit.unavailable) return limiterUnavailable("Password reset");
     if (!limit.success) return generic;
 
-    const body = await request.json().catch(() => ({}));
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     if (!email || !EMAIL_RE.test(email)) return generic;
 

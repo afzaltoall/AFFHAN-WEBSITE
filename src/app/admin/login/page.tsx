@@ -8,6 +8,7 @@ import { Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Turnstile, TurnstileInstance } from "@marsidev/react-turnstile";
 import { useRef } from "react";
+import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 
 const quotes = [
   { title: "Source anything from China, effortlessly.", subtitle: "Sign in to manage your quote requests and sourcing inquiries with Affhan International." },
@@ -174,7 +175,7 @@ function LoginContent() {
             <div className="flex justify-center pt-2">
               <Turnstile
                 ref={turnstileRef}
-                siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ""}
+                siteKey={TURNSTILE_SITE_KEY || ""}
                 onSuccess={(token) => setTurnstileToken(token)}
                 onExpire={() => setTurnstileToken(null)}
                 onError={() => { setTurnstileToken(null); setError("Security check failed. Please try again."); }}

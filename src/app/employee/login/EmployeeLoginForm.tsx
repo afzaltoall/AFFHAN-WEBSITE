@@ -8,8 +8,7 @@ import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { EmployeeAuthShell } from "@/components/ui/EmployeeAuthShell";
 import { authLabel, authPrimaryButton, authResetButton } from "@/components/ui/authFieldStyles";
 import { SessionNotice } from "./SessionNotice";
-
-const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 
 export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
   const router = useRouter();

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { useAuth } from "@/context/AuthContext";
+import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 import {
   authStack,
   authLabel,
@@ -54,8 +56,21 @@ export function PasswordAuthForm({
   // The account is locked after too many wrong passwords: the message comes
   // with a way out, since a reset unlocks it at once.
   const [locked, setLocked] = useState(false);
+  // Cloudflare Turnstile, checked by the server before anything else (2026-10-09).
+  // A token works once, so every answer but success asks for a fresh one.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
+  const freshCheck = () => {
+    turnstileRef.current?.reset();
+    setTurnstileToken(null);
+  };
 
   const submit = async () => {
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError("Please complete the security check.");
+      setLocked(false);
+      return;
+    }
     setBusy(true);
     setError(null);
     setLocked(false);
@@ -66,18 +81,20 @@ export function PasswordAuthForm({
         // The session comes back as a cookie, so the request has to be allowed
         // to receive one.
         credentials: "include",
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email, password, turnstileToken }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(json?.error ?? "Incorrect email or password.");
         setLocked(res.status === 429 && json?.reason === "locked");
+        freshCheck();
         return;
       }
       await refreshSession();
       onSuccess?.();
     } catch {
       setError("Could not reach the server. Please try again.");
+      freshCheck();
     } finally {
       setBusy(false);
     }
@@ -135,6 +152,20 @@ export function PasswordAuthForm({
           Forgot password?
         </Link>
       </div>
+
+      {TURNSTILE_SITE_KEY && (
+        // Full width, like the staff sign-in, so it lines up with the inputs.
+        <div className="[&_iframe]:!w-full">
+          <Turnstile
+            ref={turnstileRef}
+            siteKey={TURNSTILE_SITE_KEY}
+            onSuccess={setTurnstileToken}
+            onExpire={() => setTurnstileToken(null)}
+            onError={() => setTurnstileToken(null)}
+            options={{ theme: "light", size: "flexible", action: "customer_login" }}
+          />
+        </div>
+      )}
 
       <button
         onClick={() => void submit()}

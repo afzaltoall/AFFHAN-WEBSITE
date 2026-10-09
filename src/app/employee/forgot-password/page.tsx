@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, MessageCircle, Phone } from "lucide-react";
+import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { EmployeeAuthShell } from "@/components/ui/EmployeeAuthShell";
 import { checkPasswordStrength } from "@/lib/password-rules";
+import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 
 /**
  * Staff password reset, in the three steps the customer flow uses.
@@ -43,17 +45,31 @@ export default function EmployeeForgotPasswordPage() {
     return { ok: res.ok, data } as const;
   };
 
+  // Cloudflare Turnstile on "Send code", checked by the server before anything
+  // else (2026-10-09). A token works once, so each send asks for a fresh one.
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
+
   const requestCode = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (TURNSTILE_SITE_KEY && !turnstileToken) {
+      setError("Please complete the security check.");
+      return;
+    }
     setBusy(true);
     setError(null);
     setContact(null);
-    const { ok, data } = await post("forgot-password", { email });
+    const { ok, data } = await post("forgot-password", { email, turnstileToken });
     setBusy(false);
-    // No code can leave at all (lib/cannot-send.ts): the same for every address, so it says nothing about this one.
-    if (!ok && data?.reason === "cannot_send") {
-      setError(data?.error ?? "We couldn't send the code right now.");
-      if (data?.contact?.whatsapp && data?.contact?.tel) setContact(data.contact);
+    turnstileRef.current?.reset();
+    setTurnstileToken(null);
+    // A refusal (the security check, too many requests) stays on this step and
+    // says why; it used to move on to "Enter your code" regardless. When no
+    // code can leave at all (lib/cannot-send.ts), the same for every address so
+    // it says nothing about this one, WhatsApp and a call button come with it.
+    if (!ok) {
+      setError(data?.error ?? "Something went wrong. Try again.");
+      if (data?.reason === "cannot_send" && data?.contact?.whatsapp && data?.contact?.tel) setContact(data.contact);
       return;
     }
     setNotice(data?.message ?? "If that address belongs to a staff account, we've sent a code to it.");
@@ -165,6 +181,18 @@ export default function EmployeeForgotPasswordPage() {
                   placeholder="you@affhan.com"
                   className={field}
                 />
+                {TURNSTILE_SITE_KEY && (
+                  <div className="[&_iframe]:!w-full">
+                    <Turnstile
+                      ref={turnstileRef}
+                      siteKey={TURNSTILE_SITE_KEY}
+                      onSuccess={setTurnstileToken}
+                      onExpire={() => setTurnstileToken(null)}
+                      onError={() => setTurnstileToken(null)}
+                      options={{ theme: "light", size: "flexible", action: "staff_password_reset" }}
+                    />
+                  </div>
+                )}
                 <button type="submit" disabled={busy} className={button}>
                   {busy && <Loader2 className="h-5 w-5 animate-spin" />}
                   {busy ? "Sending…" : "Send code"}

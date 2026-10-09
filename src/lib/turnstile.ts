@@ -4,23 +4,36 @@ const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 export type TurnstileCheck = { ok: true } | { ok: false; status: number; error: string };
 
+let devWarned = false;
+
 /**
  * Check a Cloudflare Turnstile token, server-side.
  *
  * With TURNSTILE_SECRET_KEY unset, production refuses (security audit
  * 2026-10-08, H5): each sign-in used to skip the check with a warning, so a
- * deployment missing the variable quietly had no check at all. Under
- * `next dev` it is still skipped, with the warning (lib/protections.ts).
+ * deployment missing the variable quietly had no check at all.
+ *
+ * Under `next dev` nothing is checked, with a warning, whatever the keys:
+ * the forms render Cloudflare's test key there (lib/turnstile-site-key.ts),
+ * whose tokens no real secret accepts, and the real key does not run on
+ * localhost (lib/protections.ts says the same for Redis).
+ *
+ * Every route that also has a rate limit calls this first: a request without
+ * a passing token is turned away before it costs an Upstash command or counts
+ * against anybody's limit (2026-10-09).
  */
 export async function checkTurnstile(token: unknown, ip?: string): Promise<TurnstileCheck> {
+  if (!protectionsRequired()) {
+    if (!devWarned) {
+      devWarned = true;
+      console.warn("[turnstile] next dev: tokens are not checked (production checks them).");
+    }
+    return { ok: true };
+  }
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) {
-    if (protectionsRequired()) {
-      console.error("[turnstile] TURNSTILE_SECRET_KEY is not set: refusing (Turnstile fails closed in production).");
-      return { ok: false, status: 503, error: "The security check is unavailable right now. Please try again later." };
-    }
-    console.warn("TURNSTILE_SECRET_KEY is missing. Skipping CAPTCHA validation.");
-    return { ok: true };
+    console.error("[turnstile] TURNSTILE_SECRET_KEY is not set: refusing (Turnstile fails closed in production).");
+    return { ok: false, status: 503, error: "The security check is unavailable right now. Please try again later." };
   }
 
   if (typeof token !== "string" || !token) {
