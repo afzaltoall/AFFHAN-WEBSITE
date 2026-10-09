@@ -1,3 +1,7 @@
+import type { IncomingMessage } from "node:http";
+import type { LookupFunction } from "node:net";
+import { isPublicAddress } from "@/lib/ip-ranges";
+
 /**
  * Turns an uploaded photograph into search terms for the existing catalogue
  * search.
@@ -548,22 +552,58 @@ export function readDescription(parsed: unknown): ImageDescription {
 /** A link to an image that this server will not fetch: not http(s), or pointing inside a network. */
 export class RemoteImageRefused extends Error {}
 
-const PRIVATE_V4 = [/^0\./, /^10\./, /^127\./, /^169\.254\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./, /^22[4-9]\./, /^2[3-5]\d\./];
-function isPrivateAddress(ip: string): boolean {
-  const v = ip.toLowerCase();
-  if (/^\d+\.\d+\.\d+\.\d+$/.test(v)) return PRIVATE_V4.some((r) => r.test(v));
-  if (v.startsWith("::ffff:")) return isPrivateAddress(v.slice(7));
-  return v === "::" || v === "::1" || v.startsWith("fc") || v.startsWith("fd") || v.startsWith("fe8") || v.startsWith("fe9") || v.startsWith("fea") || v.startsWith("feb") || v.startsWith("ff");
-}
+type Pinned = { address: string; family: 4 | 6 };
 
-async function checkRemote(url: URL): Promise<void> {
+/**
+ * The one address a link may be fetched from (security audit 2026-10-08, L1).
+ *
+ * The name is resolved once, here; every address it resolves to has to be on
+ * the open internet (lib/ip-ranges.ts); and the request then connects to the
+ * first of them and to nothing else (getPinned). Before, this check resolved
+ * the name and fetch() resolved it again, so a DNS answer that changed in
+ * between (rebinding) could aim the request inside this server's network after
+ * the check had passed. And an IPv6 link carrying an internal IPv4 address in
+ * hex ("[::ffff:7f00:1]", this server's own loopback) passed as public.
+ */
+async function resolveRemote(url: URL): Promise<Pinned> {
   if (url.protocol !== "https:" && url.protocol !== "http:") throw new RemoteImageRefused("Only http and https links can be searched.");
   const host = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();
   if (!host || host === "localhost" || /\.(localhost|local|internal|lan|home|corp)$/.test(host)) throw new RemoteImageRefused("That link points inside a private network.");
+  const { isIP } = await import("node:net");
+  const literal = isIP(host);
   const { lookup } = await import("node:dns/promises");
-  const isIp = /^\d+\.\d+\.\d+\.\d+$/.test(host) || host.includes(":");
-  const addresses = isIp ? [host] : (await lookup(host, { all: true })).map((a) => a.address);
-  if (!addresses.length || addresses.some(isPrivateAddress)) throw new RemoteImageRefused("That link points inside a private network.");
+  const addresses = literal ? [{ address: host, family: literal }] : await lookup(host, { all: true });
+  if (!addresses.length || addresses.some((a) => !isPublicAddress(a.address))) throw new RemoteImageRefused("That link points inside a private network.");
+  return { address: addresses[0].address, family: addresses[0].family === 6 ? 6 : 4 };
+}
+
+/** A resolver that only ever answers with the address that was checked. */
+const pinnedLookup =
+  (to: Pinned): LookupFunction =>
+  (_host, options, callback) => {
+    // net asks with { all: true } when it races IPv4 against IPv6; the answer is the same one address either way.
+    if (options.all) callback(null, [{ address: to.address, family: to.family }]);
+    else callback(null, to.address, to.family);
+  };
+
+/** One GET to `url`, connected to `to` alone. TLS still checks the certificate against the link's own hostname. */
+async function getPinned(url: URL, to: Pinned, signal: AbortSignal): Promise<IncomingMessage> {
+  const client = url.protocol === "https:" ? await import("node:https") : await import("node:http");
+  return new Promise((resolve, reject) => {
+    const req = client.request(
+      url,
+      {
+        method: "GET",
+        signal,
+        lookup: pinnedLookup(to),
+        // identity: fetch() used to undo gzip itself; asking for the bytes as they are keeps that out of the way.
+        headers: { accept: "image/*", "accept-encoding": "identity", "user-agent": "AFFHAN photo search (+https://affhan.com)" },
+      },
+      resolve,
+    );
+    req.on("error", reject);
+    req.end();
+  });
 }
 
 /**
@@ -582,30 +622,30 @@ export async function fetchRemoteImage(link: string): Promise<{ buffer: Buffer; 
   }
   const deadline = AbortSignal.timeout(6_000);
   for (let hop = 0; hop < 4; hop++) {
-    await checkRemote(url);
-    const res = await fetch(url, { redirect: "manual", signal: deadline, headers: { accept: "image/*" } });
-    if (res.status >= 300 && res.status < 400 && res.headers.get("location")) {
-      url = new URL(res.headers.get("location") as string, url);
-      continue;
-    }
-    if (!res.ok || !res.body) throw new RemoteImageRefused("That image could not be loaded.");
-    const type = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
-    if (type && !type.startsWith("image/")) throw new RemoteImageRefused("That link is not an image.");
-    if (Number(res.headers.get("content-length") ?? 0) > MAX_IMAGE_BYTES) throw new RemoteImageRefused("That image is over 5MB.");
-    const reader = res.body.getReader();
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      size += value.byteLength;
-      if (size > MAX_IMAGE_BYTES) {
-        await reader.cancel();
-        throw new RemoteImageRefused("That image is over 5MB.");
+    // Resolved and checked once per hop, so a redirect is held to the same rule.
+    const to = await resolveRemote(url);
+    const res = await getPinned(url, to, deadline);
+    try {
+      const status = res.statusCode ?? 0;
+      if (status >= 300 && status < 400 && res.headers.location) {
+        url = new URL(res.headers.location, url);
+        continue;
       }
-      chunks.push(value);
+      if (status < 200 || status >= 300) throw new RemoteImageRefused("That image could not be loaded.");
+      const type = (res.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+      if (type && !type.startsWith("image/")) throw new RemoteImageRefused("That link is not an image.");
+      if (Number(res.headers["content-length"] ?? 0) > MAX_IMAGE_BYTES) throw new RemoteImageRefused("That image is over 5MB.");
+      const chunks: Buffer[] = [];
+      let size = 0;
+      for await (const chunk of res) {
+        size += (chunk as Buffer).length;
+        if (size > MAX_IMAGE_BYTES) throw new RemoteImageRefused("That image is over 5MB.");
+        chunks.push(chunk as Buffer);
+      }
+      return { buffer: Buffer.concat(chunks), mediaType: type || "image/jpeg" };
+    } finally {
+      res.destroy();
     }
-    return { buffer: Buffer.concat(chunks), mediaType: type || "image/jpeg" };
   }
   throw new RemoteImageRefused("That link redirects too many times.");
 }
