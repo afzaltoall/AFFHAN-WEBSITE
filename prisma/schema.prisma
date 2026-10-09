@@ -745,6 +745,27 @@ model EmailOtp {
   @@index([expiresAt])
 }
 
+/// Addresses that must never be emailed again: a permanent bounce or a spam
+/// complaint, reported by Amazon SES through SNS to /api/ses/notifications
+/// (lib/ses-notifications.ts). lib/email.ts checks this table before every
+/// send. One row per address, kept current by the latest event; deleting a
+/// row lets us email that address again.
+model EmailSuppression {
+  id           String   @id @default(uuid())
+  /// Lower-cased.
+  email        String   @unique
+  /// "BOUNCE" (permanent) or "COMPLAINT".
+  reason       String
+  /// SES's bounceSubType, or the complaint's feedback type, when given.
+  detail       String?
+  /// SES's feedbackId for the event.
+  feedbackId   String?
+  /// The SNS MessageId it arrived in.
+  snsMessageId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model AccountChange {
   id     String     @id @default(uuid())
   userId String

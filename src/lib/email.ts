@@ -1,4 +1,5 @@
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import { prisma } from "@/lib/prisma";
 
 // ---------------------------------------------------------------------------
 // Transactional email, over Amazon SES.
@@ -24,6 +25,14 @@ const ACCESS_KEY_ID = process.env.AWS_SES_ACCESS_KEY_ID || "";
 const SECRET_ACCESS_KEY = process.env.AWS_SES_SECRET_ACCESS_KEY || "";
 const FROM_ADDRESS = process.env.AWS_SES_FROM_ADDRESS || "";
 const FROM_NAME = process.env.AWS_SES_FROM_NAME || "Affhan Group";
+
+/**
+ * The SES configuration set every message is sent through. It publishes Bounce
+ * and Complaint events to SNS, which delivers them to /api/ses/notifications;
+ * that is how a bad address reaches EmailSuppression. It has to exist in the
+ * SES account (same region) before this code runs, or SES refuses every send.
+ */
+const CONFIGURATION_SET = process.env.AWS_SES_CONFIGURATION_SET?.trim() || "affhan-transactional";
 
 /**
  * While the identity is in the SES sandbox, only addresses verified in the
@@ -58,7 +67,7 @@ function getClient(): SESv2Client | null {
 
 export type SendResult =
   | { ok: true; messageId: string | undefined }
-  | { ok: false; reason: "unconfigured" | "not_allowed" | "rejected"; message: string };
+  | { ok: false; reason: "unconfigured" | "not_allowed" | "suppressed" | "rejected"; message: string };
 
 export interface EmailMessage {
   to: string;
@@ -109,6 +118,20 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
 
   const to = message.to.trim().toLowerCase();
 
+  // Never to an address that bounced permanently or complained: SES reported
+  // it through SNS (lib/ses-notifications.ts). If the list cannot be read,
+  // nothing is sent either, rather than risk mailing one of them.
+  try {
+    const suppressed = await prisma.emailSuppression.findUnique({ where: { email: to }, select: { id: true } });
+    if (suppressed) {
+      console.warn("[email] address is on the suppression list (bounce or complaint); nothing sent.");
+      return { ok: false, reason: "suppressed", message: "That address no longer receives our email." };
+    }
+  } catch (error) {
+    console.error("[email] suppression list unreadable; nothing sent:", error instanceof Error ? error.name : "unknown");
+    return { ok: false, reason: "rejected", message: "The email could not be sent." };
+  }
+
   if (ALLOWED.length > 0 && !ALLOWED.includes(to)) {
     // Sandbox guard. Deliberately not an error the customer sees — see the
     // note on AWS_SES_ALLOWED_RECIPIENTS.
@@ -125,6 +148,7 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
       new SendEmailCommand({
         FromEmailAddress: FROM_NAME ? `${FROM_NAME} <${FROM_ADDRESS}>` : FROM_ADDRESS,
         Destination: { ToAddresses: [to] },
+        ConfigurationSetName: CONFIGURATION_SET,
         ...(message.replyTo ? { ReplyToAddresses: [message.replyTo] } : {}),
         Content: {
           Simple: {
