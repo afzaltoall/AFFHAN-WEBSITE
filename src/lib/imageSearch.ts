@@ -93,6 +93,52 @@ export const ACCEPTED_IMAGE_TYPES = [
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
+/**
+ * The most pixels sharp is allowed to decode (security audit 2026-10-08, H6).
+ *
+ * The 5MB limit is on bytes, and a picture's size in memory is set by its
+ * pixels: a plain PNG of 10,000 x 10,000 compresses to well under 5MB and
+ * decodes to 300MB, and sharp's own default limit (about 268 million pixels)
+ * would let one decode to a gigabyte. 64 million still admits the 48 and 50
+ * megapixel photos phone cameras take at their largest.
+ */
+export const MAX_INPUT_PIXELS = 64_000_000;
+
+/** The whole upload, form fields included: the image's limit and room for the few short fields beside it. */
+export const MAX_FORM_BYTES = MAX_IMAGE_BYTES + 64 * 1024;
+
+/**
+ * The upload's form, read with no more than MAX_FORM_BYTES taken off the
+ * wire, or "too_large".
+ *
+ * request.formData() reads the whole body before anything can look at its
+ * size, so the 5MB check used to run only after an upload of any size had
+ * been held in memory (H6). The declared length is checked first, and the
+ * body is counted as it arrives, so an upload sent without a length is
+ * stopped at the limit too. Same pattern as fetchRemoteImage below.
+ */
+export async function readCappedForm(request: Request): Promise<FormData | "too_large"> {
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > MAX_FORM_BYTES) return "too_large";
+  if (!request.body) return request.formData();
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > MAX_FORM_BYTES) {
+      await reader.cancel();
+      return "too_large";
+    }
+    chunks.push(value);
+  }
+  return new Response(Buffer.concat(chunks), {
+    headers: { "content-type": request.headers.get("content-type") ?? "" },
+  }).formData();
+}
+
 /** Longest edge sent to the provider. Vision models downscale internally
  *  anyway, so anything larger is upload time and tokens spent for nothing.
  *  1024, not 1568: Gemini 3 bills an image at a fixed ~1,400 tokens and
@@ -131,6 +177,9 @@ export class ImageSearchUnavailable extends Error {}
  *  MIME type, because the advice to the user is different. */
 export class ImageDecodeFailed extends Error {}
 
+/** The upload is a real image, but more pixels than MAX_INPUT_PIXELS: refused before it is decoded. */
+export class ImageTooLarge extends Error {}
+
 /**
  * Hand back something a vision provider will definitely accept.
  *
@@ -151,7 +200,11 @@ export async function normaliseForProvider(
 
   try {
     const sharp = (await import("sharp")).default;
-    const image = sharp(input, { animated: false });
+    // limitInputPixels: sharp refuses anything larger as soon as it reads the
+    // header, in metadata(), so nothing that size is ever decoded. Checked for
+    // PNG, JPEG, WebP, TIFF, GIF and AVIF on sharp 0.35.5 (HEIC shares AVIF's
+    // loader); the refusal becomes ImageTooLarge below.
+    const image = sharp(input, { animated: false, limitInputPixels: MAX_INPUT_PIXELS });
     const meta = await image.metadata();
     const oversized = Math.max(meta.width ?? 0, meta.height ?? 0) > MAX_EDGE;
 
@@ -180,6 +233,10 @@ export async function normaliseForProvider(
 
     return { base64: out.toString("base64"), mediaType: "image/jpeg" };
   } catch (error) {
+    // Too many pixels is a refusal, not a decoding failure: it must not fall
+    // through to the "send it as it is" path below, or the provider would be
+    // handed what this server would not decode.
+    if (error instanceof Error && /pixel limit/i.test(error.message)) throw new ImageTooLarge(error.message);
     // A native type that sharp could not read is still worth trying as-is: the
     // provider may well decode it, and failing here would be worse.
     if (native) return { base64: input.toString("base64"), mediaType };

@@ -10,9 +10,11 @@ import {
   ImageSearchUnavailable,
   ImageSearchBusy,
   ImageDecodeFailed,
+  ImageTooLarge,
   RemoteImageRefused,
   ACCEPTED_IMAGE_TYPES,
   MAX_IMAGE_BYTES,
+  readCappedForm,
   type DetectedItem,
   type ImageDescription,
 } from "@/lib/imageSearch";
@@ -158,9 +160,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Read with a byte cap (lib/imageSearch.ts, security audit 2026-10-08, H6):
+  // an upload over the limit is refused before it is held in memory, not after.
   let form: FormData;
   try {
-    form = await request.formData();
+    const read = await readCappedForm(request);
+    if (read === "too_large") {
+      return NextResponse.json(
+        { error: `That image is over ${Math.round(MAX_IMAGE_BYTES / 1024 / 1024)}MB. Try a smaller one.` },
+        { status: 413 },
+      );
+    }
+    form = read;
   } catch {
     return NextResponse.json({ error: "Expected a multipart form upload." }, { status: 400 });
   }
@@ -257,6 +268,13 @@ export async function POST(request: NextRequest) {
       const { base64, mediaType } = await normaliseForProvider(imageBuffer, mimeType);
       description = await describeProductImage(base64, mediaType, AbortSignal.timeout(12_000));
     } catch (error) {
+      if (error instanceof ImageTooLarge) {
+        console.warn("Image search refused an image over the pixel limit:", error.message);
+        return NextResponse.json(
+          { error: "That image has too many pixels to read. Try a smaller copy of it." },
+          { status: 413 },
+        );
+      }
       if (error instanceof ImageDecodeFailed) {
         console.warn("Image search could not decode upload:", mimeType, error.message);
         return NextResponse.json(
