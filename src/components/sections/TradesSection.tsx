@@ -76,7 +76,8 @@ export function TradesSection({ trades }: { trades: Trade[] }) {
   useEffect(() => {
     if (!near) return;
     const next = () => [1, 2].forEach((i) => warm(i));
-    if (!("requestIdleCallback" in window)) {
+    // Safari has no requestIdleCallback; the types say every browser has, so the test is on the function.
+    if (typeof window.requestIdleCallback !== "function") {
       const id = window.setTimeout(next, 1200);
       return () => window.clearTimeout(id);
     }
