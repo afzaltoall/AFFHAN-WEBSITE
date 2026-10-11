@@ -128,10 +128,12 @@ export function NavAuthButton() {
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="flex items-center gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-3 transition-colors hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
+        aria-label={user.name || user.phone || "Your account"}
+        className="flex items-center gap-1.5 xl:gap-2 rounded-full border border-slate-200 py-1 pl-1 pr-2 xl:pr-3 transition-colors hover:border-slate-300 hover:bg-slate-50 cursor-pointer"
       >
         <Avatar user={user} initial={initial} size={30} />
-        <span className="max-w-[8rem] truncate text-sm font-semibold text-slate-700">
+        {/* The name from 1280px; on a tablet the avatar alone, so the search keeps the bar. */}
+        <span className="hidden xl:block max-w-[8rem] truncate text-sm font-semibold text-slate-700">
           {user.name || user.phone}
         </span>
         <ChevronDown

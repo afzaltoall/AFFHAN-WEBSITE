@@ -135,9 +135,9 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
     if (pinnedId.current) return;
     const container = scrollRef.current;
     if (!container) return;
-    
+
     const scrollTop = container.scrollTop;
-    
+
     // If scrolled to the absolute bottom, force highlight the last section
     // because its top offset might never reach the top of the container
     if (Math.ceil(scrollTop + container.clientHeight) >= container.scrollHeight - 10) {
@@ -156,7 +156,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
   };
 
   return (
-    <div className="flex bg-white rounded-2xl shadow-xl border border-slate-200/70 overflow-hidden w-[900px] max-h-[70vh]">
+    <div className="flex bg-white rounded-2xl shadow-xl border border-slate-200/70 overflow-hidden w-full xl:w-[900px] max-h-[70vh]">
       {/* Left icon rail */}
       {/* 288px, measured rather than guessed: at 14px semibold the longest of
           the fifty names ("Women's Outerwear & Jackets") is 207px wide, and the
@@ -166,7 +166,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
           A name longer than that would clip rather than wrap. Nothing in the
           taxonomy comes close, but if one is promoted later this is the number
           to raise. */}
-      <div ref={railRef} className="w-72 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
+      <div ref={railRef} className="w-60 lg:w-72 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
         {sections.map(s => (
           // A row in a list of categories opens that category — the same place
           // its tiles and its "View all" go. It used to only scroll the right
@@ -232,7 +232,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
                 category names, which left each tile column at 71px — narrow
                 enough that the two-line labels started clipping. Six gives
                 them 99px, slightly more than they had before the rail moved. */}
-            <div className="grid grid-cols-6 gap-x-4 gap-y-6">
+            <div className="grid grid-cols-4 lg:grid-cols-6 gap-x-4 gap-y-6">
               {s.isLeaf ? (
                 // Products stand in for the sub-categories a leaf does not
                 // have. They are a picture of what is inside, and they lead

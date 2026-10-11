@@ -41,13 +41,13 @@ export function Navbar() {
   // hides while a menu, search, or suggestion panel is open.
   const [hidden, setHidden] = useState(false);
   const lastScrollY = useRef(0);
-  
+
   // Search
   const [navSearchValue, setNavSearchValue] = useState("");
   const [isInputFocused, setIsInputFocused] = useState(false);
   const searchRef = useRef<HTMLFormElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  
+
   // Mega Menu Hover State
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const megaMenuHoverTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -327,10 +327,14 @@ export function Navbar() {
         className="fixed top-0 w-full z-[100] bg-white shadow-sm border-b border-slate-100"
       >
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 gap-4 lg:gap-8">
-            
+          {/* Three widths. A phone: the logo and the menu. A tablet (768 to 1279px): the search takes the bar,
+              with the categories as an icon below 1024px, the account as an avatar, and About, Careers and
+              Contact Us in the menu; at 1024px those three links had left the search 240px, its placeholder
+              cut to "What are you sou" (the owner, on an iPad, 2026-10-11). From 1280px: everything. */}
+          <div className="flex justify-between items-center h-16 gap-3 md:gap-4 xl:gap-8">
+
             {/* Logo */}
-            <Link href="/" className="flex items-center flex-shrink-0 z-10 mr-4">
+            <Link href="/" className="flex items-center flex-shrink-0 z-10 mr-1 md:mr-0 xl:mr-4">
               <div className="relative w-12 h-12 lg:w-14 lg:h-14">
                 <Image src="/logo.png" alt="AFFHAN Group Logo" width={140} height={140} priority fetchPriority="high" className="w-full h-full object-contain" />
               </div>
@@ -341,22 +345,24 @@ export function Navbar() {
                 made the whole bar's width/layout morph every time you moved
                 between the homepage (no search box) and other pages — the
                 "glitch". Colors/border still animate on focus. */}
-            <div className={`hidden lg:flex flex-1 max-w-4xl items-center relative transition-colors ${pathname !== "/" ? "bg-white border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-brand/30 focus-within:border-brand shadow-sm" : ""}`}>
-              
+            <div className={`hidden md:flex flex-1 min-w-0 max-w-4xl items-center relative transition-colors ${pathname !== "/" ? "bg-white border border-slate-200 rounded-xl focus-within:ring-2 focus-within:ring-brand/30 focus-within:border-brand shadow-sm" : ""}`}>
+
               {/* All Categories Dropdown Trigger */}
-              <div 
+              <div
                 className="relative h-full"
                 onMouseEnter={handleMouseEnterMenu}
                 onMouseLeave={handleMouseLeaveMenu}
               >
-                <button 
+                <button
                   onClick={handleClickCategoryMenu}
-                  className={`relative z-50 h-12 px-5 bg-slate-50 flex items-center gap-2.5 text-slate-700 hover:bg-slate-100 text-sm font-medium whitespace-nowrap transition-colors cursor-pointer ${
+                  aria-label="All Categories"
+                  aria-expanded={isCategoryMenuOpen}
+                  className={`relative z-50 h-12 px-3.5 lg:px-5 bg-slate-50 flex items-center gap-1.5 lg:gap-2.5 text-slate-700 hover:bg-slate-100 text-sm font-medium whitespace-nowrap transition-colors cursor-pointer ${
                   pathname === "/" ? "rounded-xl border border-slate-200" : "rounded-l-xl border-r border-slate-200"
                 }`}>
                   <LayoutGrid className="w-4 h-4 text-brand" />
-                  All Categories
-                  <ChevronDown className="w-4 h-4 text-slate-400 ml-1" />
+                  <span className="hidden lg:inline">All Categories</span>
+                  <ChevronDown className="w-4 h-4 text-slate-400 lg:ml-1" />
                 </button>
 
                 {/* Categories Dropdown Panel — left icon rail scrolls a
@@ -374,12 +380,14 @@ export function Navbar() {
                         onClick={() => setIsCategoryMenuOpen(false)}
                         onMouseEnter={handleMouseLeaveMenu}
                       />
-                      <div 
-                        className="absolute top-[100%] left-0 mt-2 z-50"
+                      {/* Under its trigger from 1280px; below that, where 900px from the trigger would run off the
+                          screen, the width of the bar (fixed inside the bar, which is fixed at the top: the same box). */}
+                      <div
+                        className="z-50 max-xl:fixed max-xl:inset-x-3 max-xl:top-[4.5rem] xl:absolute xl:top-[100%] xl:left-0 xl:mt-2"
                         onMouseEnter={handleMouseEnterMenu}
                       >
                       {loadingCategories ? (
-                        <div className="w-[900px] bg-white rounded-2xl shadow-xl border border-slate-200/70 p-4 space-y-3">
+                        <div className="w-full xl:w-[900px] bg-white rounded-2xl shadow-xl border border-slate-200/70 p-4 space-y-3">
                           {[...Array(8)].map((_, i) => <div key={i} className="h-6 bg-slate-200 rounded animate-pulse" />)}
                         </div>
                       ) : categoriesFailed ? (
@@ -388,7 +396,7 @@ export function Navbar() {
                            no explanation and no way out. Say so, and give the
                            person the retry the code is now actually capable of
                            performing. */
-                        <div className="w-[420px] rounded-2xl border border-slate-200/70 bg-white p-6 text-center shadow-xl">
+                        <div className="w-full max-w-[420px] rounded-2xl border border-slate-200/70 bg-white p-6 text-center shadow-xl">
                           <p className="text-sm font-semibold text-slate-800">Categories didn&apos;t load</p>
                           <p className="mt-1 text-[13px] text-slate-500">
                             The connection dropped on the way. Everything else on the site still works.
@@ -428,10 +436,10 @@ export function Navbar() {
 
               {/* Main Search Input */}
               {pathname !== "/" && (
-                <form 
+                <form
                   ref={searchRef}
-                  onSubmit={handleNavbarSearchSubmit} 
-                  className="flex-1 flex relative items-center h-12"
+                  onSubmit={handleNavbarSearchSubmit}
+                  className="flex-1 min-w-0 flex relative items-center h-12"
                 >
                   <Search className="w-5 h-5 text-slate-400 absolute left-4 pointer-events-none" />
                   <input
@@ -446,7 +454,7 @@ export function Navbar() {
                       setIsInputFocused(true);
                     }}
                     onFocus={() => setIsInputFocused(true)}
-                    className="w-full h-full pl-11 pr-24 text-sm bg-transparent focus:outline-none placeholder:text-slate-400 relative z-10"
+                    className="w-full min-w-0 h-full pl-11 pr-24 text-sm bg-transparent focus:outline-none placeholder:text-slate-400 relative z-10"
                   />
                   <button type="submit" className="absolute right-1.5 top-1.5 bottom-1.5 px-6 flex items-center justify-center bg-[#1d7e93] text-white rounded-lg hover:bg-brand-dark transition-colors font-medium text-sm cursor-pointer z-20 active:scale-95">
                     Search
@@ -469,29 +477,28 @@ export function Navbar() {
               )}
             </div>
 
-            {/* Desktop Right Nav (Essential Links) */}
-            <div className="hidden lg:flex items-center gap-6 z-10 flex-shrink-0 ml-4">
-              {/* Lives inside the desktop-only nav group, so the crowded mobile
-                  bar is left alone without needing its own breakpoint. */}
-              <Link href="/about/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
-                About
-                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
-              </Link>
-              <Link href="/careers/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
-                Careers
-                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
-              </Link>
-              <Link href="/contact/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
-                Contact Us
-                <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
-              </Link>
+            {/* The right: About, Careers and Contact Us from 1280px (in the menu below that), the account from
+                768px, and the menu below 1280px. One account button for every width. */}
+            <div className="flex items-center gap-2 md:gap-3 xl:gap-6 z-10 flex-shrink-0 xl:ml-4">
+              <div className="hidden xl:flex items-center gap-6">
+                <Link href="/about/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
+                  About
+                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
+                </Link>
+                <Link href="/careers/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
+                  Careers
+                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
+                </Link>
+                <Link href="/contact/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
+                  Contact Us
+                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-brand scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-200"></span>
+                </Link>
+              </div>
 
-              <NavAuthButton />
+              <div className="hidden md:block">
+                <NavAuthButton />
+              </div>
 
-            </div>
-
-            {/* Mobile Nav Triggers */}
-            <div className="flex lg:hidden items-center gap-3 z-10">
               {/* The magnifier that used to sit here was a <Link href="/">
                   labelled "Search". It did not search — it navigated to the
                   homepage, so a screen reader announced "Search" and the user
@@ -499,7 +506,7 @@ export function Navbar() {
                   do nothing at all. The hero carries a real search field a
                   screen further down, which is what it was standing in for. */}
               <button
-                className="flex h-10 w-10 items-center justify-center text-slate-700 hover:text-brand-dark cursor-pointer"
+                className="flex xl:hidden h-10 w-10 items-center justify-center text-slate-700 hover:text-brand-dark cursor-pointer"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-expanded={mobileMenuOpen}
                 aria-label="Toggle menu"
@@ -515,7 +522,7 @@ export function Navbar() {
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
-            className="fixed inset-0 z-[110] lg:hidden"
+            className="fixed inset-0 z-[110] xl:hidden"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
