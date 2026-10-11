@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ChevronRight } from "lucide-react";
@@ -13,6 +12,77 @@ const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((
 /** A picture at about twice the width it shows at, for sharp screens. */
 const src = (url: string, px: number) => getCdnUrl(url, px) as string;
 const stillPlease = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * How far below the screen a card's pictures start loading: about three
+ * phone screens, against the browser's own lazy loading at about one. A quick
+ * scroll on a phone line used to reach tiles before their pictures (measured
+ * 2026-10-11 at 5000px/s on 4G: 185 of 208 pictures were on screen before
+ * they had loaded, by 0.66s typically); with this lead and pictures sized
+ * to their tiles, they are there first. A fixed distance rather than a share
+ * of the screen, so a tall monitor does not start the whole grid on load,
+ * where the page has not been scrolled (the grid starts well below this).
+ */
+const AHEAD = "0px 0px 2400px 0px";
+
+/**
+ * True once the element is within AHEAD of the screen. One observer each,
+ * let go of as soon as it has answered.
+ */
+function useNear<T extends Element>() {
+  const ref = useRef<T>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || near) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        io.disconnect();
+        setNear(true);
+      },
+      { rootMargin: AHEAD },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  return [ref, near] as const;
+}
+
+/**
+ * A grid picture, sized for its tile. next/image cannot do this here: the
+ * site serves pictures unoptimized (next.config), so it writes one src and no
+ * srcset, and every tile used to fetch the same 320px picture whether it
+ * showed at 75px on a phone or 150px at a desk. Here the browser picks from
+ * `widths` by `sizes` and the screen's density, which the image handler cuts
+ * to order (lib/cdn.ts): 4.6KB at 160 against 12.8KB at 320, on average,
+ * measured on the live grid. `near` (useNear) makes it load at once; until
+ * then the browser's own lazy loading still applies.
+ */
+function Picture({ url, widths, sizes, near, className }: { url: string; widths: readonly number[]; sizes: string; near: boolean; className: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- next/image writes no srcset while images are unoptimized site-wide; this needs one.
+    <img
+      src={src(url, widths[widths.length - 1])}
+      srcSet={widths.map((w) => `${src(url, w)} ${w}w`).join(", ")}
+      sizes={sizes}
+      alt=""
+      loading={near ? "eager" : "lazy"}
+      decoding="async"
+      className={`absolute inset-0 h-full w-full ${className}`}
+    />
+  );
+}
+
+/**
+ * The widths each kind of picture is offered at (Picture): three each, so
+ * many screens share one copy at the image handler's edge, and a copy it has
+ * never made (a few hundred milliseconds, once) is rare. 320, 480 and 200 are
+ * the widths these pictures were always fetched at, and so are already made.
+ */
+const TILE_WIDTHS = [160, 240, 320] as const;
+const TOP_WIDTHS = [320, 480, 640] as const;
+const THUMB_WIDTHS = [120, 200] as const;
 
 /** The ground under every picture. A product shot's white melts into it (multiply), so a card's four read as one set. */
 const GROUND = "bg-[#f1f4f5]";
@@ -43,8 +113,8 @@ const MORE_LINK = "inline-flex max-w-full items-center gap-0.5 text-[12px] font-
  *
  * Every card is shown, with no button to press for more (the owner,
  * 2026-10-08). The page itself carries the first twelve columns' worth, and
- * the rest come from /api/home-grid on their own as the end of those comes
- * within a couple of screens, so they are in place before anyone scrolls to
+ * the rest come from /api/home-grid on their own as the grid itself comes
+ * within AHEAD of the screen, so they are in place before anyone scrolls to
  * them. Carrying all of them in the document would put the homepage back
  * where it failed GTmetrix ("No CPU idle period", 1.45MB of HTML), and a test
  * that never scrolls never pays for them. Hovering a tile previews more of
@@ -56,7 +126,7 @@ export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; m
   const [rest, setRest] = useState<GridCard[] | null>(null);
   const [state, setState] = useState<"idle" | "reading" | "failed">("idle");
   const [quote, setQuote] = useState<GridProductTile | null>(null);
-  const end = useRef<HTMLDivElement>(null);
+  const section = useRef<HTMLElement>(null);
 
   const load = useCallback(() => {
     setState("reading");
@@ -71,9 +141,14 @@ export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; m
       .catch(() => setState("failed"));
   }, [own]);
 
-  // The rest, read once the end of the first cards is within two screens or so.
+  // The rest, read as soon as the grid itself comes within AHEAD of the
+  // screen. It used to wait for the end of the first cards, 1600px off, and a
+  // quick scroll then reached the grey placeholders before the cards came
+  // (measured: 4 on screen at 5000px/s, and on every phone-line run). From the
+  // grid's top it is asked for a whole first batch earlier, and still never
+  // on a page nobody scrolls: the grid starts several screens down.
   useEffect(() => {
-    const el = end.current;
+    const el = section.current;
     if (!el || more <= 0 || rest || state !== "idle") return;
     const io = new IntersectionObserver(
       (entries) => {
@@ -81,7 +156,7 @@ export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; m
         io.disconnect();
         load();
       },
-      { rootMargin: "1600px 0px" },
+      { rootMargin: AHEAD },
     );
     io.observe(el);
     return () => io.disconnect();
@@ -96,7 +171,7 @@ export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; m
   const waiting = more > 0 && !rest && state === "reading";
 
   return (
-    <section id="category-grid" aria-labelledby="category-grid-title" className="w-full bg-slate-50 px-3 pb-8 pt-5 sm:px-4 sm:pb-10 sm:pt-7 lg:px-5">
+    <section ref={section} id="category-grid" aria-labelledby="category-grid-title" className="w-full bg-slate-50 px-3 pb-8 pt-5 sm:px-4 sm:pb-10 sm:pt-7 lg:px-5">
       <div className="mx-auto max-w-[1920px]">
         <div className="mb-2.5 flex items-baseline justify-between gap-4 sm:mb-3.5">
           <h2 id="category-grid-title" className="text-[19px] font-bold tracking-tight text-slate-900 sm:text-[22px]">
@@ -132,7 +207,6 @@ export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; m
               </div>
             ))}
         </div>
-        <div ref={end} />
 
         {state === "failed" && (
           <p className="mt-5 text-center text-[13.5px] text-slate-600 sm:mt-6">
@@ -162,8 +236,9 @@ function GridItem({ card }: { card: GridCard }) {
 
 /** A family or a group: its four biggest categories, and the way to all of it. */
 function TilesView({ card }: { card: TilesCard }) {
+  const [ref, near] = useNear<HTMLElement>();
   return (
-    <article className={CARD}>
+    <article ref={ref} className={CARD}>
       <header className="min-w-0">
         <h3 className="line-clamp-2 text-[13.5px] font-bold leading-[1.25] text-slate-900 sm:text-[17px]">{card.title}</h3>
         <p className="mt-0.5 hidden truncate text-[12.5px] text-slate-500 sm:block">{card.subtitle}</p>
@@ -171,7 +246,7 @@ function TilesView({ card }: { card: TilesCard }) {
       <ul className="grid grid-cols-2 content-start gap-x-2 gap-y-2.5 sm:gap-x-3 sm:gap-y-3">
         {card.tiles.map((tile) => (
           <li key={tile.id} className="min-w-0">
-            <CategoryTile tile={tile} />
+            <CategoryTile tile={tile} near={near} />
           </li>
         ))}
       </ul>
@@ -189,8 +264,9 @@ function TilesView({ card }: { card: TilesCard }) {
 /** What buyers asked us to source most: the first with its picture large, the next four as a list, numbered. */
 function RankedView({ card }: { card: RankedCard }) {
   const [top, ...next] = card.tiles;
+  const [ref, near] = useNear<HTMLElement>();
   return (
-    <article className={`${CARD} col-span-2`}>
+    <article ref={ref} className={`${CARD} col-span-2`}>
       <header className="min-w-0">
         <h3 className="truncate text-[15px] font-bold leading-tight text-slate-900 sm:text-[17px]">Most requested by buyers</h3>
         <p className="mt-0.5 truncate text-[12px] text-slate-500 sm:text-[12.5px]">By quote requests in the last {card.days} days</p>
@@ -198,7 +274,7 @@ function RankedView({ card }: { card: RankedCard }) {
       {/* The first beside the other four, which share its height in four even rows, a hairline between them. */}
       <ol className="grid grid-cols-2 grid-rows-4 gap-x-3 sm:gap-x-5">
         <li className="row-span-4 min-w-0">
-          <TopRank tile={top} />
+          <TopRank tile={top} near={near} />
         </li>
         {next.map((tile, i) => (
           <li key={tile.id} className={`min-w-0 py-1 ${i ? "border-t border-slate-100" : ""}`}>
@@ -207,7 +283,13 @@ function RankedView({ card }: { card: RankedCard }) {
               <span
                 className={`relative h-11 w-11 shrink-0 overflow-hidden rounded-lg ${GROUND} sm:h-14 sm:w-14 xl:h-16 xl:w-16 min-[100rem]:h-20 min-[100rem]:w-20 min-[112.5rem]:h-24 min-[112.5rem]:w-24`}
               >
-                <Image src={src(tile.image, 200)} alt="" fill sizes="96px" className="object-cover mix-blend-multiply transition-transform duration-500 ease-out group-hover:scale-[1.06]" />
+                <Picture
+                  url={tile.image}
+                  widths={THUMB_WIDTHS}
+                  sizes="(min-width: 1800px) 96px, (min-width: 1600px) 80px, (min-width: 1280px) 64px, (min-width: 640px) 56px, 44px"
+                  near={near}
+                  className="object-cover mix-blend-multiply transition-transform duration-500 ease-out group-hover:scale-[1.06]"
+                />
               </span>
               <span className="line-clamp-2 min-w-0 text-[13px] font-medium leading-snug text-slate-800 transition-colors group-hover:text-brand-dark sm:text-[14.5px] min-[100rem]:text-[15.5px]">
                 {tile.name}
@@ -226,13 +308,13 @@ function RankedView({ card }: { card: RankedCard }) {
   );
 }
 
-function TopRank({ tile }: { tile: GridCategoryTile }) {
+function TopRank({ tile, near }: { tile: GridCategoryTile; near: boolean }) {
   const frames = [tile.image, ...tile.previews];
   const hover = useHoverPreview(frames.length);
   return (
     <Link href={`/products/?categoryId=${tile.id}`} className={`group flex h-full min-w-0 flex-col ${PICTURE_CORNER} ${FOCUS}`} onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
       {/* As tall as the list beside it lets it be. */}
-      <Frames frames={frames} frame={hover.frame} armed={hover.armed} px={480} sizes="(max-width: 1024px) 45vw, 25vw" className="min-h-[136px] flex-1" />
+      <Frames frames={frames} frame={hover.frame} armed={hover.armed} near={near} widths={TOP_WIDTHS} sizes="(max-width: 1024px) 45vw, 25vw" className="min-h-[136px] flex-1" />
       <span className="mt-2 flex min-w-0 items-center gap-2">
         <Rank n={1} />
         <span className="line-clamp-2 min-w-0 text-[13.5px] font-semibold leading-snug text-slate-900 transition-colors group-hover:text-brand-dark sm:text-[15.5px]">{tile.name}</span>
@@ -254,8 +336,9 @@ function Rank({ n }: { n: number }) {
 
 /** This week's picks: a band across the grid, its name on the brand's colour, eight products beside it (in a row to swipe, on a phone). */
 function WeeklyBand({ card, onQuote, className }: { card: WeeklyCard; onQuote: (t: GridProductTile) => void; className: string }) {
+  const [ref, near] = useNear<HTMLElement>();
   return (
-    <article aria-labelledby="weekly-picks-title" className={`liquid-glass-card flex min-w-0 flex-col overflow-hidden xl:flex-row ${className}`}>
+    <article ref={ref} aria-labelledby="weekly-picks-title" className={`liquid-glass-card flex min-w-0 flex-col overflow-hidden xl:flex-row ${className}`}>
       <header className="flex items-center justify-between gap-3 bg-brand-dark px-3 py-2.5 text-white sm:px-4 sm:py-3 xl:w-[232px] xl:shrink-0 xl:flex-col xl:items-start xl:justify-between xl:p-5">
         <div className="min-w-0">
           <h3 id="weekly-picks-title" className="text-[16px] font-bold leading-tight sm:text-[18px] xl:text-[20px]">
@@ -280,7 +363,7 @@ function WeeklyBand({ card, onQuote, className }: { card: WeeklyCard; onQuote: (
       <ul className="flex min-w-0 flex-1 snap-x snap-mandatory scroll-px-3 gap-3 overflow-x-auto p-3 [scrollbar-width:none] sm:scroll-px-4 sm:gap-4 sm:p-4 lg:grid lg:grid-cols-8 lg:gap-3 lg:overflow-visible xl:gap-4 [&::-webkit-scrollbar]:hidden">
         {card.tiles.map((tile) => (
           <li key={tile.id} className="w-[38%] max-w-[170px] shrink-0 snap-start sm:w-[150px] lg:w-auto lg:max-w-none">
-            <PickTile tile={tile} onQuote={onQuote} />
+            <PickTile tile={tile} onQuote={onQuote} near={near} />
           </li>
         ))}
       </ul>
@@ -326,7 +409,8 @@ function Frames({
   frames,
   frame,
   armed,
-  px,
+  near,
+  widths,
   sizes,
   fit = "cover",
   className = "aspect-square",
@@ -334,7 +418,8 @@ function Frames({
   frames: string[];
   frame: number;
   armed: boolean;
-  px: number;
+  near: boolean;
+  widths: readonly number[];
   sizes: string;
   fit?: "cover" | "contain";
   className?: string;
@@ -345,11 +430,11 @@ function Frames({
         i === 0 || armed ? (
           // Each picture on a ground of its own, so it melts into that and not into the one fading out under it.
           <span key={url} className={`absolute inset-0 isolate ${GROUND} transition-opacity duration-500 ease-out ${i === frame ? "opacity-100" : "opacity-0"}`}>
-            <Image
-              src={src(url, px)}
-              alt=""
-              fill
+            <Picture
+              url={url}
+              widths={widths}
               sizes={sizes}
+              near={near}
               className={`${fit === "contain" ? "object-contain p-[5%]" : "object-cover"} mix-blend-multiply transition-transform duration-500 ease-out group-hover:scale-[1.04]`}
             />
           </span>
@@ -359,12 +444,13 @@ function Frames({
   );
 }
 
-function CategoryTile({ tile }: { tile: GridCategoryTile }) {
+function CategoryTile({ tile, near }: { tile: GridCategoryTile; near: boolean }) {
   const frames = [tile.image, ...tile.previews];
   const hover = useHoverPreview(frames.length);
   return (
     <Link href={`/products/?categoryId=${tile.id}`} className={`group block ${PICTURE_CORNER} ${FOCUS}`} onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
-      <Frames frames={frames} frame={hover.frame} armed={hover.armed} px={320} sizes="(max-width: 1024px) 22vw, 12vw" />
+      {/* Two cards across, then four, two tiles each: on a phone (W - 34px) / 4 - 14px, measured 73px at 390. */}
+      <Frames frames={frames} frame={hover.frame} armed={hover.armed} near={near} widths={TILE_WIDTHS} sizes="(min-width: 1024px) 11vw, (min-width: 640px) 21vw, calc(25vw - 23px)" />
       {/* Its name and nothing else, with room held for two lines, so every tile of a row is one height. */}
       <span className="mt-1.5 line-clamp-2 min-h-[2lh] text-[11.5px] font-medium leading-[1.25] text-slate-800 transition-colors group-hover:text-brand-dark sm:mt-2 sm:text-[13.5px]">
         {tile.name}
@@ -373,13 +459,13 @@ function CategoryTile({ tile }: { tile: GridCategoryTile }) {
   );
 }
 
-function PickTile({ tile, onQuote }: { tile: GridProductTile; onQuote: (t: GridProductTile) => void }) {
+function PickTile({ tile, onQuote, near }: { tile: GridProductTile; onQuote: (t: GridProductTile) => void; near: boolean }) {
   const frames = [tile.image, ...tile.previews];
   const hover = useHoverPreview(frames.length);
   return (
     <div className="group relative" onPointerEnter={hover.onPointerEnter} onPointerLeave={hover.onPointerLeave}>
       <Link href={`/products/${tile.id}/`} className={`block ${PICTURE_CORNER} ${FOCUS}`}>
-        <Frames frames={frames} frame={hover.frame} armed={hover.armed} px={320} fit="contain" sizes="(max-width: 1024px) 150px, 11vw" />
+        <Frames frames={frames} frame={hover.frame} armed={hover.armed} near={near} widths={TILE_WIDTHS} fit="contain" sizes="(max-width: 1024px) 150px, 11vw" />
         <span className="mt-2 line-clamp-2 text-[12.5px] leading-snug text-slate-800 transition-colors group-hover:text-brand-dark sm:text-[13px]">{tile.name}</span>
         {tile.category && <span className="mt-0.5 block truncate text-[11.5px] text-slate-500">{tile.category}</span>}
       </Link>
