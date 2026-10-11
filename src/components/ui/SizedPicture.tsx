@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState, type ReactNode } from "react";
 import { getCdnUrl } from "@/lib/cdn";
 
 /**
@@ -17,15 +17,23 @@ import { getCdnUrl } from "@/lib/cdn";
  * has scrolled: these sections all start several screens down.
  */
 export const AHEAD = "0px 0px 2400px 0px";
+/**
+ * As AHEAD, and anywhere above the screen as well: for what draws a section,
+ * not just its pictures. A jump past one (the End key, the scroll bar dragged
+ * to the foot) can leave it a fraction of a pixel above the screen, where
+ * AHEAD never sees it, and it stayed undrawn until the visitor scrolled back
+ * (measured at 768px: not drawn ten seconds after a jump).
+ */
+export const AHEAD_OR_PASSED = "1000000px 0px 2400px 0px";
 
 /**
- * True once the element is within AHEAD of the screen. One observer each, let
+ * True once the element is within AHEAD (or `margin`) of the screen. One observer each, let
  * go of once it has answered. What it starts is never urgent (the element can
  * still be 2400px off; one already on screen loads its pictures by itself),
  * so it renders as a transition: the category grid's forty cards drawn at
  * once yield to a scroll still under way.
  */
-export function useNear<T extends Element>() {
+export function useNear<T extends Element>(margin: string = AHEAD) {
   const ref = useRef<T>(null);
   const [near, setNear] = useState(false);
   useEffect(() => {
@@ -37,12 +45,23 @@ export function useNear<T extends Element>() {
         io.disconnect();
         startTransition(() => setNear(true));
       },
-      { rootMargin: AHEAD },
+      { rootMargin: margin },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [near]);
+  }, [near, margin]);
   return [ref, near] as const;
+}
+
+/**
+ * Its children once the place it holds is within AHEAD of the screen, or
+ * above it (AHEAD_OR_PASSED), and nothing before: for the homepage's lower sections, which the page carries
+ * as data (no request to wait for) and draws as they come near, so a test
+ * that never scrolls never pays for drawing them.
+ */
+export function WhenNear({ children }: { children: ReactNode }) {
+  const [ref, near] = useNear<HTMLDivElement>(AHEAD_OR_PASSED);
+  return <div ref={ref}>{near ? children : null}</div>;
 }
 
 /**
@@ -56,6 +75,8 @@ export const TOP_WIDTHS = [320, 480, 640] as const;
 export const THUMB_WIDTHS = [120, 200] as const;
 
 const src = (url: string, px: number) => getCdnUrl(url, px) as string;
+/** A picture's srcset at these widths: what Picture writes, and what a prefetch must ask for to warm the same copies. */
+export const srcSetOf = (url: string, widths: readonly number[]) => widths.map((w) => `${src(url, w)} ${w}w`).join(", ");
 
 /**
  * A picture sized for its box, filling it (absolute, inset 0). next/image
@@ -72,7 +93,7 @@ export function Picture({ url, widths, sizes, near, className }: { url: string; 
     // eslint-disable-next-line @next/next/no-img-element -- next/image writes no srcset while images are unoptimized site-wide; this needs one.
     <img
       src={src(url, widths[widths.length - 1])}
-      srcSet={widths.map((w) => `${src(url, w)} ${w}w`).join(", ")}
+      srcSet={srcSetOf(url, widths)}
       sizes={sizes}
       alt=""
       loading={near ? "eager" : "lazy"}
@@ -80,14 +101,4 @@ export function Picture({ url, widths, sizes, near, className }: { url: string; 
       className={`absolute inset-0 h-full w-full ${className}`}
     />
   );
-}
-
-/** The product ids the page already shows (any link to a product), so a section loaded later can leave them out. */
-export function productIdsOnPage(): Set<number> {
-  const ids = new Set<number>();
-  for (const a of document.querySelectorAll('a[href^="/products/"]')) {
-    const m = /^\/products\/(\d+)(?:\/|$)/.exec(a.getAttribute("href") ?? "");
-    if (m) ids.add(Number(m[1]));
-  }
-  return ids;
 }

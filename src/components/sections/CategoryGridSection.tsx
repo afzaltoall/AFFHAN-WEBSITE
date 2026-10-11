@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ChevronRight } from "lucide-react";
-import { Picture, THUMB_WIDTHS, TILE_WIDTHS, TOP_WIDTHS, useNear } from "@/components/ui/SizedPicture";
+import { AHEAD_OR_PASSED, Picture, THUMB_WIDTHS, TILE_WIDTHS, TOP_WIDTHS, useNear } from "@/components/ui/SizedPicture";
 import type { GridCard, GridCategoryTile, GridProductTile, RankedCard, TilesCard, WeeklyCard } from "@/lib/homeGrid";
 
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((m) => m.InquiryModal), { ssr: false });
@@ -55,10 +55,11 @@ const MORE_LINK = "inline-flex max-w-full items-center gap-0.5 text-[12px] font-
  */
 export function CategoryGridSection({ cards: own, rest }: { cards: GridCard[]; rest: TilesCard[] }) {
   const [quote, setQuote] = useState<GridProductTile | null>(null);
-  // The rest, drawn once the grid's top is within AHEAD of the screen: two
-  // screens and more before the first of them could be on it, and never on a
-  // page nobody scrolls, since the grid starts several screens down.
-  const [section, near] = useNear<HTMLElement>();
+  // The rest, drawn once the grid's top is within AHEAD of the screen (or
+  // above it, after a jump past): two screens and more before the first of
+  // them could be on it, and never on a page nobody scrolls, since the grid
+  // starts several screens down.
+  const [section, near] = useNear<HTMLElement>(AHEAD_OR_PASSED);
 
   if (!own.length) return null;
   const at = own.findIndex((c) => c.kind === "weekly");

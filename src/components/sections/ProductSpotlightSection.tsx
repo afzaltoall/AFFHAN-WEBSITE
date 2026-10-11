@@ -2,19 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { ChevronRight } from "lucide-react";
 import { Picture, useNear } from "@/components/ui/SizedPicture";
+import { InquiryModal, ProductQuoteTile, asInquiry } from "@/components/ui/ProductQuoteTile";
 import type { Spotlight, SpotlightProduct, SpotlightShelf } from "@/lib/homeGrid";
 
-const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((m) => m.InquiryModal), { ssr: false });
-
-const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50";
 const ON_DARK_FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70";
-/** Where Amazon's strip says "Bestsellers", the category: the one label here that is always true. */
-const STRIP = "absolute bottom-2 left-0 max-w-[88%] truncate rounded-r-sm bg-[linear-gradient(90deg,#f2d98a,#fbeec4)] py-0.5 pl-2 pr-2.5 text-[11.5px] font-semibold text-slate-900";
-/** The widths each picture is offered at (SizedPicture): 440 and 360 are the ones the band always fetched, already made at the edge. */
-const ROW_WIDTHS = [240, 320, 440] as const;
+/** The widths a shelf's pictures are offered at (SizedPicture): 360 is the one the band always fetched, already made at the edge. */
 const SHELF_WIDTHS = [160, 240, 360] as const;
 
 /**
@@ -69,7 +63,7 @@ export function ProductSpotlightSection({ spotlight }: { spotlight: Spotlight | 
           <ul className="flex snap-x snap-mandatory scroll-px-3 gap-3 overflow-x-auto rounded-md bg-white p-3 [scrollbar-width:none] sm:scroll-px-4 sm:gap-4 sm:p-4 lg:grid lg:grid-cols-6 lg:gap-y-6 lg:overflow-visible [&::-webkit-scrollbar]:hidden">
             {products.map((p) => (
               <li key={p.id} className="w-[44%] max-w-[220px] shrink-0 snap-start sm:w-[30%] lg:w-auto lg:max-w-none">
-                <Tile p={p} near={near} onQuote={setQuote} />
+                <ProductQuoteTile p={p} near={near} sizes="(min-width: 1024px) 15vw, (min-width: 640px) 30vw, 44vw" onQuote={setQuote} strip={p.category} />
               </li>
             ))}
           </ul>
@@ -89,43 +83,8 @@ export function ProductSpotlightSection({ spotlight }: { spotlight: Spotlight | 
         </div>
       </div>
 
-      {quote && (
-        <InquiryModal
-          product={{ id: quote.id, name: quote.name, imageUrl: quote.image, images: [quote.image], categoryRef: { name: quote.category } }}
-          onClose={() => setQuote(null)}
-        />
-      )}
+      {quote && <InquiryModal product={asInquiry(quote)} onClose={() => setQuote(null)} />}
     </section>
-  );
-}
-
-function Tile({ p, near, onQuote }: { p: SpotlightProduct; near: boolean; onQuote: (p: SpotlightProduct) => void }) {
-  return (
-    <div className="group flex h-full flex-col">
-      <Link href={`/products/${p.id}/`} className={`block rounded-md ${FOCUS}`}>
-        {/* The photo's white melts into the ground (multiply), so six shots from six suppliers read as one set. */}
-        <span className="relative isolate block aspect-square overflow-hidden rounded-md bg-[#f1f4f5]">
-          <Picture
-            url={p.image}
-            widths={ROW_WIDTHS}
-            sizes="(min-width: 1024px) 15vw, (min-width: 640px) 30vw, 44vw"
-            near={near}
-            className="object-contain p-[6%] mix-blend-multiply transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.04]"
-          />
-          {p.category && <span className={STRIP}>{p.category}</span>}
-        </span>
-        <span className="mt-2 line-clamp-2 min-h-[2lh] text-[13px] leading-snug text-slate-800 transition-colors group-hover:text-brand-dark sm:text-[13.5px]">{p.name}</span>
-      </Link>
-      <button
-        type="button"
-        onClick={() => onQuote(p)}
-        aria-label={`Get a quote for ${p.name}`}
-        className={`mt-1.5 inline-flex w-fit items-center gap-0.5 rounded-sm text-[13.5px] font-bold text-brand-dark hover:underline sm:text-[14px] ${FOCUS}`}
-      >
-        Get a quote
-        <ChevronRight size={15} aria-hidden="true" />
-      </button>
-    </div>
   );
 }
 

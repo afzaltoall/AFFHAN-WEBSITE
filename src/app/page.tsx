@@ -4,9 +4,25 @@ import { MarketplaceHeroSection } from "@/components/sections/MarketplaceHeroSec
 import { CategoryGridSection } from "@/components/sections/CategoryGridSection";
 import { ProductCategoriesSection } from "@/components/sections/ProductCategoriesSection";
 import { ProductSpotlightSection } from "@/components/sections/ProductSpotlightSection";
+import { ProductRailSection } from "@/components/sections/ProductRailSection";
+import { TradesSection } from "@/components/sections/TradesSection";
+import { MoreToExploreSection } from "@/components/sections/MoreToExploreSection";
+import { WhenNear } from "@/components/ui/SizedPicture";
 import { GET as getCategories } from "@/app/api/categories/route";
 import { getHeroFeed } from "@/lib/products";
-import { firstCards, getHomeGrid, getSpotlight, SHELF_KINDS } from "@/lib/homeGrid";
+import {
+  firstCards,
+  getHomeGrid,
+  getMore,
+  getRails,
+  getSpotlight,
+  getTrades,
+  MORE_SHOWN,
+  RAIL_SHOWN,
+  RAILS_SHOWN,
+  SHELF_KINDS,
+  TRADE_SHOWN,
+} from "@/lib/homeGrid";
 import { splitHeroPool, HOMEPAGE_PRODUCT_COUNT } from "@/lib/heroPool";
 import { buildCategoryTree, type CategoryTreeNode } from "@/lib/categoryTree";
 import { applicationWindow } from "@/lib/trip-application";
@@ -78,7 +94,7 @@ export const metadata: Metadata = {
 export const revalidate = 60;
 
 export default async function Home() {
-  const [categoriesRes, grid, spotlightOfTheDay, banner] = await Promise.all([
+  const [categoriesRes, grid, spotlightOfTheDay, railsOfTheDay, tradesOfTheDay, moreOfTheDay, banner] = await Promise.all([
     getCategories(),
     // The category grid, and with it this week's picks (lib/homeGrid.ts): an hourly cache.
     // The homepage without it, never no homepage.
@@ -90,6 +106,19 @@ export default async function Home() {
     getSpotlight().catch((e) => {
       console.error("home spotlight failed", e);
       return null;
+    }),
+    // The lower sections' draws of the day (lib/homeGrid.ts), side by side. Likewise.
+    getRails().catch((e) => {
+      console.error("home rails failed", e);
+      return [];
+    }),
+    getTrades().catch((e) => {
+      console.error("home trades failed", e);
+      return [];
+    }),
+    getMore().catch((e) => {
+      console.error("home more failed", e);
+      return [];
     }),
     // The trip banner's lock. Locked if it cannot be read.
     tripLock(),
@@ -109,6 +138,30 @@ export default async function Home() {
       return full.slice(0, full.length >= 4 ? 4 : full.length >= 2 ? 2 : 0);
     })(),
   };
+  // Below the spotlight, never a product a section above already shows: each takes, in the page's
+  // order, the ones not on it yet, and the hero's draw leaves out all of them.
+  const onPage = new Set<number>([
+    ...picked,
+    ...(spotlight ? [...spotlight.products.map((p) => p.id), ...spotlight.shelves.flatMap((s) => s.kinds.map((k) => k.productId))] : []),
+  ]);
+  const unseen = <T extends { id: number }>(list: T[], n: number) => {
+    const out: T[] = [];
+    for (const p of list) {
+      if (out.length === n) break;
+      if (onPage.has(p.id)) continue;
+      onPage.add(p.id);
+      out.push(p);
+    }
+    return out;
+  };
+  const rails = railsOfTheDay
+    .map((r) => ({ ...r, products: unseen(r.products, RAIL_SHOWN) }))
+    .filter((r) => r.products.length === RAIL_SHOWN)
+    .slice(0, RAILS_SHOWN);
+  const trades = tradesOfTheDay.map((t) => ({ ...t, products: unseen(t.products, TRADE_SHOWN) })).filter((t) => t.products.length === TRADE_SHOWN);
+  const mix = unseen(moreOfTheDay, MORE_SHOWN);
+  // Whole rows at every width (two, three, four, six and eight across): forty-eight, or twenty-four.
+  const more = mix.slice(0, mix.length >= 48 ? 48 : mix.length >= 24 ? 24 : 0);
   const productsResult = await getHeroFeed(
     // Exactly what the hero grid renders, and nothing else.
     //
@@ -122,7 +175,7 @@ export default async function Home() {
     // and everyone inside that hour sees the same set. The rotation moved to
     // the server; the variety stayed.
     HOMEPAGE_PRODUCT_COUNT,
-    [...picked, ...(spotlight ? [...spotlight.products.map((p) => p.id), ...spotlight.shelves.flatMap((s) => s.kinds.map((k) => k.productId))] : [])],
+    [...onPage],
   );
 
   const categoriesJson = await categoriesRes.json();
@@ -194,6 +247,22 @@ export default async function Home() {
         totalCount={productCategories.length}
       />
       <ProductSpotlightSection spotlight={spotlight} />
+      {/* The lower sections: two family rails, the trades, two more rails and the day's mix. Carried as
+          data and drawn as they come near (WhenNear), so there is nothing on them to wait for. */}
+      <div className="home-lower w-full bg-slate-50 px-3 sm:px-4 lg:px-5">
+        <WhenNear>
+          <div className="mx-auto flex max-w-[1920px] flex-col gap-4 py-6 sm:gap-5 sm:py-8">
+            {rails.slice(0, 2).map((r) => (
+              <ProductRailSection key={r.href} rail={r} />
+            ))}
+            <TradesSection trades={trades} />
+            {rails.slice(2).map((r) => (
+              <ProductRailSection key={r.href} rail={r} />
+            ))}
+            <MoreToExploreSection products={more} />
+          </div>
+        </WhenNear>
+      </div>
       <FooterSection />
     </main>
   );

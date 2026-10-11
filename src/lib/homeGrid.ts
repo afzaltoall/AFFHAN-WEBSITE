@@ -682,3 +682,210 @@ const buildSpotlight = unstable_cache(
 
 /** Today's spotlight: the day as India has it, so the family changes at midnight IST. */
 export const getSpotlight = (now = new Date()) => buildSpotlight(Math.floor(istDay(now).getTime() / 86_400_000));
+
+/**
+ * The homepage's lower sections (the owner's ask of 2026-10-11, after
+ * Amazon's rails and Flipkart's "Suggested for you"): a family's row of
+ * products, the trades the catalogue stocks for, and a mix from across it.
+ * Each is drawn a day at a time, as the spotlight is, by the same rules:
+ * moderated, nothing kept off the homepage, each product one of what its
+ * category says (telling), and none of the spotlight's. The page leaves out
+ * any another section already shows (page.tsx), so each sends more than it
+ * shows. Cached apart, so the page reads them side by side.
+ */
+
+/** Today as a count of days, as India has it: what the daily draws are keyed by. */
+const dayOf = (now: Date) => Math.floor(istDay(now).getTime() / 86_400_000);
+
+/** The tree, each clean family's holders, and the tops by name: where every lower draw starts. */
+async function catalogue() {
+  const res = await getCategories();
+  const rows: CatRow[] = ((await res.json()) as { data?: CatRow[] }).data ?? [];
+  const t = treeOf(rows);
+  const holders = holdersByFamily(t, new Set(await getCachedPreferredCategories()));
+  return { t, holders, tops: new Map(rows.filter((r) => !r.parentId).map((r) => [r.name.trim(), r])) };
+}
+
+/** The products the day's spotlight shows, which the lower sections leave out. */
+async function spotlightIds(day: number) {
+  const s = await buildSpotlight(day).catch(() => null);
+  return new Set<number>(s ? [...s.products.map((p) => p.id), ...s.shelves.flatMap((x) => x.kinds.map((k) => k.productId))] : []);
+}
+
+/** A product as a lower section's tile shows it. */
+function asShown(p: PlacedProduct, t: Tree): SpotlightProduct {
+  const c = t.byId.get(p.categoryId);
+  return { id: p.id, name: p.name.trim(), image: p.imageUrl, category: c ? nameOf(c) : null };
+}
+
+/** A family's clean holders, grouped by the main branch each is under, so a row is not all one branch. */
+function branchesIn(inFamily: CatRow[], top: CatRow, t: Tree): CatRow[][] {
+  const branchOf = (r: CatRow) => {
+    let c = r;
+    while (c.parentId && c.parentId !== top.id && t.byId.get(c.parentId)) c = t.byId.get(c.parentId)!;
+    return c.id;
+  };
+  const branches = new Map<string, CatRow[]>();
+  for (const r of inFamily) branches.set(branchOf(r), [...(branches.get(branchOf(r)) ?? []), r]);
+  return [...branches.values()];
+}
+
+/** Several draws' telling places in one read, and each draw's products, none twice (seen). */
+async function drawn(draws: Place[][][], seen: Set<number>) {
+  const answer = await productsAt(draws.flat(2));
+  let from = 0;
+  return draws.map((sets) => {
+    const asked = sets.flat().length;
+    const list = found(firstOfEach(sets, answer.slice(from, from + asked), seen));
+    from += asked;
+    return list;
+  });
+}
+
+/** A family's row of products (ProductRailSection): the families after the day's spotlight, in its turn. */
+export interface ProductRail {
+  /** The family, as its card in the grid names it. */
+  title: string;
+  subtitle: string;
+  href: string;
+  products: SpotlightProduct[];
+}
+/** A rail shows eight (six on a laptop), and the page four rails; one more travels, for the page's leaving out. */
+export const RAIL_SHOWN = 8;
+export const RAILS_SHOWN = 4;
+const RAIL_PICKS = 12;
+
+const buildRails = unstable_cache(
+  async (day: number): Promise<ProductRail[]> => {
+    const { t, holders, tops } = await catalogue();
+    const spotlight = await buildSpotlight(day).catch(() => null);
+    const rand = seeded(`rails-${day}`);
+    const plans: { f: (typeof FAMILIES)[number]; top: CatRow; sets: Place[][] }[] = [];
+    for (let k = 0; k < FAMILIES.length && plans.length < RAILS_SHOWN + 1; k++) {
+      const f = FAMILIES[(day + k) % FAMILIES.length];
+      const top = tops.get(f.top);
+      const inFamily = top ? holders.get(top.id) ?? [] : [];
+      if (!top || f.title === spotlight?.title || inFamily.length < 6) continue;
+      plans.push({ f, top, sets: telling(placesIn(branchesIn(inFamily, top, t), RAIL_PICKS, rand), t, rand) });
+    }
+    const lists = await drawn(
+      plans.map((p) => p.sets),
+      await spotlightIds(day),
+    );
+    return plans
+      .map(({ f, top }, i) => ({ title: f.title, subtitle: f.subtitle, href: `/products/?categoryId=${top.id}`, products: lists[i].map((p) => asShown(p, t)) }))
+      .filter((r) => r.products.length >= RAIL_SHOWN);
+  },
+  ["home-rails-v1"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
+);
+
+/** Today's family rails. */
+export const getRails = (now = new Date()) => buildRails(dayOf(now));
+
+/**
+ * A trade the catalogue stocks for (TradesSection): a kind of shop or
+ * business, the categories it buys from, and products of them. From the
+ * clean families only, and every one a real category: one that is missing or
+ * kept off the homepage is left out, and a trade left with fewer than four
+ * goes. A trade's line is 42 characters at most, one line on a 360px phone.
+ */
+export interface Trade {
+  key: string;
+  title: string;
+  line: string;
+  /** The categories it buys from, as their tiles name them. */
+  kinds: { name: string; href: string }[];
+  products: SpotlightProduct[];
+}
+/** A trade shows twelve products (two rows of six on a wide screen); two more travel, for the page's leaving out. */
+export const TRADE_SHOWN = 12;
+const TRADE_PICKS = 14;
+const HOME = "Home, Garden & Furniture";
+const IMPROVE = "Home Improvement";
+const ELEC = "Consumer Electronics";
+const AUTO = "Automobiles & Motorcycles";
+const SPORT = "Sports & Outdoors";
+const OFFICE = "Computer & Office";
+const PETS = "Pet Supplies";
+const TOYS = "Toys, Kids & Babies";
+const MEN = "Men's Clothing";
+const TRADES: { key: string; title: string; line: string; kinds: [top: string, name: string][] }[] = [
+  { key: "cafe", title: "Cafés & restaurants", line: "Cups, plates, glasses and kitchen tools", kinds: [[HOME, "Drinkware"], [HOME, "Dinnerware"], [HOME, "Cooking Tools"], [HOME, "Barware"], [HOME, "Bakeware"], [HOME, "Kitchen Knives & Accessories"]] },
+  { key: "pets", title: "Pet shops", line: "Collars, leads, bowls, beds and toys", kinds: [[PETS, "Pet Collars"], [PETS, "Pet Leashes"], [PETS, "Pet Bowls"], [PETS, "Pet Nests"], [PETS, "Pet Toy Set"], [PETS, "Pet Clothings"], [PETS, "Cat Trees & Condos"]] },
+  { key: "toys", title: "Toy stores", line: "Figures, plush toys, blocks and RC toys", kinds: [[TOYS, "Action & Toy Figures"], [TOYS, "Stuffed & Plush Animals"], [TOYS, "Blocks"], [TOYS, "RC Helicopters"], [TOYS, "Electronic Pets"]] },
+  { key: "hardware", title: "Hardware stores", line: "Hand and power tools, sets and storage", kinds: [[IMPROVE, "Hand Tools"], [IMPROVE, "Power Tools"], [IMPROVE, "Tool Sets"], [IMPROVE, "Garden Tools"], [IMPROVE, "Measurement & Analysis"], [IMPROVE, "Tools Storage"]] },
+  { key: "auto", title: "Car accessory shops", line: "Seat covers, dash cams, lights, key cases", kinds: [[AUTO, "Steering Covers"], [AUTO, "Automobiles Seat Covers"], [AUTO, "Key Case for Car"], [AUTO, "Car Stickers"], [AUTO, "Vehicle Camera"], [AUTO, "Car Mirror Video"], [AUTO, "Car Lights"]] },
+  { key: "events", title: "Event planners", line: "Party supplies, flowers, cake decorating", kinds: [[HOME, "Event & Party Supplies"], [HOME, "Decorative Flowers & Wreaths"], [HOME, "Party Masks"], [HOME, "Cake Decorating Supplies"], [HOME, "Christmas Decoration Supplies"], [HOME, "Ribbons"]] },
+  { key: "hotels", title: "Hotels & homestays", line: "Bedding, towels, curtains, night lights", kinds: [[HOME, "Bedding Sets"], [HOME, "Pillows"], [HOME, "Towels"], [HOME, "Curtains"], [HOME, "Comforters"], [HOME, "Bathroom Storage"], [IMPROVE, "Night Lights"]] },
+  { key: "office", title: "Offices & stationers", line: "Supplies, printers, USB drives and bags", kinds: [[OFFICE, "Office & School Supplies"], [OFFICE, "Printers"], [OFFICE, "Printer Supplies"], [OFFICE, "USB Flash Drives"], [OFFICE, "Laptop Bags & Cases"], [HOME, "Stationeries"]] },
+  { key: "gadgets", title: "Gadget stores", line: "Earphones, smart watches, speakers, drones", kinds: [[ELEC, "Earphones & Headphones"], [ELEC, "Smart Watches"], [ELEC, "Speakers"], [ELEC, "Camera Drones"], [ELEC, "Gamepads"], [ELEC, "Charger"], [ELEC, "Projectors"]] },
+  { key: "lighting", title: "Lighting stores", line: "Ceiling, wall, solar and string lights", kinds: [[IMPROVE, "Ceiling Lights"], [IMPROVE, "Wall Lamps"], [IMPROVE, "Chandeliers"], [IMPROVE, "Pendant Lights"], [IMPROVE, "LED Spotlights"], [IMPROVE, "Solar Lamps"], [IMPROVE, "String Lights"]] },
+  { key: "outdoor", title: "Outdoor & sports shops", line: "Camping, fishing, cycling and fitness", kinds: [[SPORT, "Camping & Hiking"], [SPORT, "Fishing Lures"], [SPORT, "Rod Combos"], [SPORT, "Bicycle Lights"], [SPORT, "Bicycle Helmets"], [SPORT, "Fitness & Bodybuilding"], [IMPROVE, "Flashlights & Torches"]] },
+  { key: "menswear", title: "Menswear stores", line: "Hoodies, blazers, shirts and caps", kinds: [[MEN, "Man Hoodies & Sweatshirts"], [MEN, "Suits & Blazer"], [MEN, "Men's Shirts"], [MEN, "Casual Pants"], [MEN, "Man Jeans"], [MEN, "Baseball Caps"], [MEN, "Belts"]] },
+];
+
+const buildTrades = unstable_cache(
+  async (day: number): Promise<Trade[]> => {
+    const { t, holders, tops } = await catalogue();
+    const rand = seeded(`trades-${day}`);
+    const plans = TRADES.flatMap((trade) => {
+      const kinds = trade.kinds.flatMap(([top, name]) => {
+        const family = tops.get(top);
+        const r = family ? (holders.get(family.id) ?? []).find((h) => h.name.trim() === name) : undefined;
+        return r ? [r] : [];
+      });
+      // Each kind thrice in its queue: placesIn takes one a queue a round, and a trade asks for more than it has kinds.
+      return kinds.length >= 4 ? [{ trade, kinds, sets: telling(placesIn(kinds.map((k) => [k, k, k]), TRADE_PICKS, rand), t, rand) }] : [];
+    });
+    const lists = await drawn(
+      plans.map((p) => p.sets),
+      await spotlightIds(day),
+    );
+    const trades = plans
+      .map(({ trade, kinds }, i) => ({
+        key: trade.key,
+        title: trade.title,
+        line: trade.line,
+        kinds: kinds.map((k) => ({ name: nameOf(k), href: `/products/?categoryId=${k.id}` })),
+        products: lists[i].map((p) => asShown(p, t)),
+      }))
+      .filter((x) => x.products.length >= TRADE_SHOWN);
+    // The day's trade first and the rest after it in their order, so the section opens on a new one each day.
+    const at = day % Math.max(1, trades.length);
+    return [...trades.slice(at), ...trades.slice(0, at)];
+  },
+  ["home-trades-v4"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
+);
+
+/** Today's trades, the day's one first. */
+export const getTrades = (now = new Date()) => buildTrades(dayOf(now));
+
+/**
+ * "More to explore" (MoreToExploreSection): a category from each clean family
+ * in turn, a product from each. Forty-eight on the page, which fills whole
+ * rows at two, three, four, six and eight across; more travel, for the
+ * page's leaving out.
+ */
+export const MORE_SHOWN = 48;
+const MORE_PICKS = 64;
+
+const buildMore = unstable_cache(
+  async (day: number): Promise<SpotlightProduct[]> => {
+    const { t, holders, tops } = await catalogue();
+    const rand = seeded(`more-${day}`);
+    const families = FAMILIES.flatMap((f) => {
+      const top = tops.get(f.top);
+      const list = top ? holders.get(top.id) ?? [] : [];
+      return list.length ? [list] : [];
+    });
+    const [list] = await drawn([telling(placesIn(families, MORE_PICKS, rand), t, rand)], await spotlightIds(day));
+    return list.map((p) => asShown(p, t));
+  },
+  ["home-more-v1"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
+);
+
+/** Today's mix. */
+export const getMore = (now = new Date()) => buildMore(dayOf(now));
