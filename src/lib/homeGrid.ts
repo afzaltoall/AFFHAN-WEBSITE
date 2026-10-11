@@ -461,7 +461,8 @@ export function firstCards(cards: GridCard[]) {
  * one clean family a day, in turn, and products from across it, one from each
  * of as many of its categories, its main branches taken in turn. Under them,
  * its shelves (the owner's ask, 2026-10-08, after Amazon's 2x2 cards): its
- * biggest main branches, four products each, each from a kind of its own.
+ * biggest main branches, six products each since 2026-10-11 (four on a
+ * phone), its kinds taken in turn.
  * The same catalogue rules as the grid: moderated, nothing kept off the
  * homepage, and no product twice in the band.
  */
@@ -488,12 +489,15 @@ export interface Spotlight {
   shelves: SpotlightShelf[];
 }
 /**
- * More than the band shows (six products in its row, four on a shelf), so the
- * page can leave out any that the week's picks already show and still fill it.
+ * More than the band shows (twelve products in its window, six on a shelf:
+ * the owner found six and four "looking less", 2026-10-11), so the page can
+ * leave out any that the week's picks already show and still fill it.
  */
-const SPOTLIGHT_PICKS = 10;
+const SPOTLIGHT_PICKS = 18;
 const SHELVES = 4;
-const SHELF_PICKS = 6;
+const SHELF_PICKS = 9;
+/** A shelf shows six; one with fewer is left off. */
+const SHELF_SHOWN = 6;
 
 const buildSpotlight = unstable_cache(
   async (day: number): Promise<Spotlight | null> => {
@@ -519,12 +523,14 @@ const buildSpotlight = unstable_cache(
       for (const r of inFamily) branches.set(branchOf(r), [...(branches.get(branchOf(r)) ?? []), r]);
       const rand = seeded(`spotlight-${day}`);
       const rowPlaces = placesIn([...branches.values()], SPOTLIGHT_PICKS, rand);
-      // The shelves: the biggest branches with four kinds or more, a kind a product.
+      // The shelves: the biggest branches with four kinds or more, each kind
+      // twice in its queue, so a shelf of six is two rounds of its kinds, not
+      // one: every kind once before any twice, at a second place of its own.
       const shelfBranches = [...branches.entries()]
         .filter(([id, kinds]) => kinds.length >= 4 && t.byId.has(id))
         .sort((a, b) => t.total(b[0]) - t.total(a[0]))
         .slice(0, SHELVES);
-      const shelfPlaces = shelfBranches.map(([, kinds]) => placesIn(kinds.map((kind) => [kind]), SHELF_PICKS, rand));
+      const shelfPlaces = shelfBranches.map(([, kinds]) => placesIn(kinds.map((kind) => [kind, kind]), SHELF_PICKS, rand));
       // Every product the band shows, in one read.
       const answer = await productsAt([...rowPlaces, ...shelfPlaces.flat()]);
       const seen = new Set<number>();
@@ -539,7 +545,7 @@ const buildSpotlight = unstable_cache(
         return { id: p.id, name: p.name.trim(), image: p.imageUrl, category: c ? nameOf(c) : null };
       };
       const picks = once(answer.slice(0, rowPlaces.length));
-      if (picks.length < 6) continue;
+      if (picks.length < 12) continue;
       let from = rowPlaces.length;
       const shelves = shelfBranches
         .map(([id], i) => {
@@ -548,7 +554,7 @@ const buildSpotlight = unstable_cache(
           const branch = t.byId.get(id)!;
           return { title: nameOf(branch), href: `/products/?categoryId=${id}`, products: list.map(shown) };
         })
-        .filter((s) => s.products.length >= TILES);
+        .filter((s) => s.products.length >= SHELF_SHOWN);
       return {
         title: f.title,
         subtitle: f.subtitle,
@@ -560,7 +566,7 @@ const buildSpotlight = unstable_cache(
     }
     return null;
   },
-  ["home-spotlight-v3"],
+  ["home-spotlight-v4"],
   { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
 );
 

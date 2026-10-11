@@ -100,9 +100,9 @@ export default async function Home() {
   const fresh = <T extends { id: number }>(list: T[], n: number) => list.filter((p) => !picked.includes(p.id)).slice(0, n);
   const spotlight = spotlightOfTheDay && {
     ...spotlightOfTheDay,
-    products: fresh(spotlightOfTheDay.products, 6),
+    products: fresh(spotlightOfTheDay.products, 12),
     shelves: (() => {
-      const full = spotlightOfTheDay.shelves.map((s) => ({ ...s, products: fresh(s.products, 4) })).filter((s) => s.products.length === 4);
+      const full = spotlightOfTheDay.shelves.map((s) => ({ ...s, products: fresh(s.products, 6) })).filter((s) => s.products.length === 6);
       // Two or four, so their row is never half empty.
       return full.slice(0, full.length >= 4 ? 4 : full.length >= 2 ? 2 : 0);
     })(),

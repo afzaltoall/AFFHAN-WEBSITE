@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ChevronRight } from "lucide-react";
-import { getCdnUrl } from "@/lib/cdn";
+import { Picture, useNear } from "@/components/ui/SizedPicture";
 import type { Spotlight, SpotlightProduct, SpotlightShelf } from "@/lib/homeGrid";
 
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((m) => m.InquiryModal), { ssr: false });
@@ -14,6 +13,9 @@ const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 const ON_DARK_FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70";
 /** Where Amazon's strip says "Bestsellers", the category: the one label here that is always true. */
 const STRIP = "absolute bottom-2 left-0 max-w-[88%] truncate rounded-r-sm bg-[linear-gradient(90deg,#f2d98a,#fbeec4)] py-0.5 pl-2 pr-2.5 text-[11.5px] font-semibold text-slate-900";
+/** The widths each picture is offered at (SizedPicture): 440 and 360 are the ones the band always fetched, already made at the edge. */
+const ROW_WIDTHS = [240, 320, 440] as const;
+const SHELF_WIDTHS = [160, 240, 360] as const;
 
 /**
  * The homepage's spotlight band. It was a card-stack carousel under an
@@ -21,10 +23,17 @@ const STRIP = "absolute bottom-2 left-0 max-w-[88%] truncate rounded-r-sm bg-[li
  * ("Sourced from vetted ... suppliers"), which the owner said read as made by
  * a machine (2026-10-08). Now it does what Flipkart's "Spotlight's on" and
  * Amazon's themed cards do: a band in the brand's colour, one family of the
- * catalogue a day, six of its products on a white panel with the way to a
- * quote where a shop would print a price, and under them its shelves, a
- * branch of the family each, four products to a shelf. lib/homeGrid.ts
- * (getSpotlight) picks them all.
+ * catalogue a day, its products on a white panel with the way to a quote
+ * where a shop would print a price, and under them its shelves, a branch of
+ * the family each. lib/homeGrid.ts (getSpotlight) picks them all.
+ *
+ * Twelve in the window (two rows of six at a desk, a row to swipe on a
+ * phone) and six to a shelf (three by two from a tablet up, two by two on a
+ * phone, where three across left no room for a picture), since 2026-10-11:
+ * the owner found six and four "looking less" for a catalogue of 10 lakh.
+ * The four shelves sit two by two from a laptop to a wide monitor, where a
+ * shelf of three across would leave its pictures at 60px, and four in a row
+ * from 1536px.
  *
  * No product counts: a bare "19,020" on the link read as a price, and a count
  * at all read as clutter (the owner, 2026-10-08); the line under the name
@@ -34,10 +43,11 @@ const STRIP = "absolute bottom-2 left-0 max-w-[88%] truncate rounded-r-sm bg-[li
  */
 export function ProductSpotlightSection({ spotlight }: { spotlight: Spotlight | null }) {
   const [quote, setQuote] = useState<SpotlightProduct | null>(null);
+  const [ref, near] = useNear<HTMLElement>();
   if (!spotlight || spotlight.products.length < 4) return null;
   const { title, subtitle, href, products, shelves } = spotlight;
   return (
-    <section aria-labelledby="spotlight-title" className="w-full bg-white px-3 pb-12 sm:px-4 sm:pb-16 lg:px-5">
+    <section ref={ref} aria-labelledby="spotlight-title" className="w-full bg-white px-3 pb-12 sm:px-4 sm:pb-16 lg:px-5">
       <div className="mx-auto max-w-[1920px]">
         <div className="overflow-hidden rounded-lg bg-[linear-gradient(100deg,#10505f_0%,#176579_55%,#1d7f95_100%)] p-2 sm:p-3">
           <div className="flex items-center justify-between gap-4 px-2 pb-3 pt-2 text-white sm:px-2.5 sm:pb-4 sm:pt-2.5">
@@ -52,25 +62,25 @@ export function ProductSpotlightSection({ spotlight }: { spotlight: Spotlight | 
               <ChevronRight size={17} aria-hidden="true" />
             </Link>
           </div>
-          {/* A row to swipe on a phone; all six in a line from a laptop up. scroll-px: snapping lines the first
+          {/* A row to swipe on a phone; two rows of six from a laptop up. scroll-px: snapping lines the first
               product up with the panel's padding, not its edge. */}
-          <ul className="flex snap-x snap-mandatory scroll-px-3 gap-3 overflow-x-auto rounded-md bg-white p-3 [scrollbar-width:none] sm:scroll-px-4 sm:gap-4 sm:p-4 lg:grid lg:grid-cols-6 lg:overflow-visible [&::-webkit-scrollbar]:hidden">
+          <ul className="flex snap-x snap-mandatory scroll-px-3 gap-3 overflow-x-auto rounded-md bg-white p-3 [scrollbar-width:none] sm:scroll-px-4 sm:gap-4 sm:p-4 lg:grid lg:grid-cols-6 lg:gap-y-6 lg:overflow-visible [&::-webkit-scrollbar]:hidden">
             {products.map((p) => (
               <li key={p.id} className="w-[44%] max-w-[220px] shrink-0 snap-start sm:w-[30%] lg:w-auto lg:max-w-none">
-                <Tile p={p} onQuote={setQuote} />
+                <Tile p={p} near={near} onQuote={setQuote} />
               </li>
             ))}
           </ul>
           {/* The shelves: a row to swipe on a phone, as Amazon's app shows these cards (two to a row there left
-              room for neither their names nor their pictures), two across on a tablet, all four in a row from a
-              laptop up. */}
+              room for neither their names nor their pictures), two across from a tablet, four in a row from
+              1536px. */}
           {shelves.length > 0 && (
             <ul
-              className={`mt-2 flex snap-x snap-mandatory gap-2 overflow-x-auto [scrollbar-width:none] sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible [&::-webkit-scrollbar]:hidden ${shelves.length === 4 ? "lg:grid-cols-4" : ""}`}
+              className={`mt-2 flex snap-x snap-mandatory gap-2 overflow-x-auto [scrollbar-width:none] sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible [&::-webkit-scrollbar]:hidden ${shelves.length === 4 ? "2xl:grid-cols-4" : ""}`}
             >
               {shelves.map((s) => (
                 <li key={s.href} className="flex w-[80%] max-w-[340px] shrink-0 snap-start sm:w-auto sm:max-w-none">
-                  <Shelf shelf={s} />
+                  <Shelf shelf={s} near={near} />
                 </li>
               ))}
             </ul>
@@ -88,17 +98,17 @@ export function ProductSpotlightSection({ spotlight }: { spotlight: Spotlight | 
   );
 }
 
-function Tile({ p, onQuote }: { p: SpotlightProduct; onQuote: (p: SpotlightProduct) => void }) {
+function Tile({ p, near, onQuote }: { p: SpotlightProduct; near: boolean; onQuote: (p: SpotlightProduct) => void }) {
   return (
     <div className="group flex h-full flex-col">
       <Link href={`/products/${p.id}/`} className={`block rounded-md ${FOCUS}`}>
         {/* The photo's white melts into the ground (multiply), so six shots from six suppliers read as one set. */}
         <span className="relative isolate block aspect-square overflow-hidden rounded-md bg-[#f1f4f5]">
-          <Image
-            src={getCdnUrl(p.image, 440) as string}
-            alt=""
-            fill
-            sizes="(max-width: 1024px) 44vw, 15vw"
+          <Picture
+            url={p.image}
+            widths={ROW_WIDTHS}
+            sizes="(min-width: 1024px) 15vw, (min-width: 640px) 30vw, 44vw"
+            near={near}
             className="object-contain p-[6%] mix-blend-multiply transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.04]"
           />
           {p.category && <span className={STRIP}>{p.category}</span>}
@@ -120,10 +130,11 @@ function Tile({ p, onQuote }: { p: SpotlightProduct; onQuote: (p: SpotlightProdu
 
 /**
  * A shelf: a branch of the family as a card of its own on the band, its name
- * the way to all of it, and four of its products in a square of two by two,
- * each on white with its category on the strip and its name under it.
+ * the way to all of it, and six of its products, three by two (two by two on
+ * a phone, the last two left out), each on white with its category on the
+ * strip and its name under it.
  */
-function Shelf({ shelf }: { shelf: SpotlightShelf }) {
+function Shelf({ shelf, near }: { shelf: SpotlightShelf; near: boolean }) {
   return (
     <article className="flex w-full min-w-0 flex-col rounded-md bg-white/[0.08] p-3 ring-1 ring-inset ring-white/10 sm:p-3.5">
       <h3 className="min-w-0">
@@ -133,16 +144,16 @@ function Shelf({ shelf }: { shelf: SpotlightShelf }) {
           <ChevronRight size={18} className="shrink-0 transition-transform group-hover/title:translate-x-0.5" aria-hidden="true" />
         </Link>
       </h3>
-      <ul className="mt-2.5 grid grid-cols-2 gap-x-2.5 gap-y-3 sm:mt-3 sm:gap-x-3">
-        {shelf.products.map((p) => (
-          <li key={p.id} className="min-w-0">
+      <ul className="mt-2.5 grid grid-cols-2 gap-x-2.5 gap-y-3 sm:mt-3 sm:gap-x-3 md:grid-cols-3">
+        {shelf.products.map((p, i) => (
+          <li key={p.id} className={`min-w-0 ${i >= 4 ? "max-md:hidden" : ""}`}>
             <Link href={`/products/${p.id}/`} className={`group block rounded-md ${ON_DARK_FOCUS}`}>
               <span className="relative block aspect-square overflow-hidden rounded-md bg-white">
-                <Image
-                  src={getCdnUrl(p.image, 360) as string}
-                  alt=""
-                  fill
-                  sizes="(max-width: 640px) 38vw, (max-width: 1024px) 22vw, 11vw"
+                <Picture
+                  url={p.image}
+                  widths={SHELF_WIDTHS}
+                  sizes="(min-width: 1536px) 7vw, (min-width: 768px) 14vw, (min-width: 640px) 19vw, 32vw"
+                  near={near}
                   className="object-contain p-[7%] transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.04]"
                 />
                 {p.category && <span className={STRIP}>{p.category}</span>}
