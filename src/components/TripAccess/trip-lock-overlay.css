@@ -80,6 +80,19 @@
   aspect-ratio: 1;
   translate: -50% -50%;
 }
+/* Stacked: the banner's call sits in the picture under the disc (TripBanner,
+   the hero's promo row below xl; the owner's request of 2026-10-11). The
+   disc, a gap, the call's button and its line make one group centred on the
+   card, so the card is the picture's height alone, level with the shipping
+   card beside it. --t is the group's height: the same sum, in the same
+   units, as .trip-call-inside in trip-call.css, so the two meet exactly.
+   Kept for the whole of the opening too, so the disc never jumps. */
+.tlo.is-stacked .tlo-center {
+  --d: clamp(28px, 30cqh, 56px);
+  --t: calc(var(--d) + clamp(6px, 5cqh, 12px) + clamp(28px, 22cqh, 38px) + 22px);
+  width: var(--d);
+  top: calc(50% - var(--t) / 2 + var(--d) / 2);
+}
 .tlo-disc {
   position: absolute;
   inset: 0;

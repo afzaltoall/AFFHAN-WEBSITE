@@ -300,6 +300,59 @@
   100% { transform: none; filter: none; }
 }
 
+/* ---- Inside the picture, under the lock --------------------------------------
+   The hero's promo row below xl, while the banner is locked (TripBanner; the
+   owner's request of 2026-10-11): the call moves off the bottom of the card
+   into the picture, under the lock's disc, so the card is the picture alone
+   and stands level with the shipping card beside it, top and bottom. When
+   the lock lets go it goes back under the picture, where the open banner's
+   red button belongs: there it covers none of the picture's own words.
+
+   .trip-call-inside is a box exactly over the card, sized like it, so the
+   rules below are in the card's own height (cqh): the disc (--d), a gap
+   (--g), the button (--call-h) and the 17px line with its 5px gap make one
+   group, --t tall, centred on the card. trip-lock-overlay.css places the
+   disc with the same sum (.tlo.is-stacked), so the two meet exactly, from
+   a 108px card (two across at 640px) to a 210px one (one across, phones).
+   The box takes no presses, so a press anywhere but on the button lands on
+   the lock and shakes it, as before; the button takes its own. */
+.trip-call-inside {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  container-type: size;
+  pointer-events: none;
+}
+.trip-call-inside > .trip-call {
+  --d: clamp(28px, 30cqh, 56px);
+  --g: clamp(6px, 5cqh, 12px);
+  --call-h: clamp(28px, 22cqh, 38px);
+  --call-fs: clamp(11px, 8.2cqh, 14px);
+  --t: calc(var(--d) + var(--g) + var(--call-h) + 22px);
+  position: absolute;
+  inset-inline: 0;
+  top: calc(50% - var(--t) / 2 + var(--d) + var(--g));
+  gap: 5px;
+}
+.trip-call-inside .trip-call-button {
+  pointer-events: auto;
+}
+/* On the frost the line needs ground of its own: the picture under it is
+   pale in places (the poster's white feature cards). A small pane of the
+   button's dark glass, lettered in its gold. */
+.trip-call-inside .trip-call-status {
+  height: 17px;
+  padding-inline: 9px;
+  border-radius: 9999px;
+  line-height: 1;
+  color: #f6dd9c;
+  background: rgb(20 15 9 / 0.58);
+  box-shadow: inset 0 0 0 1px rgb(214 168 78 / 0.32);
+}
+.trip-call-inside .trip-call-status strong {
+  color: #fff3d6;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .trip-call-button,
   .trip-call-plane,

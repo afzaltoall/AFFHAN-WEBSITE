@@ -56,6 +56,16 @@ const TRIP_CALL_PLACE = {
 } as const;
 
 /**
+ * The box the call sits in while the promo row's banner is locked: exactly
+ * over the card (trip-call.css, .trip-call-inside), lifting with it. The
+ * card's frame lifts for any pointer or focus in the pair (FireworksCard; the
+ * pair is a `group`), so this lifts on the same terms, by the same 2px, in
+ * the same time, and the call never slides against the picture.
+ */
+const TRIP_CALL_INSIDE =
+  "trip-call-inside transition-[translate] duration-300 ease-out group-hover:-translate-y-0.5 group-has-[:focus-visible]:-translate-y-0.5 motion-reduce:transition-none motion-reduce:group-hover:translate-y-0 motion-reduce:group-has-[:focus-visible]:translate-y-0";
+
+/**
  * The China trip banner: the owner's picture on a fireworks card, and its
  * call to action under it (TripCall), made one thing to press (the owner's
  * request of 2026-10-05). A pointer on either lifts the card and lights the
@@ -82,6 +92,15 @@ const TRIP_CALL_PLACE = {
  * link read out of the browser's inspector (the owner's find, 2026-10-06; the
  * trip's pages are shut at the door too, proxy.ts). It gets its address as
  * the lock lets go.
+ *
+ * In the promo row below xl ("below"), while it is locked, the call sits in
+ * the picture under the lock's disc instead of under the card (the owner's
+ * request of 2026-10-11): the card is then the picture alone, level with the
+ * shipping card top and bottom. It is the same call, in the same place in the
+ * tree, only its box moved (TRIP_CALL_INSIDE), so as the lock lets go it goes
+ * back under the picture as the red button, and the keyboard goes with it if
+ * it was there (TripCall). Open, the button stays under the picture: inside,
+ * it would cover the poster's own title and the five things the trip pays for.
  */
 function TripBanner({
   className,
@@ -108,6 +127,8 @@ function TripBanner({
 }) {
   const open = useOpenTrip();
   const shut = lock.phase === "locked" || lock.phase === "breaking";
+  // The promo row's call, in the picture while it is locked (see above).
+  const inside = place === "below" && shut;
   return (
     <div data-fireworks-host className={`trip-unit group relative ${place === "below" ? "flex flex-col" : ""}`}>
       <FireworksCard className={className} contained={contained} paused={shut}>
@@ -125,17 +146,27 @@ function TripBanner({
           />
         </a>
         {lock.phase !== "open" && (
-          <TripLockOverlay state={lock.phase === "locked" ? "locked" : "breaking"} rattle={lock.rattle} onPress={lock.press} />
+          <TripLockOverlay
+            state={lock.phase === "locked" ? "locked" : "breaking"}
+            rattle={lock.rattle}
+            onPress={lock.press}
+            className={place === "below" ? "is-stacked" : ""}
+          />
         )}
       </FireworksCard>
-      <TripCall
-        initialWindow={tripWindow}
-        registered={registered}
-        className={TRIP_CALL_PLACE[place]}
-        lock={lock.phase === "locked" ? "locked" : lock.phase === "breaking" ? "unlocking" : lock.live ? "fresh" : undefined}
-        rattle={lock.rattle}
-        onLockedPress={lock.press}
-      />
+      {/* The same element whether the call is in the picture or under it, so
+          it keeps its state (and the keyboard) as it moves: `contents`, it is
+          no box at all and the call is laid out as before. */}
+      <div className={inside ? TRIP_CALL_INSIDE : "contents"}>
+        <TripCall
+          initialWindow={tripWindow}
+          registered={registered}
+          className={inside ? "" : TRIP_CALL_PLACE[place]}
+          lock={lock.phase === "locked" ? "locked" : lock.phase === "breaking" ? "unlocking" : lock.live ? "fresh" : undefined}
+          rattle={lock.rattle}
+          onLockedPress={lock.press}
+        />
+      </div>
     </div>
   );
 }
@@ -705,8 +736,10 @@ export function MarketplaceHeroSection({
             - below sm, one column, shipping first, max 560px, centred. */}
         <div className="-mt-2 mb-6 mx-auto grid w-full max-w-[560px] grid-cols-1 items-stretch gap-4 sm:max-w-2xl sm:grid-cols-2 lg:max-w-[1024px] xl:hidden">
           <ShippingBar variant="card" />
-          {/* The banner and its call under it, which makes this row a call
-              taller; the shipping card fills its cell, so it stays level. */}
+          {/* The banner. While it is locked its call is in the picture, so the
+              row is the picture's height and the two cards are level at both
+              edges; open, the call is under it, which makes the row a call
+              taller, and the shipping card fills its cell, so it stays level. */}
           <TripBanner
             className="aspect-[620/232] w-full"
             src="/china-trip-hero-1280.webp"
