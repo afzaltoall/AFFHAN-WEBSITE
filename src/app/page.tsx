@@ -181,7 +181,7 @@ export default async function Home() {
         // and a page that went out locked asks again by itself.
         tripLocked={banner.locked}
       />
-      {/* The grid's first twelve columns only; the section reads the rest from /api/home-grid as they come near. */}
+      {/* The grid's first twelve columns drawn, the rest as data the section draws as they come near: nothing to fetch, so nothing to wait for. */}
       <CategoryGridSection {...firstCards(grid)} />
       {/* Sliced here, not in the component. Handing it all ~600 and rendering
           60 still serialises all ~600 into the RSC payload, which is most of

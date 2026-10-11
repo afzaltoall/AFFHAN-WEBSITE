@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ChevronRight } from "lucide-react";
-import { AHEAD, Picture, THUMB_WIDTHS, TILE_WIDTHS, TOP_WIDTHS, useNear } from "@/components/ui/SizedPicture";
+import { Picture, THUMB_WIDTHS, TILE_WIDTHS, TOP_WIDTHS, useNear } from "@/components/ui/SizedPicture";
 import type { GridCard, GridCategoryTile, GridProductTile, RankedCard, TilesCard, WeeklyCard } from "@/lib/homeGrid";
 
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((m) => m.InquiryModal), { ssr: false });
@@ -39,63 +39,32 @@ const MORE_LINK = "inline-flex max-w-full items-center gap-0.5 text-[12px] font-
  * each comes from, and why it is true).
  *
  * Every card is shown, with no button to press for more (the owner,
- * 2026-10-08). The page itself carries the first twelve columns' worth, and
- * the rest come from /api/home-grid on their own as the grid itself comes
- * within AHEAD of the screen, so they are in place before anyone scrolls to
- * them. Carrying all of them in the document would put the homepage back
- * where it failed GTmetrix ("No CPU idle period", 1.45MB of HTML), and a test
- * that never scrolls never pays for them. Hovering a tile previews more of
+ * 2026-10-08), and none is waited for (the owner, 2026-10-11, of a row of
+ * grey placeholders at the grid's end). The page draws the first twelve
+ * columns' worth and carries the rest as data, 13KB of it compressed, which
+ * this draws as the grid comes within AHEAD of the screen (useNear). They
+ * used to be fetched from /api/home-grid at that point, and whenever it
+ * answered slower than the scroll (a function starting cold, a dev server
+ * recompiling it) the placeholders were what a visitor saw. Drawing them all
+ * in the document instead would put the homepage back where it failed GTmetrix
+ * ("No CPU idle period", 1.45MB of HTML), and a test that never scrolls never
+ * pays for them. Hovering a tile previews more of
  * what it holds, and only while hovered, so nothing moves on its own. A pick's
  * "Get a quote" opens the quote form; every other press opens a page. Nothing
  * here shows a price.
  */
-export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; more: number }) {
-  const [rest, setRest] = useState<GridCard[] | null>(null);
-  const [state, setState] = useState<"idle" | "reading" | "failed">("idle");
+export function CategoryGridSection({ cards: own, rest }: { cards: GridCard[]; rest: TilesCard[] }) {
   const [quote, setQuote] = useState<GridProductTile | null>(null);
-  const section = useRef<HTMLElement>(null);
-
-  const load = useCallback(() => {
-    setState("reading");
-    const have = new Set(own.map((c) => c.key));
-    fetch(`/api/home-grid/?from=${own.length}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`home-grid ${r.status}`))))
-      // Never one the page already shows, should the hour's cache have turned over in between.
-      .then((j: { cards: GridCard[] }) => {
-        setRest(j.cards.filter((c) => c.kind === "tiles" && !have.has(c.key)));
-        setState("idle");
-      })
-      .catch(() => setState("failed"));
-  }, [own]);
-
-  // The rest, read as soon as the grid itself comes within AHEAD of the
-  // screen. It used to wait for the end of the first cards, 1600px off, and a
-  // quick scroll then reached the grey placeholders before the cards came
-  // (measured: 4 on screen at 5000px/s, and on every phone-line run). From the
-  // grid's top it is asked for a whole first batch earlier, and still never
-  // on a page nobody scrolls: the grid starts several screens down.
-  useEffect(() => {
-    const el = section.current;
-    if (!el || more <= 0 || rest || state !== "idle") return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        io.disconnect();
-        load();
-      },
-      { rootMargin: AHEAD },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [more, rest, state, load]);
+  // The rest, drawn once the grid's top is within AHEAD of the screen: two
+  // screens and more before the first of them could be on it, and never on a
+  // page nobody scrolls, since the grid starts several screens down.
+  const [section, near] = useNear<HTMLElement>();
 
   if (!own.length) return null;
   const at = own.findIndex((c) => c.kind === "weekly");
   const weekly = at >= 0 ? (own[at] as WeeklyCard) : null;
   const upper = at >= 0 ? own.slice(0, at) : [];
-  const shown = [...(at >= 0 ? own.slice(at + 1) : own), ...(rest ?? [])];
-  // Reached before the rest has come (a slow line): a row of blanks where it will be.
-  const waiting = more > 0 && !rest && state === "reading";
+  const shown = [...(at >= 0 ? own.slice(at + 1) : own), ...(near ? rest : [])];
 
   return (
     <section ref={section} id="category-grid" aria-labelledby="category-grid-title" className="w-full bg-slate-50 px-3 pb-8 pt-5 sm:px-4 sm:pb-10 sm:pt-7 lg:px-5">
@@ -117,32 +86,11 @@ export function CategoryGridSection({ cards: own, more }: { cards: GridCard[]; m
           </div>
         )}
         {weekly && <WeeklyBand card={weekly} onQuote={setQuote} className={upper.length ? BETWEEN : ""} />}
-        <div className={`${GRID} ${upper.length || weekly ? BETWEEN : ""}`} aria-busy={waiting}>
+        <div className={`${GRID} ${upper.length || weekly ? BETWEEN : ""}`}>
           {shown.map((c) => (
             <GridItem key={c.key} card={c} />
           ))}
-          {waiting &&
-            [0, 1, 2, 3].map((i) => (
-              <div key={i} aria-hidden="true" className={`${CARD} min-h-[300px] motion-safe:animate-pulse sm:min-h-[420px]`}>
-                <span className="h-4 w-2/3 rounded bg-slate-100" />
-                <span className="grid grid-cols-2 content-start gap-2 sm:gap-3">
-                  {[0, 1, 2, 3].map((j) => (
-                    <span key={j} className={`aspect-square ${PICTURE_CORNER} bg-slate-100`} />
-                  ))}
-                </span>
-                <span className="h-3 w-1/2 self-end rounded bg-slate-100" />
-              </div>
-            ))}
         </div>
-
-        {state === "failed" && (
-          <p className="mt-5 text-center text-[13.5px] text-slate-600 sm:mt-6">
-            {"The rest of the categories didn’t load. "}
-            <button type="button" onClick={load} className={`font-semibold text-brand-dark underline underline-offset-[3px] ${FOCUS}`}>
-              Try again
-            </button>
-          </p>
-        )}
       </div>
 
       {quote && (

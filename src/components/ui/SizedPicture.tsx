@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
 import { getCdnUrl } from "@/lib/cdn";
 
 /**
@@ -18,7 +18,13 @@ import { getCdnUrl } from "@/lib/cdn";
  */
 export const AHEAD = "0px 0px 2400px 0px";
 
-/** True once the element is within AHEAD of the screen. One observer each, let go of once it has answered. */
+/**
+ * True once the element is within AHEAD of the screen. One observer each, let
+ * go of once it has answered. What it starts is never urgent (the element can
+ * still be 2400px off; one already on screen loads its pictures by itself),
+ * so it renders as a transition: the category grid's forty cards drawn at
+ * once yield to a scroll still under way.
+ */
 export function useNear<T extends Element>() {
   const ref = useRef<T>(null);
   const [near, setNear] = useState(false);
@@ -29,7 +35,7 @@ export function useNear<T extends Element>() {
       (entries) => {
         if (!entries.some((e) => e.isIntersecting)) return;
         io.disconnect();
-        setNear(true);
+        startTransition(() => setNear(true));
       },
       { rootMargin: AHEAD },
     );

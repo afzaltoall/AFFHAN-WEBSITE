@@ -83,9 +83,9 @@ export interface RankedCard {
 export type GridCard = TilesCard | WeeklyCard | RankedCard;
 
 /**
- * The grid is four cards across, two on a phone. The page itself carries the
- * first twelve columns (three rows at four across), and the section reads the
- * rest from /api/home-grid as it comes near; the whole grid is kept to whole
+ * The grid is four cards across, two on a phone. The page draws the first
+ * twelve columns (three rows at four across) and carries the rest as data,
+ * which the section draws as it comes near; the whole grid is kept to whole
  * rows, so the last is never half empty.
  */
 const BATCH = 12;
@@ -449,10 +449,10 @@ function firstBatch(cards: GridCard[]) {
 /** This week's grid, every card. */
 export const getHomeGrid = (now = new Date()) => buildGrid(weekKey(now), weekSpan(now));
 
-/** The cards the page itself carries, its first twelve columns; and how many the section reads after them. */
+/** The cards the page draws, its first twelve columns; and the rest, every one a family or a group, which the section draws as it comes near. */
 export function firstCards(cards: GridCard[]) {
   const n = firstBatch(cards);
-  return { cards: cards.slice(0, n), more: cards.length - n };
+  return { cards: cards.slice(0, n), rest: cards.slice(n).filter((c): c is TilesCard => c.kind === "tiles") };
 }
 
 /**
