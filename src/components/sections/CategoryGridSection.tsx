@@ -4,85 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ChevronRight } from "lucide-react";
-import { getCdnUrl } from "@/lib/cdn";
+import { AHEAD, Picture, THUMB_WIDTHS, TILE_WIDTHS, TOP_WIDTHS, useNear } from "@/components/ui/SizedPicture";
 import type { GridCard, GridCategoryTile, GridProductTile, RankedCard, TilesCard, WeeklyCard } from "@/lib/homeGrid";
 
 const InquiryModal = dynamic(() => import("@/components/ui/InquiryModal").then((m) => m.InquiryModal), { ssr: false });
 
-/** A picture at about twice the width it shows at, for sharp screens. */
-const src = (url: string, px: number) => getCdnUrl(url, px) as string;
 const stillPlease = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/**
- * How far below the screen a card's pictures start loading: about three
- * phone screens, against the browser's own lazy loading at about one. A quick
- * scroll on a phone line used to reach tiles before their pictures (measured
- * 2026-10-11 at 5000px/s on 4G: 185 of 208 pictures were on screen before
- * they had loaded, by 0.66s typically); with this lead and pictures sized
- * to their tiles, they are there first. A fixed distance rather than a share
- * of the screen, so a tall monitor does not start the whole grid on load,
- * where the page has not been scrolled (the grid starts well below this).
- */
-const AHEAD = "0px 0px 2400px 0px";
-
-/**
- * True once the element is within AHEAD of the screen. One observer each,
- * let go of as soon as it has answered.
- */
-function useNear<T extends Element>() {
-  const ref = useRef<T>(null);
-  const [near, setNear] = useState(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || near) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (!entries.some((e) => e.isIntersecting)) return;
-        io.disconnect();
-        setNear(true);
-      },
-      { rootMargin: AHEAD },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [near]);
-  return [ref, near] as const;
-}
-
-/**
- * A grid picture, sized for its tile. next/image cannot do this here: the
- * site serves pictures unoptimized (next.config), so it writes one src and no
- * srcset, and every tile used to fetch the same 320px picture whether it
- * showed at 75px on a phone or 150px at a desk. Here the browser picks from
- * `widths` by `sizes` and the screen's density, which the image handler cuts
- * to order (lib/cdn.ts): 4.6KB at 160 against 12.8KB at 320, on average,
- * measured on the live grid. `near` (useNear) makes it load at once; until
- * then the browser's own lazy loading still applies.
- */
-function Picture({ url, widths, sizes, near, className }: { url: string; widths: readonly number[]; sizes: string; near: boolean; className: string }) {
-  return (
-    // eslint-disable-next-line @next/next/no-img-element -- next/image writes no srcset while images are unoptimized site-wide; this needs one.
-    <img
-      src={src(url, widths[widths.length - 1])}
-      srcSet={widths.map((w) => `${src(url, w)} ${w}w`).join(", ")}
-      sizes={sizes}
-      alt=""
-      loading={near ? "eager" : "lazy"}
-      decoding="async"
-      className={`absolute inset-0 h-full w-full ${className}`}
-    />
-  );
-}
-
-/**
- * The widths each kind of picture is offered at (Picture): three each, so
- * many screens share one copy at the image handler's edge, and a copy it has
- * never made (a few hundred milliseconds, once) is rare. 320, 480 and 200 are
- * the widths these pictures were always fetched at, and so are already made.
- */
-const TILE_WIDTHS = [160, 240, 320] as const;
-const TOP_WIDTHS = [320, 480, 640] as const;
-const THUMB_WIDTHS = [120, 200] as const;
 
 /** The ground under every picture. A product shot's white melts into it (multiply), so a card's four read as one set. */
 const GROUND = "bg-[#f1f4f5]";
