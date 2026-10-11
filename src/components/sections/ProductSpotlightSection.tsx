@@ -28,12 +28,14 @@ const SHELF_WIDTHS = [160, 240, 360] as const;
  * the family each. lib/homeGrid.ts (getSpotlight) picks them all.
  *
  * Twelve in the window (two rows of six at a desk, a row to swipe on a
- * phone) and six to a shelf (three by two from a tablet up, two by two on a
- * phone, where three across left no room for a picture), since 2026-10-11:
- * the owner found six and four "looking less" for a catalogue of 10 lakh.
- * The four shelves sit two by two from a laptop to a wide monitor, where a
- * shelf of three across would leave its pictures at 60px, and four in a row
- * from 1536px.
+ * phone), since 2026-10-11: the owner found six "looking less" for a
+ * catalogue of 10 lakh. The shelves are Amazon's 2x2 cards: a branch each,
+ * four of its kinds, each named under its picture and the way to its own
+ * category. They were six products each, under category strips and names cut
+ * to a line, and at four shelves across every label was cut short: the owner
+ * found them clumsy (2026-10-11). Two shelves across from a tablet, four from
+ * 1280px; on a laptop, where two share the width, three of a shelf's kinds sit
+ * in a row.
  *
  * No product counts: a bare "19,020" on the link read as a price, and a count
  * at all read as clutter (the owner, 2026-10-08); the line under the name
@@ -73,15 +75,14 @@ export function ProductSpotlightSection({ spotlight }: { spotlight: Spotlight | 
           </ul>
           {/* The shelves: a row to swipe on a phone, as Amazon's app shows these cards (two to a row there left
               room for neither their names nor their pictures), two across from a tablet, four in a row from
-              1536px. */}
+              1280px. Two rows of this grid each (subgrid), so a title on two lines moves its neighbours'
+              pictures down with it and every row of pictures stays level. */}
           {shelves.length > 0 && (
             <ul
-              className={`mt-2 flex snap-x snap-mandatory gap-2 overflow-x-auto [scrollbar-width:none] sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible [&::-webkit-scrollbar]:hidden ${shelves.length === 4 ? "2xl:grid-cols-4" : ""}`}
+              className={`mt-2 flex snap-x snap-mandatory gap-2 overflow-x-auto [scrollbar-width:none] sm:mt-3 sm:grid sm:grid-cols-2 sm:gap-3 sm:overflow-visible [&::-webkit-scrollbar]:hidden ${shelves.length === 4 ? "xl:grid-cols-4" : ""}`}
             >
               {shelves.map((s) => (
-                <li key={s.href} className="flex w-[80%] max-w-[340px] shrink-0 snap-start sm:w-auto sm:max-w-none">
-                  <Shelf shelf={s} near={near} />
-                </li>
+                <Shelf key={s.href} shelf={s} near={near} fourAcross={shelves.length === 4} />
               ))}
             </ul>
           )}
@@ -130,40 +131,43 @@ function Tile({ p, near, onQuote }: { p: SpotlightProduct; near: boolean; onQuot
 
 /**
  * A shelf: a branch of the family as a card of its own on the band, its name
- * the way to all of it, and six of its products, three by two (two by two on
- * a phone, the last two left out), each on white with its category on the
- * strip and its name under it.
+ * the way to all of it, and four of its kinds, each a picture on white with
+ * its name under it, and the way to its own category. Nothing on the picture
+ * and nothing cut short: a name gets two lines, and every name keeps room for
+ * two, so the pictures line up from shelf to shelf.
  */
-function Shelf({ shelf, near }: { shelf: SpotlightShelf; near: boolean }) {
+function Shelf({ shelf, near, fourAcross }: { shelf: SpotlightShelf; near: boolean; fourAcross: boolean }) {
   return (
-    <article className="flex w-full min-w-0 flex-col rounded-md bg-white/[0.08] p-3 ring-1 ring-inset ring-white/10 sm:p-3.5">
+    <li className="flex w-[80%] max-w-[340px] shrink-0 snap-start flex-col gap-2.5 rounded-md bg-white/[0.08] p-3 ring-1 ring-inset ring-white/10 sm:row-span-2 sm:grid sm:w-auto sm:max-w-none sm:grid-rows-subgrid sm:gap-3 sm:p-3.5">
       <h3 className="min-w-0">
-        {/* A long branch name ("Motorcycle Accessories & Parts") takes two lines on a phone's shelf, one from a tablet up. */}
-        <Link href={shelf.href} className={`group/title flex items-start justify-between gap-2 rounded-sm text-white sm:items-center ${ON_DARK_FOCUS}`}>
-          <span className="line-clamp-2 text-[16px] font-bold leading-tight sm:line-clamp-1 sm:text-[17px]">{shelf.title}</span>
-          <ChevronRight size={18} className="shrink-0 transition-transform group-hover/title:translate-x-0.5" aria-hidden="true" />
+        <Link href={shelf.href} className={`group/title flex items-start justify-between gap-2 rounded-sm text-white ${ON_DARK_FOCUS}`}>
+          <span className="line-clamp-2 text-[16px] font-bold leading-tight sm:text-[17px]">{shelf.title}</span>
+          <ChevronRight size={18} className="mt-px shrink-0 transition-transform group-hover/title:translate-x-0.5" aria-hidden="true" />
         </Link>
       </h3>
-      <ul className="mt-2.5 grid grid-cols-2 gap-x-2.5 gap-y-3 sm:mt-3 sm:gap-x-3 md:grid-cols-3">
-        {shelf.products.map((p, i) => (
-          <li key={p.id} className={`min-w-0 ${i >= 4 ? "max-md:hidden" : ""}`}>
-            <Link href={`/products/${p.id}/`} className={`group block rounded-md ${ON_DARK_FOCUS}`}>
+      {/* On a laptop, where two shelves share the width, three in a row: four there left 103px a picture,
+          too narrow for a name in two lines. */}
+      <ul className={`grid grid-cols-2 gap-x-2.5 gap-y-3 sm:gap-x-3 lg:grid-cols-3 ${fourAcross ? "xl:grid-cols-2" : "xl:grid-cols-4"}`}>
+        {shelf.kinds.map((k, i) => (
+          <li key={k.href} className={`min-w-0 ${i === 3 ? "lg:max-xl:hidden" : ""}`}>
+            <Link href={k.href} className={`group block rounded-md ${ON_DARK_FOCUS}`}>
               <span className="relative block aspect-square overflow-hidden rounded-md bg-white">
                 <Picture
-                  url={p.image}
+                  url={k.image}
                   widths={SHELF_WIDTHS}
-                  sizes="(min-width: 1536px) 7vw, (min-width: 768px) 14vw, (min-width: 640px) 19vw, 32vw"
+                  sizes="(min-width: 1920px) 212px, (min-width: 1280px) calc(12.5vw - 32px), (min-width: 1024px) calc(16.7vw - 30px), (min-width: 640px) calc(25vw - 37px), 31vw"
                   near={near}
-                  className="object-contain p-[7%] transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.04]"
+                  className="object-contain p-[8%] transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.04]"
                 />
-                {p.category && <span className={STRIP}>{p.category}</span>}
               </span>
-              <span className="mt-1.5 block truncate text-[12.5px] text-white/90 transition-colors group-hover:text-white sm:text-[13px]">{p.name}</span>
+              <span className="mt-1.5 line-clamp-2 min-h-[2lh] text-[13px] font-medium leading-snug text-white/90 transition-colors group-hover:text-white sm:text-[13.5px]">
+                {k.name}
+              </span>
             </Link>
           </li>
         ))}
       </ul>
-    </article>
+    </li>
   );
 }
 

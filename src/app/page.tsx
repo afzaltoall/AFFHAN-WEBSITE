@@ -6,7 +6,7 @@ import { ProductCategoriesSection } from "@/components/sections/ProductCategorie
 import { ProductSpotlightSection } from "@/components/sections/ProductSpotlightSection";
 import { GET as getCategories } from "@/app/api/categories/route";
 import { getHeroFeed } from "@/lib/products";
-import { firstCards, getHomeGrid, getSpotlight } from "@/lib/homeGrid";
+import { firstCards, getHomeGrid, getSpotlight, SHELF_KINDS } from "@/lib/homeGrid";
 import { splitHeroPool, HOMEPAGE_PRODUCT_COUNT } from "@/lib/heroPool";
 import { buildCategoryTree, type CategoryTreeNode } from "@/lib/categoryTree";
 import { applicationWindow } from "@/lib/trip-application";
@@ -102,7 +102,9 @@ export default async function Home() {
     ...spotlightOfTheDay,
     products: fresh(spotlightOfTheDay.products, 12),
     shelves: (() => {
-      const full = spotlightOfTheDay.shelves.map((s) => ({ ...s, products: fresh(s.products, 6) })).filter((s) => s.products.length === 6);
+      const full = spotlightOfTheDay.shelves
+        .map((s) => ({ ...s, kinds: s.kinds.filter((k) => !picked.includes(k.productId)).slice(0, SHELF_KINDS) }))
+        .filter((s) => s.kinds.length === SHELF_KINDS);
       // Two or four, so their row is never half empty.
       return full.slice(0, full.length >= 4 ? 4 : full.length >= 2 ? 2 : 0);
     })(),
@@ -120,7 +122,7 @@ export default async function Home() {
     // and everyone inside that hour sees the same set. The rotation moved to
     // the server; the variety stayed.
     HOMEPAGE_PRODUCT_COUNT,
-    [...picked, ...(spotlight ? [...spotlight.products, ...spotlight.shelves.flatMap((s) => s.products)].map((p) => p.id) : [])],
+    [...picked, ...(spotlight ? [...spotlight.products.map((p) => p.id), ...spotlight.shelves.flatMap((s) => s.kinds.map((k) => k.productId))] : [])],
   );
 
   const categoriesJson = await categoriesRes.json();

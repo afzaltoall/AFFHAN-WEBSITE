@@ -225,8 +225,12 @@ function seeded(key: string) {
   };
 }
 
-/** A seeded place in a category: the product that many down from its newest. */
-type Place = { id: string; offset: number };
+/**
+ * A seeded place in a category: the product that many down from its newest;
+ * with `match`, that many down among the newest few hundred whose names match
+ * it (telling).
+ */
+type Place = { id: string; offset: number; match?: string };
 type PlacedProduct = { id: number; name: string; imageUrl: string; categoryId: string; allImages: unknown };
 
 /**
@@ -267,14 +271,25 @@ function placesIn(groups: CatRow[][], want: number, rand: () => number): Place[]
 async function productsAt(places: Place[]): Promise<(PlacedProduct | undefined)[]> {
   if (!places.length) return [];
   const blocked = blockedProductIdList();
+  // A place with a pattern looks among its category's newest MATCH_SCAN only, so a category whose names
+  // rarely match (one holds 151,948 products) is never read to its end.
   const rows = await prisma.$queryRaw<(PlacedProduct & { n: number })[]>(Prisma.sql`
     SELECT c.n::int AS n, x."id", x."name", x."imageUrl", x."categoryId", x."allImages"
-    FROM unnest(ARRAY[${Prisma.join(places.map((c) => c.id))}]::text[], ARRAY[${Prisma.join(places.map((c) => c.offset))}]::int[]) WITH ORDINALITY AS c(id, k, n)
+    FROM unnest(
+      ARRAY[${Prisma.join(places.map((c) => c.id))}]::text[],
+      ARRAY[${Prisma.join(places.map((c) => c.offset))}]::int[],
+      ARRAY[${Prisma.join(places.map((c) => c.match ?? ""))}]::text[]
+    ) WITH ORDINALITY AS c(id, k, m, n)
     CROSS JOIN LATERAL (
-      SELECT p."id", p."name", p."imageUrl", p."categoryId", p."allImages" FROM "Product" p
-      WHERE p."categoryId" = c.id AND p."imageUrl" IS NOT NULL AND p."name" !~* ${blockedNameRegex()}
-        ${blocked ? Prisma.sql`AND p."id" NOT IN (${Prisma.join(blocked)})` : Prisma.empty}
-      ORDER BY p."id" DESC
+      SELECT s.* FROM (
+        SELECT p."id", p."name", p."imageUrl", p."categoryId", p."allImages" FROM "Product" p
+        WHERE p."categoryId" = c.id AND p."imageUrl" IS NOT NULL AND p."name" !~* ${blockedNameRegex()}
+          ${blocked ? Prisma.sql`AND p."id" NOT IN (${Prisma.join(blocked)})` : Prisma.empty}
+        ORDER BY p."id" DESC
+        LIMIT CASE WHEN c.m = '' THEN c.k + 1 ELSE ${MATCH_SCAN}::int END
+      ) s
+      WHERE c.m = '' OR s."name" ~* c.m
+      ORDER BY s."id" DESC
       OFFSET c.k
       LIMIT 1
     ) x`);
@@ -282,6 +297,65 @@ async function productsAt(places: Place[]): Promise<(PlacedProduct | undefined)[
   return places.map((_, i) => at.get(i + 1));
 }
 const found = <T,>(rows: (T | undefined)[]) => rows.filter((r): r is T => !!r);
+
+/**
+ * How far down its newest a telling place looks, and among how many of those
+ * that match it is drawn. Bounded, the spotlight's draw reads in 0.6s what
+ * took 1.4s at the old places' depth of up to 3,000 (measured on 42 places).
+ */
+const MATCH_SCAN = 400;
+const TELLING_RANGE = 100;
+/** Words that say little of what a kind is ("Smart", "Pet", "Other", "Accessories"), left out of its pattern. */
+const QUALIFIERS = new Set(
+  "and for the of with other others accessories accessory supplies supply products product parts part sets set devices device equipment items item care smart home digital electronic electronics pet pets car cars auto man men woman women lady kids kid children baby boy boys girl girls new fashion".split(" "),
+);
+/** A word as its products' names begin it: batteries batter, cables cable, watches watch, glasses glass. */
+const stemOf = (w: string) => (w.endsWith("ies") ? w.slice(0, -3) : /[sxh]es$/.test(w) ? w.slice(0, -2) : /[^su]s$/.test(w) ? w.slice(0, -1) : w);
+/** Words that say nothing at all, left out even of a broad pattern. */
+const STOPWORDS = new Set("and for the of with other others new".split(" "));
+/**
+ * A pattern for products whose names say their kind: its telling words, at the
+ * start of a word, so "Batteries" finds battery and batteries; a short one
+ * whole, so "VR & AR Devices" finds VR and AR but not "Arcade". Empty for a
+ * name of qualifiers alone ("Home Electronic Accessories"). Broad, it keeps
+ * the qualifiers too: "Smart Home Appliances" finds "Smart WiFi Plug", which
+ * "appliance" alone does not.
+ */
+function kindPattern(name: string, broad = false) {
+  const skip = broad ? STOPWORDS : QUALIFIERS;
+  const words = [...new Set(name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 2 && !skip.has(w)).map(stemOf))];
+  return words.length ? `[[:<:]](${words.map((w) => (w.length <= 3 ? `${w}s?[[:>:]]` : w)).join("|")})` : "";
+}
+
+/**
+ * Where a picture under its category's name should come from: a product of the
+ * category that says so. CJ files some products where they do not belong (a
+ * car charger under "VR & AR Devices", a kitchen scale under "Batteries"), and
+ * a seeded place can land on one. So each place is tried first as one of the
+ * newest products whose names match its kind, then as the newest that does,
+ * the same again on the broad pattern, and only then as any product among
+ * its newest MATCH_SCAN. Read the answer back with firstOfEach.
+ */
+function telling(places: Place[], t: Tree, rand: () => number): Place[][] {
+  return places.map((p) => {
+    const r = t.byId.get(p.id);
+    if (!r) return [p];
+    const tiers = [...new Set([kindPattern(nameOf(r)), kindPattern(nameOf(r), true)].filter(Boolean))];
+    const range = Math.min(r.productCount, TELLING_RANGE);
+    const any = { id: p.id, offset: Math.floor(rand() * Math.min(r.productCount, MATCH_SCAN)) };
+    return [...tiers.flatMap((match) => [{ id: p.id, offset: Math.floor(rand() * range), match }, { id: p.id, offset: 0, match }]), any];
+  });
+}
+/** Each set's first product that `seen` does not hold yet (and then does), from productsAt's answer to the sets end to end. */
+function firstOfEach(sets: Place[][], answer: (PlacedProduct | undefined)[], seen: Set<number>): (PlacedProduct | undefined)[] {
+  let at = 0;
+  return sets.map((set) => {
+    const p = found(answer.slice(at, at + set.length)).find((x) => !seen.has(x.id));
+    at += set.length;
+    if (p) seen.add(p.id);
+    return p;
+  });
+}
 
 /** The clean categories that hold products, grouped by the top of the tree each is under. */
 function holdersByFamily(t: Tree, cleanIds: Set<string>) {
@@ -461,8 +535,10 @@ export function firstCards(cards: GridCard[]) {
  * one clean family a day, in turn, and products from across it, one from each
  * of as many of its categories, its main branches taken in turn. Under them,
  * its shelves (the owner's ask, 2026-10-08, after Amazon's 2x2 cards): its
- * biggest main branches, six products each since 2026-10-11 (four on a
- * phone), its kinds taken in turn.
+ * biggest main branches, four kinds each, two by two, each named and the way
+ * to its own category, pictured by one of its products. A shelf of six
+ * products under their category strips and clipped names (2026-10-11) the
+ * owner found clumsy: at four shelves across, every label was cut short.
  * The same catalogue rules as the grid: moderated, nothing kept off the
  * homepage, and no product twice in the band.
  */
@@ -473,11 +549,21 @@ export interface SpotlightProduct {
   /** Its category, for the label strip on its picture. */
   category: string | null;
 }
+/** A kind on a shelf: a category of the branch, and a product of it for its picture. */
+export interface SpotlightKind {
+  /** As its tile names it ("Speakers"). */
+  name: string;
+  href: string;
+  /** The day's draw, not the category's own picture, which the grid above already shows. */
+  image: string;
+  /** Whose picture it is, so the page can leave out one the week's picks already show. */
+  productId: number;
+}
 export interface SpotlightShelf {
   /** A main branch of the family ("Interior Accessories"). */
   title: string;
   href: string;
-  products: SpotlightProduct[];
+  kinds: SpotlightKind[];
 }
 export interface Spotlight {
   /** The family, as its card in the grid names it ("Home & Kitchen"). */
@@ -489,15 +575,37 @@ export interface Spotlight {
   shelves: SpotlightShelf[];
 }
 /**
- * More than the band shows (twelve products in its window, six on a shelf:
- * the owner found six and four "looking less", 2026-10-11), so the page can
- * leave out any that the week's picks already show and still fill it.
+ * More than the band shows (twelve products in its window, the owner having
+ * found six "looking less", 2026-10-11; four kinds on a shelf), so the page
+ * can leave out any that the week's picks already show and still fill it.
  */
 const SPOTLIGHT_PICKS = 18;
 const SHELVES = 4;
-const SHELF_PICKS = 9;
-/** A shelf shows six; one with fewer is left off. */
-const SHELF_SHOWN = 6;
+/** A shelf shows four kinds; one with fewer is left off. */
+export const SHELF_KINDS = 4;
+const SHELF_KINDS_SENT = 6;
+
+/**
+ * Whether a kind's name fits the two lines its tile gives it, at fifteen
+ * characters a line: what a 123px tile, the narrowest a shelf has, holds at
+ * its type size. Broken where the browser would break it, at spaces, so
+ * "Earphones & Headphones" fits and "Christmas Decoration Supplies" (three
+ * lines there) does not; a kind left off a shelf is still in its category.
+ */
+function fitsTwoLines(name: string, perLine = 15) {
+  let lines = 1;
+  let used = 0;
+  for (const word of name.split(" ").filter(Boolean)) {
+    if (word.length > perLine) return false;
+    if (!used) used = word.length;
+    else if (used + 1 + word.length <= perLine) used += 1 + word.length;
+    else {
+      lines++;
+      used = word.length;
+    }
+  }
+  return lines <= 2;
+}
 
 const buildSpotlight = unstable_cache(
   async (day: number): Promise<Spotlight | null> => {
@@ -523,38 +631,40 @@ const buildSpotlight = unstable_cache(
       for (const r of inFamily) branches.set(branchOf(r), [...(branches.get(branchOf(r)) ?? []), r]);
       const rand = seeded(`spotlight-${day}`);
       const rowPlaces = placesIn([...branches.values()], SPOTLIGHT_PICKS, rand);
-      // The shelves: the biggest branches with four kinds or more, each kind
-      // twice in its queue, so a shelf of six is two rounds of its kinds, not
-      // one: every kind once before any twice, at a second place of its own.
+      // The shelves: the biggest branches with four kinds or more of a fair
+      // size, each kind once, in an order that turns with the day. Never the
+      // branch itself as a kind of it (a branch can hold products of its own),
+      // which would be its own title again.
       const shelfBranches = [...branches.entries()]
-        .filter(([id, kinds]) => kinds.length >= 4 && t.byId.has(id))
+        .map(([id, kinds]) => [id, kinds.filter((k) => k.id !== id && k.productCount >= MIN_PRODUCTS && fitsTwoLines(nameOf(k)))] as const)
+        .filter(([id, kinds]) => kinds.length >= SHELF_KINDS && t.byId.has(id))
         .sort((a, b) => t.total(b[0]) - t.total(a[0]))
         .slice(0, SHELVES);
-      const shelfPlaces = shelfBranches.map(([, kinds]) => placesIn(kinds.map((kind) => [kind, kind]), SHELF_PICKS, rand));
-      // Every product the band shows, in one read.
-      const answer = await productsAt([...rowPlaces, ...shelfPlaces.flat()]);
+      const shelfPlaces = shelfBranches.map(([, kinds]) => placesIn(kinds.map((kind) => [kind]), Math.min(SHELF_KINDS_SENT, kinds.length), rand));
+      // Every product the band shows, in one read, each a product of what its
+      // label says (telling): the window's strips and the shelves' names both
+      // name its category.
+      const rowSets = telling(rowPlaces, t, rand);
+      const shelfSets = shelfPlaces.map((places) => telling(places, t, rand));
+      const answer = await productsAt([...rowSets, ...shelfSets.flat()].flat());
       const seen = new Set<number>();
-      const once = (list: (PlacedProduct | undefined)[]) =>
-        found(list).filter((p) => {
-          if (seen.has(p.id)) return false;
-          seen.add(p.id);
-          return true;
-        });
       const shown = (p: PlacedProduct): SpotlightProduct => {
         const c = t.byId.get(p.categoryId);
         return { id: p.id, name: p.name.trim(), image: p.imageUrl, category: c ? nameOf(c) : null };
       };
-      const picks = once(answer.slice(0, rowPlaces.length));
+      const picks = found(firstOfEach(rowSets, answer, seen));
       if (picks.length < 12) continue;
-      let from = rowPlaces.length;
+      let from = rowSets.flat().length;
       const shelves = shelfBranches
         .map(([id], i) => {
-          const list = once(answer.slice(from, from + shelfPlaces[i].length));
-          from += shelfPlaces[i].length;
+          const asked = shelfSets[i].flat().length;
+          const list = found(firstOfEach(shelfSets[i], answer.slice(from, from + asked), seen));
+          from += asked;
           const branch = t.byId.get(id)!;
-          return { title: nameOf(branch), href: `/products/?categoryId=${id}`, products: list.map(shown) };
+          const kinds = list.map((p) => ({ name: nameOf(t.byId.get(p.categoryId)!), href: `/products/?categoryId=${p.categoryId}`, image: p.imageUrl, productId: p.id }));
+          return { title: nameOf(branch), href: `/products/?categoryId=${id}`, kinds };
         })
-        .filter((s) => s.products.length >= SHELF_SHOWN);
+        .filter((s) => s.kinds.length >= SHELF_KINDS);
       return {
         title: f.title,
         subtitle: f.subtitle,
@@ -566,7 +676,7 @@ const buildSpotlight = unstable_cache(
     }
     return null;
   },
-  ["home-spotlight-v4"],
+  ["home-spotlight-v8"],
   { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
 );
 
