@@ -6,6 +6,7 @@ import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
 import { blockedNameRegex, blockedProductIdList, isCategoryBlocked } from "@/lib/moderation";
 import { getCachedPreferredCategories } from "@/lib/products";
 import { categoryLabel } from "@/lib/searchIntent";
+import { kindPattern } from "@/lib/kindPattern";
 
 /**
  * The homepage's category grid (the owner's plan of 2026-10-08, after
@@ -305,27 +306,6 @@ const found = <T,>(rows: (T | undefined)[]) => rows.filter((r): r is T => !!r);
  */
 const MATCH_SCAN = 400;
 const TELLING_RANGE = 100;
-/** Words that say little of what a kind is ("Smart", "Pet", "Other", "Accessories"), left out of its pattern. */
-const QUALIFIERS = new Set(
-  "and for the of with other others accessories accessory supplies supply products product parts part sets set devices device equipment items item care smart home digital electronic electronics pet pets car cars auto man men woman women lady kids kid children baby boy boys girl girls new fashion".split(" "),
-);
-/** A word as its products' names begin it: batteries batter, cables cable, watches watch, glasses glass. */
-const stemOf = (w: string) => (w.endsWith("ies") ? w.slice(0, -3) : /[sxh]es$/.test(w) ? w.slice(0, -2) : /[^su]s$/.test(w) ? w.slice(0, -1) : w);
-/** Words that say nothing at all, left out even of a broad pattern. */
-const STOPWORDS = new Set("and for the of with other others new".split(" "));
-/**
- * A pattern for products whose names say their kind: its telling words, at the
- * start of a word, so "Batteries" finds battery and batteries; a short one
- * whole, so "VR & AR Devices" finds VR and AR but not "Arcade". Empty for a
- * name of qualifiers alone ("Home Electronic Accessories"). Broad, it keeps
- * the qualifiers too: "Smart Home Appliances" finds "Smart WiFi Plug", which
- * "appliance" alone does not.
- */
-function kindPattern(name: string, broad = false) {
-  const skip = broad ? STOPWORDS : QUALIFIERS;
-  const words = [...new Set(name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 2 && !skip.has(w)).map(stemOf))];
-  return words.length ? `[[:<:]](${words.map((w) => (w.length <= 3 ? `${w}s?[[:>:]]` : w)).join("|")})` : "";
-}
 
 /**
  * Where a picture under its category's name should come from: a product of the

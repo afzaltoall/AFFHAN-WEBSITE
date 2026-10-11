@@ -1,416 +1,428 @@
 "use client";
 
-import { useEffect, useMemo, useState, useRef, useCallback } from "react";
-import Image from "next/image";
-import { useRouter } from "next/navigation";
-import { ChevronRight, ChevronLeft, Loader2 } from "lucide-react";
-import { FooterSection } from "@/components/sections/FooterSection";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { ChevronRight, LayoutGrid } from "lucide-react";
 import { InquiryModal } from "@/components/ui/InquiryModal";
 import { ProductCard } from "@/components/ui/ProductCard";
-import { Pagination } from "@/components/ui/Pagination";
-import { BorderBeamPanel } from "@/components/ui/border-beam-panel";
 import { QuickLinkPill } from "@/components/ui/QuickLinkPill";
-import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
+import { ProductQuoteTile } from "@/components/ui/ProductQuoteTile";
+import { useNear } from "@/components/ui/SizedPicture";
 import { getCdnUrl } from "@/lib/cdn";
 import type { ProductCardData } from "@/components/ui/ProductCard";
-import { loadAllCategories } from "@/lib/categoriesClient";
+import type { SpotlightProduct } from "@/lib/homeGrid";
 
 // Shapes come from src/lib/rankings.ts, which is what produces them — the
 // server page and this component must not drift apart on the type of the very
 // data one hands the other.
-import type { RankProduct, RankGroup } from "@/lib/rankings";
+import type { RankGroup } from "@/lib/rankings";
 type Tab = "hot" | "popular" | "all";
+type Scope = { id: string; name: string; thumbnailUrl?: string | null };
+/** What the quote form is opened with, from a ranked product or a catalogue card. */
+type QuoteProduct = { id: number | string; name: string; imageUrl: string | null; images: string[]; categoryRef: { name?: string | null } | null };
 
-const ALL_PAGE_SIZE = 60;
-const GROUP_PAGE = 15;
+/** Categories a read brings after the twelve the server renders (DEFAULT_GROUP_LIMIT, which a client module cannot import). */
+const GROUP_PAGE = 24;
+/** Products a read brings on the All tab: whole rows at two, three, four, five and six across. */
+const ALL_PAGE = 60;
+/**
+ * How far below the screen the next read starts: 8000px, about three reads'
+ * worth of categories at a desk. A read comes back in milliseconds (every page
+ * is a slice of one cached list), and the margin covers the one that waits on
+ * the list's rebuild (a few seconds, once every five minutes), so the next
+ * categories are on the page before a scroll reaches them, and there is
+ * nothing to wait for, no button and no placeholder (the owner, 2026-10-11).
+ */
+const READ_AHEAD = "0px 0px 8000px 0px";
+/** A read that fails is tried again this many times, a moment apart, before the page says so. */
+const RETRIES = 3;
+/**
+ * What each product's picture is drawn at: a row to swipe on a phone; four
+ * across a tablet, six from 1024px (beside the categories from 1280px), eight
+ * from 1536px, inside a card's 20px padding.
+ */
+const SIZES =
+  "(min-width: 1920px) 188px, (min-width: 1536px) calc(12.5vw - 52px), (min-width: 1280px) calc(16.7vw - 66px), (min-width: 1024px) calc(16.7vw - 24px), (min-width: 768px) calc(25vw - 28px), (min-width: 640px) 28vw, 40vw";
 
-// Rank badge colours — #1 gold, #2 silver, #3 bronze/orange (Alibaba-style).
-function rankStyle(rank: number): string {
-  if (rank === 1) return "bg-gradient-to-br from-amber-400 to-amber-500";
-  if (rank === 2) return "bg-gradient-to-br from-slate-300 to-slate-400";
-  return "bg-gradient-to-br from-orange-400 to-orange-500";
-}
-
-function RankTile({ product, onClick }: { product: RankProduct; onClick: () => void }) {
-  const [failed, setFailed] = useState(false);
-  const show = product.imageUrl && !failed;
+/**
+ * A category of the ranking, as Amazon's Best Sellers lays each one out: its
+ * name and what it belongs to, the way to all of it, and a row of its
+ * products, each with its place ("#1"), its name and the way to a quote (eight
+ * on a wide screen, six on a laptop, four on a tablet, a row to swipe on a
+ * phone). The categories are in order, biggest first, and not numbered: their
+ * numbers in gold, silver and bronze circles read to the owner as made by a
+ * machine, and cards of three bare pictures as weak (2026-10-11).
+ */
+function RankSection({ group, onQuote }: { group: RankGroup; onQuote: (p: SpotlightProduct) => void }) {
+  // Its pictures load as it comes within three screens, not at the browser's own one.
+  const [ref, near] = useNear<HTMLLIElement>();
+  const href = `/products/?categoryId=${encodeURIComponent(group.id)}`;
+  const products: SpotlightProduct[] = group.products
+    .filter((p) => p.imageUrl)
+    .slice(0, 8)
+    .map((p) => ({ id: p.id, name: p.name, image: p.imageUrl!, category: group.name }));
   return (
-    <button onClick={onClick} className="group/tile flex flex-col text-left w-full">
-      <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200/70">
-        <span className={`absolute top-0 left-0 z-10 flex items-center justify-center w-6 h-6 rounded-br-lg text-white text-[11px] font-black shadow-sm ${rankStyle(product.rank)}`}>
-          {product.rank}
-        </span>
-        {show ? (
-          <Image
-            src={getCdnUrl(product.imageUrl, 300) as string}
-            alt={product.name}
-            fill
-            loading="lazy"
-            sizes="(max-width:768px) 30vw, 150px"
-            className="object-cover group-hover/tile:scale-105 transition-transform duration-500"
-            onError={() => setFailed(true)}
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center text-slate-300 text-[11px]">No Image</div>
-        )}
+    <li ref={ref} className="min-w-0 rounded-2xl border border-slate-200/80 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5">
+      <div className="flex items-baseline justify-between gap-4">
+        <div className="min-w-0">
+          {/* h2: each category is a section directly under the page's h1. */}
+          <h2 className="truncate text-[17px] font-bold leading-tight tracking-tight text-slate-900 sm:text-[18px]">
+            <Link href={href} className="hover:text-brand-dark">
+              {group.name}
+            </Link>
+          </h2>
+          {group.parentName && <p className="mt-1 truncate text-[13px] text-slate-500">{`in ${group.parentName}`}</p>}
+        </div>
+        <Link href={href} className="inline-flex shrink-0 items-center gap-0.5 rounded-sm text-[13px] font-semibold text-brand-dark hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50">
+          View all
+          <ChevronRight size={15} aria-hidden="true" />
+        </Link>
       </div>
-      <p className="mt-2 text-[11.5px] sm:text-xs font-medium text-slate-600 leading-snug line-clamp-2 group-hover/tile:text-brand-dark transition-colors">
-        {product.name}
-      </p>
-    </button>
-  );
-}
-
-function RankingCard({ group, onSelect, onViewAll, seed }: { group: RankGroup; onSelect: (p: RankProduct) => void; onViewAll: () => void; seed: number }) {
-  return (
-    <BorderBeamPanel
-      beams={2}
-      thickness={2}
-      radius={20}
-      glow={false}
-      seed={seed}
-      colors={["#27a8c4", "#f59e0b"]}
-      className="!bg-white !border-slate-200/70 !p-4 sm:!p-5 shadow-sm hover:shadow-lg transition-shadow"
-    >
-      <div className="flex items-center justify-between mb-4 gap-2">
-        {/* h2, not h3: each group card is a section directly under the page
-            h1, and with no h2 anywhere the document jumped h1 -> h3. Tailwind's
-            preflight resets heading size and weight to inherit, and the size
-            here is set by the classes, so this is a semantic change only —
-            nothing moves. */}
-        <h2 className="font-extrabold text-slate-900 text-[15px] sm:text-base truncate tracking-tight">{group.name}</h2>
-        <button onClick={onViewAll} className="shrink-0 inline-flex items-center gap-0.5 text-xs font-semibold text-brand-dark hover:gap-1.5 transition-all">
-          View all <ChevronRight className="w-3.5 h-3.5" />
-        </button>
-      </div>
-      <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-        {group.products.slice(0, 3).map((p) => (
-          <RankTile key={p.id} product={p} onClick={() => onSelect(p)} />
+      <ul className="-mx-4 mt-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] sm:-mx-5 sm:scroll-px-5 sm:px-5 md:mx-0 md:grid md:grid-cols-4 md:gap-4 md:overflow-visible md:px-0 md:pb-0 lg:grid-cols-6 2xl:grid-cols-8 [&::-webkit-scrollbar]:hidden">
+        {products.map((p, i) => (
+          <li
+            key={p.id}
+            className={`w-[40%] max-w-[200px] shrink-0 snap-start sm:w-[28%] md:w-auto md:max-w-none ${i >= 6 ? "md:max-2xl:hidden" : i >= 4 ? "md:max-lg:hidden" : ""}`}
+          >
+            <ProductQuoteTile p={p} near={near} sizes={SIZES} onQuote={onQuote} rank={i + 1} />
+          </li>
         ))}
-      </div>
-    </BorderBeamPanel>
+      </ul>
+    </li>
   );
 }
 
-// A card-shaped skeleton (title bar + 3 image tiles) so the loading state reads
-// as "cards are coming", not a blank slab.
-function CardSkeleton() {
-  return (
-    <div className="liquid-glass-card p-4 sm:p-5">
-      <div className="h-4 w-32 bg-slate-100 rounded mb-4 animate-pulse" />
-      <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-        {[0, 1, 2].map((i) => (
-          <div key={i}>
-            <div className="aspect-square rounded-xl bg-slate-100 animate-pulse" />
-            <div className="h-3 w-full bg-slate-100 rounded mt-2 animate-pulse" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+/** What a tab and scope shows: its ranked categories, or on the All tab its products, as many as are read so far. */
+type List = { kind: "groups"; items: RankGroup[]; more: boolean } | { kind: "products"; items: ProductCardData[]; more: boolean; page: number };
+const keyOf = (tab: Tab, scope: string | null) => `${tab}|${scope ?? ""}`;
+const parse = (key: string) => {
+  const [tab, scope] = key.split("|");
+  return { tab: tab as Tab, scope: scope || null };
+};
+
+/** The next read for a list: a slice of the ranking, or a page of products. */
+async function readNext(key: string, list: List | undefined): Promise<List> {
+  const { tab, scope } = parse(key);
+  if (tab === "all") {
+    const page = list?.kind === "products" ? list.page + 1 : 1;
+    const params = new URLSearchParams({ page: String(page), limit: String(ALL_PAGE) });
+    if (scope) params.set("categoryId", scope);
+    const res = await fetch(`/api/products/?${params.toString()}`);
+    if (!res.ok) throw new Error(`products ${res.status}`);
+    const j = await res.json();
+    const items: ProductCardData[] = j.data || [];
+    const before = list?.kind === "products" ? list.items : [];
+    const seen = new Set(before.map((p) => p.id));
+    return { kind: "products", items: [...before, ...items.filter((p) => !seen.has(p.id))], more: page < (j.pagination?.totalPages || 1) && items.length > 0, page };
+  }
+  const before = list?.kind === "groups" ? list.items : [];
+  const params = new URLSearchParams({ tab, offset: String(before.length), limit: String(GROUP_PAGE) });
+  if (scope) params.set("parentId", scope);
+  const res = await fetch(`/api/rankings/?${params.toString()}`);
+  if (!res.ok) throw new Error(`rankings ${res.status}`);
+  const j = await res.json();
+  const seen = new Set(before.map((g) => g.id));
+  const items: RankGroup[] = j.groups || [];
+  return { kind: "groups", items: [...before, ...items.filter((g) => !seen.has(g.id))], more: Boolean(j.hasMore) && items.length > 0 };
 }
 
 /**
  * The interactive half of /rankings/.
  *
- * The first page of cards arrives as props, already rendered by the server —
- * see page.tsx. Before that this component owned the whole page and fetched
- * its own API on mount, so the server sent skeletons and nothing else: LCP was
- * 6.16s, and a crawler that does not run JavaScript saw an empty shell on a
- * url the sitemap advertises.
+ * The first twelve categories arrive as props, already rendered by the server
+ * (see page.tsx); every one after them is read four screens ahead of the
+ * scroll, from one cached list, so there is nothing to wait for: no "Load More
+ * Categories" button, no grey placeholders, and no footer under a list that
+ * keeps coming (the owner, 2026-10-11). Every list read is kept (tab and
+ * scope), so going back to one is instant; pointing at a scope or a tab reads
+ * its first categories before it is chosen, and choosing one not yet read
+ * keeps the page as it is until its own arrive.
+ *
+ * The scopes are the top-level categories: from 1280px a list down the side,
+ * compact enough to be whole on the screen, held in view where the screen is
+ * tall enough to hold all of it (it scrolled inside itself, with a scrollbar
+ * of its own, which the owner saw as the sidebar changing under the scroll);
+ * a row to swipe below 1280px.
  */
 export function RankingsClient({
   initialGroups,
   initialHasMore,
   initialScopeName,
+  scopes,
 }: {
   initialGroups: RankGroup[];
   initialHasMore: boolean;
   initialScopeName: string;
+  scopes: Scope[];
 }) {
-  const router = useRouter();
-  const [categories, setCategories] = useState<CategoryRecord[]>([]);
   const [scope, setScope] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("hot");
-
-  // Seeded from the server render, so the first screen is already on the page
-  // and `loading` starts false — there is nothing to wait for.
-  const [groups, setGroups] = useState<RankGroup[]>(initialGroups);
-  const [groupOffset, setGroupOffset] = useState(initialGroups.length);
-  const [hasMore, setHasMore] = useState(initialHasMore);
-  const [loading, setLoading] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
-
-  const [allProducts, setAllProducts] = useState<ProductCardData[]>([]);
-  const [allPage, setAllPage] = useState(1);
-  const [allTotalPages, setAllTotalPages] = useState(1);
-  const [allLoading, setAllLoading] = useState(false);
-
-  const [inquiryProduct, setInquiryProduct] = useState<ProductCardData | null>(null);
-  // One counter per fetch flow, not one shared between them.
-  //
-  // Both the ranking groups and the "All" tab's product grid used a single
-  // reqSeq, and every handler — including the .finally that clears `loading` —
-  // bails when `seq !== reqSeq.current`. So a request starting in one flow
-  // could strand the other's loading flag at true permanently, leaving the
-  // page on skeletons with nothing in flight and no error to show for it.
-  // Separate counters make that unreachable rather than unlikely.
-  const groupSeq = useRef(0);
-  const allSeq = useRef(0);
-  const scopeScrollRef = useRef<HTMLDivElement>(null);
-
+  // Every list read so far, by tab and scope. The server's first page is in it from the start.
+  const [lists, setLists] = useState<Map<string, List>>(() => new Map([[keyOf("hot", null), { kind: "groups", items: initialGroups, more: initialHasMore }]]));
+  // The lists as of the last render, for reads started from handlers and observers.
+  const latest = useRef(lists);
   useEffect(() => {
-    // Shared with the navbar and the homepage's mega-panel rather than a
-    // second copy. This page was fetching the ~250KB category list itself,
-    // with cache: "no-store" forcing a full re-download, and on a path without
-    // the trailing slash so trailingSlash: true answered 308 first — two round
-    // trips for a list another component had already loaded.
-    loadAllCategories().then(setCategories).catch(() => {});
+    latest.current = lists;
+  }, [lists]);
+  const reading = useRef(new Set<string>());
+  // Failed reads, by list: tried again a moment later, and named on the page once RETRIES have failed.
+  const [failures, setFailures] = useState<Map<string, number>>(() => new Map());
+  const [quote, setQuote] = useState<QuoteProduct | null>(null);
+  const end = useRef<HTMLDivElement>(null);
+
+  const wanted = keyOf(tab, scope);
+  // A choice shows its list at once if it is read, and when it arrives if not; until then the page stays as it
+  // is (state from the last render, as React has it for derived values).
+  const [shown, setShown] = useState(wanted);
+  if (shown !== wanted && lists.has(wanted)) setShown(wanted);
+
+  // One read at a time per list, whoever asks (the scroll, a pointer, a choice, an effect run twice).
+  const read = useCallback((key: string) => {
+    if (reading.current.has(key)) return;
+    const list = latest.current.get(key);
+    if (list && !list.more) return;
+    reading.current.add(key);
+    readNext(key, list)
+      .then((next) => {
+        setLists((m) => new Map(m).set(key, next));
+        setFailures((m) => (m.has(key) ? new Map([...m].filter(([k]) => k !== key)) : m));
+      })
+      .catch(() => setFailures((m) => new Map(m).set(key, (m.get(key) ?? 0) + 1)))
+      .finally(() => reading.current.delete(key));
   }, []);
 
-  const topCategories = useMemo(() => buildCategoryTree(categories), [categories]);
-  const scopeName = useMemo(
-    // Unscoped, the server already worked this out and rendered it; taking it
-    // from the props keeps the two halves saying the same thing rather than
-    // hardcoding the label in both.
-    () => (scope ? categories.find((c) => c.id === scope)?.name ?? "Category" : initialScopeName),
-    [scope, categories, initialScopeName]
-  );
+  const failed = failures.get(wanted) ?? 0;
+  const shownFailed = failures.get(shown) ?? 0;
 
-  const fetchGroups = useCallback((offset: number, append: boolean) => {
-    const seq = ++groupSeq.current;
-    if (append) setLoadingMore(true); else setLoading(true);
-    const params = new URLSearchParams({ tab, offset: String(offset), limit: String(GROUP_PAGE) });
-    if (scope) params.set("parentId", scope);
-    fetch(`/api/rankings/?${params.toString()}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (seq !== groupSeq.current) return;
-        setGroups((prev) => (append ? [...prev, ...(j.groups || [])] : j.groups || []));
-        setHasMore(Boolean(j.hasMore));
-        setGroupOffset(offset + GROUP_PAGE);
-      })
-      .catch(() => { if (seq === groupSeq.current && !append) setGroups([]); })
-      .finally(() => { if (seq === groupSeq.current) { setLoading(false); setLoadingMore(false); } });
-  }, [tab, scope]);
-
-  // Reload when scope or tab changes — but not on the first render, because
-  // the server already sent the first page for the default tab and scope.
-  // Without this guard the page fetched immediately what it had just been
-  // given, which is the whole cost of server-rendering thrown away.
-  const seededFromServer = useRef(true);
+  // The chosen list, read if it is not; after a failure, again a moment later.
   useEffect(() => {
-    if (tab === "all") return;
-    if (seededFromServer.current) {
-      seededFromServer.current = false;
+    if (lists.has(wanted) || failed >= RETRIES) return;
+    if (!failed) {
+      read(wanted);
       return;
     }
-    setGroups([]);
-    setGroupOffset(0);
-    setHasMore(false);
-    fetchGroups(0, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, scope]);
+    const t = window.setTimeout(() => read(wanted), 1200 * failed);
+    return () => window.clearTimeout(t);
+  }, [wanted, lists, failed, read]);
 
-  // A button, not infinite scroll.
-  //
-  // The scroll version is gone, and with it two bugs. It fired every request
-  // twice — measured on production: offset=0 twice, then offset=15 twice —
-  // because an effect watching groups.length re-read `groupOffset` before the
-  // first response had committed it. And it showed a bare spinner at the
-  // bottom that, while the API still took 7-16s, was indistinguishable from a
-  // page that had simply broken; that is what got reported.
-  //
-  // A button cannot double-fire (it is disabled while loading), cannot look
-  // stuck (it says what it is doing), and needs no scroll listener, no
-  // viewport arithmetic and no lock ref to coordinate them.
-  const loadMore = useCallback(() => {
-    if (loadingMore || loading || !hasMore) return;
-    fetchGroups(groupOffset, true);
-  }, [loadingMore, loading, hasMore, groupOffset, fetchGroups]);
+  const list = lists.get(shown)!;
+  const switching = shown !== wanted;
 
-  // The "keep loading while the page is short" effect that used to sit here is
-  // gone with the scroll listener. It is the one that double-fired: it ran on
-  // every change to groups.length and read `groupOffset` from a ref that the
-  // first response had not updated yet, so it re-requested the page that was
-  // already in flight.
-
-  // "All" tab product grid.
+  // The next categories, read as the list's end comes within READ_AHEAD; a new observer for every new length (and
+  // every failure), so a read that leaves the end still near reads the next.
   useEffect(() => {
-    if (tab !== "all") return;
-    const seq = ++allSeq.current;
-    setAllLoading(true);
-    const params = new URLSearchParams({ page: String(allPage), limit: String(ALL_PAGE_SIZE) });
-    if (scope) params.set("categoryId", scope);
-    fetch(`/api/products/?${params.toString()}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (seq !== allSeq.current) return;
-        setAllProducts(j.data || []);
-        setAllTotalPages(j.pagination?.totalPages || 1);
-      })
-      .catch(() => { if (seq === allSeq.current) setAllProducts([]); })
-      .finally(() => { if (seq === allSeq.current) setAllLoading(false); });
-  }, [tab, scope, allPage]);
+    const el = end.current;
+    if (!el || !list.more || switching || shownFailed >= RETRIES) return;
+    let t: number | undefined;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        if (shownFailed) t = window.setTimeout(() => read(shown), 1200 * shownFailed);
+        else read(shown);
+      },
+      { rootMargin: READ_AHEAD },
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      window.clearTimeout(t);
+    };
+  }, [shown, list.items.length, list.more, switching, shownFailed, read]);
 
-  useEffect(() => { setAllPage(1); }, [scope, tab]);
-
-  const scrollScope = (dir: -1 | 1) => scopeScrollRef.current?.scrollBy({ left: dir * 300, behavior: "smooth" });
-  const goToCategory = (id: string) => router.push(`/products/?categoryId=${id}`);
-
-  // Changing scope/tab reloads the whole grid — jump back to the top so the
-  // user sees the new results from the start, not mid-scroll.
-  const scrollTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
-  const selectScope = (id: string | null) => { setScope(id); scrollTop(); };
-  const selectTab = (key: Tab) => { setTab(key); scrollTop(); };
+  const tryAgain = (key: string) => {
+    setFailures((m) => new Map([...m].filter(([k]) => k !== key)));
+    read(key);
+  };
+  const scopeName = (key: string) => {
+    const id = parse(key).scope;
+    return id ? scopes.find((s) => s.id === id)?.name ?? "this category" : initialScopeName;
+  };
+  // A new list starts from its top.
+  const toTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  const chooseScope = (id: string | null) => {
+    setScope(id);
+    toTop();
+  };
+  const chooseTab = (key: Tab) => {
+    setTab(key);
+    toTop();
+  };
+  const quoteRanked = (p: SpotlightProduct) => setQuote({ id: p.id, name: p.name, imageUrl: p.image, images: [p.image], categoryRef: { name: p.category } });
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "hot", label: "Hot selling" },
     { key: "popular", label: "Most popular" },
     { key: "all", label: "All" },
   ];
+  const scopeList: Scope[] = [{ id: "", name: "All categories" }, ...scopes];
+  const isOn = (s: Scope) => (s.id || null) === scope;
+  const warm = (s: Scope) => read(keyOf(tab, s.id || null));
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pt-20">
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12 pt-4">
-        {/* This page had no h1 at all. Its headings started at h3, on the
-            product cards — a URL in the sitemap, canonical to itself, with a
-            title and a description and no heading on the page.
+    <div className="min-h-screen bg-slate-50 pt-20 font-sans">
+      <div className="mx-auto max-w-[1920px] px-4 pb-16 pt-4 sm:px-6 lg:px-8">
+        <div className="xl:grid xl:grid-cols-[256px_minmax(0,1fr)] xl:gap-8 2xl:grid-cols-[272px_minmax(0,1fr)]">
+          {/* The scopes down the side, from 1280px, level with the page's title, as Amazon's Best Sellers
+              has them. On a screen 700px tall or more they are held in view and fill the column to the screen's
+              foot, the rows sharing its height (from 36px each to 64px; 50px on the owner's screen): the list
+              ended halfway down with the column empty under it, and a quote box put there the owner did not
+              want (2026-10-11). On a shorter screen they scroll with the page. Never a scrollbar of their own. */}
+          <nav aria-label="Categories" className="hidden xl:block">
+            <ul className="flex flex-col gap-px [@media(min-height:700px)]:sticky [@media(min-height:700px)]:top-[calc(var(--nav-shift,4rem)+16px)] [@media(min-height:700px)]:h-[calc(100vh-112px)]">
+              {scopeList.map((s) => {
+                const on = isOn(s);
+                return (
+                  <li key={s.id || "all"} className="flex min-h-9 flex-1 [@media(min-height:700px)]:max-h-16">
+                    <button
+                      type="button"
+                      onClick={() => chooseScope(s.id || null)}
+                      onPointerEnter={() => warm(s)}
+                      onFocus={() => warm(s)}
+                      aria-current={on ? "true" : undefined}
+                      className={`flex w-full items-center gap-3 rounded-lg px-2.5 text-left text-[14px] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/50 ${
+                        on ? "bg-slate-900 font-semibold text-white" : "font-medium text-slate-600 hover:bg-white hover:text-slate-900"
+                      }`}
+                    >
+                      <span className={`relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-md ${on ? "bg-white/15" : "bg-white ring-1 ring-inset ring-slate-200/80"}`}>
+                        {s.id ? (
+                          s.thumbnailUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element -- a 28px thumbnail; next/image writes no srcset here (unoptimized) and adds nothing.
+                            <img src={getCdnUrl(s.thumbnailUrl, 96) as string} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
+                          )
+                        ) : (
+                          <LayoutGrid size={15} className={on ? "text-white" : "text-brand"} aria-hidden="true" />
+                        )}
+                      </span>
+                      <span className="truncate">{s.name}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </nav>
 
-            Above the sticky bar rather than inside it, so it scrolls away and
-            does not eat vertical space on a phone once you start browsing.
-            This component is server-rendered for the initial HTML like the
-            rest of the page, so the heading is in the document a crawler
-            receives rather than appearing after hydration. */}
-        <header className="pb-4">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-[-0.02em] text-slate-900">
-            Top Ranking — the categories we source most
-          </h1>
-          <p className="mt-1.5 max-w-2xl text-sm sm:text-[15px] leading-relaxed text-slate-600">
-            The best-stocked categories in our sourcing catalogue, ranked, with a sample of what each one holds. Nothing here carries a price — it is a guide to what we can source, so ask us to quote on anything you see.
-          </p>
-        </header>
+          <div className="min-w-0">
+            {/* This page had no h1 at all. Its headings started at h3, on the
+                product cards — a URL in the sitemap, canonical to itself, with a
+                title and a description and no heading on the page. Above the
+                sticky bar rather than inside it, so it scrolls away. */}
+            <header className="pb-4">
+              <h1 className="text-2xl font-bold tracking-[-0.02em] text-slate-900 sm:text-3xl">Top ranking</h1>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-600 sm:text-[15px]">The categories we source most, biggest first. Pick any product to ask for a quote.</p>
+            </header>
 
-        {/* Sticky control bar */}
-        <div className="sticky top-[var(--nav-shift,5rem)] transition-[top] duration-300 z-30 bg-slate-50/95 backdrop-blur-sm -mx-4 sm:-mx-6 px-4 sm:px-6 pt-3 pb-3 border-b border-slate-100">
-          {/* Scope row — horizontal scroll with subtle edge arrows overlaid
-              (no layout-shifting flanking buttons). */}
-          <div className="relative">
-            {/* md:px-10 reserves gutters so the overlay arrows never cover the
-                first/last chip (that overlap was the "fucked up" carousel). */}
-            <div ref={scopeScrollRef} className="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth md:px-10">
-              <button
-                onClick={() => selectScope(null)}
-                className={`shrink-0 px-4 py-2 rounded-full text-[13px] font-semibold border transition-colors ${
-                  scope === null ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
-                }`}
-              >
-                All categories
-              </button>
-              {topCategories.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => selectScope(c.id)}
-                  className={`shrink-0 px-4 py-2 rounded-full text-[13px] font-semibold border transition-colors whitespace-nowrap ${
-                    scope === c.id ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-200 hover:border-slate-400"
-                  }`}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-            {/* Edge fade + overlay arrows (desktop only) */}
-            <div className="hidden md:block pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-slate-50 to-transparent" />
-            <div className="hidden md:block pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-slate-50 to-transparent" />
-            <button onClick={() => scrollScope(-1)} aria-label="Scroll left" className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 w-7 h-7 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-slate-200 text-slate-500 hover:text-brand transition-colors">
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button onClick={() => scrollScope(1)} aria-label="Scroll right" className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 w-7 h-7 items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-slate-200 text-slate-500 hover:text-brand transition-colors">
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* Sub-tabs (left) + Full Catalogue link (right) */}
-          <div className="mt-3 flex items-center justify-between gap-3">
-            <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-full">
-              {tabs.map((t) => (
-                <button
-                  key={t.key}
-                  onClick={() => selectTab(t.key)}
-                  className={`px-4 sm:px-5 py-1.5 rounded-full text-[13px] font-bold transition-colors ${
-                    tab === t.key ? "bg-white text-brand-dark shadow-sm" : "text-slate-500 hover:text-slate-800"
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <QuickLinkPill href="/products/" icon="/cata.jpg" label="Full Catalog" labelHiddenOnMobile className="shrink-0" />
-          </div>
-        </div>
-
-        {/* Content — min-height keeps the footer below the fold while the
-            first cards are still loading (no footer peeking under skeletons). */}
-        <div className="mt-5 min-h-[80vh]">
-          {tab === "all" ? (
-            allLoading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-                {[...Array(18)].map((_, i) => <div key={i} className="h-[300px] bg-white rounded-2xl border border-slate-100 animate-pulse" />)}
+            {/* The bar: below 1280px the scopes as a row to swipe; the tabs and the catalogue link at every width.
+                Opaque: a see-through, blurred bar redrew the blur on every frame of a scroll. */}
+            <div className="sticky top-[var(--nav-shift,4rem)] z-30 -mx-4 border-b border-slate-200/70 bg-slate-50 px-4 pb-3 pt-3 transition-[top] duration-300 sm:-mx-6 sm:px-6 xl:mx-0 xl:px-0">
+              <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [mask-image:linear-gradient(to_right,#000_calc(100%-32px),transparent)] [scrollbar-width:none] sm:-mx-6 sm:px-6 xl:hidden [&::-webkit-scrollbar]:hidden">
+                {scopeList.map((s) => (
+                  <button
+                    key={s.id || "all"}
+                    type="button"
+                    onClick={() => chooseScope(s.id || null)}
+                    onPointerEnter={() => warm(s)}
+                    onFocus={() => warm(s)}
+                    aria-current={isOn(s) ? "true" : undefined}
+                    className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-[13px] font-semibold transition-colors ${
+                      isOn(s) ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white text-slate-700 hover:border-slate-400"
+                    }`}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+                {/* Room after the last, so it can come out of the fade. */}
+                <span className="w-6 shrink-0" aria-hidden="true" />
               </div>
-            ) : (
-              <>
-                <p className="text-sm text-slate-500 mb-4">Showing products in <span className="font-semibold text-slate-800">{scopeName}</span></p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-                  {allProducts.map((p, idx) => (
-                    <ProductCard key={p.id} product={p} onClick={() => setInquiryProduct(p)} priority={idx < 12} />
+              <div className="mt-3 flex items-center justify-between gap-3 xl:mt-0">
+                <div className="inline-flex items-center gap-1 rounded-full bg-slate-200/60 p-1">
+                  {tabs.map((t) => (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => chooseTab(t.key)}
+                      onPointerEnter={() => read(keyOf(t.key, scope))}
+                      onFocus={() => read(keyOf(t.key, scope))}
+                      aria-pressed={tab === t.key}
+                      className={`rounded-full px-4 py-1.5 text-[13px] font-bold transition-colors sm:px-5 ${
+                        tab === t.key ? "bg-white text-brand-dark shadow-sm" : "text-slate-500 hover:text-slate-800"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
                   ))}
                 </div>
-                {allProducts.length === 0 && (
-                  <div className="text-center text-slate-500 py-16">No products found in this category yet.</div>
-                )}
-                <Pagination page={allPage} totalPages={allTotalPages} onPageChange={(p) => { setAllPage(p); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
-              </>
-            )
-          ) : loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {[...Array(9)].map((_, i) => <CardSkeleton key={i} />)}
-            </div>
-          ) : groups.length === 0 ? (
-            <div className="text-center text-slate-400 py-20">No rankings available for this category.</div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {groups.map((g, i) => (
-                  <RankingCard key={g.id} group={g} seed={i + 1} onSelect={setInquiryProduct} onViewAll={() => goToCategory(g.id)} />
-                ))}
+                <QuickLinkPill href="/products/" icon="/cata.jpg" label="Full Catalog" labelHiddenOnMobile className="shrink-0" />
               </div>
-              {/* Infinite scroll auto-loads more as you near the bottom (no button) */}
-              {hasMore && (
-                <div className="flex justify-center py-8">
-                  <button
-                    onClick={loadMore}
-                    disabled={loadingMore}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-brand-dark shadow-sm transition-all hover:border-brand/50 hover:gap-3 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:gap-2"
-                  >
-                    {loadingMore ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" /> Loading…
-                      </>
-                    ) : (
-                      <>
-                        Load More Categories <ChevronRight className="w-4 h-4" />
-                      </>
-                    )}
+            </div>
+
+            {/* While a choice not yet read is on its way, the page stays, a shade lighter. */}
+            <div className={`mt-5 transition-opacity duration-200 ${switching ? "opacity-60" : ""}`} aria-busy={switching}>
+              {switching && failed >= RETRIES && (
+                <p className="mb-4 rounded-xl bg-white px-4 py-3 text-sm text-slate-600 ring-1 ring-inset ring-slate-200">
+                  {`${scopeName(wanted)} did not load. `}
+                  <button type="button" onClick={() => tryAgain(wanted)} className="font-semibold text-brand-dark underline underline-offset-2">
+                    Try again
                   </button>
-                </div>
+                </p>
               )}
-            </>
-          )}
+              {list.kind === "products" ? (
+                <>
+                  <p className="mb-4 text-sm text-slate-500">
+                    Showing products in <span className="font-semibold text-slate-800">{scopeName(shown)}</span>
+                  </p>
+                  {list.items.length === 0 && !list.more ? (
+                    <div className="py-16 text-center text-slate-500">No products found in this category yet.</div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 2xl:grid-cols-5 min-[1800px]:grid-cols-6">
+                      {list.items.map((p, idx) => (
+                        <ProductCard
+                          key={p.id}
+                          product={p}
+                          onClick={() => setQuote({ id: p.id, name: p.name, imageUrl: p.imageUrl ?? null, images: p.imageUrl ? [p.imageUrl] : [], categoryRef: p.categoryRef ?? null })}
+                          priority={idx < 12}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : list.items.length === 0 && !list.more ? (
+                <div className="py-20 text-center text-slate-400">No rankings available for this category.</div>
+              ) : (
+                <ol className="flex flex-col gap-4">
+                  {list.items.map((g) => (
+                    <RankSection key={g.id} group={g} onQuote={quoteRanked} />
+                  ))}
+                </ol>
+              )}
+
+              {list.more ? (
+                <>
+                  <div ref={end} aria-hidden="true" className="h-px" />
+                  {shownFailed >= RETRIES && (
+                    <p className="mt-6 text-center text-sm text-slate-600">
+                      {"The next categories did not load. "}
+                      <button type="button" onClick={() => tryAgain(shown)} className="font-semibold text-brand-dark underline underline-offset-2">
+                        Try again
+                      </button>
+                    </p>
+                  )}
+                </>
+              ) : (
+                list.items.length > 0 && (
+                  <p className="mt-10 text-center text-sm text-slate-500">
+                    {list.kind === "groups" ? `That is every category in ${scopeName(shown)}.` : "That is every product here."}{" "}
+                    <Link href="/products/" className="font-semibold text-brand-dark hover:underline">
+                      Browse the full catalogue
+                    </Link>
+                  </p>
+                )
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
-      <FooterSection />
-      {inquiryProduct && <InquiryModal product={inquiryProduct} onClose={() => setInquiryProduct(null)} />}
+      {quote && <InquiryModal product={quote} onClose={() => setQuote(null)} />}
     </div>
   );
 }

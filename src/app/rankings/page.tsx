@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { RankingsClient } from "./RankingsClient";
-import { getCachedRankings, DEFAULT_GROUP_LIMIT } from "@/lib/rankings";
+import { getCachedRankings, getCachedRankingScopes, DEFAULT_GROUP_LIMIT } from "@/lib/rankings";
 
 // The first screen is rendered here, on the server.
 //
@@ -15,8 +15,10 @@ import { getCachedRankings, DEFAULT_GROUP_LIMIT } from "@/lib/rankings";
 //   served crawlers an empty shell.
 //
 // getCachedRankings is the same function /api/rankings calls, so the first
-// page costs nothing extra — it is already cached, keyed per tab/scope/page.
-// Everything past the first page still goes through the API from the client.
+// page costs nothing extra: both slice one cached list per tab and scope.
+// Everything past the first page comes through the API, read ahead of the
+// scroll. The scopes (the top-level categories) come from here too, so the
+// list of them is on the first paint instead of after a 250KB download.
 
 export const metadata: Metadata = {
   title: "Top Ranking | AFFHAN",
@@ -49,13 +51,13 @@ export default async function RankingsPage() {
   // "hot" with no scope is what the client starts on, so this has to be the
   // same arguments — a mismatch would mean the server renders one set of
   // cards and the client immediately replaces them with another.
-  const initial = await getCachedRankings("hot", 0, DEFAULT_GROUP_LIMIT, null);
+  // Most popular is read too, and not sent: it warms that tab's cached list (a few seconds to build), so the
+  // first press of the tab finds it ready instead of waiting on it behind the cards it replaces.
+  const [initial, scopes] = await Promise.all([
+    getCachedRankings("hot", 0, DEFAULT_GROUP_LIMIT, null),
+    getCachedRankingScopes(),
+    getCachedRankings("popular", 0, 1, null),
+  ]);
 
-  return (
-    <RankingsClient
-      initialGroups={initial.groups}
-      initialHasMore={initial.hasMore}
-      initialScopeName={initial.scopeName}
-    />
-  );
+  return <RankingsClient initialGroups={initial.groups} initialHasMore={initial.hasMore} initialScopeName={initial.scopeName} scopes={scopes} />;
 }

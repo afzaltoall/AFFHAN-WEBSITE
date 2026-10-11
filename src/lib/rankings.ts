@@ -3,6 +3,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList } from "@/lib/moderation";
 import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
+import { kindPattern } from "@/lib/kindPattern";
 
 // ---------------------------------------------------------------------------
 // Rankings data, shared by the API route and the page.
@@ -65,8 +66,21 @@ const getCachedLeafCounts = unstable_cache(
   { revalidate: 3600 }
 );
 
-export const DEFAULT_GROUP_LIMIT = 15; // ranking cards per page (load-more adds more)
-export const PRODUCTS_PER_GROUP = 3; // ranked products per card (#1..#3)
+/**
+ * Categories the page renders on the server: twelve, a few screens of them.
+ * The page reads the rest ahead of the scroll (RankingsClient), and keeps the
+ * first document light: every category carries eight products.
+ */
+export const DEFAULT_GROUP_LIMIT = 12;
+/** Ranked products a category carries: a row of eight on a wide screen, six on a laptop, four on a tablet. */
+export const PRODUCTS_PER_GROUP = 8;
+/**
+ * How far down a category's newest a ranked product is looked for among those
+ * its name says it is, and how many of the best of those the moderation
+ * pattern is then run on (three times what is shown, should any be left out).
+ */
+const RANK_SCAN = 400;
+const RANK_FINALISTS = 24;
 
 /** One product inside a ranking card; `rank` drives the #1/#2/#3 badge. */
 export type RankProduct = { id: number; name: string; imageUrl: string | null; rank: number };
@@ -82,6 +96,65 @@ export type RankingsPayload = {
 };
 
 /**
+ * The top-level categories, biggest first: the page's scopes (the list down its
+ * side). Only the seventeen top-level ones: the strip of chips it replaced
+ * carried the 36 promoted as tiles elsewhere too ("Earrings", "Furniture"),
+ * 53 in all, which no row could hold; each of those is a card inside its
+ * family's scope.
+ */
+/** A family holds at least this many products to be one of the page's scopes. */
+const SCOPE_MIN_PRODUCTS = 100;
+
+export const getCachedRankingScopes = unstable_cache(
+  async (): Promise<{ id: string; name: string; thumbnailUrl: string | null }[]> => {
+    const [allCats, leafCounts] = await Promise.all([getCachedAllCategories(), getCachedLeafCounts()]);
+    const catById = new Map(allCats.map((c) => [c.id, c]));
+    const blockedCats = blockedCategoryIdSet(allCats);
+    const topOf = (id: string) => {
+      let c = catById.get(id);
+      while (c?.parentId && catById.get(c.parentId)) c = catById.get(c.parentId);
+      return c;
+    };
+    const totals = new Map<string, number>();
+    for (const lc of leafCounts) {
+      if (blockedCats.has(lc.categoryId)) continue;
+      const top = topOf(lc.categoryId);
+      if (top && !blockedCats.has(top.id)) totals.set(top.id, (totals.get(top.id) ?? 0) + lc.count);
+    }
+    // Families of a few products are left out ("Fully Printing Hat" holds 3, "Protective Masks" 11): a row of
+    // the list each, for next to nothing. Their categories are still in the ranking, under All categories.
+    return [...totals.entries()]
+      .filter(([, n]) => n >= SCOPE_MIN_PRODUCTS)
+      .sort((a, b) => b[1] - a[1])
+      .map(([id]) => ({ id, name: catById.get(id)!.name.trim(), thumbnailUrl: catById.get(id)!.thumbnailUrl }));
+  },
+  ["rankings-scopes-v3"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES] },
+);
+
+/**
+ * A page of the ranking: a slice of the whole list (getCachedRankingList), so
+ * every page after the first costs nothing but the slice. Each page used to be
+ * its own query, 1.5 to 2.2s on the dev server, and the page waited on it
+ * behind a "Load More Categories" button; the owner wanted every category, and
+ * nothing to wait for (2026-10-11).
+ */
+export async function getCachedRankings(tab: string, offset: number, limit: number, parentId: string | null): Promise<RankingsPayload> {
+  const [whole, cats] = await Promise.all([getCachedRankingList(tab === "popular" ? "popular" : "hot"), getCachedAllCategories()]);
+  // A scope's cards are the whole list's that sit under it, in the same order with the same products: filtered
+  // here, outside the cache, so choosing a scope never waits on a query. Filtered inside a cached function of its
+  // own, every scope's first read ran the whole list's query again (2 to 4s), the inner cache not answering.
+  const byId = new Map(cats.map((c) => [c.id, c]));
+  const scope = parentId ? byId.get(parentId) : undefined;
+  const under = (id: string) => {
+    for (let c = byId.get(id); c; c = c.parentId ? byId.get(c.parentId) : undefined) if (c.id === scope!.id) return true;
+    return false;
+  };
+  const groups = scope ? whole.groups.filter((g) => under(g.id)) : whole.groups;
+  return { scopeName: scope ? scope.name : "All Categories", tab, groups: groups.slice(offset, offset + limit), hasMore: offset + limit < groups.length };
+}
+
+/**
  * The whole response, cached — not just the category helpers.
  *
  * Only getCachedAllCategories and getCachedLeafCounts were cached before, and
@@ -95,40 +168,16 @@ export type RankingsPayload = {
  * moderation removal reaches viewers inside a minute, which matters because
  * these are product listings.
  */
-export const getCachedRankings = unstable_cache(
-  async (tab: string, offset: number, limit: number, parentId: string | null): Promise<RankingsPayload> => {
+const getCachedRankingList = unstable_cache(
+  async (tab: string): Promise<{ groups: RankGroup[] }> => {
     const [allCats, leafCounts] = await Promise.all([
       getCachedAllCategories(),
       getCachedLeafCounts(),
     ]);
     const catById = new Map(allCats.map((c) => [c.id, c]));
 
-    // Build the set of leaf categories in scope. With a parent selected, that's
-    // all its descendants; otherwise every category is a candidate.
-    let inScope: (id: string) => boolean = () => true;
-    let scopeName = "All Categories";
-    if (parentId && catById.has(parentId)) {
-      const childrenMap = new Map<string, string[]>();
-      for (const c of allCats) {
-        if (c.parentId) {
-          if (!childrenMap.has(c.parentId)) childrenMap.set(c.parentId, []);
-          childrenMap.get(c.parentId)!.push(c.id);
-        }
-      }
-      const descendants = new Set<string>([parentId]);
-      const queue = [parentId];
-      while (queue.length) {
-        const cur = queue.shift()!;
-        for (const ch of childrenMap.get(cur) ?? []) {
-          if (!descendants.has(ch)) { descendants.add(ch); queue.push(ch); }
-        }
-      }
-      inScope = (id) => descendants.has(id);
-      scopeName = catById.get(parentId)?.name ?? scopeName;
-    }
-
-    // All categories in scope, biggest first. Windowed by offset/limit so the
-    // page can "load more" through every category rather than a fixed 12.
+    // Every category, biggest first, the page taking them a slice at a time
+    // (getCachedRankings), which filters a scope's from them.
     // blockedCategoryIdSet, not isCategoryBlocked on the leaf's own name.
     // Products hang off leaves, and a leaf is usually named something like
     // "Boxers" or "Sleep & Lounge" — the adult signal is on the PARENT
@@ -136,13 +185,12 @@ export const getCachedRankings = unstable_cache(
     // other surface uses the descendant-aware set; this one did not.
     const blockedCats = blockedCategoryIdSet(allCats);
     const scopedIds = leafCounts
-      .filter((lc) => inScope(lc.categoryId) && catById.has(lc.categoryId) && !blockedCats.has(lc.categoryId))
+      .filter((lc) => catById.has(lc.categoryId) && !blockedCats.has(lc.categoryId))
       .map((lc) => lc.categoryId);
-    const groupIds = scopedIds.slice(offset, offset + limit);
-    const hasMore = offset + limit < scopedIds.length;
+    const groupIds = scopedIds;
 
     if (groupIds.length === 0) {
-      return { scopeName, groups: [], hasMore: false };
+      return { groups: [] };
     }
 
     // Empty when nothing is blocked by id, so the clause disappears entirely
@@ -185,30 +233,46 @@ export const getCachedRankings = unstable_cache(
     // LIMIT, so the inner query would have ranked every product in the
     // category before taking three — which is the original problem wearing a
     // different shape. Out here the window sees 45 rows.
-    const innerOrder = tab === "popular"
-      ? Prisma.sql`ORDER BY "id" ASC`
-      : Prisma.sql`ORDER BY "id" DESC`;
-    const outerOrder = tab === "popular"
-      ? Prisma.sql`ORDER BY p."id" ASC`
-      : Prisma.sql`ORDER BY p."id" DESC`;
+    const dir = tab === "popular" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+    // A product of what its card says first (lib/kindPattern.ts): among a
+    // category's newest RANK_SCAN (oldest, on Most popular), those whose names
+    // match its pattern, then the rest. CJ files some products where they do
+    // not belong, and the biggest category, "Home Office Storage", ranked a pair
+    // of sunglasses at its #1. Bounded, so a category whose names rarely match
+    // is never read to its end.
+    const patterns = groupIds.map((id) => kindPattern(catById.get(id)!.name) || kindPattern(catById.get(id)!.name, true));
 
     const rows = await prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; categoryId: string; rn: number }>>(
       Prisma.sql`
         SELECT p."id", p."name", p."imageUrl", c."categoryId",
-               ROW_NUMBER() OVER (PARTITION BY c."categoryId" ${outerOrder}) AS rn
-        FROM unnest(ARRAY[${Prisma.join(groupIds)}]::text[]) AS c("categoryId")
+               ROW_NUMBER() OVER (PARTITION BY c."categoryId" ORDER BY p.tells DESC, p."id" ${dir}) AS rn
+        FROM unnest(ARRAY[${Prisma.join(groupIds)}]::text[], ARRAY[${Prisma.join(patterns)}]::text[]) AS c("categoryId", m)
         CROSS JOIN LATERAL (
-          SELECT "id", "name", "imageUrl"
-          FROM "Product"
-          WHERE "categoryId" = c."categoryId"
-            -- The category filter is not the whole rule. A product can be
-            -- adult by NAME while sitting in a perfectly ordinary category —
-            -- that is the entire reason blockedNameRegex exists — and this
-            -- query once applied neither it nor the blocked-id list, so the
-            -- rankings page could feature a product no other surface shows.
-            AND "name" !~* ${blockedNameRegex()}
-            ${blockedIdsClause}
-          ${innerOrder}
+          SELECT t."id", t."name", t."imageUrl", t.tells
+          FROM (
+            SELECT s."id", s."name", s."imageUrl", (c.m <> '' AND s."name" ~* c.m) AS tells
+            FROM (
+              SELECT "id", "name", "imageUrl"
+              FROM "Product"
+              WHERE "categoryId" = c."categoryId" AND "imageUrl" IS NOT NULL
+                ${blockedIdsClause}
+              ORDER BY "id" ${dir}
+              LIMIT ${RANK_SCAN}
+            ) s
+            ORDER BY tells DESC, s."id" ${dir}
+            LIMIT ${RANK_FINALISTS}
+          ) t
+          -- The category filter is not the whole rule. A product can be
+          -- adult by NAME while sitting in a perfectly ordinary category —
+          -- that is the entire reason blockedNameRegex exists — and this
+          -- query once applied neither it nor the blocked-id list, so the
+          -- rankings page could feature a product no other surface shows.
+          -- Applied to each category's finalists, not to every row scanned:
+          -- the 650-character pattern on 400 rows a category took the whole
+          -- list from 0.7s to 7.2s (595 categories, measured), and nothing it
+          -- leaves out of the finalists could have been shown.
+          WHERE t."name" !~* ${blockedNameRegex()}
+          ORDER BY t.tells DESC, t."id" ${dir}
           LIMIT ${PRODUCTS_PER_GROUP}
         ) p
       `
@@ -229,8 +293,12 @@ export const getCachedRankings = unstable_cache(
       })
       .filter((g) => g.products.length > 0);
 
-    return { scopeName, tab, groups, hasMore };
+    return { groups };
   },
-  ["rankings-payload"],
-  { revalidate: 60, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
+  ["rankings-list-v6"],
+  // Five minutes, not the one the per-page cache had: this is every category's products in one query (a few
+  // seconds to build), and the first read after it went stale waited on the rebuild (measured: 3.7s and 4.4s, a
+  // minute apart). A moderation removal still leaves the page within five minutes, or at once by tag
+  // (/api/revalidate).
+  { revalidate: 300, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
 );
