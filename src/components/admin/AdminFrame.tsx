@@ -1,13 +1,14 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { AdminRail } from "@/components/admin/AdminRail";
+import { AdminMobileBar, AdminRail } from "@/components/admin/AdminRail";
 import type { RailCounts } from "@/lib/admin-rail-counts";
 
 /**
  * Puts the admin rail beside every console page except the dashboard, which
- * draws its own. Below lg the rail is hidden, as the dashboard's is, and each
- * page keeps its own way back.
+ * draws its own. Where the rail is not drawn, as the dashboard's is not (below
+ * lg, and on a touch screen of any width: rail: in globals.css), a bar with a
+ * Menu takes its place (AdminMobileBar): the same rows, in a drawer.
  */
 export function AdminFrame({
   name,
@@ -29,10 +30,15 @@ export function AdminFrame({
   const supportsDark = /^\/admin\/(suppliers|videos)(\/|$)/.test(pathname);
 
   return (
-    <div className="flex">
-      <AdminRail name={name} image={image} counts={counts} supportsDark={supportsDark} />
-      <div className="min-w-0 flex-1">{children}</div>
-    </div>
+    <>
+      {/* Where the rail is not drawn (a phone, a tablet, any touch screen): a bar with the console's Menu, the
+          rail's rows in a drawer. */}
+      <AdminMobileBar name={name} counts={counts} supportsDark={supportsDark} />
+      <div className="flex">
+        <AdminRail name={name} image={image} counts={counts} supportsDark={supportsDark} />
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
+    </>
   );
 }
 

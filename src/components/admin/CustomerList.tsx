@@ -106,7 +106,7 @@ export function CustomerList({
           <Link
             href="/admin/"
             aria-label="Back to the dashboard"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] lg:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] rail:hidden"
           >
             <ArrowLeft size={16} />
           </Link>

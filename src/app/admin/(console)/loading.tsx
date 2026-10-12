@@ -16,7 +16,7 @@ export default function AdminLoading() {
       </span>
       <div className="flex">
         {/* Sidebar */}
-        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-black/[0.06] bg-white/80 lg:flex">
+        <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col border-r border-black/[0.06] bg-white/80 rail:flex">
           <div className="flex items-center gap-2.5 px-5 py-5">
             <Bar className="h-8 w-8 rounded-lg" />
             <span>

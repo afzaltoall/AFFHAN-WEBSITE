@@ -280,54 +280,58 @@ export function TripApplicationsBoard() {
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
       <div className="px-5 py-8 sm:px-8 lg:px-10">
-        <div className="mb-6 flex flex-wrap items-center gap-4">
+        {/* The title keeps a readable width: on a phone the buttons beside it had squeezed it to one word a
+            line (2026-10-12). They drop under it together instead, on the right. */}
+        <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
           <Link
             href="/admin/"
             aria-label="Back to the dashboard"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] lg:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] rail:hidden"
           >
             <ArrowLeft size={16} />
           </Link>
-          <div className="min-w-0 flex-1">
+          <div className="min-w-[min(100%,15rem)] flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">Free China Trip</h1>
             <p className="text-[13px] text-[#86868b]">
               Everyone registered for the Free China Business Trip, with their account and Trip ID
               {rows ? ` · ${counts.new} new` : ""}
             </p>
           </div>
-          {/* One width for all three words, so Export beside it never moves. */}
-          <button
-            type="button"
-            onClick={() => void refreshAll()}
-            disabled={refreshing === "busy"}
-            aria-busy={refreshing === "busy"}
-            className="inline-flex h-9 min-w-[8.75rem] items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] disabled:cursor-wait"
-          >
-            {refreshing === "busy" ? (
-              <>
-                <RefreshCw size={14} className="animate-spin motion-reduce:animate-none" /> Refreshing…
-              </>
-            ) : refreshing ? (
-              <>
-                <Check size={14} className="text-emerald-600" /> {refreshing.fresh ? `${refreshing.fresh} new` : "Up to date"}
-              </>
-            ) : (
-              <>
-                <RefreshCw size={14} /> Refresh
-              </>
-            )}
-          </button>
-          <span aria-live="polite" className="sr-only">
-            {refreshing && refreshing !== "busy" ? (refreshing.fresh ? `${refreshing.fresh} new applications` : "Up to date") : ""}
-          </span>
-          <button
-            type="button"
-            onClick={() => void exportExcel()}
-            disabled={!list.length}
-            className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:opacity-50"
-          >
-            <Download size={14} /> Export
-          </button>
+          <div className="ml-auto flex shrink-0 items-center gap-2">
+            {/* One width for all three words, so Export beside it never moves. */}
+            <button
+              type="button"
+              onClick={() => void refreshAll()}
+              disabled={refreshing === "busy"}
+              aria-busy={refreshing === "busy"}
+              className="inline-flex h-9 min-w-[8.75rem] items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] disabled:cursor-wait"
+            >
+              {refreshing === "busy" ? (
+                <>
+                  <RefreshCw size={14} className="animate-spin motion-reduce:animate-none" /> Refreshing…
+                </>
+              ) : refreshing ? (
+                <>
+                  <Check size={14} className="text-emerald-600" /> {refreshing.fresh ? `${refreshing.fresh} new` : "Up to date"}
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={14} /> Refresh
+                </>
+              )}
+            </button>
+            <span aria-live="polite" className="sr-only">
+              {refreshing && refreshing !== "busy" ? (refreshing.fresh ? `${refreshing.fresh} new applications` : "Up to date") : ""}
+            </span>
+            <button
+              type="button"
+              onClick={() => void exportExcel()}
+              disabled={!list.length}
+              className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:opacity-50"
+            >
+              <Download size={14} /> Export
+            </button>
+          </div>
         </div>
 
         {/* The homepage banner's chain lock, and the key to it. */}

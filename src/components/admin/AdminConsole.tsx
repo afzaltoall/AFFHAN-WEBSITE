@@ -7,6 +7,7 @@ import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
 import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
+import { AdminRailList } from "@/components/admin/AdminMobileNav";
 import { TripLockPanel } from "@/components/admin/TripLockPanel";
 import { TripLockRailDot, TripLockRailPill } from "@/components/admin/TripLockRailStatus";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
@@ -18,7 +19,7 @@ import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, LayoutList, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, SlidersHorizontal, UserCog,
+  MessageSquare, Calendar, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, SlidersHorizontal, UserCog,
   Ship, Plane, Boxes, Smartphone, ExternalLink,
   type LucideIcon,
 } from "lucide-react";
@@ -307,7 +308,8 @@ export function AdminConsole({ data }: Props) {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [showPwd, setShowPwd] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
-  // The mobile navigation drawer. Below lg there is no sidebar, and the nav
+  // The mobile navigation drawer. Without the rail (below lg, and on a touch
+  // screen of any width: rail: in globals.css) there is no sidebar, and the nav
   // used to be seven pills wrapping onto three rows above the content — a
   // third of a phone screen spent on navigation before anything was read.
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1032,14 +1034,6 @@ export function AdminConsole({ data }: Props) {
   // the count has to survive on the button itself.
   const newTotal = statusCounts.new + newContactCount + data.stats.shipmentsNew;
 
-  const nav: { key: View; label: string; icon: LucideIcon; count?: number }[] = [
-    { key: "all", label: "All", icon: LayoutList },
-    { key: "inquiries", label: "Inquiries", icon: Inbox, count: statusCounts.new },
-    { key: "contacts", label: "Contact Us", icon: MessageSquare, count: newContactCount },
-    { key: "shipping", label: "Shipping", icon: Ship, count: data.stats.shipmentsNew },
-    { key: "trash", label: "Recently Deleted", icon: Trash2, count: deletedItems.length },
-  ];
-
   // `hint` spells out a figure that would otherwise look wrong next to the
   // public site. Categories shows the browsable count, with the empty CJ tree
   // nodes noted rather than silently folded into the headline number.
@@ -1175,7 +1169,7 @@ export function AdminConsole({ data }: Props) {
             Everything the sidebar did, it still does. Only two things are
             new: the labels have a width and an opacity, and the counts have a
             second, smaller form for when there is no room for the pill. */}
-        <div className="hidden w-[60px] shrink-0 lg:block">
+        <div className="hidden w-[60px] shrink-0 rail:block">
           <aside
             onMouseEnter={() => setSideOpen(true)}
             onMouseLeave={() => setSideOpen(false)}
@@ -1267,7 +1261,7 @@ export function AdminConsole({ data }: Props) {
                 aria-label="Open menu"
                 aria-expanded={menuOpen}
                 aria-controls="admin-mobile-nav"
-                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors lg:hidden ${t.pill}`}
+                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors rail:hidden ${t.pill}`}
               >
                 <Menu size={16} />
                 Menu
@@ -1277,7 +1271,7 @@ export function AdminConsole({ data }: Props) {
               </button>
               {/* Dark toggle lives in the sidebar on desktop — only expose it in
                   the top bar on mobile (where there is no sidebar). */}
-              <button onClick={() => setDark((d) => !d)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors lg:hidden ${t.pill}`}>
+              <button onClick={() => setDark((d) => !d)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors rail:hidden ${t.pill}`}>
                 {dark ? <Sun size={15} /> : <Moon size={15} />}<span className="hidden sm:inline">{dark ? "Light" : "Dark"}</span>
               </button>
               <span className={`hidden text-[12px] md:inline ${t.soft}`} aria-live="polite">
@@ -1286,7 +1280,7 @@ export function AdminConsole({ data }: Props) {
               <button onClick={refresh} disabled={refreshing} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors ${t.pill}`}>
                 <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} /> <span className="hidden sm:inline">Refresh</span>
               </button>
-              <button onClick={logout} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-3.5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-red-600 lg:hidden">
+              <button onClick={logout} className="inline-flex items-center gap-2 rounded-full bg-red-500 px-3.5 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-red-600 rail:hidden">
                 <LogOut size={15} />
               </button>
             </div>
@@ -1690,7 +1684,8 @@ export function AdminConsole({ data }: Props) {
               {view === "inquiries" && groupByCustomer ? (
                 <>
                   {customerGroups.length ? (
-                    <ul className={`space-y-2 p-3 ${t.page}`}>
+                    // @container: the rows fit their controls to this list's width (see the inquiry list below).
+                    <ul className={`@container space-y-2 p-3 ${t.page}`}>
                       {customerGroups.map((g) => (
                         <CustomerGroupRow
                           key={g.key}
@@ -1726,13 +1721,21 @@ export function AdminConsole({ data }: Props) {
                 </>
               ) : view === "inquiries" ? (
                 inquiries.length ? (
-                  <ul className={`divide-y ${t.divide}`}>
+                  // A row puts its controls beside the customer only when the list itself is wide enough for
+                  // both: 62rem of its own width (@container, so the rail and the padding are already paid for).
+                  // Narrower, they sit under the customer, as they always have on a phone. They used to go beside
+                  // from 640px and never shrink, so on an iPad, with an outcome chip among them, the customer's
+                  // name, phone and email were left 0-17px wide (the owner, 2026-10-12). Side by side, the
+                  // customer keeps 20rem, and controls that still do not fit wrap onto a second line instead.
+                  // The customer list, Contact Us and Shipping do the same from 60rem inside their p-3, which is
+                  // the same width of screen, so all four change together.
+                  <ul className={`@container divide-y ${t.divide}`}>
                     {inquiries.map((i) => {
                       const st = asStatus(i.status);
                       const sel = selected.has(i.id);
                       return (
-                      <li key={i.id} className={`flex flex-col gap-3 p-4 transition-colors sm:flex-row sm:items-center ${t.hover} ${sel ? "bg-brand/[0.05]" : st === "spam" ? "bg-red-500/[0.04]" : ""}`}>
-                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <li key={i.id} className={`flex flex-col gap-3 p-4 transition-colors @min-[62rem]:flex-row @min-[62rem]:items-center ${t.hover} ${sel ? "bg-brand/[0.05]" : st === "spam" ? "bg-red-500/[0.04]" : ""}`}>
+                        <div className="flex min-w-0 flex-1 items-center gap-3 @min-[62rem]:min-w-[20rem]">
                           <button onClick={() => toggleSelect(i.id)} aria-label="Select inquiry" className={`shrink-0 transition-colors ${sel ? "text-brand" : `${t.soft} hover:text-brand`}`}>
                             {sel ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
                           </button>
@@ -1753,7 +1756,7 @@ export function AdminConsole({ data }: Props) {
                             </div>
                           </button>
                         </div>
-                        <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[92px] sm:pl-0">
+                        <div className="flex flex-wrap items-center gap-2.5 pl-[92px] @min-[62rem]:justify-end @min-[62rem]:pl-0">
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {i.quantity}</span>
                           <OutcomeChip value={i.lastStatus} />
                           <AssigneePicker
@@ -1844,7 +1847,7 @@ export function AdminConsole({ data }: Props) {
           z-[115] sits under the dialogs (z-120+) so opening an inquiry from the
           drawer never leaves the drawer on top of it. */}
       {menuOpen && (
-        <div className="fixed inset-0 z-[115] lg:hidden" role="dialog" aria-modal="true" aria-label="Admin navigation">
+        <div className="fixed inset-0 z-[115] rail:hidden" role="dialog" aria-modal="true" aria-label="Admin navigation">
           <button
             aria-label="Close menu"
             onClick={() => setMenuOpen(false)}
@@ -1877,30 +1880,19 @@ export function AdminConsole({ data }: Props) {
               </button>
             </div>
 
-            <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
-              {nav.map((n) => (
-                <button
-                  key={n.key}
-                  onClick={() => { setView(n.key); setQ(""); }}
-                  aria-current={view === n.key ? "page" : undefined}
-                  className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[14px] font-medium transition-colors ${view === n.key ? t.navActive : t.navIdle}`}
-                >
-                  <n.icon size={18} className={view === n.key ? "text-brand" : t.soft} />
-                  <span className="flex-1 text-left">{n.label}</span>
-                  {n.count !== undefined && (
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(n.count)}</span>
-                  )}
-                </button>
-              ))}
-              <Link
-                href="/admin/suppliers/"
-                onClick={() => setMenuOpen(false)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-[14px] font-medium transition-colors ${t.navIdle}`}
-              >
-                <Users size={18} className={t.soft} />
-                <span className="flex-1 text-left">Suppliers</span>
-                <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtNum(data.stats.suppliers)}</span>
-              </Link>
+            {/* Every row the desktop rail has, under its headings (AdminRailList): this drawer had only the
+                five views and Suppliers, so the Free China Trip and the team's pages were out of reach on a
+                phone or a tablet (the owner, 2026-10-12). */}
+            <nav className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+              <AdminRailList
+                t={t}
+                counts={railCount}
+                queueInvalid={data.stats.queueInvalid}
+                dark={dark}
+                isActive={(item) => (item.view ? view === item.view : false)}
+                onView={(v) => { setView(v); setQ(""); }}
+                onNavigate={() => setMenuOpen(false)}
+              />
             </nav>
 
             {/* Account actions, matching the desktop sidebar foot. */}
@@ -3324,13 +3316,13 @@ function ContactsSection({
       )}
 
       {list.length ? (
-        <ul className={`space-y-2 p-3 ${t.page}`}>
+        <ul className={`@container space-y-2 p-3 ${t.page}`}>
           {list.map((c) => {
             const st = asStatus(c.status);
             const sel = selected.has(c.id);
             return (
-              <li key={c.id} className={`flex flex-col gap-3 rounded-xl p-3.5 shadow-sm ring-1 transition-shadow sm:flex-row sm:items-center ${t.card} ${t.hover} ${sel ? "ring-brand/40" : ""} ${st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
-                <div className="flex min-w-0 flex-1 items-center gap-3">
+              <li key={c.id} className={`flex flex-col gap-3 rounded-xl p-3.5 shadow-sm ring-1 transition-shadow @min-[60rem]:flex-row @min-[60rem]:items-center ${t.card} ${t.hover} ${sel ? "ring-brand/40" : ""} ${st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
+                <div className="flex min-w-0 flex-1 items-center gap-3 @min-[60rem]:min-w-[20rem]">
                   <button onClick={() => toggleSelect(c.id)} aria-label="Select message" className={`shrink-0 transition-colors ${sel ? "text-brand" : `${t.soft} hover:text-brand`}`}>
                     {sel ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
                   </button>
@@ -3359,7 +3351,7 @@ function ContactsSection({
                     </div>
                   </button>
                 </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
+                <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
                   {tab === "active" ? (
                     <>
                       <OutcomeChip value={c.lastStatus} />
@@ -3866,15 +3858,15 @@ function ShipmentsSection({
             <Loader2 className="h-4 w-4 animate-spin" /> Loading freight requests…
           </div>
         ) : list.length ? (
-          <ul className={`space-y-2 p-3 ${t.page}`}>
+          <ul className={`@container space-y-2 p-3 ${t.page}`}>
             {list.map((r) => {
               const st = asStatus(r.status);
               const sel = selected.has(r.id);
               const ModeIcon = r.mode === "AIR" ? Plane : Ship;
               const flag = countryFlagUrl(r.country);
               return (
-                <li key={r.id} className={`flex flex-col gap-3 rounded-xl p-3.5 shadow-sm ring-1 transition-shadow sm:flex-row sm:items-center ${t.card} ${t.hover} ${sel ? "ring-brand/40" : ""} ${st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
+                <li key={r.id} className={`flex flex-col gap-3 rounded-xl p-3.5 shadow-sm ring-1 transition-shadow @min-[60rem]:flex-row @min-[60rem]:items-center ${t.card} ${t.hover} ${sel ? "ring-brand/40" : ""} ${st === "spam" && tab === "active" ? "bg-red-500/[0.04]" : ""}`}>
+                  <div className="flex min-w-0 flex-1 items-center gap-3 @min-[60rem]:min-w-[20rem]">
                     <button
                       onClick={() => setSelected((cur) => { const n = new Set(cur); if (n.has(r.id)) n.delete(r.id); else n.add(r.id); return n; })}
                       aria-label={`Select ${r.referenceNo}`}
@@ -3911,7 +3903,7 @@ function ShipmentsSection({
                       </div>
                     </button>
                   </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
+                  <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
                     {tab === "active" ? (
                       <>
                         <OutcomeChip value={r.lastStatus} />
@@ -4418,8 +4410,8 @@ function CustomerGroupRow({
         selected ? "ring-brand/40" : open ? "shadow-md" : ""
       }`}
     >
-      <div className={`flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center ${t.hover} ${selected ? "bg-brand/[0.04]" : ""}`}>
-        <div className="flex min-w-0 flex-1 items-center gap-3">
+      <div className={`flex flex-col gap-3 p-3.5 @min-[60rem]:flex-row @min-[60rem]:items-center ${t.hover} ${selected ? "bg-brand/[0.04]" : ""}`}>
+        <div className="flex min-w-0 flex-1 items-center gap-3 @min-[60rem]:min-w-[20rem]">
           <button onClick={onToggleSelect} aria-label={`Select ${g.customerName}`} aria-pressed={selected} className={`shrink-0 transition-colors ${selected ? "text-brand" : `${t.soft} hover:text-brand`}`}>
             {selected ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
           </button>
@@ -4474,7 +4466,7 @@ function CustomerGroupRow({
           </div>
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center gap-2.5 pl-[52px] sm:pl-0">
+        <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
           <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${t.qty}`}>{g.inquiryCount} {g.inquiryCount === 1 ? "product" : "products"}</span>
           <OutcomeChip value={g.lastStatus} />
           <AssigneePicker

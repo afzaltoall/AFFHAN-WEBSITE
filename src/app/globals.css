@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Where the admin console's rail is drawn. The rail is a strip of icons that opens on hover, so it needs a wide
+   screen AND something to hover with: a mouse or a trackpad. A touch iPad in landscape was wide enough to get the
+   strip and had no way to read it (the owner, 2026-10-12); it gets the Menu that phones and portrait tablets
+   have. `rail:block` draws the rail; whatever stands in for it elsewhere (the Menu, the back arrows) is
+   `rail:hidden`. */
+@custom-variant rail (@media (width >= 64rem) and (hover: hover) and (pointer: fine));
+
 /* Three brand blues, and which one to reach for is a contrast decision, not a
    taste one.
 

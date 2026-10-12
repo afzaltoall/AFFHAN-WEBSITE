@@ -297,15 +297,15 @@ export function SupplierDirectory({ suppliers, initialQuery = "", initialProduct
       {/* Top bar */}
       <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${t.bar}`}>
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
-          {/* The rail does this from lg up; phones keep the way back. */}
+          {/* The rail does this where it is drawn (rail: in globals.css); phones and touch tablets keep the way back. */}
           <Link
             href="/admin/"
-            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:hidden ${t.pill}`}
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rail:hidden ${t.pill}`}
           >
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">Dashboard</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:hidden">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <div className="min-w-0 leading-tight">

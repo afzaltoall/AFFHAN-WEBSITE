@@ -70,7 +70,7 @@ export function SupplierDetail({ supplier: s, related, relatedTerm }: Props) {
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">All suppliers</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg lg:hidden">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <p className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-tight">{title}</p>

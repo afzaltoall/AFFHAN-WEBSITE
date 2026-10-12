@@ -94,15 +94,17 @@ export function EmployeeManagement({ initial }: { initial: EmployeeRow[] }) {
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
       <div className="px-5 py-8 sm:px-8 lg:px-10">
-        <div className="mb-6 flex items-center gap-4">
+        {/* Wraps, and the title keeps a readable width: on a phone the two buttons beside it had
+            squeezed it to one word a line (2026-10-12). They drop under it together instead. */}
+        <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
           <Link
             href="/admin/"
             aria-label="Back to the dashboard"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] lg:hidden"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] rail:hidden"
           >
             <ArrowLeft size={16} />
           </Link>
-          <div className="min-w-0">
+          <div className="min-w-[min(100%,15rem)] flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">Staff</h1>
             <p className="text-[13px] text-[#86868b]">
               {error ?? `${rows.length} ${rows.length === 1 ? "account" : "accounts"} · ${activeCount} active · they sign in at /employee/login`}
