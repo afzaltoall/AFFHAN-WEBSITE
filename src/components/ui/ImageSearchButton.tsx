@@ -574,7 +574,7 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
   const [capturing, setCapturing] = useState(false);
   /** A touch-first device: its own camera app and photo library, not paste and drag. */
   const [touch, setTouch] = useState(false);
-  /** A computer with a camera the page may ask for. */
+  /** A computer or a tablet with a camera the page may ask for: its photo is taken in the page (WebcamView). */
   const [webcam, setWebcam] = useState(false);
 
   // The upload panel that drops from the camera: paste, drag-drop, or browse.
@@ -610,7 +610,12 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
     setNativeCamera(hasNativeCamera());
     const coarse = window.matchMedia("(pointer: coarse)").matches;
     setTouch(coarse);
-    setWebcam(!coarse && !!navigator.mediaDevices?.getUserMedia);
+    // A tablet takes its photo in the page, as a computer does, with the camera live in the dialog; a phone keeps
+    // its own camera app (capture), which does it better on a small screen. A tablet: a touch screen whose shorter
+    // side is 600px or more (an iPad mini's is 744, the largest phone's 430), so turning it changes nothing. The
+    // owner, on an iPad view, saw "Take a photo" open a file picker and no camera at all (2026-10-12).
+    const tablet = coarse && Math.min(window.screen.width, window.screen.height) >= 600;
+    setWebcam((!coarse || tablet) && !!navigator.mediaDevices?.getUserMedia);
   }, []);
 
   useEffect(() => {
@@ -909,7 +914,8 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
   /** A camera for this device: the app's, the phone's own camera app, or the webcam in the page. */
   const openCamera = useCallback(() => {
     if (nativeCamera) return void takePhoto();
-    if (touch || !webcam) return cameraInputRef.current?.click();
+    // A phone, or a browser with no camera to offer the page: the device's own camera app or file picker.
+    if (!webcam) return cameraInputRef.current?.click();
     if (panelOpenRef.current) {
       overlayHandoff();
       closePanel();
@@ -918,7 +924,7 @@ export function ImageSearchButton({ className, onOpen }: { className?: string; /
     setPreview(null);
     setOpen(true);
     setPhase("camera");
-  }, [closePanel, nativeCamera, takePhoto, touch, webcam]);
+  }, [closePanel, nativeCamera, takePhoto, webcam]);
 
   /** Another photo, from wherever this device takes them. */
   const anotherPhoto = useCallback(() => inputRef.current?.click(), []);
