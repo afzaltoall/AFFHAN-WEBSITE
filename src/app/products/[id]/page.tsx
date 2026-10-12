@@ -9,6 +9,7 @@ import { getCategoryMeta } from "@/lib/categoryMeta";
 import { parseDescription } from "@/lib/productDescription";
 import { isProductHidden, filterHidden } from "@/lib/productVisibility";
 import { getCachedSimilarProducts, SIMILAR_SHOWN } from "@/lib/products";
+import { getRelatedCategories } from "@/lib/homeGrid";
 
 export const dynamic = "force-dynamic";
 
@@ -150,18 +151,21 @@ export default async function ProductPage({
   const product = await getProduct(id);
   if (!product) notFound();
 
-  // Similar products, and how many the category holds, fetched together so the
-  // count costs no extra round trip. Both are served off the categoryId index.
-  // The rail's rows now come from getCachedSimilarProducts — same query, moved
-  // into lib/products.ts and wrapped in unstable_cache like every other
-  // catalogue read. It over-fetches for the moderation filter below; see
-  // SIMILAR_SHOWN / SIMILAR_FETCH there.
-  const [similarRows, categoryCount] = product.categoryId
+  // Similar products and the categories beside this one, fetched together.
+  // The rows come from getCachedSimilarProducts — the categoryId index, wrapped
+  // in unstable_cache like every other catalogue read; it over-fetches for the
+  // moderation filter below (SIMILAR_SHOWN / SIMILAR_FETCH there). The
+  // categories come from the cached category tree (lib/homeGrid.ts). The count
+  // of the category's products went with the sentence that printed it.
+  const [similarRows, related] = product.categoryId
     ? await Promise.all([
         getCachedSimilarProducts(product.categoryId, product.id),
-        prisma.product.count({ where: { categoryId: product.categoryId } }),
+        getRelatedCategories(product.categoryId).catch((e) => {
+          console.error("related categories failed", e);
+          return [];
+        }),
       ])
-    : [[], 0];
+    : [[], []];
 
   // Fetched once and used twice: the visible breadcrumb below and the
   // BreadcrumbList JSON-LD further down. They disagreed before — the schema had
@@ -182,7 +186,6 @@ export default async function ProductPage({
     // catalogue is a CJ code, and publishing one identifies the supplier and
     // lets anyone look the item up at its source price.
     reference: `AFF-${product.id}`,
-    categoryCount,
   };
 
   // Every "similar" product shares this category, so reuse the parent's
@@ -274,7 +277,7 @@ export default async function ProductPage({
       {/* Renders nothing; adds this product to the signed-in customer's own
           browsing history. Signed-out visitors record nothing at all. */}
       <RecordProductView productId={product.id} />
-      <ProductDetailView product={pdpProduct} similar={similar} />
+      <ProductDetailView product={pdpProduct} similar={similar} related={related} />
       <FooterSection />
     </>
   );

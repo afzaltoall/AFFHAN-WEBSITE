@@ -869,3 +869,40 @@ const buildMore = unstable_cache(
 
 /** Today's mix. */
 export const getMore = (now = new Date()) => buildMore(dayOf(now));
+
+/**
+ * The categories beside a product's own, for its page (ProductDetailView's
+ * "Related categories"): the others under the same parent, biggest first, then
+ * those beside the parent; each with a picture, enough products, and nothing
+ * kept off the homepage's tiles (treeOf's tileable: the same moderation, and
+ * no underwear or swimwear photographed on a body). From the categories
+ * route's tree, cached an hour per category.
+ */
+export interface RelatedCategory {
+  id: string;
+  name: string;
+  image: string;
+}
+export const getRelatedCategories = unstable_cache(
+  async (categoryId: string): Promise<RelatedCategory[]> => {
+    const res = await getCategories();
+    const rows: CatRow[] = ((await res.json()) as { data?: CatRow[] }).data ?? [];
+    const t = treeOf(rows);
+    const self = t.byId.get(categoryId);
+    if (!self) return [];
+    const under = (parentId: string, not: string) =>
+      (t.kids.get(parentId) ?? []).filter((r) => r.id !== not && t.tileable(r)).sort((a, b) => t.total(b.id) - t.total(a.id));
+    const parent = self.parentId ? t.byId.get(self.parentId) : undefined;
+    // The category's siblings, then its parent's, then what is under its parent's siblings (so a category with few
+    // relations still has rows to fill a tall screen's column). A product on a branch of its own (EPROLO puts some
+    // there): what is under it.
+    const uncles = parent?.parentId ? under(parent.parentId, parent.id) : [];
+    const cousins = uncles.flatMap((u) => under(u.id, self.id)).sort((a, b) => t.total(b.id) - t.total(a.id));
+    const seen = new Set<string>();
+    const list = (parent ? [...under(parent.id, self.id), ...uncles, ...cousins] : under(self.id, "")).filter((r) => !seen.has(r.id) && !!seen.add(r.id));
+    // Sixteen, eight rows: as many as a tall screen's column has room for (the page shows the whole rows that fit).
+    return list.slice(0, 16).map((r) => ({ id: r.id, name: nameOf(r), image: r.thumbnailUrl! }));
+  },
+  ["pdp-related-categories-v3"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
+);

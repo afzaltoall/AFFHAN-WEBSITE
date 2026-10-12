@@ -185,8 +185,8 @@ export type SimilarProduct = {
  * nothing worth measuring — the query is served straight off the categoryId
  * index and selects four columns.
  */
-/** Twenty-four: whole rows at two, three, four and six across (ProductDetailView). */
-export const SIMILAR_SHOWN = 24;
+/** Forty: twenty-four under the product (whole rows at two, three, four and six across) and up to sixteen beside the quote box (ProductDetailView). */
+export const SIMILAR_SHOWN = 40;
 const SIMILAR_FETCH = SIMILAR_SHOWN * 3;
 
 /**
