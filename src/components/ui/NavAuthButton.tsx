@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ChevronDown,
+  ChevronRight,
   Clock,
   Heart,
   LogOut,
@@ -55,15 +56,22 @@ export function NavAuthButton() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Open because it was pressed (a click, a tap, a key) rather than because a
+  // mouse is resting on it: then leaving does not close it.
+  const held = useRef(false);
 
-  // Opens on hover, closes on a short delay — the same 150ms the navbar's mega
-  // menu uses. The delay is not decoration: the panel sits below the trigger,
-  // and without it the pointer crossing that boundary reads as a leave and the
-  // menu shuts before it can be reached.
+  // A mouse opens it by hovering and closes it by leaving, on a short delay —
+  // the same 150ms the navbar's mega menu uses. The delay is not decoration:
+  // the panel sits below the trigger, and without it the pointer crossing that
+  // boundary reads as a leave and the menu shuts before it can be reached.
   //
-  // Click still toggles. A touch screen has no hover, so tapping has to be a
-  // way in, and keyboard users need one control they can activate.
+  // Hover is a mouse's alone (pointerType). A tap fires the compatibility
+  // mouseenter before its click, so the menu opened on the enter and the click
+  // toggled it shut: on an iPad the first tap did nothing and only every second
+  // one opened it (live, 2026-10-12). With a mouse, the click after the hover
+  // shut it the same way.
   const cancelClose = useCallback(() => {
     if (closeTimer.current) {
       clearTimeout(closeTimer.current);
@@ -78,30 +86,56 @@ export function NavAuthButton() {
 
   const closeSoon = useCallback(() => {
     cancelClose();
+    if (held.current) return;
     closeTimer.current = setTimeout(() => setOpen(false), 150);
   }, [cancelClose]);
 
-  useEffect(() => cancelClose, [cancelClose]);
+  // A press (a click, a tap, Enter): opens the menu and holds it, holds one a
+  // mouse opened by hovering, and closes one already held.
+  const press = () => {
+    cancelClose();
+    if (open && !held.current) {
+      held.current = true;
+      return;
+    }
+    held.current = !open;
+    setOpen(!open);
+  };
 
-  // Click-away and Escape. A menu that can only be closed by the control that
-  // opened it is a menu people end up navigating away from.
+  useEffect(() => cancelClose, [cancelClose]);
+  useEffect(() => {
+    if (!open) held.current = false;
+  }, [open]);
+
+  // A press anywhere else and Escape. A menu that can only be closed by the
+  // control that opened it is a menu people end up navigating away from.
+  // pointerdown, not mousedown: a touch that starts a scroll fires no mouse
+  // events at all, and left the menu open over the page.
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => {
+    const onDown = (e: PointerEvent) => {
       if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    document.addEventListener("mousedown", onDown);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", onDown);
     window.addEventListener("keydown", onKey);
     return () => {
-      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("pointerdown", onDown);
       window.removeEventListener("keydown", onKey);
     };
   }, [open]);
 
-  if (loading) return <AuthButtonPlaceholder />;
+  // The sign-in page itself: a Login there would only reload it, and lose the
+  // page it is to send you back to (?redirect= became /login/).
+  const onLoginPage = pathname?.replace(/\/$/, "") === "/login";
+  if (loading) return onLoginPage ? null : <AuthButtonPlaceholder />;
 
   if (!user) {
+    if (onLoginPage) return null;
     return (
       <Link
         // Carries the current page, the same way Save and Favourite do.
@@ -121,11 +155,12 @@ export function NavAuthButton() {
     <div
       ref={wrapRef}
       className="relative"
-      onMouseEnter={openNow}
-      onMouseLeave={closeSoon}
+      onPointerEnter={(e) => e.pointerType === "mouse" && openNow()}
+      onPointerLeave={(e) => e.pointerType === "mouse" && closeSoon()}
     >
       <button
-        onClick={() => setOpen((o) => !o)}
+        ref={buttonRef}
+        onClick={press}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={user.name || user.phone || "Your account"}
@@ -150,7 +185,8 @@ export function NavAuthButton() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -4, scale: 0.98 }}
             transition={{ duration: 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute right-0 top-[calc(100%+0.6rem)] z-50 w-72 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl"
+            // On a phone, the bar's width under the bar: 288px from the avatar ran off a 320px screen.
+            className="absolute right-0 top-[calc(100%+0.6rem)] z-50 w-72 overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-xl max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.5rem] max-sm:w-auto"
           >
             <Link
               href="/account/"
@@ -226,6 +262,56 @@ export function NavAuthButton() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+/**
+ * The account at the top of the menu drawer (below 1280px): who is signed in,
+ * leading to the account, or the way to sign in. The drawer had neither, and
+ * below 768px the bar had no account button, so a phone could not sign in at
+ * all (the owner, 2026-10-12). Rendered only while the drawer is open, so long
+ * after /me has answered; never on the server.
+ */
+export function DrawerAccount({ onGo }: { onGo: (href: string) => void }) {
+  const { user, loading } = useAuth();
+  const pathname = usePathname();
+
+  if (loading) return <div aria-hidden="true" className="mb-2 h-16 rounded-2xl bg-slate-50" />;
+
+  const row = "group mb-2 flex w-full items-center gap-3.5 rounded-2xl px-3 py-3 text-left transition-colors cursor-pointer";
+  const chevron = <ChevronRight size={16} className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />;
+
+  if (!user) {
+    // Already on the sign-in page (see NavAuthButton).
+    if (pathname?.replace(/\/$/, "") === "/login") return null;
+    return (
+      <button
+        type="button"
+        onClick={() => onGo(`/login/?redirect=${encodeURIComponent(pathname || "/")}`)}
+        className={`${row} bg-brand/5 hover:bg-brand/10`}
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-dark text-white">
+          <User2 size={19} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-semibold text-slate-900">Login</span>
+          <span className="block text-[12px] leading-snug text-slate-500">Save products and follow your quote requests</span>
+        </span>
+        {chevron}
+      </button>
+    );
+  }
+
+  const initial = (user.name || user.phone || "?").charAt(0).toUpperCase();
+  return (
+    <button type="button" onClick={() => onGo("/account/")} className={`${row} bg-slate-50 hover:bg-brand/5`}>
+      <Avatar user={user} initial={initial} size={40} />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[15px] font-semibold text-slate-900">{user.name || user.phone}</span>
+        <span className="block truncate text-[12px] text-slate-500">{user.email || user.phone || "Your account"}</span>
+      </span>
+      {chevron}
+    </button>
   );
 }
 

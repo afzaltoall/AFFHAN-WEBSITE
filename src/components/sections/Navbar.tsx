@@ -16,7 +16,7 @@ import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import dynamic from 'next/dynamic';
 const CategoryMegaPanel = dynamic(() => import("@/components/ui/CategoryMegaPanel").then(mod => mod.CategoryMegaPanel), { ssr: false });
 import { SearchAssistPanel, usePanelFit, useSearchAssist } from "@/components/search/SearchAssist";
-import { AuthButtonPlaceholder } from "@/components/ui/NavAuthButton";
+import { AuthButtonPlaceholder, DrawerAccount } from "@/components/ui/NavAuthButton";
 
 // Client-only: who is signed in comes from an httpOnly cookie the server never
 // reads, so server HTML can only show the signed-out shape. Rendering this on
@@ -477,8 +477,9 @@ export function Navbar() {
               )}
             </div>
 
-            {/* The right: About, Careers and Contact Us from 1280px (in the menu below that), the account from
-                768px, and the menu below 1280px. One account button for every width. */}
+            {/* The right: About, Careers and Contact Us from 1280px (in the menu below that), the account at
+                every width, and the menu below 1280px. One account button for every width: below 768px it was
+                hidden, and a phone had no way to sign in at all (the owner, 2026-10-12). */}
             <div className="flex items-center gap-2 md:gap-3 xl:gap-6 z-10 flex-shrink-0 xl:ml-4">
               <div className="hidden xl:flex items-center gap-6">
                 <Link href="/about/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
@@ -495,9 +496,7 @@ export function Navbar() {
                 </Link>
               </div>
 
-              <div className="hidden md:block">
-                <NavAuthButton />
-              </div>
+              <NavAuthButton />
 
               {/* The magnifier that used to sit here was a <Link href="/">
                   labelled "Search". It did not search — it navigated to the
@@ -558,6 +557,10 @@ export function Navbar() {
 
               {/* Navigation */}
               <nav className="flex-1 overflow-y-auto p-3">
+                {/* Who is signed in, or the way to sign in: the menu had neither (the owner, 2026-10-12). */}
+                <DrawerAccount
+                  onGo={(href) => { overlayWillNavigate(); setMobileMenuOpen(false); router.push(href); }}
+                />
                 {[
                   { href: "/", label: "Home", icon: Home },
                   { href: "/rankings/", label: "Top Ranking", icon: TopRankingIcon },
