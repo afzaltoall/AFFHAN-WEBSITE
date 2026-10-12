@@ -17,20 +17,14 @@ const FOCUS = "focus-visible:outline-none focus-visible:ring-2 focus-visible:rin
 const STRIP = "absolute bottom-2 left-0 max-w-[88%] truncate rounded-r-sm bg-[linear-gradient(90deg,#f2d98a,#fbeec4)] py-0.5 pl-2 pr-2.5 text-[11.5px] font-semibold text-slate-900";
 /** The widths a product's picture is offered at (SizedPicture): 440 is the one the spotlight always fetched, already made at the edge. */
 export const PRODUCT_WIDTHS = [240, 320, 440] as const;
-/**
- * A ranked product's tag (Top ranking): "#1" in its corner, one style for every
- * place, as Amazon's Best Sellers marks them. Gold, silver and bronze medals
- * read to the owner as made by a machine (2026-10-11).
- */
-const RANK_TAG = "absolute left-0 top-0 z-10 rounded-br-md bg-slate-900/85 px-1.5 py-0.5 text-[11.5px] font-bold tabular-nums leading-tight text-white";
 
 /**
  * A product as the homepage's rows of products show it: its picture on a
  * ground its white melts into (multiply), so shots from many suppliers read
  * as one set; its name in two lines, room kept for two so the row stays
  * level; and the way to a quote where a shop would print a price. `strip`
- * puts a label on the picture (the spotlight's category), `rank` a place in
- * its corner (Top ranking). Nothing here shows a price.
+ * puts a label on the picture (the spotlight's category). Nothing here shows a
+ * price.
  */
 export function ProductQuoteTile({
   p,
@@ -38,14 +32,12 @@ export function ProductQuoteTile({
   sizes,
   onQuote,
   strip,
-  rank,
 }: {
   p: SpotlightProduct;
   near: boolean;
   sizes: string;
   onQuote: (p: SpotlightProduct) => void;
   strip?: string | null;
-  rank?: number;
 }) {
   return (
     <div className="group flex h-full flex-col">
@@ -58,7 +50,6 @@ export function ProductQuoteTile({
             near={near}
             className="object-contain p-[6%] mix-blend-multiply transition-transform duration-500 ease-out motion-safe:group-hover:scale-[1.04]"
           />
-          {rank !== undefined && <span className={RANK_TAG}>{`#${rank}`}</span>}
           {strip && <span className={STRIP}>{strip}</span>}
         </span>
         <span className="mt-2 line-clamp-2 min-h-[2lh] text-[13px] leading-snug text-slate-800 transition-colors group-hover:text-brand-dark sm:text-[13.5px]">{p.name}</span>

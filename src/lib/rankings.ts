@@ -67,20 +67,20 @@ const getCachedLeafCounts = unstable_cache(
 );
 
 /**
- * Categories the page renders on the server: twelve, a few screens of them.
- * The page reads the rest ahead of the scroll (RankingsClient), and keeps the
- * first document light: every category carries eight products.
+ * Ranking cards a read brings when it does not say (the app says), and what
+ * the page renders on the server: fifteen, five rows of three. The page reads
+ * the rest ahead of the scroll (RankingsClient).
  */
-export const DEFAULT_GROUP_LIMIT = 12;
-/** Ranked products a category carries: a row of eight on a wide screen, six on a laptop, four on a tablet. */
-export const PRODUCTS_PER_GROUP = 8;
+export const DEFAULT_GROUP_LIMIT = 15;
+/** Ranked products a card carries (#1..#3). */
+export const PRODUCTS_PER_GROUP = 3;
 /**
  * How far down a category's newest a ranked product is looked for among those
  * its name says it is, and how many of the best of those the moderation
- * pattern is then run on (three times what is shown, should any be left out).
+ * pattern is then run on (four times what is shown, should any be left out).
  */
 const RANK_SCAN = 400;
-const RANK_FINALISTS = 24;
+const RANK_FINALISTS = 12;
 
 /** One product inside a ranking card; `rank` drives the #1/#2/#3 badge. */
 export type RankProduct = { id: number; name: string; imageUrl: string | null; rank: number };
@@ -94,43 +94,6 @@ export type RankingsPayload = {
   groups: RankGroup[];
   hasMore: boolean;
 };
-
-/**
- * The top-level categories, biggest first: the page's scopes (the list down its
- * side). Only the seventeen top-level ones: the strip of chips it replaced
- * carried the 36 promoted as tiles elsewhere too ("Earrings", "Furniture"),
- * 53 in all, which no row could hold; each of those is a card inside its
- * family's scope.
- */
-/** A family holds at least this many products to be one of the page's scopes. */
-const SCOPE_MIN_PRODUCTS = 100;
-
-export const getCachedRankingScopes = unstable_cache(
-  async (): Promise<{ id: string; name: string; thumbnailUrl: string | null }[]> => {
-    const [allCats, leafCounts] = await Promise.all([getCachedAllCategories(), getCachedLeafCounts()]);
-    const catById = new Map(allCats.map((c) => [c.id, c]));
-    const blockedCats = blockedCategoryIdSet(allCats);
-    const topOf = (id: string) => {
-      let c = catById.get(id);
-      while (c?.parentId && catById.get(c.parentId)) c = catById.get(c.parentId);
-      return c;
-    };
-    const totals = new Map<string, number>();
-    for (const lc of leafCounts) {
-      if (blockedCats.has(lc.categoryId)) continue;
-      const top = topOf(lc.categoryId);
-      if (top && !blockedCats.has(top.id)) totals.set(top.id, (totals.get(top.id) ?? 0) + lc.count);
-    }
-    // Families of a few products are left out ("Fully Printing Hat" holds 3, "Protective Masks" 11): a row of
-    // the list each, for next to nothing. Their categories are still in the ranking, under All categories.
-    return [...totals.entries()]
-      .filter(([, n]) => n >= SCOPE_MIN_PRODUCTS)
-      .sort((a, b) => b[1] - a[1])
-      .map(([id]) => ({ id, name: catById.get(id)!.name.trim(), thumbnailUrl: catById.get(id)!.thumbnailUrl }));
-  },
-  ["rankings-scopes-v3"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES] },
-);
 
 /**
  * A page of the ranking: a slice of the whole list (getCachedRankingList), so
@@ -291,11 +254,13 @@ const getCachedRankingList = unstable_cache(
         const products = (byCat.get(id) ?? []).sort((a, b) => a.rank - b.rank);
         return { id, name: cat.name, parentName: cat.parentName, products };
       })
-      .filter((g) => g.products.length > 0);
+      // A card shows three: a category with fewer (the list's tail, 21 of them, most holding one product) is
+      // left out rather than shown half empty.
+      .filter((g) => g.products.length >= PRODUCTS_PER_GROUP);
 
     return { groups };
   },
-  ["rankings-list-v6"],
+  ["rankings-list-v8"],
   // Five minutes, not the one the per-page cache had: this is every category's products in one query (a few
   // seconds to build), and the first read after it went stale waited on the rebuild (measured: 3.7s and 4.4s, a
   // minute apart). A moderation removal still leaves the page within five minutes, or at once by tag

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { RankingsClient } from "./RankingsClient";
-import { getCachedRankings, getCachedRankingScopes, DEFAULT_GROUP_LIMIT } from "@/lib/rankings";
+import { getCachedRankings, DEFAULT_GROUP_LIMIT } from "@/lib/rankings";
+import { GET as getCategories } from "@/app/api/categories/route";
+import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 
 // The first screen is rendered here, on the server.
 //
@@ -18,7 +20,9 @@ import { getCachedRankings, getCachedRankingScopes, DEFAULT_GROUP_LIMIT } from "
 // page costs nothing extra: both slice one cached list per tab and scope.
 // Everything past the first page comes through the API, read ahead of the
 // scroll. The scopes (the top-level categories) come from here too, so the
-// list of them is on the first paint instead of after a 250KB download.
+// list of them is on the first paint instead of after a 250KB download: the
+// category tree's roots, top-level and promoted families biggest first, the
+// same chips the page always showed.
 
 export const metadata: Metadata = {
   title: "Top Ranking | AFFHAN",
@@ -53,11 +57,13 @@ export default async function RankingsPage() {
   // cards and the client immediately replaces them with another.
   // Most popular is read too, and not sent: it warms that tab's cached list (a few seconds to build), so the
   // first press of the tab finds it ready instead of waiting on it behind the cards it replaces.
-  const [initial, scopes] = await Promise.all([
+  const [initial, categoriesRes] = await Promise.all([
     getCachedRankings("hot", 0, DEFAULT_GROUP_LIMIT, null),
-    getCachedRankingScopes(),
+    getCategories(),
     getCachedRankings("popular", 0, 1, null),
   ]);
+  const categories: CategoryRecord[] = ((await categoriesRes.json()) as { data?: CategoryRecord[] }).data ?? [];
+  const scopes = buildCategoryTree(categories).map((c) => ({ id: c.id, name: c.name }));
 
   return <RankingsClient initialGroups={initial.groups} initialHasMore={initial.hasMore} initialScopeName={initial.scopeName} scopes={scopes} />;
 }

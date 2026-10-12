@@ -9,6 +9,12 @@ import { twMerge } from "tailwind-merge";
 
 const MOTIQ_TOKENS = "@layer motiq{:root{--motiq-accent:#315fea;--motiq-accent-text:#244fd1;--motiq-bg:#f7f9fc;--motiq-border:#dce4ef;--motiq-border-strong:#c5d1e1;--motiq-fg:#101828;--motiq-fg-secondary:#344054;--motiq-muted:#667085;--motiq-secondary-accent:#009fb3;--motiq-signature:#e9564a;--motiq-surface:#ffffff;--motiq-surface-2:#f8fafd}}@layer motiq{.dark,[data-theme=\"dark\"]{--motiq-accent:#4f7cff;--motiq-accent-text:#7f9fff;--motiq-bg:#080c14;--motiq-border:#263449;--motiq-border-strong:#354863;--motiq-fg:#f8fafc;--motiq-fg-secondary:#cbd5e1;--motiq-muted:#9caabd;--motiq-secondary-accent:#22c7d9;--motiq-signature:#ff6b5e;--motiq-surface:#111827;--motiq-surface-2:#192337}}";
 
+/** A short, stable name for a string: one class, and one stylesheet, for every panel drawn the same way. */
+function hashOf(text: string): string {
+  let h = 5381;
+  for (let i = 0; i < text.length; i++) h = (Math.imul(h, 33) + text.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
 function cn(...inputs: ClassValue[]): string {
   return twMerge(clsx(inputs));
 }
@@ -136,8 +142,10 @@ function BorderBeamPanelBase({
   style,
   ...props
 }: BorderBeamPanelProps) {
-  const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
-  const cls = `mk-beam-${uid}`;
+  // Named for how it is drawn, not for the instance (it was useId): the rules below depend only on these, so
+  // every panel drawn alike shares one class and one stylesheet. Top ranking draws hundreds of these, and two
+  // <style> elements each (1,188 at the list's end) made every new batch restyle the whole page.
+  const cls = `mk-beam-${hashOf(`${beams}|${colors?.join(",") ?? ""}|${thickness}|${radius}`)}`;
   const rootRef = React.useRef<HTMLDivElement | null>(null);
 
   const systemReduced = useReducedMotion();
@@ -245,7 +253,10 @@ function BorderBeamPanelBase({
       }}
       {...props}
     >
-      <style dangerouslySetInnerHTML={{ __html: css }} />
+      {/* Hoisted to the head and written once per href (React 19), however many panels share it. */}
+      <style href={cls} precedence="motiq">
+        {css}
+      </style>
       {glow ? <div aria-hidden="true" className="mk-beam-glow" /> : null}
       <div aria-hidden="true" className="mk-beam-ring" />
       {children}
@@ -256,7 +267,9 @@ function BorderBeamPanelBase({
 export function BorderBeamPanel(props: BorderBeamPanelProps) {
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: MOTIQ_TOKENS }} />
+      <style href="motiq-tokens" precedence="motiq">
+        {MOTIQ_TOKENS}
+      </style>
       <BorderBeamPanelBase {...props} />
     </>
   );

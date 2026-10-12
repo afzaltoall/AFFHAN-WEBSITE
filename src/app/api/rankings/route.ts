@@ -13,8 +13,10 @@ export async function GET(request: Request) {
     const parentId = searchParams.get("parentId"); // selected top-level category (optional)
     const tab = searchParams.get("tab") === "popular" ? "popular" : "hot";
     const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10) || 0);
+    // Up to 1000: the page reads the rest of a list in one request (RankingsClient). Every read is a slice of one
+    // cached list, so a long one costs the transfer and nothing else.
     const limit = Math.min(
-      30,
+      1000,
       Math.max(1, parseInt(searchParams.get("limit") || String(DEFAULT_GROUP_LIMIT), 10) || DEFAULT_GROUP_LIMIT)
     );
 
