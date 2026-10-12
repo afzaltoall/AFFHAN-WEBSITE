@@ -137,12 +137,14 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
                 both miss WCAG AA — 4.5:1 for the placeholder and label text,
                 3:1 for icons as non-text controls. slate-500 is 4.76:1 and
                 clears both. */}
-            <div className="shrink-0 pl-2 text-slate-500 sm:pl-4"><Search size={18} className={isFocused ? "text-brand" : ""} /></div>
+            {/* From 640px. On a phone the Search button is the magnifier (below), and a second one here would say
+                the same thing twice in a pill with no room to spare. */}
+            <div className="shrink-0 pl-2 text-slate-500 max-sm:hidden sm:pl-4"><Search size={18} className={isFocused ? "text-brand" : ""} /></div>
             <input
               ref={inputRef}
               {...assist.inputProps}
               type="text"
-              className="h-full min-w-0 flex-1 text-ellipsis bg-transparent outline-none text-slate-700 text-sm md:text-base font-medium placeholder:text-slate-500 placeholder:font-normal"
+              className="h-full min-w-0 flex-1 text-ellipsis bg-transparent pl-2.5 outline-none text-slate-700 text-sm md:text-base font-medium placeholder:text-slate-500 placeholder:font-normal sm:pl-0"
               placeholder={placeholder}
               aria-label="Search products"
               value={query}
@@ -155,8 +157,11 @@ export function HeroSearchSection({ categories = [] }: { categories?: SearchShor
             {/* Search by photo. Sits inside the pill so it reads as part of
                 the search control rather than a separate feature. */}
             <ImageSearchButton onOpen={() => setIsFocused(false)} />
-            <button type="submit" className="h-full shrink-0 px-4 sm:px-5 md:px-6 bg-brand-dark hover:bg-brand-deep text-white rounded-full font-bold text-sm transition-colors">
-              Search
+            {/* A round magnifier on a phone (the owner, 2026-10-12), the word from 640px; the word is the button's
+                name either way, read out on a phone though not shown. */}
+            <button type="submit" className="flex h-full shrink-0 items-center justify-center aspect-square sm:aspect-auto sm:px-5 md:px-6 bg-brand-dark hover:bg-brand-deep text-white rounded-full font-bold text-sm transition-colors">
+              <Search size={17} strokeWidth={2.4} className="sm:hidden" aria-hidden="true" />
+              <span className="max-sm:sr-only">Search</span>
             </button>
           </form>
 
