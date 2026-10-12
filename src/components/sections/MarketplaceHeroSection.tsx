@@ -49,9 +49,12 @@ function beyondWholeRows(index: number, count: number): string {
     .join(" ");
 }
 
-/** Where the trip's call sits: under the banner in the corner (xl), or in the flow under it. */
+/**
+ * Where the trip's call sits: in the flow under the banner, in the promo row
+ * below xl. (From xl the banner had a corner of the badge line, its call under
+ * it; since 2026-10-12 the trip is in the navbar there instead: TripNavLink.)
+ */
 const TRIP_CALL_PLACE = {
-  corner: "absolute left-1/2 top-full -translate-x-1/2 pt-3 [--call-fs:12px] [--call-h:30px] min-[1600px]:[--call-fs:13px] min-[1600px]:[--call-h:34px]",
   below: "pt-2.5 [--call-fs:14px] [--call-h:40px]",
 } as const;
 
@@ -198,11 +201,10 @@ export function MarketplaceHeroSection({
   tripLocked?: boolean;
 }) {
   const router = useRouter();
-  // Read once for both of the trip's calls: someone registered already is
-  // not asked to apply again (TripCall).
+  // Someone registered already is not asked to apply again (TripCall).
   const trip = useTripStatus();
   const tripRegistered = !!trip.registration;
-  // And the banner's lock, once for both copies of it (useTripBannerLock).
+  // And the banner's lock (useTripBannerLock).
   const tripLock = useTripBannerLock(tripLocked);
   // The full grid, rendered in one go — no infinite scroll, no pagination.
   // The server sends exactly HERO_GRID_COUNT products, already rotated for
@@ -320,71 +322,27 @@ export function MarketplaceHeroSection({
         {/* Animated intro headline — a morphing category word gives the opening
             screen a lively "we can source anything" strapline. */}
         <div className="text-center pt-1 pb-3 sm:pb-4">
-          {/* The badge alone, centred. From xl the shipping pill joins it on the
-              left, out of the flow (absolute, in ShippingBar); below xl
-              shipping is a button under the search instead (HeroSearchSection).
-              The pill is 58px on a 34px line, so it reaches 12px below it;
-              xl:mb-6 keeps that clear of the headline, which at 1280-1439
-              starts under the pill's right end. */}
+          {/* The badge alone, centred. From md the shipping pill joins it on the
+              right (since 2026-10-12; on the left from xl before), out of the
+              flow (absolute, in ShippingBar): 34px tall to 1023px, 40px to
+              1279px, 58px from xl. Below md shipping is the promo row's card
+              under the search instead. The 58px pill reaches 12px below the
+              34px line, and xl:mb-6 keeps that clear of the headline, which at
+              1280-1439 ends under the pill's left end; the 40px one reaches 3px
+              below it, inside mb-3's 12px. */}
           <div className="relative mb-3 flex justify-center xl:mb-6">
             {/* The Affhan.com lockup (components/ui/AffhanBrandBar) sat at the
                 left of this line until 2026-09-25, when the owner took it out
-                and gave its place to the shipping pill. The component is kept
-                for when it comes back: render it here again, and move the pill
-                back to the right (see the note in ShippingBar). */}
+                and gave its place to the shipping pill, which has been on the
+                right since 2026-10-12. The component is kept for when it comes
+                back: render it here again, on the left, where it was. */}
             <ShippingBar />
-            {/* The China trip banner, top right, mirroring the pill on the
-                left: the same 40px inset from the edge, and its top on the
-                pill's top (the pill is 58px, centred on this line, so its top
-                is 29px above the centre). 320x120 is the picture's own 8:3,
-                so nothing of it is cropped, and leaves 68px to the end of the
-                headline and 18px to the search row below.
-                It steps down with the width so it always keeps clear of the
-                headline, whose right end sits 340px right of centre (the
-                morphing word's box is fixed): 200x75 from 1280 (28px gap),
-                240x90 from 1440, 280x105 from 1536, 320x120 from 1600 (68px,
-                the size it was designed at). Below 1280 there is no room here
-                at any size, and the same card is shown full width under the
-                search instead (TripBanner, further down).
-                min-[1536px] rather than 2xl, on purpose: Tailwind emits the
-                named breakpoints after the arbitrary min-[...] ones, so a 2xl
-                size beat min-[1600px] everywhere above 1600 (measured: 280px
-                wide at 1920). All-arbitrary, they sort by width.
-                Cut from the owner's public/china-trip.png (2048x768, 2.5MB) to
-                640x240 WebP, 51KB, for the 2x screens this width implies. If
-                the picture changes shape, change this box to match, or
-                object-cover will crop it.
-                A fireworks show plays over it by itself, and comes to the
-                pointer on hover; the card, its lift and the rounded frame are
-                FireworksCard's. It links to the trip's own page, and a press
-                still bursts a shell where it lands before the page opens.
-                The call under it is the pair's one control for a keyboard
-                and a screen reader (TripBanner), so the picture is alt="".
-                Under it, its call to action (TripCall, the owner's request of
-                2026-10-05: say that it is there to be clicked), out of the
-                flow so it never widens this corner: 12px under the banner,
-                centred on it, and clear of the search row at every size (it
-                takes 30-36px and the line under it 13px; there are 91px to
-                the search row from 1600, 136px at 1280, measured).
-                z-[61]: the search section below is a full-width box at
-                z-[60] (HeroSearchSection, for its suggestions) whose top
-                reaches up past the call, and it took the call's clicks.
-                61 puts this corner just over it and still under everything
-                that must cover it: the navbar (100) and the category panel
-                (70). Nothing of the search row is under the corner. */}
-            <div className="absolute right-10 top-1/2 z-[61] hidden -translate-y-[29px] xl:block">
-              <TripBanner
-                className="h-[75px] w-[200px] min-[1440px]:h-[90px] min-[1440px]:w-[240px] min-[1536px]:h-[105px] min-[1536px]:w-[280px] min-[1600px]:h-[120px] min-[1600px]:w-[320px]"
-                src="/china-trip-hero.webp"
-                width={640}
-                height={240}
-                sizes="320px"
-                place="corner"
-                tripWindow={tripWindow}
-                registered={tripRegistered}
-                lock={tripLock}
-              />
-            </div>
+            {/* The China trip banner sat at the right of this line from 1280px
+                (200x75 to 320x120, with its call under it) until 2026-10-12,
+                when the owner moved it into the navbar as the trip's icon and
+                name, before About (TripNavLink). It is in git before that day
+                if it comes back. Below 1280 the banner is still the promo
+                row's, under the search (TripBanner, further down). */}
             <style dangerouslySetInnerHTML={{
               __html: `
               /* One tile's worth of travel, as a transform. background-position
@@ -718,23 +676,20 @@ export function MarketplaceHeroSection({
         {/* Large Hero Search Section */}
         <HeroSearchSection categories={searchCategories} />
 
-        {/* The promo grid, below xl only (from xl the shipping pill sits on
-            the badge line and the banner in the top-right corner). AFFHAN
+        {/* The promo grid, below md only: a phone's. From md the trip is in
+            the navbar (TripNavLink) and shipping is the pill at the right of
+            the badge line (ShippingBar), the owner's requests of 2026-10-12,
+            desktop first, then the iPad. AFFHAN
             Shipping left, the China trip right, in two equal 1fr columns.
             The row's height is the banner's, from its 620/232 aspect ratio;
             the shipping card is absolute in its cell from sm (ShippingBar),
             so it adds nothing to the row and fills it exactly.
             Its edges are the search row's outer edges above it:
-            - from lg, Full Catalog's left to Top Ranking's right. The search
-              row is 1fr | minmax(0,640px) | 1fr with 12px gaps and 180px
-              buttons at the inner edges, so those edges sit at
-              max(0, content/2 - 512) in from each side: the pair spans
-              min(content, 1024px), centred. Hence max-w-[1024px].
-            - from sm to lg, the search box's own edges (max-w-2xl, 672px):
-              there the two buttons sit as a small pair under it, 372px
-              across, too narrow for two cards side by side.
+            - from sm, the search box's own edges (max-w-2xl, 672px): there
+              the two buttons sit as a small pair under it, 372px across, too
+              narrow for two cards side by side.
             - below sm, one column, shipping first, max 560px, centred. */}
-        <div className="-mt-2 mb-6 mx-auto grid w-full max-w-[560px] grid-cols-1 items-stretch gap-4 sm:max-w-2xl sm:grid-cols-2 lg:max-w-[1024px] xl:hidden">
+        <div className="-mt-2 mb-6 mx-auto grid w-full max-w-[560px] grid-cols-1 items-stretch gap-4 sm:max-w-2xl sm:grid-cols-2 md:hidden">
           <ShippingBar variant="card" />
           {/* The banner. While it is locked its call is in the picture, so the
               row is the picture's height and the two cards are level at both

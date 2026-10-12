@@ -17,9 +17,10 @@ import {
   Ship,
   User2,
 } from "lucide-react";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, type UserHint } from "@/context/AuthContext";
 import { GoogleG } from "@/components/ui/GoogleG";
 import { avatarUrl } from "@/lib/avatar";
+import { MENU_INK } from "@/components/ui/MenuIcons";
 
 /**
  * The Login link, or the signed-in customer's avatar and account menu.
@@ -52,7 +53,10 @@ const MENU = [
 ] as const;
 
 export function NavAuthButton() {
-  const { user, loading, logout } = useAuth();
+  const { user: confirmed, loading, hint, logout } = useAuth();
+  // While /me answers, the face this device last saw (AuthContext's hint), so
+  // the bar is whole at once; /me then confirms it or puts Login in its place.
+  const user: UserHint | null = loading ? (hint && hint !== "signed-out" ? hint : null) : confirmed;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -132,7 +136,8 @@ export function NavAuthButton() {
   // The sign-in page itself: a Login there would only reload it, and lose the
   // page it is to send you back to (?redirect= became /login/).
   const onLoginPage = pathname?.replace(/\/$/, "") === "/login";
-  if (loading) return onLoginPage ? null : <AuthButtonPlaceholder />;
+  // The grey pill only when this device has never had an answer.
+  if (loading && hint === null) return onLoginPage ? null : <AuthButtonPlaceholder />;
 
   if (!user) {
     if (onLoginPage) return null;
@@ -273,10 +278,12 @@ export function NavAuthButton() {
  * after /me has answered; never on the server.
  */
 export function DrawerAccount({ onGo }: { onGo: (href: string) => void }) {
-  const { user, loading } = useAuth();
+  const { user: confirmed, loading, hint } = useAuth();
   const pathname = usePathname();
+  // As the bar's button does: the last face seen while /me answers.
+  const user: UserHint | null = loading ? (hint && hint !== "signed-out" ? hint : null) : confirmed;
 
-  if (loading) return <div aria-hidden="true" className="mb-2 h-16 rounded-2xl bg-slate-50" />;
+  if (loading && hint === null) return <div aria-hidden="true" className="mb-2 h-16 rounded-2xl bg-slate-50" />;
 
   const row = "group mb-2 flex w-full items-center gap-3.5 rounded-2xl px-3 py-3 text-left transition-colors cursor-pointer";
   const chevron = <ChevronRight size={16} className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />;
@@ -290,8 +297,9 @@ export function DrawerAccount({ onGo }: { onGo: (href: string) => void }) {
         onClick={() => onGo(`/login/?redirect=${encodeURIComponent(pathname || "/")}`)}
         className={`${row} bg-brand/5 hover:bg-brand/10`}
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-dark text-white">
-          <User2 size={19} />
+        {/* The menu's tile, filled: the one call in the menu (MenuIcons). */}
+        <span style={{ backgroundImage: MENU_INK }} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white">
+          <User2 size={19} strokeWidth={1.9} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[15px] font-semibold text-slate-900">Login</span>
@@ -361,10 +369,30 @@ function Avatar({
 }
 
 /**
- * Holds the button's space while the answer is unknown. Exported so the
- * navbar's dynamic() fallback is the same element, and the bar does not
- * visibly reflow when the real one arrives.
+ * Holds the button's place until React knows. Exported so the navbar's
+ * dynamic() fallback is the same element, and the bar does not visibly reflow
+ * when the real one arrives.
+ *
+ * From the first frame it is what this device last saw (the layout's first
+ * script sets html[data-me], lib/firstPaintHints.ts; globals.css picks the
+ * shape): "Login", or the avatar's shape with the account's initial and name.
+ * The grey pill only on a device that has never had an answer. Before that it
+ * was the grey pill on every page until /me answered (the owner: "loading
+ * late", 2026-10-12).
  */
 export function AuthButtonPlaceholder() {
-  return <span className="h-9 w-20 rounded-full bg-slate-100" aria-hidden="true" />;
+  const pathname = usePathname();
+  // Never on the sign-in page, as the button itself is not.
+  if (pathname?.replace(/\/$/, "") === "/login") return null;
+  return (
+    <span aria-hidden="true" className="contents">
+      <span className="auth-ph-blank h-9 w-20 rounded-full bg-slate-100" />
+      <span className="auth-ph-login items-center rounded-full bg-brand-dark px-5 py-2 text-sm font-semibold text-white">Login</span>
+      <span className="auth-ph-face items-center gap-1.5 rounded-full border border-slate-200 py-1 pl-1 pr-2 xl:gap-2 xl:pr-3">
+        <span className="auth-ph-initial flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-brand-dark text-[13px] font-bold text-white" />
+        <span className="auth-ph-name hidden max-w-[8rem] truncate text-sm font-semibold text-slate-700 xl:block" />
+        <ChevronDown size={15} className="text-slate-400" />
+      </span>
+    </span>
+  );
 }

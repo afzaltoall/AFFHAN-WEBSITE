@@ -9,16 +9,22 @@ import { SHIP_MARK_HERO, SHIP_MARK_NAV } from "@/lib/shipMarkAssets";
 /**
  * The way through to the shipping side. Two forms over one set of water:
  *
- * "pill" (from xl): at the left of the hero's badge line, in the place the
- * Affhan.com lockup had until the owner removed it (2026-09-25), absolutely
+ * "pill" (from md): at the right end of the hero's badge line (the owner's
+ * requests of 2026-10-12, desktop and then the iPad), in the corner the China
+ * trip banner left when it moved into the navbar (TripNavLink), absolutely
  * positioned so the badge beside it stays centred on the line and nothing
- * else in the hero moves. If the lockup comes back, this goes back to the
- * right end of the line: `right-12` in place of `left-10` below.
+ * else in the hero moves. Three sizes, for the room the centred 346px badge
+ * leaves it (measured): 187px at 768, 307px at 1024, 467px at 1280. So from
+ * md it is the badge's own 34px height, the emblem and the name, 168px, on the
+ * content's right edge (the navbar's menu button's), 19px clear of the badge
+ * at 768; from lg 40px with its arrow, 232px, 24px in, 51px clear at 1024;
+ * from xl the 58px, 288px pill it was, 40px in. From 2026-09-25 until then it
+ * was at the left from xl, in the place of the Affhan.com lockup, which is
+ * that place's again if the lockup comes back.
  *
- * "card" (below xl): the left cell of the hero's promo grid, beside the China
- * trip banner (MarketplaceHeroSection). There is no room beside the badge
- * below xl; stacked above it, as it briefly was on 2026-09-29, it crowded the
- * badge and half covered it at 933px.
+ * "card" (below md): the left cell of the hero's promo grid, beside the China
+ * trip banner (MarketplaceHeroSection), on a phone, where the badge line has
+ * no room beside the badge at all.
  *
  * It used to be a bare sail in the navbar's link row — decorative, unlabelled,
  * and impossible to guess at. Out here it carries its own name, which is what
@@ -172,17 +178,18 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
   }
 
   return (
-    // left-10 is the lockup's own inset, so the pill sits exactly where it
-    // did. From xl only: below that it is the card, in the promo grid.
-    <div className="absolute left-10 top-1/2 hidden -translate-y-1/2 xl:block">
+    // From md, in three sizes (see above): right-0 then right-6, then right-10,
+    // the trip banner's inset in this corner and the mirror of the lockup's
+    // left-10. Below md it is the card, in the promo grid.
+    <div className="absolute right-0 top-1/2 hidden -translate-y-1/2 md:block lg:right-6 xl:right-10">
       <Link
         ref={ref}
         href="/shipping/"
         {...hover}
-        className="group relative flex items-center gap-3 overflow-hidden rounded-full border border-brand/30 bg-white/75 py-2 pl-2.5 pr-5 shadow-md backdrop-blur-sm transition-all hover:border-brand/60 hover:bg-white hover:shadow-lg"
+        className="group relative flex items-center gap-1.5 overflow-hidden rounded-full border border-brand/30 bg-white/75 py-1 pl-1.5 pr-2.5 shadow-md backdrop-blur-sm transition-all hover:border-brand/60 hover:bg-white hover:shadow-lg lg:gap-2 lg:pl-2 lg:pr-3.5 xl:gap-3 xl:py-2 xl:pl-2.5 xl:pr-5"
       >
         {splash}
-        {sea("h-5")}
+        {sea("h-3 lg:h-4 xl:h-5")}
 
         <span
           aria-hidden="true"
@@ -196,7 +203,7 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
                floating above it — asked for with the container-ship mark, and
                kept for the emblem. On the Image rather than the span, because
                the span carries animate-float-medium and owns its own transform. */
-            className="block h-10 w-auto translate-y-[4px] object-contain"
+            className="block h-6 w-auto translate-y-[2px] object-contain lg:h-[30px] lg:translate-y-[3px] xl:h-10 xl:translate-y-[4px]"
           />
         </span>
 
@@ -204,13 +211,14 @@ export function ShippingBar({ variant = "pill" }: { variant?: "pill" | "card" })
             centre, which a stacked pair did not — so the type goes up a step
             and the letter-spacing opens slightly, letting the name carry the
             whole width the two lines used to fill. */}
-        <span className="relative block bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[15px] font-extrabold uppercase leading-none tracking-[0.18em] text-transparent">
+        <span className="relative block bg-gradient-to-r from-brand-dark to-brand bg-clip-text text-[11px] font-extrabold uppercase leading-none tracking-[0.12em] text-transparent lg:text-[13px] lg:tracking-[0.16em] xl:text-[15px] xl:tracking-[0.18em]">
           AFFHAN Shipping
         </span>
 
+        {/* From lg: at 768 the badge leaves the pill no room for it. */}
         <ArrowRight
           size={15}
-          className="relative shrink-0 text-brand/70 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-brand"
+          className="relative hidden size-[13px] shrink-0 text-brand/70 transition-transform duration-300 group-hover:translate-x-1 group-hover:text-brand lg:block xl:size-[15px]"
         />
       </Link>
     </div>

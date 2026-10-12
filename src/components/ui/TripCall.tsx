@@ -1,33 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, KeyRound, Lock, LockOpen, Plane } from "lucide-react";
-import { useQuoteGate } from "@/context/QuoteGateContext";
-import { TRIP_SIGN_IN } from "@/components/TripAccess/content";
-import { tripEntryHref } from "@/components/TripAccess/useTripStatus";
+import { useOpenTrip } from "@/components/TripAccess/useOpenTrip";
 import { APPLICATION_WINDOW, applicationWindow, type WindowState } from "@/lib/trip-application";
 import { TRIP_FACTS } from "@/lib/trip-legal";
 import "./trip-call.css";
 
-/**
- * Opens the Free China Business Trip from a press on its banner or on its
- * call (TripCall). The trip is for signed-in visitors, so a press asks first:
- * the site's sign-in popup if nobody is signed in (the trip opens the moment
- * they are), and then the trip's page, or the participants board for someone
- * who has registered already. Ctrl, ⌘, Shift, Alt or a middle click still
- * open a new tab, as links do, and the trip's own gate asks there.
- */
-export function useOpenTrip() {
-  const router = useRouter();
-  const { requireLogin } = useQuoteGate();
-  return (e: ReactMouseEvent<HTMLAnchorElement>) => {
-    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    e.preventDefault();
-    requireLogin(() => void tripEntryHref().then((href) => router.push(href)), TRIP_SIGN_IN.reason);
-  };
-}
+// Where the banner's picture gets it too (MarketplaceHeroSection).
+export { useOpenTrip };
 
 const DAY = 86_400_000;
 

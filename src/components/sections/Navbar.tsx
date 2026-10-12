@@ -1,22 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useBackDismiss, overlayWillNavigate } from "@/lib/useBackDismiss";
-import { Search, Mail, X, Menu, ChevronDown, ChevronRight, LayoutGrid, Home, Info, Briefcase, Ship } from "lucide-react";
+import { Search, Mail, X, Menu, ChevronDown, ChevronRight, LayoutGrid, Home, Info, Briefcase, Trophy } from "lucide-react";
 
-const TopRankingIcon = ({ size, className }: { size?: number, className?: string }) => (
-  // eslint-disable-next-line @next/next/no-img-element
-  <img src="/top-1.jpg" alt="Top Ranking" width={size || 20} height={size || 20} style={{ width: size || 20, height: size || 20 }} className={`object-contain scale-[1.8] [clip-path:inset(20%)] ${className || ""}`} />
-);
 import { AnimatePresence, motion } from "framer-motion";
 import { buildCategoryTree, type CategoryRecord } from "@/lib/categoryTree";
 import dynamic from 'next/dynamic';
 const CategoryMegaPanel = dynamic(() => import("@/components/ui/CategoryMegaPanel").then(mod => mod.CategoryMegaPanel), { ssr: false });
 import { SearchAssistPanel, usePanelFit, useSearchAssist } from "@/components/search/SearchAssist";
 import { AuthButtonPlaceholder, DrawerAccount } from "@/components/ui/NavAuthButton";
+import { TripDrawerLink, TripNavLink, useTripLocked } from "@/components/ui/TripNavLink";
+import { useFittingPlaceholder } from "@/lib/useFittingPlaceholder";
+import { MENU_TILE, MenuGlyph, MenuInkDefs, ShipEmblemGlyph } from "@/components/ui/MenuIcons";
 
 // Client-only: who is signed in comes from an httpOnly cookie the server never
 // reads, so server HTML can only show the signed-out shape. Rendering this on
@@ -35,6 +34,8 @@ export function Navbar() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  // The Free China Trip's lock, once for both of its places (TripNavLink).
+  const tripLock = useTripLocked();
 
   // Scroll accessibility: the bar slides up out of the way when you scroll
   // down and slides back the moment you scroll up (or reach the top). It never
@@ -47,6 +48,9 @@ export function Navbar() {
   const [isInputFocused, setIsInputFocused] = useState(false);
   const searchRef = useRef<HTMLFormElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  // The bar's search is on every page but the homepage; its hint gives way to
+  // a shorter one where the bar leaves it too little room (useFittingPlaceholder).
+  const navPlaceholder = useFittingPlaceholder(searchInputRef, "What are you sourcing today?", "Search products", pathname !== "/");
 
   // Mega Menu Hover State
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
@@ -447,7 +451,7 @@ export function Navbar() {
                     {...navAssist.inputProps}
                     type="text"
                     aria-label="Search products"
-                    placeholder="What are you sourcing today?"
+                    placeholder={navPlaceholder}
                     value={navSearchValue}
                     onChange={(e) => {
                       setNavSearchValue(e.target.value);
@@ -477,10 +481,15 @@ export function Navbar() {
               )}
             </div>
 
-            {/* The right: About, Careers and Contact Us from 1280px (in the menu below that), the account at
-                every width, and the menu below 1280px. One account button for every width: below 768px it was
-                hidden, and a phone had no way to sign in at all (the owner, 2026-10-12). */}
+            {/* The right: the Free China Trip from 768px, About, Careers and Contact Us from 1280px (in the
+                menu below that), the account at every width, and the menu below 1280px. One account button
+                for every width: below 768px it was hidden, and a phone had no way to sign in at all (the
+                owner, 2026-10-12). The trip is the hero's banner, moved here the same day (TripNavLink); a
+                phone still has it on the homepage, under the search, and in the menu. */}
             <div className="flex items-center gap-2 md:gap-3 xl:gap-6 z-10 flex-shrink-0 xl:ml-4">
+              <div className="hidden md:block">
+                <TripNavLink lock={tripLock} />
+              </div>
               <div className="hidden xl:flex items-center gap-6">
                 <Link href="/about/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
                   About
@@ -557,33 +566,38 @@ export function Navbar() {
 
               {/* Navigation */}
               <nav className="flex-1 overflow-y-auto p-3">
+                {/* Every row's icon in one hand: a line in AFFHAN Shipping's navy-to-teal on the same tile (MenuIcons). */}
+                <MenuInkDefs />
                 {/* Who is signed in, or the way to sign in: the menu had neither (the owner, 2026-10-12). */}
                 <DrawerAccount
                   onGo={(href) => { overlayWillNavigate(); setMobileMenuOpen(false); router.push(href); }}
                 />
                 {[
-                  { href: "/", label: "Home", icon: Home },
-                  { href: "/rankings/", label: "Top Ranking", icon: TopRankingIcon },
-                  { href: "/products/", label: "All Categories", icon: LayoutGrid },
-                  // The sail mark that leads here on desktop is decorative-sized
-                  // and lives outside the drawer, so shipping needs a named row
-                  // of its own on mobile or it is unreachable from a phone.
-                  { href: "/shipping/", label: "Shipping", icon: Ship },
-                  { href: "/about/", label: "About Us", icon: Info },
-                  { href: "/careers/", label: "Careers", icon: Briefcase },
-                  { href: "/contact/", label: "Contact Us", icon: Mail },
+                  { href: "/", label: "Home", glyph: <MenuGlyph icon={Home} /> },
+                  { href: "/rankings/", label: "Top Ranking", glyph: <MenuGlyph icon={Trophy} /> },
+                  { href: "/products/", label: "All Categories", glyph: <MenuGlyph icon={LayoutGrid} /> },
+                  // Shipping needs a named row of its own here: on a phone the
+                  // hero's pill is not shown, so it would be unreachable. Its
+                  // icon is AFFHAN Shipping's own emblem, in the menu's ink.
+                  { href: "/shipping/", label: "Shipping", glyph: <ShipEmblemGlyph /> },
+                  { href: "/about/", label: "About Us", glyph: <MenuGlyph icon={Info} /> },
+                  { href: "/careers/", label: "Careers", glyph: <MenuGlyph icon={Briefcase} /> },
+                  { href: "/contact/", label: "Contact Us", glyph: <MenuGlyph icon={Mail} /> },
                 ].map(item => (
-                  <button
-                    key={item.href}
-                    onClick={() => { overlayWillNavigate(); setMobileMenuOpen(false); router.push(item.href); }}
-                    className="group flex w-full items-center gap-3.5 rounded-2xl px-3 py-3 text-[15px] font-semibold text-slate-700 transition-colors hover:bg-brand/5 hover:text-brand-dark"
-                  >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 transition-colors group-hover:bg-brand/15 group-hover:text-brand">
-                      <item.icon size={19} />
-                    </span>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    <ChevronRight size={16} className="text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
-                  </button>
+                  <Fragment key={item.href}>
+                    {/* The Free China Trip before About Us, as it sits before About in the bar from 1280px. */}
+                    {item.href === "/about/" && (
+                      <TripDrawerLink lock={tripLock} onClose={() => { overlayWillNavigate(); setMobileMenuOpen(false); }} />
+                    )}
+                    <button
+                      onClick={() => { overlayWillNavigate(); setMobileMenuOpen(false); router.push(item.href); }}
+                      className="group flex w-full items-center gap-3.5 rounded-2xl px-3 py-3 text-[15px] font-semibold text-slate-700 transition-colors hover:bg-brand/5 hover:text-brand-dark"
+                    >
+                      <span className={MENU_TILE}>{item.glyph}</span>
+                      <span className="flex-1 text-left">{item.label}</span>
+                      <ChevronRight size={16} className="text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                    </button>
+                  </Fragment>
                 ))}
               </nav>
 

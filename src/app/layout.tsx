@@ -8,6 +8,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { FavouritesProvider } from "@/context/FavouritesContext";
 import { QuoteGateProvider } from "@/context/QuoteGateContext";
 import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SITE_URL, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
+import { FIRST_PAINT_SCRIPT } from "@/lib/firstPaintHints";
 
 // Premium, modern sans used site-wide. Plus Jakarta Sans reads far more
 // refined than a generic system/Geist stack — the difference the brief called
@@ -133,8 +134,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={geistSans.variable} data-scroll-behavior="smooth">
+    // suppressHydrationWarning: the first script below sets data-me, data-trip-locked and two custom
+    // properties on <html> before React hydrates it (lib/firstPaintHints.ts). This element only.
+    <html lang="en" className={geistSans.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className="font-[family-name:var(--font-geist-sans)] w-full relative">
+        {/* First, before the navbar's HTML: what this device last saw of the account and the trip's lock, so
+            the navbar's first frame is right (lib/firstPaintHints.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: FIRST_PAINT_SCRIPT }} />
         {/* LocalBusiness JSON-LD Schema */}
         <script
           type="application/ld+json"

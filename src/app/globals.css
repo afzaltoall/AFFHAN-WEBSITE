@@ -1815,3 +1815,42 @@ html.scroll-behavior-auto {
     border-style: none !important;
   }
 }
+
+/* The navbar's first frame (lib/firstPaintHints.ts): the layout's first script
+   sets these on <html> from what this device last saw, so the account's
+   stand-in (AuthButtonPlaceholder) and the trip's lock badge (TripNavLink) are
+   right before React has asked. Unlayered, so they decide over the utilities
+   on these elements. */
+.auth-ph-login,
+.auth-ph-face {
+  display: none;
+}
+html[data-me="out"] .auth-ph-blank,
+html[data-me="in"] .auth-ph-blank {
+  display: none;
+}
+html[data-me="out"] .auth-ph-login,
+html[data-me="in"] .auth-ph-face {
+  display: flex;
+}
+.auth-ph-initial::before {
+  content: var(--me-initial, "");
+}
+.auth-ph-name::before {
+  content: var(--me-name, "");
+}
+.trip-lock-badge {
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.22s ease-out, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.trip-lock-badge[data-show="1"],
+html[data-trip-locked="1"] .trip-lock-badge:not([data-show]) {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .trip-lock-badge {
+    transition: none;
+  }
+}

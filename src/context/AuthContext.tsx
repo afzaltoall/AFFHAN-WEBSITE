@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { ME_HINT_KEY } from "@/lib/firstPaintHints";
 
 export interface WebUser {
   id: string;
@@ -19,15 +20,59 @@ export interface WebUser {
   hasPassword: boolean;
 }
 
+/** What the navbar draws of an account: all a hint keeps. */
+export type UserHint = Pick<WebUser, "name" | "email" | "phone" | "profileImage" | "authProvider">;
+
 interface AuthValue {
   user: WebUser | null;
   /** True until the first /me has answered, so the navbar can hold its shape. */
   loading: boolean;
+  /**
+   * While /me is answering: what this device last saw, the account's face or
+   * "signed-out" (null when it has seen nothing). For the navbar to draw at
+   * once instead of a grey pill (the owner: "loading late", 2026-10-12);
+   * never for a decision, which waits for `loading` and `user` as before.
+   */
+  hint: UserHint | "signed-out" | null;
   refreshSession: () => Promise<WebUser | null>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthValue | null>(null);
+
+/**
+ * The hint (ME_HINT_KEY) holds a name, an avatar address and the contact /me
+ * showed, which this browser's own JavaScript could ask /me for anyway; never
+ * the session, which stays in its httpOnly cookie. The layout's first script
+ * reads it too, for the navbar's first frame (lib/firstPaintHints.ts).
+ */
+const HINT_KEY = ME_HINT_KEY;
+
+function readHint(): UserHint | "signed-out" | null {
+  try {
+    const raw = localStorage.getItem(HINT_KEY);
+    if (!raw) return null;
+    if (raw === "signed-out") return "signed-out";
+    const h = JSON.parse(raw) as Partial<UserHint>;
+    return typeof h?.name === "string"
+      ? { name: h.name, email: h.email ?? null, phone: h.phone ?? null, profileImage: h.profileImage ?? null, authProvider: h.authProvider ?? "" }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function keepHint(user: WebUser | null) {
+  try {
+    if (!user) localStorage.setItem(HINT_KEY, "signed-out");
+    else {
+      const { name, email, phone, profileImage, authProvider } = user;
+      localStorage.setItem(HINT_KEY, JSON.stringify({ name, email, phone, profileImage, authProvider }));
+    }
+  } catch {
+    /* storage refused: the next visit waits for /me, as before */
+  }
+}
 
 /**
  * Who is signed in, for the whole site.
@@ -51,10 +96,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // the server's shape for exactly one render, after which state may differ
   // freely.
   const [hydrated, setHydrated] = useState(false);
+  const [hint, setHint] = useState<UserHint | "signed-out" | null>(null);
 
   const refreshSession = useCallback(async (): Promise<WebUser | null> => {
     try {
-      const res = await fetch("/api/web/auth/me", {
+      // With its slash: the site's trailingSlash answers /me with a 308 to /me/,
+      // so the bare address cost every page a second round trip (~100ms on
+      // affhan.com, measured 2026-10-12) before the navbar could draw.
+      const res = await fetch("/api/web/auth/me/", {
         credentials: "include",
         // The answer depends on a cookie, so a cached one would show the
         // previous visitor.
@@ -62,11 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       if (!res.ok) {
         setUser(null);
+        keepHint(null);
         return null;
       }
       const json = await res.json();
       const next = (json?.user as WebUser | null) ?? null;
       setUser(next);
+      keepHint(next);
       return next;
     } catch {
       // Offline or a failed request is not proof of being signed out; leave
@@ -79,17 +130,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setHydrated(true);
+    setHint(readHint());
     void refreshSession();
   }, [refreshSession]);
 
   const logout = useCallback(async () => {
     try {
-      await fetch("/api/web/auth/logout", { method: "POST", credentials: "include" });
+      await fetch("/api/web/auth/logout/", { method: "POST", credentials: "include" });
     } finally {
       // Cleared either way: if the request failed the cookie may still be
       // there, but continuing to show a signed-in navbar would be a lie, and
       // the next /me settles it.
       setUser(null);
+      keepHint(null);
     }
   }, []);
 
@@ -97,10 +150,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user: hydrated ? user : null,
       loading: !hydrated || loading,
+      hint: hydrated && loading ? hint : null,
       refreshSession,
       logout,
     }),
-    [user, loading, hydrated, refreshSession, logout]
+    [user, loading, hydrated, hint, refreshSession, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

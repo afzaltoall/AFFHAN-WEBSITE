@@ -23,9 +23,10 @@ export interface TripBannerLock {
 const POLL_MS = 10_000;
 
 /**
- * The homepage trip banner's lock (lib/trip-lock.ts), kept for both
- * copies of the banner at once (the corner's, and the one under the search
- * below xl), so the page asks the server once, not once per copy.
+ * The trip banner's lock (lib/trip-lock.ts): the homepage's banner, under the
+ * search below xl (its copy in the corner from xl moved into the navbar on
+ * 2026-10-12, as TripNavLink, which asks once per page and never polls), and
+ * the locked trip page's (TripLockedExperience).
  *
  * `locked` is what the server rendered. While it is locked the page asks
  * /api/trip-lock/ every ten seconds or so, while the tab is in view, and
@@ -33,8 +34,8 @@ const POLL_MS = 10_000;
  * locked, it opens where the visitor can see it. An open page never
  * asks: locking it again is for the visits after that.
  *
- * This keeps the break's time (BREAK), not the drawing: one copy of the
- * banner is always hidden (display:none), and only one should be heard.
+ * This keeps the break's time (BREAK), not the drawing: the drawing is the
+ * banner's own (TripLockOverlay).
  */
 export function useTripBannerLock(locked: boolean): TripBannerLock {
   const [phase, setPhase] = useState<TripBannerPhase>(locked ? "locked" : "open");
