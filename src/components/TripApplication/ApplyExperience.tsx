@@ -44,7 +44,7 @@ import { toPayload, useApplication } from "./useApplication";
  * they were agreed on the landing page a moment ago. That agreement ticks
  * the review's Privacy Policy and Terms & Conditions boxes; the third (the
  * information is accurate) is ticked there, at the end. Outside the application
- * window (5 October to 25 November 2026, on a production build) the intro
+ * window (12 October to 25 November 2026, on a production build) the intro
  * says when applications open, or that they have closed, in place of Start.
  *
  * One screen, fixed: the progress and the step's heading at the top, Back
@@ -298,7 +298,7 @@ export function ApplyExperience() {
     void start();
   };
 
-  // Applications are taken from 5 October to 25 November 2026 (Terms, clause
+  // Applications are taken from 12 October to 25 November 2026 (Terms, clause
   // 1). Read here, in the browser, so a page built before the date still
   // knows; the API keeps the same window whatever the browser thinks.
   useEffect(() => {

@@ -189,12 +189,14 @@ export const LIMITS = {
 } as const;
 
 /**
- * When applications are taken (Terms, clause 1): from 5 October 2026 to 25
+ * When applications are taken (Terms, clause 1): from 12 October 2026 to 25
  * November 2026, in India's time, as the countdown keeps it. The first moment
- * of the 5th, IST, to the last moment of the 25th.
+ * of the 12th, IST, to the last moment of the 25th. It opened on 5 October
+ * until the owner moved it to the 12th (2026-10-12), the day the applications
+ * so far were cleared for a fresh start.
  */
 export const APPLICATION_WINDOW = {
-  opens: Date.parse("2026-10-05T00:00:00+05:30"),
+  opens: Date.parse("2026-10-12T00:00:00+05:30"),
   /** The first moment after 25 November 2026, IST. */
   closes: Date.parse("2026-11-26T00:00:00+05:30"),
 } as const;
@@ -205,7 +207,7 @@ export type WindowState = "before" | "open" | "closed";
  * Whether applications are being taken now. Kept by a production build (the
  * live site and its previews), in the browser and again by the API. A
  * development server (next dev, localhost) is always open, so the form can be
- * tried before 5 October.
+ * tried before 12 October.
  */
 export function applicationWindow(now = Date.now()): WindowState {
   if (process.env.NODE_ENV !== "production") return "open";

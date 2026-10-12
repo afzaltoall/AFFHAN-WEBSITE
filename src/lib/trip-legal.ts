@@ -91,7 +91,7 @@ export const TRIP_TERMS: LegalDoc = {
       blocks: [
         p("The Affhan Free China Business Trip is a group business-travel program."),
         p("Five (5) eligible applicants will be selected to participate in the Trip."),
-        p("Applications open on 5 October 2026 and close on 25 November 2026."),
+        p("Applications open on 12 October 2026 and close on 25 November 2026."),
         p("The five winners will be announced on 1 December 2026 through Affhan's official communication channels."),
         p("The Trip date and final itinerary will be announced separately to the selected winners."),
       ],
@@ -316,7 +316,7 @@ export const TRIP_TERMS: LegalDoc = {
             { label: "Program", lines: ["AFFHAN FREE CHINA BUSINESS TRIP"] },
             { label: "Organiser", lines: ["AFFHAN INTERNATIONAL PVT LTD"] },
             { label: "Address", lines: OFFICE },
-            { label: "Application Opens", lines: ["5 October 2026"] },
+            { label: "Application Opens", lines: ["12 October 2026"] },
             { label: "Application Closes", lines: ["25 November 2026"] },
             { label: "Number of Winners", lines: ["5"] },
             { label: "Winner Announcement", lines: ["1 December 2026"] },
@@ -606,7 +606,7 @@ export const TRIP_CONSENTS = {
  * the places that summarise them. Each is the document's own figure.
  */
 export const TRIP_FACTS = {
-  applicationsOpen: "5 October 2026",
+  applicationsOpen: "12 October 2026",
   applicationsClose: "25 November 2026",
   winnersAnnounced: "1 December 2026",
   winners: 5,

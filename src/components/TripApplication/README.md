@@ -105,7 +105,7 @@ creates the table.
   the three boxes are in, and while the application is being sent; a second
   press can never send it twice.
 - **The application window** (Terms, clause 1): on a production build,
-  applications are taken from 5 October to 25 November 2026, India time, by the
+  applications are taken from 12 October to 25 November 2026, India time, by the
   browser (the intro says when they open, or that they closed) and by the API.
   A development server is always open, so the form can be tried before then.
 - **One application per person** (Terms, clause 2): the API refuses a second

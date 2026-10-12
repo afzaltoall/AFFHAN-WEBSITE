@@ -100,7 +100,7 @@ To `/free-china-trip/apply/`, which posts to `POST /api/trip-applications/`:
 each one is stored in the `TripApplication` table with a reference number
 (`TRIP-26-00001`, the applicant's Trip ID), their account and their customer
 number, and shown to the team at **Admin → Free China Trip → Participants**.
-Only a signed-in account can apply, and only from 5 October to 25 November
+Only a signed-in account can apply, and only from 12 October to 25 November
 2026 (Terms, clause 1): a production build refuses an application outside
 those dates (`applicationWindow` in `src/lib/trip-application.ts`); a
 development server always takes one.

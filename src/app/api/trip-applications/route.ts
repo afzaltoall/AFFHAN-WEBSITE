@@ -32,7 +32,7 @@ import {
  *
  *  - never while the trip is locked (lib/trip-lock.ts), except from an admin
  *    signed in to the console, checking it;
- *  - only from 5 October to 25 November 2026 (Terms, clause 1; a production
+ *  - only from 12 October to 25 November 2026 (Terms, clause 1; a production
  *    build keeps the window, a development server is always open);
  *  - one application per person (Terms, clause 2): none is taken from an
  *    account, an email address or a mobile number that already has one

@@ -16,7 +16,7 @@ import { TRIP_FACTS } from "@/lib/trip-legal";
  *
  * Confirmed by the brief: the trip is free, it is a business trip to China,
  * and the three steps (apply, get selected, travel). Confirmed by the Terms:
- * applications open on 5 October and close on 25 November 2026; five winners,
+ * applications open on 12 October and close on 25 November 2026; five winners,
  * drawn at random from the eligible applications, are announced on
  * 1 December 2026 (clauses 1, 3 and 4); the flight is economy class (7),
  * transport is by group (8), rooms are group or shared (9), and a business
@@ -176,7 +176,7 @@ export const COUNTDOWN = {
 /** Visible tag text for any placeholder entry. */
 export const PLACEHOLDER_TAG = "Placeholder";
 
-/** "5 October 2026" → "5 October". */
+/** "12 October 2026" → "12 October". */
 function dayMonth(date: string) {
   return date.split(" ").slice(0, 2).join(" ");
 }

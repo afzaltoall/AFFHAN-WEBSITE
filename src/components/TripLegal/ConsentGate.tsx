@@ -66,7 +66,7 @@ const GLANCE = [
   { label: "Not included", value: "Food and meals", clause: 10 },
 ] as const;
 
-/** "5 October 2026" → "5 Oct". */
+/** "12 October 2026" → "12 Oct". */
 function shortDate(d: string) {
   const [day, month] = d.split(" ");
   return `${day} ${month.slice(0, 3)}`;
