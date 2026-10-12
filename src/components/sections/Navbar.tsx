@@ -266,6 +266,9 @@ export function Navbar() {
   // combination caused visible jitter there, so the bar stays fixed on /rankings.
   // We also keep it fixed on the chennai landing page.
   const normalizedPath = pathname.replace(/\/$/, "");
+  // On the trip's own pages (the film, the application, the participants board, its terms, and the door's
+  // "Opening soon"), the bar does not offer the way to where the visitor already is (the owner, 2026-10-12).
+  const inTrip = normalizedPath === "/free-china-trip" || normalizedPath.startsWith("/free-china-trip/");
   // The admin area is a different product with its own header and sidebar. The
   // shopfront bar — categories, "What are you sourcing today?", About/Careers —
   // is not navigation an admin can use, and it cost 64px at the top of every
@@ -487,9 +490,11 @@ export function Navbar() {
                 owner, 2026-10-12). The trip is the hero's banner, moved here the same day (TripNavLink); a
                 phone still has it on the homepage, under the search, and in the menu. */}
             <div className="flex items-center gap-2 md:gap-3 xl:gap-6 z-10 flex-shrink-0 xl:ml-4">
-              <div className="hidden md:block">
-                <TripNavLink lock={tripLock} />
-              </div>
+              {!inTrip && (
+                <div className="hidden md:block">
+                  <TripNavLink lock={tripLock} />
+                </div>
+              )}
               <div className="hidden xl:flex items-center gap-6">
                 <Link href="/about/" className="relative group text-sm font-medium text-slate-700 hover:text-brand-dark transition-colors tracking-wide py-2">
                   About
@@ -586,7 +591,7 @@ export function Navbar() {
                 ].map(item => (
                   <Fragment key={item.href}>
                     {/* The Free China Trip before About Us, as it sits before About in the bar from 1280px. */}
-                    {item.href === "/about/" && (
+                    {item.href === "/about/" && !inTrip && (
                       <TripDrawerLink lock={tripLock} onClose={() => { overlayWillNavigate(); setMobileMenuOpen(false); }} />
                     )}
                     <button
