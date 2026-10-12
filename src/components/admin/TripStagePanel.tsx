@@ -33,7 +33,16 @@ const fmt = (iso: string) =>
  * mouse never moves it. Read again every 30 seconds, so a move made by
  * another admin shows here. In the console's palette (`t`, `dark`).
  */
-export function TripStagePanel({ t = LIGHT_THEME, dark = false }: { t?: Theme; dark?: boolean }) {
+export function TripStagePanel({
+  t = LIGHT_THEME,
+  dark = false,
+  refreshers,
+}: {
+  t?: Theme;
+  dark?: boolean;
+  /** A page's Refresh, which reads this panel too (TripApplicationsBoard). */
+  refreshers?: { current: Set<() => Promise<void>> };
+}) {
   const [state, setState] = useState<StageState | null>(null);
   const [asking, setAsking] = useState<Stage | null>(null);
   const [busy, setBusy] = useState(false);
@@ -57,6 +66,14 @@ export function TripStagePanel({ t = LIGHT_THEME, dark = false }: { t?: Theme; d
     const id = window.setInterval(() => void load(), 30_000);
     return () => window.clearInterval(id);
   }, [load]);
+  useEffect(() => {
+    const set = refreshers?.current;
+    if (!set) return;
+    set.add(load);
+    return () => {
+      set.delete(load);
+    };
+  }, [refreshers, load]);
 
   const move = useCallback(async (stage: Stage) => {
     setBusy(true);

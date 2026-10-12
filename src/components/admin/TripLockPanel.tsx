@@ -46,7 +46,16 @@ const fmt = (iso: string) =>
  * owner's request of 2026-10-06: the unlock where an admin lands), in the
  * console's own palette, light or dark (`t`, `dark`).
  */
-export function TripLockPanel({ t = LIGHT_THEME, dark = false }: { t?: Theme; dark?: boolean }) {
+export function TripLockPanel({
+  t = LIGHT_THEME,
+  dark = false,
+  refreshers,
+}: {
+  t?: Theme;
+  dark?: boolean;
+  /** A page's Refresh, which reads this panel too (TripApplicationsBoard). */
+  refreshers?: { current: Set<() => Promise<void>> };
+}) {
   const [lock, setLock] = useState<LockState | null>(null);
   const [preview, setPreview] = useState<Preview | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +103,14 @@ export function TripLockPanel({ t = LIGHT_THEME, dark = false }: { t?: Theme; da
     const id = window.setInterval(() => void load(), 30_000);
     return () => window.clearInterval(id);
   }, [load]);
+  useEffect(() => {
+    const set = refreshers?.current;
+    if (!set) return;
+    set.add(load);
+    return () => {
+      set.delete(load);
+    };
+  }, [refreshers, load]);
 
   // The preview's breaking and locking end in their rest states.
   useEffect(() => {

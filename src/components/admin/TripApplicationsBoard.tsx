@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Download, Mail, MessageCircle, Phone, RefreshCw, Search, X } from "lucide-react";
+import { ArrowLeft, Check, Download, Mail, MessageCircle, Phone, RefreshCw, Search, X } from "lucide-react";
 import { businessStatusBrief } from "@/lib/trip-application";
 import { TripLockPanel } from "./TripLockPanel";
 import { TripStagePanel } from "./TripStagePanel";
@@ -127,23 +127,59 @@ export function TripApplicationsBoard() {
   const [q, setQ] = useState("");
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // What "Today" and "This week" count from: the last read, so after midnight a refresh moves them on.
+  const [now, setNow] = useState(() => Date.now());
 
-  const load = useCallback(async () => {
+  /** The list from the server, or null when it could not be read (the error says why). */
+  const load = useCallback(async (): Promise<Application[] | null> => {
     setError(null);
     try {
       const res = await fetch("/api/admin/trip-applications/", { cache: "no-store" });
       if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : "Could not load applications.");
       const body = (await res.json()) as { applications: Application[] };
       setRows(body.applications);
+      return body.applications;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not load applications.");
       setRows((r) => r ?? []);
+      return null;
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Refresh: the list, the lock and the stage together (the two panels add their own reads here), with the
+  // button saying what it is doing and then what it found. It had no state at all, so a press that found
+  // nothing new looked like a button that did nothing (the owner: "refresh button not working", 2026-10-12).
+  const panelLoads = useRef(new Set<() => Promise<void>>());
+  const [refreshing, setRefreshing] = useState<null | "busy" | { fresh: number }>(null);
+  /** The applications the last refresh brought in, lit in the list for a moment. */
+  const [lit, setLit] = useState<Set<string>>(() => new Set());
+  const refreshAll = async () => {
+    if (refreshing === "busy") return;
+    setRefreshing("busy");
+    const known = new Set((rows ?? []).map((r) => r.id));
+    const panels = [...panelLoads.current].map((read) => read());
+    const next = await load();
+    await Promise.all(panels);
+    setNow(Date.now());
+    if (!next) return setRefreshing(null);
+    const fresh = next.filter((r) => !known.has(r.id)).map((r) => r.id);
+    setLit(new Set(fresh));
+    setRefreshing({ fresh: fresh.length });
+  };
+  useEffect(() => {
+    if (!refreshing || refreshing === "busy") return;
+    const t = window.setTimeout(() => setRefreshing(null), 2600);
+    return () => window.clearTimeout(t);
+  }, [refreshing]);
+  useEffect(() => {
+    if (!lit.size) return;
+    const t = window.setTimeout(() => setLit(new Set()), 4000);
+    return () => window.clearTimeout(t);
+  }, [lit]);
 
   const counts = useMemo(() => {
     const c = { new: 0, handled: 0, spam: 0, all: 0 };
@@ -155,7 +191,6 @@ export function TripApplicationsBoard() {
   }, [rows]);
 
   /** The figures over the list: registrations (not spam), today and this week in India's time, and countries. */
-  const [now] = useState(() => Date.now());
   const stats = useMemo(() => {
     const real = (rows ?? []).filter((r) => r.status !== "spam");
     const IST = 5.5 * 3600 * 1000;
@@ -260,13 +295,31 @@ export function TripApplicationsBoard() {
               {rows ? ` · ${counts.new} new` : ""}
             </p>
           </div>
+          {/* One width for all three words, so Export beside it never moves. */}
           <button
             type="button"
-            onClick={() => void load()}
-            className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02]"
+            onClick={() => void refreshAll()}
+            disabled={refreshing === "busy"}
+            aria-busy={refreshing === "busy"}
+            className="inline-flex h-9 min-w-[8.75rem] items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] disabled:cursor-wait"
           >
-            <RefreshCw size={14} /> Refresh
+            {refreshing === "busy" ? (
+              <>
+                <RefreshCw size={14} className="animate-spin motion-reduce:animate-none" /> Refreshing…
+              </>
+            ) : refreshing ? (
+              <>
+                <Check size={14} className="text-emerald-600" /> {refreshing.fresh ? `${refreshing.fresh} new` : "Up to date"}
+              </>
+            ) : (
+              <>
+                <RefreshCw size={14} /> Refresh
+              </>
+            )}
           </button>
+          <span aria-live="polite" className="sr-only">
+            {refreshing && refreshing !== "busy" ? (refreshing.fresh ? `${refreshing.fresh} new applications` : "Up to date") : ""}
+          </span>
           <button
             type="button"
             onClick={() => void exportExcel()}
@@ -278,9 +331,9 @@ export function TripApplicationsBoard() {
         </div>
 
         {/* The homepage banner's chain lock, and the key to it. */}
-        <TripLockPanel />
+        <TripLockPanel refreshers={panelLoads} />
         {/* How far the trip has got: what every applicant's "What happens next" shows. */}
-        <TripStagePanel />
+        <TripStagePanel refreshers={panelLoads} />
 
         {error && <p className="mb-4 rounded-xl bg-red-500/10 px-4 py-2.5 text-[13px] font-medium text-red-700">{error}</p>}
 
@@ -338,7 +391,8 @@ export function TripApplicationsBoard() {
           <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.06]">
             <ul className="divide-y divide-black/[0.06]">
               {list.map((r) => (
-                <li key={r.id}>
+                // Lit for a moment when the last refresh brought it in, fading back as the light goes.
+                <li key={r.id} className={`transition-colors duration-1000 ${lit.has(r.id) ? "bg-[#0071e3]/[0.07]" : ""}`}>
                   <button
                     type="button"
                     onClick={() => setOpenId(r.id)}
