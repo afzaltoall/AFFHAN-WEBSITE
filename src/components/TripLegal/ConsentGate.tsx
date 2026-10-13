@@ -271,9 +271,12 @@ export function ConsentGate({
   };
 
   const showTab = (next: Tab, clause?: number) => {
-    // On a phone this opens the reader; the pane is laid out only once it has.
+    // On a phone's agreement the pane is not shown: this opens the reader, and
+    // the pane is laid out once it has. Shown (a wider screen, or the reader
+    // already open), the view stays as it is, so a glide to a clause is not
+    // undone by the effect above putting the pane back where it was.
     const shown = !!paneRef.current?.getClientRects().length;
-    setReading(true);
+    if (!shown) setReading(true);
     if (shown && next === tab && clause !== undefined) {
       // Same document: glide there now.
       const el = paneRef.current?.querySelector<HTMLElement>(`#${uid}-${tab}-${clause}`);
