@@ -116,6 +116,10 @@ export function WhatsAppButton() {
   // Not on the Free China Business Trip's pages either (the owner, 2026-10-07):
   // they have their own way round, and the dock sat over the participants' board.
   const bare = pathname?.replace(/\/$/, "") ?? "";
+  // On signing in and resetting a password, only from lg up (2026-10-13): on a
+  // phone the bubble sat on the sign-in card's Email field; on a computer the
+  // card is clear of it.
+  const authPage = bare === "/login" || bare === "/forgot-password";
   if (
     pathname?.includes("experience") ||
     bare === "/free-china-trip" ||
@@ -129,7 +133,7 @@ export function WhatsAppButton() {
   }
 
   return (
-    <div data-site-dock className="fixed bottom-24 md:bottom-6 right-[21px] md:right-8 z-50 flex flex-col items-center gap-4 font-sans tracking-tight pointer-events-none">
+    <div data-site-dock className={`fixed bottom-24 md:bottom-6 right-[21px] md:right-8 z-50 flex flex-col items-center gap-4 font-sans tracking-tight pointer-events-none ${authPage ? "max-lg:hidden" : ""}`}>
       {/* Scroll to Top Button */}
       <AnimatePresence>
         {isScrolled && (

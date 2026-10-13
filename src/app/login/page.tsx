@@ -52,6 +52,14 @@ function LoginPageInner() {
     router.replace(destination);
   }, [router, destination]);
 
+  // The first field takes the cursor only where there is a mouse. The forms' own autoFocus is server-rendered
+  // as an autofocus attribute, so a phone focused the Email box as the page arrived and opened the keyboard
+  // over it; the trip's sign-in popup asks the same question (LoginModal). Again on each switch of form.
+  useEffect(() => {
+    if (!window.matchMedia("(pointer: fine)").matches) return;
+    document.querySelector<HTMLInputElement>("[data-login-card] input")?.focus();
+  }, [method]);
+
   const { heading, subheading } =
     method === "password"
       ? { heading: "Sign in", subheading: "Use the email and password on your account." }
@@ -74,8 +82,11 @@ function LoginPageInner() {
     // Two surfaces, not one: the words sit on white where they read most
     // easily, and the card floats on the gradient, which is what gives it
     // something to glow against.
-    <main className="grid min-h-screen lg:grid-cols-[1fr_1fr]">
-      <div className="flex flex-col justify-center bg-white">
+    // Below lg, the card alone (the owner, 2026-10-13: "show the login only"): the words had filled a phone's
+    // first screen and left the Sign in button under the fold. Side by side from lg, as before. The phone's
+    // screen as it is (dvh): 100vh is the height with the address bar gone, and left 56px to scroll for nothing.
+    <main className="grid min-h-dvh lg:min-h-screen lg:grid-cols-[1fr_1fr]">
+      <div className="hidden flex-col justify-center bg-white lg:flex">
         <LoginBrandPanel />
         {/* On both screens. There is no separate /signup route — creating an
             account is a mode of this page — and the characters follow the
@@ -86,7 +97,8 @@ function LoginPageInner() {
         </div>
       </div>
 
-      <div className="relative flex items-center justify-center overflow-hidden px-5 py-8 sm:px-8 lg:px-12">
+      {/* The whole screen below lg, starting under the fixed navbar (--nav-h). */}
+      <div className="relative flex items-center justify-center overflow-hidden px-5 pb-8 pt-[calc(var(--nav-h)+1.25rem)] sm:px-8 lg:px-12 lg:py-8">
         <LoginBackground />
 
         <TiltCard className="relative w-full max-w-md">
@@ -111,7 +123,7 @@ function LoginPageInner() {
             {/* No overflow-hidden: the country dial menu opens downward out of
                 this box, and clipping it would cut the list off inside the
                 card. The travelling light does its own clipping. */}
-            <div className="relative rounded-2xl border border-white/60 bg-white/95 px-6 py-5 shadow-2xl backdrop-blur-xl">
+            <div data-login-card className="relative rounded-2xl border border-white/60 bg-white/95 px-6 py-5 shadow-2xl backdrop-blur-xl">
               <h1 className="text-xl font-bold tracking-tight text-slate-900">{heading}</h1>
               <p className="mt-1 text-[13px] text-slate-500">{subheading}</p>
 
@@ -120,6 +132,7 @@ function LoginPageInner() {
                   <PasswordAuthForm
                     onSuccess={onSuccess}
                     onCreateAccount={() => setMethod("signup")}
+                    autoFocus={false}
                   />
                 ) : (
                   // Creating an account: one screen, no code. This is where
@@ -130,6 +143,7 @@ function LoginPageInner() {
                     onSuccess={onSuccess}
                     onHaveAccount={() => setMethod("password")}
                     onFieldFocus={setFieldFocus}
+                    autoFocus={false}
                   />
                 )}
               </div>
