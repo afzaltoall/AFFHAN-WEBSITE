@@ -43,17 +43,27 @@ function statedGender(description) {
   return m ? m[1].trim().toLowerCase() : null;
 }
 
-/** "women", "men", "both" or "unknown": the product's own word first (EPROLO's description), then its name. */
+/**
+ * "women", "men", "both" or "unknown": the product's own word first (EPROLO's description), then its name;
+ * but where the two plainly disagree, the name. EPROLO's T-shirt group states "Gender: Male" on 35 tees its
+ * own names call women's ("Round neck short sleeved women's t-shirt fun chicken", "T-Shirt for Women"), which
+ * the first run (2026-10-13) left under Men's on that word; the name is the product's, the field the group's.
+ */
 function genderOf(p) {
+  const named = genderByName(p.name);
   const g = statedGender(p.description);
   if (g) {
     if (/unisex|both|couple/.test(g)) return "both";
-    if (/fem|wom|lad|girl/.test(g)) return "women";
-    if (/\bmale|\bmen|\bman|boy/.test(g)) return "men";
+    if (/fem|wom|lad|girl/.test(g)) return named === "men" ? "men" : "women";
+    if (/\bmale|\bmen|\bman|boy/.test(g)) return named === "women" ? "women" : "men";
   }
-  if (BOTH.test(p.name)) return "both";
-  const w = W.test(p.name);
-  const m = M.test(p.name.replace(/wom[ae]n/gi, ""));
+  return named;
+}
+
+function genderByName(name) {
+  if (BOTH.test(name)) return "both";
+  const w = W.test(name);
+  const m = M.test(name.replace(/wom[ae]n/gi, ""));
   if (w && !m) return "women";
   if (m && !w) return "men";
   return w && m ? "both" : "unknown";
