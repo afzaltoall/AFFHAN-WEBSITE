@@ -269,6 +269,11 @@
     padding-block: 10px;
     font-size: 14.5px;
   }
+  /* No scrollbar beside the questions (or in the lists) on a phone: the finger
+     scrolls them, and the fade at their foot says there is more (the owner:
+     "dont show the side scroll", 2026-10-13). */
+  .ax .ax-thin-scroll { scrollbar-width: none; }
+  .ax .ax-thin-scroll::-webkit-scrollbar { display: none; }
   /* What a field asks for, readable before it is answered: 25% and 35% white
      was too faint to read on a phone outdoors (the owner, 2026-10-13). */
   .ax .ax-line::placeholder { color: rgb(244 239 230 / 0.5); }
