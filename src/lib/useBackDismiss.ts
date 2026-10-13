@@ -81,6 +81,24 @@ export const overlayHandoff = overlayWillNavigate;
    swallowed once, and anything else is the user. */
 let selfPops = 0;
 
+/* Whether an overlay's listener swallowed the pop being delivered (above), read once every listener has
+   had it. A pop of ours that arrives with no overlay listening was never swallowed, and the count then
+   stayed up for good: the next overlay's real Back was taken for ours and did nothing, so the overlay
+   stayed open, and the Back after it left the page (the phone's search sheet, closed with Cancel, opened
+   again: 2026-10-13; the quote form the same, after its ×). One listener for the page settles those. */
+let swallowedThisPop = false;
+let settling = false;
+function settleSelfPops() {
+  if (settling || typeof window === "undefined") return;
+  settling = true;
+  window.addEventListener("popstate", () => {
+    window.setTimeout(() => {
+      if (!swallowedThisPop && selfPops > 0) selfPops -= 1;
+      swallowedThisPop = false;
+    }, 0);
+  });
+}
+
 type MarkerState = Record<string, unknown> | null;
 
 export function useBackDismiss(open: boolean, onClose: () => void) {
@@ -109,6 +127,7 @@ export function useBackDismiss(open: boolean, onClose: () => void) {
       // close anything — see the note on selfPops.
       if (selfPops > 0) {
         selfPops -= 1;
+        swallowedThisPop = true;
         return;
       }
       dismissedByBack = true;
@@ -136,6 +155,7 @@ export function useBackDismiss(open: boolean, onClose: () => void) {
 
       const state = window.history.state as MarkerState;
       if (state && state[MARKER] === id) {
+        settleSelfPops();
         selfPops += 1;
         window.history.back();
       }
