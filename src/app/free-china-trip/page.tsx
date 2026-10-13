@@ -52,7 +52,7 @@ export default function FreeChinaTripPage() {
   });
 
   return (
-    <main className={`${displayFont.variable} cx pt-16`}>
+    <main className={`${displayFont.variable} cx pt-(--nav-h)`}>
       <RevealNoScriptFallback />
       {/* Without JavaScript the count cannot run: no counter, and the hero's
           entrance plays at once. */}

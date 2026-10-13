@@ -7,6 +7,16 @@
    `rail:hidden`. */
 @custom-variant rail (@media (width >= 64rem) and (hover: hover) and (pointer: fine));
 
+/* The navbar's height (Navbar.tsx), for whatever sits just under it: 64px, and
+   56px on a phone, where 64 read as a heavy white block over the page (the
+   owner, 2026-10-13). Pages that pad generously for the bar (pt-24) keep their
+   padding; the ones cut to it exactly (the trip's) use this. The bar publishes
+   the same figure as --nav-shift while it shows (0 once it has slid away). */
+:root { --nav-h: 4rem; }
+@media (max-width: 767.98px) {
+  :root { --nav-h: 3.5rem; }
+}
+
 /* Three brand blues, and which one to reach for is a contrast decision, not a
    taste one.
 

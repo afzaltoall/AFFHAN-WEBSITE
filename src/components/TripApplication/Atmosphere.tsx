@@ -30,7 +30,7 @@ export type Mood = (typeof MOODS)[number];
 
 export function Atmosphere() {
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 top-16 overflow-hidden">
+    <div aria-hidden className="pointer-events-none fixed inset-x-0 bottom-0 top-(--nav-h) overflow-hidden">
       {MOODS.map((m) => (
         <div key={m} data-ax="mood" data-mood={m} className={`ax-mood-${m} absolute inset-0 ${m === "intro" ? "" : "opacity-0"}`} />
       ))}
@@ -80,7 +80,7 @@ export function Atmosphere() {
  */
 export function Host() {
   return (
-    <div aria-hidden className="pointer-events-none fixed bottom-0 right-0 top-16 hidden w-[55%] items-end justify-center lg:flex">
+    <div aria-hidden className="pointer-events-none fixed bottom-0 right-0 top-(--nav-h) hidden w-[55%] items-end justify-center lg:flex">
       <div data-ax="host" data-ax-hide className="relative aspect-[1004/1390] h-[min(76%,780px,calc(61.9vw-52px))] origin-bottom">
         <FilmImage asset={ASSETS.afzalKhan} alt="" sizes="(min-width: 1024px) 42vw, 1px" eager priority className="drop-shadow-[0_30px_60px_rgb(0_0_0/0.55)]" />
         <div data-ax="host-sheen" className="ax-host-sheen absolute inset-0 overflow-hidden opacity-0">

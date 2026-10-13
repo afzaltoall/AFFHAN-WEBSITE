@@ -194,6 +194,15 @@
   -webkit-mask: url("/free-china-trip/16-afzal-khan.webp") center / 100% 100% no-repeat;
   mask: url("/free-china-trip/16-afzal-khan.webp") center / 100% 100% no-repeat;
 }
+/* The host above the heading on phones and tablets (ApplicationIntro): faded at
+   his sides as well as at his foot, so the picture's edges do not read as a
+   cut through the dark (the owner, 2026-10-13). */
+[data-ax="intro-host-m"] {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent), linear-gradient(to bottom, #000 66%, transparent);
+  -webkit-mask-composite: source-in;
+  mask-image: linear-gradient(90deg, transparent, #000 16%, #000 84%, transparent), linear-gradient(to bottom, #000 66%, transparent);
+  mask-composite: intersect;
+}
 .ax-host-band {
   background: linear-gradient(100deg, transparent 0%, rgb(255 244 214 / 0.05) 25%, rgb(255 244 214 / 0.62) 50%, rgb(255 244 214 / 0.05) 75%, transparent 100%);
   mix-blend-mode: screen;
@@ -260,6 +269,10 @@
     padding-block: 10px;
     font-size: 14.5px;
   }
+  /* What a field asks for, readable before it is answered: 25% and 35% white
+     was too faint to read on a phone outdoors (the owner, 2026-10-13). */
+  .ax .ax-line::placeholder { color: rgb(244 239 230 / 0.5); }
+  .ax .ax-ph { color: rgb(244 239 230 / 0.55); }
   /* The intro, at a phone's size too: the heading a size down, the lines
      under it at reading size. */
   .ax [data-ax="intro-heading"] { font-size: 36px; line-height: 0.96; }

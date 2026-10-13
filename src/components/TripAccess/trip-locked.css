@@ -25,7 +25,7 @@
   position: relative;
   isolation: isolate;
   display: grid;
-  min-height: calc(100dvh - 4rem);
+  min-height: calc(100dvh - var(--nav-h, 4rem));
   /* A phone reads it from the top; a wider screen holds it in the middle. */
   place-items: start center;
   padding: 2.25rem 1.25rem 3.5rem;

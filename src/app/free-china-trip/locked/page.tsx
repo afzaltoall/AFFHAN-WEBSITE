@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function FreeChinaTripLockedPage() {
   return (
-    <main className={`${displayFont.variable} pt-16`}>
+    <main className={`${displayFont.variable} pt-(--nav-h)`}>
       <TripLockedExperience />
     </main>
   );

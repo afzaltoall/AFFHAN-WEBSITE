@@ -40,7 +40,7 @@ export default function FreeChinaTripApplyPage() {
   });
 
   return (
-    <main className={`${displayFont.variable} cx pt-16`}>
+    <main className={`${displayFont.variable} cx pt-(--nav-h)`}>
       {/* Without a script nothing can reveal the intro, and the form can't
           run: show the words, and a way to reach Affhan. */}
       <noscript dangerouslySetInnerHTML={{ __html: "<style>.ax [data-ax-hide]{visibility:visible!important;opacity:1!important}.ax [data-ax-start]{display:none!important}</style>" }} />

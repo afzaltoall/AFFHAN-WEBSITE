@@ -241,7 +241,7 @@ function CountryPicker({
             <span className="min-w-0 flex-1 truncate">{mode === "dial" ? value.dial : value.name}</span>
           </>
         ) : (
-          <span className="min-w-0 flex-1 truncate text-(--cx-white)/35">{placeholder}</span>
+          <span className="ax-ph min-w-0 flex-1 truncate text-(--cx-white)/35">{placeholder}</span>
         )}
         <ChevronDown size={16} aria-hidden className={`shrink-0 text-(--cx-mute) transition-transform ${open ? "rotate-180" : ""}`} />
       </button>

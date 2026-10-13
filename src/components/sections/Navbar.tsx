@@ -315,13 +315,24 @@ export function Navbar() {
   // Zero on admin screens: there is no bar there for a sub-bar to sit under, so
   // anything anchored to this variable would otherwise float 64px down the page
   // with nothing above it.
+  // The bar is 56px on a phone and 64px wider (--nav-h, globals.css); the figure is published as is, not as
+  // var(--nav-h), because the trip's take-off reads it as a number (takeoff.ts).
+  const [phoneBar, setPhoneBar] = useState(false);
   useEffect(() => {
-    const shift = isStaffArea || hidden ? "0px" : "4rem";
+    const mq = window.matchMedia("(max-width: 767.98px)");
+    const update = () => setPhoneBar(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    const bar = phoneBar ? "3.5rem" : "4rem";
+    const shift = isStaffArea || hidden ? "0px" : bar;
     document.documentElement.style.setProperty("--nav-shift", shift);
     return () => {
-      document.documentElement.style.setProperty("--nav-shift", "4rem");
+      document.documentElement.style.setProperty("--nav-shift", bar);
     };
-  }, [hidden, isStaffArea]);
+  }, [hidden, isStaffArea, phoneBar]);
 
   if (isStaffArea) return null;
 
@@ -338,11 +349,12 @@ export function Navbar() {
               with the categories as an icon below 1024px, the account as an avatar, and About, Careers and
               Contact Us in the menu; at 1024px those three links had left the search 240px, its placeholder
               cut to "What are you sou" (the owner, on an iPad, 2026-10-11). From 1280px: everything. */}
-          <div className="flex justify-between items-center h-16 gap-3 md:gap-4 xl:gap-8">
+          {/* 56px tall on a phone, 64px wider (--nav-h, globals.css), the logo with it. */}
+          <div className="flex justify-between items-center h-(--nav-h) gap-3 md:gap-4 xl:gap-8">
 
             {/* Logo */}
             <Link href="/" className="flex items-center flex-shrink-0 z-10 mr-1 md:mr-0 xl:mr-4">
-              <div className="relative w-12 h-12 lg:w-14 lg:h-14">
+              <div className="relative w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14">
                 <Image src="/logo.png" alt="AFFHAN Group Logo" width={140} height={140} priority fetchPriority="high" className="w-full h-full object-contain" />
               </div>
             </Link>

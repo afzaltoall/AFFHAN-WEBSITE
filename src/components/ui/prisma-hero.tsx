@@ -151,7 +151,7 @@ export function PrismaHero() {
           the top and 4rem tall. Sticking to top-0 and sizing to h-screen
           centres the content against the whole viewport, which pushed the top
           of a title this large up underneath the bar. */}
-      <div className="sticky top-16 flex h-[calc(100vh-4rem)] items-center overflow-hidden">
+      <div className="sticky top-(--nav-h) flex h-[calc(100vh-var(--nav-h))] items-center overflow-hidden">
         <div className="mx-auto w-full max-w-[1500px] px-6 py-10 md:px-12 lg:px-16">
           <div className="grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-14">
             {/* ---- Left: the word, and the sentence that unlocks it ---- */}

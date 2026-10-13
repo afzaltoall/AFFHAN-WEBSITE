@@ -116,7 +116,7 @@ export function SubmitStage({
 }) {
   return (
     <div data-ax="send" className={`absolute inset-0 z-30 ${active ? "" : "pointer-events-none"}`} aria-hidden={active ? undefined : true}>
-      <div className={`${pinned ? "fixed inset-x-0 bottom-0 top-16" : "absolute inset-0"} overflow-hidden text-center`}>
+      <div className={`${pinned ? "fixed inset-x-0 bottom-0 top-(--nav-h)" : "absolute inset-0"} overflow-hidden text-center`}>
         {/* The form behind, frosted and darkened away. */}
         <div data-ax="send-dark" className="absolute inset-0 bg-(--ax-base) opacity-0 backdrop-blur-[10px]" />
         <div

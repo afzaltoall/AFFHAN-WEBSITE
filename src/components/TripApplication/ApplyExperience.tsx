@@ -870,7 +870,7 @@ export function ApplyExperience() {
   }
 
   return (
-    <div ref={root} className="ax relative isolate h-[calc(100dvh-4rem)] overflow-clip">
+    <div ref={root} className="ax relative isolate h-[calc(100dvh-var(--nav-h))] overflow-clip">
       <h1 className="sr-only">{PAGE_TITLE}</h1>
       <p ref={liveRef} aria-live="polite" className="sr-only" />
 

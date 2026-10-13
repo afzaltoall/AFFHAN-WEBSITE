@@ -76,7 +76,7 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
   const rows = passRows(doc, kind);
 
   return (
-    <main className={`${displayFont.variable} cx tl-page pt-16`}>
+    <main className={`${displayFont.variable} cx tl-page pt-(--nav-h)`}>
       <div aria-hidden className="tl-sky" />
 
       <div className="tl-shell">

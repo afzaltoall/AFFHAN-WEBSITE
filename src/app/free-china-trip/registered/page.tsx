@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 export default function FreeChinaTripRegisteredPage() {
   return (
-    <main className={`${displayFont.variable} cx pt-16`}>
+    <main className={`${displayFont.variable} cx pt-(--nav-h)`}>
       <RegisteredExperience />
       <TripSignInGate />
       <TripPreviewNote />

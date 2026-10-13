@@ -263,7 +263,7 @@ export function RegisteredExperience() {
   const most = countries[0]?.count ?? 1;
 
   return (
-    <div className="tr relative isolate min-h-[calc(100dvh-4rem)] overflow-x-clip">
+    <div className="tr relative isolate min-h-[calc(100dvh-var(--nav-h))] overflow-x-clip">
       {/* The ground: the trip's black, gold high on the right, crimson low on the left, gold dust. */}
       <div aria-hidden className="tr-ground">
         <span className="tr-wash tr-wash-a" />
