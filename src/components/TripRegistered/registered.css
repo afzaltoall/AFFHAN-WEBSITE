@@ -1603,3 +1603,25 @@
   .tr-odo-strip { transition: none; }
   .tr-pass { transform: none; transition: none; }
 }
+
+/* ---- A phone (CinematicExperience/lite.ts; keep the query the same) ----------------------
+   No blur on anything that moves or sits over something moving: the drifting washes, the
+   panels' frosted glass and the rows' rise were blurred again by the GPU on every frame, and
+   the board stuck under the finger (the owner's moto g45, 2026-10-13). The washes hold still,
+   the glass is a deeper tint, and things rise in without the blur. */
+@media (hover: none) and (pointer: coarse) and (max-width: 767.98px), (hover: none) and (pointer: coarse) and (max-height: 540px) {
+  .tr-wash {
+    filter: none;
+    animation: none;
+  }
+  .tr-panel {
+    background: linear-gradient(180deg, rgb(20 17 22 / 0.9), rgb(10 9 12 / 0.94));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .tr-in,
+  .tr-row:not(.tr-row-new):not(.tr-row-skeleton):not(.tr-row-more) { animation-name: tr-rise-lite; }
+  @keyframes tr-rise-lite {
+    from { opacity: 0; transform: translateY(18px); }
+  }
+}

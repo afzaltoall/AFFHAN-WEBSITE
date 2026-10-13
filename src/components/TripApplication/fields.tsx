@@ -14,7 +14,7 @@ import { COUNTRIES, flagUrl, type Country } from "@/lib/countries";
 
 const LABEL = "text-[11px] font-semibold uppercase tracking-[0.22em] text-(--cx-mute)";
 const LINE =
-  "block w-full rounded-none border-0 border-b bg-transparent px-0 text-[18px] text-(--cx-white) caret-(--cx-gold) placeholder:text-(--cx-white)/25 transition-[border-color,box-shadow] duration-300 focus:outline-none md:text-[19px]";
+  "ax-line block w-full rounded-none border-0 border-b bg-transparent px-0 text-[18px] text-(--cx-white) caret-(--cx-gold) placeholder:text-(--cx-white)/25 transition-[border-color,box-shadow] duration-300 focus:outline-none md:text-[19px]";
 const lineState = (bad: boolean) =>
   bad
     ? "border-(--cx-error) focus:shadow-[inset_0_-1px_0_0_var(--cx-error)]"
@@ -539,7 +539,7 @@ export function Choices({
                 onChange={() => onChange(o.value)}
                 className="peer sr-only"
               />
-              <span className="flex min-h-14 w-full items-center gap-3.5 border border-(--cx-white)/22 px-4 py-3 text-left text-[15px] leading-snug text-(--cx-white) transition-colors duration-300 group-hover:border-(--cx-white)/45 peer-checked:border-(--cx-gold) peer-checked:bg-(--cx-gold) peer-checked:text-(--cx-ink) peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-(--cx-white)">
+              <span className="ax-choice flex min-h-14 w-full items-center gap-3.5 border border-(--cx-white)/22 px-4 py-3 text-left text-[15px] leading-snug text-(--cx-white) transition-colors duration-300 group-hover:border-(--cx-white)/45 peer-checked:border-(--cx-gold) peer-checked:bg-(--cx-gold) peer-checked:text-(--cx-ink) peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-(--cx-white)">
                 <span aria-hidden className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border transition-colors duration-300 ${on ? "border-(--cx-ink)/55" : "border-(--cx-white)/40 group-hover:border-(--cx-white)/70"}`}>
                   <span className={`h-2 w-2 rounded-full bg-(--cx-ink) transition-transform duration-300 ${on ? "scale-100" : "scale-0"}`} />
                 </span>

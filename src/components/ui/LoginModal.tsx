@@ -61,6 +61,11 @@ export function LoginModal({
   // Remounts the forms on each open, so a reopened dialog never resumes a
   // stranger's half-finished attempt on a shared machine.
   const [instance, setInstance] = useState(0);
+  // The first field takes the focus only where there is a mouse. On a phone,
+  // focus opens the keyboard, which covered half the popup before it had been
+  // read, Google's button with it (the owner, on the Free China Trip,
+  // 2026-10-13): there the keyboard comes when a field is tapped.
+  const [focusFirst] = useState(() => typeof window !== "undefined" && window.matchMedia("(pointer: fine)").matches);
 
   useEffect(() => setMounted(true), []);
 
@@ -155,12 +160,14 @@ export function LoginModal({
               {method === "password" ? (
                 <PasswordAuthForm
                   key={`password-${instance}`}
+                  autoFocus={focusFirst}
                   onSuccess={() => onSuccess?.()}
                   onCreateAccount={() => setMethod("signup")}
                 />
               ) : (
                 <SignupForm
                   key={`signup-${instance}`}
+                  autoFocus={focusFirst}
                   onSuccess={() => onSuccess?.()}
                   onHaveAccount={() => setMethod("password")}
                 />

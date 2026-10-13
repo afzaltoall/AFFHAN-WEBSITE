@@ -1665,6 +1665,200 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
   .tg-tab { font-size: 12.5px; }
 }
 
+/* ---- Phones: agree on one screen, read on the other (ConsentGate: data-view) --------
+   The owner (2026-10-13): on a phone the sheet was "very clumsy", the documents
+   squeezed between the header and a stub of boxes, and a strip of facts running
+   off its edge. It opens on the agreement now: the two documents as rows, each
+   with its reading ring, the facts at a glance as a plain list, and the two
+   boxes and the button below. A document opens in the reader, the whole sheet,
+   with a back arrow, its name, a line that fills as it is read, and Done. No
+   blur behind the sheet or on it as it opens: a darker veil (the phone's GPU
+   redrew the blur on every frame). Wider screens keep both side by side and
+   never show these. */
+.tg-summary,
+.tg-back,
+.tg-reader-title,
+.tg-reader-progress,
+.tg-reader-foot { display: none; }
+
+@media (max-width: 639.98px) {
+  .tg-backdrop {
+    background: rgb(4 3 6 / 0.88);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+  .tg-panel,
+  .tg-root[data-state="agree"] .tg-panel { filter: none; }
+  .tg-main { grid-template-rows: auto minmax(0, 1fr); }
+  .tg-stub .tg-glance-wrap { display: none; }
+
+  /* The agreement. */
+  .tg-root[data-view="agree"] .tg-tabbar,
+  .tg-root[data-view="agree"] .tg-pane-wrap { display: none; }
+  .tg-root[data-view="agree"] .tg-line {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    white-space: normal;
+    margin-top: 8px;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .tg-root[data-view="agree"] .tg-summary {
+    display: block;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 2px 20px 18px;
+  }
+
+  /* The reader. */
+  .tg-root[data-view="read"] .tg-head,
+  .tg-root[data-view="read"] .tg-close,
+  .tg-root[data-view="read"] .tg-tabs,
+  .tg-root[data-view="read"] .tg-foot { display: none; }
+  .tg-root[data-view="read"] .tg-tabbar {
+    position: relative;
+    gap: 6px;
+    min-height: 58px;
+    padding: 8px 10px 8px 10px;
+  }
+  .tg-root[data-view="read"] .tg-back { display: grid; }
+  .tg-root[data-view="read"] .tg-reader-title,
+  .tg-root[data-view="read"] .tg-reader-progress,
+  .tg-root[data-view="read"] .tg-reader-foot { display: block; }
+  .tg-root[data-view="read"] .tg-pane { padding-top: 16px; }
+}
+
+.tg-back {
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  color: var(--cx-white);
+  transition: background 0.2s;
+}
+.tg-back:active { background: rgb(244 239 230 / 0.08); }
+.tg-back:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; }
+.tg-reader-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 16px;
+  font-weight: 650;
+  color: var(--cx-white);
+}
+.tg-reader-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cx-gold), var(--cx-gold-hi));
+  transform-origin: left;
+  transition: transform 0.2s linear;
+}
+.tg-reader-foot { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+.tg-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 50px;
+  border-radius: 999px;
+  border: 1px solid rgb(247 226 173 / 0.6);
+  background: linear-gradient(135deg, #f7e2ad, var(--cx-gold) 55%, #b7832f);
+  box-shadow: 0 12px 30px -12px rgb(214 168 78 / 0.7);
+  color: #1b1307;
+  font-size: 15px;
+  font-weight: 650;
+}
+.tg-done:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 3px; }
+
+.tg-sum-title {
+  margin: 16px 0 10px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--cx-gold);
+}
+.tg-docrows,
+.tg-facts {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tg-docrows {
+  display: grid;
+  gap: 10px;
+}
+.tg-docrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-height: 66px;
+  padding: 12px 14px 12px 16px;
+  border-radius: 16px;
+  border: 1px solid rgb(214 168 78 / 0.26);
+  background: rgb(244 239 230 / 0.035);
+  text-align: left;
+  transition: border-color 0.2s, background 0.2s;
+}
+.tg-docrow:active { background: rgb(214 168 78 / 0.1); }
+.tg-docrow:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; }
+.tg-docrow-text {
+  display: grid;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tg-docrow-name {
+  font-size: 15.5px;
+  font-weight: 650;
+  color: var(--cx-white);
+}
+.tg-docrow-meta {
+  font-size: 12.5px;
+  color: var(--cx-mute);
+}
+.tg-docrow-go {
+  flex: none;
+  color: var(--cx-gold);
+}
+.tg-facts { border-top: 1px solid var(--cx-faint); }
+.tg-facts li { border-bottom: 1px solid var(--cx-faint); }
+.tg-facts button {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 12px 2px;
+  text-align: left;
+}
+.tg-facts button:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; border-radius: 8px; }
+.tg-fact-label {
+  flex: none;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cx-mute);
+}
+.tg-fact-value {
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--cx-white);
+}
+
 /* ---- Wide screens: the stub beside the pass ------------------------------------ */
 @media (min-width: 1024px) and (min-height: 600px) {
   .tg-panel {

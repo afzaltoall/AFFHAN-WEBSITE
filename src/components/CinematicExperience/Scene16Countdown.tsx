@@ -6,6 +6,7 @@ import { ApplyButton } from "./ApplyButton";
 import { createClockSound } from "./clockSound";
 import { COUNTDOWN } from "./content";
 import { DISPLAY, EYEBROW } from "./parts";
+import { F } from "./lite";
 
 /**
  * 16 The countdown: where the page ends. The time left until COUNTDOWN.target
@@ -74,8 +75,8 @@ function Digit({ value, motion }: { value: number; motion: Motion }) {
       olds.forEach((o) => o.remove());
       return;
     }
-    gsap.fromTo(next, { yPercent: -100, autoAlpha: 0, filter: "blur(3px)" }, { yPercent: 0, autoAlpha: 1, filter: "blur(0px)", duration: 0.6, ease: "power3.out", clearProps: "filter" });
-    olds.forEach((o) => gsap.to(o, { yPercent: 100, autoAlpha: 0, filter: "blur(3px)", duration: 0.5, ease: "power3.in", onComplete: () => o.remove() }));
+    gsap.fromTo(next, { yPercent: -100, autoAlpha: 0, filter: F("blur(3px)") }, { yPercent: 0, autoAlpha: 1, filter: F("blur(0px)"), duration: 0.6, ease: "power3.out", clearProps: "filter" });
+    olds.forEach((o) => gsap.to(o, { yPercent: 100, autoAlpha: 0, filter: F("blur(3px)"), duration: 0.5, ease: "power3.in", onComplete: () => o.remove() }));
   }, [value, motion]);
 
   return <span ref={slot} className="cx-cd-slot" />;

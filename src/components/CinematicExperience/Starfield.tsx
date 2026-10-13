@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, type CSSProperties } from "react";
+import { isLite } from "./lite";
 
 /**
  * The night sky behind the whole page.
@@ -25,6 +26,11 @@ import { useEffect, useRef, type CSSProperties } from "react";
  *    and the countdown; and with a mouse the sky leans gently with the
  *    pointer, the far stars least and the bright ones most (it moves only
  *    while the pointer does; never on touch).
+ *
+ * On a phone (lite.ts) there is no sky at all: it is not drawn here, and it
+ * is not shown (cinematic.css). The owner found it busy behind the words and
+ * hard on the phone (2026-10-13); the ink and the scenes' own light are the
+ * ground there.
  *
  * Reduced motion: the stars are drawn and simply stay still (cinematic.css),
  * and the sky does not follow the pointer. Every position comes from a
@@ -128,7 +134,7 @@ export function Starfield() {
 
   useEffect(() => {
     const root = ref.current;
-    if (!root) return;
+    if (!root || isLite()) return;
     const canvases = Array.from(root.querySelectorAll<HTMLCanvasElement>("canvas[data-layer]"));
     let lastW = 0;
     let timer = 0;

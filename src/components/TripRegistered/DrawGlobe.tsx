@@ -1,6 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { isLite } from "@/components/CinematicExperience/lite";
 
 export interface DrawGlobeHandle {
   /** A ticket in through the opening at the top; `mine`, the visitor's own, which glows. */
@@ -165,7 +166,10 @@ export const DrawGlobe = forwardRef<DrawGlobeHandle, { count: number; mine: bool
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext("2d");
       if (!canvas || !ctx) return;
-      const still = reduced();
+      // Still under reduced motion, and on a phone (CinematicExperience/lite.ts): there the whole pour
+      // (150 tickets, every one against every other, on every frame) ran as the page was scrolled, and the
+      // owner's phone stuck (2026-10-13). Still, the tickets lie at rest, drawn again as new ones come.
+      const still = reduced() || isLite();
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const n = Math.min(count, MAX);
       // The visitor's ticket, unless it is about to fly in, goes in last of the first pour.

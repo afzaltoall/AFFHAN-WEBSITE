@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from
 import gsap from "gsap";
 import { COUNTER } from "./content";
 import { DISPLAY } from "./parts";
+import { F } from "./lite";
 
 /**
  * The opening count: 00 to 100 in large editorial numerals over the whole
@@ -263,7 +264,7 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
       // 100 ARRIVES: the "1" drops into its window as the row settles to the
       // centre, the ring takes its last turn.
       tl.to(group, { xPercent: 0, duration: 0.5, ease: "power3.out" }, 0);
-      tl.fromTo(hundred, { autoAlpha: 0, yPercent: -70, filter: "blur(8px)" }, { autoAlpha: 1, yPercent: 0, filter: "blur(0px)", duration: 0.5, ease: "power3.out" }, 0);
+      tl.fromTo(hundred, { autoAlpha: 0, yPercent: -70, filter: F("blur(8px)") }, { autoAlpha: 1, yPercent: 0, filter: F("blur(0px)"), duration: 0.5, ease: "power3.out" }, 0);
       tl.to(ring, { rotation: `+=${FINAL_TURN}`, duration: 0.7, ease: "power2.out" }, 0);
       // ...AND THE COUNT COMPLETES THE RING: a line of light runs once round
       // it, led by a point of light, and closes at the top in a flash.
@@ -287,7 +288,7 @@ export function NumberLoadingOpener({ onReveal }: { onReveal: () => void }) {
       tl.to(caption, { autoAlpha: 0, duration: 0.3 }, OPEN - 0.2);
       tl.to(ring, { scale: 3, opacity: 0, duration: 0.95, ease: "power2.in" }, OPEN - 0.1);
       tl.to(glow, { autoAlpha: 0, scale: 1.6, duration: 0.7, ease: "power2.in" }, OPEN);
-      tl.to(numerals, { scale: 1.08, autoAlpha: 0, filter: "blur(12px)", duration: 0.6, ease: "power2.in" }, OPEN);
+      tl.to(numerals, { scale: 1.08, autoAlpha: 0, filter: F("blur(12px)"), duration: 0.6, ease: "power2.in" }, OPEN);
       tl.fromTo(root, { "--hole": "-18vmax" }, { "--hole": "150vmax", duration: 1.1, ease: "power2.inOut" }, OPEN);
       tl.add(() => {
         unlock();

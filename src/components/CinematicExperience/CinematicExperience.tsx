@@ -21,10 +21,13 @@ import {
   FILM_CHAPTER_STARTS,
   FILM_REDUCED_STARTS,
   registerGsap,
+  restFilm,
 } from "./animations";
 import { APPLY_HREF, CHAPTERS, INCLUDED, INCLUDED_EYEBROW } from "./content";
 import { FilmHud } from "./FilmHud";
+import { isLite } from "./lite";
 import { MapLight } from "./mapLight";
+import { MobileJourney } from "./MobileJourney";
 import { Motifs } from "./Motifs";
 import { NumberLoadingOpener } from "./NumberLoadingOpener";
 import { GatherField } from "./particles";
@@ -97,7 +100,11 @@ function startLoader(root: HTMLElement) {
   let cancelled = false;
   const run = async () => {
     while (!cancelled) {
-      const next = Array.from(root.querySelectorAll<HTMLImageElement>("img[data-src]")).slice(0, 2);
+      // Only what is laid out: on a phone the film's chapters 02-11 are not
+      // shown (the cards are), and their pictures need not come down.
+      const next = Array.from(root.querySelectorAll<HTMLImageElement>("img[data-src]"))
+        .filter((img) => img.getClientRects().length > 0)
+        .slice(0, 2);
       if (!next.length) return;
       next.forEach(promote);
       await Promise.all(next.map((img) => img.decode().catch(() => undefined)));
@@ -277,7 +284,11 @@ export function CinematicExperience() {
         // Smooth wheel scrolling, for this page and only with motion allowed.
         let lenis: Lenis | null = null;
         let tick: ((time: number) => void) | null = null;
-        if (!reduce) {
+        // Not where the screen is the only way in: Lenis smooths a mouse wheel, and its touch listeners are
+        // not passive, so on a phone or a tablet every move of a finger waited for this page's script (the
+        // owner's moto g45 stuck under the finger, 2026-10-13). There the swipe is the device's own.
+        const touchOnly = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+        if (!reduce && !touchOnly) {
           lenis = new Lenis({ autoRaf: false, allowNestedScroll: true, wheelMultiplier: 0.9, lerp: 0.1 });
           lenisRef.current = lenis;
           // src/lib/scroll.ts routes the site's own scrollToId() through this.
@@ -292,20 +303,24 @@ export function CinematicExperience() {
         let particles: GatherField | null = null;
         const canvas = stage.querySelector<HTMLCanvasElement>("[data-cx='free-particles']");
         const word = stage.querySelector<HTMLElement>("[data-cx='free-word']");
-        if (!reduce && canvas && word) {
+        // A phone's page has no scroll animation (lite.ts, cinematic.css): its
+        // chapters are screens at rest, so none of what follows is built there.
+        const lite = isLite();
+        const motion = !reduce && !lite;
+        if (motion && canvas && word) {
           particles = new GatherField(canvas, word, desktop ? 2400 : 1100);
           void particles.layout();
         }
         // The jump to Foshan: gold streaks drawn from the film's progress.
         const warpCanvas = stage.querySelector<HTMLCanvasElement>("[data-cx='warp']");
-        const warp = !reduce && warpCanvas ? new WarpField(warpCanvas, desktop ? 420 : 220) : null;
+        const warp = motion && warpCanvas ? new WarpField(warpCanvas, desktop ? 420 : 220) : null;
         warp?.layout();
         // The China map's network, lit out from Guangzhou (mapLight.ts): ready
         // once its picture and field have loaded; until then, and without
         // WebGL, the map is simply the picture.
         const mapCanvas = stage.querySelector<HTMLCanvasElement>("[data-cx='map-light']");
         const mapImg = stage.querySelector<HTMLImageElement>("[data-cx='map'] img");
-        const mapLight = !reduce && mapCanvas && mapImg ? new MapLight(mapCanvas, mapImg) : null;
+        const mapLight = motion && mapCanvas && mapImg ? new MapLight(mapCanvas, mapImg) : null;
         void mapLight?.start();
         const relayout = () => {
           void particles?.layout();
@@ -316,7 +331,8 @@ export function CinematicExperience() {
         const stars = root.querySelector<HTMLElement>("[data-cx='stars']");
         const starsDim = root.querySelector<HTMLElement>("[data-cx='stars-dim']");
         if (stars) buildStars(root, stars, reduce);
-        if (reduce) buildFilmReduced(film, stage, desktop, { onProgress, squat });
+        if (lite) restFilm(stage);
+        else if (reduce) buildFilmReduced(film, stage, desktop, { onProgress, squat });
         else
           buildFilm(film, stage, desktop, particles, {
             onProgress,
@@ -330,9 +346,9 @@ export function CinematicExperience() {
         // How it works does into the final call (buildSteps), so no chapter
         // leaves as a block scrolling over the next. The film's timelines only
         // look things up inside the stage; nothing else animates the stage.
-        gsap.fromTo(stage, { autoAlpha: 1 }, { autoAlpha: 0, ease: "none", scrollTrigger: { trigger: film, start: "bottom bottom", end: "bottom 35%", scrub: reduce ? true : 0.4, invalidateOnRefresh: true } });
-        const undoSteps = buildSteps(steps, desktop, reduce, short);
-        buildCta(cta, ctaStage, desktop, reduce, starsDim);
+        if (!lite) gsap.fromTo(stage, { autoAlpha: 1 }, { autoAlpha: 0, ease: "none", scrollTrigger: { trigger: film, start: "bottom bottom", end: "bottom 35%", scrub: reduce ? true : 0.4, invalidateOnRefresh: true } });
+        const undoSteps = buildSteps(steps, desktop, reduce, short, lite);
+        if (!lite) buildCta(cta, ctaStage, desktop, reduce, starsDim);
 
         // The site's floating dock (WhatsAppButton: back to top, Instagram)
         // sits bottom right, which on a phone is on top of the film's city
@@ -414,6 +430,9 @@ export function CinematicExperience() {
           <FilmHud onSkip={goApply} />
         </div>
       </section>
+
+      {/* On a phone, chapters 02-11 as a route of cards: no scroll animation there (lite.ts). */}
+      <MobileJourney />
 
       {/* Without JavaScript the film cannot play, so its one list of facts is
           given plainly. */}

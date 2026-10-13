@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type MouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { ArrowRight, Check, ExternalLink, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, ChevronRight, ExternalLink, X } from "lucide-react";
 import { displayFont } from "@/components/CinematicExperience/fonts";
 import { TRIP_CONSENTS, TRIP_FACTS, TRIP_PRIVACY, TRIP_PRIVACY_HREF, TRIP_TERMS, TRIP_TERMS_HREF } from "@/lib/trip-legal";
 import { LegalSections } from "./LegalSections";
@@ -99,6 +99,10 @@ export function ConsentGate({
   const [terms, setTerms] = useState(false);
   const [missing, setMissing] = useState(false);
   const [read, setRead] = useState({ terms: 0, privacy: 0 });
+  // A phone's sheet (the CSS below 640px) shows the agreement first and a
+  // document on its own, a screen of its own: false is the agreement, true the
+  // reader. Wider screens show both at once and ignore it.
+  const [reading, setReading] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -127,6 +131,7 @@ export function ConsentGate({
       setMounted(true);
       go("enter");
       setMissing(false);
+      setReading(false);
       const id = requestAnimationFrame(() => requestAnimationFrame(() => go("open")));
       return () => cancelAnimationFrame(id);
     }
@@ -237,9 +242,10 @@ export function ConsentGate({
   }, [mounted]);
 
   // A new document: back to where the reader left it, or to a jumped-to clause.
+  // Also when a phone's reader opens: until then its pane was not laid out.
   useLayoutEffect(() => {
     const pane = paneRef.current;
-    if (!pane) return;
+    if (!pane || !pane.getClientRects().length) return;
     const n = pendingJump.current;
     pendingJump.current = null;
     if (n !== null) {
@@ -253,18 +259,22 @@ export function ConsentGate({
     }
     onPaneScroll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, mounted]);
+  }, [tab, mounted, reading]);
 
   const onPaneScroll = () => {
     const pane = paneRef.current;
-    if (!pane) return;
+    // Hidden (a phone's agreement), it reads 0 and would forget the place.
+    if (!pane || !pane.getClientRects().length) return;
     scrollOf.current[tab] = pane.scrollTop;
     const p = Math.min(1, pane.scrollTop / Math.max(1, pane.scrollHeight - pane.clientHeight));
     setRead((r) => (p > r[tab] + 0.01 || (p >= 0.985 && r[tab] < 1) ? { ...r, [tab]: p >= 0.985 ? 1 : p } : r));
   };
 
   const showTab = (next: Tab, clause?: number) => {
-    if (next === tab && clause !== undefined) {
+    // On a phone this opens the reader; the pane is laid out only once it has.
+    const shown = !!paneRef.current?.getClientRects().length;
+    setReading(true);
+    if (shown && next === tab && clause !== undefined) {
       // Same document: glide there now.
       const el = paneRef.current?.querySelector<HTMLElement>(`#${uid}-${tab}-${clause}`);
       if (el && paneRef.current) {
@@ -283,12 +293,23 @@ export function ConsentGate({
     return false;
   };
 
+  /** A document, or a clause of it, opened to be read: on a phone, in the reader, which takes the focus once it shows. */
+  const readDoc = (to: Tab, clause?: number) => {
+    showTab(to, clause);
+    requestAnimationFrame(() => paneRef.current?.focus({ preventScroll: true }));
+  };
+
+  /** A phone's reader, closed: back to the agreement, at the document's own row. */
+  const backToAgreement = () => {
+    setReading(false);
+    requestAnimationFrame(() => document.getElementById(`${uid}-row-${tab}`)?.focus({ preventScroll: true }));
+  };
+
   /** A document's name in a consent: shows that document here; a new-tab click still opens the page. */
   const openDoc = (e: MouseEvent<HTMLAnchorElement>, to: Tab) => {
     if (!plainClick(e)) return;
     e.preventDefault();
-    showTab(to);
-    paneRef.current?.focus({ preventScroll: true });
+    readDoc(to);
   };
 
   const agree = () => {
@@ -311,6 +332,32 @@ export function ConsentGate({
     tabRefs.current[next]?.focus();
   };
 
+  // The document, built once per tab. The pane's scroll moves the reading
+  // rings many times a second, and every clause used to render again with
+  // them: on a phone the pane stuttered under the finger (2026-10-13).
+  const docView = useMemo(
+    () => {
+      const d = DOCS[tab];
+      return (
+        <div className="tg-doc" key={tab}>
+          <p className="tg-doc-eyebrow">{d.doc.heading[0]}</p>
+          <p className={`${DISPLAY} tg-doc-title`}>{d.doc.heading[1]}</p>
+          <div className="tg-doc-intro">
+            {d.doc.intro.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+          <LegalSections doc={d.doc} prefix={`${uid}-${tab}`} level={3} onDocLink={onDocLink} />
+          <p className="tg-doc-end">End of the {d.label}</p>
+        </div>
+      );
+    },
+    // onDocLink is new on every render, but all it does is showTab, which reads
+    // only refs, setters and this tab.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tab, uid],
+  );
+
   if (!mounted || typeof document === "undefined") return null;
   const current = DOCS[tab];
 
@@ -318,7 +365,7 @@ export function ConsentGate({
     // data-lenis-prevent: the landing page's smooth scroll leaves every wheel
     // turn in here to the browser, so the pane (and, on a short screen, the
     // pass) scrolls natively.
-    <div data-tg-root data-state={phase} data-lenis-prevent className={`${displayFont.variable} cx tg-root`}>
+    <div data-tg-root data-state={phase} data-view={reading ? "read" : "agree"} data-lenis-prevent className={`${displayFont.variable} cx tg-root`}>
       <div aria-hidden className="tg-backdrop" onClick={close} />
       <div
         ref={panelRef}
@@ -346,6 +393,14 @@ export function ConsentGate({
           </header>
 
           <div className="tg-tabbar">
+            {/* A phone's reader: back to the agreement, and the document's name in place of the tabs. */}
+            <button type="button" onClick={backToAgreement} className="tg-back" aria-label="Back to the agreement">
+              <ArrowLeft size={19} strokeWidth={2} aria-hidden />
+            </button>
+            <p aria-hidden className="tg-reader-title">
+              {current.label}
+            </p>
+            <span aria-hidden className="tg-reader-progress" style={{ transform: `scaleX(${read[tab]})` }} />
             <div ref={tabsRef} role="tablist" aria-label="Documents" className="tg-tabs" onKeyDown={onTabKey}>
               {(["terms", "privacy"] as const).map((t) => (
                 <button
@@ -386,18 +441,47 @@ export function ConsentGate({
               onScroll={onPaneScroll}
               className="tg-pane"
             >
-              <div className="tg-doc" key={tab}>
-                <p className="tg-doc-eyebrow">{current.doc.heading[0]}</p>
-                <p className={`${DISPLAY} tg-doc-title`}>{current.doc.heading[1]}</p>
-                <div className="tg-doc-intro">
-                  {current.doc.intro.map((line) => (
-                    <p key={line}>{line}</p>
-                  ))}
-                </div>
-                <LegalSections doc={current.doc} prefix={`${uid}-${tab}`} level={3} onDocLink={onDocLink} />
-                <p className="tg-doc-end">End of the {current.label}</p>
-              </div>
+              {docView}
             </div>
+          </div>
+
+          {/* A phone's agreement (CSS below 640px): the two documents, each a
+              row with its reading ring that opens it in the reader, and the
+              facts at a glance, each opening the clause that states them. */}
+          <div className="tg-summary">
+            <p className="tg-sum-title">The documents</p>
+            <ul className="tg-docrows">
+              {(["terms", "privacy"] as const).map((t) => (
+                <li key={t}>
+                  <button type="button" id={`${uid}-row-${t}`} onClick={() => readDoc(t)} className="tg-docrow">
+                    <ReadRing p={read[t]} />
+                    <span className="tg-docrow-text">
+                      <span className="tg-docrow-name">{DOCS[t].label}</span>
+                      <span className="tg-docrow-meta">
+                        {read[t] >= 1
+                          ? "Read to the end"
+                          : read[t] > 0.02
+                            ? `${Math.round(read[t] * 100)}% read`
+                            : `${DOCS[t].doc.sections.length} ${t === "terms" ? "clauses" : "sections"} · tap to read`}
+                      </span>
+                    </span>
+                    <ChevronRight aria-hidden size={18} strokeWidth={2} className="tg-docrow-go" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="tg-sum-title">At a glance</p>
+            <ul className="tg-facts">
+              {GLANCE.map((g) => (
+                <li key={g.label}>
+                  <button type="button" onClick={() => readDoc("terms", g.clause)}>
+                    <span className="tg-fact-label">{g.label}</span>
+                    <span className="tg-fact-value">{g.value}</span>
+                    <span className="sr-only">: read clause {g.clause}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
 
@@ -424,6 +508,13 @@ export function ConsentGate({
                   </li>
                 ))}
               </ul>
+            </div>
+
+            {/* A phone's reader: the way back to the boxes, when the reading is done. */}
+            <div className="tg-reader-foot">
+              <button type="button" onClick={backToAgreement} className="tg-done">
+                Done
+              </button>
             </div>
 
             <div className="tg-foot">

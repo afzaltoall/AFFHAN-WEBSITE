@@ -222,6 +222,56 @@
 }
 .ax-step-scroll[data-above] { --ax-fade-top: 28px; }
 .ax-step-scroll[data-below] { --ax-fade-bottom: 44px; }
+/* A phone (the query of CinematicExperience/lite.ts; keep them the same). No
+   blur behind the form or in the washes of light: the sky behind them moves,
+   so the phone's GPU blurred the whole screen again on every frame, and the
+   form stuck under the finger (the owner's moto g45, 2026-10-13); the glass is
+   a deeper tint instead, so the words read as cleanly. And the questions fade
+   less at their foot, with room under the last one, so a field never looks to
+   be under Next. */
+@media (hover: none) and (pointer: coarse) and (max-width: 767.98px), (hover: none) and (pointer: coarse) and (max-height: 540px) {
+  .ax-pane {
+    background: linear-gradient(180deg, rgb(12 10 14 / 0.84), rgb(8 7 10 / 0.9));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .ax-nebula {
+    filter: none;
+    animation: none;
+    will-change: auto;
+  }
+  .ax-step-scroll { padding-bottom: 48px; }
+  .ax-step-scroll[data-below] { --ax-fade-bottom: 20px; }
+  /* The intro's horizon is drawn two-thirds down the screen, which on a phone
+     is where the intro's words are: it struck through them like a rule (the
+     owner, 2026-10-13). The words are enough there. */
+  .ax-rule { display: none; }
+  /* The form's type at a phone's size (the owner: "text big and feels
+     clumsy", 2026-10-13): the step's number and title a size smaller, the
+     answers 16px (below that a phone zooms in on the field), the choices a
+     little tighter. */
+  .ax .ax-step-num { font-size: 46px; }
+  .ax .ax-head { gap: 14px; }
+  .ax-step-title { font-size: 22px; line-height: 1.04; }
+  .ax-step-lede { font-size: 14px; line-height: 1.5; }
+  .ax-line { font-size: 16px; }
+  .ax-choice {
+    min-height: 48px;
+    padding-block: 10px;
+    font-size: 14.5px;
+  }
+  /* The intro, at a phone's size too: the heading a size down, the lines
+     under it at reading size. */
+  .ax [data-ax="intro-heading"] { font-size: 36px; line-height: 0.96; }
+  .ax [data-ax="intro-support"] {
+    margin-top: 1.25rem;
+    font-size: 17px;
+  }
+  .ax [data-ax="intro-body"] {
+    font-size: 15px;
+    line-height: 1.6;
+  }
+}
 /* A thin gold line for a scrollbar: the steps, the intro on a short screen,
    the country and category lists. */
 .ax-thin-scroll {

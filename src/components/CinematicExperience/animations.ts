@@ -632,6 +632,20 @@ export function buildFilm(film: HTMLElement, stage: HTMLElement, desktop: boolea
  * at its resting composition and fades out for the next. All the words and
  * both calls to action are still there.
  * ============================================================================= */
+/**
+ * A phone's film (lite.ts): no timeline at all. Only the opening frame is
+ * shown, the journey's cards tell the rest (MobileJourney), and cinematic.css
+ * lays it out; all that is left is what only script sets, as the reduced film
+ * does: the climb's readout, at cruise.
+ */
+export function restFilm(stage: HTMLElement) {
+  const $ = picker(stage);
+  for (const [key, value] of [["plane-alt", "35,000"], ["plane-speed", "900"]]) {
+    const [el] = $(key);
+    if (el) el.textContent = value;
+  }
+}
+
 export function buildFilmReduced(film: HTMLElement, stage: HTMLElement, desktop: boolean, hooks: FilmHooks) {
   const $ = picker(stage);
   const END = FILM_REDUCED_END;
@@ -706,7 +720,7 @@ function pulse(tl: gsap.core.Timeline, el: Element | null | undefined, at: numbe
  * ============================================================================= */
 export const STEPS_END = 3.0;
 
-export function buildSteps(section: HTMLElement, desktop: boolean, reduced: boolean, short: boolean): () => void {
+export function buildSteps(section: HTMLElement, desktop: boolean, reduced: boolean, short: boolean, flat = false): () => void {
   const $ = picker(section);
   const [content] = $("steps-content") as HTMLElement[];
   const [svg] = $("steps-svg");
@@ -792,6 +806,16 @@ export function buildSteps(section: HTMLElement, desktop: boolean, reduced: bool
       r.style.transform = "";
     });
   };
+
+  // A phone's page (lite.ts): not pinned, nothing on the scroll. The route
+  // drawn, every stop lit, every word in place, as under reduced motion.
+  if (flat) {
+    section.toggleAttribute("data-flow", true);
+    ride.s = 3;
+    draw();
+    gsap.set($("step-core"), { scale: 1 });
+    return undo;
+  }
 
   // Pinned only if the stage fits between the navbar and the bottom of the screen.
   const pinned = !reduced && !short && content.offsetHeight <= window.innerHeight - 88;

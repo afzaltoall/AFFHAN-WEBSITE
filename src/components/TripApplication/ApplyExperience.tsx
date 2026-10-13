@@ -887,7 +887,7 @@ export function ApplyExperience() {
 
       {/* One screen under the site's bar: the page never scrolls. */}
       <div className="relative z-20 mx-auto flex h-full max-w-[1320px] px-5 sm:px-8 lg:px-12">
-        <div className={`relative flex h-full min-h-0 w-full flex-col lg:w-[45%] ${phase === "intro" ? "ax-thin-scroll overflow-y-auto py-8" : ""}`}>
+        <div className={`relative flex h-full min-h-0 w-full flex-col lg:w-[45%] ${phase === "intro" ? "ax-thin-scroll overflow-y-auto overflow-x-hidden py-8" : ""}`}>
           {/* The glass the form sits on: the sky behind the questions frosted (apply.css). */}
           {phase !== "intro" && <div aria-hidden className="ax-pane" />}
           {phase === "intro" && (

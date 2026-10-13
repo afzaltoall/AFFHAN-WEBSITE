@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { isLite } from "./lite";
 
 /**
  * Tiny gold particles drifting upwards: the ambient light of the final call to
@@ -10,7 +11,9 @@ import { useEffect, useRef } from "react";
  * leash: it runs only while its canvas is on screen and the tab is visible,
  * draws at 30fps, and never runs at all for anyone who asked for reduced
  * motion (they get one still frame). A few dozen dots, no per-frame
- * allocation beyond their fill strings.
+ * allocation beyond their fill strings. Never on a phone (lite.ts): there it
+ * read as more stars behind the words, and the owner wanted them gone
+ * (2026-10-13); the canvas simply stays empty.
  */
 export function GoldDust({ className = "", density = 1 }: { className?: string; density?: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -18,7 +21,7 @@ export function GoldDust({ className = "", density = 1 }: { className?: string; 
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx) return;
+    if (!canvas || !ctx || isLite()) return;
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
     let w = 0, h = 0, raf = 0, last = 0, running = false, onScreen = false;

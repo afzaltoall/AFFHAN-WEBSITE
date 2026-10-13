@@ -33,55 +33,66 @@ export function Scene14FinalCta({ onApply }: { onApply: (e: MouseEvent<HTMLAncho
             screen). Clipped at the sides only, so the gold and the silk,
             which arrive while the stage is still rising, are never cut off
             along its top edge; its glow fades in from that edge. */}
-        <div aria-hidden className="cx-haze-crimson cx-cta-haze absolute inset-0 opacity-80" />
-        <div data-cx="cta-dust" data-cx-hide aria-hidden className="absolute inset-0 z-[5]">
-          <GoldDust className="h-full w-full" />
-        </div>
+        {/* The call (14). On a phone, a screen of its own, the countdown the
+            next one (cinematic.css: a phone's page has no scroll animation);
+            elsewhere display: contents, so its layers are the stage's own. */}
+        <div data-cx-call className="contents">
+          {/* As tall as the screen with the browser's toolbar gone (lvh), not the stage (svh): at the end of the
+              page a phone hides its toolbar, and the 56px the screen gains was a bare band under the haze, the
+              silk crossing it (the owner's moto g45, 2026-10-13). */}
+          <div aria-hidden className="cx-haze-crimson cx-cta-haze absolute inset-x-0 top-0 h-[100lvh] opacity-80" />
+          <div data-cx="cta-dust" data-cx-hide aria-hidden className="absolute inset-0 z-[5]">
+            <GoldDust className="h-full w-full" />
+          </div>
 
-        {/* The gold trail, sweeping in behind him. */}
-        <div data-cx="cta-gold" data-cx-hide aria-hidden className="pointer-events-none absolute left-[-40vw] top-[10svh] z-[8] w-[170vw] lg:left-[-14vw] lg:top-[40svh] lg:w-[92vw]">
-          <FilmImage asset={ASSETS.gold} alt="" sizes="(min-width: 1024px) 92vw, 170vw" className="cx-feather-x" />
-        </div>
+          {/* The gold trail, sweeping in behind him. */}
+          <div data-cx="cta-gold" data-cx-hide aria-hidden className="pointer-events-none absolute left-[-40vw] top-[10svh] z-[8] w-[170vw] lg:left-[-14vw] lg:top-[40svh] lg:w-[92vw]">
+            <FilmImage asset={ASSETS.gold} alt="" sizes="(min-width: 1024px) 92vw, 170vw" className="cx-feather-x" />
+          </div>
 
-        {/* The host. */}
-        <div className="pointer-events-none absolute left-[6vw] top-[9svh] z-[20] aspect-[992/1586] h-[44svh] lg:bottom-0 lg:left-[7vw] lg:top-auto lg:h-(--host-h)">
-          <div data-cx="cta-host" data-cx-hide className="h-full w-full">
-            <div className="cx-breathe h-full w-full">
-              <FilmImage asset={ASSETS.host} alt={FINAL_CTA.hostAlt} sizes="(min-width: 1024px) 34vw, 30svh" className="h-full w-full object-contain" />
+          {/* The host. */}
+          <div className="pointer-events-none absolute left-[6vw] top-[9svh] z-[20] aspect-[992/1586] h-[44svh] lg:bottom-0 lg:left-[7vw] lg:top-auto lg:h-(--host-h)">
+            <div data-cx="cta-host" data-cx-hide className="h-full w-full">
+              <div className="cx-breathe h-full w-full">
+                <FilmImage asset={ASSETS.host} alt={FINAL_CTA.hostAlt} sizes="(min-width: 1024px) 34vw, 30svh" className="h-full w-full object-contain" />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Red silk, low and in front. */}
-        <div data-cx="cta-silk" data-cx-hide aria-hidden className="pointer-events-none absolute bottom-[-6svh] right-[-36vw] z-[40] w-[150vw] lg:bottom-[-10svh] lg:right-[-12vw] lg:w-[78vw]">
-          <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 1024px) 78vw, 150vw" className="cx-feather-x opacity-90" />
-        </div>
-
-        {/* The offer, beside his open hand; above the silk, so nothing crosses the words. */}
-        <div className="absolute inset-x-6 top-[56svh] z-[45] lg:inset-x-auto lg:bottom-[calc(var(--host-h)*0.71-8rem)] lg:left-[calc(7vw+var(--host-h)*0.64)] lg:right-[5vw] lg:top-auto">
-          <h2
-            id="cx-cta-title"
-            data-cx="cta-headline"
-            data-cx-hide
-            className={`${DISPLAY} text-[clamp(44px,12vw,76px)] uppercase leading-[0.92] text-(--cx-white) lg:text-[clamp(52px,5.8vw,112px)]`}
-          >
-            {FINAL_CTA.headline}
-          </h2>
-          <p data-cx="cta-line" data-cx-hide className="mt-4 max-w-[30rem] text-[16px] leading-relaxed text-(--cx-mute) lg:mt-6 lg:text-[19px]">
-            {FINAL_CTA.line}
-          </p>
-          <div data-cx="cta-button" data-cx-hide className="mt-7 w-fit lg:mt-9">
-            <ApplyButton onClick={onApply} size="lg">
-              {FINAL_CTA.button}
-            </ApplyButton>
+          {/* Red silk, low and in front. */}
+          <div data-cx="cta-silk" data-cx-hide aria-hidden className="pointer-events-none absolute bottom-[-6svh] right-[-36vw] z-[40] w-[150vw] lg:bottom-[-10svh] lg:right-[-12vw] lg:w-[78vw]">
+            <FilmImage asset={ASSETS.silk} alt="" sizes="(min-width: 1024px) 78vw, 150vw" className="cx-feather-x opacity-90" />
           </div>
-          <p data-cx="cta-note" data-cx-hide className="mt-4 text-[13px] tracking-[0.02em] text-(--cx-mute)">
-            {FINAL_CTA.note}
-          </p>
+
+          {/* The offer, beside his open hand; above the silk, so nothing crosses the words. */}
+          <div className="absolute inset-x-6 top-[56svh] z-[45] lg:inset-x-auto lg:bottom-[calc(var(--host-h)*0.71-8rem)] lg:left-[calc(7vw+var(--host-h)*0.64)] lg:right-[5vw] lg:top-auto">
+            <h2
+              id="cx-cta-title"
+              data-cx="cta-headline"
+              data-cx-hide
+              className={`${DISPLAY} text-[clamp(44px,12vw,76px)] uppercase leading-[0.92] text-(--cx-white) lg:text-[clamp(52px,5.8vw,112px)]`}
+            >
+              {FINAL_CTA.headline}
+            </h2>
+            <p data-cx="cta-line" data-cx-hide className="mt-4 max-w-[30rem] text-[16px] leading-relaxed text-(--cx-mute) lg:mt-6 lg:text-[19px]">
+              {FINAL_CTA.line}
+            </p>
+            <div data-cx="cta-button" data-cx-hide className="mt-7 w-fit lg:mt-9">
+              <ApplyButton onClick={onApply} size="lg">
+                {FINAL_CTA.button}
+              </ApplyButton>
+            </div>
+            <p data-cx="cta-note" data-cx-hide className="mt-4 text-[13px] tracking-[0.02em] text-(--cx-mute)">
+              {FINAL_CTA.note}
+            </p>
+          </div>
         </div>
 
-        <Scene15CtaToCountdown />
-        <Scene16Countdown onApply={onApply} />
+        {/* Into time (15) and the countdown (16). */}
+        <div data-cx-time className="contents">
+          <Scene15CtaToCountdown />
+          <Scene16Countdown onApply={onApply} />
+        </div>
       </div>
     </section>
   );

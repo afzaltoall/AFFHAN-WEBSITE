@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import { HERO } from "./content";
+import { isLite } from "./lite";
 
 /**
  * The headline's turns. Under FREE, the second and third lines take turns
@@ -22,7 +23,9 @@ import { HERO } from "./content";
  * Time-based and polite: it starts once the opening count has opened onto
  * the frame, turns only while the headline is on screen and the tab is
  * visible, skips any pair too wide for its line, and never runs under
- * reduced motion (the first pair simply stays). Decorative: the <h1> reads
+ * reduced motion or on a phone (lite.ts): the first pair simply stays. On the
+ * owner's phone a turn caught mid-way read as words piled on words, and its
+ * letter-by-letter glow was redrawn every frame of it (2026-10-13). Decorative: the <h1> reads
  * HERO.titleLines (sr-only, in Scene01Opening), so search and screen
  * readers get one stable title.
  */
@@ -38,7 +41,7 @@ export function HeroTurns({ play }: { play: boolean }) {
 
   useEffect(() => {
     const root = ref.current;
-    if (!play || !root || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (!play || !root || window.matchMedia("(prefers-reduced-motion: reduce)").matches || isLite()) return;
     const copy = root.closest<HTMLElement>("[data-cx='hero-copy']");
     const free = Array.from(root.querySelectorAll<HTMLElement>("[data-turn-free] > span"));
     const lines = Array.from(root.querySelectorAll<HTMLElement>("[data-turn-line]"));
