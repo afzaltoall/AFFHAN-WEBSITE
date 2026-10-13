@@ -1,6 +1,5 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { Footer } from "@/components/ui/footer";
 
 import { InstagramIcon, LinkedinIcon, YouTubeIcon, FacebookIcon, TiktokIcon, TwitterXIcon } from "@/components/ui/social-icons";
@@ -70,7 +69,15 @@ const socialLinks = [
   { label: "Shipping & Freight Forwarding", href: "/shipping/", icon: <ChevronIcon /> },
 ];
 
-export function FooterSection() {
+/**
+ * `phone`: shown on a phone (below 768px) too. Only the homepage and About Us pass it (the owner,
+ * 2026-10-13: "show footer in home page and about us page only in mobile view"); every other page ends as an
+ * app's screens do, the phone frame's Account tab holding the links (MyAffhanMenu). From 768px up the footer
+ * is under every page as before. A prop rather than the path: the cached homepage is regenerated as
+ * "/index" (affhan.com, 2026-10-13: its footer came out hidden, lib/phoneChrome.ts sitePath), and a class
+ * the server got wrong stays wrong through hydration.
+ */
+export function FooterSection({ phone = false }: { phone?: boolean } = {}) {
   const handleNewsletterSubscribe = async () => {
     await new Promise((resolve) => {
       window.setTimeout(resolve, 700);
@@ -79,14 +86,8 @@ export function FooterSection() {
     return true;
   };
 
-  // On a phone (below 768px), only under the homepage and About Us (the owner, 2026-10-13: "show footer in
-  // home page and about us page only in mobile view"); the rest end as an app's screens do, the phone
-  // frame's Account tab holding the links (MyAffhanMenu). From 768px up, under every page as before.
-  const bare = (usePathname() ?? "/").replace(/\/$/, "") || "/";
-  const onPhone = bare === "/" || bare === "/about";
-
   return (
-    <section id="contact" className={`flex w-full lg:snap-start flex-col bg-[#245B6D] ${onPhone ? "" : "max-md:hidden"}`}>
+    <section id="contact" className={`flex w-full lg:snap-start flex-col bg-[#245B6D] ${phone ? "" : "max-md:hidden"}`}>
       <Footer
         logoSrc="/images/logo.png"
         companyName="AFFHAN GROUP"

@@ -9,7 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { ImageSearchButton } from "@/components/ui/ImageSearchButton";
 import { SearchAssistPanel, useSearchAssist } from "@/components/search/SearchAssist";
 import { overlayWillNavigate, useBackDismiss } from "@/lib/useBackDismiss";
-import { phoneChromeFor, PHONE_TABS_HEIGHT } from "@/lib/phoneChrome";
+import { phoneChromeFor, PHONE_TABS_HEIGHT, sitePath } from "@/lib/phoneChrome";
 import "./phone-chrome.css";
 
 /**
@@ -228,7 +228,10 @@ const TABS = [
 ] as const;
 
 function PhoneTabs({ pathname }: { pathname: string }) {
-  const bare = pathname.replace(/\/$/, "") || "/";
+  // sitePath: the cached homepage is regenerated as "/index", and the Home tab has to be current in that
+  // server HTML itself. Hydration does not patch an `aria-current` or colour the server got wrong, and the
+  // browser's own path is already "/" by then, so nothing later would change it either.
+  const bare = sitePath(pathname);
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-[100] border-t border-slate-200/80 bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
       <ul className="grid grid-cols-4" style={{ height: PHONE_TABS_HEIGHT }}>

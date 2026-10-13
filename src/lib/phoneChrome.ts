@@ -17,8 +17,19 @@
  */
 export type PhoneChrome = "none" | "plain" | "full";
 
+/**
+ * A path as these rules read it: no trailing slash, and the homepage as "/" however it is named. Vercel
+ * regenerates the cached homepage as "/index" (affhan.com, 2026-10-13: the canonical URL in its flight data
+ * read ["", "index"], and its server HTML came out with no tab current), which is what the server's
+ * usePathname() gives then; the browser's is "/".
+ */
+export function sitePath(pathname: string | null | undefined): string {
+  const bare = (pathname ?? "/").replace(/\/+$/, "") || "/";
+  return bare === "/index" ? "/" : bare;
+}
+
 export function phoneChromeFor(pathname: string | null | undefined): PhoneChrome {
-  const bare = (pathname ?? "/").replace(/\/$/, "") || "/";
+  const bare = sitePath(pathname);
   if (bare === "/admin" || bare.startsWith("/admin/") || bare === "/employee" || bare.startsWith("/employee/")) return "none";
   // "experience" as the floating dock reads it (WhatsAppButton): the trip's own pages.
   if (bare === "/free-china-trip" || bare.startsWith("/free-china-trip/") || bare.includes("experience")) return "none";

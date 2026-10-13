@@ -275,7 +275,8 @@ export default async function Home() {
           </div>
         </WhenNear>
       </div>
-      <FooterSection />
+      {/* On a phone too: the homepage and About Us keep the footer there (FooterSection). */}
+      <FooterSection phone />
     </main>
   );
 }

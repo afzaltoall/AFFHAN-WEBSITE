@@ -93,7 +93,8 @@ export default function AboutPage() {
           </p>
         </div>
       </section>
-      <FooterSection />
+      {/* On a phone too: the homepage and About Us keep the footer there (FooterSection). */}
+      <FooterSection phone />
     </>
   );
 }
