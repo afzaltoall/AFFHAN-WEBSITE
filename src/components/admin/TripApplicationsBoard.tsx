@@ -25,11 +25,13 @@ import { TripStagePanel } from "./TripStagePanel";
  * is one tap. Excel export of whatever the filter shows.
  *
  * Filters (the owner, 2026-10-13): the business journey, as step 02's first
- * question asked it, and the country, either or both, several of each at
- * once. Every count on the page answers "how many would I get": an option's
- * count is the list with every other filter applied and its own set aside,
- * so picking India shows how many Indians run a business before that is
- * pressed, and an option that would empty the list is dimmed.
+ * question asked it, and the country, either or both, one of each at a time,
+ * as the form's own choices are one of four (picking another switches to it;
+ * several at once read as a fault: "multiple of items are selecting"). Every
+ * count on the page answers "how many would I get": an option's count is the
+ * list with every other filter applied and its own set aside, so with India
+ * picked, "Runs a business" shows how many Indians run one, and an option
+ * that would empty the list is dimmed.
  *
  * Step 02 is the applicant's business journey (running a business, planning
  * one, expanding one, or none yet), and only the answers that journey asked
@@ -120,8 +122,8 @@ const TABS: { key: TabKey; label: string }[] = [
 /** What the address asked for (page.tsx), before it is checked. */
 export interface InitialFilters {
   tab: string;
-  journeys: string[];
-  countries: string[];
+  journey: string;
+  country: string;
 }
 
 const fmtDate = (iso: string) =>
@@ -169,20 +171,14 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>(() => TABS.find((t) => t.key === initial?.tab)?.key ?? "new");
   const [q, setQ] = useState("");
-  /** Business journeys and countries picked, any number of each; none is everyone. */
-  const [journeys, setJourneys] = useState<Set<string>>(() => new Set((initial?.journeys ?? []).filter(isBusinessStatus)));
-  const [countries, setCountries] = useState<Set<string>>(
-    () => new Set((initial?.countries ?? []).map((c) => c.trim().slice(0, 100)).filter(Boolean)),
-  );
-  const toggle = (set: Set<string>, v: string) => {
-    const next = new Set(set);
-    if (next.has(v)) next.delete(v);
-    else next.add(v);
-    return next;
-  };
+  /** The business journey and the country picked, one of each at most; null is everyone. */
+  const [journey, setJourney] = useState<string | null>(() => (isBusinessStatus(initial?.journey) ? initial.journey : null));
+  const [country, setCountry] = useState<string | null>(() => initial?.country?.trim().slice(0, 100) || null);
+  /** Picking the one already picked lets it go; picking another switches to it. */
+  const pick = (current: string | null, v: string) => (current === v ? null : v);
   const clearFilters = () => {
-    setJourneys(new Set());
-    setCountries(new Set());
+    setJourney(null);
+    setCountry(null);
     setQ("");
   };
 
@@ -191,12 +187,12 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   useEffect(() => {
     const p = new URLSearchParams();
     if (tab !== "new") p.set("tab", tab);
-    for (const j of journeys) p.append("journey", j);
-    for (const c of countries) p.append("country", c);
+    if (journey) p.set("journey", journey);
+    if (country) p.set("country", country);
     const qs = p.toString();
     const url = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
     if (url !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, "", url);
-  }, [tab, journeys, countries]);
+  }, [tab, journey, country]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // What "Today" and "This week" count from: the last read, so after midnight a refresh moves them on.
@@ -284,11 +280,11 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   );
 
   const needle = q.trim().toLowerCase();
-  const narrowed = journeys.size > 0 || countries.size > 0 || needle !== "";
+  const narrowed = journey !== null || country !== null || needle !== "";
 
   // One pass for the list and every count beside a filter. Each count leaves out its own filter and keeps the
-  // others: the tabs count across journeys, countries and the search; a journey's count is the list as it would
-  // be with that journey picked alone; a country's likewise.
+  // others: the tabs count across the journey, the country and the search; a journey's count is the list as it
+  // would be with that journey picked instead; a country's likewise.
   const view = useMemo(() => {
     const tabs: Record<TabKey, number> = { new: 0, handled: 0, spam: 0, all: 0 };
     const byJourney = new Map<string, number>();
@@ -298,8 +294,8 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     for (const r of rows ?? []) {
       const t = tab === "all" || r.status === tab;
       const s = !needle || (words.get(r.id) ?? "").includes(needle);
-      const j = !journeys.size || journeys.has(r.businessStatus);
-      const c = !countries.size || countries.has(countryOf(r));
+      const j = !journey || r.businessStatus === journey;
+      const c = !country || countryOf(r) === country;
       if (s && j && c) {
         tabs.all++;
         if (r.status === "new" || r.status === "handled" || r.status === "spam") tabs[r.status]++;
@@ -310,16 +306,16 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       if (t && s && j && c) list.push(r);
     }
     return { tabs, byJourney, byCountry, list, inTab };
-  }, [rows, words, tab, needle, journeys, countries]);
+  }, [rows, words, tab, needle, journey, country]);
   const list = view.list;
 
   /** Every country anyone applied from, most applications first: an order the filters never reshuffle. */
   const countryOptions = useMemo(() => {
     const total = new Map<string, number>();
     for (const r of rows ?? []) if (countryOf(r)) total.set(countryOf(r), (total.get(countryOf(r)) ?? 0) + 1);
-    for (const c of countries) if (!total.has(c)) total.set(c, 0);
+    if (country && !total.has(country)) total.set(country, 0);
     return [...total.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([c]) => c);
-  }, [rows, countries]);
+  }, [rows, country]);
 
   const open = rows?.find((r) => r.id === openId) ?? null;
 
@@ -378,8 +374,8 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     XLSX.utils.book_append_sheet(wb, ws, "Free China Trip");
     // A filtered list says so in its name ("…-sri-lanka.xlsx"), so a file found later is not taken for everyone.
     const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const parts = [...countries, ...[...journeys].map(businessStatusBrief)].map(slug).filter(Boolean);
-    const suffix = parts.length ? `-${parts.length > 3 ? "filtered" : parts.join("-")}` : "";
+    const parts = [country ?? "", journey ? businessStatusBrief(journey) : ""].map(slug).filter(Boolean);
+    const suffix = parts.length ? `-${parts.join("-")}` : "";
     XLSX.writeFile(wb, `free-china-trip-${new Date().toISOString().slice(0, 10)}${suffix}.xlsx`);
   };
 
@@ -468,14 +464,15 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
 
         {rows && rows.length > 0 && (
           <FilterPanel
-            journeys={journeys}
-            countries={countries}
+            journey={journey}
+            country={country}
             byJourney={view.byJourney}
             byCountry={view.byCountry}
             countryOptions={countryOptions}
-            onJourney={(v) => setJourneys((s) => toggle(s, v))}
-            onCountry={(v) => setCountries((s) => toggle(s, v))}
-            onClear={journeys.size || countries.size ? () => { setJourneys(new Set()); setCountries(new Set()); } : undefined}
+            onJourney={(v) => setJourney((j) => pick(j, v))}
+            onCountry={(v) => setCountry((c) => pick(c, v))}
+            onAllJourneys={() => setJourney(null)}
+            onAllCountries={() => setCountry(null)}
           />
         )}
 
@@ -513,12 +510,8 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
               <span className="tabular-nums">{list.length}</span> of <span className="tabular-nums">{view.inTab}</span>{" "}
               {tab === "all" ? (view.inTab === 1 ? "application" : "applications") : tab}
             </span>
-            {[...journeys].map((j) => (
-              <ActiveFilter key={j} label={businessStatusBrief(j)} onRemove={() => setJourneys((s) => toggle(s, j))} />
-            ))}
-            {[...countries].map((c) => (
-              <ActiveFilter key={c} label={c} flag={c} onRemove={() => setCountries((s) => toggle(s, c))} />
-            ))}
+            {journey && <ActiveFilter label={businessStatusBrief(journey)} onRemove={() => setJourney(null)} />}
+            {country && <ActiveFilter label={country} flag={country} onRemove={() => setCountry(null)} />}
             {needle && <ActiveFilter label={`“${q.trim()}”`} onRemove={() => setQ("")} />}
             <button type="button" onClick={clearFilters} className="ml-auto font-medium text-[#0058b0] hover:underline">
               Clear all
@@ -607,50 +600,69 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
 
 /**
  * The two filters over the list: the business journey, step 02's first question in the board's words (the
- * form's own wording on hover), and the country. Several of each may be on; none is everyone. Each option
- * shows what picking it would leave (the board's counts), and one that would leave nothing is dimmed and
- * cannot be pressed unless it is already on. On a phone the four journeys run one a line, every one in
- * sight, and the countries run in one row that scrolls sideways, most applications first.
+ * form's own wording on hover), and the country. One of each at a time, as the form asks for one of four:
+ * picking another switches to it, picking the one that is on lets it go, and "Show all" beside a heading
+ * goes back to everyone for that filter. Each option shows what picking it would leave (the board's counts),
+ * and one that would leave nothing is dimmed and cannot be pressed unless it is on. On a phone the four
+ * journeys run one a line, every one in sight, and the countries run in one row that scrolls sideways, most
+ * applications first, with the country picked kept in view.
  */
 function FilterPanel({
-  journeys,
-  countries,
+  journey,
+  country,
   byJourney,
   byCountry,
   countryOptions,
   onJourney,
   onCountry,
-  onClear,
+  onAllJourneys,
+  onAllCountries,
 }: {
-  journeys: Set<string>;
-  countries: Set<string>;
+  journey: string | null;
+  country: string | null;
   byJourney: Map<string, number>;
   byCountry: Map<string, number>;
   countryOptions: string[];
   onJourney: (v: string) => void;
   onCountry: (v: string) => void;
-  /** Set while either filter is on. */
-  onClear?: () => void;
+  onAllJourneys: () => void;
+  onAllCountries: () => void;
 }) {
   const id = useId();
   const head = "text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]";
+  const showAll = "text-[12.5px] font-medium text-[#0058b0] hover:underline";
+
+  // The country picked, brought into the sideways row's view when it lies off either edge (a phone; from a
+  // tablet up the chips wrap and nothing scrolls). The row alone moves, never the page.
+  const rowRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const row = rowRef.current;
+    const chip = country ? row?.querySelector<HTMLElement>(`[data-country="${CSS.escape(country)}"]`) : null;
+    if (!row || !chip || row.scrollWidth <= row.clientWidth) return;
+    // The row is the chips' offset parent (relative), so this is the chip's place along the row's content.
+    const left = chip.offsetLeft;
+    if (left >= row.scrollLeft && left + chip.offsetWidth <= row.scrollLeft + row.clientWidth - 32) return;
+    row.scrollTo({ left: Math.max(0, left - (row.clientWidth - chip.offsetWidth) / 2), behavior: "smooth" });
+  }, [country]);
+
   return (
     <section aria-label="Filter the applications" className="mb-5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.06] sm:p-5">
       <div className="flex items-baseline justify-between gap-3">
         <h2 id={`${id}-journey`} className={head}>
           Business journey
         </h2>
-        {onClear && (
-          <button type="button" onClick={onClear} className="text-[12.5px] font-medium text-[#0058b0] hover:underline">
-            Clear filters
+        {journey && (
+          <button type="button" onClick={onAllJourneys} className={showAll}>
+            Show all
           </button>
         )}
       </div>
       {/* A phone: one answer a line, every count in one column (two by two squeezed "Planning to start a
-          business" into three lines). Two across from a tablet, four from a computer. */}
+          business" into three lines). Two across from a tablet, four from a computer. A radio's dot, as on
+          the form: one answer at a time. */}
       <div role="group" aria-labelledby={`${id}-journey`} className="mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4">
         {BUSINESS_STATUSES.map((s) => {
-          const on = journeys.has(s.value);
+          const on = journey === s.value;
           const n = byJourney.get(s.value) ?? 0;
           return (
             <button
@@ -662,8 +674,8 @@ function FilterPanel({
               onClick={() => onJourney(s.value)}
               className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors disabled:cursor-default disabled:opacity-40 sm:min-h-[3.25rem] sm:py-2.5 ${on ? "bg-[#1d1d1f] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] enabled:hover:bg-black/[0.06]"}`}
             >
-              <span aria-hidden className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full ${on ? "bg-white text-[#1d1d1f]" : "bg-white ring-1 ring-black/20"}`}>
-                {on && <Check size={11} strokeWidth={3.5} />}
+              <span aria-hidden className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-white ${on ? "" : "ring-1 ring-black/20"}`}>
+                {on && <span className="h-2 w-2 rounded-full bg-[#1d1d1f]" />}
               </span>
               <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug">{s.brief}</span>
               <span className={`shrink-0 text-[13px] font-semibold tabular-nums ${on ? "text-white/70" : "text-[#86868b]"}`}>{n}</span>
@@ -672,22 +684,31 @@ function FilterPanel({
         })}
       </div>
 
-      <h2 id={`${id}-country`} className={`mt-4 ${head}`}>
-        Country
-      </h2>
+      <div className="mt-4 flex items-baseline justify-between gap-3">
+        <h2 id={`${id}-country`} className={head}>
+          Country
+        </h2>
+        {country && (
+          <button type="button" onClick={onAllCountries} className={showAll}>
+            Show all
+          </button>
+        )}
+      </div>
       {/* A phone: one row to the card's edges, scrolling sideways, fading where more waits off the right. */}
       <div
+        ref={rowRef}
         role="group"
         aria-labelledby={`${id}-country`}
-        className="-mx-4 mt-2.5 flex gap-2 overflow-x-auto pl-4 pr-10 [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,#000_calc(100%_-_32px),transparent)] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+        className="relative -mx-4 mt-2.5 flex gap-2 overflow-x-auto pl-4 pr-10 [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,#000_calc(100%_-_32px),transparent)] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
       >
         {countryOptions.map((c) => {
-          const on = countries.has(c);
+          const on = country === c;
           const n = byCountry.get(c) ?? 0;
           return (
             <button
               key={c}
               type="button"
+              data-country={c}
               aria-pressed={on}
               disabled={!on && n === 0}
               onClick={() => onCountry(c)}
