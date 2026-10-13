@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import "./globals.css";
 import { WhatsAppButton } from "@/components/ui/WhatsAppButton";
 import { Navbar } from "@/components/sections/Navbar";
+import { PhoneChrome } from "@/components/mobile/PhoneChrome";
 import { AuthProvider } from "@/context/AuthContext";
 import { FavouritesProvider } from "@/context/FavouritesContext";
 import { QuoteGateProvider } from "@/context/QuoteGateContext";
@@ -172,6 +173,10 @@ export default function RootLayout({
               <Navbar />
             </Suspense>
             {children}
+            {/* A phone's frame (below 768px): the logo and search across the top, the tabs along the bottom.
+                Out here, not in the navbar's Suspense boundary, so static pages carry it in their first paint;
+                after the page, because it leaves the room the tab bar needs under the page's end. */}
+            <PhoneChrome />
             </QuoteGateProvider>
           </FavouritesProvider>
         </AuthProvider>

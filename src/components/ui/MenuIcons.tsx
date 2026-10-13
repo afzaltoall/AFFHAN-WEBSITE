@@ -27,11 +27,11 @@ const INK_ID = "menu-ink";
  * box has no width or no height, and a gradient laid on that paints nothing,
  * so About's "i" and the trophy's foot were missing.
  */
-export function MenuInkDefs() {
+export function MenuInkDefs({ id = INK_ID }: { /** Another name, for icons that live where the drawer's may be hidden (the phone frame's). */ id?: string } = {}) {
   return (
     <svg aria-hidden="true" width="0" height="0" className="absolute">
       <defs>
-        <linearGradient id={INK_ID} gradientUnits="userSpaceOnUse" x1="2" y1="22" x2="22" y2="2">
+        <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="2" y1="22" x2="22" y2="2">
           <stop offset="0" stopColor={INK_FROM} />
           <stop offset="1" stopColor={INK_TO} />
         </linearGradient>
@@ -44,9 +44,13 @@ export function MenuInkDefs() {
 export const MENU_TILE =
   "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef6f9] ring-1 ring-inset ring-[#d7ebf2] transition-[background-color,box-shadow] duration-200 group-hover:bg-[linear-gradient(45deg,#06205e,#03a6c4)] group-hover:ring-transparent group-active:bg-[linear-gradient(45deg,#06205e,#03a6c4)] group-active:ring-transparent group-focus-visible:bg-[linear-gradient(45deg,#06205e,#03a6c4)] group-focus-visible:ring-transparent [&_svg]:transition-[stroke] group-hover:[&_svg]:stroke-white group-active:[&_svg]:stroke-white group-focus-visible:[&_svg]:stroke-white";
 
-/** A line icon in the menu's ink. */
-export function MenuGlyph({ icon: Icon }: { icon: LucideIcon }) {
-  return <Icon aria-hidden size={19} strokeWidth={1.9} color={`url(#${INK_ID})`} />;
+/**
+ * A line icon in the menu's ink. `ink` names the gradient when it is not the drawer's own: a second
+ * definition under the same id, hidden at a width where the drawer shows, would be the one the drawer's
+ * icons found, and a gradient inside display:none paints nothing.
+ */
+export function MenuGlyph({ icon: Icon, ink = INK_ID, size = 19 }: { icon: LucideIcon; ink?: string; size?: number }) {
+  return <Icon aria-hidden size={size} strokeWidth={1.9} color={`url(#${ink})`} />;
 }
 
 /** AFFHAN Shipping's emblem in the menu's ink: its own shape, painted with the gradient, white on a filled tile. */

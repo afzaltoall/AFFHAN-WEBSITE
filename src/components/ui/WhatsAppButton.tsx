@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
+import { phoneChromeFor } from "@/lib/phoneChrome";
 import { ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -118,8 +119,12 @@ export function WhatsAppButton() {
   const bare = pathname?.replace(/\/$/, "") ?? "";
   // On signing in and resetting a password, only from lg up (2026-10-13): on a
   // phone the bubble sat on the sign-in card's Email field; on a computer the
-  // card is clear of it.
+  // card is clear of it. And on no page with the phone frame below 768px
+  // (lib/phoneChrome.ts), as Alibaba's phone site has no such bubble: there it
+  // sat on the edge of every list, the frame's tabs scroll a page back to its
+  // top (PhoneChrome), and Instagram is a row of the Account tab (MyAffhanMenu).
   const authPage = bare === "/login" || bare === "/forgot-password";
+  const phoneFramed = phoneChromeFor(pathname) === "full";
   if (
     pathname?.includes("experience") ||
     bare === "/free-china-trip" ||
@@ -133,7 +138,7 @@ export function WhatsAppButton() {
   }
 
   return (
-    <div data-site-dock className={`fixed bottom-24 md:bottom-6 right-[21px] md:right-8 z-50 flex flex-col items-center gap-4 font-sans tracking-tight pointer-events-none ${authPage ? "max-lg:hidden" : ""}`}>
+    <div data-site-dock className={`fixed bottom-24 md:bottom-6 right-[21px] md:right-8 z-50 flex flex-col items-center gap-4 font-sans tracking-tight pointer-events-none ${authPage ? "max-lg:hidden" : ""} ${phoneFramed ? "max-md:hidden" : ""}`}>
       {/* Scroll to Top Button */}
       <AnimatePresence>
         {isScrolled && (

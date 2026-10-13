@@ -27,6 +27,7 @@ const NavAuthButton = dynamic(
 );
 import { prepCatalogueNav } from "@/lib/scroll";
 import { loadAllCategories } from "@/lib/categoriesClient";
+import { phoneChromeFor } from "@/lib/phoneChrome";
 
 
 export function Navbar() {
@@ -283,13 +284,23 @@ export function Navbar() {
     normalizedPath === "/employee" ||
     normalizedPath.startsWith("/employee/");
   const disableAutoHide = normalizedPath === "/rankings" || normalizedPath === "/sourcing-company-chennai" || normalizedPath === "/sourcing-company-dubai";
+  // Below 768px, every page but the trip's, admin and the staff workspace has the phone frame instead
+  // (components/mobile/PhoneChrome.tsx, lib/phoneChrome.ts): there this bar is not shown, and it never
+  // hides either, as the frame's top stays put and --nav-shift (below) must keep saying so.
+  const phoneFrame = phoneChromeFor(pathname) !== "none";
 
   useEffect(() => {
     if (disableAutoHide) {
       setHidden(false);
       return;
     }
+    const framed = () => phoneFrame && window.matchMedia("(max-width: 767.98px)").matches;
     const onScroll = () => {
+      if (framed()) {
+        setHidden(false);
+        lastScrollY.current = window.scrollY;
+        return;
+      }
       const latest = window.scrollY;
       const previous = lastScrollY.current;
       const goingDown = latest > previous;
@@ -307,7 +318,7 @@ export function Navbar() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
-  }, [mobileMenuOpen, isCategoryMenuOpen, isInputFocused, disableAutoHide]);
+  }, [mobileMenuOpen, isCategoryMenuOpen, isInputFocused, disableAutoHide, phoneFrame]);
 
   // Publish the bar's current offset so sticky sub-bars (e.g. the rankings
   // filter bar) can sit flush under it and follow it up/down as it hides —
@@ -342,7 +353,7 @@ export function Navbar() {
         initial={false}
         animate={{ y: hidden ? "-100%" : "0%" }}
         transition={{ type: "spring", stiffness: 320, damping: 32 }}
-        className="fixed top-0 w-full z-[100] bg-white shadow-sm border-b border-slate-100"
+        className={`fixed top-0 w-full z-[100] bg-white shadow-sm border-b border-slate-100 ${phoneFrame ? "max-md:hidden" : ""}`}
       >
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
           {/* Three widths. A phone: the logo and the menu. A tablet (768 to 1279px): the search takes the bar,

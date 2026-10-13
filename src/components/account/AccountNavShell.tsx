@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ChevronDown,
+  ChevronLeft,
   Clock,
   Heart,
   LayoutDashboard,
@@ -120,7 +121,8 @@ export function AccountNavShell({ children }: { children: React.ReactNode }) {
   return (
     // Full width, no centred max-w wrapper: the sidebar is meant to reach the
     // left edge of the window the way a marketplace console does.
-    <div className="min-h-screen bg-slate-50 pt-16 lg:flex">
+    // Under the bar, its own height (--nav-h: the phone frame's 56px below 768px, the navbar's 64px above).
+    <div className="min-h-screen bg-slate-50 pt-(--nav-h) lg:flex">
       {/* ---- Sidebar: full height, fixed, its own scroll ---- */}
       <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white lg:block">
         <div className="sticky top-16 flex h-[calc(100vh-4rem)] flex-col overflow-y-auto">
@@ -216,8 +218,20 @@ export function AccountNavShell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* ---- Narrow screens: the same sections as a scrolling row ---- */}
-      <div className="border-b border-slate-200 bg-white lg:hidden">
+      {/* ---- A phone (below 768px): no row of sections. They are the phone frame's tabs and its Account
+          menu (/me/, MyAffhanMenu), so a row here put a second menu under the first, and the Inquiries tab
+          opened inside the account's own row ("account and inquiry both are mixed", the owner, 2026-10-13).
+          A page reached from the menu has the way back to it; My Inquiries, a tab of its own, needs none. ---- */}
+      {!isActive("/account/inquiries/") && (
+        <div className="border-b border-slate-200 bg-white px-4 py-2.5 md:hidden">
+          <Link href="/me/" className="inline-flex items-center gap-1 text-[14px] font-semibold text-brand-dark active:text-brand-deep">
+            <ChevronLeft size={17} aria-hidden /> My AFFHAN
+          </Link>
+        </div>
+      )}
+
+      {/* ---- A tablet: the same sections as a scrolling row ---- */}
+      <div className="hidden border-b border-slate-200 bg-white md:block lg:hidden">
         {/* min-w-0 on the scroller's parent chain is load-bearing: without it
             the row's full width becomes the page's width and the whole page
             scrolls sideways on a phone. */}

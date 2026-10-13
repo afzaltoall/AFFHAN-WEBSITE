@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Footer } from "@/components/ui/footer";
 
 import { InstagramIcon, LinkedinIcon, YouTubeIcon, FacebookIcon, TiktokIcon, TwitterXIcon } from "@/components/ui/social-icons";
@@ -78,8 +79,14 @@ export function FooterSection() {
     return true;
   };
 
+  // On a phone (below 768px), only under the homepage and About Us (the owner, 2026-10-13: "show footer in
+  // home page and about us page only in mobile view"); the rest end as an app's screens do, the phone
+  // frame's Account tab holding the links (MyAffhanMenu). From 768px up, under every page as before.
+  const bare = (usePathname() ?? "/").replace(/\/$/, "") || "/";
+  const onPhone = bare === "/" || bare === "/about";
+
   return (
-    <section id="contact" className="flex w-full lg:snap-start flex-col bg-[#245B6D]">
+    <section id="contact" className={`flex w-full lg:snap-start flex-col bg-[#245B6D] ${onPhone ? "" : "max-md:hidden"}`}>
       <Footer
         logoSrc="/images/logo.png"
         companyName="AFFHAN GROUP"
