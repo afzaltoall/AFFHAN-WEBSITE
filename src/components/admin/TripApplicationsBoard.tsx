@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Download, Mail, MessageCircle, Phone, RefreshCw, Search, X } from "lucide-react";
-import { businessStatusBrief } from "@/lib/trip-application";
+import { BUSINESS_STATUSES, businessStatusBrief, isBusinessStatus } from "@/lib/trip-application";
+import { countryFlagUrl } from "@/lib/countryFlag";
 import { TripLockPanel } from "./TripLockPanel";
 import { TripStagePanel } from "./TripStagePanel";
 
@@ -22,6 +23,13 @@ import { TripStagePanel } from "./TripStagePanel";
  * soft delete). A row opens every answer the applicant gave, grouped the way
  * the form asked them, with call / WhatsApp / email on top so the next step
  * is one tap. Excel export of whatever the filter shows.
+ *
+ * Filters (the owner, 2026-10-13): the business journey, as step 02's first
+ * question asked it, and the country, either or both, several of each at
+ * once. Every count on the page answers "how many would I get": an option's
+ * count is the list with every other filter applied and its own set aside,
+ * so picking India shows how many Indians run a business before that is
+ * pressed, and an option that would empty the list is dimmed.
  *
  * Step 02 is the applicant's business journey (running a business, planning
  * one, expanding one, or none yet), and only the answers that journey asked
@@ -100,15 +108,51 @@ const SIGN_IN: Record<string, string> = {
 };
 const signInOf = (p: string) => SIGN_IN[p] ?? p;
 
-const TABS: { key: "new" | "handled" | "spam" | "all"; label: string }[] = [
+type TabKey = "new" | "handled" | "spam" | "all";
+
+const TABS: { key: TabKey; label: string }[] = [
   { key: "new", label: "New" },
   { key: "handled", label: "Handled" },
   { key: "spam", label: "Spam" },
   { key: "all", label: "All" },
 ];
 
+/** What the address asked for (page.tsx), before it is checked. */
+export interface InitialFilters {
+  tab: string;
+  journeys: string[];
+  countries: string[];
+}
+
 const fmtDate = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+
+const IST = 5.5 * 3600 * 1000;
+/** Midnight in India before `ms`, as a timestamp. */
+const istDayStart = (ms: number) => {
+  const d = new Date(ms + IST);
+  d.setUTCHours(0, 0, 0, 0);
+  return d.getTime() - IST;
+};
+/** A phone row's date, as a messaging app writes it: the time today, "Yesterday", then the day. */
+const shortDate = (iso: string, now: number) => {
+  const t = Date.parse(iso);
+  const today = istDayStart(now);
+  if (t >= today) return new Date(t).toLocaleString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  if (t >= today - 86400 * 1000) return "Yesterday";
+  return new Date(t).toLocaleString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+};
+
+/** The country as filtered and counted: the name the form stored, trimmed. */
+const countryOf = (r: { country: string }) => r.country.trim();
+
+/** A small real flag (flagcdn SVG; Windows has no flag emoji), or nothing for a name the list does not know. */
+function Flag({ country, className = "" }: { country: string; className?: string }) {
+  const src = countryFlagUrl(country);
+  if (!src) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={src} alt="" aria-hidden="true" width={18} height={13} loading="lazy" className={`h-[13px] w-[18px] shrink-0 rounded-[2px] object-cover ring-1 ring-black/10 ${className}`} />;
+}
 
 const statusPill: Record<Status, string> = {
   new: "bg-[#0071e3]/10 text-[#0058b0]",
@@ -120,11 +164,39 @@ const statusPill: Record<Status, string> = {
 const digits = (phone: string) => phone.replace(/[^\d]/g, "");
 const href = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
-export function TripApplicationsBoard() {
+export function TripApplicationsBoard({ initial }: { initial?: InitialFilters }) {
   const [rows, setRows] = useState<Application[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<(typeof TABS)[number]["key"]>("new");
+  const [tab, setTab] = useState<TabKey>(() => TABS.find((t) => t.key === initial?.tab)?.key ?? "new");
   const [q, setQ] = useState("");
+  /** Business journeys and countries picked, any number of each; none is everyone. */
+  const [journeys, setJourneys] = useState<Set<string>>(() => new Set((initial?.journeys ?? []).filter(isBusinessStatus)));
+  const [countries, setCountries] = useState<Set<string>>(
+    () => new Set((initial?.countries ?? []).map((c) => c.trim().slice(0, 100)).filter(Boolean)),
+  );
+  const toggle = (set: Set<string>, v: string) => {
+    const next = new Set(set);
+    if (next.has(v)) next.delete(v);
+    else next.add(v);
+    return next;
+  };
+  const clearFilters = () => {
+    setJourneys(new Set());
+    setCountries(new Set());
+    setQ("");
+  };
+
+  // The filters into the address as they change, without a server round trip, so a reload or a shared link
+  // opens the same list (page.tsx reads them back). The search stays out: it is typing, not a list.
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (tab !== "new") p.set("tab", tab);
+    for (const j of journeys) p.append("journey", j);
+    for (const c of countries) p.append("country", c);
+    const qs = p.toString();
+    const url = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+    if (url !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, "", url);
+  }, [tab, journeys, countries]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // What "Today" and "This week" count from: the last read, so after midnight a refresh moves them on.
@@ -181,22 +253,12 @@ export function TripApplicationsBoard() {
     return () => window.clearTimeout(t);
   }, [lit]);
 
-  const counts = useMemo(() => {
-    const c = { new: 0, handled: 0, spam: 0, all: 0 };
-    for (const r of rows ?? []) {
-      c.all++;
-      if (r.status === "new" || r.status === "handled" || r.status === "spam") c[r.status]++;
-    }
-    return c;
-  }, [rows]);
+  const newCount = useMemo(() => (rows ?? []).filter((r) => r.status === "new").length, [rows]);
 
   /** The figures over the list: registrations (not spam), today and this week in India's time, and countries. */
   const stats = useMemo(() => {
     const real = (rows ?? []).filter((r) => r.status !== "spam");
-    const IST = 5.5 * 3600 * 1000;
-    const day = new Date(now + IST);
-    day.setUTCHours(0, 0, 0, 0);
-    const today = day.getTime() - IST;
+    const today = istDayStart(now);
     const week = today - 6 * 86400 * 1000;
     return {
       total: real.length,
@@ -206,18 +268,58 @@ export function TripApplicationsBoard() {
     };
   }, [rows, now]);
 
-  const list = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    return (rows ?? []).filter((r) => {
-      if (tab !== "all" && r.status !== tab) return false;
-      if (!needle) return true;
-      return [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory, r.areaOfInterest, businessStatusBrief(r.businessStatus), r.customerCode, r.user?.email, r.user?.name]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(needle);
-    });
-  }, [rows, tab, q]);
+  /** Every row's searchable words, once per load rather than once per keystroke. */
+  const words = useMemo(
+    () =>
+      new Map(
+        (rows ?? []).map((r) => [
+          r.id,
+          [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory, r.areaOfInterest, businessStatusBrief(r.businessStatus), r.customerCode, r.user?.email, r.user?.name]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase(),
+        ]),
+      ),
+    [rows],
+  );
+
+  const needle = q.trim().toLowerCase();
+  const narrowed = journeys.size > 0 || countries.size > 0 || needle !== "";
+
+  // One pass for the list and every count beside a filter. Each count leaves out its own filter and keeps the
+  // others: the tabs count across journeys, countries and the search; a journey's count is the list as it would
+  // be with that journey picked alone; a country's likewise.
+  const view = useMemo(() => {
+    const tabs: Record<TabKey, number> = { new: 0, handled: 0, spam: 0, all: 0 };
+    const byJourney = new Map<string, number>();
+    const byCountry = new Map<string, number>();
+    const list: Application[] = [];
+    let inTab = 0;
+    for (const r of rows ?? []) {
+      const t = tab === "all" || r.status === tab;
+      const s = !needle || (words.get(r.id) ?? "").includes(needle);
+      const j = !journeys.size || journeys.has(r.businessStatus);
+      const c = !countries.size || countries.has(countryOf(r));
+      if (s && j && c) {
+        tabs.all++;
+        if (r.status === "new" || r.status === "handled" || r.status === "spam") tabs[r.status]++;
+      }
+      if (t) inTab++;
+      if (t && s && c) byJourney.set(r.businessStatus, (byJourney.get(r.businessStatus) ?? 0) + 1);
+      if (t && s && j) byCountry.set(countryOf(r), (byCountry.get(countryOf(r)) ?? 0) + 1);
+      if (t && s && j && c) list.push(r);
+    }
+    return { tabs, byJourney, byCountry, list, inTab };
+  }, [rows, words, tab, needle, journeys, countries]);
+  const list = view.list;
+
+  /** Every country anyone applied from, most applications first: an order the filters never reshuffle. */
+  const countryOptions = useMemo(() => {
+    const total = new Map<string, number>();
+    for (const r of rows ?? []) if (countryOf(r)) total.set(countryOf(r), (total.get(countryOf(r)) ?? 0) + 1);
+    for (const c of countries) if (!total.has(c)) total.set(c, 0);
+    return [...total.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([c]) => c);
+  }, [rows, countries]);
 
   const open = rows?.find((r) => r.id === openId) ?? null;
 
@@ -274,7 +376,11 @@ export function TripApplicationsBoard() {
     }
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Free China Trip");
-    XLSX.writeFile(wb, `free-china-trip-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    // A filtered list says so in its name ("…-sri-lanka.xlsx"), so a file found later is not taken for everyone.
+    const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    const parts = [...countries, ...[...journeys].map(businessStatusBrief)].map(slug).filter(Boolean);
+    const suffix = parts.length ? `-${parts.length > 3 ? "filtered" : parts.join("-")}` : "";
+    XLSX.writeFile(wb, `free-china-trip-${new Date().toISOString().slice(0, 10)}${suffix}.xlsx`);
   };
 
   return (
@@ -294,7 +400,7 @@ export function TripApplicationsBoard() {
             <h1 className="text-2xl font-semibold tracking-tight">Free China Trip</h1>
             <p className="text-[13px] text-[#86868b]">
               Everyone registered for the Free China Business Trip, with their account and Trip ID
-              {rows ? ` · ${counts.new} new` : ""}
+              {rows ? ` · ${newCount} new` : ""}
             </p>
           </div>
           <div className="ml-auto flex shrink-0 items-center gap-2">
@@ -327,6 +433,7 @@ export function TripApplicationsBoard() {
               type="button"
               onClick={() => void exportExcel()}
               disabled={!list.length}
+              title={`Export the ${list.length} ${list.length === 1 ? "application" : "applications"} shown`}
               className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:opacity-50"
             >
               <Download size={14} /> Export
@@ -341,20 +448,35 @@ export function TripApplicationsBoard() {
 
         {error && <p className="mb-4 rounded-xl bg-red-500/10 px-4 py-2.5 text-[13px] font-medium text-red-700">{error}</p>}
 
+        {/* On a phone the four figures share one row (they were a 2 x 2 of tall cards, a screen's worth of
+            height before the list began); from a tablet up, as they were. */}
         {rows && rows.length > 0 && (
-          <dl className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <dl className="mb-5 grid grid-cols-4 gap-2 sm:gap-3">
             {[
               ["Registered", stats.total],
               ["Today", stats.today],
               ["This week", stats.week],
               ["Countries", stats.countries],
             ].map(([label, n]) => (
-              <div key={label} className="rounded-2xl bg-white px-4 py-3 shadow-sm ring-1 ring-black/[0.06]">
-                <dt className="text-[12px] text-[#86868b]">{label}</dt>
-                <dd className="mt-0.5 text-[24px] font-semibold tabular-nums tracking-tight">{n}</dd>
+              <div key={label} className="min-w-0 rounded-2xl bg-white px-2.5 py-2 shadow-sm ring-1 ring-black/[0.06] sm:px-4 sm:py-3">
+                <dt className="truncate text-[11px] text-[#86868b] sm:text-[12px]">{label}</dt>
+                <dd className="mt-0.5 text-[19px] font-semibold tabular-nums tracking-tight sm:text-[24px]">{n}</dd>
               </div>
             ))}
           </dl>
+        )}
+
+        {rows && rows.length > 0 && (
+          <FilterPanel
+            journeys={journeys}
+            countries={countries}
+            byJourney={view.byJourney}
+            byCountry={view.byCountry}
+            countryOptions={countryOptions}
+            onJourney={(v) => setJourneys((s) => toggle(s, v))}
+            onCountry={(v) => setCountries((s) => toggle(s, v))}
+            onClear={journeys.size || countries.size ? () => { setJourneys(new Set()); setCountries(new Set()); } : undefined}
+          />
         )}
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
@@ -368,7 +490,7 @@ export function TripApplicationsBoard() {
                 onClick={() => setTab(t.key)}
                 className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${tab === t.key ? "bg-[#1d1d1f] text-white" : "text-[#1d1d1f] hover:bg-black/[0.04]"}`}
               >
-                {t.label} <span className={tab === t.key ? "text-white/70" : "text-[#86868b]"}>{counts[t.key]}</span>
+                {t.label} <span className={tab === t.key ? "text-white/70" : "text-[#86868b]"}>{view.tabs[t.key]}</span>
               </button>
             ))}
           </div>
@@ -384,12 +506,43 @@ export function TripApplicationsBoard() {
           </label>
         </div>
 
+        {/* What the list is narrowed to, each piece removable, while anything narrows it. */}
+        {rows && rows.length > 0 && narrowed && (
+          <div aria-live="polite" className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-2 text-[13px]">
+            <span className="mr-1 font-medium">
+              <span className="tabular-nums">{list.length}</span> of <span className="tabular-nums">{view.inTab}</span>{" "}
+              {tab === "all" ? (view.inTab === 1 ? "application" : "applications") : tab}
+            </span>
+            {[...journeys].map((j) => (
+              <ActiveFilter key={j} label={businessStatusBrief(j)} onRemove={() => setJourneys((s) => toggle(s, j))} />
+            ))}
+            {[...countries].map((c) => (
+              <ActiveFilter key={c} label={c} flag={c} onRemove={() => setCountries((s) => toggle(s, c))} />
+            ))}
+            {needle && <ActiveFilter label={`“${q.trim()}”`} onRemove={() => setQ("")} />}
+            <button type="button" onClick={clearFilters} className="ml-auto font-medium text-[#0058b0] hover:underline">
+              Clear all
+            </button>
+          </div>
+        )}
+
         {rows === null ? (
           <p className="py-16 text-center text-[13px] text-[#86868b]">Loading…</p>
         ) : list.length === 0 ? (
           <div className="rounded-2xl bg-white px-6 py-16 text-center shadow-sm ring-1 ring-black/[0.06]">
-            <p className="text-[15px] font-medium">No applications {tab === "all" ? "yet" : `marked ${tab}`}.</p>
-            <p className="mt-1 text-[13px] text-[#86868b]">Applications from the free China business trip page arrive here.</p>
+            {narrowed ? (
+              <>
+                <p className="text-[15px] font-medium">No applications match these filters.</p>
+                <button type="button" onClick={clearFilters} className="mt-2 text-[13px] font-medium text-[#0058b0] hover:underline">
+                  Clear all filters
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-[15px] font-medium">No applications {tab === "all" ? "yet" : `marked ${tab}`}.</p>
+                <p className="mt-1 text-[13px] text-[#86868b]">Applications from the free China business trip page arrive here.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.06]">
@@ -400,25 +553,45 @@ export function TripApplicationsBoard() {
                   <button
                     type="button"
                     onClick={() => setOpenId(r.id)}
-                    className="grid w-full grid-cols-1 gap-1 px-5 py-4 text-left transition-colors hover:bg-black/[0.02] sm:grid-cols-[9rem_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_6rem] sm:items-center sm:gap-4"
+                    className="grid w-full grid-cols-1 gap-1 px-4 py-3 text-left transition-colors hover:bg-black/[0.02] lg:grid-cols-[9rem_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_6rem] lg:items-center lg:gap-4 lg:px-5 lg:py-4"
                   >
-                    <span className="min-w-0">
+                    {/* A phone or a tablet: three lines, the person first. On a phone the five columns below
+                        stacked into nine lines a row (240 applications came to some 55,000px); on a tablet they cut
+                        the company short and wrapped the time (2026-10-13). From lg, the five columns. */}
+                    <span className="min-w-0 lg:hidden">
+                      <span className="flex items-baseline gap-3">
+                        <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{r.fullName}</span>
+                        <span className="shrink-0 font-mono text-[11.5px] font-semibold text-[#0058b0]">{r.referenceNo}</span>
+                      </span>
+                      <span className="mt-0.5 block truncate text-[13px] text-[#48484a]">
+                        {[r.companyName || businessStatusBrief(r.businessStatus), r.businessCategory || r.areaOfInterest].filter(Boolean).join(" · ")}
+                      </span>
+                      <span className="mt-1 flex items-center gap-2 text-[12px] text-[#86868b]">
+                        <Flag country={r.country} />
+                        <span className="min-w-0 flex-1 truncate">{r.city}, {r.country}</span>
+                        {tab === "all" && (
+                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium capitalize ${statusPill[r.status]}`}>{r.status}</span>
+                        )}
+                        <span className="shrink-0 tabular-nums">{shortDate(r.createdAt, now)}</span>
+                      </span>
+                    </span>
+                    <span className="min-w-0 max-lg:hidden">
                       <span className="block font-mono text-[12.5px] font-semibold text-[#0058b0]">{r.referenceNo}</span>
                       <span className="block truncate text-[12px] text-[#86868b]">{r.customerCode ?? (r.user ? "Account linked" : "No account")}</span>
                     </span>
-                    <span className="min-w-0">
+                    <span className="min-w-0 max-lg:hidden">
                       <span className="block truncate text-[14px] font-semibold">{r.fullName}</span>
                       <span className="block truncate text-[12px] text-[#86868b]">{r.email}</span>
                     </span>
-                    <span className="min-w-0">
+                    <span className="min-w-0 max-lg:hidden">
                       <span className="block truncate text-[14px]">{r.companyName || businessStatusBrief(r.businessStatus)}</span>
                       <span className="block truncate text-[12px] text-[#86868b]">{r.businessCategory || r.areaOfInterest}</span>
                     </span>
-                    <span className="min-w-0 text-[13px]">
+                    <span className="min-w-0 text-[13px] max-lg:hidden">
                       <span className="block truncate">{r.city}, {r.country}</span>
                       <span className="block text-[12px] text-[#86868b]">{fmtDate(r.createdAt)}</span>
                     </span>
-                    <span className={`w-fit rounded-full px-2.5 py-1 text-[12px] font-medium capitalize ${statusPill[r.status]}`}>{r.status}</span>
+                    <span className={`w-fit rounded-full px-2.5 py-1 text-[12px] font-medium capitalize max-lg:hidden ${statusPill[r.status]}`}>{r.status}</span>
                   </button>
                 </li>
               ))}
@@ -429,6 +602,123 @@ export function TripApplicationsBoard() {
 
       {open && <Detail a={open} busy={busy} onClose={() => setOpenId(null)} onStatus={(s) => void setStatus(open.id, s)} />}
     </div>
+  );
+}
+
+/**
+ * The two filters over the list: the business journey, step 02's first question in the board's words (the
+ * form's own wording on hover), and the country. Several of each may be on; none is everyone. Each option
+ * shows what picking it would leave (the board's counts), and one that would leave nothing is dimmed and
+ * cannot be pressed unless it is already on. On a phone the four journeys run one a line, every one in
+ * sight, and the countries run in one row that scrolls sideways, most applications first.
+ */
+function FilterPanel({
+  journeys,
+  countries,
+  byJourney,
+  byCountry,
+  countryOptions,
+  onJourney,
+  onCountry,
+  onClear,
+}: {
+  journeys: Set<string>;
+  countries: Set<string>;
+  byJourney: Map<string, number>;
+  byCountry: Map<string, number>;
+  countryOptions: string[];
+  onJourney: (v: string) => void;
+  onCountry: (v: string) => void;
+  /** Set while either filter is on. */
+  onClear?: () => void;
+}) {
+  const id = useId();
+  const head = "text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]";
+  return (
+    <section aria-label="Filter the applications" className="mb-5 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.06] sm:p-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id={`${id}-journey`} className={head}>
+          Business journey
+        </h2>
+        {onClear && (
+          <button type="button" onClick={onClear} className="text-[12.5px] font-medium text-[#0058b0] hover:underline">
+            Clear filters
+          </button>
+        )}
+      </div>
+      {/* A phone: one answer a line, every count in one column (two by two squeezed "Planning to start a
+          business" into three lines). Two across from a tablet, four from a computer. */}
+      <div role="group" aria-labelledby={`${id}-journey`} className="mt-2.5 grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4">
+        {BUSINESS_STATUSES.map((s) => {
+          const on = journeys.has(s.value);
+          const n = byJourney.get(s.value) ?? 0;
+          return (
+            <button
+              key={s.value}
+              type="button"
+              aria-pressed={on}
+              disabled={!on && n === 0}
+              title={s.label}
+              onClick={() => onJourney(s.value)}
+              className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors disabled:cursor-default disabled:opacity-40 sm:min-h-[3.25rem] sm:py-2.5 ${on ? "bg-[#1d1d1f] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] enabled:hover:bg-black/[0.06]"}`}
+            >
+              <span aria-hidden className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full ${on ? "bg-white text-[#1d1d1f]" : "bg-white ring-1 ring-black/20"}`}>
+                {on && <Check size={11} strokeWidth={3.5} />}
+              </span>
+              <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug">{s.brief}</span>
+              <span className={`shrink-0 text-[13px] font-semibold tabular-nums ${on ? "text-white/70" : "text-[#86868b]"}`}>{n}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <h2 id={`${id}-country`} className={`mt-4 ${head}`}>
+        Country
+      </h2>
+      {/* A phone: one row to the card's edges, scrolling sideways, fading where more waits off the right. */}
+      <div
+        role="group"
+        aria-labelledby={`${id}-country`}
+        className="-mx-4 mt-2.5 flex gap-2 overflow-x-auto pl-4 pr-10 [scrollbar-width:none] max-sm:[mask-image:linear-gradient(to_right,#000_calc(100%_-_32px),transparent)] sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden"
+      >
+        {countryOptions.map((c) => {
+          const on = countries.has(c);
+          const n = byCountry.get(c) ?? 0;
+          return (
+            <button
+              key={c}
+              type="button"
+              aria-pressed={on}
+              disabled={!on && n === 0}
+              onClick={() => onCountry(c)}
+              className={`inline-flex h-9 shrink-0 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium ring-1 transition-colors disabled:cursor-default disabled:opacity-40 ${on ? "bg-[#1d1d1f] text-white ring-transparent" : "bg-white text-[#1d1d1f] ring-black/[0.1] enabled:hover:bg-black/[0.03]"}`}
+            >
+              <Flag country={c} />
+              {c}
+              <span className={`tabular-nums ${on ? "text-white/70" : "text-[#86868b]"}`}>{n}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/** One thing the list is narrowed to, over the list, with its own remove. */
+function ActiveFilter({ label, flag, onRemove }: { label: string; flag?: string; onRemove: () => void }) {
+  return (
+    <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white pl-2.5 pr-1 text-[12.5px] font-medium shadow-sm ring-1 ring-black/[0.06]">
+      {flag && <Flag country={flag} />}
+      <span className="max-w-[14rem] truncate">{label}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        aria-label={`Remove ${label}`}
+        className="grid h-5 w-5 place-items-center rounded-full text-[#86868b] hover:bg-black/[0.06] hover:text-[#1d1d1f]"
+      >
+        <X size={12} strokeWidth={2.5} />
+      </button>
+    </span>
   );
 }
 
@@ -498,14 +788,16 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
         </div>
 
         <div className="grid gap-4 px-6 py-5">
-          <div className="flex flex-wrap gap-2">
-            <a href={`tel:${a.phone.replace(/\s+/g, "")}`} className="inline-flex h-9 items-center gap-2 rounded-full bg-[#1d1d1f] px-4 text-[13px] font-medium text-white">
+          {/* A phone: Call across the top, WhatsApp and Email side by side under it (they had wrapped into a
+              ragged two and one). From a tablet up, one row as before. */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <a href={`tel:${a.phone.replace(/\s+/g, "")}`} className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#1d1d1f] px-4 text-[13px] font-medium text-white sm:h-9">
               <Phone size={14} /> Call {a.phone}
             </a>
-            <a href={`https://wa.me/${digits(a.phone)}`} target="_blank" rel="noopener noreferrer" className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06]">
+            <a href={`https://wa.me/${digits(a.phone)}`} target="_blank" rel="noopener noreferrer" className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] sm:h-9">
               <MessageCircle size={14} /> WhatsApp
             </a>
-            <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Your Free China Business Trip application (${a.referenceNo})`)}`} className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06]">
+            <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Your Free China Business Trip application (${a.referenceNo})`)}`} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] sm:h-9">
               <Mail size={14} /> Email
             </a>
           </div>

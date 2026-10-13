@@ -169,8 +169,9 @@ export function TripLockPanel({
       aria-labelledby={titleId}
       className={`mb-5 flex scroll-mt-24 flex-wrap items-center gap-x-6 gap-y-4 rounded-2xl p-4 shadow-sm ring-1 sm:p-5 ${t.card} ${lit ? "outline outline-2 outline-offset-2 outline-brand" : ""}`}
     >
-      <div className={`relative h-[90px] w-[240px] shrink-0 overflow-hidden rounded-xl shadow-sm ring-1 ${dark ? "ring-white/[0.1]" : "ring-black/[0.08]"}`}>
-        <Image src="/china-trip-hero.webp" alt="" width={640} height={240} sizes="240px" loading="eager" className="h-full w-full object-cover" />
+      {/* A phone: the banner across the card, at its own 8:3 (it sat 240px wide with a gap beside it). */}
+      <div className={`relative aspect-[8/3] w-full shrink-0 overflow-hidden rounded-xl shadow-sm ring-1 sm:aspect-auto sm:h-[90px] sm:w-[240px] ${dark ? "ring-white/[0.1]" : "ring-black/[0.08]"}`}>
+        <Image src="/china-trip-hero.webp" alt="" width={640} height={240} sizes="(max-width: 639px) 100vw, 240px" loading="eager" className="h-full w-full object-cover" />
         {preview && preview !== "open" && <TripLockOverlay state={preview} />}
       </div>
 

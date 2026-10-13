@@ -115,7 +115,9 @@ export function TripStagePanel({
         Applicants see these steps on their page. Move it on when a step starts, and every applicant&apos;s page follows within a few seconds.
       </p>
 
-      <ol className="mt-3 flex flex-wrap gap-2">
+      {/* A phone: the five steps one under another, the full width, in order (they wrapped into a ragged
+          two, two and one). From a tablet up, one row. */}
+      <ol className="mt-3 grid gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
         {STAGES.map((s, i) => {
           const isNow = i === at;
           const isDone = at >= 0 && (i < at || (i === at && s.id === "dates"));
@@ -126,7 +128,7 @@ export function TripStagePanel({
                 disabled={!state || busy || isNow}
                 aria-pressed={isNow}
                 onClick={() => setAsking(s.id)}
-                className={`inline-flex h-9 items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors disabled:cursor-default ${isDone && !isNow ? done : isNow ? now : ahead}`}
+                className={`flex h-10 w-full items-center gap-2 rounded-full px-3.5 text-[13px] font-medium transition-colors disabled:cursor-default sm:inline-flex sm:h-9 sm:w-auto ${isDone && !isNow ? done : isNow ? now : ahead}`}
               >
                 <span aria-hidden className="tabular-nums">{isDone ? <Check size={13} strokeWidth={3} /> : i + 1}</span>
                 {s.label}
