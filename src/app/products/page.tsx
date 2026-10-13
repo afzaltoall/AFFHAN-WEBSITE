@@ -20,6 +20,7 @@ import { GET as getProducts } from "@/app/api/products/route";
 import { GET as getCategories } from "@/app/api/categories/route";
 import { headers } from "next/headers";
 import { CATALOGUE_HERO_IMAGES } from "@/lib/catalogueHeroImages";
+import { getHeroFeed } from "@/lib/products";
 
 const SITE = "https://affhan.com";
 
@@ -113,9 +114,12 @@ export default async function ProductsPage({
   const isDefaultView = !q && !categoryId;
   if (q || isDefaultView) queryParams.append("getChips", "true");
 
-  const [categoriesRes, productsRes] = await Promise.all([
+  const [categoriesRes, productsRes, showcase] = await Promise.all([
     getCategories(),
-    getProducts(new Request(`${baseUrl}/api/products?${queryParams.toString()}`))
+    getProducts(new Request(`${baseUrl}/api/products?${queryParams.toString()}`)),
+    // The front's Popular products on a phone (PhoneCategoryBrowser): the homepage's own curated, rotated
+    // draw (a cached pool), not the catalogue's A-Z, whose first names are punctuation. The front only.
+    isDefaultView ? getHeroFeed(10).catch(() => ({ products: [] })) : Promise.resolve({ products: [] }),
   ]);
 
   const categoriesJson = await categoriesRes.json();
@@ -182,6 +186,8 @@ export default async function ProductsPage({
          initialFacets={initialFacets}
          initialPagination={initialPagination}
          initialSearch={initialSearch}
+         initialFront={isDefaultView}
+         phoneShowcase={showcase.products ?? []}
       />
     </>
   );

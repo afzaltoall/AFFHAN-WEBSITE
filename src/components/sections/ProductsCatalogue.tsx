@@ -12,6 +12,7 @@ import { QuickLinkPill } from "@/components/ui/QuickLinkPill";
 import { Pagination } from "@/components/ui/Pagination";
 import { CatalogueScrollHero } from "@/components/sections/CatalogueScrollHero";
 import { CatalogueDock } from "@/components/sections/CatalogueDock";
+import { PhoneCategoryBrowser } from "@/components/mobile/PhoneCategoryBrowser";
 import { buildCategoryTree, flattenLeaves, isGridEligibleRoot, type CategoryRecord, type CategoryTreeNode } from "@/lib/categoryTree";
 import { prepCatalogueNav } from "@/lib/scroll";
 import type { ProductCardData } from "@/components/ui/ProductCard";
@@ -199,6 +200,8 @@ export function ProductsCatalogue({
   initialFacets = [],
   initialPagination = { total: 0, totalPages: 1, totalCapped: false },
   initialSearch = null,
+  initialFront = false,
+  phoneShowcase = [],
 }: {
   initialProducts?: ProductCardData[];
   initialCategories?: CategoryRecord[];
@@ -206,6 +209,15 @@ export function ProductsCatalogue({
   initialPagination?: { total: number; totalPages: number; totalCapped: boolean };
   /** How the server read ?q= for the first paint (the API's `search`). */
   initialSearch?: SearchInfo | null;
+  /**
+   * Whether the address is the catalogue's front (no ?q=, no ?categoryId=), as the server read it. The
+   * address is only read here once mounted (useUrlParams), so until then every URL looks like the front;
+   * a phone's front is a different screen (PhoneCategoryBrowser), and this keeps a category's first paint
+   * from being that screen for a moment.
+   */
+  initialFront?: boolean;
+  /** The front's Popular products on a phone (PhoneCategoryBrowser): the homepage's own curated draw. */
+  phoneShowcase?: ProductCardData[];
 }) {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -515,16 +527,22 @@ export function ProductsCatalogue({
     return [...best, ...facets.filter((f) => !seen.has(f.id)).map((f) => ({ id: f.id, name: f.label ?? f.name, count: f.count, best: false }))];
   }, [searchInfo, facets]);
 
+  // The front, as the server read the address until this has read it itself (initialFront).
+  const front = mounted ? defaultView : initialFront;
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans pt-28">
+    // On a phone the catalogue's front is the categories screen (PhoneCategoryBrowser), right under the phone
+    // frame's top; its hero, heading, chips and grid are a computer's and a tablet's (max-md:hidden).
+    <div className={`min-h-screen bg-slate-50 font-sans pt-28 ${front ? "max-md:pt-(--nav-h)" : ""}`}>
+      {front && <PhoneCategoryBrowser tree={categoryTree} showcase={phoneShowcase} onInquire={(p) => setInquiryProduct(p)} />}
       {mounted && defaultView && (
-        <div id="catalogue-hero">
+        <div id="catalogue-hero" className="max-md:hidden">
           <CatalogueScrollHero
             scatterImages={products.slice(0, 10).map((p) => p.imageUrl).filter((url): url is string => Boolean(url))}
           />
         </div>
       )}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 pb-12">
+      <div className={`max-w-[1600px] mx-auto px-4 sm:px-6 pb-12 ${front ? "max-md:hidden" : ""}`}>
         {/* Header — search-aware. There is intentionally no search box here:
             search lives only in the homepage hero and the navbar. On /products
             the navbar shows its search input, so a second box was redundant. */}

@@ -198,10 +198,19 @@ export default async function Home() {
   //
   // Both are computed here. The full tree is fetched by the hero when the
   // browser is idle, or on demand if the panel is opened first.
-  const sidebarCategories = buildCategoryTree(initialCategories).map((node: CategoryTreeNode) => ({
+  const tree = buildCategoryTree(initialCategories);
+  const sidebarCategories = tree.map((node: CategoryTreeNode) => ({
     id: node.id,
     name: node.name,
   }));
+  // A phone's row of families over the grid (PhoneHomeTop): the real top level only, not the copies promoted
+  // beside their parents (31 of the 53 roots, which would repeat their parents' products), largest first.
+  // And a family of some size: two stray roots ("Protective Masks", 11 products; "Fully Printing  Hat", 3;
+  // 2026-10-13) would read as the catalogue's own families in that row. They stay in the catalogue.
+  const phoneFamilies = tree
+    .filter((node: CategoryTreeNode) => !node.promotedCopy && node.recursiveProductCount >= 100)
+    .sort((a: CategoryTreeNode, b: CategoryTreeNode) => b.recursiveProductCount - a.recursiveProductCount)
+    .map((node: CategoryTreeNode) => ({ id: String(node.id), name: node.name, count: node.recursiveProductCount }));
 
   const searchCategories = productCategories.slice(0, 8).map((c: any) => ({
     id: String(c.id),
@@ -218,7 +227,9 @@ export default async function Home() {
   const heroPool = splitHeroPool(initialProducts);
 
   return (
-    <main className="w-full overflow-x-hidden scroll-smooth bg-slate-50">
+    // overflow-x clip where the browser has it: hidden makes <main> a scroll box of its own, and then nothing
+    // in it can stick to the screen (a phone's row of families, PhoneHomeTop). hidden stays the fallback.
+    <main className="w-full overflow-x-hidden scroll-smooth bg-slate-50 supports-[overflow:clip]:overflow-x-clip">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
@@ -227,6 +238,7 @@ export default async function Home() {
         initialProducts={heroPool.hero}
         sidebarCategories={sidebarCategories}
         searchCategories={searchCategories}
+        phoneFamilies={phoneFamilies}
         // Whether the trip is taking applications as this render sees it, so
         // the trip banner's call is right on its first paint (it keeps
         // itself right after that). At most a minute old (revalidate).

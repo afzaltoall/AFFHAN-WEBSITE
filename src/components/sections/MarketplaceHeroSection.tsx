@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PhoneHomeTop, usePhoneFamilyFeed, type PhoneFamily } from "@/components/mobile/PhoneHomeTop";
 import Image from "next/image";
 import { Star, ChevronRight } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -189,10 +190,13 @@ export function MarketplaceHeroSection({
   searchCategories = [],
   tripWindow = "open",
   tripLocked = false,
+  phoneFamilies = [],
 }: {
   initialProducts?: ProductCardData[];
   /** Top-level names for the sidebar rail. */
   sidebarCategories?: SidebarCategory[];
+  /** The real top-level families, largest first, for a phone's row of them (PhoneHomeTop). */
+  phoneFamilies?: PhoneFamily[];
   /** The eight biggest categories, as search shortcuts. */
   searchCategories?: SearchCategory[];
   /** Whether the trip is taking applications, as the server saw it at render (TripCall). */
@@ -308,20 +312,65 @@ export function MarketplaceHeroSection({
   // nothing left to page in — it previously fetched /api/products on scroll
   // and grew the grid to 198.
 
+  // A phone's family, picked in its row above the grid (PhoneHomeTop): the grid then shows that family's
+  // products, a page at a time, until All brings the homepage's own back. Only ever set below 768px, and
+  // let go if the screen grows past it (a turned tablet), where the row is not shown.
+  const [family, setFamily] = useState<string | null>(null);
+  const familyFeed = usePhoneFamilyFeed(family);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 768px)");
+    const onChange = () => mq.matches && setFamily(null);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  // The grid's top, so a family picked deep in the feed starts it from its first row, under the row of them.
+  const gridRef = useRef<HTMLDivElement | null>(null);
+  const pickFamily = (id: string | null) => {
+    setFamily(id);
+    const grid = gridRef.current;
+    if (!grid) return;
+    const top = grid.getBoundingClientRect().top + window.scrollY - 56 - 44 - 12;
+    if (window.scrollY > top) window.scrollTo({ top, behavior: "instant" as ScrollBehavior });
+  };
+
   // Every product is rendered; the ones past the last whole row at the
   // current column count are hidden by beyondWholeRows (below the
   // component), so the grid never ends on a ragged partial row (the "2-3
   // products left" empty gap) at any width. Trimming once for 6 columns, as
   // this used to, left ragged ends at 2, 3, 4 and 5.
-  const displayProducts = products;
+  const displayProducts = family ? familyFeed.products : products;
 
   return (
-    <section className="pt-24 pb-12 bg-slate-50 min-h-screen">
+    // Right under the phone frame's top on a phone (--nav-h), where the families' row begins the page.
+    <section className="pt-24 pb-12 bg-slate-50 min-h-screen max-md:pt-(--nav-h)">
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+
+        {/* A phone's top of the page, after Alibaba.com's (PhoneHomeTop): the families' row, the ways in,
+            and the trip's banner. The headline, the figures, the search and its two buttons below are a
+            computer's and a tablet's (max-md:hidden). */}
+        <PhoneHomeTop
+          families={phoneFamilies}
+          picked={family}
+          onPick={pickFamily}
+          trip={
+            <TripBanner
+              className="aspect-[620/232] w-full"
+              src="/china-trip-hero-1280.webp"
+              width={1280}
+              height={480}
+              sizes="100vw"
+              contained
+              place="below"
+              tripWindow={tripWindow}
+              registered={tripRegistered}
+              lock={tripLock}
+            />
+          }
+        />
 
         {/* Animated intro headline — a morphing category word gives the opening
             screen a lively "we can source anything" strapline. */}
-        <div className="text-center pt-1 pb-3 sm:pb-4">
+        <div className="text-center pt-1 pb-3 sm:pb-4 max-md:hidden">
           {/* The badge alone, centred. From md the shipping pill joins it on the
               right (since 2026-10-12; on the left from xl before), out of the
               flow (absolute, in ShippingBar): 34px tall to 1023px, 40px to
@@ -673,44 +722,18 @@ export function MarketplaceHeroSection({
           </div>
         </div>
 
-        {/* Large Hero Search Section */}
-        <HeroSearchSection categories={searchCategories} />
-
-        {/* The promo grid, below md only: a phone's. From md the trip is in
-            the navbar (TripNavLink) and shipping is the pill at the right of
-            the badge line (ShippingBar), the owner's requests of 2026-10-12,
-            desktop first, then the iPad. AFFHAN
-            Shipping left, the China trip right, in two equal 1fr columns.
-            The row's height is the banner's, from its 620/232 aspect ratio;
-            the shipping card is absolute in its cell from sm (ShippingBar),
-            so it adds nothing to the row and fills it exactly.
-            Its edges are the search row's outer edges above it:
-            - from sm, the search box's own edges (max-w-2xl, 672px): there
-              the two buttons sit as a small pair under it, 372px across, too
-              narrow for two cards side by side.
-            - below sm, one column, shipping first, max 560px, centred. */}
-        <div className="-mt-2 mb-6 mx-auto grid w-full max-w-[560px] grid-cols-1 items-stretch gap-4 sm:max-w-2xl sm:grid-cols-2 md:hidden">
-          <ShippingBar variant="card" />
-          {/* The banner. While it is locked its call is in the picture, so the
-              row is the picture's height and the two cards are level at both
-              edges; open, the call is under it, which makes the row a call
-              taller, and the shipping card fills its cell, so it stays level. */}
-          <TripBanner
-            className="aspect-[620/232] w-full"
-            src="/china-trip-hero-1280.webp"
-            width={1280}
-            height={480}
-            sizes="(min-width: 640px) 50vw, 100vw"
-            contained
-            place="below"
-            tripWindow={tripWindow}
-            registered={tripRegistered}
-            lock={tripLock}
-          />
+        {/* Large Hero Search Section: a computer's and a tablet's. A phone searches in its frame's top. */}
+        <div className="max-md:hidden">
+          <HeroSearchSection categories={searchCategories} />
         </div>
 
-        {/* Mobile Fallback Header */}
-        <div className="flex lg:hidden items-end pt-2 pb-4">
+        {/* Below 768px this was the promo grid, AFFHAN Shipping's card over the China trip's banner (in
+            git before 2026-10-13). A phone's page now has shipping among the ways in and the banner
+            under them (PhoneHomeTop, above); from md the trip is in the navbar (TripNavLink) and
+            shipping is the pill at the right of the badge line (ShippingBar), as before. */}
+
+        {/* Mobile Fallback Header: a tablet's. On a phone the products follow the ways in, as Alibaba's do. */}
+        <div className="hidden md:flex lg:hidden items-end pt-2 pb-4">
           <h2 className="text-xl font-black text-slate-900">Explore the Latest Global Inventory</h2>
         </div>
 
@@ -719,7 +742,7 @@ export function MarketplaceHeroSection({
             every step from md up. It used to jump straight from 3 to 6 at
             1024, which made cards 150px wide there: "Inquire Now" broke onto
             two lines and category labels were cut. */}
-        <div className="hero-product-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 xl:gap-5 pb-8 relative">
+        <div ref={gridRef} className="hero-product-grid grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4 xl:gap-5 pb-8 relative max-md:mt-4 max-md:gap-3">
 
           {/* Sidebar — spans a single grid row so it's exactly one product
                 card tall (its background fills the cell with no leftover grey
@@ -789,6 +812,17 @@ export function MarketplaceHeroSection({
             </div>
           </div>
 
+          {/* A phone's family, on its way: two cards a row, three rows, the cards' own shape. */}
+          {family && displayProducts.length === 0 && !familyFeed.done &&
+            [...Array(6)].map((_, i) => (
+              <div key={`fam-${i}`} className="col-span-1 md:hidden" aria-hidden>
+                <div className="aspect-[3/4] w-full animate-pulse rounded-xl bg-slate-200/80" />
+              </div>
+            ))}
+          {family && displayProducts.length === 0 && familyFeed.done && (
+            <p className="col-span-full py-12 text-center text-[14px] text-slate-500 md:hidden">Nothing in this family to show yet.</p>
+          )}
+
           {/* Products */}
           {loading ? (
             [...Array(23)].map((_, i) => (
@@ -823,6 +857,13 @@ export function MarketplaceHeroSection({
           )}
 
 
+
+          {/* The family's next page, asked for as this comes within 900px of the screen. */}
+          {family && !familyFeed.done && displayProducts.length > 0 && (
+            <div ref={familyFeed.sentinel} className="col-span-full flex justify-center py-4 md:hidden" aria-hidden>
+              <span className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-brand-dark motion-reduce:animate-none" />
+            </div>
+          )}
 
           {error && (
             <div className="col-span-full py-8 flex flex-col items-center w-full">
