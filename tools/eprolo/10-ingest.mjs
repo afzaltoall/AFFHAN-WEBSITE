@@ -6,6 +6,8 @@ import pLimit from 'p-limit';
 import { PrismaClient } from '@prisma/client';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { isCategoryBlocked, isNameBlocked, needsReview, isGenericBucket } from './moderation.mjs';
+// The site's own pattern, for the stored flag the catalogue reads (Product.isBlockedName): not this tool's copy.
+import { blockedNameRegex } from '../../src/lib/moderation.ts';
 import { revalidateCatalogue } from './revalidate.mjs';
 import { assertNeutralKey } from './whiteLabel.mjs';
 
@@ -26,6 +28,7 @@ const PRODUCT_CONCURRENCY = Number(process.env.PRODUCT_CONCURRENCY ?? 8);
 const PROGRESS_EVERY_PAGES = Number(process.env.PROGRESS_EVERY_PAGES ?? 50);
 
 const prisma = new PrismaClient();
+const SITE_BLOCKED_NAME = blockedNameRegex();
 const s3 = new S3Client({
   region: process.env.AWS_REGION,
   credentials: {
@@ -190,6 +193,10 @@ async function storeProduct(p) {
     create: { cjPid: String(p.id), ...data },
     update: data,
   });
+  // The catalogue's queries filter on Product.isBlockedName, set from the site's pattern
+  // (src/lib/moderation.ts), which can name what this tool's rules let through: flagged here,
+  // as it is written, so it is never shown in between.
+  await prisma.$executeRaw`UPDATE "Product" SET "isBlockedName" = ("name" ~* ${SITE_BLOCKED_NAME}) WHERE "id" = ${product.id}`;
 
   for (const [i, v] of (p.variantlist || []).entries()) {
     const vd = {

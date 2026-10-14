@@ -99,6 +99,13 @@ export function isCategoryBlocked(name: string | null | undefined): boolean {
 // removing legitimate products.
 // Deliberately narrow + unambiguous (e.g. "thong" is excluded because it also
 // means thong sandals — legitimate footwear).
+//
+// The catalogue's queries read the stored result of these, Product.isBlockedName
+// (2026-10-14), not the pattern. After a change here, run
+// `node scripts/backfill_blocked_names.mjs --apply` once it is deployed; the
+// daily refresh (lib/snapshots.ts) notices the new pattern and re-flags by
+// itself too, over a run or two. Pages showing one product check the name
+// itself (isNameBlocked) and are never late.
 export const BLOCKED_NAME_KEYWORDS = [
   "bikini", "g-string", "gstring", "g string",
   // Adult / 18+ item signals (unambiguous — safe to hide anywhere).
@@ -275,7 +282,8 @@ export function blockedProductIdList(): number[] | null {
 }
 
 // Postgres POSIX regex (case-insensitive) matching any blocked name keyword on
-// a word boundary — for use with the `!~*` (not-match) operator in SQL.
+// a word boundary. What sets Product.isBlockedName (scripts/backfill_blocked_names.mjs,
+// lib/snapshots.ts, the EPROLO ingest); queries read the flag, not this.
 export function blockedNameRegex(): string {
   // The trailing `(?:e?s)?` matters more than it looks. With a bare \y on the
   // end, "sex toy" did not match "Sex Toys" — the plural's trailing "s" is a

@@ -5,7 +5,14 @@ generator client {
 
 datasource db {
   provider   = "postgresql"
+  // The app's queries: Neon's pooled endpoint (a "-pooler" host, with
+  // pgbouncer=true), so every serverless instance shares PgBouncer's pool
+  // instead of holding direct connections of its own.
   url        = env("DATABASE_URL")
+  // Schema changes (`prisma db push`, `prisma migrate diff` against a live
+  // database): the same database's direct, non-pooled endpoint. PgBouncer in
+  // transaction mode cannot carry them. Read by the Prisma CLI only.
+  directUrl  = env("DIRECT_URL")
   extensions = [pg_trgm]
 }
 
@@ -41,6 +48,20 @@ model Product {
   description String?   @db.Text
   lastSynced  DateTime? @default(now())
 
+  /// The name is blocked by moderation (lib/moderation.ts, blockedNameRegex),
+  /// stored so catalogue queries filter on a column instead of running that
+  /// 650-character pattern over every row they read. The pattern was the cost:
+  /// 9.3s against 0.67s without it on the rankings' query (lib/rankings.ts),
+  /// and 27s on average for the homepage draw at the top of Neon's query
+  /// statistics on 2026-10-14.
+  ///
+  /// Set by scripts/backfill_blocked_names.mjs, by the EPROLO ingest after
+  /// each write, and by the daily refresh (lib/snapshots.ts), which flags
+  /// newly written products and re-flags every product once the pattern in
+  /// moderation.ts has changed. Pages that show one product still check the
+  /// name itself (isNameBlocked), so a change there is never late on them.
+  isBlockedName Boolean @default(false)
+
   inquiries       Inquiry[]
   mobileInquiries MobileInquiry[]
   views           ProductView[]
@@ -54,6 +75,11 @@ model Product {
   // Recorded here so `prisma db push` does not drop it; it was created on the
   // live database with CREATE INDEX CONCURRENTLY (66MB, ~5s).
   @@index([categoryId, id(sort: Desc)], map: "Product_categoryId_id_desc_idx")
+  // A category's shown products, newest first: what the catalogue's LATERAL
+  // scans, the homepage's draws and the daily counts read. Not a partial index
+  // (WHERE "imageUrl" IS NOT NULL ...): Prisma 5 cannot describe one, so
+  // `prisma db push` would drop it. Created CONCURRENTLY, see the migration.
+  @@index([categoryId, isBlockedName, id(sort: Desc)], map: "Product_categoryId_isBlockedName_id_desc_idx")
   @@index([name(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_name_trgm_idx")
   @@index([description(ops: raw("gin_trgm_ops"))], type: Gin, map: "product_desc_trgm_idx")
 }
@@ -145,9 +171,33 @@ model Category {
   /// they would be indistinguishable. Null means the name is fine as it is.
   displayLabel String?
 
+  /// The products directly in this category that the site shows: name not
+  /// blocked (Product.isBlockedName) and not on moderation.ts's id list. A
+  /// subtree's total is the sum over it, added up in code. Refreshed daily by
+  /// lib/snapshots.ts, so no visitor's request counts products.
+  productCount Int @default(0)
+
   products     Product[]
   syncProgress SyncProgress?
   videos       Video[]
+}
+
+/// Answers precomputed by the daily refresh (lib/snapshots.ts) so that no
+/// visitor's request computes them: the homepage's grid, spotlight, rails,
+/// trades and mix, the hero's pool, the catalogue's total; plus the refresh's
+/// own bookkeeping (kind "meta") and its lock (kind "lock"). One row per kind
+/// and key, the key being "<kind>:<key>" ("home-grid:2026-W42").
+model Snapshot {
+  key        String   @id
+  kind       String
+  value      Json
+  computedAt DateTime @default(now())
+
+  /// On the lock row only: until when the refresh holding it may run. A run
+  /// that dies leaves it to expire, never to block every later run.
+  lockedUntil DateTime?
+
+  @@index([kind, computedAt(sort: Desc)])
 }
 
 model SyncProgress {
