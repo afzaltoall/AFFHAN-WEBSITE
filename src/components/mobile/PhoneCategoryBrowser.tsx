@@ -99,7 +99,8 @@ export function PhoneCategoryBrowser({
           </>
         ) : (
           <>
-            <h2 className="mb-3 text-[17px] font-bold leading-tight text-slate-900">Popular categories</h2>
+            {/* Alibaba's word for For you's circles (the owner, 2026-10-14). */}
+            <h2 className="mb-3 text-[17px] font-bold leading-tight text-slate-900">Recommendations</h2>
             {/* The small ones close the same grid, with no heading of their own (the owner, 2026-10-14). */}
             <KindGrid kinds={[...popular, ...minor]} />
           </>
