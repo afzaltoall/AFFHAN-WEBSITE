@@ -13,14 +13,17 @@
 //   DATABASE_URL="<production pooled URL>" node scripts/backfill_blocked_names.mjs --apply
 //
 // In id ranges of 25,000 with a pause between them, so the database is never held by one long statement: the
-// pattern on a million names is the load this column exists to take off the site, and it is done here once.
+// pattern on a million names is the load this column exists to take off the site, and it is done here once,
+// evaluated once a row. On the 2 CU dev branch (2026-10-14) the whole table took about two minutes. On a busy or
+// smaller production compute, run it at a quiet hour with a longer pause between ranges:
+//   BACKFILL_PAUSE_MS=1000 node scripts/backfill_blocked_names.mjs --apply
 import { PrismaClient } from "@prisma/client";
 import crypto from "node:crypto";
 import { blockedNameRegex } from "../src/lib/moderation.ts";
 
 const APPLY = process.argv.includes("--apply");
 const BATCH = 25_000;
-const PAUSE_MS = 150;
+const PAUSE_MS = Number(process.env.BACKFILL_PAUSE_MS ?? 150);
 
 const prisma = new PrismaClient();
 const pattern = blockedNameRegex();
@@ -44,41 +47,52 @@ let blocked = 0;
 const samples = [];
 for (let lo = 0; lo < top; lo += BATCH) {
   const hi = lo + BATCH;
-  const [row] = await prisma.$queryRawUnsafe(
-    `SELECT count(*) FILTER (WHERE "name" ~* $1)::int AS blocked,
-            count(*) FILTER (WHERE "name" ~* $1 AND NOT "isBlockedName")::int AS "toBlock",
-            count(*) FILTER (WHERE "name" !~* $1 AND "isBlockedName")::int AS "toUnblock"
-     FROM "Product" WHERE "id" > $2 AND "id" <= $3`,
-    pattern,
-    lo,
-    hi,
-  );
-  blocked += row.blocked;
-  toBlock += row.toBlock;
-  toUnblock += row.toUnblock;
-  if (samples.length < 12 && row.toBlock) {
-    const some = await prisma.$queryRawUnsafe(
-      `SELECT "id", "name" FROM "Product" WHERE "id" > $2 AND "id" <= $3 AND "name" ~* $1 AND NOT "isBlockedName" ORDER BY "id" LIMIT 4`,
+  // The pattern once a row: `s` holds each row's answer, and the counts (dry run) or the write (apply) read it.
+  const s = `WITH s AS (SELECT "id", "name", ("name" ~* $1) AS m, "isBlockedName" AS f FROM "Product" WHERE "id" > $2 AND "id" <= $3)`;
+  if (APPLY) {
+    const changed = await prisma.$queryRawUnsafe(
+      `${s} UPDATE "Product" p SET "isBlockedName" = s.m FROM s WHERE p."id" = s."id" AND s.f IS DISTINCT FROM s.m
+       RETURNING p."id", s."name", s.m`,
       pattern,
       lo,
       hi,
     );
-    samples.push(...some);
-  }
-  if (APPLY && (row.toBlock || row.toUnblock)) {
-    await prisma.$executeRawUnsafe(
-      `UPDATE "Product" SET "isBlockedName" = ("name" ~* $1)
-       WHERE "id" > $2 AND "id" <= $3 AND "isBlockedName" IS DISTINCT FROM ("name" ~* $1)`,
+    for (const r of changed) {
+      if (r.m) {
+        toBlock++;
+        if (samples.length < 12) samples.push(r);
+      } else toUnblock++;
+    }
+  } else {
+    const [row] = await prisma.$queryRawUnsafe(
+      `${s} SELECT count(*) FILTER (WHERE m)::int AS blocked, count(*) FILTER (WHERE m AND NOT f)::int AS "toBlock",
+                    count(*) FILTER (WHERE NOT m AND f)::int AS "toUnblock"
+       FROM s`,
       pattern,
       lo,
       hi,
     );
+    blocked += row.blocked;
+    toBlock += row.toBlock;
+    toUnblock += row.toUnblock;
+    // A few of them to show: the pattern again, on this range only, and only until there are twelve.
+    if (samples.length < 12 && row.toBlock) {
+      samples.push(
+        ...(await prisma.$queryRawUnsafe(
+          `${s} SELECT "id", "name" FROM s WHERE m AND NOT f ORDER BY "id" LIMIT 4`,
+          pattern,
+          lo,
+          hi,
+        )),
+      );
+    }
   }
   process.stdout.write(`\r  ids up to ${Math.min(hi, top).toLocaleString("en-IN")} of ${top.toLocaleString("en-IN")}`);
   await sleep(PAUSE_MS);
 }
 console.log("");
-console.log(`blocked by name: ${blocked.toLocaleString("en-IN")}; to flag: ${toBlock}; to unflag: ${toUnblock}`);
+if (APPLY) blocked = (await prisma.$queryRawUnsafe(`SELECT count(*)::int AS n FROM "Product" WHERE "isBlockedName"`))[0].n;
+console.log(`blocked by name: ${blocked.toLocaleString("en-IN")}; ${APPLY ? "flagged" : "to flag"}: ${toBlock}; ${APPLY ? "unflagged" : "to unflag"}: ${toUnblock}`);
 for (const s of samples.slice(0, 12)) console.log(`  #${s.id}  ${s.name.slice(0, 90)}`);
 
 if (APPLY) {

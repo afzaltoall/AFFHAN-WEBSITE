@@ -93,9 +93,19 @@ async function flagBlockedNames(deadline: number): Promise<NonNullable<RefreshRe
   if (state?.hash === hash && !state.pending) {
     const since = new Date(Date.parse(state.at) - 86_400_000);
     const startedAt = new Date().toISOString();
-    const changed = await prisma.$executeRaw(Prisma.sql`
-      UPDATE "Product" SET "isBlockedName" = ("name" ~* ${pattern})
-      WHERE "lastSynced" >= ${since} AND "isBlockedName" IS DISTINCT FROM ("name" ~* ${pattern})`);
+    // In two steps, so the pattern runs on the products written since and on
+    // nothing else. In one UPDATE with both conditions, Postgres put the
+    // pattern first and ran it on every row: 13.4s on the dev branch for a day
+    // in which nothing had been written (EXPLAIN ANALYZE, 2026-10-14).
+    const recent = await prisma.$queryRaw<{ id: number }[]>(Prisma.sql`
+      SELECT "id" FROM "Product" WHERE "lastSynced" >= ${since.toISOString()}::timestamp`);
+    let changed = 0;
+    for (let i = 0; i < recent.length; i += 1000) {
+      const ids = recent.slice(i, i + 1000).map((r) => r.id);
+      changed += await prisma.$executeRaw(Prisma.sql`
+        UPDATE "Product" SET "isBlockedName" = ("name" ~* ${pattern})
+        WHERE "id" IN (${Prisma.join(ids)}) AND "isBlockedName" IS DISTINCT FROM ("name" ~* ${pattern})`);
+    }
     await writeMeta("blocked-names", { hash, at: startedAt } satisfies FlagState);
     return { mode: "new", changed, done: true };
   }
