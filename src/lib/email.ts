@@ -88,9 +88,10 @@ export async function sendEmail(message: EmailMessage): Promise<SendResult> {
 
   const to = message.to.trim().toLowerCase();
 
-  // Never to an address that bounced permanently or complained
-  // (EmailSuppression). If the list cannot be read, nothing is sent either,
-  // rather than risk mailing one of them.
+  // Never to an address that bounced permanently or complained: Brevo reports
+  // them to /api/brevo/webhook (lib/brevo-events.ts), as SES did to
+  // /api/ses/notifications. If the list cannot be read, nothing is sent
+  // either, rather than risk mailing one of them.
   try {
     const suppressed = await prisma.emailSuppression.findUnique({ where: { email: to }, select: { id: true } });
     if (suppressed) {
