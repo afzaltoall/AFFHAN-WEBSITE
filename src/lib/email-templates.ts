@@ -12,9 +12,17 @@ import type { EmailMessage } from "@/lib/email";
 // Plain and narrow on purpose. A password-reset email that looks like a
 // marketing campaign — big images, buttons, tracking pixels — is the exact
 // shape people are told to distrust, and it is the shape spam filters weigh
-// against. So: the AFFHAN name as text, the message, and a footer with the
-// registered company, its Chennai address, one link (to affhan.com) and the
-// reason the reader got it. No images, no pixels, nothing to sell.
+// against. So: the AFFHAN logo, the message, and a footer with the registered
+// company, its Chennai address, one link (to affhan.com) and the reason the
+// reader got it. The logo is the one image (LOGO), on our own domain, with
+// alt="AFFHAN" styled as the old text header for a reader whose images are
+// off; no other images, no pixels, nothing to sell.
+//
+// Dark mode: the light styles are inline and stay the base; a client that
+// honours prefers-color-scheme (Apple Mail, iOS, Outlook for Mac) takes the
+// dark ones from <style>. Gmail and Outlook darken a message themselves and
+// never an image, so the logo carries its own white tile: invisible on white,
+// and a badge that stays legible on any dark ground.
 //
 // Each message is written once, as blocks, and rendered twice — plain text
 // and HTML — so the two versions cannot drift apart. Everything is escaped on
@@ -24,6 +32,14 @@ import type { EmailMessage } from "@/lib/email";
 const BRAND = "AFFHAN";
 const SITE = "https://affhan.com";
 const TTL_MINUTES = Math.round(OTP_TTL_MS / 60000);
+
+/**
+ * public/email/affhan-logo.png: the site's logo (public/logo.png, trimmed) on a
+ * white rounded tile, 240x186, shown at half that so it is sharp on a 2x
+ * screen. The site's master is 177px wide, so the 200px logo inside is a mild
+ * 1.13x of it.
+ */
+const LOGO = { src: `${SITE}/email/affhan-logo.png`, width: 120, height: 93 };
 
 const office = OFFICES.chennai;
 // addressCountry is the ISO code "IN"; a reader wants the name.
@@ -60,20 +76,20 @@ function htmlOf(subject: string, blocks: Block[], footerNote: string): string {
     .map((b) => {
       switch (b.kind) {
         case "heading":
-          return `<h1 style="margin:0 0 16px;font-size:20px;line-height:1.3;color:${INK}">${escapeHtml(b.text)}</h1>`;
+          return `<h1 class="ink" style="margin:0 0 16px;font-size:20px;line-height:1.3;color:${INK}">${escapeHtml(b.text)}</h1>`;
         case "para":
-          return `<p style="margin:0 0 16px;font-size:15px;color:${BODY}">${escapeHtml(b.text)}</p>`;
+          return `<p class="body" style="margin:0 0 16px;font-size:15px;color:${BODY}">${escapeHtml(b.text)}</p>`;
         case "code":
-          return `<p style="margin:4px 0 20px;font-size:32px;font-weight:700;letter-spacing:8px;font-family:${MONO};color:${INK}">${escapeHtml(b.text)}</p>`;
+          return `<p class="ink" style="margin:4px 0 20px;font-size:32px;font-weight:700;letter-spacing:8px;font-family:${MONO};color:${INK}">${escapeHtml(b.text)}</p>`;
         case "details":
-          return `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px;border-collapse:separate;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">${b.rows
+          return `<table class="box" role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 20px;border-collapse:separate;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">${b.rows
             .map(
               ([label, value]) =>
-                `<tr><td style="padding:10px 14px;font-size:13px;color:${QUIET};vertical-align:top;white-space:nowrap">${escapeHtml(label)}</td><td style="padding:10px 14px 10px 0;font-size:14px;color:${INK};vertical-align:top">${escapeHtml(value).replace(/\r?\n/g, "<br>")}</td></tr>`
+                `<tr><td class="quiet" style="padding:10px 14px;font-size:13px;color:${QUIET};vertical-align:top;white-space:nowrap">${escapeHtml(label)}</td><td class="ink" style="padding:10px 14px 10px 0;font-size:14px;color:${INK};vertical-align:top">${escapeHtml(value).replace(/\r?\n/g, "<br>")}</td></tr>`
             )
             .join("")}</table>`;
         case "signoff":
-          return `<p style="margin:0 0 16px;font-size:15px;font-weight:600;color:${INK}">${escapeHtml(b.text)}</p>`;
+          return `<p class="ink" style="margin:0 0 16px;font-size:15px;font-weight:600;color:${INK}">${escapeHtml(b.text)}</p>`;
       }
     })
     .join("\n");
@@ -83,17 +99,30 @@ function htmlOf(subject: string, blocks: Block[], footerNote: string): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
 <title>${escapeHtml(subject)}</title>
+<style>
+@media (prefers-color-scheme: dark) {
+  .bg { background:#0b1220 !important; color:#f1f5f9 !important; }
+  .ink { color:#f1f5f9 !important; }
+  .body { color:#cbd5e1 !important; }
+  .quiet { color:#94a3b8 !important; }
+  .accent { color:#7dd3fc !important; }
+  .rule { border-top-color:#1e293b !important; }
+  .box { background:#111827 !important; border-color:#1e293b !important; }
+}
+</style>
 </head>
-<body style="margin:0;padding:24px 16px;background:#ffffff;color:${INK};font-family:${FONT};line-height:1.55">
+<body class="bg" style="margin:0;padding:24px 16px;background:#ffffff;color:${INK};font-family:${FONT};line-height:1.55">
 <div style="max-width:520px;margin:0 auto">
-<p style="margin:0 0 24px;font-size:14px;font-weight:800;letter-spacing:3px;color:${ACCENT}">${BRAND}</p>
+<img src="${LOGO.src}" width="${LOGO.width}" height="${LOGO.height}" alt="${BRAND}" style="display:block;margin:0 0 24px;border:0;outline:none;text-decoration:none;font-size:14px;font-weight:800;letter-spacing:3px;color:${ACCENT}">
 ${body}
-<hr style="border:0;border-top:1px solid #e2e8f0;margin:28px 0 16px">
-<p style="margin:0 0 2px;font-size:12px;font-weight:700;color:${QUIET}">${escapeHtml(office.legalName)}</p>
-<p style="margin:0 0 2px;font-size:12px;color:${QUIET}">${escapeHtml(ADDRESS)}</p>
-<p style="margin:0 0 12px;font-size:12px"><a href="${SITE}" style="color:${ACCENT}">affhan.com</a></p>
-<p style="margin:0;font-size:12px;color:${QUIET}">${escapeHtml(footerNote)}</p>
+<hr class="rule" style="border:0;border-top:1px solid #e2e8f0;margin:28px 0 16px">
+<p class="quiet" style="margin:0 0 2px;font-size:12px;font-weight:700;color:${QUIET}">${escapeHtml(office.legalName)}</p>
+<p class="quiet" style="margin:0 0 2px;font-size:12px;color:${QUIET}">${escapeHtml(ADDRESS)}</p>
+<p style="margin:0 0 12px;font-size:12px"><a class="accent" href="${SITE}" style="color:${ACCENT}">affhan.com</a></p>
+<p class="quiet" style="margin:0;font-size:12px;color:${QUIET}">${escapeHtml(footerNote)}</p>
 </div>
 </body>
 </html>
