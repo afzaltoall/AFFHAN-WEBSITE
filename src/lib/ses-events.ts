@@ -1,4 +1,7 @@
 /**
+ * UNUSED since 2026-10-14: email goes through Brevo (lib/brevo.ts), whose bounces arrive at /api/brevo/webhook.
+ * Kept for the separate SES cleanup; lib/email-ses.ts lists what it removes.
+ *
  * What an Amazon SES bounce or complaint event says to stop sending to.
  * Pure: /api/ses/notifications checks the SNS message it arrived in and saves
  * what this returns.

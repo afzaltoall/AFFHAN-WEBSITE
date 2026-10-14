@@ -2,11 +2,17 @@ import { GetAccountCommand, SESv2Client, SendEmailCommand } from "@aws-sdk/clien
 import { prisma } from "@/lib/prisma";
 
 // ---------------------------------------------------------------------------
-// Transactional email over Amazon SES: lib/email.ts as it was until 2026-10-14,
-// moved here unchanged when sending went to Brevo (lib/brevo.ts). Nothing
-// imports it. AWS refused the account production access for good, so SES only
-// ever reached the sandbox's verified addresses; this is kept for a separate
-// cleanup, with the bounce pipeline it fed (lib/ses-notifications.ts).
+// UNUSED since 2026-10-14. Transactional email over Amazon SES: lib/email.ts as
+// it was until then, its logic moved here unchanged when sending went to Brevo
+// (lib/brevo.ts). Nothing imports it. AWS refused the account production
+// access for good, so SES only ever reached the sandbox's verified addresses.
+//
+// Kept for a separate SES cleanup, which removes, together:
+//   lib/email-ses.ts (this), lib/ses-notifications.ts, lib/ses-events.ts,
+//   lib/sns-message.ts, app/api/ses/notifications/, their tests
+//   (tests/security/ses-events.test.mjs, sns-message.test.mjs), the
+//   @aws-sdk/client-sesv2 dependency, and the AWS_SES_* variables in Vercel.
+// The EmailSuppression rows SES wrote stay: they are real addresses to avoid.
 //
 // Its own credentials, not the ones S3 uses. The image-upload key is handed to
 // local scripts and writes to a public bucket; a key that can send mail as

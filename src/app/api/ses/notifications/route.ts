@@ -4,6 +4,10 @@ import { handleSnsPost, saveSuppressions } from "@/lib/ses-notifications";
 export const dynamic = "force-dynamic";
 
 /**
+ * UNUSED since 2026-10-14: email goes through Brevo (lib/brevo.ts), whose bounces arrive at /api/brevo/webhook.
+ * SES sends nothing for the site now, so nothing should arrive here; it still works if something does. Kept
+ * for the separate SES cleanup; lib/email-ses.ts lists what it removes.
+ *
  * Amazon SES bounce and complaint notifications, delivered by SNS
  * (lib/ses-notifications.ts says what is checked and what is saved).
  *

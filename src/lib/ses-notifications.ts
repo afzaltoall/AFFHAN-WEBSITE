@@ -9,6 +9,9 @@ import {
 import { suppressionsFrom, type Suppression } from "@/lib/ses-events";
 
 /**
+ * UNUSED since 2026-10-14: email goes through Brevo (lib/brevo.ts), whose bounces arrive at /api/brevo/webhook.
+ * Kept for the separate SES cleanup; lib/email-ses.ts lists what it removes.
+ *
  * SES bounce and complaint notifications, as SNS delivers them to
  * /api/ses/notifications.
  *

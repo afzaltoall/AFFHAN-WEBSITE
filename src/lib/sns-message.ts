@@ -1,6 +1,9 @@
 import crypto from "node:crypto";
 
 /**
+ * UNUSED since 2026-10-14: email goes through Brevo (lib/brevo.ts), whose bounces arrive at /api/brevo/webhook.
+ * Kept for the separate SES cleanup; lib/email-ses.ts lists what it removes.
+ *
  * Amazon SNS messages, checked the way AWS documents ("Verifying the
  * signatures of Amazon SNS messages"), for the SES bounce and complaint
  * notifications that /api/ses/notifications receives.
