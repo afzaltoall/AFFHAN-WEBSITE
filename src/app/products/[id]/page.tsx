@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { prisma } from "@/lib/prisma";
+import { cachedOnce } from "@/lib/cachedOnce";
+import { TAG_PRODUCTS } from "@/lib/cacheTags";
 import { FooterSection } from "@/components/sections/FooterSection";
 import { ProductDetailView, type PDPProduct } from "@/components/ui/ProductDetailView";
 import { RecordProductView } from "@/components/ui/RecordProductView";
@@ -88,16 +91,47 @@ function productDescription(
   );
 }
 
-async function getProduct(idParam: string) {
+/**
+ * The product's row, cached an hour (TAG_PRODUCTS drops it), holding only what
+ * this page reads, which is plain JSON and caches as it is. A product is read
+ * from the database once an hour at most, where every view used to read it
+ * twice (2026-10-14).
+ */
+const getCachedProductRow = cachedOnce(
+  async (id: number) =>
+    prisma.product.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+        allImages: true,
+        description: true,
+        category: true,
+        categoryId: true,
+        categoryRef: { select: { name: true } },
+      },
+    }),
+  ["pdp-product-row"],
+  { revalidate: 3600, tags: [TAG_PRODUCTS] }
+);
+
+/**
+ * The product, once per request: generateMetadata and the page both ask for
+ * it, and React's cache() hands the second the first one's answer.
+ */
+const getProduct = cache(async (idParam: string) => {
   const id = parseInt(idParam, 10);
   if (Number.isNaN(id)) return null;
-  const product = await prisma.product.findUnique({ where: { id }, include: { categoryRef: true } });
+  const product = await getCachedProductRow(id);
   if (!product) return null;
   // A moderated product has no page. Without this the grid hid it and the URL
-  // still served it in full — see src/lib/productVisibility.ts.
+  // still served it in full — see src/lib/productVisibility.ts. Checked on
+  // every request, outside the hour's cache, so a product blocked since it was
+  // cached is gone at once.
   if (await isProductHidden(product)) return null;
   return product;
-}
+});
 
 export async function generateMetadata({
   params,
