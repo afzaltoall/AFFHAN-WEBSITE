@@ -142,9 +142,10 @@ function Inspiration({ feed, onInquire }: { feed: ReturnType<typeof usePhoneFeed
 
 /**
  * A category in the rail, as Alibaba's: its name alone (no icon: the owner, 2026-10-14), in Alibaba's ink, dark
- * and of some weight, bold once picked ("make it text bold same as alibaba"). Every name is laid out as its bold
- * self would be (an invisible bold copy in the same cell), so picking one never re-wraps it: "Health, Beauty &
- * Hair" took a third line in bold and pushed the whole rail under it down.
+ * and of some weight, heavier once picked ("make it text bold same as alibaba"). The weight is never changed:
+ * picked, the name is thickened by a hairline stroke, which does not move a letter, so it keeps its exact line
+ * breaks. Bold type is wider, and "Health, Beauty & Hair" broke onto a third line when picked ("after selecting
+ * ui is changing").
  */
 function RailItem({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
@@ -152,15 +153,10 @@ function RailItem({ label, on, onClick }: { label: string; on: boolean; onClick:
       type="button"
       aria-current={on ? "true" : undefined}
       onClick={onClick}
-      className={`relative block w-full px-3 py-3.5 text-left text-[13px] leading-snug transition-colors ${on ? "bg-white text-slate-900" : "text-slate-700 active:bg-slate-200/60"}`}
+      className={`relative block w-full px-3 py-3.5 text-left text-[13px] font-medium leading-snug transition-colors ${on ? "bg-white text-slate-900 [-webkit-text-stroke:0.45px_currentColor]" : "text-slate-700 active:bg-slate-200/60"}`}
     >
       {on && <span aria-hidden className="absolute inset-y-2.5 left-0 w-[3px] rounded-r-full bg-brand-dark" />}
-      <span className="grid w-full">
-        <span aria-hidden className="invisible col-start-1 row-start-1 font-bold">
-          {label}
-        </span>
-        <span className={`col-start-1 row-start-1 self-center ${on ? "font-bold" : "font-medium"}`}>{label}</span>
-      </span>
+      {label}
     </button>
   );
 }
