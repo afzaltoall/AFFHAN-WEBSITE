@@ -77,3 +77,33 @@ export async function brevoSend(message: BrevoMessage): Promise<BrevoSendResult>
     return { ok: false, status: null };
   }
 }
+
+/**
+ * Keeps the API key in use. Brevo expires a key that has gone 90 days without
+ * a call, and a quiet quarter with no password reset would be enough, so the
+ * daily cron run (app/api/cron/leads/rotate) makes one: GET /v3/account, the
+ * cheapest authenticated read there is. Never throws; a failure is logged
+ * (status and code only) and nothing else, and a success is silent. What the
+ * account answers is not read.
+ */
+export async function brevoKeepAlive(): Promise<void> {
+  const apiKey = process.env.BREVO_API_KEY?.trim();
+  if (!apiKey) {
+    console.warn("[brevo] keep-alive skipped: BREVO_API_KEY is not set.");
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/account`, {
+      headers: { "api-key": apiKey, accept: "application/json" },
+      signal: AbortSignal.timeout(5_000),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => null)) as { code?: string } | null;
+      console.error(`[brevo] keep-alive refused: HTTP ${res.status}${body?.code ? ` (${body.code})` : ""}`);
+      return;
+    }
+    await res.body?.cancel();
+  } catch (error) {
+    console.error("[brevo] keep-alive failed before an answer:", error instanceof Error ? error.name : "unknown");
+  }
+}

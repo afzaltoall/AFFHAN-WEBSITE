@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { runRotation } from "@/lib/lead-queue";
+import { brevoKeepAlive } from "@/lib/brevo";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -77,6 +78,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "now must be an ISO date" }, { status: 400 });
   }
 
+  // The daily run, Vercel's own cron (vercel.json; it calls as "vercel-cron/1.0"),
+  // also keeps Brevo's API key in use (lib/brevo.ts, brevoKeepAlive): once a day,
+  // not on every one of the external scheduler's quarter-hours. Alongside the
+  // sweep, never in its way: it cannot throw, a failure is a log line, and the
+  // answer below is the sweep's whatever Brevo said.
+  const keepAlive = request.headers.get("user-agent")?.startsWith("vercel-cron/") ? brevoKeepAlive() : null;
+
   try {
     const report = await runRotation({ now, dryRun });
     return NextResponse.json({ ok: true, ...report });
@@ -85,5 +93,7 @@ export async function GET(request: Request) {
     // nobody useful.
     console.error("lead rotation failed:", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Rotation failed" }, { status: 500 });
+  } finally {
+    await keepAlive;
   }
 }
