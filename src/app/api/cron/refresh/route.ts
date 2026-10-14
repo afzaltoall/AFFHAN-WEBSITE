@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { refuseUnlessCron } from "@/lib/cron-auth";
 import { refreshSnapshots } from "@/lib/snapshots";
 
 export const dynamic = "force-dynamic";
@@ -18,13 +19,10 @@ export const maxDuration = 60;
  * they do nothing until something is due, and carry a long re-flag forward.
  */
 export async function GET(request: Request) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    return NextResponse.json({ error: "CRON_SECRET is not configured" }, { status: 503 });
-  }
-  if (request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  // The door every cron route has (lib/cron-auth.ts): the secret compared in
+  // constant time, and refused outright when it is missing or too short.
+  const refused = refuseUnlessCron(request);
+  if (refused) return refused;
   const force = new URL(request.url).searchParams.get("force") === "1";
   const report = await refreshSnapshots({ force });
   return NextResponse.json({ ok: !report.failed?.length, ...report }, { status: report.failed?.includes("refresh") ? 500 : 200 });
