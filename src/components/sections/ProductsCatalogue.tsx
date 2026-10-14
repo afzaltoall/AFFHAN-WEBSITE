@@ -13,8 +13,10 @@ import { Pagination } from "@/components/ui/Pagination";
 import { CatalogueScrollHero } from "@/components/sections/CatalogueScrollHero";
 import { CatalogueDock } from "@/components/sections/CatalogueDock";
 import { PhoneCategoryBrowser } from "@/components/mobile/PhoneCategoryBrowser";
+import { PhoneCategoryPage } from "@/components/mobile/PhoneCategoryPage";
 import { buildCategoryTree, flattenLeaves, isGridEligibleRoot, type CategoryRecord, type CategoryTreeNode } from "@/lib/categoryTree";
 import { prepCatalogueNav } from "@/lib/scroll";
+import { PHONE_QUERY, useIsPhone } from "@/lib/useIsPhone";
 import type { ProductCardData } from "@/components/ui/ProductCard";
 
 interface FacetChip {
@@ -201,6 +203,8 @@ export function ProductsCatalogue({
   initialPagination = { total: 0, totalPages: 1, totalCapped: false },
   initialSearch = null,
   initialFront = false,
+  initialCategoryId = null,
+  initialGridSkipped = false,
   phoneShowcase = [],
 }: {
   initialProducts?: ProductCardData[];
@@ -216,7 +220,17 @@ export function ProductsCatalogue({
    * from being that screen for a moment.
    */
   initialFront?: boolean;
-  /** The front's Popular products on a phone (PhoneCategoryBrowser): the homepage's own curated draw. */
+  /**
+   * The category the address opens when there is no ?q=, as the server read it: on a phone a category has a
+   * page of its own (PhoneCategoryPage), and this draws it from the first paint, for the same reason.
+   */
+  initialCategoryId?: string | null;
+  /**
+   * The server left the computer's grid out (the phone's Categories tab, ?view=categories, products/page.tsx):
+   * fetched here if the screen turns out wider than a phone's.
+   */
+  initialGridSkipped?: boolean;
+  /** The front's For you products on a phone (PhoneCategoryBrowser): the homepage's own curated draw. */
   phoneShowcase?: ProductCardData[];
 }) {
   const router = useRouter();
@@ -459,9 +473,17 @@ export function ProductsCatalogue({
   };
 
   const isInitialFetch = useRef(true);
+  // The computer's grid, left unfetched because a phone showed a screen of its own (below).
+  const gridStale = useRef(initialGridSkipped);
   useEffect(() => {
     if (isInitialFetch.current) {
       isInitialFetch.current = false;
+      return;
+    }
+    // On a phone, the front and a category are screens of their own (PhoneCategoryBrowser, PhoneCategoryPage),
+    // which fetch what they show; the computer's grid, not built there, is not fetched for nothing.
+    if (!debouncedQuery && window.matchMedia(PHONE_QUERY).matches) {
+      gridStale.current = true;
       return;
     }
     setPage(1);
@@ -529,20 +551,64 @@ export function ProductsCatalogue({
 
   // The front, as the server read the address until this has read it itself (initialFront).
   const front = mounted ? defaultView : initialFront;
+  // A category with no search: on a phone, a page of its own (PhoneCategoryPage), as Alibaba's. The same rule
+  // for the first paint: the server's reading (initialCategoryId) until the address is read here.
+  const phoneCategoryId = mounted ? (debouncedQuery ? null : activeCategoryId) : initialCategoryId;
+  const phoneCategory = useMemo(() => {
+    if (!phoneCategoryId || !categoryTree.length) return null;
+    const node = findTreeNode(categoryTree, phoneCategoryId);
+    if (!node) return null;
+    const byId = new Map(categories.map((c) => [c.id, c]));
+    const path: { id: string; name: string }[] = [];
+    const guard = new Set<string>();
+    for (let cur = byId.get(node.id); cur && !guard.has(cur.id); cur = cur.parentId ? byId.get(cur.parentId) : undefined) {
+      guard.add(cur.id);
+      path.unshift({ id: cur.id, name: cur.name });
+    }
+    return { node, path };
+  }, [phoneCategoryId, categoryTree, categories]);
+  // On a phone, the front and a category are their own screens alone: the computer's hero and grid are not
+  // built there at all. Hidden by CSS, they were built anyway, and that was most of the Categories tab's
+  // wait: 2.6-3.4s on a phone-like browser (CPU 4x, affhan.com, 2026-10-14), the page's data in after 0.5s. A
+  // page the server drew keeps them until hydrated (useIsPhone), the server not knowing the width;
+  // max-md:hidden covers that.
+  const isPhone = useIsPhone();
+  const phoneOwn = front || !!phoneCategory;
+  const phoneOnly = phoneOwn && isPhone;
+  // The grid left unfetched on a phone (by the server, initialGridSkipped, or for a category opened there),
+  // fetched once the screen is wider than a phone's: a phone turned on its side, or the address opened on a
+  // computer. Read from the media query itself, as during hydration useIsPhone still says what the server said.
+  useEffect(() => {
+    if (!gridStale.current || window.matchMedia(PHONE_QUERY).matches) return;
+    gridStale.current = false;
+    setPage(1);
+    fetchProducts(debouncedQuery, activeCategoryIdsParam, effectiveSort, 1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPhone]);
 
   return (
-    // On a phone the catalogue's front is the categories screen (PhoneCategoryBrowser), right under the phone
-    // frame's top; its hero, heading, chips and grid are a computer's and a tablet's (max-md:hidden).
-    <div className={`min-h-screen bg-slate-50 font-sans pt-28 ${front ? "max-md:pt-(--nav-h)" : ""}`}>
+    // On a phone the catalogue's front is the categories screen (PhoneCategoryBrowser), and a category its own
+    // page (PhoneCategoryPage), right under the phone frame's top; the hero, heading, chips and grid are a
+    // computer's and a tablet's (max-md:hidden).
+    <div className={`min-h-screen bg-slate-50 font-sans pt-28 ${phoneOwn ? "max-md:pt-(--nav-h)" : ""}`}>
       {front && <PhoneCategoryBrowser tree={categoryTree} showcase={phoneShowcase} onInquire={(p) => setInquiryProduct(p)} />}
-      {mounted && defaultView && (
+      {phoneCategory && (
+        <PhoneCategoryPage
+          id={phoneCategory.node.id}
+          name={phoneCategory.node.name}
+          count={phoneCategory.node.recursiveProductCount}
+          path={phoneCategory.path}
+          onInquire={(p) => setInquiryProduct(p)}
+        />
+      )}
+      {mounted && defaultView && !phoneOnly && (
         <div id="catalogue-hero" className="max-md:hidden">
           <CatalogueScrollHero
             scatterImages={products.slice(0, 10).map((p) => p.imageUrl).filter((url): url is string => Boolean(url))}
           />
         </div>
       )}
-      <div className={`max-w-[1600px] mx-auto px-4 sm:px-6 pb-12 ${front ? "max-md:hidden" : ""}`}>
+      {!phoneOnly && <div className={`max-w-[1600px] mx-auto px-4 sm:px-6 pb-12 ${phoneOwn ? "max-md:hidden" : ""}`}>
         {/* Header — search-aware. There is intentionally no search box here:
             search lives only in the homepage hero and the navbar. On /products
             the navbar shows its search input, so a second box was redundant. */}
@@ -941,7 +1007,7 @@ export function ProductsCatalogue({
             <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />
           </div>
         )}
-      </div>
+      </div>}
       <FooterSection />
       <CatalogueDock />
       {inquiryProduct && <InquiryModal product={inquiryProduct} onClose={() => setInquiryProduct(null)} />}

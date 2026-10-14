@@ -113,10 +113,17 @@ export default async function ProductsPage({
   queryParams.append("limit", "96"); // PAGE_SIZE in catalogue
   const isDefaultView = !q && !categoryId;
   if (q || isDefaultView) queryParams.append("getChips", "true");
+  // The phone frame's Categories tab asks for ?view=categories: the categories screen, which shows none of
+  // the computer's grid, so its 96 products and chips are not fetched for it (0.48s of the page's ~0.5s on
+  // localhost, 2026-10-14). Opened on a computer anyway, the catalogue fetches them itself (initialGridSkipped).
+  const view = Array.isArray(params.view) ? params.view[0] : params.view;
+  const gridSkipped = isDefaultView && view === "categories";
 
   const [categoriesRes, productsRes, showcase] = await Promise.all([
     getCategories(),
-    getProducts(new Request(`${baseUrl}/api/products?${queryParams.toString()}`)),
+    gridSkipped
+      ? Promise.resolve(Response.json({ data: [], facets: [], pagination: { total: 0, totalPages: 1, totalCapped: false } }))
+      : getProducts(new Request(`${baseUrl}/api/products?${queryParams.toString()}`)),
     // The front's Popular products on a phone (PhoneCategoryBrowser): the homepage's own curated, rotated
     // draw (a cached pool), not the catalogue's A-Z, whose first names are punctuation. The front only.
     isDefaultView ? getHeroFeed(10).catch(() => ({ products: [] })) : Promise.resolve({ products: [] }),
@@ -170,9 +177,13 @@ export default async function ProductsPage({
 
           The cost is 49 KB fetched on a deep link into a category, where the
           hero never renders. That is the trade: 49 KB against a three-second
-          delay on the default view, which is the common one. */}
+          delay on the default view, which is the common one.
+
+          Not on a phone (media): there the front is the categories screen,
+          which has no hero, and the four were fetched on every press of the
+          phone frame's Categories tab (2026-10-14). */}
       {CATALOGUE_HERO_IMAGES.map((src) => (
-        <link key={src} rel="preload" as="image" href={src} fetchPriority="high" />
+        <link key={src} rel="preload" as="image" href={src} fetchPriority="high" media="(min-width: 768px)" />
       ))}
       {breadcrumb && (
         <script
@@ -187,6 +198,8 @@ export default async function ProductsPage({
          initialPagination={initialPagination}
          initialSearch={initialSearch}
          initialFront={isDefaultView}
+         initialCategoryId={!q && categoryId ? categoryId : null}
+         initialGridSkipped={gridSkipped}
          phoneShowcase={showcase.products ?? []}
       />
     </>

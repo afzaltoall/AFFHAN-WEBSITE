@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, FileText, LayoutGrid, Trophy } from "lucide-react";
-import type { ProductCardData } from "@/components/ui/ProductCard";
 import { MENU_TILE, MenuGlyph, MenuInkDefs, ShipEmblemGlyph } from "@/components/ui/MenuIcons";
 import { useBackDismiss } from "@/lib/useBackDismiss";
 import "./phone-chrome.css";
@@ -96,7 +95,7 @@ export function PhoneHomeTop({
 
       {/* Ways in, as Alibaba's row under its tabs: one icon family, the menu drawer's (MenuIcons). */}
       <nav aria-label="Ways to source" className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 pt-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
-        <WayIn href="/products/" label="Source by category" glyph={<MenuGlyph icon={LayoutGrid} ink={INK} size={18} />} />
+        <WayIn href="/products/?view=categories" label="Source by category" glyph={<MenuGlyph icon={LayoutGrid} ink={INK} size={18} />} />
         <WayIn href="/contact/" label="Request for Quotation" glyph={<MenuGlyph icon={FileText} ink={INK} size={18} />} />
         <WayIn href="/rankings/" label="Top Ranking" glyph={<MenuGlyph icon={Trophy} ink={INK} size={18} />} />
         <WayIn href="/shipping/" label="AFFHAN Shipping" glyph={<ShipEmblemGlyph />} />
@@ -119,6 +118,11 @@ export function PhoneHomeTop({
   );
 }
 
+/**
+ * A family in the row, its name bold once picked. Every tab is as wide as its bold name (an invisible bold copy
+ * in the same cell), so picking one never widens it and moves the tabs after it along (as the categories
+ * screen's rail, PhoneCategoryBrowser, 2026-10-14).
+ */
 function FamilyTab({ id, label, on, onClick }: { id: string; label: string; on: boolean; onClick: () => void }) {
   return (
     <button
@@ -127,9 +131,14 @@ function FamilyTab({ id, label, on, onClick }: { id: string; label: string; on: 
       aria-selected={on}
       data-family={id}
       onClick={onClick}
-      className={`relative shrink-0 whitespace-nowrap text-[14.5px] transition-colors ${on ? "font-bold text-slate-900" : "font-medium text-slate-500 active:text-slate-800"}`}
+      className={`relative shrink-0 whitespace-nowrap text-[14.5px] transition-colors ${on ? "text-slate-900" : "text-slate-500 active:text-slate-800"}`}
     >
-      {label}
+      <span className="grid">
+        <span aria-hidden className="invisible col-start-1 row-start-1 font-bold">
+          {label}
+        </span>
+        <span className={`col-start-1 row-start-1 text-center ${on ? "font-bold" : "font-medium"}`}>{label}</span>
+      </span>
       <span aria-hidden className={`absolute inset-x-0 bottom-0 h-[3px] rounded-full bg-brand-dark transition-opacity ${on ? "opacity-100" : "opacity-0"}`} />
     </button>
   );
@@ -205,72 +214,5 @@ function FamilySheet({
   );
 }
 
-const PAGE = 40;
-const MAX_PAGES = 10;
-
-/**
- * A family's products for the homepage's grid on a phone, a page at a time from the catalogue's own API
- * (descendants included, moderation applied there), the next page asked for as the sentinel nears the
- * screen: no button (the owner: the grid loads by itself), up to 400.
- */
-export function usePhoneFamilyFeed(family: string | null) {
-  const [products, setProducts] = useState<ProductCardData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-  const pageRef = useRef(0);
-  const seq = useRef(0);
-  const busy = useRef(false);
-
-  const loadNext = useCallback(async () => {
-    if (!family || busy.current || done) return;
-    busy.current = true;
-    const mine = seq.current;
-    const page = pageRef.current + 1;
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/products/?categoryId=${encodeURIComponent(family)}&limit=${PAGE}&page=${page}`);
-      const json = (await res.json()) as { data?: ProductCardData[]; pagination?: { totalPages?: number } };
-      if (mine !== seq.current) return;
-      const got = (json.data ?? []).filter((p) => p.imageUrl);
-      pageRef.current = page;
-      setProducts((list) => {
-        const seen = new Set(list.map((p) => String(p.id)));
-        return [...list, ...got.filter((p) => !seen.has(String(p.id)))];
-      });
-      if (!json.data?.length || page >= Math.min(MAX_PAGES, json.pagination?.totalPages ?? MAX_PAGES)) setDone(true);
-    } catch {
-      if (mine === seq.current) setDone(true);
-    } finally {
-      if (mine === seq.current) {
-        busy.current = false;
-        setLoading(false);
-      }
-    }
-  }, [family, done]);
-
-  // A new family starts over.
-  useEffect(() => {
-    seq.current++;
-    busy.current = false;
-    pageRef.current = 0;
-    setProducts([]);
-    setDone(false);
-    setLoading(false);
-  }, [family]);
-  useEffect(() => {
-    if (family && pageRef.current === 0 && !busy.current) void loadNext();
-  }, [family, loadNext]);
-
-  const observer = useRef<IntersectionObserver | null>(null);
-  const sentinel = useCallback(
-    (el: HTMLElement | null) => {
-      observer.current?.disconnect();
-      if (!el || !family) return;
-      observer.current = new IntersectionObserver((entries) => entries.some((e) => e.isIntersecting) && void loadNext(), { rootMargin: "900px 0px" });
-      observer.current.observe(el);
-    },
-    [family, loadNext],
-  );
-
-  return { products, loading, done, sentinel };
-}
+// A picked family's products for the grid under this: usePhoneFeed (./usePhoneFeed.ts), shared with the
+// categories screen.

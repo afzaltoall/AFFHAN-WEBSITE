@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { PhoneHomeTop, usePhoneFamilyFeed, type PhoneFamily } from "@/components/mobile/PhoneHomeTop";
+import { PhoneHomeTop, type PhoneFamily } from "@/components/mobile/PhoneHomeTop";
+import { usePhoneFeed } from "@/components/mobile/usePhoneFeed";
 import Image from "next/image";
 import { Star, ChevronRight } from "lucide-react";
 import dynamic from 'next/dynamic';
@@ -316,7 +317,7 @@ export function MarketplaceHeroSection({
   // products, a page at a time, until All brings the homepage's own back. Only ever set below 768px, and
   // let go if the screen grows past it (a turned tablet), where the row is not shown.
   const [family, setFamily] = useState<string | null>(null);
-  const familyFeed = usePhoneFamilyFeed(family);
+  const familyFeed = usePhoneFeed(family);
   useEffect(() => {
     const mq = window.matchMedia("(min-width: 768px)");
     const onChange = () => mq.matches && setFamily(null);

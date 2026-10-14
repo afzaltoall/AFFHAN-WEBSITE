@@ -4,12 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Camera, Gift, Home, LayoutGrid, MessageSquareText, Search, User, X } from "lucide-react";
+import { Camera, Gift, Home, LayoutGrid, MessageSquareText, Search, User, X, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ImageSearchButton } from "@/components/ui/ImageSearchButton";
 import { SearchAssistPanel, useSearchAssist } from "@/components/search/SearchAssist";
 import { overlayWillNavigate, useBackDismiss } from "@/lib/useBackDismiss";
 import { phoneChromeFor, PHONE_TABS_HEIGHT, sitePath } from "@/lib/phoneChrome";
+import { useIsPhone } from "@/lib/useIsPhone";
+import { usePhoneSearchContext } from "@/components/mobile/phoneSearchContext";
 import "./phone-chrome.css";
 
 /**
@@ -44,20 +46,7 @@ interface Hint {
   image: string | null;
 }
 
-const PHONE_QUERY = "(max-width: 767.98px)";
 const STRIP_KEY = "affhan:signin-strip";
-
-function useIsPhone() {
-  const [phone, setPhone] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia(PHONE_QUERY);
-    const update = () => setPhone(mq.matches);
-    update();
-    mq.addEventListener("change", update);
-    return () => mq.removeEventListener("change", update);
-  }, []);
-  return phone;
-}
 
 /** The hint's categories (/api/search/popular/), once a visit, shared by every box that shows them. */
 let hintsOnce: Promise<Hint[]> | null = null;
@@ -118,6 +107,8 @@ export function PhoneChrome() {
   const kind = phoneChromeFor(pathname);
   const phone = useIsPhone();
   const { hints, hint } = useHint(phone && kind === "full");
+  // A category's own page names itself in the box (PhoneCategoryPage).
+  const context = usePhoneSearchContext();
   const [searching, setSearching] = useState(false);
   const cameraRef = useRef<HTMLSpanElement | null>(null);
   // Not over the account's own pages, nor the Account tab (/me/), which carry their own way to sign in.
@@ -154,10 +145,11 @@ export function PhoneChrome() {
               <button
                 type="button"
                 onClick={() => setSearching(true)}
-                aria-label={hint ? `Search products, such as ${hint.name}` : "Search products"}
+                aria-label={context ? `Search, now in ${context}` : hint ? `Search products, such as ${hint.name}` : "Search products"}
                 className="flex h-full min-w-0 flex-1 items-center overflow-hidden text-left"
               >
-                <HintLine hint={hint} />
+                {/* On a category's own page, its name, as Alibaba's box says "laptops" on its Laptops page. */}
+                {context ? <span className="truncate text-[14px] text-slate-800">{context}</span> : <HintLine hint={hint} />}
               </button>
               {/* The photo search's own button, on a phone only: every mounted one answers the "open photo
                   search" event, so one hidden here on a computer would open a second panel there. Until
@@ -200,7 +192,7 @@ export function PhoneChrome() {
         </>
       )}
 
-      {searching && <SearchSheet hint={hint} hints={hints} cameraRef={cameraRef} onClose={() => setSearching(false)} />}
+      {searching && <SearchSheet hint={hint} hints={hints} initial={context ?? ""} cameraRef={cameraRef} onClose={() => setSearching(false)} />}
     </>
   );
 }
@@ -219,13 +211,17 @@ function HintLine({ hint }: { hint: Hint | null }) {
   );
 }
 
-const TABS = [
+const TABS: { href: string; label: string; Icon: LucideIcon; on: (p: string) => boolean; ahead?: boolean }[] = [
   { href: "/", label: "Home", Icon: Home, on: (p: string) => p === "/" },
-  { href: "/products/", label: "Categories", Icon: LayoutGrid, on: (p: string) => p === "/products" },
+  // The catalogue's front as the categories screen, ?view=categories: the server then leaves out the computer's
+  // grid, most of the page's time (products/page.tsx). Fetched ahead (prefetch): the front is drawn per
+  // request, and a press waited for all of it (2026-10-14). Home and Account are static, which a link fetches
+  // ahead by itself.
+  { href: "/products/?view=categories", label: "Categories", Icon: LayoutGrid, on: (p: string) => p === "/products", ahead: true },
   { href: "/account/inquiries/", label: "Inquiries", Icon: MessageSquareText, on: (p: string) => p.startsWith("/account/inquiries") },
   // The tab opens /me/ (MyAffhanMenu), open to everyone; the account's own pages light it too.
   { href: "/me/", label: "Account", Icon: User, on: (p: string) => p === "/me" || p.startsWith("/me/") || (p.startsWith("/account") && !p.startsWith("/account/inquiries")) },
-] as const;
+];
 
 function PhoneTabs({ pathname }: { pathname: string }) {
   // sitePath: the cached homepage is regenerated as "/index", and the Home tab has to be current in that
@@ -235,17 +231,19 @@ function PhoneTabs({ pathname }: { pathname: string }) {
   return (
     <nav aria-label="Main" className="fixed inset-x-0 bottom-0 z-[100] border-t border-slate-200/80 bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
       <ul className="grid grid-cols-4" style={{ height: PHONE_TABS_HEIGHT }}>
-        {TABS.map(({ href, label, Icon, on }) => {
+        {TABS.map(({ href, label, Icon, on, ahead }) => {
           const active = on(bare);
           return (
             <li key={href}>
               <Link
                 href={href}
+                prefetch={ahead ? true : undefined}
                 aria-current={active ? "page" : undefined}
                 // The tab of the page one is on takes it back to its top, as an app's does (the site's floating
-                // back-to-top button is not on these pages, WhatsAppButton).
+                // back-to-top button is not on these pages, WhatsAppButton); but on a category's own page (the
+                // catalogue with ?categoryId=), Categories goes back to the categories screen.
                 onClick={(e) => {
-                  if (!active || window.scrollY < 8) return;
+                  if (!active || window.scrollY < 8 || (href.startsWith("/products/") && /[?&](categoryId|q)=/.test(window.location.search))) return;
                   e.preventDefault();
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
@@ -315,16 +313,19 @@ function SignInStrip({ pathname, onDismiss }: { pathname: string; onDismiss: () 
 function SearchSheet({
   hint,
   hints,
+  initial,
   cameraRef,
   onClose,
 }: {
   hint: Hint | null;
   hints: Hint[];
+  /** What the box already says (a category's name on its own page), selected, so typing replaces it. */
+  initial: string;
   cameraRef: RefObject<HTMLSpanElement | null>;
   onClose: () => void;
 }) {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(initial);
   const inputRef = useRef<HTMLInputElement>(null);
   // The hint as it was when the sheet opened, so the box's placeholder does not change under the thumb.
   const [shown] = useState(hint);
@@ -393,6 +394,7 @@ function SearchSheet({
             autoComplete="off"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={(e) => e.currentTarget.select()}
             placeholder={shown ? shown.name : "Search products"}
             aria-label="Search products"
             className="h-full min-w-0 flex-1 bg-transparent text-[15px] text-slate-800 outline-none placeholder:text-slate-500"
