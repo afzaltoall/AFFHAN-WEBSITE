@@ -79,7 +79,13 @@ const globalForPrisma = globalThis as unknown as {
 
 export const prisma = globalForPrisma.prisma ?? makeClient();
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+// Kept on globalThis in production as well as in development (2026-10-14).
+// Development needs it to survive hot reloads; production needs it because a
+// module can be evaluated more than once in one server process (a second
+// bundle, a second layer), and each evaluation would open a pool of its own
+// beside the first, up to connection_limit connections each. One process, one
+// client, one pool.
+globalForPrisma.prisma = prisma;
 
 /**
  * Retry a group of queries as a unit.
