@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, MessageCircle, Phone } from "lucide-react";
 import { EmployeeAuthShell } from "@/components/ui/EmployeeAuthShell";
 import { checkPasswordStrength } from "@/lib/password-rules";
 
@@ -30,6 +30,8 @@ export default function EmployeeForgotPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Set when no code can be sent at all: the API's WhatsApp and phone, shown under its message.
+  const [contact, setContact] = useState<Contact | null>(null);
 
   const post = async (path: string, body: Record<string, unknown>) => {
     const res = await fetch(`/api/employee/auth/${path}/`, {
@@ -45,8 +47,15 @@ export default function EmployeeForgotPasswordPage() {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { data } = await post("forgot-password", { email });
+    setContact(null);
+    const { ok, data } = await post("forgot-password", { email });
     setBusy(false);
+    // No code can leave at all (lib/cannot-send.ts): the same for every address, so it says nothing about this one.
+    if (!ok && data?.reason === "cannot_send") {
+      setError(data?.error ?? "We couldn't send the code right now.");
+      if (data?.contact?.whatsapp && data?.contact?.tel) setContact(data.contact);
+      return;
+    }
     setNotice(data?.message ?? "If that address belongs to a staff account, we've sent a code to it.");
     setStep("code");
   };
@@ -132,6 +141,18 @@ export default function EmployeeForgotPasswordPage() {
                 {error}
               </div>
             )}
+            {contact && (
+              <div className="mt-3 flex flex-col gap-2">
+                <a href={contact.whatsapp} target="_blank" rel="noopener noreferrer" className={contactClass}>
+                  <MessageCircle size={15} aria-hidden="true" />
+                  WhatsApp {contact.whatsappNumber}
+                </a>
+                <a href={contact.tel} className={contactClass}>
+                  <Phone size={15} aria-hidden="true" />
+                  Call {contact.phone}
+                </a>
+              </div>
+            )}
 
             {step === "email" && (
               <form onSubmit={requestCode} className="mt-5 space-y-4">
@@ -206,4 +227,15 @@ export default function EmployeeForgotPasswordPage() {
       </div>
     </EmployeeAuthShell>
   );
+}
+
+const contactClass =
+  "flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50";
+
+/** What /api/employee/auth/forgot-password sends when no code can go out (lib/cannot-send.ts). */
+interface Contact {
+  phone: string;
+  tel: string;
+  whatsappNumber: string;
+  whatsapp: string;
 }

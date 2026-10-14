@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
 import { issueEmailOtp } from "@/lib/email-otp";
-import { sendEmail } from "@/lib/email";
+import { canSendEmail, sendEmail } from "@/lib/email";
 import { passwordResetCodeEmail } from "@/lib/email-templates";
+import { cannotSendResponse } from "@/lib/cannot-send";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +22,11 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * person may hold both a customer account and a staff account on the same
  * address, and a code answered in one flow must not set the password in the
  * other.
+ *
+ * As the customer route: when no code can leave at all (a send has really
+ * failed in the last ten minutes, or Brevo is not set up), WhatsApp and a
+ * phone number instead (lib/cannot-send.ts), decided before any account is
+ * read so it is the same for every address.
  */
 export async function POST(request: NextRequest) {
   const generic = NextResponse.json({
@@ -34,6 +40,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     if (!email || !EMAIL_RE.test(email)) return generic;
+
+    // Before the account is looked up: it depends on the sender, never on
+    // whether this address is a staff one. A send that fails below still
+    // answers `generic`, and it is that failure which makes the next ask land
+    // here.
+    const delivery = canSendEmail();
+    if (!delivery.ok) {
+      console.warn(`[employee forgot-password] no code can be sent (${delivery.why}); showed WhatsApp and phone instead.`);
+      return cannotSendResponse();
+    }
 
     const employee = await prisma.employee.findUnique({
       where: { email },
