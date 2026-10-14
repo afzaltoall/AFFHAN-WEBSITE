@@ -1,75 +1,79 @@
-// Thin wrapper over Brevo's transactional email REST API.
-//   POST https://api.brevo.com/v3/smtp/email
-//   header: api-key: <BREVO_API_KEY>
-// We use the REST endpoint directly (no SDK dependency). The sender email
-// MUST be a verified sender in the Brevo account or the send is rejected.
+// ---------------------------------------------------------------------------
+// Brevo's transactional email API, over plain fetch (no SDK).
+//
+//   POST https://api.brevo.com/v3/smtp/email     header api-key: BREVO_API_KEY
+//
+// The sender is BREVO_SENDER_EMAIL (noreply@mail.affhan.com, verified in Brevo,
+// on a domain Brevo has authenticated: DKIM and DMARC), named BREVO_SENDER_NAME.
+// Brevo refuses a send from any sender it has not verified, so nothing is
+// hard-coded here: without both variables nothing is sent at all.
+//
+// This knows how to put one message on the wire and nothing else. The
+// suppression list, the reply-to and what a failure means for the caller are
+// lib/email.ts's.
+// ---------------------------------------------------------------------------
 
-const BREVO_ENDPOINT = "https://api.brevo.com/v3/smtp/email";
+const API = "https://api.brevo.com/v3";
+const SEND_TIMEOUT_MS = 10_000;
 
-// Verified sender in Brevo (confirmed by the account owner).
-const SENDER = { name: "Affhan International", email: "jabubackersiddiq@gmail.com" };
+function credentials(): { apiKey: string; sender: { email: string; name: string } } | null {
+  const apiKey = process.env.BREVO_API_KEY?.trim();
+  const email = process.env.BREVO_SENDER_EMAIL?.trim();
+  if (!apiKey || !email) return null;
+  return { apiKey, sender: { email, name: process.env.BREVO_SENDER_NAME?.trim() || "AFFHAN Group" } };
+}
 
-interface SendEmailParams {
+export function brevoConfigured(): boolean {
+  return credentials() !== null;
+}
+
+/** Which of Brevo's variables are missing, by name only (never a value). */
+export function brevoMissing(): string[] {
+  return [!process.env.BREVO_API_KEY?.trim() && "BREVO_API_KEY", !process.env.BREVO_SENDER_EMAIL?.trim() && "BREVO_SENDER_EMAIL"].filter(
+    (x): x is string => Boolean(x),
+  );
+}
+
+export interface BrevoMessage {
   to: string;
   subject: string;
-  html: string;
+  text: string;
+  html?: string;
+  replyTo: string;
 }
 
-// Returns { ok } and never throws — callers decide how to react to a failed
-// send without the request crashing.
-export async function sendEmail({ to, subject, html }: SendEmailParams): Promise<{ ok: boolean; error?: string }> {
-  const apiKey = process.env.BREVO_API_KEY;
-  if (!apiKey) {
-    console.error("BREVO_API_KEY is not set");
-    return { ok: false, error: "Email service not configured." };
-  }
+export type BrevoSendResult = { ok: true; messageId: string | undefined } | { ok: false; status: number | null };
 
+/**
+ * One message. Never throws. On failure, Brevo's HTTP status (null when it was
+ * not reached) and its error code go to the log; its message does not, as it
+ * can quote the recipient.
+ */
+export async function brevoSend(message: BrevoMessage): Promise<BrevoSendResult> {
+  const c = credentials();
+  if (!c) return { ok: false, status: null };
   try {
-    const res = await fetch(BREVO_ENDPOINT, {
+    const res = await fetch(`${API}/smtp/email`, {
       method: "POST",
-      headers: {
-        "api-key": apiKey,
-        "content-type": "application/json",
-        accept: "application/json",
-      },
+      headers: { "api-key": c.apiKey, "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify({
-        sender: SENDER,
-        to: [{ email: to }],
-        subject,
-        htmlContent: html,
+        sender: c.sender,
+        to: [{ email: message.to }],
+        replyTo: { email: message.replyTo },
+        subject: message.subject,
+        textContent: message.text,
+        ...(message.html ? { htmlContent: message.html } : {}),
       }),
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
     });
-
+    const body = (await res.json().catch(() => null)) as { messageId?: string; code?: string } | null;
     if (!res.ok) {
-      const body = await res.text();
-      console.error("Brevo send failed", res.status, body);
-      return { ok: false, error: `Email send failed (${res.status}).` };
+      console.error(`[brevo] send refused: HTTP ${res.status}${body?.code ? ` (${body.code})` : ""}`);
+      return { ok: false, status: res.status };
     }
-    return { ok: true };
-  } catch (err) {
-    console.error("Brevo send error", err);
-    return { ok: false, error: "Email send error." };
+    return { ok: true, messageId: body?.messageId };
+  } catch (error) {
+    console.error("[brevo] send failed before an answer:", error instanceof Error ? error.name : "unknown");
+    return { ok: false, status: null };
   }
-}
-
-// Branded OTP email used by the forgot-password flow.
-export function otpEmailHtml(otp: string): string {
-  return `
-  <div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;color:#0f172a">
-    <h2 style="margin:0 0 8px;font-size:22px;font-weight:800;color:#0f172a">Affhan International</h2>
-    <p style="margin:0 0 24px;color:#64748b;font-size:14px">Password reset request</p>
-    <p style="margin:0 0 16px;font-size:15px;line-height:1.6">
-      Use the verification code below to reset your password. This code expires in
-      <strong>10 minutes</strong>.
-    </p>
-    <div style="margin:8px 0 24px;padding:18px 0;text-align:center;background:#f1f5f9;border-radius:12px">
-      <span style="font-size:34px;font-weight:800;letter-spacing:10px;color:#0f172a">${otp}</span>
-    </div>
-    <p style="margin:0;color:#64748b;font-size:13px;line-height:1.6">
-      If you didn't request a password reset, you can safely ignore this email — your
-      password will not be changed.
-    </p>
-    <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0" />
-    <p style="margin:0;color:#94a3b8;font-size:12px">© ${new Date().getFullYear()} AFFHAN International Pvt Ltd</p>
-  </div>`;
 }

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
 import { issueEmailOtp } from "@/lib/email-otp";
-import { canDeliverTo, sendEmail } from "@/lib/email";
+import { canSendEmail, sendEmail } from "@/lib/email";
 import { noPasswordOnAccountEmail, passwordResetCodeEmail } from "@/lib/email-templates";
 import { OFFICES } from "@/lib/brand";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
- * Said instead when no email can leave at all (lib/email.ts, canDeliverTo),
+ * Said instead when no email can leave at all (lib/email.ts, canSendEmail),
  * with somewhere to go: the head office's number, and the WhatsApp the
  * company's profiles publish. Chennai publishes no WhatsApp of its own, so
  * that one is Dubai's.
@@ -61,11 +61,11 @@ export async function POST(request: NextRequest) {
     if (!email || !EMAIL_RE.test(email)) return generic;
 
     // Before the account is looked up, so the answer is the same for every
-    // address: it depends on the sender (unconfigured, sandbox, a send that
-    // just failed), never on whether this one is registered. A send that fails
+    // address: it depends on the sender (unconfigured, or a send that just
+    // failed), never on whether this one is registered. A send that fails
     // below still answers `generic`; saying otherwise there would confirm the
     // account. It is that failure which makes the next ask land here.
-    const delivery = await canDeliverTo(email);
+    const delivery = canSendEmail();
     if (!delivery.ok) {
       console.warn(`[forgot-password] no code can be sent (${delivery.why}); showed WhatsApp and phone instead.`);
       return NextResponse.json({ error: CANNOT_SEND, reason: "cannot_send", contact: CONTACT }, { status: 503 });
@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
     if (!issued.ok) return generic;
 
     // Fire-and-check, not fire-and-forget: a failure here is worth a line in
-    // the server log so a broken SES identity is visible, but it must not
-    // change what the caller is told.
+    // the server log so a broken sender is visible, but it must not change
+    // what the caller is told.
     const sent = await sendEmail({ to: email, ...passwordResetCodeEmail(issued.code) });
     if (!sent.ok) {
       console.error("[forgot-password] code not delivered:", sent.reason);
