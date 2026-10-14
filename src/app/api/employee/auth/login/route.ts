@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkStaffLoginRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
+import { checkStaffLoginRateLimit, getClientIp, limiterUnavailable, limitReached } from "@/lib/rate-limit";
 import { checkTurnstile } from "@/lib/turnstile";
 import {
   clearLoginFailures,
@@ -57,15 +57,7 @@ export async function POST(request: NextRequest) {
     // and per address in the database, which always holds.
     const perIp = await checkStaffLoginRateLimit(request);
     if (perIp.unavailable) return limiterUnavailable("Sign-in");
-    if (!perIp.success) {
-      return NextResponse.json(
-        { error: "Too many login attempts. Please try again later." },
-        {
-          status: 429,
-          headers: { "Retry-After": Math.ceil(((perIp.reset || Date.now()) - Date.now()) / 1000).toString() },
-        }
-      );
-    }
+    if (!perIp.success) return limitReached("There have been a lot of sign-in attempts from this connection.", perIp);
     // The real wait, not a flat fifteen minutes: the window lifts when the
     // failure that made the count five leaves it.
     const lockedMs = await windowLockRemainingMs(email);

@@ -9,7 +9,7 @@ import {
 import { lockedMessage } from "@/lib/login-lockout";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
 import { checkTurnstile } from "@/lib/turnstile";
-import { checkCustomerLoginRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkCustomerLoginRateLimit, getClientIp, limitReached } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -49,12 +49,7 @@ export async function POST(request: NextRequest) {
     // Per connection, on one count with the app's sign-in (2026-10-09). Fails
     // open (lib/limit-policy.ts): the database lockout below always holds.
     const perIp = await checkCustomerLoginRateLimit(request);
-    if (!perIp.success) {
-      return NextResponse.json(
-        { error: "Too many login attempts. Please try again later." },
-        { status: 429, headers: { "Retry-After": Math.ceil(((perIp.reset || Date.now()) - Date.now()) / 1000).toString() } }
-      );
-    }
+    if (!perIp.success) return limitReached("There have been a lot of sign-in attempts from this connection.", perIp);
 
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body?.password === "string" ? body.password : "";

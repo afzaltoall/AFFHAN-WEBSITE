@@ -11,12 +11,21 @@ const named = (when) =>
     .map(([name]) => name)
     .sort();
 
-test("fails closed: the console's and the staff sign-in, and photo search", () => {
-  assert.deepEqual(
-    named("closed").filter((n) => !n.startsWith("photoSearch")),
-    ["consoleLogin", "staffLogin"],
-  );
-  assert.ok(named("closed").includes("photoSearch"));
+test("fails closed: the console's and the staff sign-in, and photo search (its own count and its ceiling)", () => {
+  assert.deepEqual(named("closed"), ["consoleLogin", "photoSearch", "photoSearchPerIp", "staffLogin"]);
+});
+
+test("photo search: at least 30 an hour for each user, counted by account when signed in", () => {
+  assert.equal(LIMITS.photoSearch.per, "account or IP");
+  assert.equal(LIMITS.photoSearch.window, "1 h");
+  assert.ok(LIMITS.photoSearch.count >= 30, `${LIMITS.photoSearch.count}`);
+  // The per-connection ceiling must not be what a single user meets first.
+  assert.ok(LIMITS.photoSearchPerIp.count > LIMITS.photoSearch.count);
+});
+
+test("a shared connection gets room: per-connection limits sit above what one person does", () => {
+  assert.ok(LIMITS.customerLogin.count >= 10, "customer sign-in");
+  assert.ok(LIMITS.passwordReset.count >= 5, "password reset");
 });
 
 test("fails open: customers' sign-in, password reset, contact, quote requests, trip applications", () => {

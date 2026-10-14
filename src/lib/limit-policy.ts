@@ -22,8 +22,8 @@
 export type WhenDown = "open" | "closed";
 
 export interface LimitSpec {
-  /** What the limit is counted by. */
-  per: "IP" | "account" | "IP and video";
+  /** What the limit is counted by: "account or IP" counts a signed-in visitor's account, anyone else's connection. */
+  per: "IP" | "account" | "account or IP" | "IP and video";
   count: number;
   /** In @upstash/ratelimit's notation: "15 m", "1 h". */
   window: `${number} ${"s" | "m" | "h" | "d"}`;
@@ -32,23 +32,29 @@ export interface LimitSpec {
   feature: string;
 }
 
+// The counts are for real users first (the owner, 2026-10-14: "generous limits for real users"). A connection is
+// often many people, an office or a mobile network behind one address, so the per-connection limits are well
+// above what one person does; what stops a guesser is what counts per account or per address (the database
+// lockout, the per-address code caps), which no shared connection dilutes.
 export const LIMITS = {
-  /** /api/auth/login */
-  consoleLogin: { per: "IP", count: 5, window: "15 m", whenDown: "closed", feature: "Sign-in" },
-  /** /api/employee/auth/login */
-  staffLogin: { per: "IP", count: 5, window: "15 m", whenDown: "closed", feature: "Sign-in" },
+  /** /api/auth/login: a handful of people. The database lockout holds per account. */
+  consoleLogin: { per: "IP", count: 10, window: "15 m", whenDown: "closed", feature: "Sign-in" },
+  /** /api/employee/auth/login: the office shares one connection. */
+  staffLogin: { per: "IP", count: 10, window: "15 m", whenDown: "closed", feature: "Sign-in" },
   /** /api/web/auth/login-password and /api/mobile/auth/login, one count for both. */
-  customerLogin: { per: "IP", count: 5, window: "15 m", whenDown: "open", feature: "Sign-in" },
-  /** The three steps of both resets, customer and staff: send, verify, set. */
-  passwordReset: { per: "IP", count: 5, window: "15 m", whenDown: "open", feature: "Password reset" },
-  /** /api/contact */
-  contact: { per: "IP", count: 5, window: "1 h", whenDown: "open", feature: "The contact form" },
+  customerLogin: { per: "IP", count: 20, window: "15 m", whenDown: "open", feature: "Sign-in" },
+  /** The three steps of both resets, customer and staff: send, verify, set. Per address, lib/email-otp.ts. */
+  passwordReset: { per: "IP", count: 10, window: "15 m", whenDown: "open", feature: "Password reset" },
+  /** /api/contact. Per sender, the route's own cap in the database. */
+  contact: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "The contact form" },
   /** /api/inquiry (website) and /api/mobile/inquiries (app), one count per account. */
   inquiry: { per: "account", count: 30, window: "1 h", whenDown: "open", feature: "Quote requests" },
-  /** /api/trip-applications (website and app) */
-  tripApplication: { per: "IP", count: 5, window: "1 h", whenDown: "open", feature: "Trip applications" },
-  /** /api/search/image (website and app) */
-  photoSearch: { per: "IP", count: 30, window: "1 h", whenDown: "closed", feature: "Photo search" },
+  /** /api/trip-applications (website and app). One application per account, email and number regardless. */
+  tripApplication: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "Trip applications" },
+  /** /api/search/image (website and app): each signed-in account, or each connection when signed out. */
+  photoSearch: { per: "account or IP", count: 40, window: "1 h", whenDown: "closed", feature: "Photo search" },
+  /** /api/search/image as well: a ceiling per connection, for many accounts behind one address. */
+  photoSearchPerIp: { per: "IP", count: 200, window: "1 h", whenDown: "closed", feature: "Photo search" },
   /** /api/videos/[id]: counts a view once an hour; never refuses anything. */
   videoView: { per: "IP and video", count: 1, window: "1 h", whenDown: "open", feature: "Video views" },
 } as const satisfies Record<string, LimitSpec>;

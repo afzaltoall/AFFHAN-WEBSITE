@@ -18,7 +18,8 @@ import {
   type DetectedItem,
   type ImageDescription,
 } from "@/lib/imageSearch";
-import { checkImageSearchRateLimit, limiterUnavailable } from "@/lib/rate-limit";
+import { checkImageSearchRateLimit, limiterUnavailable, limitReached } from "@/lib/rate-limit";
+import { verifyMobileSession } from "@/lib/mobile-auth";
 
 export const dynamic = "force-dynamic";
 /** Vision call plus a catalogue query. Comfortably inside the Hobby limit, but
@@ -148,16 +149,14 @@ function ourImageUrl(link: string, depth = 0): string | null {
  * page can draw them and search each one.
  */
 export async function POST(request: NextRequest) {
-  const rateLimit = await checkImageSearchRateLimit(request);
+  // Counted per signed-in account where there is one (the website's cookie or
+  // the app's token), so people sharing a connection do not share a limit; a
+  // visitor who is signed out is counted by connection (lib/limit-policy.ts).
+  const account = await verifyMobileSession(request).catch(() => null);
+  const rateLimit = await checkImageSearchRateLimit(request, account?.id ?? null);
   if (rateLimit.unavailable) return limiterUnavailable("Photo search");
   if (!rateLimit.success) {
-    return NextResponse.json(
-      { error: "Too many image searches. Please try again later." },
-      {
-        status: 429,
-        headers: { "Retry-After": Math.ceil(((rateLimit.reset || Date.now()) - Date.now()) / 1000).toString() },
-      },
-    );
+    return limitReached("You have done a lot of photo searches in the last hour.", rateLimit, "Searching by name still works.");
   }
 
   // Read with a byte cap (lib/imageSearch.ts, security audit 2026-10-08, H6):

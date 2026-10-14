@@ -210,6 +210,11 @@ export function InquiryModal({ product, onClose, onNavigate }: InquiryModalProps
           "Your session expired — sign in to send it",
           () => setSubmitNote("Sign in to send this request — everything you typed is still here."),
         );
+      } else if (response.status === 429) {
+        // A limit reached: the server's own sentence, with how long to wait
+        // (lib/rate-limit.ts, limitReached), and the form kept as typed.
+        const body = await response.json().catch(() => ({}));
+        setSubmitNote(typeof body?.error === "string" ? body.error : "You have sent a lot of quote requests in the last hour. Please try again a little later.");
       } else {
         setSubmitNote("We could not send that just now. Please try again in a moment.");
       }

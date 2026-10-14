@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
-import { checkContactRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkContactRateLimit, getClientIp, limitReached } from "@/lib/rate-limit";
 import { checkTurnstile } from "@/lib/turnstile";
 
 // Public "Contact Us" form endpoint. Stores a free-form message from the
@@ -55,12 +55,7 @@ export async function POST(req: Request) {
     // Then volume: five an hour per connection (Upstash, lib/rate-limit.ts),
     // and per sender in the database, which holds with or without Redis.
     const perIp = await checkContactRateLimit(req);
-    if (!perIp.success) {
-      return NextResponse.json(
-        { error: "Too many messages from this connection. Please try again later." },
-        { status: 429 }
-      );
-    }
+    if (!perIp.success) return limitReached("Several messages have come from this connection in the last hour.", perIp, "You can also WhatsApp or call us.");
     // A message and a quote request from the same number are the same
     // customer — see ContactMessage.customerKey in schema.prisma.
     const customerKey = customerKeyOf({ phone, email });

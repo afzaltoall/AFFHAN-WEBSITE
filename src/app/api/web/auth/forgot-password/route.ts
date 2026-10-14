@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkPasswordResetRateLimit, getClientIp } from "@/lib/rate-limit";
+import { checkPasswordResetRateLimit, getClientIp, limitReached } from "@/lib/rate-limit";
 import { checkTurnstile } from "@/lib/turnstile";
 import { issueEmailOtp } from "@/lib/email-otp";
 import { canSendEmail, sendEmail } from "@/lib/email";
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
     // is inside issueEmailOtp, in the database, and holds with or without
     // Upstash.
     const limit = await checkPasswordResetRateLimit(request);
-    if (!limit.success) return generic;
+    if (!limit.success) return limitReached("There have been a lot of password-reset requests from this connection.", limit);
 
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
     if (!email || !EMAIL_RE.test(email)) return generic;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
-import { checkCustomerLoginRateLimit } from "@/lib/rate-limit";
+import { checkCustomerLoginRateLimit, limitReached } from "@/lib/rate-limit";
 import { beginLoginAttempt, clearLoginFailures, customerLoginKey, verifyPasswordOrNothing } from "@/lib/password";
 import { lockedMessage } from "@/lib/login-lockout";
 
@@ -12,15 +12,7 @@ export async function POST(request: Request) {
     // 1. Per connection, on one count with the website's sign-in. Fails open
     // (lib/limit-policy.ts): the database lockout below always holds.
     const rateLimit = await checkCustomerLoginRateLimit(request);
-    if (!rateLimit.success) {
-      return NextResponse.json(
-        { error: "Too many login attempts. Please try again later." },
-        {
-          status: 429,
-          headers: { "Retry-After": Math.ceil(((rateLimit.reset || Date.now()) - Date.now()) / 1000).toString() }
-        }
-      );
-    }
+    if (!rateLimit.success) return limitReached("There have been a lot of sign-in attempts from this connection.", rateLimit);
 
     const { email, password } = await request.json();
 

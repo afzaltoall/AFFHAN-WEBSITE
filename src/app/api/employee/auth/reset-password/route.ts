@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
+import { checkPasswordResetRateLimit, limitReached } from "@/lib/rate-limit";
 import { readResetToken } from "@/lib/reset-token";
 import { consumeAllEmailOtps, spendResetToken } from "@/lib/email-otp";
 import { checkPasswordStrength, clearLoginFailures, hashPassword } from "@/lib/password";
@@ -26,12 +26,7 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const limit = await checkPasswordResetRateLimit(request);
-    if (!limit.success) {
-      return NextResponse.json(
-        { error: "Too many attempts. Please try again in a few minutes." },
-        { status: 429 }
-      );
-    }
+    if (!limit.success) return limitReached("There have been a lot of password-reset requests from this connection.", limit);
 
     const body = await request.json().catch(() => ({}));
     const newPassword = typeof body?.newPassword === "string" ? body.newPassword : "";

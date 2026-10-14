@@ -3,6 +3,7 @@ import { Ratelimit } from "@upstash/ratelimit";
 import { NextResponse } from "next/server";
 import { protectionsRequired } from "@/lib/protections";
 import { LIMITS, whenUpstashDown, type LimitName } from "@/lib/limit-policy";
+import { waitPhrase } from "@/lib/login-lockout";
 
 // ---------------------------------------------------------------------------
 // Rate limits, counted in Upstash. lib/limit-policy.ts is the table: who each
@@ -119,6 +120,25 @@ export function limiterUnavailable(what: string): NextResponse {
 }
 
 /**
+ * The reply when a limit is reached: 429, a sentence saying what happened and
+ * how long to wait ("Please try again in 12 minutes."), the same wait in
+ * Retry-After and retryAfterSeconds, and reason "rate_limited". Every form
+ * shows `error` where it shows any other refusal, so reaching a limit is a
+ * line of text in place, never an error page (2026-10-14).
+ *
+ * `say` comes first ("You have done a lot of photo searches in the last
+ * hour."); `then`, if given, after the wait ("Searching by name still works.").
+ */
+export function limitReached(say: string, r: LimitResult, then?: string): NextResponse {
+  const ms = Math.max(1_000, (r.reset ?? Date.now() + 60_000) - Date.now());
+  const seconds = Math.ceil(ms / 1000);
+  return NextResponse.json(
+    { error: `${say} Please try again in ${waitPhrase(ms)}.${then ? ` ${then}` : ""}`, reason: "rate_limited", retryAfterSeconds: seconds },
+    { status: 429, headers: { "Retry-After": String(seconds) } }
+  );
+}
+
+/**
  * Helper to get the client IP from Next.js headers (Vercel sets x-forwarded-for).
  */
 export function getClientIp(req: HasHeaders): string {
@@ -152,8 +172,20 @@ export const checkInquiryRateLimit = (userId: string) => checkLimit("inquiry", u
 /** Free China trip applications, website and app, per connection. Fails open. */
 export const checkTripApplicationRateLimit = (req: HasHeaders) => checkLimit("tripApplication", getClientIp(req));
 
-/** Photo search, website and app, per connection. Fails closed: every search is a paid model call. */
-export const checkImageSearchRateLimit = (req: HasHeaders) => checkLimit("photoSearch", getClientIp(req));
+/**
+ * Photo search, website and app: each signed-in account (anyone signed out, by
+ * connection), and a ceiling per connection over every account behind it.
+ * Both fail closed: every search is a paid model call.
+ */
+export async function checkImageSearchRateLimit(req: HasHeaders, accountId: string | null): Promise<LimitResult> {
+  const ip = getClientIp(req);
+  const [own, ceiling] = await Promise.all([
+    checkLimit("photoSearch", accountId ? `account:${accountId}` : `ip:${ip}`),
+    checkLimit("photoSearchPerIp", ip),
+  ]);
+  if (own.unavailable || ceiling.unavailable) return { success: false, unavailable: true };
+  return !own.success ? own : !ceiling.success ? ceiling : own;
+}
 
 /** A video view counted once an hour per connection; never refuses the video itself. */
 export const checkVideoViewRateLimit = (req: HasHeaders, videoId: string) =>

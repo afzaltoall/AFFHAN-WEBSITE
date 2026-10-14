@@ -4,7 +4,7 @@ import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 import { isValidMobileE164 } from "@/lib/phone";
-import { checkTripApplicationRateLimit } from "@/lib/rate-limit";
+import { checkTripApplicationRateLimit, limitReached } from "@/lib/rate-limit";
 import { TRIP_FACTS } from "@/lib/trip-legal";
 import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
 import {
@@ -110,9 +110,7 @@ function read(body: Record<string, unknown>): TripApplicationPayload {
 
 export async function POST(req: NextRequest) {
   const limited = await checkTripApplicationRateLimit(req);
-  if (!limited.success) {
-    return NextResponse.json({ error: "Too many applications from this connection. Please try again later." }, { status: 429 });
-  }
+  if (!limited.success) return limitReached("Several applications have come from this connection in the last hour.", limited);
 
   // Locked, nothing is taken, from the website or the app (lib/trip-lock.ts).
   if (await tripClosedHere()) {

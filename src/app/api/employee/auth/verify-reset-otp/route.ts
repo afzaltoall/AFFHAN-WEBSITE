@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { checkPasswordResetRateLimit } from "@/lib/rate-limit";
+import { checkPasswordResetRateLimit, limitReached } from "@/lib/rate-limit";
 import { checkEmailOtp } from "@/lib/email-otp";
 import { issueResetToken } from "@/lib/reset-token";
 
@@ -17,12 +17,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export async function POST(request: NextRequest) {
   try {
     const limit = await checkPasswordResetRateLimit(request);
-    if (!limit.success) {
-      return NextResponse.json(
-        { error: "Too many attempts. Please try again in a few minutes." },
-        { status: 429 }
-      );
-    }
+    if (!limit.success) return limitReached("There have been a lot of password-reset requests from this connection.", limit);
 
     const body = await request.json().catch(() => ({}));
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
