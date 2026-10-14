@@ -4,6 +4,7 @@ import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
 import { checkCustomerLoginRateLimit, limitReached } from "@/lib/rate-limit";
 import { beginLoginAttempt, clearLoginFailures, customerLoginKey, verifyPasswordOrNothing } from "@/lib/password";
 import { lockedMessage } from "@/lib/login-lockout";
+import { SITE_URL } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,9 @@ export async function POST(request: Request) {
     const gate = await beginLoginAttempt(customerLoginKey(emailNormalized));
     if (gate.locked) {
       return NextResponse.json(
-        { error: lockedMessage(gate.retryAfterMs), reason: "locked" },
+        // resetUrl: the app has no reset screen of its own, so its "Reset
+        // password" button opens the website's, which clears this lockout too.
+        { error: lockedMessage(gate.retryAfterMs), reason: "locked", resetUrl: `${SITE_URL}/forgot-password/` },
         { status: 429, headers: { "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)) } }
       );
     }
