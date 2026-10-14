@@ -7,6 +7,7 @@ import { OtherLocations } from "@/components/sections/OtherLocations";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
+import { getCachedProductCount } from "@/lib/products";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { GoogleRating } from "@/components/ui/google-rating";
 import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
@@ -188,22 +189,14 @@ export default async function SourcingCompanyChennaiPage() {
   // Only categories that actually hold products are counted — the tree carries
   // some empty CJ nodes, and advertising those would overstate what a visitor
   // can genuinely browse.
+  // The stored figures (lib/snapshots.ts refreshes them daily): no product is counted on a regeneration.
   const [productCount, categoryCount, categoriesRaw] = await Promise.all([
-    prisma.product.count(),
-    prisma.category.count({ where: { products: { some: {} } } }),
-    prisma.category.findMany({
-      include: {
-        _count: {
-          select: { products: true }
-        }
-      }
-    }),
+    getCachedProductCount(),
+    prisma.category.count({ where: { productCount: { gt: 0 } } }),
+    prisma.category.findMany(),
   ]);
 
-  const allCategories = categoriesRaw.map(c => ({
-    ...c,
-    productCount: c._count.products
-  }));
+  const allCategories = categoriesRaw;
 
   const tree = buildCategoryTree(allCategories);
 

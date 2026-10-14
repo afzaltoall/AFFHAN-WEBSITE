@@ -1,10 +1,12 @@
 import { Prisma } from ".prisma/client";
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { GET as getCategories } from "@/app/api/categories/route";
 import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
-import { blockedNameRegex, blockedProductIdList, isCategoryBlocked } from "@/lib/moderation";
-import { getCachedPreferredCategories } from "@/lib/products";
+import { cachedOnce } from "@/lib/cachedOnce";
+import { dayOf, weekKey, weekSpan } from "@/lib/drawKeys";
+import { blockedCategoryIdSet, blockedProductIdList, isCategoryBlocked } from "@/lib/moderation";
+import { preferredCategoryIds } from "@/lib/products";
+import { readSnapshot } from "@/lib/snapshotStore";
 import { categoryLabel } from "@/lib/searchIntent";
 import { kindPattern } from "@/lib/kindPattern";
 
@@ -27,7 +29,7 @@ import { kindPattern } from "@/lib/kindPattern";
  *     requests, numbered.
  *
  * Only what the data can say, from the clean families the homepage already
- * draws from (getCachedPreferredCategories: no women's clothing, whose
+ * draws from (preferredCategoryIds in lib/products.ts: no women's clothing, whose
  * photography the name rules cannot judge, see moderation.ts), and each
  * category on one card only.
  */
@@ -161,6 +163,23 @@ function treeOf(rows: CatRow[]) {
 }
 type Tree = ReturnType<typeof treeOf>;
 
+/**
+ * What a draw is made from: the categories the site shows (moderation's
+ * blocked ones and everything under them left out), each with its stored
+ * count, and the clean families' ids (lib/products.ts preferredCategoryIds).
+ */
+export interface CatalogueInput {
+  rows: CatRow[];
+  cleanIds: Set<string>;
+}
+
+/** The input as the database has it now, for the refresh: not the hour's cache, which holds yesterday's counts. */
+export async function catalogueInput(): Promise<CatalogueInput> {
+  const all = await prisma.category.findMany({ orderBy: { name: "asc" } });
+  const blocked = blockedCategoryIdSet(all);
+  return { rows: all.filter((c) => !blocked.has(c.id)), cleanIds: new Set(preferredCategoryIds(all)) };
+}
+
 /** Where a category's preview pictures come from: itself if it holds products, and its biggest holders under it. */
 function previewSources(r: CatRow, t: Tree): string[] {
   const holders = t
@@ -179,38 +198,15 @@ async function picturesIn(categoryIds: string[], perCategory: number) {
     FROM unnest(ARRAY[${Prisma.join(categoryIds)}]::text[]) AS c(id)
     CROSS JOIN LATERAL (
       SELECT p."categoryId", p."id", p."imageUrl" FROM "Product" p
-      WHERE p."categoryId" = c.id AND p."imageUrl" IS NOT NULL AND p."name" !~* ${blockedNameRegex()}
+      WHERE p."categoryId" = c.id AND p."isBlockedName" = false AND p."imageUrl" IS NOT NULL
         ${blocked ? Prisma.sql`AND p."id" NOT IN (${Prisma.join(blocked)})` : Prisma.empty}
       ORDER BY p."id" DESC
       LIMIT ${perCategory}
     ) x`);
 }
 
-/** The date in India, as midnight UTC of that date: the week runs Monday to Sunday there. */
-function istDay(now: Date) {
-  const ist = new Date(now.getTime() + 5.5 * 3_600_000);
-  return new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), ist.getUTCDate()));
-}
-
-/** The ISO week a date falls in, in India: the picks change at midnight on Monday, IST. */
-export function weekKey(now = new Date()): string {
-  const d = istDay(now);
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const week = Math.ceil(((d.getTime() - Date.UTC(d.getUTCFullYear(), 0, 1)) / 86_400_000 + 1) / 7);
-  return `${d.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
-}
-
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-/** The week's Monday to Sunday, as the band says it: "5–11 Oct", or "28 Sep – 4 Oct". */
-export function weekSpan(now = new Date()): string {
-  const monday = istDay(now);
-  monday.setUTCDate(monday.getUTCDate() - ((monday.getUTCDay() || 7) - 1));
-  const sunday = new Date(monday.getTime() + 6 * 86_400_000);
-  const month = (d: Date) => MONTHS[d.getUTCMonth()];
-  return monday.getUTCMonth() === sunday.getUTCMonth()
-    ? `${monday.getUTCDate()}–${sunday.getUTCDate()} ${month(sunday)}`
-    : `${monday.getUTCDate()} ${month(monday)} – ${sunday.getUTCDate()} ${month(sunday)}`;
-}
+// The day and the week the draws are keyed by, as India has them: lib/drawKeys.ts.
+export { weekKey, weekSpan };
 
 /** A small seeded generator, so a week's picks are the same for everyone, all week. */
 function seeded(key: string) {
@@ -284,7 +280,7 @@ async function productsAt(places: Place[]): Promise<(PlacedProduct | undefined)[
     CROSS JOIN LATERAL (
       SELECT s.* FROM (
         SELECT p."id", p."name", p."imageUrl", p."categoryId", p."allImages" FROM "Product" p
-        WHERE p."categoryId" = c.id AND p."imageUrl" IS NOT NULL AND p."name" !~* ${blockedNameRegex()}
+        WHERE p."categoryId" = c.id AND p."isBlockedName" = false AND p."imageUrl" IS NOT NULL
           ${blocked ? Prisma.sql`AND p."id" NOT IN (${Prisma.join(blocked)})` : Prisma.empty}
         ORDER BY p."id" DESC
         LIMIT CASE WHEN c.m = '' THEN c.k + 1 ELSE ${MATCH_SCAN}::int END
@@ -377,120 +373,118 @@ async function requestedCategories(cleanIds: Set<string>, t: Tree): Promise<{ ro
   return { rows: [], days: 0 };
 }
 
-/** Every card, for a week: built once an hour per server from the cached category tree. */
-const buildGrid = unstable_cache(
-  async (week: string, span: string): Promise<GridCard[]> => {
-    const res = await getCategories();
-    const rows: CatRow[] = ((await res.json()) as { data?: CatRow[] }).data ?? [];
-    const t = treeOf(rows);
-    const cleanIds = new Set(await getCachedPreferredCategories());
-    const tops = new Map(rows.filter((r) => !r.parentId).map((r) => [r.name.trim(), r]));
-    // Each of these is one card at most: one failing costs that card, never the grid.
-    const quietly = async <T,>(what: string, run: () => Promise<T>, otherwise: T): Promise<T> => {
-      try {
-        return await run();
-      } catch (e) {
-        console.error(`home grid: ${what} failed`, e);
-        return otherwise;
-      }
-    };
-
-    // A category is a tile on one card only; "Most requested" claims its own first.
-    const taken = new Set<string>();
-    const requested = await quietly("most requested", () => requestedCategories(cleanIds, t), { rows: [] as CatRow[], days: 0 });
-    for (const r of requested.rows) taken.add(r.id);
-    const pick = (candidates: CatRow[]) => {
-      const got = candidates.filter((r) => !taken.has(r.id) && t.tileable(r)).sort((a, b) => t.total(b.id) - t.total(a.id)).slice(0, TILES);
-      if (got.length < TILES) return null;
-      for (const g of got) taken.add(g.id);
-      return got;
-    };
-
-    // The families: each one's four biggest main branches.
-    const families = FAMILIES.flatMap((f) => {
-      const top = tops.get(f.top);
-      const tiles = top ? pick(t.kids.get(top.id) ?? []) : null;
-      return top && tiles ? [{ f, top, tiles }] : [];
-    });
-    // Their groups: each main branch with four kinds of its own, the biggest first, the families in turn.
-    const groupQueues = families.map(({ f, top }) =>
-      (t.kids.get(top.id) ?? [])
-        .filter((g) => t.showable(g.id))
-        .sort((a, b) => t.total(b.id) - t.total(a.id))
-        .map((g) => ({ f, g })),
-    );
-    const groups: { f: (typeof FAMILIES)[number]; g: CatRow; tiles: CatRow[] }[] = [];
-    while (groupQueues.some((q) => q.length)) {
-      for (const q of groupQueues) {
-        const next = q.shift();
-        if (!next) continue;
-        const tiles = pick(t.kids.get(next.g.id) ?? []);
-        if (tiles) groups.push({ ...next, tiles });
-      }
+/**
+ * Every card, for a week, from the catalogue as the daily refresh read it
+ * (lib/snapshots.ts). Made there, a day ahead, and stored; never on a request.
+ */
+export async function computeGrid(input: CatalogueInput, week: string, span: string): Promise<GridCard[]> {
+  const rows = input.rows;
+  const t = treeOf(rows);
+  const cleanIds = input.cleanIds;
+  const tops = new Map(rows.filter((r) => !r.parentId).map((r) => [r.name.trim(), r]));
+  // Each of these is one card at most: one failing costs that card, never the grid.
+  const quietly = async <T,>(what: string, run: () => Promise<T>, otherwise: T): Promise<T> => {
+    try {
+      return await run();
+    } catch (e) {
+      console.error(`home grid: ${what} failed`, e);
+      return otherwise;
     }
+  };
 
-    const picks = await quietly("this week's picks", () => weeklyPicks(week, t, cleanIds), [] as Awaited<ReturnType<typeof weeklyPicks>>);
+  // A category is a tile on one card only; "Most requested" claims its own first.
+  const taken = new Set<string>();
+  const requested = await quietly("most requested", () => requestedCategories(cleanIds, t), { rows: [] as CatRow[], days: 0 });
+  for (const r of requested.rows) taken.add(r.id);
+  const pick = (candidates: CatRow[]) => {
+    const got = candidates.filter((r) => !taken.has(r.id) && t.tileable(r)).sort((a, b) => t.total(b.id) - t.total(a.id)).slice(0, TILES);
+    if (got.length < TILES) return null;
+    for (const g of got) taken.add(g.id);
+    return got;
+  };
 
-    // Every preview picture in one read: each tile's sources, and each pick's own category.
-    const tileRows = [...requested.rows, ...families.flatMap((x) => x.tiles), ...groups.flatMap((x) => x.tiles)];
-    const sources = new Map(tileRows.map((r) => [r.id, previewSources(r, t)]));
-    const sourceIds = [...new Set([...[...sources.values()].flat(), ...picks.map((p) => p.categoryId)])];
-    const pictures = await quietly("hover previews", () => picturesIn(sourceIds, 2), []);
-    const inCategory = new Map<string, { id: number; imageUrl: string }[]>();
-    for (const p of pictures) {
-      const list = inCategory.get(p.categoryId) ?? [];
-      list.push(p);
-      inCategory.set(p.categoryId, list);
+  // The families: each one's four biggest main branches.
+  const families = FAMILIES.flatMap((f) => {
+    const top = tops.get(f.top);
+    const tiles = top ? pick(t.kids.get(top.id) ?? []) : null;
+    return top && tiles ? [{ f, top, tiles }] : [];
+  });
+  // Their groups: each main branch with four kinds of its own, the biggest first, the families in turn.
+  const groupQueues = families.map(({ f, top }) =>
+    (t.kids.get(top.id) ?? [])
+      .filter((g) => t.showable(g.id))
+      .sort((a, b) => t.total(b.id) - t.total(a.id))
+      .map((g) => ({ f, g })),
+  );
+  const groups: { f: (typeof FAMILIES)[number]; g: CatRow; tiles: CatRow[] }[] = [];
+  while (groupQueues.some((q) => q.length)) {
+    for (const q of groupQueues) {
+      const next = q.shift();
+      if (!next) continue;
+      const tiles = pick(t.kids.get(next.g.id) ?? []);
+      if (tiles) groups.push({ ...next, tiles });
     }
+  }
 
-    const categoryTile = (g: CatRow): GridCategoryTile => {
-      // One picture from each source in turn, so a preview shows the category's range.
-      const lists = (sources.get(g.id) ?? []).map((id) => inCategory.get(id) ?? []);
-      const previews: string[] = [];
-      for (let i = 0; previews.length < 2 && lists.some((l) => l[i]); i++) {
-        for (const l of lists) if (l[i] && l[i].imageUrl !== g.thumbnailUrl && previews.length < 2 && !previews.includes(l[i].imageUrl)) previews.push(l[i].imageUrl);
-      }
-      return { kind: "category", id: g.id, name: nameOf(g), image: g.thumbnailUrl as string, previews };
-    };
-    const productTile = (p: (typeof picks)[number]): GridProductTile => {
-      const own = Array.isArray(p.allImages) ? (p.allImages as unknown[]).filter((u): u is string => typeof u === "string" && u !== p.imageUrl) : [];
-      const neighbours = (inCategory.get(p.categoryId) ?? []).filter((x) => x.id !== p.id).map((x) => x.imageUrl);
-      const category = t.byId.get(p.categoryId);
-      return { kind: "product", id: p.id, name: p.name.trim(), image: p.imageUrl, category: category ? nameOf(category) : null, previews: [...own, ...neighbours].slice(0, 2) };
-    };
+  const picks = await quietly("this week's picks", () => weeklyPicks(week, t, cleanIds), [] as Awaited<ReturnType<typeof weeklyPicks>>);
 
-    const familyCards: TilesCard[] = families.map(({ f, top, tiles }) => ({
-      kind: "tiles",
-      key: `family-${top.id}`,
-      title: f.title,
-      subtitle: f.subtitle,
-      href: `/products/?categoryId=${top.id}`,
-      tiles: tiles.map(categoryTile),
-    }));
-    const groupCards: TilesCard[] = groups.map(({ f, g, tiles }) => ({
-      kind: "tiles",
-      key: `group-${g.id}`,
-      title: nameOf(g),
-      subtitle: `In ${f.title}`,
-      href: `/products/?categoryId=${g.id}`,
-      tiles: tiles.map(categoryTile),
-    }));
-    const weekly: WeeklyCard | null = picks.length >= TILES ? { kind: "weekly", key: "weekly", span, tiles: picks.map(productTile) } : null;
-    const ranked: RankedCard | null = requested.rows.length ? { kind: "ranked", key: "requested", days: requested.days, tiles: requested.rows.map(categoryTile) } : null;
+  // Every preview picture in one read: each tile's sources, and each pick's own category.
+  const tileRows = [...requested.rows, ...families.flatMap((x) => x.tiles), ...groups.flatMap((x) => x.tiles)];
+  const sources = new Map(tileRows.map((r) => [r.id, previewSources(r, t)]));
+  const sourceIds = [...new Set([...[...sources.values()].flat(), ...picks.map((p) => p.categoryId)])];
+  const pictures = await quietly("hover previews", () => picturesIn(sourceIds, 2), []);
+  const inCategory = new Map<string, { id: number; imageUrl: string }[]>();
+  for (const p of pictures) {
+    const list = inCategory.get(p.categoryId) ?? [];
+    list.push(p);
+    inCategory.set(p.categoryId, list);
+  }
 
-    // What buyers asked for first, then the families, then their groups; the week's picks are a
-    // band under the first row (four columns: one row at four across, two at two).
-    const body: GridCard[] = [...(ranked ? [ranked] : []), ...familyCards, ...groupCards];
-    let at = 0;
-    for (let used = 0; at < body.length && used < ROW; at++) used += spanOf(body[at]);
-    const cards = weekly ? [...body.slice(0, at), weekly, ...body.slice(at)] : body;
-    // Whole rows only, so the last is never half empty: the smallest groups, last in turn, go.
-    const first = firstBatch(cards);
-    return cards.slice(0, cards.length - ((cards.length - first) % ROW));
-  },
-  ["home-grid-v4"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
-);
+  const categoryTile = (g: CatRow): GridCategoryTile => {
+    // One picture from each source in turn, so a preview shows the category's range.
+    const lists = (sources.get(g.id) ?? []).map((id) => inCategory.get(id) ?? []);
+    const previews: string[] = [];
+    for (let i = 0; previews.length < 2 && lists.some((l) => l[i]); i++) {
+      for (const l of lists) if (l[i] && l[i].imageUrl !== g.thumbnailUrl && previews.length < 2 && !previews.includes(l[i].imageUrl)) previews.push(l[i].imageUrl);
+    }
+    return { kind: "category", id: g.id, name: nameOf(g), image: g.thumbnailUrl as string, previews };
+  };
+  const productTile = (p: (typeof picks)[number]): GridProductTile => {
+    const own = Array.isArray(p.allImages) ? (p.allImages as unknown[]).filter((u): u is string => typeof u === "string" && u !== p.imageUrl) : [];
+    const neighbours = (inCategory.get(p.categoryId) ?? []).filter((x) => x.id !== p.id).map((x) => x.imageUrl);
+    const category = t.byId.get(p.categoryId);
+    return { kind: "product", id: p.id, name: p.name.trim(), image: p.imageUrl, category: category ? nameOf(category) : null, previews: [...own, ...neighbours].slice(0, 2) };
+  };
+
+  const familyCards: TilesCard[] = families.map(({ f, top, tiles }) => ({
+    kind: "tiles",
+    key: `family-${top.id}`,
+    title: f.title,
+    subtitle: f.subtitle,
+    href: `/products/?categoryId=${top.id}`,
+    tiles: tiles.map(categoryTile),
+  }));
+  const groupCards: TilesCard[] = groups.map(({ f, g, tiles }) => ({
+    kind: "tiles",
+    key: `group-${g.id}`,
+    title: nameOf(g),
+    subtitle: `In ${f.title}`,
+    href: `/products/?categoryId=${g.id}`,
+    tiles: tiles.map(categoryTile),
+  }));
+  const weekly: WeeklyCard | null = picks.length >= TILES ? { kind: "weekly", key: "weekly", span, tiles: picks.map(productTile) } : null;
+  const ranked: RankedCard | null = requested.rows.length ? { kind: "ranked", key: "requested", days: requested.days, tiles: requested.rows.map(categoryTile) } : null;
+
+  // What buyers asked for first, then the families, then their groups; the week's picks are a
+  // band under the first row (four columns: one row at four across, two at two).
+  const body: GridCard[] = [...(ranked ? [ranked] : []), ...familyCards, ...groupCards];
+  let at = 0;
+  for (let used = 0; at < body.length && used < ROW; at++) used += spanOf(body[at]);
+  const cards = weekly ? [...body.slice(0, at), weekly, ...body.slice(at)] : body;
+  // Whole rows only, so the last is never half empty: the smallest groups, last in turn, go.
+  const first = firstBatch(cards);
+  return cards.slice(0, cards.length - ((cards.length - first) % ROW));
+}
 
 /** How many cards make the first batch: twelve columns' worth, the band and the ranking included. */
 function firstBatch(cards: GridCard[]) {
@@ -500,8 +494,10 @@ function firstBatch(cards: GridCard[]) {
   return n;
 }
 
-/** This week's grid, every card. */
-export const getHomeGrid = (now = new Date()) => buildGrid(weekKey(now), weekSpan(now));
+/** This week's grid, every card: the daily refresh's draw. Empty until a refresh has stored one. */
+export async function getHomeGrid(now = new Date()): Promise<GridCard[]> {
+  return (await readSnapshot<GridCard[]>("home-grid", weekKey(now))) ?? [];
+}
 
 /** The cards the page draws, its first twelve columns; and the rest, every one a family or a group, which the section draws as it comes near. */
 export function firstCards(cards: GridCard[]) {
@@ -587,81 +583,79 @@ function fitsTwoLines(name: string, perLine = 15) {
   return lines <= 2;
 }
 
-const buildSpotlight = unstable_cache(
-  async (day: number): Promise<Spotlight | null> => {
-    const res = await getCategories();
-    const rows: CatRow[] = ((await res.json()) as { data?: CatRow[] }).data ?? [];
-    const t = treeOf(rows);
-    const cleanIds = new Set(await getCachedPreferredCategories());
-    const tops = new Map(rows.filter((r) => !r.parentId).map((r) => [r.name.trim(), r]));
-    const holders = holdersByFamily(t, cleanIds);
-    // A family a day, in turn; one that is missing or too small hands its day to the next.
-    for (let k = 0; k < FAMILIES.length; k++) {
-      const f = FAMILIES[(day + k) % FAMILIES.length];
-      const top = tops.get(f.top);
-      const inFamily = top ? holders.get(top.id) ?? [] : [];
-      if (!top || inFamily.length < 6) continue;
-      // Grouped by main branch, so the six are not all storage boxes.
-      const branchOf = (r: CatRow) => {
-        let c = r;
-        while (c.parentId && c.parentId !== top.id && t.byId.get(c.parentId)) c = t.byId.get(c.parentId)!;
-        return c.id;
-      };
-      const branches = new Map<string, CatRow[]>();
-      for (const r of inFamily) branches.set(branchOf(r), [...(branches.get(branchOf(r)) ?? []), r]);
-      const rand = seeded(`spotlight-${day}`);
-      const rowPlaces = placesIn([...branches.values()], SPOTLIGHT_PICKS, rand);
-      // The shelves: the biggest branches with four kinds or more of a fair
-      // size, each kind once, in an order that turns with the day. Never the
-      // branch itself as a kind of it (a branch can hold products of its own),
-      // which would be its own title again.
-      const shelfBranches = [...branches.entries()]
-        .map(([id, kinds]) => [id, kinds.filter((k) => k.id !== id && k.productCount >= MIN_PRODUCTS && fitsTwoLines(nameOf(k)))] as const)
-        .filter(([id, kinds]) => kinds.length >= SHELF_KINDS && t.byId.has(id))
-        .sort((a, b) => t.total(b[0]) - t.total(a[0]))
-        .slice(0, SHELVES);
-      const shelfPlaces = shelfBranches.map(([, kinds]) => placesIn(kinds.map((kind) => [kind]), Math.min(SHELF_KINDS_SENT, kinds.length), rand));
-      // Every product the band shows, in one read, each a product of what its
-      // label says (telling): the window's strips and the shelves' names both
-      // name its category.
-      const rowSets = telling(rowPlaces, t, rand);
-      const shelfSets = shelfPlaces.map((places) => telling(places, t, rand));
-      const answer = await productsAt([...rowSets, ...shelfSets.flat()].flat());
-      const seen = new Set<number>();
-      const shown = (p: PlacedProduct): SpotlightProduct => {
-        const c = t.byId.get(p.categoryId);
-        return { id: p.id, name: p.name.trim(), image: p.imageUrl, category: c ? nameOf(c) : null };
-      };
-      const picks = found(firstOfEach(rowSets, answer, seen));
-      if (picks.length < 12) continue;
-      let from = rowSets.flat().length;
-      const shelves = shelfBranches
-        .map(([id], i) => {
-          const asked = shelfSets[i].flat().length;
-          const list = found(firstOfEach(shelfSets[i], answer.slice(from, from + asked), seen));
-          from += asked;
-          const branch = t.byId.get(id)!;
-          const kinds = list.map((p) => ({ name: nameOf(t.byId.get(p.categoryId)!), href: `/products/?categoryId=${p.categoryId}`, image: p.imageUrl, productId: p.id }));
-          return { title: nameOf(branch), href: `/products/?categoryId=${id}`, kinds };
-        })
-        .filter((s) => s.kinds.length >= SHELF_KINDS);
-      return {
-        title: f.title,
-        subtitle: f.subtitle,
-        href: `/products/?categoryId=${top.id}`,
-        products: picks.map(shown),
-        // Two or four, so a row of them is never half empty.
-        shelves: shelves.slice(0, shelves.length >= 4 ? 4 : shelves.length >= 2 ? 2 : 0),
-      };
-    }
-    return null;
-  },
-  ["home-spotlight-v8"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
-);
+/** A day's spotlight, from the catalogue as the daily refresh read it (lib/snapshots.ts); never on a request. */
+export async function computeSpotlight(input: CatalogueInput, day: number): Promise<Spotlight | null> {
+  const rows = input.rows;
+  const t = treeOf(rows);
+  const cleanIds = input.cleanIds;
+  const tops = new Map(rows.filter((r) => !r.parentId).map((r) => [r.name.trim(), r]));
+  const holders = holdersByFamily(t, cleanIds);
+  // A family a day, in turn; one that is missing or too small hands its day to the next.
+  for (let k = 0; k < FAMILIES.length; k++) {
+    const f = FAMILIES[(day + k) % FAMILIES.length];
+    const top = tops.get(f.top);
+    const inFamily = top ? holders.get(top.id) ?? [] : [];
+    if (!top || inFamily.length < 6) continue;
+    // Grouped by main branch, so the six are not all storage boxes.
+    const branchOf = (r: CatRow) => {
+      let c = r;
+      while (c.parentId && c.parentId !== top.id && t.byId.get(c.parentId)) c = t.byId.get(c.parentId)!;
+      return c.id;
+    };
+    const branches = new Map<string, CatRow[]>();
+    for (const r of inFamily) branches.set(branchOf(r), [...(branches.get(branchOf(r)) ?? []), r]);
+    const rand = seeded(`spotlight-${day}`);
+    const rowPlaces = placesIn([...branches.values()], SPOTLIGHT_PICKS, rand);
+    // The shelves: the biggest branches with four kinds or more of a fair
+    // size, each kind once, in an order that turns with the day. Never the
+    // branch itself as a kind of it (a branch can hold products of its own),
+    // which would be its own title again.
+    const shelfBranches = [...branches.entries()]
+      .map(([id, kinds]) => [id, kinds.filter((k) => k.id !== id && k.productCount >= MIN_PRODUCTS && fitsTwoLines(nameOf(k)))] as const)
+      .filter(([id, kinds]) => kinds.length >= SHELF_KINDS && t.byId.has(id))
+      .sort((a, b) => t.total(b[0]) - t.total(a[0]))
+      .slice(0, SHELVES);
+    const shelfPlaces = shelfBranches.map(([, kinds]) => placesIn(kinds.map((kind) => [kind]), Math.min(SHELF_KINDS_SENT, kinds.length), rand));
+    // Every product the band shows, in one read, each a product of what its
+    // label says (telling): the window's strips and the shelves' names both
+    // name its category.
+    const rowSets = telling(rowPlaces, t, rand);
+    const shelfSets = shelfPlaces.map((places) => telling(places, t, rand));
+    const answer = await productsAt([...rowSets, ...shelfSets.flat()].flat());
+    const seen = new Set<number>();
+    const shown = (p: PlacedProduct): SpotlightProduct => {
+      const c = t.byId.get(p.categoryId);
+      return { id: p.id, name: p.name.trim(), image: p.imageUrl, category: c ? nameOf(c) : null };
+    };
+    const picks = found(firstOfEach(rowSets, answer, seen));
+    if (picks.length < 12) continue;
+    let from = rowSets.flat().length;
+    const shelves = shelfBranches
+      .map(([id], i) => {
+        const asked = shelfSets[i].flat().length;
+        const list = found(firstOfEach(shelfSets[i], answer.slice(from, from + asked), seen));
+        from += asked;
+        const branch = t.byId.get(id)!;
+        const kinds = list.map((p) => ({ name: nameOf(t.byId.get(p.categoryId)!), href: `/products/?categoryId=${p.categoryId}`, image: p.imageUrl, productId: p.id }));
+        return { title: nameOf(branch), href: `/products/?categoryId=${id}`, kinds };
+      })
+      .filter((s) => s.kinds.length >= SHELF_KINDS);
+    return {
+      title: f.title,
+      subtitle: f.subtitle,
+      href: `/products/?categoryId=${top.id}`,
+      products: picks.map(shown),
+      // Two or four, so a row of them is never half empty.
+      shelves: shelves.slice(0, shelves.length >= 4 ? 4 : shelves.length >= 2 ? 2 : 0),
+    };
+  }
+  return null;
+}
 
-/** Today's spotlight: the day as India has it, so the family changes at midnight IST. */
-export const getSpotlight = (now = new Date()) => buildSpotlight(Math.floor(istDay(now).getTime() / 86_400_000));
+/** Today's spotlight: the day as India has it, so the family changes at midnight IST. The refresh's draw. */
+export async function getSpotlight(now = new Date()): Promise<Spotlight | null> {
+  return readSnapshot<Spotlight>("home-spotlight", String(dayOf(now)));
+}
 
 /**
  * The homepage's lower sections (the owner's ask of 2026-10-11, after
@@ -674,21 +668,15 @@ export const getSpotlight = (now = new Date()) => buildSpotlight(Math.floor(istD
  * shows. Cached apart, so the page reads them side by side.
  */
 
-/** Today as a count of days, as India has it: what the daily draws are keyed by. */
-const dayOf = (now: Date) => Math.floor(istDay(now).getTime() / 86_400_000);
-
 /** The tree, each clean family's holders, and the tops by name: where every lower draw starts. */
-async function catalogue() {
-  const res = await getCategories();
-  const rows: CatRow[] = ((await res.json()) as { data?: CatRow[] }).data ?? [];
-  const t = treeOf(rows);
-  const holders = holdersByFamily(t, new Set(await getCachedPreferredCategories()));
-  return { t, holders, tops: new Map(rows.filter((r) => !r.parentId).map((r) => [r.name.trim(), r])) };
+function catalogue(input: CatalogueInput) {
+  const t = treeOf(input.rows);
+  const holders = holdersByFamily(t, input.cleanIds);
+  return { t, holders, tops: new Map(input.rows.filter((r) => !r.parentId).map((r) => [r.name.trim(), r])) };
 }
 
 /** The products the day's spotlight shows, which the lower sections leave out. */
-async function spotlightIds(day: number) {
-  const s = await buildSpotlight(day).catch(() => null);
+function spotlightIds(s: Spotlight | null) {
   return new Set<number>(s ? [...s.products.map((p) => p.id), ...s.shelves.flatMap((x) => x.kinds.map((k) => k.productId))] : []);
 }
 
@@ -735,33 +723,30 @@ export const RAIL_SHOWN = 8;
 export const RAILS_SHOWN = 4;
 const RAIL_PICKS = 12;
 
-const buildRails = unstable_cache(
-  async (day: number): Promise<ProductRail[]> => {
-    const { t, holders, tops } = await catalogue();
-    const spotlight = await buildSpotlight(day).catch(() => null);
-    const rand = seeded(`rails-${day}`);
-    const plans: { f: (typeof FAMILIES)[number]; top: CatRow; sets: Place[][] }[] = [];
-    for (let k = 0; k < FAMILIES.length && plans.length < RAILS_SHOWN + 1; k++) {
-      const f = FAMILIES[(day + k) % FAMILIES.length];
-      const top = tops.get(f.top);
-      const inFamily = top ? holders.get(top.id) ?? [] : [];
-      if (!top || f.title === spotlight?.title || inFamily.length < 6) continue;
-      plans.push({ f, top, sets: telling(placesIn(branchesIn(inFamily, top, t), RAIL_PICKS, rand), t, rand) });
-    }
-    const lists = await drawn(
-      plans.map((p) => p.sets),
-      await spotlightIds(day),
-    );
-    return plans
-      .map(({ f, top }, i) => ({ title: f.title, subtitle: f.subtitle, href: `/products/?categoryId=${top.id}`, products: lists[i].map((p) => asShown(p, t)) }))
-      .filter((r) => r.products.length >= RAIL_SHOWN);
-  },
-  ["home-rails-v1"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
-);
+export async function computeRails(input: CatalogueInput, day: number, spotlight: Spotlight | null): Promise<ProductRail[]> {
+  const { t, holders, tops } = catalogue(input);
+  const rand = seeded(`rails-${day}`);
+  const plans: { f: (typeof FAMILIES)[number]; top: CatRow; sets: Place[][] }[] = [];
+  for (let k = 0; k < FAMILIES.length && plans.length < RAILS_SHOWN + 1; k++) {
+    const f = FAMILIES[(day + k) % FAMILIES.length];
+    const top = tops.get(f.top);
+    const inFamily = top ? holders.get(top.id) ?? [] : [];
+    if (!top || f.title === spotlight?.title || inFamily.length < 6) continue;
+    plans.push({ f, top, sets: telling(placesIn(branchesIn(inFamily, top, t), RAIL_PICKS, rand), t, rand) });
+  }
+  const lists = await drawn(
+    plans.map((p) => p.sets),
+    spotlightIds(spotlight),
+  );
+  return plans
+    .map(({ f, top }, i) => ({ title: f.title, subtitle: f.subtitle, href: `/products/?categoryId=${top.id}`, products: lists[i].map((p) => asShown(p, t)) }))
+    .filter((r) => r.products.length >= RAIL_SHOWN);
+}
 
-/** Today's family rails. */
-export const getRails = (now = new Date()) => buildRails(dayOf(now));
+/** Today's family rails. The refresh's draw. */
+export async function getRails(now = new Date()): Promise<ProductRail[]> {
+  return (await readSnapshot<ProductRail[]>("home-rails", String(dayOf(now)))) ?? [];
+}
 
 /**
  * A trade the catalogue stocks for (TradesSection): a kind of shop or
@@ -805,42 +790,40 @@ const TRADES: { key: string; title: string; line: string; kinds: [top: string, n
   { key: "menswear", title: "Menswear stores", line: "Hoodies, blazers, shirts and caps", kinds: [[MEN, "Man Hoodies & Sweatshirts"], [MEN, "Suits & Blazer"], [MEN, "Men's Shirts"], [MEN, "Casual Pants"], [MEN, "Man Jeans"], [MEN, "Baseball Caps"], [MEN, "Belts"]] },
 ];
 
-const buildTrades = unstable_cache(
-  async (day: number): Promise<Trade[]> => {
-    const { t, holders, tops } = await catalogue();
-    const rand = seeded(`trades-${day}`);
-    const plans = TRADES.flatMap((trade) => {
-      const kinds = trade.kinds.flatMap(([top, name]) => {
-        const family = tops.get(top);
-        const r = family ? (holders.get(family.id) ?? []).find((h) => h.name.trim() === name) : undefined;
-        return r ? [r] : [];
-      });
-      // Each kind thrice in its queue: placesIn takes one a queue a round, and a trade asks for more than it has kinds.
-      return kinds.length >= 4 ? [{ trade, kinds, sets: telling(placesIn(kinds.map((k) => [k, k, k]), TRADE_PICKS, rand), t, rand) }] : [];
+export async function computeTrades(input: CatalogueInput, day: number, spotlight: Spotlight | null): Promise<Trade[]> {
+  const { t, holders, tops } = catalogue(input);
+  const rand = seeded(`trades-${day}`);
+  const plans = TRADES.flatMap((trade) => {
+    const kinds = trade.kinds.flatMap(([top, name]) => {
+      const family = tops.get(top);
+      const r = family ? (holders.get(family.id) ?? []).find((h) => h.name.trim() === name) : undefined;
+      return r ? [r] : [];
     });
-    const lists = await drawn(
-      plans.map((p) => p.sets),
-      await spotlightIds(day),
-    );
-    const trades = plans
-      .map(({ trade, kinds }, i) => ({
-        key: trade.key,
-        title: trade.title,
-        line: trade.line,
-        kinds: kinds.map((k) => ({ name: nameOf(k), href: `/products/?categoryId=${k.id}` })),
-        products: lists[i].map((p) => asShown(p, t)),
-      }))
-      .filter((x) => x.products.length >= TRADE_SHOWN);
-    // The day's trade first and the rest after it in their order, so the section opens on a new one each day.
-    const at = day % Math.max(1, trades.length);
-    return [...trades.slice(at), ...trades.slice(0, at)];
-  },
-  ["home-trades-v4"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
-);
+    // Each kind thrice in its queue: placesIn takes one a queue a round, and a trade asks for more than it has kinds.
+    return kinds.length >= 4 ? [{ trade, kinds, sets: telling(placesIn(kinds.map((k) => [k, k, k]), TRADE_PICKS, rand), t, rand) }] : [];
+  });
+  const lists = await drawn(
+    plans.map((p) => p.sets),
+    spotlightIds(spotlight),
+  );
+  const trades = plans
+    .map(({ trade, kinds }, i) => ({
+      key: trade.key,
+      title: trade.title,
+      line: trade.line,
+      kinds: kinds.map((k) => ({ name: nameOf(k), href: `/products/?categoryId=${k.id}` })),
+      products: lists[i].map((p) => asShown(p, t)),
+    }))
+    .filter((x) => x.products.length >= TRADE_SHOWN);
+  // The day's trade first and the rest after it in their order, so the section opens on a new one each day.
+  const at = day % Math.max(1, trades.length);
+  return [...trades.slice(at), ...trades.slice(0, at)];
+}
 
-/** Today's trades, the day's one first. */
-export const getTrades = (now = new Date()) => buildTrades(dayOf(now));
+/** Today's trades, the day's one first. The refresh's draw. */
+export async function getTrades(now = new Date()): Promise<Trade[]> {
+  return (await readSnapshot<Trade[]>("home-trades", String(dayOf(now)))) ?? [];
+}
 
 /**
  * "More to explore" (MoreToExploreSection): a category from each clean family
@@ -851,24 +834,22 @@ export const getTrades = (now = new Date()) => buildTrades(dayOf(now));
 export const MORE_SHOWN = 48;
 const MORE_PICKS = 64;
 
-const buildMore = unstable_cache(
-  async (day: number): Promise<SpotlightProduct[]> => {
-    const { t, holders, tops } = await catalogue();
-    const rand = seeded(`more-${day}`);
-    const families = FAMILIES.flatMap((f) => {
-      const top = tops.get(f.top);
-      const list = top ? holders.get(top.id) ?? [] : [];
-      return list.length ? [list] : [];
-    });
-    const [list] = await drawn([telling(placesIn(families, MORE_PICKS, rand), t, rand)], await spotlightIds(day));
-    return list.map((p) => asShown(p, t));
-  },
-  ["home-more-v1"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] },
-);
+export async function computeMore(input: CatalogueInput, day: number, spotlight: Spotlight | null): Promise<SpotlightProduct[]> {
+  const { t, holders, tops } = catalogue(input);
+  const rand = seeded(`more-${day}`);
+  const families = FAMILIES.flatMap((f) => {
+    const top = tops.get(f.top);
+    const list = top ? holders.get(top.id) ?? [] : [];
+    return list.length ? [list] : [];
+  });
+  const [list] = await drawn([telling(placesIn(families, MORE_PICKS, rand), t, rand)], spotlightIds(spotlight));
+  return list.map((p) => asShown(p, t));
+}
 
-/** Today's mix. */
-export const getMore = (now = new Date()) => buildMore(dayOf(now));
+/** Today's mix. The refresh's draw. */
+export async function getMore(now = new Date()): Promise<SpotlightProduct[]> {
+  return (await readSnapshot<SpotlightProduct[]>("home-more", String(dayOf(now)))) ?? [];
+}
 
 /**
  * The categories beside a product's own, for its page (ProductDetailView's
@@ -883,7 +864,7 @@ export interface RelatedCategory {
   name: string;
   image: string;
 }
-export const getRelatedCategories = unstable_cache(
+export const getRelatedCategories = cachedOnce(
   async (categoryId: string): Promise<RelatedCategory[]> => {
     const res = await getCategories();
     const rows: CatRow[] = ((await res.json()) as { data?: CatRow[] }).data ?? [];

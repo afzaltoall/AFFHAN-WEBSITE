@@ -1,4 +1,5 @@
 import { prisma, withDbRetry } from "@/lib/prisma";
+import { getCachedProductCount } from "@/lib/products";
 import { OFFICES } from "@/lib/brand";
 import { LiveDeskStats, type DeskStat } from "@/components/ui/LiveDeskStats";
 import { EmployeeLoginForm } from "./EmployeeLoginForm";
@@ -60,9 +61,10 @@ async function deskStats(): Promise<DeskStat[] | null> {
   try {
     const counts = await withTimeout(
       withDbRetry(() =>
+        // The stored figures (lib/snapshots.ts refreshes them daily), not a count of a million rows.
         Promise.all([
-          prisma.product.count(),
-          prisma.category.count({ where: { products: { some: {} } } }),
+          getCachedProductCount(),
+          prisma.category.count({ where: { productCount: { gt: 0 } } }),
         ]),
       ),
       STATS_TIMEOUT_MS,

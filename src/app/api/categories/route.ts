@@ -1,47 +1,35 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
-import { unstable_cache } from "next/cache";
 import { Category } from ".prisma/client";
 import { blockedCategoryIdSet } from "@/lib/moderation";
 import { TAG_CATEGORIES, TAG_PRODUCTS, MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
-
-type CategoryWithCount = Category & {
-  _count: { products: number };
-};
+import { cachedOnce } from "@/lib/cachedOnce";
+import { sumProductCounts } from "@/lib/categoryCounts";
+import { readSnapshotNow } from "@/lib/snapshotStore";
 
 export const dynamic = "force-dynamic";
 
-const getCachedCategories = unstable_cache(
-  async (): Promise<{ data: (Category & { productCount: number })[]; totalCount: number }> => {
-    const categories = await prisma.category.findMany({
-      include: {
-        _count: {
-          select: { products: true }
-        }
-      },
-      orderBy: { name: 'asc' }
-    });
-
-    const totalProducts = await prisma.product.count();
+const getCachedCategories = cachedOnce(
+  async (): Promise<{ data: Category[]; totalCount: number }> => {
+    // productCount is a column, refreshed daily (lib/snapshots.ts), so this is
+    // a read of the category table. It used to count every category's
+    // products on each miss (Prisma's _count, a GROUP BY over a million rows,
+    // about a second) and then the whole table again for totalCount.
+    const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } });
 
     // Drop moderation-blocked categories (and every descendant of a blocked
     // parent) so they never appear in the mega-menu, catalog tree, rankings
     // scope or search facets.
     const blocked = blockedCategoryIdSet(categories);
-    const formattedCategories = categories
-      .filter((cat: CategoryWithCount) => !blocked.has(cat.id))
-      // `_count` is dropped rather than spread through. Prisma returns it as
-      // { products: n } and the line below already republishes that as
-      // productCount, which is the field every consumer actually reads — so
-      // spreading it shipped the same number twice under two names. On 671
-      // categories that was 16.8KB of a 241KB response, and this payload is
-      // fetched to open the mega-menu.
-      .map(({ _count, ...cat }: CategoryWithCount) => ({
-        ...cat,
-        productCount: _count.products
-      }));
+    const formattedCategories = categories.filter((cat) => !blocked.has(cat.id));
 
-    return { data: formattedCategories, totalCount: totalProducts };
+    // The app's catalogue screen reads it (catalog_screen.dart): the refresh's total of what the site
+    // shows, read directly rather than through getCachedProductCount's own cache, since this one is
+    // cached already (lib/snapshotStore.ts, readSnapshotNow); before a refresh, the categories' sum.
+    const total =
+      (await readSnapshotNow<number>("catalogue-total", "current")) ??
+      sumProductCounts(formattedCategories, formattedCategories.map((c) => c.id));
+    return { data: formattedCategories, totalCount: total };
   },
   ["categories-api-data"],
   { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }

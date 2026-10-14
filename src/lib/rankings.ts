@@ -1,9 +1,10 @@
 import { Prisma } from ".prisma/client";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList } from "@/lib/moderation";
+import { blockedCategoryIdSet, blockedProductIdList } from "@/lib/moderation";
 import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
 import { kindPattern } from "@/lib/kindPattern";
+import { getCachedAllCategories as getCatalogueCategories } from "@/lib/products";
 
 // ---------------------------------------------------------------------------
 // Rankings data, shared by the API route and the page.
@@ -45,25 +46,21 @@ const getCachedAllCategories = unstable_cache(
   { revalidate: 3600 }
 );
 
-// Product count per leaf category, biggest first. One aggregate over the whole
-// table — cached hourly so the rankings page never pays for it live.
+// Product count per category that holds any, biggest first: the stored counts
+// (Category.productCount, refreshed daily by lib/snapshots.ts), a read of the
+// category table. It was an aggregate over the whole product table, about a
+// second each time the hour's cache ran out (2026-10-14).
 const getCachedLeafCounts = unstable_cache(
   async (): Promise<Array<{ categoryId: string; count: number }>> => {
-    const rows = await prisma.$queryRaw<Array<{ categoryId: string | null; count: number }>>(
-      Prisma.sql`
-        SELECT "categoryId", COUNT(*)::int AS count
-        FROM "Product"
-        WHERE "categoryId" IS NOT NULL
-        GROUP BY "categoryId"
-        ORDER BY count DESC
-      `
-    );
-    return rows
-      .filter((r): r is { categoryId: string; count: number } => Boolean(r.categoryId))
-      .map((r) => ({ categoryId: r.categoryId, count: Number(r.count) }));
+    const rows = await prisma.category.findMany({
+      where: { productCount: { gt: 0 } },
+      select: { id: true, productCount: true },
+      orderBy: [{ productCount: "desc" }, { id: "asc" }],
+    });
+    return rows.map((r) => ({ categoryId: r.id, count: r.productCount }));
   },
-  ["leaf-category-counts"],
-  { revalidate: 3600 }
+  ["leaf-category-counts-v2"],
+  { revalidate: 3600, tags: [TAG_CATEGORIES] }
 );
 
 /**
@@ -103,7 +100,11 @@ export type RankingsPayload = {
  * nothing to wait for (2026-10-11).
  */
 export async function getCachedRankings(tab: string, offset: number, limit: number, parentId: string | null): Promise<RankingsPayload> {
-  const [whole, cats] = await Promise.all([getCachedRankingList(tab === "popular" ? "popular" : "hot"), getCachedAllCategories()]);
+  // The categories from lib/products.ts's cache, not this file's: getCachedRankingList reads this file's
+  // inside its own cache, and one unstable_cache read both nested and on its own in a render can come back
+  // `undefined` while its entry regenerates (lib/snapshotStore.ts, readSnapshotNow). It did, in a
+  // prerender of /rankings on 2026-10-14: "Cannot read properties of undefined (reading 'map')".
+  const [whole, cats] = await Promise.all([getCachedRankingList(tab === "popular" ? "popular" : "hot"), getCatalogueCategories()]);
   // A scope's cards are the whole list's that sit under it, in the same order with the same products: filtered
   // here, outside the cache, so choosing a scope never waits on a query. Filtered inside a cached function of its
   // own, every scope's first read ran the whole list's query again (2 to 4s), the inner cache not answering.
@@ -185,11 +186,11 @@ const getCachedRankingList = unstable_cache(
     //     regex, no window              9.30s
     //     this LATERAL form             0.00s
     //
-    // LATERAL lets each category be answered independently by
-    // Product_categoryId_id_desc_idx, which already existed: walk that one
-    // category in id order and stop at three. The regex still runs — the
-    // moderation rule is not negotiable — but on a handful of rows per
-    // category rather than half a million.
+    // LATERAL lets each category be answered independently by an index on
+    // (categoryId, id): walk that one category in id order and stop at three.
+    // The moderation rule still applies — it is not negotiable — now as the
+    // stored isBlockedName flag, which the (categoryId, isBlockedName, id DESC)
+    // index serves directly, rather than as the regex.
     // The rank is computed OUTSIDE the LATERAL, over the handful of rows that
     // survive it. Putting ROW_NUMBER() inside would have quietly undone the
     // whole fix: Postgres evaluates window functions after WHERE but before
@@ -215,9 +216,18 @@ const getCachedRankingList = unstable_cache(
           FROM (
             SELECT s."id", s."name", s."imageUrl", (c.m <> '' AND s."name" ~* c.m) AS tells
             FROM (
+              -- The category filter is not the whole rule. A product can be
+              -- adult by NAME while sitting in a perfectly ordinary category —
+              -- the reason blockedNameRegex exists — and this query once
+              -- applied neither it nor the blocked-id list, so the rankings
+              -- page could feature a product no other surface shows. The
+              -- pattern itself was applied to the finalists only, since on 400
+              -- rows a category it took the list from 0.7s to 7.2s (595
+              -- categories, measured); its stored result, isBlockedName, costs
+              -- nothing, so it applies to every row scanned (2026-10-14).
               SELECT "id", "name", "imageUrl"
               FROM "Product"
-              WHERE "categoryId" = c."categoryId" AND "imageUrl" IS NOT NULL
+              WHERE "categoryId" = c."categoryId" AND "isBlockedName" = false AND "imageUrl" IS NOT NULL
                 ${blockedIdsClause}
               ORDER BY "id" ${dir}
               LIMIT ${RANK_SCAN}
@@ -225,16 +235,6 @@ const getCachedRankingList = unstable_cache(
             ORDER BY tells DESC, s."id" ${dir}
             LIMIT ${RANK_FINALISTS}
           ) t
-          -- The category filter is not the whole rule. A product can be
-          -- adult by NAME while sitting in a perfectly ordinary category —
-          -- that is the entire reason blockedNameRegex exists — and this
-          -- query once applied neither it nor the blocked-id list, so the
-          -- rankings page could feature a product no other surface shows.
-          -- Applied to each category's finalists, not to every row scanned:
-          -- the 650-character pattern on 400 rows a category took the whole
-          -- list from 0.7s to 7.2s (595 categories, measured), and nothing it
-          -- leaves out of the finalists could have been shown.
-          WHERE t."name" !~* ${blockedNameRegex()}
           ORDER BY t.tells DESC, t."id" ${dir}
           LIMIT ${PRODUCTS_PER_GROUP}
         ) p

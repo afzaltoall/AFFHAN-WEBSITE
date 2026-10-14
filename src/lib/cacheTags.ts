@@ -28,6 +28,11 @@ export const TAG_CATEGORIES = "catalogue:categories";
 /// on category tiles, which change when products are reassigned.
 export const TAG_PRODUCTS = "catalogue:products";
 
+/// The reads of the daily refresh's precomputed answers (lib/snapshots.ts):
+/// the homepage's draws and the hero's pool. The refresh drops it once it has
+/// written new ones, so a page does not keep the old draw for the cache's hour.
+export const TAG_SNAPSHOTS = "catalogue:snapshots";
+
 /// What a change to the moderation blocklist affects. Blocking is applied over
 /// both the category tree and product names, so it invalidates both; it has its
 /// own name so the intent of a call site is readable.

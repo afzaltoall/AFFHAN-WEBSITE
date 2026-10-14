@@ -4,7 +4,7 @@ import { prisma } from "../../../lib/prisma";
 import { parseQuery, buildFuzzyWhere, buildFuzzyOrderBy } from "@/lib/search";
 import { primaryLeaves, resolveSearch, searchColourWhere, searchKindWhere, searchLooseWhere, searchScore, searchTextWhere, searchWhere, type ResolvedSearch } from "@/lib/searchServer";
 import { categoryLabel } from "@/lib/searchIntent";
-import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList } from "@/lib/moderation";
+import { blockedCategoryIdSet, blockedProductIdList } from "@/lib/moderation";
 import { MODERATION_SENSITIVE_CACHE_CONTROL } from "@/lib/cacheTags";
 
 import { HeroProduct, MappedProduct, CategoryLite, getCachedProductCount, getCachedCategoryProductCount, getCachedAllCategories, getHeroFeed } from "@/lib/products";
@@ -108,8 +108,10 @@ export async function GET(request: Request) {
     if (blockedIds.length) {
       moderationExclusion.push(Prisma.sql`(p."categoryId" IS NULL OR p."categoryId" NOT IN (${Prisma.join(blockedIds)}))`);
     }
-    // Also drop adult-named products that slipped into other categories.
-    moderationExclusion.push(Prisma.sql`p."name" !~* ${blockedNameRegex()}`);
+    // Also drop adult-named products that slipped into other categories: the
+    // stored flag (Product.isBlockedName), not the 650-character name pattern
+    // it is set from, which every query here used to run on every row it read.
+    moderationExclusion.push(Prisma.sql`p."isBlockedName" = false`);
     // Last resort: individual products whose problem is the photograph, which
     // neither the category name nor the product name can express. See
     // BLOCKED_PRODUCT_IDS.
@@ -381,10 +383,14 @@ export async function GET(request: Request) {
             `
           );
 
-      // Plain category browsing gets the cached subtree count; anything with a
-      // search or an anchor narrows the set further and must count for real.
+      // Category browsing takes its total from the categories' stored counts
+      // (Category.productCount, refreshed daily): no COUNT(*) on a request. With
+      // an anchor too, where the exact figure would leave out the products added
+      // after it; none have been since the CJ sync stopped (9db03cb), and a
+      // total a few high is what "load more" needs. A search still counts, up to
+      // SEARCH_COUNT_CAP.
       const countQuery: Promise<number> =
-        browseCatIds !== null && browseCatIds.length > 0 && !searching && !anchorId
+        browseCatIds !== null && browseCatIds.length > 0 && !searching
           ? getCachedCategoryProductCount(browseCatIds)
           : prisma
               .$queryRaw<Array<{ count: number }>>(countSql)

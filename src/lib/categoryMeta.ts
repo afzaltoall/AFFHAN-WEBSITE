@@ -1,7 +1,8 @@
-import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { blockedCategoryIdSet } from "@/lib/moderation";
-import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
+import { TAG_CATEGORIES } from "@/lib/cacheTags";
+import { cachedOnce } from "@/lib/cachedOnce";
+import { sumProductCounts } from "@/lib/categoryCounts";
 
 /**
  * What a category page needs to describe itself to a search engine: its name,
@@ -26,20 +27,14 @@ export interface CategoryMeta {
   productCount: number;
 }
 
-const loadTree = unstable_cache(
+// With each category's stored count (Category.productCount, refreshed daily
+// by lib/snapshots.ts), so the subtree's figure is a sum here rather than a
+// COUNT over its products: a crawler walking 509 categories ran 509 of those.
+const loadTree = cachedOnce(
   async () =>
-    prisma.category.findMany({ select: { id: true, name: true, parentId: true } }),
+    prisma.category.findMany({ select: { id: true, name: true, parentId: true, productCount: true } }),
   ["category-meta-tree"],
   { revalidate: 3600, tags: [TAG_CATEGORIES] }
-);
-
-// Counted per category and cached for an hour. The catalogue is synced once a
-// day, so an hour-old count is accurate to the figure the page itself shows,
-// and a crawler walking 509 categories does not re-run 509 aggregates.
-const countProducts = unstable_cache(
-  async (ids: string[]) => prisma.product.count({ where: { categoryId: { in: ids } } }),
-  ["category-meta-count"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
 );
 
 export async function getCategoryMeta(categoryId: string | null | undefined): Promise<CategoryMeta | null> {
@@ -78,5 +73,5 @@ export async function getCategoryMeta(categoryId: string | null | undefined): Pr
   };
   walk(categoryId);
 
-  return { id: self.id, name: self.name, path, productCount: await countProducts(ids) };
+  return { id: self.id, name: self.name, path, productCount: sumProductCounts(rows, ids) };
 }

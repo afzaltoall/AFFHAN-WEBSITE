@@ -6,6 +6,7 @@ import { OtherLocations } from "@/components/sections/OtherLocations";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
+import { getCachedProductCount } from "@/lib/products";
 import { GoogleRating } from "@/components/ui/google-rating";
 import { ORG_ID } from "@/lib/brand";
 
@@ -241,9 +242,10 @@ const steps = [
 ];
 
 export default async function ChinaSourcingCompanyPage() {
+  // The stored figures (lib/snapshots.ts refreshes them daily): no product is counted on a regeneration.
   const [productCount, categoryCount] = await Promise.all([
-    prisma.product.count(),
-    prisma.category.count({ where: { products: { some: {} } } }),
+    getCachedProductCount(),
+    prisma.category.count({ where: { productCount: { gt: 0 } } }),
   ]);
 
   return (

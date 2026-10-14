@@ -1,7 +1,7 @@
 import { Prisma } from ".prisma/client";
 import { prisma } from "@/lib/prisma";
 import { GET as getCategories } from "@/app/api/categories/route";
-import { blockedCategoryIdSet, blockedNameRegex, blockedProductIdList, isNameBlocked, isProductIdBlocked } from "@/lib/moderation";
+import { blockedCategoryIdSet, blockedProductIdList, isNameBlocked, isProductIdBlocked } from "@/lib/moderation";
 import { getCachedAllCategories } from "@/lib/products";
 import lexicon from "@/lib/searchLexicon.json";
 import {
@@ -272,7 +272,8 @@ function relatedLeaves(r: ResolvedSearch): string[] {
 export function moderationSql(blockedCategoryIds: string[]): Prisma.Sql[] {
   const out: Prisma.Sql[] = [];
   if (blockedCategoryIds.length) out.push(Prisma.sql`(p."categoryId" IS NULL OR p."categoryId" NOT IN (${Prisma.join(blockedCategoryIds)}))`);
-  out.push(Prisma.sql`p."name" !~* ${blockedNameRegex()}`);
+  // The stored flag the name pattern sets (Product.isBlockedName), not the pattern on every row.
+  out.push(Prisma.sql`p."isBlockedName" = false`);
   const ids = blockedProductIdList();
   if (ids) out.push(Prisma.sql`p."id" NOT IN (${Prisma.join(ids)})`);
   return out;

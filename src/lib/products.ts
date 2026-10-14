@@ -1,8 +1,10 @@
 import { Prisma } from ".prisma/client";
 import { prisma } from "./prisma";
-import { unstable_cache } from "next/cache";
-import { blockedNameRegex, isCategoryBlocked } from "@/lib/moderation";
+import { blockedCategoryIdSet, isCategoryBlocked } from "@/lib/moderation";
 import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
+import { cachedOnce } from "@/lib/cachedOnce";
+import { sumProductCounts } from "@/lib/categoryCounts";
+import { readSnapshot } from "@/lib/snapshotStore";
 
 export type HeroProduct = {
   id: number;
@@ -20,34 +22,36 @@ export type MappedProduct = {
   categoryRef: { name: string | null } | null;
 };
 
-export const getCachedProductCount = unstable_cache(
-  async (): Promise<number> => await prisma.product.count(),
-  ["total-product-count"],
-  { revalidate: 3600, tags: [TAG_PRODUCTS] }
-);
+/**
+ * The products the site shows, in every category it shows plus those with
+ * none: the daily refresh's figure (lib/snapshots.ts), never a COUNT on a
+ * request. Before the refresh has stored one, the categories' stored counts
+ * added up, which leaves out only the uncategorised few.
+ */
+export async function getCachedProductCount(): Promise<number> {
+  const stored = await readSnapshot<number>("catalogue-total", "current");
+  if (typeof stored === "number") return stored;
+  const all = await getCachedAllCategories();
+  const blocked = blockedCategoryIdSet(all);
+  return sumProductCounts(all, all.filter((c) => !blocked.has(c.id)).map((c) => c.id));
+}
 
-export const getCachedCategoryProductCount = unstable_cache(
-  async (categoryIds: string[]): Promise<number> => {
-    const rows = await prisma.$queryRaw<Array<{ count: number }>>(
-      Prisma.sql`
-        SELECT COUNT(*)::int AS count
-        FROM "Product" p
-        WHERE p."categoryId" IN (${Prisma.join(categoryIds)})
-          AND p."name" !~* ${blockedNameRegex()}
-      `
-    );
-    return Number(rows[0]?.count ?? 0);
-  },
-  ["category-product-count"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
-);
+/**
+ * How many products the site shows across these categories (expanded and
+ * moderated by the caller): their stored counts added up, no query at all.
+ * It used to COUNT(*) them with the name regex, about a second for a large
+ * subtree, on every category page whose count had dropped out of the cache.
+ */
+export async function getCachedCategoryProductCount(categoryIds: string[]): Promise<number> {
+  return sumProductCounts(await getCachedAllCategories(), categoryIds);
+}
 
-export type CategoryLite = { id: string; name: string; parentId: string | null; parentName: string | null; thumbnailUrl: string | null };
+export type CategoryLite = { id: string; name: string; parentId: string | null; parentName: string | null; thumbnailUrl: string | null; productCount: number };
 
-export const getCachedAllCategories = unstable_cache(
+export const getCachedAllCategories = cachedOnce(
   async (): Promise<CategoryLite[]> => {
     const cats = await prisma.category.findMany({
-      select: { id: true, name: true, parentId: true, parentName: true, thumbnailUrl: true },
+      select: { id: true, name: true, parentId: true, parentName: true, thumbnailUrl: true, productCount: true },
     });
     return cats;
   },
@@ -55,79 +59,81 @@ export const getCachedAllCategories = unstable_cache(
   { revalidate: 3600, tags: [TAG_CATEGORIES] }
 );
 
-export const getCachedPreferredCategories = unstable_cache(
-  async (): Promise<string[]> => {
-    const PREFERRED_TOP_NAMES = [
-      "Computer & Office",
-      "Consumer Electronics",
-      "Home Improvement",
-      "Automobiles & Motorcycles", // cars, bikes
-      "Pet Supplies",
-      "Home, Garden & Furniture", // home items, kitchens, lights
-      "Sports & Outdoors", // gym, bicycle
-      "Toys, Kids & Babies", // costumes, novelty
-      "Men's Clothing",
-    ];
-    const allCategories: Array<{ id: string; name: string; parentId: string | null }> = await prisma.category.findMany({ select: { id: true, name: true, parentId: true } });
-    const nameById = new Map(allCategories.map(c => [c.id, c.name]));
-    const childrenMap = new Map<string, string[]>();
-    for (const c of allCategories) {
-      if (c.parentId) {
-        if (!childrenMap.has(c.parentId)) childrenMap.set(c.parentId, []);
-        childrenMap.get(c.parentId)!.push(c.id);
-      }
-    }
-    const preferredTopIds = allCategories
-      .filter(c => !c.parentId && PREFERRED_TOP_NAMES.includes(c.name))
-      .map(c => c.id);
-    const sourceCatSet = new Set<string>();
-    const queue = [...preferredTopIds];
-    while (queue.length > 0) {
-      const curr = queue.shift()!;
-      if (isCategoryBlocked(nameById.get(curr))) continue;
-      sourceCatSet.add(curr);
-      for (const child of childrenMap.get(curr) ?? []) queue.push(child);
-    }
-    return Array.from(sourceCatSet);
-  },
-  ["preferred-category-ids"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES] }
-);
+const PREFERRED_TOP_NAMES = [
+  "Computer & Office",
+  "Consumer Electronics",
+  "Home Improvement",
+  "Automobiles & Motorcycles", // cars, bikes
+  "Pet Supplies",
+  "Home, Garden & Furniture", // home items, kitchens, lights
+  "Sports & Outdoors", // gym, bicycle
+  "Toys, Kids & Babies", // costumes, novelty
+  "Men's Clothing",
+];
 
-export const getCachedDefaultHeroPool = unstable_cache(
-  async (sourceCatIds: string[]): Promise<HeroProduct[]> => {
-    // Each category's six newest products with a picture, read straight off
-    // the ("categoryId", id DESC) index: a handful of rows per category. It
-    // used to rank every product in these categories first (ROW_NUMBER over
-    // all of them, then rn <= 6), which read 586,586 rows across 440
-    // categories, ran the name filter on each, and took 10 to 27 seconds on
-    // the live database (5 Oct 2026), 0.3s this way. All that time it held
-    // one of the pool's ten connections, and requests queued behind a few
-    // such runs gave up after 30s (P2024). Same rows in the same order:
-    // checked against the old query on the live data.
-    return await prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
-      Prisma.sql`
-        SELECT "id", "name", "imageUrl", "category", "categoryId" FROM (
-          SELECT p.*, ROW_NUMBER() OVER (PARTITION BY p."categoryId" ORDER BY p."id" DESC) AS rn
-          FROM unnest(ARRAY[${Prisma.join(sourceCatIds)}]::text[]) AS c(id)
-          CROSS JOIN LATERAL (
-            SELECT "id", "name", "imageUrl", "category", "categoryId"
-            FROM "Product"
-            WHERE "categoryId" = c.id
-              AND "name" !~* ${blockedNameRegex()}
-              AND "imageUrl" IS NOT NULL
-            ORDER BY "id" DESC
-            LIMIT 6
-          ) p
-        ) ranked
-        ORDER BY rn ASC, "categoryId" ASC
-        LIMIT 600
-      `
-    );
-  },
-  ["default-hero-pool"],
-  { revalidate: 3600, tags: [TAG_CATEGORIES, TAG_PRODUCTS] }
-);
+/** The clean families' categories, every one under them that is not moderated: from a list of categories, no query. */
+export function preferredCategoryIds(allCategories: ReadonlyArray<{ id: string; name: string; parentId: string | null }>): string[] {
+  const nameById = new Map(allCategories.map(c => [c.id, c.name]));
+  const childrenMap = new Map<string, string[]>();
+  for (const c of allCategories) {
+    if (c.parentId) {
+      if (!childrenMap.has(c.parentId)) childrenMap.set(c.parentId, []);
+      childrenMap.get(c.parentId)!.push(c.id);
+    }
+  }
+  const preferredTopIds = allCategories
+    .filter(c => !c.parentId && PREFERRED_TOP_NAMES.includes(c.name))
+    .map(c => c.id);
+  const sourceCatSet = new Set<string>();
+  const queue = [...preferredTopIds];
+  while (queue.length > 0) {
+    const curr = queue.shift()!;
+    if (isCategoryBlocked(nameById.get(curr))) continue;
+    sourceCatSet.add(curr);
+    for (const child of childrenMap.get(curr) ?? []) queue.push(child);
+  }
+  return Array.from(sourceCatSet);
+}
+
+/**
+ * The pool the homepage hero and the app's home feed are shuffled from, for
+ * the daily refresh (lib/snapshots.ts), which stores it: never on a request.
+ *
+ * Each category's six newest products with a picture, read straight off the
+ * (categoryId, isBlockedName, id DESC) index: a handful of rows per category.
+ * It used to rank every product in these categories first (ROW_NUMBER over all
+ * of them, then rn <= 6), which read 586,586 rows across 440 categories, ran
+ * the name filter on each, and took 10 to 27 seconds on the live database
+ * (5 Oct 2026), 0.3s this way, and less with the flag in place of the regex.
+ * Same rows in the same order as the old query.
+ */
+export async function computeHeroPool(sourceCatIds: string[]): Promise<HeroProduct[]> {
+  if (!sourceCatIds.length) return [];
+  return await prisma.$queryRaw<Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryId: string | null }>>(
+    Prisma.sql`
+      SELECT "id", "name", "imageUrl", "category", "categoryId" FROM (
+        SELECT p.*, ROW_NUMBER() OVER (PARTITION BY p."categoryId" ORDER BY p."id" DESC) AS rn
+        FROM unnest(ARRAY[${Prisma.join(sourceCatIds)}]::text[]) AS c(id)
+        CROSS JOIN LATERAL (
+          SELECT "id", "name", "imageUrl", "category", "categoryId"
+          FROM "Product"
+          WHERE "categoryId" = c.id
+            AND "isBlockedName" = false
+            AND "imageUrl" IS NOT NULL
+          ORDER BY "id" DESC
+          LIMIT 6
+        ) p
+      ) ranked
+      ORDER BY rn ASC, "categoryId" ASC
+      LIMIT 600
+    `
+  );
+}
+
+/** The stored pool; empty until the refresh has stored one. */
+export async function getHeroPool(): Promise<HeroProduct[]> {
+  return (await readSnapshot<HeroProduct[]>("hero-pool", "current")) ?? [];
+}
 
 export function shuffle<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -141,12 +147,12 @@ export function shuffle<T>(arr: T[]): T[] {
 export async function getHeroFeed(limit: number, excludeIds: number[] = []) {
   let products: MappedProduct[] = [];
   
-  const sourceCatIds = await getCachedPreferredCategories();
   const allCats = await getCachedAllCategories();
   const catById = new Map(allCats.map((c) => [c.id, c]));
 
-  if (sourceCatIds.length > 0) {
-    const pool = await getCachedDefaultHeroPool(sourceCatIds);
+  // Precomputed by the daily refresh; the shuffle is the only work done here.
+  const pool = await getHeroPool();
+  if (pool.length > 0) {
     const exclude = new Set(excludeIds);
     const available = exclude.size ? pool.filter((r) => !exclude.has(r.id)) : pool;
     const rows: HeroProduct[] = shuffle(available).slice(0, limit);
@@ -201,14 +207,17 @@ const SIMILAR_FETCH = SIMILAR_SHOWN * 3;
  * scan of the category and was the main source of PDP latency. An arbitrary
  * handful off the index is plenty for "similar".
  *
- * Returns UNFILTERED rows on purpose. Moderation is applied by the caller on
- * every request, so a product blocked after this entry was cached still
- * disappears immediately rather than lingering for the rest of the hour.
+ * Returns rows the caller still moderates, on purpose: only the stored name
+ * flag is applied here, and the caller's filter runs on every request, so a
+ * product blocked after this entry was cached still disappears immediately
+ * rather than lingering for the rest of the hour.
  */
-export const getCachedSimilarProducts = unstable_cache(
+export const getCachedSimilarProducts = cachedOnce(
   async (categoryId: string, excludeId: number): Promise<SimilarProduct[]> =>
     prisma.product.findMany({
-      where: { categoryId, id: { not: excludeId }, imageUrl: { not: null } },
+      // isBlockedName here as well, so fewer of the rows fetched are dropped
+      // by the filter below; the filter stays, for a name blocked since.
+      where: { categoryId, isBlockedName: false, id: { not: excludeId }, imageUrl: { not: null } },
       take: SIMILAR_FETCH,
       select: { id: true, name: true, imageUrl: true, categoryId: true },
     }),

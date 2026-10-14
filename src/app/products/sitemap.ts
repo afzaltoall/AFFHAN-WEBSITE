@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { Prisma } from ".prisma/client";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { blockedCategoryIdSet, blockedNameRegex } from "@/lib/moderation";
+import { blockedCategoryIdSet } from "@/lib/moderation";
 import { TAG_CATEGORIES, TAG_PRODUCTS } from "@/lib/cacheTags";
 
 // ---------------------------------------------------------------------------
@@ -83,7 +83,7 @@ const getSitemapProductIds = unstable_cache(
       WHERE p."supplierSource" = 'EPROLO'
         AND p."description" IS NOT NULL
         AND length(p."description") > 200
-        AND p."name" !~* ${blockedNameRegex()}
+        AND p."isBlockedName" = false
         ${blockedCatsClause}
         AND NOT EXISTS (
           SELECT 1 FROM "ModerationLog" m WHERE m."cjPid" = p."cjPid"

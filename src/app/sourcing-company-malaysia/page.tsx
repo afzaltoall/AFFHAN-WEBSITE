@@ -6,6 +6,7 @@ import { OtherLocations } from "@/components/sections/OtherLocations";
 import dynamic from "next/dynamic";
 import { CountUpStat } from "@/components/ui/CountUpStat";
 import { prisma } from "@/lib/prisma";
+import { getCachedProductCount } from "@/lib/products";
 import { buildCategoryTree, getCategoryIcon } from "@/lib/categoryTree";
 import { GoogleRating } from "@/components/ui/google-rating";
 import { FOUNDING_DATE, LOGO_URL, MALAYSIA_HOURS, OFFICES, ORG_ID, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
@@ -135,12 +136,13 @@ const schema = {
 };
 
 export default async function SourcingCompanyMalaysiaPage() {
+  // The stored figures (lib/snapshots.ts refreshes them daily): no product is counted on a regeneration.
   const [productCount, categoryCount, categoriesRaw] = await Promise.all([
-    prisma.product.count(),
-    prisma.category.count({ where: { products: { some: {} } } }),
-    prisma.category.findMany({ include: { _count: { select: { products: true } } } }),
+    getCachedProductCount(),
+    prisma.category.count({ where: { productCount: { gt: 0 } } }),
+    prisma.category.findMany(),
   ]);
-  const tree = buildCategoryTree(categoriesRaw.map((c) => ({ ...c, productCount: c._count.products })));
+  const tree = buildCategoryTree(categoriesRaw);
 
   return (
     <main className="w-full bg-slate-50 min-h-screen pb-0">
