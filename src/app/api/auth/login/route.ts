@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { signSession, SESSION_COOKIE, adminCookieOptions } from "@/lib/session";
-import { checkLoginRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
+import { checkConsoleLoginRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
 import { adminLoginKey, beginLoginAttempt, clearLoginFailures, verifyPasswordOrNothing } from "@/lib/password";
 import { waitPhrase } from "@/lib/login-lockout";
 import { checkTurnstile } from "@/lib/turnstile";
@@ -19,8 +19,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: human.error }, { status: human.status });
     }
 
-    // 2. Check rate limit
-    const rateLimit = await checkLoginRateLimit(request);
+    // 2. Per connection. Fails closed: with Upstash missing or down this is a 503 (lib/limit-policy.ts).
+    const rateLimit = await checkConsoleLoginRateLimit(request);
     if (rateLimit.unavailable) return limiterUnavailable("Sign-in");
     if (!rateLimit.success) {
       return NextResponse.json(

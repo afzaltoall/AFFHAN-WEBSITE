@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkPasswordResetRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
+import { checkPasswordResetRateLimit, getClientIp } from "@/lib/rate-limit";
 import { checkTurnstile } from "@/lib/turnstile";
 import { issueEmailOtp } from "@/lib/email-otp";
 import { canSendEmail, sendEmail } from "@/lib/email";
@@ -46,12 +46,10 @@ export async function POST(request: NextRequest) {
     const human = await checkTurnstile(body?.turnstileToken, getClientIp(request));
     if (!human.ok) return NextResponse.json({ error: human.error }, { status: human.status });
 
-    // Per-IP, and refused in production until Upstash is configured
-    // (lib/rate-limit.ts); a 503 says nothing about the address, which has not
-    // been read yet. The per-address limit is inside issueEmailOtp, in the
-    // database, so it holds with or without Redis.
+    // Per connection. Fails open (lib/limit-policy.ts): the per-address limit
+    // is inside issueEmailOtp, in the database, and holds with or without
+    // Upstash.
     const limit = await checkPasswordResetRateLimit(request);
-    if (limit.unavailable) return limiterUnavailable("Password reset");
     if (!limit.success) return generic;
 
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";

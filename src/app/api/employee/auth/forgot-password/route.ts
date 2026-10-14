@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkPasswordResetRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
+import { checkPasswordResetRateLimit, getClientIp } from "@/lib/rate-limit";
 import { checkTurnstile } from "@/lib/turnstile";
 import { issueEmailOtp } from "@/lib/email-otp";
 import { canSendEmail, sendEmail } from "@/lib/email";
@@ -42,7 +42,6 @@ export async function POST(request: NextRequest) {
     if (!human.ok) return NextResponse.json({ error: human.error }, { status: human.status });
 
     const limit = await checkPasswordResetRateLimit(request);
-    if (limit.unavailable) return limiterUnavailable("Password reset");
     if (!limit.success) return generic;
 
     const email = typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";

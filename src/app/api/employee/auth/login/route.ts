@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkLoginRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
+import { checkStaffLoginRateLimit, getClientIp, limiterUnavailable } from "@/lib/rate-limit";
 import { checkTurnstile } from "@/lib/turnstile";
 import {
   clearLoginFailures,
@@ -52,10 +52,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: human.error }, { status: human.status });
     }
 
-    // Two limits, as the customer flow has: per IP in Redis (refused in
-    // production until UPSTASH_* exist) and per address in the database,
-    // which always holds.
-    const perIp = await checkLoginRateLimit(request);
+    // Two limits, as the customer flow has: per connection in Upstash, which
+    // fails closed (a 503 while it is missing or down; lib/limit-policy.ts),
+    // and per address in the database, which always holds.
+    const perIp = await checkStaffLoginRateLimit(request);
     if (perIp.unavailable) return limiterUnavailable("Sign-in");
     if (!perIp.success) {
       return NextResponse.json(

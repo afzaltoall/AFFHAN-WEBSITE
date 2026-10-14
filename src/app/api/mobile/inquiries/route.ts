@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 import { describeStatus, parseMOQ } from "@/lib/inquiry-status";
+import { checkInquiryRateLimit } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +47,15 @@ export async function POST(request: Request) {
   try {
     const user = await verifyMobileSession(request);
     if (!user) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+
+    // Per account, on one count with the website's (lib/limit-policy.ts). Fails open.
+    const limit = await checkInquiryRateLimit(user.id);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "You have sent a lot of quote requests in the last hour. Please try again later." },
+        { status: 429 }
+      );
+    }
 
     const body = await request.json().catch(() => ({}));
     const productId = Number.parseInt(String(body?.productId ?? ""), 10);

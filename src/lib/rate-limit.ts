@@ -2,20 +2,39 @@ import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 import { NextResponse } from "next/server";
 import { protectionsRequired } from "@/lib/protections";
+import { LIMITS, whenUpstashDown, type LimitName } from "@/lib/limit-policy";
 
-// Fallback to null if env variables are missing, meaning Redis is not available
-const redis = (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN)
-  ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    })
-  : null;
+// ---------------------------------------------------------------------------
+// Rate limits, counted in Upstash. lib/limit-policy.ts is the table: who each
+// limit counts, how many, over what window, and whether it refuses (closed) or
+// lets requests through (open) when Upstash is missing or does not answer.
+//
+// "Does not answer" needed care. @upstash/ratelimit races Redis against its
+// own timer and, when the timer wins, answers success with reason "timeout":
+// it fails open by itself, silently, after five seconds. And @upstash/redis
+// retries a failed request five times with growing waits first. Both are
+// shortened here, and a "timeout" answer counts as Upstash being down, so a
+// limit that must fail closed really does.
+// ---------------------------------------------------------------------------
 
-/** What every limit here answers. `unavailable`: refused because Upstash is not set up, not because it is spent. */
+const redis =
+  process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+    ? new Redis({
+        url: process.env.UPSTASH_REDIS_REST_URL,
+        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        retry: { retries: 1, backoff: () => 100 },
+      })
+    : null;
+
+/** How long a limit waits for Upstash before treating it as down. */
+const WAIT_MS = 1_500;
+
+/** What every limit here answers. `unavailable`: refused because Upstash is missing or down, not because it is spent. */
 export type LimitResult = {
   success: boolean;
   limit?: number;
   remaining?: number;
+  /** When the window resets, epoch ms. */
   reset?: number;
   unavailable?: true;
 };
@@ -23,43 +42,78 @@ export type LimitResult = {
 /** Only the headers are read, so a plain Request does as well as a NextRequest. */
 type HasHeaders = Pick<Request, "headers">;
 
-const warned = new Set<string>();
-
-/**
- * The answer of a limit Upstash is not set up for (security audit 2026-10-08,
- * H5).
- *
- * Sign-in, password reset and photo search (Gemini, paid per call) refuse in
- * production: until now every limit here let everything through without
- * Redis, silently, which is how the site has run. Under `next dev` they still
- * step aside, with a warning (lib/protections.ts). The video-view and
- * trip-application limits are left as they were.
- *
- * Upstash failing at run time is a different case and still lets requests
- * through: an outage there must not lock every customer out of sign-in, and
- * the sign-in lockout (lib/password.ts) is in the database, not in Redis.
- */
-function notSetUp(name: string): LimitResult {
-  const refuse = protectionsRequired();
-  if (!warned.has(name)) {
-    warned.add(name);
-    if (refuse) {
-      console.error(`[rate-limit] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not set: ${name} is refused until they are.`);
-    } else {
-      console.warn(`[rate-limit] Upstash is not configured; the ${name} limit is off (development only).`);
-    }
+const limiters = new Map<LimitName, Ratelimit>();
+function limiterFor(name: LimitName): Ratelimit | null {
+  if (!redis) return null;
+  let limiter = limiters.get(name);
+  if (!limiter) {
+    const spec = LIMITS[name];
+    limiter = new Ratelimit({
+      redis,
+      limiter: Ratelimit.slidingWindow(spec.count, spec.window),
+      prefix: `ratelimit:${name}`,
+      timeout: WAIT_MS,
+      analytics: false,
+    });
+    limiters.set(name, limiter);
   }
-  return refuse ? { success: false, unavailable: true } : { success: true };
+  return limiter;
+}
+
+// An outage would otherwise write a line per request; one a minute per limit
+// and cause is enough to see it.
+const lastLogged = new Map<string, number>();
+function logSometimes(key: string, log: () => void) {
+  const now = Date.now();
+  if ((lastLogged.get(key) ?? 0) > now - 60_000) return;
+  lastLogged.set(key, now);
+  log();
+}
+
+function upstashDown(name: LimitName, cause: "missing" | "timeout" | "error", error?: unknown): LimitResult {
+  const spec = LIMITS[name];
+  const production = protectionsRequired();
+  const why =
+    cause === "missing"
+      ? "UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are not set"
+      : cause === "timeout"
+        ? `Upstash did not answer within ${WAIT_MS} ms`
+        : `Upstash failed (${error instanceof Error ? error.name : "unknown"})`;
+  if (whenUpstashDown(spec.whenDown, production) === "refuse") {
+    logSometimes(`${name}:${cause}`, () => console.error(`[rate-limit] ${why}: ${name} fails closed, requests are refused.`));
+    return { success: false, unavailable: true };
+  }
+  logSometimes(`${name}:${cause}`, () =>
+    console.warn(
+      production
+        ? `[rate-limit] ${why}: ${name} fails open, requests go through without this limit.`
+        : `[rate-limit] ${why}: the ${name} limit is off (development).`
+    )
+  );
+  return { success: true };
+}
+
+/** Count one request against `name` for `identifier`, following the table's policy when Upstash is down. */
+export async function checkLimit(name: LimitName, identifier: string): Promise<LimitResult> {
+  const limiter = limiterFor(name);
+  if (!limiter) return upstashDown(name, "missing");
+  try {
+    const r = await limiter.limit(identifier);
+    if (r.reason === "timeout") return upstashDown(name, "timeout");
+    return { success: r.success, limit: r.limit, remaining: r.remaining, reset: r.reset };
+  } catch (error) {
+    return upstashDown(name, "error", error);
+  }
 }
 
 /**
- * The reply for a limit that refused because it is not set up: 503, not 429,
- * so nobody is told they tried too often when they did not. `what` names the
- * feature, as in "Sign-in is unavailable right now."
+ * The reply for a limit that refused because Upstash is missing or down: 503,
+ * not 429, so nobody is told they tried too often when they did not. `what`
+ * names the feature, as in "Sign-in is unavailable right now."
  */
 export function limiterUnavailable(what: string): NextResponse {
   return NextResponse.json(
-    { error: `${what} is unavailable right now. Please try again later.` },
+    { error: `${what} is unavailable right now. Please try again in a few minutes.` },
     { status: 503, headers: { "Retry-After": "300" } }
   );
 }
@@ -74,182 +128,33 @@ export function getClientIp(req: HasHeaders): string {
   return ip ? ip.split(",")[0].trim() : "127.0.0.1";
 }
 
-// ============================================================================
-// Login Brute Force Protection (5 attempts per 15 minutes per IP)
-// ============================================================================
-const loginLimiter = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(5, "15 m"),
-      analytics: false,
-    })
-  : null;
+/** The console's sign-in, per connection. Fails closed. */
+export const checkConsoleLoginRateLimit = (req: HasHeaders) => checkLimit("consoleLogin", getClientIp(req));
 
-export async function checkLoginRateLimit(req: HasHeaders): Promise<LimitResult> {
-  if (!loginLimiter) return notSetUp("sign-in");
-  
-  try {
-    const ip = getClientIp(req);
-    const { success, limit, remaining, reset } = await loginLimiter.limit(`login:${ip}`);
-    return { success, limit, remaining, reset };
-  } catch (error) {
-    console.error("Redis Login RateLimit Error:", error);
-    // Fail safely (open) if Redis is down
-    return { success: true };
-  }
-}
+/** The staff sign-in, per connection. Fails closed. */
+export const checkStaffLoginRateLimit = (req: HasHeaders) => checkLimit("staffLogin", getClientIp(req));
 
-// ============================================================================
-// Image Search Abuse Protection (30 requests per 1 hour per IP)
-// ============================================================================
-const imageSearchLimiter = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(30, "1 h"),
-      analytics: false,
-    })
-  : null;
+/** Customers' sign-in, website and app on one count, per connection. Fails open: the database lockout holds. */
+export const checkCustomerLoginRateLimit = (req: HasHeaders) => checkLimit("customerLogin", getClientIp(req));
 
 /**
- * How long a photo search waits on the limiter. Redis that is down already
- * lets the search through; Redis that is slow held it with nothing to show
- * but the page's sweep (the owner's report, 2026-10-07: "the scanner sticks
- * sometimes"), so slow lets it through too.
+ * Password reset, every step of both flows, per connection. Fails open: the
+ * per-address caps in lib/email-otp.ts are in the database and always hold.
  */
-const IMAGE_LIMIT_WAIT_MS = 1_500;
+export const checkPasswordResetRateLimit = (req: HasHeaders) => checkLimit("passwordReset", getClientIp(req));
 
-export async function checkImageSearchRateLimit(req: HasHeaders): Promise<LimitResult> {
-  if (!imageSearchLimiter) return notSetUp("photo search");
+/** The contact form, per connection. Fails open: Turnstile and the per-sender cap hold. */
+export const checkContactRateLimit = (req: HasHeaders) => checkLimit("contact", getClientIp(req));
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  try {
-    const ip = getClientIp(req);
-    const { success, limit, remaining, reset } = await Promise.race([
-      imageSearchLimiter.limit(`search_image:${ip}`),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error(`no answer in ${IMAGE_LIMIT_WAIT_MS}ms`)), IMAGE_LIMIT_WAIT_MS);
-      }),
-    ]);
-    return { success, limit, remaining, reset };
-  } catch (error) {
-    console.error("Redis Image Search RateLimit Error:", error);
-    // Fail safely (open) if Redis is down, or too slow to wait for
-    return { success: true };
-  } finally {
-    clearTimeout(timer);
-  }
-}
+/** Quote requests, website and app, per signed-in account. Fails open. */
+export const checkInquiryRateLimit = (userId: string) => checkLimit("inquiry", userId);
 
-// ============================================================================
-// Video View Deduplication (1 increment per 1 hour per IP + Video ID)
-// ============================================================================
-const videoViewLimiter = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(1, "1 h"), // 1 request per hour per video per IP
-      analytics: false,
-    })
-  : null;
+/** Free China trip applications, website and app, per connection. Fails open. */
+export const checkTripApplicationRateLimit = (req: HasHeaders) => checkLimit("tripApplication", getClientIp(req));
 
-export async function checkVideoViewRateLimit(req: HasHeaders, videoId: string) {
-  if (!videoViewLimiter) return { success: true };
-  
-  try {
-    const ip = getClientIp(req);
-    // Unique key per IP AND per video
-    const { success, limit, remaining, reset } = await videoViewLimiter.limit(`view_video:${videoId}:${ip}`);
-    return { success, limit, remaining, reset };
-  } catch (error) {
-    console.error("Redis Video View RateLimit Error:", error);
-    // Fail safely (open) if Redis is down
-    return { success: true };
-  }
-}
+/** Photo search, website and app, per connection. Fails closed: every search is a paid model call. */
+export const checkImageSearchRateLimit = (req: HasHeaders) => checkLimit("photoSearch", getClientIp(req));
 
-// ============================================================================
-// Password-reset codes (5 requests per 15 minutes per IP)
-//
-// The per-IP half of the pair. The per-address half lives in lib/email-otp.ts
-// and is enforced in the database. This one refuses in production while
-// UPSTASH_REDIS_REST_* are not set (notSetUp, above), and lets requests
-// through under `next dev`.
-//
-// Five rather than three: one IP is a household, an office or a mobile
-// carrier's NAT, so the address limit is the one that should bite first.
-// ============================================================================
-const passwordResetLimiter = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(5, "15 m"),
-      analytics: false,
-    })
-  : null;
-
-export async function checkPasswordResetRateLimit(req: HasHeaders): Promise<LimitResult> {
-  if (!passwordResetLimiter) return notSetUp("password reset");
-
-  try {
-    const ip = getClientIp(req);
-    const { success, limit, remaining, reset } = await passwordResetLimiter.limit(`pwreset:${ip}`);
-    return { success, limit, remaining, reset };
-  } catch (error) {
-    console.error("Redis Password Reset RateLimit Error:", error);
-    // Fail safely (open) if Redis is down.
-    return { success: true };
-  }
-}
-
-// ============================================================================
-// Contact form (5 messages per hour per IP)
-// ============================================================================
-// Public, like the trip applications below, and the same choice when Upstash
-// is not configured: messages go through, because a refused lead is a
-// customer lost. Turnstile and the per-sender cap in the database hold either
-// way (/api/contact; security audit 2026-10-08, M7).
-const contactLimiter = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(5, "60 m"),
-      analytics: false,
-    })
-  : null;
-
-export async function checkContactRateLimit(req: HasHeaders): Promise<LimitResult> {
-  if (!contactLimiter) return { success: true };
-  try {
-    const ip = getClientIp(req);
-    const { success } = await contactLimiter.limit(`contact:${ip}`);
-    return { success };
-  } catch (error) {
-    console.error("Redis Contact RateLimit Error:", error);
-    // Fail safely (open) if Redis is down.
-    return { success: true };
-  }
-}
-
-// ============================================================================
-// Free China trip applications (5 per hour per IP)
-// ============================================================================
-// Public and unauthenticated, like the contact form, but each application is
-// a long record a person reads in the console: a few genuine attempts an hour
-// is plenty, and a script is stopped before it fills the list.
-const tripApplicationLimiter = redis
-  ? new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(5, "60 m"),
-      analytics: false,
-    })
-  : null;
-
-export async function checkTripApplicationRateLimit(req: HasHeaders) {
-  if (!tripApplicationLimiter) return { success: true };
-  try {
-    const ip = getClientIp(req);
-    const { success } = await tripApplicationLimiter.limit(`trip:${ip}`);
-    return { success };
-  } catch (error) {
-    console.error("Redis Trip Application RateLimit Error:", error);
-    // Fail safely (open) if Redis is down.
-    return { success: true };
-  }
-}
+/** A video view counted once an hour per connection; never refuses the video itself. */
+export const checkVideoViewRateLimit = (req: HasHeaders, videoId: string) =>
+  checkLimit("videoView", `${videoId}:${getClientIp(req)}`);

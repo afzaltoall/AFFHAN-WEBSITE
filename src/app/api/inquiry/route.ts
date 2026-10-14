@@ -4,6 +4,7 @@ import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 import { describeInquiryProblems, inquiryInput } from "@/lib/inquiry-input";
+import { checkInquiryRateLimit } from "@/lib/rate-limit";
 
 /**
  * A quote request from the website's "Inquire Now" modal.
@@ -46,6 +47,17 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "Sign in to request a quote" },
         { status: 401 }
+      );
+    }
+
+    // Per account, on one count with the app's (lib/limit-policy.ts). Fails
+    // open: with Upstash down a quote request still goes through, logged, since
+    // one refused is a customer lost.
+    const limit = await checkInquiryRateLimit(user.id);
+    if (!limit.success) {
+      return NextResponse.json(
+        { error: "You have sent a lot of quote requests in the last hour. Please try again later." },
+        { status: 429 }
       );
     }
 
