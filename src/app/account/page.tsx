@@ -51,7 +51,7 @@ export default function AccountPage() {
     setError(null);
     setSaved(false);
     try {
-      const res = await fetch("/api/web/auth/update-profile", {
+      const res = await fetch("/api/web/auth/update-profile/", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

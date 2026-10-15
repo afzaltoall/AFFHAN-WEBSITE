@@ -21,7 +21,7 @@ export function RecordProductView({ productId }: { productId: number }) {
 
   useEffect(() => {
     if (loading || !user) return;
-    void fetch("/api/web/account/history", {
+    void fetch("/api/web/account/history/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",

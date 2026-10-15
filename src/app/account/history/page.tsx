@@ -44,7 +44,7 @@ export default function HistoryPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/web/account/history", {
+      const res = await fetch("/api/web/account/history/", {
         credentials: "include",
         cache: "no-store",
       });
@@ -62,7 +62,7 @@ export default function HistoryPage() {
   const clear = async () => {
     setClearing(true);
     try {
-      await fetch("/api/web/account/history", { method: "DELETE", credentials: "include" });
+      await fetch("/api/web/account/history/", { method: "DELETE", credentials: "include" });
       setRows([]);
     } catch {
       // Leave the list alone; a failed delete is not a reason to show an empty

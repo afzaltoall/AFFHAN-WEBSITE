@@ -32,7 +32,7 @@ export default function FavouritesPage() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/web/account/favourites", {
+      const res = await fetch("/api/web/account/favourites/", {
         credentials: "include",
         cache: "no-store",
       });

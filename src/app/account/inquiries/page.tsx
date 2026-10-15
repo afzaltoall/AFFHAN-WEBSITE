@@ -179,7 +179,7 @@ export default function InquiriesPage() {
   const load = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await fetch("/api/account/inquiries", {
+      const res = await fetch("/api/account/inquiries/", {
         credentials: "include",
         cache: "no-store",
       });
@@ -217,7 +217,7 @@ export default function InquiriesPage() {
     setTrackingKey(key);
     setCheckedKey(null);
     try {
-      const res = await fetch("/api/account/inquiries", {
+      const res = await fetch("/api/account/inquiries/", {
         credentials: "include",
         cache: "no-store",
       });

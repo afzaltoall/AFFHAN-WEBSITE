@@ -41,7 +41,7 @@ export function PasswordSection({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/web/auth/set-password", {
+      const res = await fetch("/api/web/auth/set-password/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

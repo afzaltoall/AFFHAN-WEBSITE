@@ -47,7 +47,7 @@ export function FavouritesProvider({ children }: { children: React.ReactNode }) 
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/web/account/favourites?ids=1", {
+        const res = await fetch("/api/web/account/favourites/?ids=1", {
           credentials: "include",
           cache: "no-store",
         });
@@ -81,7 +81,7 @@ export function FavouritesProvider({ children }: { children: React.ReactNode }) 
       });
 
       try {
-        const res = await fetch("/api/web/account/favourites", {
+        const res = await fetch("/api/web/account/favourites/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
