@@ -6,10 +6,11 @@ Each folder here holds the SQL for one schema change, generated with `prisma mig
 
 | Folder | What it does | Production |
 |---|---|---|
-| `20261008181537_otp_send_caps` | `MobilePhoneOtp.ipHash` and two indexes, for the text-message caps (`lib/otp-caps.ts`, security audit H7) | **not applied**: needed only while the phone-code routes exist |
 | `20261009094736_drop_duplicate_indexes` | drops three indexes that duplicate unique keys (security audit L2) | **not applied**: optional, write speed only |
 | `20261009110827_email_suppression` | the `EmailSuppression` table | applied |
 | `20261014104914_db_load` | `Product.isBlockedName`, `Category.productCount`, the `Snapshot` table; `product-index.sql` beside it | applied 2026-10-14, index included |
+
+`20261008181537_otp_send_caps` (`MobilePhoneOtp.ipHash` and two indexes, for text-message caps) was deleted on 2026-10-15, never applied, together with phone sign-in and its codes; `schema.prisma` no longer has those columns either.
 
 ## Applying one
 

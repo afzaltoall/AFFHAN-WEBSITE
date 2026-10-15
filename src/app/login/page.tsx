@@ -125,10 +125,8 @@ function LoginPageInner() {
                     autoFocus={false}
                   />
                 ) : (
-                  // Creating an account: one screen, no code. This is where
-                  // PhoneAuthForm used to be — it and the Twilio routes behind
-                  // it are still in the codebase, just not on this path while
-                  // production access is pending.
+                  // Creating an account: one screen, no code. Phone sign-in
+                  // and its text-message codes were removed on 2026-10-15.
                   <SignupForm
                     onSuccess={onSuccess}
                     onHaveAccount={() => setMethod("password")}

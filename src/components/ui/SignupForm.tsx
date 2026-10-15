@@ -22,12 +22,9 @@ import type { MascotFocus } from "@/components/ui/SignupMascot";
 /**
  * Creating an account, on one screen.
  *
- * There is no OTP step here and this component calls no OTP route: not
- * send-otp, not verify-otp, not complete-profile. Twilio production access is
- * pending, and an account nobody can create is worse than a number nobody has
- * verified. The Twilio integration itself — PhoneAuthForm, send-otp,
- * verify-otp, phone-auth.ts — is left in the codebase untouched for the phase
- * that turns it back on; it is simply no longer wired to this path.
+ * There is no code step here. Phone sign-in, its text-message codes and the
+ * Twilio integration behind them were removed on 2026-10-15: an account nobody
+ * can create is worse than a number nobody has verified.
  *
  * The number is collected and stored unverified (phoneVerified stays false),
  * so whatever verification arrives later has something to verify. It is still

@@ -16,9 +16,8 @@ import { recordAccountChanges, type ChangeSource } from "@/lib/account-audit";
 // is the truth, since nothing has confirmed it is theirs.
 //
 // A number to reach someone on, never a way in: authProvider is left as it
-// is, and phone sign-in, for as long as it exists, refuses a number its
-// account never proved (lib/phone-linking.ts). Nothing here sends a code or
-// calls Twilio.
+// is, and there is no phone sign-in (removed 2026-10-15). Nothing here sends
+// a code.
 //
 // The session decides whose account changes; the body never names one. The
 // website's cookie and the app's Bearer token both carry it

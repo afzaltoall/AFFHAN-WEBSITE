@@ -608,38 +608,26 @@ model MobileUser {
   // 2026-10-08, L2).
 }
 
-// One-time codes for phone sign-in.
+// One-time codes for phone sign-in. UNUSED since 2026-10-15: phone sign-in and
+// its text-message codes were removed, and nothing reads or writes this table.
+// It stays because production has it; dropping it is a migration of its own.
+// The columns are the ones production has (the otp_send_caps migration, which
+// would have added ipHash and two indexes, was never applied and is deleted).
 //
-// Only the hash is stored, for the same reason session tokens are hashed: a
-// database copy must not hand someone a working login. Rows are keyed by phone
-// rather than by user, because the first code someone receives is sent before
-// any account exists.
+// Only the hash was stored, for the same reason session tokens are hashed: a
+// database copy must not hand someone a working login.
 model MobilePhoneOtp {
   id       String  @id @default(uuid())
   phone    String // E.164
-  // Null since the move to Twilio Verify, which generates, holds, expires and
-  // checks the code itself — we never see the digits. Rows are now a record
-  // that a send happened, used for the resend cooldown and to keep our own
-  // endpoint from being hammered into a Twilio bill. Kept nullable rather than
-  // dropped so rows written by the earlier self-issued implementation survive.
   codeHash String?
 
-  // Guesses spent against this code. A short numeric code is trivially
-  // brute-forced without a ceiling.
   attempts   Int       @default(0)
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime  @default(now())
 
-  // Which connection asked, as an HMAC of its IP under AUTH_SECRET: enough to
-  // count sends per connection (lib/otp-caps.ts), and not the address itself.
-  // Null on rows written before the caps.
-  ipHash     String?
-
   @@index([phone])
   @@index([expiresAt])
-  @@index([ipHash, createdAt])
-  @@index([createdAt])
 }
 
 // Mobile sessions using cryptographically secure opaque tokens.
@@ -745,10 +733,9 @@ model MobileInquiryMoqHistory {
 /// answer "was it changed", which needs no secret to answer.
 /// A one-time code sent to an email address.
 ///
-/// Separate from MobilePhoneOtp, which only records *when* a code was asked
-/// for — Twilio Verify holds the phone codes and checks them itself. Nobody
-/// holds an email code for us, so this table stores one, hashed the same way
-/// session tokens are: a copy of the table is not a set of working codes.
+/// Nobody holds an email code for us, so this table stores one, hashed the same
+/// way session tokens are: a copy of the table is not a set of working codes.
+/// (Phone codes, held by Twilio, went with phone sign-in on 2026-10-15.)
 ///
 /// Rows are kept after use rather than deleted. `consumedAt` is what makes a
 /// code single-use, and the recent history is also what the per-address rate

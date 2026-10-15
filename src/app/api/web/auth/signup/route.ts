@@ -11,11 +11,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 /**
  * Create an account from one screen: name, email, mobile, password.
  *
- * No OTP anywhere in here. This route deliberately does not call send-otp or
- * verify-otp, and the number it stores is not verified — Twilio production
- * access is pending, and signup is not worth blocking on it. The Twilio code
- * (send-otp, verify-otp, phone-auth) is left in place, untouched, for whenever
- * that phase happens; nothing here deletes it.
+ * No code anywhere in here: the number it stores is not verified, and is a
+ * contact number only. There is no phone sign-in and no text-message code
+ * (both removed with Twilio on 2026-10-15).
  *
  * What that costs us, stated plainly: `phone` is unique on MobileUser, so a
  * number belongs to exactly one account, and nobody has proved this one is

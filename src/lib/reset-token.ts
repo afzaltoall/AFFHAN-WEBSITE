@@ -4,13 +4,14 @@ import { authSecret, authSecretOrNull } from "@/lib/secrets";
 // ---------------------------------------------------------------------------
 // Short-lived proof that an email address passed OTP verification.
 //
-// The same construction as lib/signup-token.ts — HMAC-SHA256 over a base64url
-// payload — for the same reason: the server can tell it issued this and that
-// nobody has altered it, without a JWT dependency for a ten-minute token.
+// The same construction as the admin session cookie (lib/session.ts) —
+// HMAC-SHA256 over a base64url payload — for the same reason: the server can
+// tell it issued this and that nobody has altered it, without a JWT dependency
+// for a ten-minute token.
 //
-// A separate module rather than a `purpose` field on the signup token, so a
-// token minted to finish a sign-up can never be presented to change somebody's
-// password. Two powers, two keys.
+// It proves one power only, changing a password: there used to be a sign-up
+// token beside it (phone sign-in, removed 2026-10-15), and the two were kept
+// apart so that one could never be presented as the other.
 //
 // It is not a session. It proves one thing — this address answered a code just
 // now — and the only route that accepts it is the one that sets the password.

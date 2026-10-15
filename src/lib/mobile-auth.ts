@@ -9,11 +9,9 @@ import { prisma } from "@/lib/prisma";
  * the thirtieth day however much they used it. Changing that is a decision,
  * not a tidy-up — the value here only says how long.
  *
- * It lives in this module because this is where sessions are made. It used to
- * live in phone-auth, which meant the browser path pulled the whole Twilio
- * module in to read one number, and the four app login routes did not read it
- * at all — each wrote its own 30, so changing this constant would have moved
- * the website and left the app behind.
+ * It lives in this module because this is where sessions are made. The app's
+ * sign-in routes once wrote their own 30 each, so changing one number would
+ * have moved the website and left the app behind.
  */
 export const SESSION_DAYS = 30;
 
@@ -59,25 +57,6 @@ export function extractBearerToken(request: Request): string | null {
  * different populations with different privileges and must never be mistaken
  * for one another.
  */
-/**
- * Label a session that phone-auth already created.
- *
- * authenticateByPhone is shared by the app and the website and opens the
- * session itself, deliberately without a platform — neither caller's answer
- * would be right for the other. Each one stamps it afterwards, found by the
- * hash of the token it was just handed.
- */
-export async function markSessionPlatform(
-  rawToken: string,
-  platform: "WEB" | "APP"
-): Promise<void> {
-  await prisma.mobileSession
-    .update({ where: { tokenHash: hashMobileToken(rawToken) }, data: { platform } })
-    .catch(() => {
-      // Not worth failing a successful sign-in over a label.
-    });
-}
-
 export const WEB_SESSION_COOKIE = "affhan_user";
 
 export function webSessionCookieOptions(expiresAt: Date) {

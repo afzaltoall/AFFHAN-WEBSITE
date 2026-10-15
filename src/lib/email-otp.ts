@@ -11,11 +11,10 @@ import {
 // ---------------------------------------------------------------------------
 // One-time codes sent to an email address.
 //
-// Structurally the phone flow, with the delivery channel swapped — same code
-// generator, same hashing, same TTL, same attempt ceiling. What differs is who
-// holds the code: Twilio Verify keeps and checks the phone codes, so
-// MobilePhoneOtp only records when one was asked for. Nobody holds an email
-// code for us, so this module stores and checks it here.
+// The code generator, hashing, TTL and attempt ceiling are lib/mobile-otp.ts's.
+// Nobody holds an email code for us (as Twilio once held the phone codes, until
+// phone sign-in was removed on 2026-10-15), so this module stores and checks it
+// here.
 //
 // The code is returned to the caller exactly once, so it can be put in an
 // email. It is never written to a log, never returned in an HTTP response, and

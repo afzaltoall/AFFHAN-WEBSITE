@@ -19,11 +19,10 @@ import { lockBodyScroll } from "@/lib/scrollLock";
  * at, so sign-in happens here instead and the caller resumes straight into the
  * quote form.
  *
- * It used to render PhoneAuthForm, and would have been broken the day it was
- * wired up: /login stopped using the SMS path while Twilio production access
- * is pending. It now renders the same two forms /login does, so the two
- * screens cannot drift apart, and all three ways in complete without
- * navigating: the forms are fetches and Google runs in a popup.
+ * It renders the same two forms /login does, so the two screens cannot drift
+ * apart, and all three ways in complete without navigating: the forms are
+ * fetches and Google runs in a popup. (It once rendered the phone-code form;
+ * phone sign-in was removed on 2026-10-15.)
  *
  * On the header: this had a tall teal gradient block with the brand name, a
  * 2xl heading and a subheading — three stacked lines of white-on-colour before

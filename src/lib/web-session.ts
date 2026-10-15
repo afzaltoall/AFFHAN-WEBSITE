@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import {
   generateMobileSessionToken,
   hashMobileToken,
-  markSessionPlatform,
   SESSION_DAYS,
   WEB_SESSION_COOKIE,
   webSessionCookieOptions,
@@ -33,17 +32,6 @@ export async function createWebSession(userId: string): Promise<WebSession> {
   });
 
   return { rawToken, expiresAt };
-}
-
-/**
- * Mark a session that phone-auth already created as a browser one.
- *
- * authenticateByPhone is shared with the app and opens the session itself, and
- * it is deliberately left untouched — so the platform is stamped afterwards,
- * found by the hash of the token it just returned.
- */
-export async function markSessionAsWeb(rawToken: string): Promise<void> {
-  await markSessionPlatform(rawToken, "WEB");
 }
 
 export function setSessionCookie(res: NextResponse, session: WebSession): NextResponse {
