@@ -14,52 +14,56 @@ The old corporate site (affhan.com) is being replaced by this. The new site is m
 
 - **Next.js** (App Router), TypeScript, Tailwind
 - **Prisma** ORM
-- **Neon** (PostgreSQL) — connection string in `.env.local` as `DATABASE_URL`
-- **CJ Dropshipping API** — product data source, key in `.env.local` as `CJ_API_KEY`
-- Deployed on **Vercel** (free/Hobby tier — note: only supports **one cron run per day**)
+- **Neon** (PostgreSQL) — pooled connection string as `DATABASE_URL`, non-pooled `DIRECT_URL` for migrations
+- **Brevo** — transactional email (the password-reset codes): `src/lib/brevo.ts` behind `src/lib/email.ts`
+- **Upstash** — rate limits; `src/lib/limit-policy.ts` is the table of them
+- Deployed on **Vercel** (Hobby tier — each cron runs **at most once a day**; see "Scheduled jobs")
 - Local dev on **Windows** (see gotcha below)
 
-## Data pipeline (working — do not break this)
+**Removed — don't bring back without asking (2026-10-15):** the CJ Dropshipping API and its sync (the sync stopped 2026-10-09), Amazon SES (replaced by Brevo on 2026-10-14), and Twilio with phone sign-in and its text-message codes. Their env vars (`CJ_API_KEY`, `AWS_SES_*`, `TWILIO_*`, `SMS_PROVIDER`, `OTP_DAILY_CAP`) are read by nothing.
 
-CJ Dropshipping API → daily cron sync → Neon Postgres → our own `/api/products` → frontend.
+## The catalogue (static — do not break it)
 
-The frontend **never** calls CJ directly. Product images are **hotlinked** from CJ's CDN (`cf.cjdropshipping.com`, `*.aliyuncs.com`) — we store only the image URL in the DB, never download the files.
+Neon Postgres → our own `/api/products` → frontend. The products were imported from CJ Dropshipping (until 2026-10-09) and from EPROLO; **nothing syncs them now**. The catalogue changes only when someone runs a script, and the daily refresh (below) then picks the change up.
+
+The frontend never calls a supplier. Product images are either **hotlinked** from CJ's CDN (`cf.cjdropshipping.com`, `*.aliyuncs.com`, resized by URL parameter) or stored in our S3 bucket `affan-product-images` and served through CloudFront and the Serverless Image Handler (`src/lib/cdn.ts`). The DB holds only URLs.
 
 ### Key files
-- `src/lib/cj.ts` — CJ API wrapper, token caching (tokens last ~15 days), rate limiting
-- `src/app/api/cron/sync/route.ts` — resumable category-by-category sync
 - `src/app/api/products/route.ts` — frontend-facing product API (reads DB only)
 - `src/app/api/search/suggestions/route.ts` — search autocomplete
-- `scripts/populate_category_thumbnails.mjs` — fills `Category.thumbnailUrl` from product images
+- `src/app/api/cron/refresh/route.ts` and `src/lib/snapshots.ts` — the daily refresh
+- `src/lib/moderation.ts` — what customers never see
+- `scripts/assign_category_thumbnails.mjs` — category pictures
+
+### The daily refresh — the homepage and the counts come from here
+`/api/cron/refresh/` (Vercel cron at 18:00 UTC, 23:30 IST, under a lock row) recomputes the name flags (`Product.isBlockedName`), the category counts (`Category.productCount`), the homepage's draws for today and tomorrow, and the hero's pool, and stores them as `Snapshot` rows. Requests only read those rows; nothing heavy runs per request. `GET /api/cron/refresh/?force=1` with `CRON_SECRET` runs it at once, e.g. after a catalogue script.
+
+### Scheduled jobs
+`vercel.json` runs `/api/cron/leads/rotate` at 05:00 UTC (a daily net) and `/api/cron/refresh/` at 18:00 UTC. cron-job.org calls `/api/cron/leads/rotate` about every 15 minutes with `Authorization: Bearer $CRON_SECRET`. Every cron route refuses a missing secret or one shorter than 32 characters.
 
 ### DB models
-- `Product` — `cjPid`, `name`, `imageUrl`, `allImages`, `price` (stored but never displayed), `categoryId`, `lastSynced`
-- `Category` — CJ category id, `name`, `parentId`, `thumbnailUrl`
-- `SyncProgress` — per-category `lastPageFetched`, `totalPages`, `status` (PENDING / IN_PROGRESS / COMPLETED / PARTIAL_LIMIT_REACHED)
+- `Product` — `cjPid` (the supplier's own id; named for CJ), `supplierSource` (CJ | EPROLO), `name`, `imageUrl`, `allImages`, `price` (stored but never displayed), `categoryId`, `isBlockedName`, `lastSynced` (when it was imported)
+- `Category` — CJ category id, `name`, `parentId`, `thumbnailUrl`, `productCount`
+- `Snapshot` — the daily refresh's results
 - `Inquiry` — customer name, email, phone, companyName, message, quantity, linked to Product
+- `MobileUser` — customers, website and app alike; `phone` is a contact number (see "Accounts and sign-in")
+- `EmailSuppression` — addresses not to email: Brevo's bounces and complaints, and older rows from SES
+- Unused, kept because production has them (dropping one is a migration of its own): `SyncProgress` (the CJ sync's progress) and `MobilePhoneOtp` (phone sign-in's codes)
 
-### CJ API constraints (learned the hard way)
-- **QPS limit: 1 request/second.** Anything faster returns "Too Many Requests". Current code delays ~1.2–2.5s between calls with retry-on-429.
-- **Max offset ~6000 per category.** Large categories (e.g. "Women's Short-Sleeved Shirts", 336 pages) stop at ~6,050 products and get marked `PARTIAL_LIMIT_REACHED`. This is a CJ limitation, not a bug — don't try to "fix" it.
-- CJ's category tree is **3 levels deep** (e.g. Phones & Accessories → Mobile Phone Accessories → Cables). **Products are attached only to 3rd-level leaf nodes.** Level 1 and level 2 nodes have zero direct products. Any code that filters categories by product count must aggregate across descendants, or it will hide everything.
-- Product names: use `productNameEn` (English), not `productName` (Chinese, and sometimes a JSON-array-shaped string that needs parsing).
-- `sellPrice` can be a range string like `"13.60 -- 19.04"` — parse and take the lower bound.
+### About the data (what the CJ import left behind)
+- CJ's category tree is **3 levels deep** (e.g. Phones & Accessories → Mobile Phone Accessories → Cables), and CJ attached products **only to 3rd-level leaf nodes**. Any code that filters categories by product count must aggregate across descendants, or it will hide everything. (EPROLO differs — see "Tree shape".)
+- CJ's API stopped at an offset of ~6,000 per category, so the largest categories (e.g. "Women's Short-Sleeved Shirts") hold ~6,050 of CJ's products. That was CJ's limit, not a bug.
+- For any future import: CJ's English name is `productNameEn` (`productName` is Chinese, sometimes JSON-array-shaped), and `sellPrice` can be a range like `"13.60 -- 19.04"` (take the lower bound).
 
-### Current sync state — FINISHED (verified 2026-08-19)
-**1,068,225 products** across **509 categories**. Of 634 total categories, 125 hold nothing — those are genuinely empty nodes in CJ's tree, not unfinished work. Every `SyncProgress` row reads `COMPLETED`: nothing is PENDING, IN_PROGRESS, FAILED or PARTIAL_LIMIT_REACHED.
-
-**634 is the entire CJ taxonomy** — the tree is 3 levels deep and that is all of it. The category count cannot grow beyond this from CJ, so treat any figure larger than ~509 in marketing copy as wrong. (A "50,000+ categories" claim was live on the Chennai landing page, the FAQ schema and the site-wide TrustBadges before this was checked.)
-
-Do **not** run `populate_category_thumbnails.mjs` on a hunch — all 509 product-bearing categories already have a `thumbnailUrl`, and none are hidden. The cron sync backfills thumbnails itself as each category completes (see step 5 in `/api/cron/sync/route.ts`), which is what made the standalone script redundant.
-
-EPROLO was added alongside CJ afterwards, so the live totals are larger than the CJ figures above: **1,080,674 products across 699 categories** as of 2026-09-10, of which 12,746 products are EPROLO. Read `Product.supplierSource` before attributing any behaviour to "the sync" — the two feeds differ in what they return (EPROLO has descriptions and variants; CJ has neither).
+### Catalogue size
+**1,080,674 products across 699 categories** as of 2026-09-10: CJ's 1,068,225 in 509 categories (of CJ's whole 634-category taxonomy, 125 are genuinely empty) plus EPROLO's 12,746. Treat any larger figure in marketing copy as wrong — a "50,000+ categories" claim was live on the Chennai landing page, the FAQ schema and the site-wide TrustBadges before this was checked. `Product.supplierSource` tells the two feeds apart, and they differ (EPROLO has descriptions and variants; CJ has neither).
 
 ### Moderation — the part that is not keyword-shaped (2026-09-10)
 Adult/18+ removal works on three name-and-category rules in `src/lib/moderation.ts`, and those rules **cannot see the main remaining problem**, which is product photography: close-crops of a model's backside in ordinary activewear, and sheer garments with the body visible. Names and categories for those are innocuous. Image scoring and name heuristics were both tried and both measured as unusable — the reasoning and the numbers are recorded in the long comment in `moderation.ts` and in `tools/audit/skin.mjs`. Don't re-derive them.
 
 Removal of such items is therefore per-product, after someone looks at the picture. `tools/audit/` builds numbered contact sheets for that (`06-build-priority.mjs`), records decisions (`findings.mjs`) and moves them (`90-move-to-log.mjs`, dry-run by default).
 
-**`ModerationLog` is now authoritative, not a log.** `/api/cron/sync` skips any `cjPid` recorded there. Before that check was added the table was write-only and every nightly run re-created anything removed for its photograph. Deleting a row from `ModerationLog` re-admits the product on the next sync.
+**`ModerationLog` is authoritative, not a log.** It records every product removed after review. Nothing re-imports products now, so a removal stays removed; **any future import must skip every `cjPid` recorded there**, as the old nightly sync did (before it learned to, it re-created everything removed for its photograph).
 
 ### Category thumbnails — one script owns this (2026-09-10)
 `scripts/assign_category_thumbnails.mjs --apply` assigns every category's picture. The rule: **deterministic** (lowest product id, never newest, so a re-sync does not change the picture), **bottom-up** (leaves claim before parents), and **claim-and-exclude** — an image belongs to exactly one category, so a parent and its child can never show the same photo. It is idempotent: a second run reports 0 changes.
@@ -73,9 +77,16 @@ Two older scripts are marked **SUPERSEDED** and must not be run — `tools/eprol
 ### Tree shape — not what the CJ note above implies
 The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to L3 leaves, but **EPROLO does not**: 10,731 EPROLO products sit on L1 and L2 nodes, and **29 categories hold their own products *and* have children**. Any code that assumes "branch nodes are empty" is wrong for EPROLO.
 
+## Accounts and sign-in
+
+- Customers sign in with **email and password** or **Google**, on the website and in the app. There is no phone sign-in and no text-message code.
+- **The phone number is a contact number only:** saved as typed, checked by libphonenumber, `phoneVerified` false, never a way in, and at most one account per number (`MobileUser.phone` is unique). After a Google sign-in on an account with none, the website asks for it (`PhonePromptProvider`, prefilled from the quote form when there is one), and the app saves it with `POST /api/mobile/account/phone/`. Account lets customers change it. Limit: 10 saves an hour per account.
+- Password reset sends a 6-digit code by email (Brevo).
+- Cloudflare Turnstile guards the website's three sign-ins (customer, staff, console), both password resets and the contact form; nothing the app calls asks for it.
+
 ## What works — don't touch unless asked
 
-- The CJ sync pipeline (auth, rate limiting, resumability)
+- Email through Brevo, and the daily refresh
 - The "Request a Quote" modal (Affhan logo, quantity, name, country dropdown, phone code + number, Submit Inquiry) — opens inline on product click, does not navigate away
 - Search autocomplete (300ms debounce, queries product/category names, max 8 suggestions)
 - Attribute filter chips on search results (derived from a `GROUP BY` on category — **no AI/LLM involved, keep it that way**)
@@ -85,7 +96,7 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - **CJ product data has no structured attributes.** No material, colour, size, gender, style, fabric. For CJ's 1,068,225 rows, only category-based filtering and sorting are possible. Don't create filter UI backed by data we don't have.
   - **This is not true of EPROLO.** Every one of its 12,746 rows carries a `description`, and 11,858 of them parse into real attribute pairs — Color (8,545), Size (8,020), Style (6,271), Sleeve Length (6,082), Material (5,717), Fabric (5,525), Neckline, Occasion, Fit Type, Gender — plus a size chart on 8,869. See `src/lib/productDescription.ts`, which reads them. Attribute filters are therefore possible *for EPROLO products only*; any such UI has to cope with the CJ majority having none, so it cannot be a site-wide facet.
 - **We have no user tracking**, so Alibaba's "Browsing history" / "Keep looking for" personalised cards can't be replicated — use static equivalents instead.
-- Vercel Hobby tier = one cron/day. Frequent syncing during backfill is done via an external scheduler (cron-job.org) hitting `/api/cron/sync`.
+- Vercel Hobby tier = each cron at most once a day. Anything more frequent goes through cron-job.org (see "Scheduled jobs").
 
 ## Windows dev gotcha (hit this three times already)
 
