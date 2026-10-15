@@ -28,10 +28,16 @@ test("a shared connection gets room: per-connection limits sit above what one pe
   assert.ok(LIMITS.passwordReset.count >= 5, "password reset");
 });
 
-test("fails open: customers' sign-in, password reset, contact, quote requests, trip applications", () => {
-  for (const name of ["customerLogin", "passwordReset", "contact", "inquiry", "tripApplication"]) {
+test("fails open: customers' sign-in, password reset, contact, quote requests, trip applications, saving a number", () => {
+  for (const name of ["customerLogin", "passwordReset", "contact", "inquiry", "tripApplication", "contactPhone"]) {
     assert.equal(LIMITS[name].whenDown, "open", name);
   }
+});
+
+test("saving a contact number: 10 an hour, per account (the owner, 2026-10-15)", () => {
+  assert.equal(LIMITS.contactPhone.per, "account");
+  assert.equal(LIMITS.contactPhone.count, 10);
+  assert.equal(LIMITS.contactPhone.window, "1 h");
 });
 
 test("in production a closed limit refuses and an open one lets through; under next dev nothing refuses", () => {

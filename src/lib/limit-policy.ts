@@ -11,9 +11,10 @@
  *   and the staff sign-in, where a guess is worth the most, and photo search,
  *   where every request is a paid model call.
  * - open: let through with a warning in the log. Customers' sign-in, password
- *   reset, the contact form, quote requests and trip applications, where a
- *   refused request is a customer lost and something else still holds: the
- *   database lockout and per-address caps, and Turnstile where there is one.
+ *   reset, the contact form, quote requests, trip applications and saving a
+ *   contact number, where a refused request is a customer lost and something
+ *   else still holds: the database lockout and per-address caps, Turnstile
+ *   where there is one, and a session for anything that needs one.
  *
  * Under `next dev` everything is let through: working on the site needs no
  * Redis (lib/protections.ts).
@@ -49,6 +50,8 @@ export const LIMITS = {
   contact: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "The contact form" },
   /** /api/inquiry (website) and /api/mobile/inquiries (app), one count per account. */
   inquiry: { per: "account", count: 30, window: "1 h", whenDown: "open", feature: "Quote requests" },
+  /** /api/web/account/phone and /api/mobile/account/phone: saving the account's contact number (lib/contact-phone.ts). */
+  contactPhone: { per: "account", count: 10, window: "1 h", whenDown: "open", feature: "Saving a number" },
   /** /api/trip-applications (website and app). One application per account, email and number regardless. */
   tripApplication: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "Trip applications" },
   /** /api/search/image (website and app): each signed-in account, or each connection when signed out. */
