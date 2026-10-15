@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { readSignupToken } from "@/lib/signup-token";
 import { createWebSession, publicUser, setSessionCookie } from "@/lib/web-session";
 import { checkPasswordStrength, hashPassword } from "@/lib/password";
-import { EMAIL_TAKEN_MESSAGE, phonePlan } from "@/lib/phone-linking";
+import { CONTACT_ONLY_MESSAGE, EMAIL_TAKEN_MESSAGE, phonePlan, provedPhoneMayEnter } from "@/lib/phone-linking";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +69,12 @@ export async function POST(request: Request) {
     // unique index. Nothing typed here is written to that account: the token
     // proves the number, not the email or a password.
     let user = await prisma.mobileUser.findUnique({ where: { phone } });
+
+    // Only an account that proved this number itself; one that holds it as a
+    // contact number is not entered by it (lib/phone-linking.ts).
+    if (user && !provedPhoneMayEnter(user)) {
+      return NextResponse.json({ error: CONTACT_ONLY_MESSAGE, reason: "contact_only" }, { status: 409 });
+    }
 
     if (!user) {
       // An email that already had an account used to get this number attached,

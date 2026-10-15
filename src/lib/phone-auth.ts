@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { generateMobileSessionToken, SESSION_DAYS } from "@/lib/mobile-auth";
 import { checkVerification, sendVerification, twilioConfig } from "@/lib/twilio-verify";
 import { maskPhone, OTP_RESEND_COOLDOWN_MS, OTP_TTL_MS } from "@/lib/mobile-otp";
-import { EMAIL_TAKEN_MESSAGE, phonePlan } from "@/lib/phone-linking";
+import { CONTACT_ONLY_MESSAGE, EMAIL_TAKEN_MESSAGE, phonePlan, provedPhoneMayEnter } from "@/lib/phone-linking";
 import { DAY_MS, HOUR_MS, otpCapReached, siteDailyCap, type OtpCap } from "@/lib/otp-caps";
 import { authSecret } from "@/lib/secrets";
 
@@ -167,6 +167,13 @@ export async function authenticateByPhone(input: {
 
   // The number is proven from here on.
   let user = await prisma.mobileUser.findUnique({ where: { phone: input.phone } });
+
+  // Proven to be held by whoever has the phone, which does not make the
+  // account theirs: a number its account never proved is a contact number,
+  // not a way in (lib/phone-linking.ts).
+  if (user && !provedPhoneMayEnter(user)) {
+    return { ok: false, status: 409, error: CONTACT_ONLY_MESSAGE, reason: "contact_only" };
+  }
 
   if (!user) {
     const firstName = typeof input.firstName === "string" ? input.firstName.trim() : "";

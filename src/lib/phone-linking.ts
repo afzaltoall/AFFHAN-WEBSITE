@@ -32,3 +32,23 @@ export function phonePlan(input: { accountForPhone: boolean; hasProfile: boolean
 /** What the refused case says, in the customer's words. */
 export const EMAIL_TAKEN_MESSAGE =
   "That email already has an AFFHAN account. Sign in to it with your password or Google, then add this number from your Account page.";
+
+/**
+ * Whether a number just proved by a code may open the account that already
+ * holds it: only when that account proved the number too (2026-10-15).
+ *
+ * A number saved without a code, at password sign-up or as a contact number
+ * (lib/contact-phone.ts), is how our team reaches the customer, not a way into
+ * the account. The code proves who holds the phone, not whose account it is,
+ * so a typo, or somebody else's number typed on purpose, would otherwise hand
+ * the account to whoever holds that phone. Asked wherever a proved number
+ * opens a session on an existing account: authenticateByPhone
+ * (lib/phone-auth.ts) and /api/web/auth/complete-profile.
+ */
+export function provedPhoneMayEnter(holder: { phoneVerified: boolean }): boolean {
+  return holder.phoneVerified;
+}
+
+/** What that refusal says. */
+export const CONTACT_ONLY_MESSAGE =
+  "That number is on an AFFHAN account for our team to reach its owner, not to sign in with. Sign in with your email and password, or with Google.";
