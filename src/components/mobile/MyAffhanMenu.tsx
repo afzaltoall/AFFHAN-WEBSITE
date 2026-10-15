@@ -90,8 +90,8 @@ function Band() {
 }
 
 /**
- * The account's picture, or, when there is none, Alibaba's: a pale head and shoulders on a grey disc, traced from
- * the owner's screenshot (a broad head with a square jaw, then the shoulders across the disc's foot).
+ * The account's picture, or, when there is none, our own plain grey figure: a round head and shoulders on a
+ * light grey disc (the owner, 2026-10-15: our own avatar, not Alibaba's; only the layout like theirs).
  */
 function Avatar({ image }: { image?: string | null }) {
   if (image) {
@@ -99,11 +99,10 @@ function Avatar({ image }: { image?: string | null }) {
     return <img src={avatarUrl(image, 52) ?? image} alt="" width={52} height={52} referrerPolicy="no-referrer" className="size-[52px] shrink-0 rounded-full object-cover" />;
   }
   return (
-    <span aria-hidden className="relative size-[52px] shrink-0 overflow-hidden rounded-full bg-[#edeaed]">
-      <svg viewBox="0 0 52 52" className="absolute inset-0 size-full" fill="#faf8fa">
-        <path d="M11.5 19.5a14.5 14 0 0 1 29 0V24c0 4.5-3 7.5-7.5 7.5H19c-4.5 0-7.5-3-7.5-7.5Z" />
-        <rect x="18" y="31" width="16" height="9" />
-        <rect x="2" y="39.5" width="48" height="20" rx="11" />
+    <span aria-hidden className="relative size-[52px] shrink-0 overflow-hidden rounded-full bg-[#eeeef1]">
+      <svg viewBox="0 0 52 52" className="absolute inset-0 size-full" fill="#c9cad1">
+        <circle cx="26" cy="20" r="9" />
+        <path d="M8 52c0-10.5 8-17 18-17s18 6.5 18 17Z" />
       </svg>
     </span>
   );
