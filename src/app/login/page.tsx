@@ -1,8 +1,8 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
@@ -17,9 +17,15 @@ import { TiltCard, TravellingEdgeLight } from "@/components/ui/TiltCard";
 // and the check lives in lib/safe-redirect.ts, where it is tested.
 import { safeRedirect } from "@/lib/safe-redirect";
 
-function LoginPageInner() {
+/**
+ * Where to go once signed in: `?redirect=`, read when it is needed, in the browser. Reading it while rendering
+ * (useSearchParams) made this static page wait for all of its JavaScript before drawing anything, so its HTML
+ * was a spinner and a phone showed the form, and Google's button, seconds late (the owner, 2026-10-15).
+ */
+const destination = () => safeRedirect(new URLSearchParams(window.location.search).get("redirect"));
+
+export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user, loading } = useAuth();
 
   // Two screens: signing in, and creating an account. Both are email and
@@ -30,17 +36,15 @@ function LoginPageInner() {
   // Lifted only so the illustration in the other column can see it.
   const [fieldFocus, setFieldFocus] = useState<MascotFocus>(null);
 
-  const destination = safeRedirect(searchParams.get("redirect"));
-
   // Nobody signed in needs a sign-in page. Waits for `loading` so a returning
   // visitor is not shown the form for a moment before being bounced.
   useEffect(() => {
-    if (!loading && user) router.replace(destination);
-  }, [loading, user, destination, router]);
+    if (!loading && user) router.replace(destination());
+  }, [loading, user, router]);
 
   const onSuccess = useCallback(() => {
-    router.replace(destination);
-  }, [router, destination]);
+    router.replace(destination());
+  }, [router]);
 
   // The first field takes the cursor only where there is a mouse. The forms' own autoFocus is server-rendered
   // as an autofocus attribute, so a phone focused the Email box as the page arrived and opened the keyboard
@@ -180,21 +184,5 @@ function LoginPageInner() {
         </TiltCard>
       </div>
     </main>
-  );
-}
-
-export default function LoginPage() {
-  // useSearchParams needs a Suspense boundary above it.
-  return (
-    <Suspense
-      fallback={
-        <div className="relative flex min-h-screen items-center justify-center">
-          <LoginBackground />
-          <Loader2 size={22} className="relative animate-spin text-white/70" />
-        </div>
-      }
-    >
-      <LoginPageInner />
-    </Suspense>
   );
 }

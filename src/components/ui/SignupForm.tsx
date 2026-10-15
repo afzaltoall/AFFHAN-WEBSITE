@@ -110,7 +110,7 @@ export function SignupForm({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/web/auth/signup", {
+      const res = await fetch("/api/web/auth/signup/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // The session comes back as a cookie, so the request has to be

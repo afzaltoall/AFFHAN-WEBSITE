@@ -7,9 +7,15 @@ import { useAuth } from "@/context/AuthContext";
 // Fetched the first time it is asked for: a visitor who never signs in with
 // Google never downloads the dialog. (Its libphonenumber and country list are
 // the sign-in forms' already, so by then it is a small chunk.)
-const AddPhoneDialog = dynamic(() => import("@/components/account/AddPhoneDialog").then((m) => m.AddPhoneDialog), {
+const loadDialog = () => import("@/components/account/AddPhoneDialog");
+const AddPhoneDialog = dynamic(() => loadDialog().then((m) => m.AddPhoneDialog), {
   ssr: false,
 });
+
+/** Fetch the dialog's code ahead, where a sign-in that may ask for a number is on screen (GoogleButton). */
+export function prefetchPhoneDialog(): void {
+  void loadDialog().catch(() => {});
+}
 
 interface PhonePromptValue {
   /**

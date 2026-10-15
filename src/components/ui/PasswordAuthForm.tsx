@@ -75,7 +75,7 @@ export function PasswordAuthForm({
     setError(null);
     setLocked(false);
     try {
-      const res = await fetch("/api/web/auth/login-password", {
+      const res = await fetch("/api/web/auth/login-password/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // The session comes back as a cookie, so the request has to be allowed

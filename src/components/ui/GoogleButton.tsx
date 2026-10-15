@@ -1,9 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { preconnect, preload } from "react-dom";
 import Script from "next/script";
-import { useAuth } from "@/context/AuthContext";
-import { usePhonePrompt } from "@/context/PhonePromptContext";
+import { useAuth, type WebUser } from "@/context/AuthContext";
+import { prefetchPhoneDialog, usePhonePrompt } from "@/context/PhonePromptContext";
+
+/** Google's script, fetched as early as each page allows (the /login layout asks in its HTML). */
+export const GSI_SCRIPT = "https://accounts.google.com/gsi/client";
 
 /* Baked in at build time. Kept as the fast path — when it is present the
    button renders without waiting on anything — but not as the only path: a
@@ -22,6 +26,7 @@ interface GoogleIdApi {
         callback: (res: { credential?: string }) => void;
         ux_mode?: "popup" | "redirect";
         auto_select?: boolean;
+        use_fedcm_for_button?: boolean;
       }) => void;
       renderButton: (
         parent: HTMLElement,
@@ -58,8 +63,17 @@ export function GoogleButton({
   /** A number to start the phone dialog from: the one typed into the quote form behind the sign-in. */
   suggestedPhone?: string | null;
 }) {
-  const { refreshSession } = useAuth();
+  const { refreshSession, adoptUser } = useAuth();
   const { askForPhone } = usePhonePrompt();
+  // Google's script and its button's frame come from accounts.google.com: connect, and fetch the script, as this
+  // renders rather than after the page is up (next/script adds its tag only then; the tag finds it fetched).
+  preconnect("https://accounts.google.com");
+  preload(GSI_SCRIPT, { as: "script" });
+  // The phone dialog a sign-in may open, fetched while nothing else is happening, so it is there at once.
+  useEffect(() => {
+    const id = window.setTimeout(prefetchPhoneDialog, 1500);
+    return () => window.clearTimeout(id);
+  }, []);
   // Read when Google answers rather than closed over: a new number is not a
   // reason to set Google's button up again.
   const suggestedPhoneRef = useRef(suggestedPhone);
@@ -81,7 +95,7 @@ export function GoogleButton({
     let cancelled = false;
     void (async () => {
       try {
-        const res = await fetch("/api/web/auth/google/config", { cache: "no-store" });
+        const res = await fetch("/api/web/auth/google/config/", { cache: "no-store" });
         const json = await res.json().catch(() => ({}));
         if (!cancelled && typeof json?.clientId === "string") setClientId(json.clientId);
       } catch {
@@ -101,6 +115,10 @@ export function GoogleButton({
     window.google.accounts.id.initialize({
       client_id: clientId,
       ux_mode: "popup",
+      // Chrome's own account chooser (FedCM: desktop 125+, Android 128+) in place of Google's popup window, a
+      // sheet over the page instead of a second window to load (the owner, 2026-10-15: "very late and slow").
+      // Other browsers keep the popup.
+      use_fedcm_for_button: true,
       // No auto_select: silently signing someone in because a browser happens
       // to hold a Google session is not a decision to make for them.
       auto_select: false,
@@ -112,7 +130,9 @@ export function GoogleButton({
         setBusy(true);
         setError(null);
         try {
-          const r = await fetch("/api/web/auth/google", {
+          // With its slash: the site's trailingSlash answers the bare address with a 308 first, a second round
+          // trip before anyone was signed in (measured on affhan.com, 2026-10-15).
+          const r = await fetch("/api/web/auth/google/", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             credentials: "include",
@@ -123,7 +143,11 @@ export function GoogleButton({
             setError(json?.error ?? "Google sign-in failed.");
             return;
           }
-          const me = await refreshSession();
+          // The answer carries the account, as /me would (publicUser): taken as it is, rather than asking /me
+          // again for what was just said.
+          const answered = (json?.user as WebUser | undefined) ?? null;
+          if (answered) adoptUser(answered);
+          const me = answered ?? (await refreshSession());
           // Google gives us no number, and our team calls or WhatsApps about
           // quotes: an account without one is asked for it before the visitor
           // goes on (the owner, 2026-10-15). Saved as typed, no code; closing
@@ -147,7 +171,7 @@ export function GoogleButton({
       logo_alignment: "center",
       width: 320,
     });
-  }, [scriptReady, clientId, refreshSession, onSuccess, askForPhone]);
+  }, [scriptReady, clientId, refreshSession, adoptUser, onSuccess, askForPhone]);
 
   // Nothing to sign in against, and the server has confirmed it. Saying so
   // beats rendering a control that cannot work — but only once we know, which
@@ -163,7 +187,7 @@ export function GoogleButton({
   return (
     <div>
       <Script
-        src="https://accounts.google.com/gsi/client"
+        src={GSI_SCRIPT}
         strategy="afterInteractive"
         onReady={() => setScriptReady(true)}
       />

@@ -35,6 +35,12 @@ interface AuthValue {
    */
   hint: UserHint | "signed-out" | null;
   refreshSession: () => Promise<WebUser | null>;
+  /**
+   * Take the account a sign-in route has just answered with (its `user`, publicUser, the shape /me answers
+   * with), instead of asking /me straight after for the same thing: one round trip less before the visitor
+   * goes on (Google sign-in, 2026-10-15).
+   */
+  adoptUser: (user: WebUser) => void;
   logout: () => Promise<void>;
 }
 
@@ -134,6 +140,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void refreshSession();
   }, [refreshSession]);
 
+  const adoptUser = useCallback((next: WebUser) => {
+    setUser(next);
+    keepHint(next);
+    setLoading(false);
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await fetch("/api/web/auth/logout/", { method: "POST", credentials: "include" });
@@ -152,9 +164,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading: !hydrated || loading,
       hint: hydrated && loading ? hint : null,
       refreshSession,
+      adoptUser,
       logout,
     }),
-    [user, loading, hydrated, hint, refreshSession, logout]
+    [user, loading, hydrated, hint, refreshSession, adoptUser, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
