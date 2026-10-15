@@ -3,8 +3,8 @@ import { brevoConfigured, brevoMissing, brevoSend } from "@/lib/brevo";
 
 // ---------------------------------------------------------------------------
 // Transactional email, over Brevo (lib/brevo.ts) since 2026-10-14. Until then
-// Amazon SES, which AWS never let out of its sandbox; that code is kept, unused,
-// in lib/email-ses.ts.
+// Amazon SES, which AWS never let out of its sandbox; that code was removed on
+// 2026-10-15. The EmailSuppression rows it wrote stay, and Brevo's join them.
 //
 // Deliberately generic: this knows how to put a message on the wire and
 // nothing about passwords, codes or accounts. Anything transactional we add
