@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Script from "next/script";
 import { useAuth } from "@/context/AuthContext";
+import { usePhonePrompt } from "@/context/PhonePromptContext";
 
 /* Baked in at build time. Kept as the fast path — when it is present the
    button renders without waiting on anything — but not as the only path: a
@@ -51,6 +52,7 @@ declare global {
  */
 export function GoogleButton({ onSuccess }: { onSuccess?: () => void }) {
   const { refreshSession } = useAuth();
+  const { askForPhone } = usePhonePrompt();
   const holderRef = useRef<HTMLDivElement | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +110,12 @@ export function GoogleButton({ onSuccess }: { onSuccess?: () => void }) {
             setError(json?.error ?? "Google sign-in failed.");
             return;
           }
-          await refreshSession();
+          const me = await refreshSession();
+          // Google gives us no number, and our team calls or WhatsApps about
+          // quotes: an account without one is asked for it before the visitor
+          // goes on (the owner, 2026-10-15). Saved as typed, no code; closing
+          // the dialog skips it.
+          if (me && !me.phone) await askForPhone();
           onSuccess?.();
         } catch {
           setError("Could not reach the server. Please try again.");
@@ -127,7 +134,7 @@ export function GoogleButton({ onSuccess }: { onSuccess?: () => void }) {
       logo_alignment: "center",
       width: 320,
     });
-  }, [scriptReady, clientId, refreshSession, onSuccess]);
+  }, [scriptReady, clientId, refreshSession, onSuccess, askForPhone]);
 
   // Nothing to sign in against, and the server has confirmed it. Saying so
   // beats rendering a control that cannot work — but only once we know, which

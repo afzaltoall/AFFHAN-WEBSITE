@@ -7,6 +7,7 @@ import { Navbar } from "@/components/sections/Navbar";
 import { PhoneChrome } from "@/components/mobile/PhoneChrome";
 import { AuthProvider } from "@/context/AuthContext";
 import { FavouritesProvider } from "@/context/FavouritesContext";
+import { PhonePromptProvider } from "@/context/PhonePromptContext";
 import { QuoteGateProvider } from "@/context/QuoteGateContext";
 import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SITE_URL, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 import { FIRST_PAINT_SCRIPT } from "@/lib/firstPaintHints";
@@ -155,6 +156,10 @@ export default function RootLayout({
               who is signed in. Every product grid on the site reads this, so
               it belongs at the root rather than around one page. */}
           <FavouritesProvider>
+            {/* Asks for a mobile number after a Google sign-in on an account
+                with none. Around the quote gate, whose login modal holds the
+                Google button that asks. */}
+            <PhonePromptProvider>
             {/* Inside AuthProvider, because the gate's whole job is to ask
                 whether anyone is signed in before a quote form opens. It
                 renders the login modal once for the entire site; the inquiry
@@ -179,6 +184,7 @@ export default function RootLayout({
                 after the page, because it leaves the room the tab bar needs under the page's end. */}
             <PhoneChrome />
             </QuoteGateProvider>
+            </PhonePromptProvider>
           </FavouritesProvider>
         </AuthProvider>
         <WhatsAppButton />
