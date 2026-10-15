@@ -1,65 +1,64 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Loader2, X } from "lucide-react";
 import { FlagSelect } from "@/components/ui/FlagSelect";
 import { COUNTRIES, type Country } from "@/lib/countries";
+import { contactE164, readContactPhone, splitE164 } from "@/lib/phone";
+import { lockBodyScroll } from "@/lib/scrollLock";
 
-const OTP_LENGTH = 6;
+const INDIA = COUNTRIES.find((c) => c.iso === "in") ?? COUNTRIES[0];
 
 /**
- * Add a mobile number to an account that has none.
+ * Add or change the mobile number on an account: typed and saved, no code
+ * (the owner, 2026-10-15; /api/web/account/phone, lib/contact-phone.ts).
  *
- * A dialog rather than an inline field, because adding a number is not editing
- * a field — it is proving one, and the two steps need somewhere of their own
- * to happen. Reusing the account form's input would have made "Save changes"
- * mean two different things depending on which row you touched.
+ * The number is for our team to call or WhatsApp about quotes, not a way to
+ * sign in, so there is nothing to prove and nothing to wait for. Opens from
+ * Account (Add number, Change) and after a Google sign-in on an account with
+ * no number (PhonePromptContext). Closing it, by the cross, Escape or a click
+ * outside, saves nothing.
  *
- * Uses the same dial picker as sign-in and the quote modal: one list of
- * countries, one place to fix a wrong code.
+ * Uses the same dial picker as sign-up and the quote form: one list of
+ * countries, one place to fix a wrong code. Portalled above everything,
+ * including the sign-in dialog it can open over.
  */
 export function AddPhoneDialog({
   open,
+  current = null,
   onClose,
-  onAdded,
+  onSaved,
 }: {
   open: boolean;
+  /** The number on the account now, to start from when changing it. */
+  current?: string | null;
   onClose: () => void;
-  /** Fires once the number is on the account, so the page can re-read /me. */
-  onAdded: () => void;
+  /** Fires once the number is on the account, so the caller can re-read /me. */
+  onSaved: () => void;
 }) {
-  const [step, setStep] = useState<"phone" | "otp">("phone");
-  const [country, setCountry] = useState<Country>(
-    () => COUNTRIES.find((c) => c.iso === "in") ?? COUNTRIES[0]
-  );
+  const [mounted, setMounted] = useState(false);
+  const [country, setCountry] = useState<Country>(INDIA);
   const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [cooldown, setCooldown] = useState(0);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
-  const fullPhone = useMemo(
-    () => `${country.dial}${phone.replace(/\D/g, "")}`,
-    [country, phone]
-  );
+  useEffect(() => setMounted(true), []);
 
-  // Reopening starts clean: a half-finished attempt left in state would be the
-  // previous person's on a shared machine.
+  // Each opening starts from the account as it is: its number when changing
+  // one, an empty field otherwise. A half-typed number left in state would be
+  // the previous person's on a shared machine.
   useEffect(() => {
     if (!open) return;
-    setStep("phone");
-    setPhone("");
-    setCode("");
+    const split = current ? splitE164(current) : null;
+    const known = split ? COUNTRIES.find((c) => c.iso === split.iso) : undefined;
+    setCountry(known ?? INDIA);
+    setPhone(known && split ? split.national : "");
     setError(null);
     setBusy(false);
-  }, [open]);
-
-  useEffect(() => {
-    if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
-  }, [cooldown]);
+  }, [open, current]);
 
   useEffect(() => {
     if (!open) return;
@@ -68,48 +67,61 @@ export function AddPhoneDialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const post = async (payload: Record<string, unknown>) => {
-    const res = await fetch("/api/web/auth/add-phone", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(payload),
-    });
-    return { res, json: await res.json().catch(() => ({})) };
-  };
+  // Depth-counted, so this nests under the sign-in dialog's own lock.
+  useEffect(() => {
+    if (!open) return;
+    return lockBodyScroll();
+  }, [open]);
 
-  const send = async () => {
-    setBusy(true);
-    setError(null);
-    const { res, json } = await post({ step: "send", phone: fullPhone });
-    setBusy(false);
-    if (!res.ok) {
-      setError(json?.error ?? "Could not send the code.");
-      if (json?.cooldownSeconds) setCooldown(json.cooldownSeconds);
+  // The field takes the cursor only where there is a mouse: on a phone, focus
+  // opens the keyboard over the dialog before it has been read (as LoginModal).
+  useEffect(() => {
+    if (!open || !window.matchMedia("(pointer: fine)").matches) return;
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
+    return () => clearTimeout(t);
+  }, [open]);
+
+  const save = async () => {
+    if (busy) return;
+    // The server's own check, run here first, so a mistyped number is answered
+    // at once and in the same words. Too few digits for libphonenumber to read
+    // still reach it, as dial code and digits, to be called too short.
+    const digits = phone.replace(/\D/g, "");
+    const read = readContactPhone(contactE164(phone, country.iso) ?? (digits ? `${country.dial}${digits}` : ""));
+    if (!read.ok) {
+      setError(read.error);
       return;
     }
-    setCooldown(json?.cooldownSeconds ?? 30);
-    setStep("otp");
-  };
-
-  const verify = async () => {
     setBusy(true);
     setError(null);
-    const { res, json } = await post({ step: "verify", phone: fullPhone, code });
-    setBusy(false);
-    if (!res.ok) {
-      setError(json?.error ?? "That code did not work.");
-      return;
+    try {
+      const res = await fetch("/api/web/account/phone/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ phone: read.e164 }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(typeof json?.error === "string" ? json.error : "Could not save the number. Please try again.");
+        return;
+      }
+      onSaved();
+      onClose();
+    } catch {
+      setError("Could not reach the server. Please try again.");
+    } finally {
+      setBusy(false);
     }
-    onAdded();
-    onClose();
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[130] flex items-center justify-center p-4"
+          className="fixed inset-0 z-[410] flex items-center justify-center p-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -120,7 +132,8 @@ export function AddPhoneDialog({
           <motion.div
             role="dialog"
             aria-modal="true"
-            aria-labelledby="add-phone-title"
+            aria-labelledby="phone-dialog-title"
+            aria-describedby="phone-dialog-text"
             className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl"
             initial={{ opacity: 0, y: 20, scale: 0.97 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -135,95 +148,58 @@ export function AddPhoneDialog({
               <X size={16} />
             </button>
 
-            <h2 id="add-phone-title" className="text-lg font-bold tracking-tight text-slate-900">
-              {step === "phone" ? "Add your mobile number" : "Enter the code"}
+            <h2 id="phone-dialog-title" className="pr-8 text-lg font-bold tracking-tight text-slate-900">
+              Your mobile number
             </h2>
-            <p className="mt-1 text-[13px] text-slate-500">
-              {step === "phone"
-                ? "We'll text you a code to confirm it's yours. After this you can sign in with the number too."
-                : `Sent to ${fullPhone}`}
+            <p id="phone-dialog-text" className="mt-1 text-[13px] leading-relaxed text-slate-500">
+              {current
+                ? "Our team uses this number to call or WhatsApp you about your quotes."
+                : "Add your mobile number so our team can call or WhatsApp you about your quotes."}
             </p>
 
             <div className="mt-5 space-y-4">
-              {step === "phone" ? (
-                <>
-                  <div className="flex items-stretch gap-2">
-                    <div className="w-[6.25rem] shrink-0">
-                      <FlagSelect
-                        mode="dial"
-                        align="left"
-                        selected={country}
-                        onSelect={setCountry}
-                        buttonClassName="!h-[46px] !rounded-xl !bg-white !border-slate-200"
-                        menuClassName="!w-[15.5rem] [&_ul]:!max-h-56"
-                      />
-                    </div>
-                    <input
-                      autoFocus
-                      type="tel"
-                      inputMode="numeric"
-                      autoComplete="tel-national"
-                      placeholder="98765 43210"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/[^\d ]/g, ""))}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" && phone.trim() && !busy && void send()
-                      }
-                      className={inputClass}
-                    />
-                  </div>
-
-                  <Primary onClick={send} busy={busy} disabled={!phone.trim()}>
-                    Send OTP
-                  </Primary>
-                </>
-              ) : (
-                <>
-                  <input
-                    autoFocus
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete="one-time-code"
-                    maxLength={OTP_LENGTH}
-                    placeholder="••••••"
-                    value={code}
-                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" && code.length === OTP_LENGTH && !busy && void verify()
-                    }
-                    className={`${inputClass} text-center text-lg font-semibold tracking-[0.5em]`}
+              <div className="flex items-stretch gap-2">
+                <div className="w-[6.25rem] shrink-0">
+                  <FlagSelect
+                    mode="dial"
+                    align="left"
+                    selected={country}
+                    onSelect={(c) => {
+                      setCountry(c);
+                      setError(null);
+                    }}
+                    buttonClassName="!h-[46px] !rounded-xl !bg-white !border-slate-200"
+                    menuClassName="!w-[15.5rem] [&_ul]:!max-h-56"
                   />
+                </div>
+                <input
+                  ref={inputRef}
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  aria-label="Mobile number"
+                  placeholder="98765 43210"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value.replace(/[^\d ]/g, ""));
+                    setError(null);
+                  }}
+                  onKeyDown={(e) => e.key === "Enter" && phone.trim() && void save()}
+                  className={inputClass}
+                />
+              </div>
 
-                  <Primary onClick={verify} busy={busy} disabled={code.length !== OTP_LENGTH}>
-                    Add number
-                  </Primary>
-
-                  <div className="flex items-center justify-between text-[13px]">
-                    <button
-                      onClick={() => {
-                        setError(null);
-                        setStep("phone");
-                      }}
-                      className="font-medium text-slate-500 transition-colors hover:text-slate-700 cursor-pointer"
-                    >
-                      Change number
-                    </button>
-                    <button
-                      onClick={() => void send()}
-                      disabled={cooldown > 0 || busy}
-                      className="font-medium text-slate-500 transition-colors enabled:hover:text-brand-dark disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
-                    >
-                      {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
-                    </button>
-                  </div>
-                </>
-              )}
+              <button
+                onClick={() => void save()}
+                disabled={busy || !phone.trim()}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-dark px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+              >
+                {busy && <Loader2 size={15} className="animate-spin" />}
+                Save number
+              </button>
 
               {error && (
-                <p
-                  role="alert"
-                  className="rounded-xl bg-red-50 px-4 py-2.5 text-[13px] text-red-700"
-                >
+                <p role="alert" className="rounded-xl bg-red-50 px-4 py-2.5 text-[13px] text-red-700">
                   {error}
                 </p>
               )}
@@ -231,32 +207,10 @@ export function AddPhoneDialog({
           </motion.div>
         </motion.div>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
 
 const inputClass =
   "w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/20";
-
-function Primary({
-  onClick,
-  busy,
-  disabled,
-  children,
-}: {
-  onClick: () => void | Promise<void>;
-  busy: boolean;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={() => void onClick()}
-      disabled={busy || disabled}
-      className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-dark px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
-    >
-      {busy && <Loader2 size={15} className="animate-spin" />}
-      {children}
-    </button>
-  );
-}

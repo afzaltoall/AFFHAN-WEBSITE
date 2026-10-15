@@ -16,10 +16,10 @@ import { PasswordSection } from "@/components/account/PasswordSection";
  * than at the bottom of this one form where it was only reachable from a page
  * about editing your name.
  *
- * The phone number is not a field on this form. Adding or changing one means
- * proving it with a fresh code — letting a plain save move an account onto an
- * unverified number would be a way to take someone else's — so it goes through
- * AddPhoneDialog and /api/web/auth/add-phone instead.
+ * The phone number is not a field on this form. It is saved on its own, as
+ * typed and with no code, through AddPhoneDialog and /api/web/account/phone,
+ * which has its own check and the "already on another account" answer: a
+ * number for our team to call or WhatsApp, never a way to sign in.
  */
 export default function AccountPage() {
   const { user, refreshSession } = useAuth();
@@ -191,11 +191,8 @@ export default function AccountPage() {
             </p>
           </Field>
 
-          {/* Shown, not typed. The number is proved with a code rather than
-              saved with the rest of the form — letting a plain save move an
-              account onto an unverified number would be a way to take someone
-              else's. Adding one opens that proof; changing one is the same
-              flow, which is why both use the one dialog. */}
+          {/* Shown, not typed: adding and changing both open the one dialog,
+              which saves the number by itself rather than with this form. */}
           <Field label="Mobile number">
             <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
               <span className="text-sm font-medium text-slate-700">
@@ -219,8 +216,8 @@ export default function AccountPage() {
             </div>
             <p className="mt-1.5 text-[12px] text-slate-400">
               {user.phone
-                ? "Changing it means verifying the new number with a code."
-                : "Add one and you'll be able to sign in with an OTP as well as with Google."}
+                ? "Our team uses it to call or WhatsApp you about your quotes."
+                : "Add one so our team can call or WhatsApp you about your quotes."}
             </p>
           </Field>
 
@@ -251,10 +248,11 @@ export default function AccountPage() {
 
       <AddPhoneDialog
         open={addPhoneOpen}
+        current={user.phone}
         onClose={() => setAddPhoneOpen(false)}
         // Re-read rather than patching the local copy, so the navbar and this
         // page cannot disagree about what is on the account.
-        onAdded={() => void refreshSession()}
+        onSaved={() => void refreshSession()}
       />
 
       <p className="mt-4 flex items-start gap-2 px-1 text-[12px] leading-relaxed text-slate-400">
