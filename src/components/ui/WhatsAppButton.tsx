@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { phoneChromeFor } from "@/lib/phoneChrome";
+import { phoneChromeFor, phoneHasTabs } from "@/lib/phoneChrome";
 import { ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -124,7 +124,7 @@ export function WhatsAppButton() {
   // sat on the edge of every list, the frame's tabs scroll a page back to its
   // top (PhoneChrome), and Instagram is a row of the Account tab (MyAffhanMenu).
   const authPage = bare === "/login" || bare === "/forgot-password";
-  const phoneFramed = phoneChromeFor(pathname) === "full";
+  const phoneFramed = phoneHasTabs(phoneChromeFor(pathname));
   if (
     pathname?.includes("experience") ||
     bare === "/free-china-trip" ||

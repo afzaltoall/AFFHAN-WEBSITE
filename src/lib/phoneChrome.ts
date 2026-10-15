@@ -9,13 +9,22 @@
  *   "plain" the frame's top alone, the logo and nothing else: signing in and
  *           resetting a password, where a search box or the tabs would only
  *           pull someone away from the one thing on the page.
+ *   "titled" the tab bar, and no logo or search box across the top: the page
+ *           draws its own title bar, a back arrow and its name, as Alibaba's
+ *           My Alibaba and Setting screens do (My AFFHAN and its Settings,
+ *           the owner, 2026-10-15).
  *   "none"  the navbar, as before. The Free China Trip's pages have their own
  *           film and stages under it (and pad for it, --nav-h); admin and the
  *           staff workspace have no site frame at all.
  *
  * From 768px up every page has the navbar, whatever this says.
  */
-export type PhoneChrome = "none" | "plain" | "full";
+export type PhoneChrome = "none" | "plain" | "titled" | "full";
+
+/** Whether the frame has its tab bar along the bottom on this kind of page. */
+export function phoneHasTabs(kind: PhoneChrome): boolean {
+  return kind === "full" || kind === "titled";
+}
 
 /**
  * A path as these rules read it: no trailing slash, and the homepage as "/" however it is named. Vercel
@@ -34,6 +43,7 @@ export function phoneChromeFor(pathname: string | null | undefined): PhoneChrome
   // "experience" as the floating dock reads it (WhatsAppButton): the trip's own pages.
   if (bare === "/free-china-trip" || bare.startsWith("/free-china-trip/") || bare.includes("experience")) return "none";
   if (bare === "/login" || bare === "/forgot-password") return "plain";
+  if (bare === "/me" || bare === "/me/settings") return "titled";
   return "full";
 }
 

@@ -9,7 +9,8 @@ import { useAuth } from "@/context/AuthContext";
 import { ImageSearchButton } from "@/components/ui/ImageSearchButton";
 import { SearchAssistPanel, useSearchAssist } from "@/components/search/SearchAssist";
 import { overlayWillNavigate, useBackDismiss } from "@/lib/useBackDismiss";
-import { phoneChromeFor, PHONE_TABS_HEIGHT, sitePath } from "@/lib/phoneChrome";
+import { phoneChromeFor, phoneHasTabs, PHONE_TABS_HEIGHT, sitePath } from "@/lib/phoneChrome";
+import { noteInSiteMove } from "@/lib/inSiteHistory";
 import { useIsPhone } from "@/lib/useIsPhone";
 import { usePhoneSearchContext } from "@/components/mobile/phoneSearchContext";
 import "./phone-chrome.css";
@@ -117,11 +118,22 @@ export function PhoneChrome() {
   // A page moved to closes the search (a link inside it, or Back).
   useEffect(() => setSearching(false), [pathname]);
 
+  // Each move to another page of ours, for a title bar's back arrow (lib/inSiteHistory.ts): the first path is
+  // where the visit began, not a move.
+  const firstPath = useRef(true);
+  useEffect(() => {
+    if (firstPath.current) {
+      firstPath.current = false;
+      return;
+    }
+    noteInSiteMove();
+  }, [pathname]);
+
   // How far up from the bottom the frame reaches, for whatever has to end above it (the categories screen's
   // rail, PhoneCategoryBrowser).
   useEffect(() => {
     const root = document.documentElement;
-    if (kind !== "full") {
+    if (!phoneHasTabs(kind)) {
       root.style.removeProperty("--phone-bottom");
       return;
     }
@@ -135,6 +147,8 @@ export function PhoneChrome() {
 
   return (
     <>
+      {/* On a "titled" page the page draws its own title bar here instead (MyAffhanMenu). */}
+      {kind !== "titled" && (
       <header className="fixed inset-x-0 top-0 z-[100] border-b border-slate-100 bg-white md:hidden">
         <div className="flex h-(--nav-h) items-center gap-2.5 pl-3 pr-2.5">
           <Link href="/" aria-label="AFFHAN, home" className="shrink-0">
@@ -178,8 +192,9 @@ export function PhoneChrome() {
           )}
         </div>
       </header>
+      )}
 
-      {kind === "full" && (
+      {phoneHasTabs(kind) && (
         <>
           {strip.shown && <SignInStrip pathname={pathname} onDismiss={strip.dismiss} />}
           <PhoneTabs pathname={pathname} />
