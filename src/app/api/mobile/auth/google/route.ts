@@ -85,6 +85,10 @@ export async function POST(request: Request) {
         id: user.id,
         name: user.name,
         email: user.email,
+        // Null when the account has no number: the app's cue to ask for one,
+        // saved with POST /api/mobile/account/phone/ (the owner, 2026-10-15).
+        phone: user.phone,
+        phoneVerified: user.phoneVerified,
         authProvider: user.authProvider,
         profileImage: user.profileImage,
       },

@@ -16,6 +16,9 @@ export async function GET(request: Request) {
         id: user.id,
         name: user.name,
         email: user.email,
+        // As in the Google sign-in's reply: null means no number yet.
+        phone: user.phone,
+        phoneVerified: user.phoneVerified,
         authProvider: user.authProvider,
         profileImage: user.profileImage,
         accountStatus: user.accountStatus,
