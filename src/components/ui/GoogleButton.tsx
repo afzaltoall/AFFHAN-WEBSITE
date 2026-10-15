@@ -50,9 +50,22 @@ declare global {
  * The credential is verified server-side at /api/web/auth/google. Nothing here
  * decides who anyone is; it only carries the token across.
  */
-export function GoogleButton({ onSuccess }: { onSuccess?: () => void }) {
+export function GoogleButton({
+  onSuccess,
+  suggestedPhone = null,
+}: {
+  onSuccess?: () => void;
+  /** A number to start the phone dialog from: the one typed into the quote form behind the sign-in. */
+  suggestedPhone?: string | null;
+}) {
   const { refreshSession } = useAuth();
   const { askForPhone } = usePhonePrompt();
+  // Read when Google answers rather than closed over: a new number is not a
+  // reason to set Google's button up again.
+  const suggestedPhoneRef = useRef(suggestedPhone);
+  useEffect(() => {
+    suggestedPhoneRef.current = suggestedPhone;
+  }, [suggestedPhone]);
   const holderRef = useRef<HTMLDivElement | null>(null);
   const [scriptReady, setScriptReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +128,7 @@ export function GoogleButton({ onSuccess }: { onSuccess?: () => void }) {
           // quotes: an account without one is asked for it before the visitor
           // goes on (the owner, 2026-10-15). Saved as typed, no code; closing
           // the dialog skips it.
-          if (me && !me.phone) await askForPhone();
+          if (me && !me.phone) await askForPhone(suggestedPhoneRef.current);
           onSuccess?.();
         } catch {
           setError("Could not reach the server. Please try again.");

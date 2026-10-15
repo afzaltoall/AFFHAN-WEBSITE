@@ -15,9 +15,10 @@ interface PhonePromptValue {
   /**
    * Ask the signed-in customer for a mobile number. Resolves when the dialog
    * closes, saved or not, so a sign-in goes on to wherever it was going only
-   * once the question has been answered.
+   * once the question has been answered. `suggested` (E.164) is where the
+   * dialog starts: the number the quote form behind the sign-in already has.
    */
-  askForPhone: () => Promise<void>;
+  askForPhone: (suggested?: string | null) => Promise<void>;
 }
 
 const PhonePromptContext = createContext<PhonePromptValue | null>(null);
@@ -40,14 +41,16 @@ export function PhonePromptProvider({ children }: { children: React.ReactNode })
   // Mounted on the first ask and kept: the chunk is fetched once, and closing
   // can play its exit.
   const [asked, setAsked] = useState(false);
+  const [suggested, setSuggested] = useState<string | null>(null);
   const answerRef = useRef<(() => void) | null>(null);
 
   const askForPhone = useCallback(
-    () =>
+    (number?: string | null) =>
       new Promise<void>((resolve) => {
         // A second ask while one is open answers the first: nothing is left waiting.
         answerRef.current?.();
         answerRef.current = resolve;
+        setSuggested(number ?? null);
         setAsked(true);
         setOpen(true);
       }),
@@ -56,6 +59,9 @@ export function PhonePromptProvider({ children }: { children: React.ReactNode })
 
   const close = useCallback(() => {
     setOpen(false);
+    // Only for the ask it came with: the next sign-in on this machine may be
+    // somebody else's.
+    setSuggested(null);
     const answer = answerRef.current;
     answerRef.current = null;
     answer?.();
@@ -66,7 +72,9 @@ export function PhonePromptProvider({ children }: { children: React.ReactNode })
   return (
     <PhonePromptContext.Provider value={value}>
       {children}
-      {asked && <AddPhoneDialog open={open} onClose={close} onSaved={() => void refreshSession()} />}
+      {asked && (
+        <AddPhoneDialog open={open} suggested={suggested} onClose={close} onSaved={() => void refreshSession()} />
+      )}
     </PhonePromptContext.Provider>
   );
 }

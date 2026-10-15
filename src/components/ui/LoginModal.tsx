@@ -39,6 +39,7 @@ export function LoginModal({
   onClose,
   onSuccess,
   reason,
+  suggestedPhone = null,
 }: {
   open: boolean;
   onClose: () => void;
@@ -50,6 +51,8 @@ export function LoginModal({
   onSuccess?: () => void;
   /** Why the visitor is seeing this, e.g. "Sign in to request a quote". */
   reason?: string;
+  /** The number typed into the form behind this, for the phone dialog a Google sign-in may open. */
+  suggestedPhone?: string | null;
 }) {
   // Two screens, matching /login: signing in, and creating an account.
   const [method, setMethod] = useState<"password" | "signup">("password");
@@ -182,7 +185,7 @@ export function LoginModal({
                 <span className="h-px flex-1 bg-slate-200" />
               </div>
 
-              <GoogleButton onSuccess={() => onSuccess?.()} />
+              <GoogleButton onSuccess={() => onSuccess?.()} suggestedPhone={suggestedPhone} />
               {method === "signup" && (
                 <p className="mt-2 text-center text-[11.5px] text-slate-400">
                   Signing up with Google fills this in for you.

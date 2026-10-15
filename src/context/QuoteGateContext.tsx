@@ -31,8 +31,13 @@ interface QuoteGateValue {
    * it the caller is left silent: someone who pressed Submit, thought better
    * of making an account and closed the box would be looking at a form that
    * appeared to do nothing when they pressed the button.
+   *
+   * `phone` is the number already typed into the caller's form (E.164). If a
+   * Google sign-in then asks for one, the phone dialog starts from it, so it
+   * is one press, not a second typing (the owner, 2026-10-15). Kept only while
+   * this dialog is open.
    */
-  requireLogin: (resume: Resume, reason?: string, onCancel?: () => void) => void;
+  requireLogin: (resume: Resume, reason?: string, onCancel?: () => void, phone?: string | null) => void;
 }
 
 const QuoteGateContext = createContext<QuoteGateValue | null>(null);
@@ -72,9 +77,10 @@ export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
   const [reason, setReason] = useState<string>(DEFAULT_REASON);
   const resumeRef = useRef<Resume | null>(null);
   const cancelRef = useRef<Resume | null>(null);
+  const [typedPhone, setTypedPhone] = useState<string | null>(null);
 
   const requireLogin = useCallback(
-    (resume: Resume, why?: string, onCancel?: Resume) => {
+    (resume: Resume, why?: string, onCancel?: Resume, phone?: string | null) => {
       void (async () => {
         // `user` is null for the first moment of every visit, until /me
         // answers — gating on that would show the login modal to people who
@@ -90,6 +96,7 @@ export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
         resumeRef.current = resume;
         cancelRef.current = onCancel ?? null;
         setReason(why ?? DEFAULT_REASON);
+        setTypedPhone(phone ?? null);
         setOpen(true);
       })();
     },
@@ -102,6 +109,7 @@ export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
   // effect fires off the same value.
   const handleSuccess = useCallback(() => {
     setOpen(false);
+    setTypedPhone(null);
     const resume = resumeRef.current;
     resumeRef.current = null;
     cancelRef.current = null;
@@ -112,6 +120,7 @@ export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
   // for whatever opens the modal next.
   const handleClose = useCallback(() => {
     setOpen(false);
+    setTypedPhone(null);
     resumeRef.current = null;
     const cancel = cancelRef.current;
     cancelRef.current = null;
@@ -123,7 +132,7 @@ export function QuoteGateProvider({ children }: { children: React.ReactNode }) {
   return (
     <QuoteGateContext.Provider value={value}>
       {children}
-      <LoginModal open={open} onClose={handleClose} onSuccess={handleSuccess} reason={reason} />
+      <LoginModal open={open} onClose={handleClose} onSuccess={handleSuccess} reason={reason} suggestedPhone={typedPhone} />
     </QuoteGateContext.Provider>
   );
 }

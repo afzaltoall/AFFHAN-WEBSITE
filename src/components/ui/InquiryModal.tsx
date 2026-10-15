@@ -6,7 +6,7 @@ import { getCdnUrl } from "@/lib/cdn";
 import { useAuth } from "@/context/AuthContext";
 import { FlagSelect } from '@/components/ui/FlagSelect';
 import { COUNTRIES } from '@/lib/countries';
-import { isValidMobile } from '@/lib/phone';
+import { contactE164, isValidMobile } from '@/lib/phone';
 import { lockBodyScroll } from '@/lib/scrollLock';
 import { useQuoteGate } from '@/context/QuoteGateContext';
 import { overlayWillNavigate, useBackDismiss } from "@/lib/useBackDismiss";
@@ -162,6 +162,8 @@ export function InquiryModal({ product, onClose, onNavigate }: InquiryModalProps
       // Closed the dialog instead of signing in. Say so, because the button
       // otherwise looks like it did nothing.
       () => setSubmitNote("Sign in to send this request — everything you typed is still here."),
+      // The number typed here: if a Google sign-in asks for one, it starts from it.
+      contactE164(inquiryForm.phoneNumber, inquiryForm.phoneCountryCode),
     );
   };
 
@@ -209,6 +211,7 @@ export function InquiryModal({ product, onClose, onNavigate }: InquiryModalProps
           () => void send(),
           "Your session expired — sign in to send it",
           () => setSubmitNote("Sign in to send this request — everything you typed is still here."),
+          contactE164(inquiryForm.phoneNumber, inquiryForm.phoneCountryCode),
         );
       } else if (response.status === 429) {
         // A limit reached: the server's own sentence, with how long to wait

@@ -28,12 +28,15 @@ const INDIA = COUNTRIES.find((c) => c.iso === "in") ?? COUNTRIES[0];
 export function AddPhoneDialog({
   open,
   current = null,
+  suggested = null,
   onClose,
   onSaved,
 }: {
   open: boolean;
   /** The number on the account now, to start from when changing it. */
   current?: string | null;
+  /** Where to start when the account has none: the number just typed into the quote form. */
+  suggested?: string | null;
   onClose: () => void;
   /** Fires once the number is on the account, so the caller can re-read /me. */
   onSaved: () => void;
@@ -48,17 +51,19 @@ export function AddPhoneDialog({
   useEffect(() => setMounted(true), []);
 
   // Each opening starts from the account as it is: its number when changing
-  // one, an empty field otherwise. A half-typed number left in state would be
-  // the previous person's on a shared machine.
+  // one, the number the quote form already has when adding one after a Google
+  // sign-in, an empty field otherwise. A half-typed number left in state would
+  // be the previous person's on a shared machine.
   useEffect(() => {
     if (!open) return;
-    const split = current ? splitE164(current) : null;
+    const start = current ?? suggested;
+    const split = start ? splitE164(start) : null;
     const known = split ? COUNTRIES.find((c) => c.iso === split.iso) : undefined;
     setCountry(known ?? INDIA);
     setPhone(known && split ? split.national : "");
     setError(null);
     setBusy(false);
-  }, [open, current]);
+  }, [open, current, suggested]);
 
   useEffect(() => {
     if (!open) return;
