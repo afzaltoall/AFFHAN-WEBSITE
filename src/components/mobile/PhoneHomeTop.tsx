@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, FileText, LayoutGrid, Trophy } from "lucide-react";
-import { MENU_TILE, MenuGlyph, MenuInkDefs, ShipEmblemGlyph } from "@/components/ui/MenuIcons";
+import { ChevronDown } from "lucide-react";
+import { MENU_TILE, MenuInkDefs } from "@/components/ui/MenuIcons";
 import { useBackDismiss } from "@/lib/useBackDismiss";
 import "./phone-chrome.css";
 
@@ -93,12 +94,15 @@ export function PhoneHomeTop({
         </div>
       </div>
 
-      {/* Ways in, as Alibaba's row under its tabs: one icon family, the menu drawer's (MenuIcons). */}
+      {/* Ways in, as Alibaba's row under its tabs. The pictures are 84px copies (public/ways-in/): images are
+          served as they are (next.config images.unoptimized), and the full-size PNGs came to 3.1 MB for four
+          28px icons. Loaded at once, not lazily: the row scrolls sideways, and a lazy icon off its edge
+          stayed blank until swiped to. */}
       <nav aria-label="Ways to source" className="-mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 pt-3 [scrollbar-width:none] md:hidden [&::-webkit-scrollbar]:hidden">
-        <WayIn href="/products/?view=categories" label="Source by category" glyph={<MenuGlyph icon={LayoutGrid} ink={INK} size={18} />} />
-        <WayIn href="/contact/" label="Request for Quotation" glyph={<MenuGlyph icon={FileText} ink={INK} size={18} />} />
-        <WayIn href="/rankings/" label="Top Ranking" glyph={<MenuGlyph icon={Trophy} ink={INK} size={18} />} />
-        <WayIn href="/shipping/" label="AFFHAN Shipping" glyph={<ShipEmblemGlyph />} />
+        <WayIn href="/products/?view=categories" label="Source by category" raw glyph={<Image src="/ways-in/source.webp" alt="" width={28} height={28} loading="eager" className="object-contain" />} />
+        <WayIn href="/contact/" label="Request for Quotation" raw glyph={<Image src="/ways-in/request.webp" alt="" width={28} height={28} loading="eager" className="object-contain" />} />
+        <WayIn href="/rankings/" label="Top Ranking" raw glyph={<Image src="/ways-in/ranking.webp" alt="" width={28} height={28} loading="eager" className="object-contain" />} />
+        <WayIn href="/shipping/" label="AFFHAN Shipping" raw glyph={<Image src="/ways-in/shipping.webp" alt="" width={28} height={28} loading="eager" className="object-contain" />} />
       </nav>
 
       {trip && <div className="mt-3 md:hidden">{trip}</div>}
@@ -144,14 +148,14 @@ function FamilyTab({ id, label, on, onClick }: { id: string; label: string; on: 
   );
 }
 
-function WayIn({ href, label, glyph }: { href: string; label: string; glyph: ReactNode }) {
+function WayIn({ href, label, glyph, raw }: { href: string; label: string; glyph: ReactNode; raw?: boolean }) {
   return (
     <Link
       href={href}
-      className="group flex min-w-[9.5rem] shrink-0 items-center gap-2.5 rounded-xl bg-white px-2.5 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.06)] ring-1 ring-slate-200/80 active:bg-slate-50"
+      className="group flex max-w-[8.5rem] shrink-0 items-center gap-2 rounded-lg bg-white/80 px-2 py-1.5 active:bg-slate-50"
     >
-      <span className={`${MENU_TILE} !h-9 !w-9`}>{glyph}</span>
-      <span className="text-[13px] font-semibold leading-[1.2] text-slate-800">{label}</span>
+      {raw ? <span className="flex h-7 w-7 shrink-0 items-center justify-center">{glyph}</span> : <span className={`${MENU_TILE} !h-7 !w-7`}>{glyph}</span>}
+      <span className="text-[12px] font-semibold leading-[1.3] text-slate-800">{label}</span>
     </Link>
   );
 }

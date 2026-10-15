@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Camera, Gift, Home, LayoutGrid, MessageSquareText, Search, User, X, type LucideIcon } from "lucide-react";
+import { Camera, Gift, Home, MessageSquareText, Search, X, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ImageSearchButton } from "@/components/ui/ImageSearchButton";
 import { SearchAssistPanel, useSearchAssist } from "@/components/search/SearchAssist";
@@ -211,16 +211,55 @@ function HintLine({ hint }: { hint: Hint | null }) {
   );
 }
 
-const TABS: { href: string; label: string; Icon: LucideIcon; on: (p: string) => boolean; ahead?: boolean }[] = [
+/** Custom Categories icon: 3 rounded squares + magnifying glass in bottom-right (Alibaba style). */
+function CategoriesIcon({ size = 20, strokeWidth = 1.5, ...props }: { size?: number; strokeWidth?: number; fill?: string; stroke?: string; className?: string;[k: string]: unknown }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="3" y="3" width="8" height="8" rx="0.5" />
+      <rect x="13" y="3" width="8" height="8" rx="0.5" />
+      <rect x="3" y="13" width="8" height="8" rx="0.5" />
+      <circle cx="17" cy="17" r="3.8" fill="white" />
+      <line x1="19.7" y1="19.7" x2="22" y2="22" />
+    </svg>
+  );
+}
+
+/** Custom My Affhan icon: person inside a circle outline (Alibaba style). */
+function MyAffhanIcon({ size = 20, strokeWidth = 1.5, fill = "none", ...props }: { size?: number; strokeWidth?: number; fill?: string; stroke?: string; className?: string;[k: string]: unknown }) {
+  const isFilled = fill && fill !== "none";
+  if (isFilled) {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <circle cx="12" cy="12" r="10" fill="currentColor" stroke="currentColor" />
+        <circle cx="12" cy="10" r="3" fill="white" stroke="white" strokeWidth={0.5} />
+        <path
+          d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662 A 10 10 0 0 1 7 20.662 Z"
+          fill="white"
+          stroke="white"
+          strokeWidth={0.5}
+        />
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="10" r="3" />
+      <path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662" />
+    </svg>
+  );
+}
+
+const TABS: { href: string; label: string; Icon: LucideIcon | typeof CategoriesIcon | typeof MyAffhanIcon; on: (p: string) => boolean; ahead?: boolean }[] = [
   { href: "/", label: "Home", Icon: Home, on: (p: string) => p === "/" },
   // The catalogue's front as the categories screen, ?view=categories: the server then leaves out the computer's
   // grid, most of the page's time (products/page.tsx). Fetched ahead (prefetch): the front is drawn per
   // request, and a press waited for all of it (2026-10-14). Home and Account are static, which a link fetches
   // ahead by itself.
-  { href: "/products/?view=categories", label: "Categories", Icon: LayoutGrid, on: (p: string) => p === "/products", ahead: true },
+  { href: "/products/?view=categories", label: "Categories", Icon: CategoriesIcon, on: (p: string) => p === "/products", ahead: true },
   { href: "/account/inquiries/", label: "Inquiries", Icon: MessageSquareText, on: (p: string) => p.startsWith("/account/inquiries") },
   // The tab opens /me/ (MyAffhanMenu), open to everyone; the account's own pages light it too.
-  { href: "/me/", label: "Account", Icon: User, on: (p: string) => p === "/me" || p.startsWith("/me/") || (p.startsWith("/account") && !p.startsWith("/account/inquiries")) },
+  { href: "/me/", label: "My AFFHAN", Icon: MyAffhanIcon, on: (p: string) => p === "/me" || p.startsWith("/me/") || (p.startsWith("/account") && !p.startsWith("/account/inquiries")) },
 ];
 
 function PhoneTabs({ pathname }: { pathname: string }) {
@@ -247,10 +286,17 @@ function PhoneTabs({ pathname }: { pathname: string }) {
                   e.preventDefault();
                   window.scrollTo({ top: 0, behavior: "smooth" });
                 }}
-                className={`flex h-full flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors ${active ? "text-brand-dark" : "text-slate-500 active:text-slate-800"}`}
+                className={`flex h-full flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${active ? "text-brand-dark" : "text-slate-500 active:text-slate-800"}`}
               >
-                <Icon size={22} strokeWidth={active ? 2.3 : 1.7} aria-hidden />
-                <span className={active ? "font-semibold" : ""}>{label}</span>
+                {label === "Home" && active ? (
+                  <span className="relative">
+                    <Icon size={20} strokeWidth={1.5} fill="currentColor" aria-hidden />
+                    <span className="absolute bottom-[1px] left-1/2 h-[6px] w-[5px] -translate-x-1/2 bg-white" />
+                  </span>
+                ) : (
+                  <Icon size={20} strokeWidth={active ? 1.5 : 1.5} fill={active ? "currentColor" : "none"} aria-hidden />
+                )}
+                <span className={`whitespace-nowrap ${active ? "font-semibold" : ""}`}>{label}</span>
               </Link>
             </li>
           );
