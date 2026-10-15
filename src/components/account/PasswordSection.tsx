@@ -84,7 +84,7 @@ export function PasswordSection({
             <p className="mt-0.5 text-[13px] leading-relaxed text-slate-500">
               {hasPassword
                 ? "Used with your email to sign in."
-                : "Add one and you can sign in with your email instead of waiting for a code."}
+                : "Add one and you can sign in with your email and password too."}
             </p>
           </div>
         </div>

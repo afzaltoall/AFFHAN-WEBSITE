@@ -264,20 +264,22 @@ export default function AccountPage() {
 }
 
 /**
- * "PHONE_AND_EMAIL" is storage; this is what a person reads.
+ * "EMAIL_AND_GOOGLE" is storage; this is what a person reads.
  *
- * All three parts, joined. The earlier version stopped at the first match it
- * found, so an account that could sign in with a code OR a password was told
- * it could only use the code — which is exactly the thing this page exists to
- * tell someone accurately.
+ * Every way in, joined. The earlier version stopped at the first match it
+ * found, so an account that could use two was told it had one — which is
+ * exactly the thing this page exists to tell someone accurately.
+ *
+ * "PHONE" in the stored value is not one: phone sign-in was removed on
+ * 2026-10-15. An account that only ever had it shows "—", with "Set a
+ * password" below as its way back in.
  */
 function signInMethod(provider: string) {
   const parts = [
     provider.includes("GOOGLE") && "Google",
-    provider.includes("PHONE") && "OTP",
     provider.includes("EMAIL") && "password",
   ].filter(Boolean) as string[];
-  return parts.length ? parts.join(" or ") : provider;
+  return parts.length ? parts.join(" or ") : "—";
 }
 
 function Fact({ label, value, good }: { label: string; value: string; good?: boolean }) {
