@@ -16,10 +16,10 @@ const NAME_MAX = 80;
  * /me uses. Nothing about identity is read from the body, so a request cannot
  * name a different user to edit.
  *
- * Phone is not editable here on purpose. Changing it means proving the new
- * number with a fresh OTP, and a profile PATCH that could silently move an
- * account onto an unverified number would be a way to take someone else's.
- * That lives at /api/web/auth/add-phone instead.
+ * Phone is not edited here. It has its own route, /api/web/account/phone
+ * (lib/contact-phone.ts), with its own check, its own limit and the "already
+ * on another account" answer, and it is saved unverified: a number for our
+ * team to reach the customer on, never a way in.
  */
 export async function PATCH(request: Request) {
   try {
