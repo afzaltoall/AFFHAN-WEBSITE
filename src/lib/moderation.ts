@@ -1,8 +1,8 @@
 // ---------------------------------------------------------------------------
 // Category-level content moderation.
 //
-// The sync already keyword-filters explicit product NAMES (see
-// src/app/api/cron/sync/route.ts). But some categories are dominated by
+// Explicit product NAMES are caught by BLOCKED_NAME_KEYWORDS below, stored per
+// product as Product.isBlockedName. But some categories are dominated by
 // suggestive IMAGERY even when the product name is innocuous ("Denim shorts").
 // For a B2B sourcing site those whole categories are hidden from customers.
 //
@@ -214,14 +214,15 @@ export function isProductIdBlocked(id: number | null | undefined): boolean {
 //      great majority are ordinary trousers and joggers.
 //
 // So the items found this way are removed individually, by id, after being
-// looked at — and ModerationLog is what makes that stick: the cron sync skips
-// any cjPid recorded there (see api/cron/sync/route.ts). Before that check
-// existed the table was write-only and the next nightly run re-created
-// everything removed for its photograph, since name and category still passed.
+// looked at, and ModerationLog records each one. The CJ sync that once
+// re-created removed rows every night (unless it found the cjPid there) has
+// been gone since 2026-10-09, and its API code since 2026-10-15, so nothing
+// brings a removed product back; any future import must skip every cjPid
+// recorded in ModerationLog, as that sync did.
 //
 // BLOCKED_PRODUCT_IDS above is now the weaker of the two mechanisms — its three
 // entries have since been moved into ModerationLog and deleted from Product. It
-// is kept as a fast in-query guard for anything spotted between sync runs.
+// is kept as a fast in-query guard for anything spotted later.
 //
 // A real fix needs a model that reads pose, framing and garment opacity. Do not
 // re-derive the colour-histogram version.
