@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Camera, Gift, Home, MessageSquareText, Search, X, type LucideIcon } from "lucide-react";
+import { Camera, Gift, Home, Search, X, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ImageSearchButton } from "@/components/ui/ImageSearchButton";
 import { SearchAssistPanel, useSearchAssist } from "@/components/search/SearchAssist";
@@ -265,14 +265,32 @@ function MyAffhanIcon({ size = 20, strokeWidth = 1.5, fill = "none", ...props }:
   );
 }
 
-const TABS: { href: string; label: string; Icon: LucideIcon | typeof CategoriesIcon | typeof MyAffhanIcon; on: (p: string) => boolean; ahead?: boolean }[] = [
+/**
+ * Inquiries: lucide's message-square-text when not current. Current, the bubble filled and its lines in white, as
+ * My AFFHAN's figure is: a fill alone painted the lines the bubble's own teal, so they vanished (the owner, 2026-10-16).
+ */
+function InquiriesIcon({ size = 20, strokeWidth = 1.5, fill = "none", ...props }: { size?: number; strokeWidth?: number; fill?: string; stroke?: string; className?: string;[k: string]: unknown }) {
+  const isFilled = fill && fill !== "none";
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z" fill={isFilled ? "currentColor" : "none"} />
+      <g stroke={isFilled ? "white" : "currentColor"}>
+        <path d="M7 11h10" />
+        <path d="M7 15h6" />
+        <path d="M7 7h8" />
+      </g>
+    </svg>
+  );
+}
+
+const TABS: { href: string; label: string; Icon: LucideIcon | typeof CategoriesIcon | typeof MyAffhanIcon | typeof InquiriesIcon; on: (p: string) => boolean; ahead?: boolean }[] = [
   { href: "/", label: "Home", Icon: Home, on: (p: string) => p === "/" },
   // The catalogue's front as the categories screen, ?view=categories: the server then leaves out the computer's
   // grid, most of the page's time (products/page.tsx). Fetched ahead (prefetch): the front is drawn per
   // request, and a press waited for all of it (2026-10-14). Home and Account are static, which a link fetches
   // ahead by itself.
   { href: "/products/?view=categories", label: "Categories", Icon: CategoriesIcon, on: (p: string) => p === "/products", ahead: true },
-  { href: "/account/inquiries/", label: "Inquiries", Icon: MessageSquareText, on: (p: string) => p.startsWith("/account/inquiries") },
+  { href: "/account/inquiries/", label: "Inquiries", Icon: InquiriesIcon, on: (p: string) => p.startsWith("/account/inquiries") },
   // The tab opens /me/ (MyAffhanMenu), open to everyone; the account's own pages light it too.
   { href: "/me/", label: "My AFFHAN", Icon: MyAffhanIcon, on: (p: string) => p === "/me" || p.startsWith("/me/") || (p.startsWith("/account") && !p.startsWith("/account/inquiries")) },
 ];
