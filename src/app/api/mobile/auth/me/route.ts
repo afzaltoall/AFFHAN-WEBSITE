@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { verifyMobileSession } from "@/lib/mobile-auth";
+import { profileOf } from "@/lib/account-profile";
 
 export const dynamic = "force-dynamic";
 
@@ -11,20 +12,9 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
     }
 
-    return NextResponse.json({
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        // As in the Google sign-in's reply: null means no number yet.
-        phone: user.phone,
-        phoneVerified: user.phoneVerified,
-        authProvider: user.authProvider,
-        profileImage: user.profileImage,
-        accountStatus: user.accountStatus,
-        createdAt: user.createdAt,
-      },
-    });
+    // Every key this has always sent (phone null meaning no number yet, as in the Google sign-in's reply), and
+    // the company, address and hasPassword the app's "Complete your profile" reads (lib/account-profile.ts).
+    return NextResponse.json({ user: profileOf(user) });
   } catch (error) {
     console.error("Mobile Current User Error:", error);
     return NextResponse.json({ error: "Internal server error." }, { status: 500 });

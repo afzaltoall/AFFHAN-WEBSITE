@@ -172,6 +172,9 @@ export const checkInquiryRateLimit = (userId: string) => checkLimit("inquiry", u
 /** Saving a contact number, website and app, per signed-in account. Fails open. */
 export const checkContactPhoneRateLimit = (userId: string) => checkLimit("contactPhone", userId);
 
+/** The app saving the account's name, company and address, per signed-in account. Fails open. */
+export const checkProfileRateLimit = (userId: string) => checkLimit("profile", userId);
+
 /** Free China trip applications, website and app, per connection. Fails open. */
 export const checkTripApplicationRateLimit = (req: HasHeaders) => checkLimit("tripApplication", getClientIp(req));
 

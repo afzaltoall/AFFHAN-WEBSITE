@@ -31,7 +31,8 @@ test("the number is saved unverified, and the ways to sign in are left as they a
 });
 
 test("the app's Google sign-in and /me say whether the account has a number", () => {
-  for (const file of ["src/app/api/mobile/auth/google/route.ts", "src/app/api/mobile/auth/me/route.ts"]) {
-    assert.match(code(file), /phone: user\.phone,/, file);
-  }
+  assert.match(code("src/app/api/mobile/auth/google/route.ts"), /phone: user\.phone,/);
+  // /me answers with the account's profile (lib/account-profile.ts, 2026-10-16), the number among it.
+  assert.match(code("src/app/api/mobile/auth/me/route.ts"), /user: profileOf\(user\)/);
+  assert.match(code("src/lib/account-profile.ts"), /phone: user\.phone,/);
 });

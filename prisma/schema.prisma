@@ -582,6 +582,17 @@ model MobileUser {
   emailVerified Boolean @default(false)
   googleId      String? @unique // Verified Google 'sub' claim
 
+  // The customer's company and address, as they typed them, all optional: the app's "Complete your profile"
+  // (the owner, 2026-10-16). Saved through /api/mobile/account/profile/; read by nothing that needs them, so
+  // an account without them works exactly as before.
+  companyName   String?
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  state         String?
+  postalCode    String?
+  country       String?
+
   accountStatus String    @default("ACTIVE") // ACTIVE, SUSPENDED
   loginCount    Int       @default(0)
   lastLoginAt   DateTime?
@@ -817,7 +828,7 @@ model AccountChange {
   userId String
   user   MobileUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  /// name | email | phone | password | status
+  /// name | email | phone | password | status | company | address
   field     String
   /// Null for password, and for a value being set for the first time.
   fromValue String? @db.Text

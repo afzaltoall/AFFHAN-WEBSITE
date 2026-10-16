@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 
-export type ChangeField = "name" | "email" | "phone" | "password" | "status";
+export type ChangeField = "name" | "email" | "phone" | "password" | "status" | "company" | "address";
 export type ChangeSource = "WEB" | "APP" | "ADMIN";
 
 interface Change {

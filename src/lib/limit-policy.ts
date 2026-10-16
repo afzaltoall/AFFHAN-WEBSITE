@@ -52,6 +52,8 @@ export const LIMITS = {
   inquiry: { per: "account", count: 30, window: "1 h", whenDown: "open", feature: "Quote requests" },
   /** /api/web/account/phone and /api/mobile/account/phone: saving the account's contact number (lib/contact-phone.ts). */
   contactPhone: { per: "account", count: 10, window: "1 h", whenDown: "open", feature: "Saving a number" },
+  /** /api/mobile/account/profile: the app saving the account's name, company and address (lib/account-profile.ts). */
+  profile: { per: "account", count: 30, window: "1 h", whenDown: "open", feature: "Saving your details" },
   /** /api/trip-applications (website and app). One application per account, email and number regardless. */
   tripApplication: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "Trip applications" },
   /** /api/search/image (website and app): each signed-in account, or each connection when signed out. */
