@@ -132,7 +132,10 @@ export function WhatsAppButton() {
     bare === "/admin" ||
     bare.startsWith("/admin/") ||
     bare === "/employee" ||
-    bare.startsWith("/employee/")
+    bare.startsWith("/employee/") ||
+    // The supplier portal (2026-10-21): the bubble sat on its sign-in card, and the portal says how to reach us.
+    bare === "/supplier" ||
+    bare.startsWith("/supplier/")
   ) {
     return null;
   }

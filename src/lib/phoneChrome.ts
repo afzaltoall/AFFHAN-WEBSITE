@@ -40,6 +40,8 @@ export function sitePath(pathname: string | null | undefined): string {
 export function phoneChromeFor(pathname: string | null | undefined): PhoneChrome {
   const bare = sitePath(pathname);
   if (bare === "/admin" || bare.startsWith("/admin/") || bare === "/employee" || bare.startsWith("/employee/")) return "none";
+  // The supplier portal has its own bar (SupplierTopBar); the shop's frame and tabs are a customer's.
+  if (bare === "/supplier" || bare.startsWith("/supplier/")) return "none";
   // "experience" as the floating dock reads it (WhatsAppButton): the trip's own pages.
   if (bare === "/free-china-trip" || bare.startsWith("/free-china-trip/") || bare.includes("experience")) return "none";
   if (bare === "/login" || bare === "/forgot-password") return "plain";

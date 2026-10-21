@@ -25,6 +25,8 @@ const usefulLinks = [
   { label: "About Us", href: "/about/" },
   { label: "Careers", href: "/careers/" },
   { label: "Contact Us", href: "/contact/" },
+  // The supplier portal's door (the owner's choice, 2026-10-21: a footer link and /supplier).
+  { label: "Supplier Login", href: "/supplier/login/" },
   { label: "Privacy Policy", href: "/privacy-policy/" },
   { label: "Terms & Conditions", href: "/terms-conditions/" },
 ];

@@ -41,6 +41,12 @@ export interface RailCounts {
   queue: number;
   /** And the ones it gave up on, which need a person rather than a wait. */
   queueInvalid: number;
+  /**
+   * Supplier applications nobody has looked at yet (status NEW), from the
+   * supplier portal. Null when they could not be counted: read on its own, so
+   * that a failure here costs this one figure and not the whole rail.
+   */
+  newSuppliers: number | null;
 }
 
 /**
@@ -50,6 +56,7 @@ export interface RailCounts {
  * about one row is exactly the thing this file exists to prevent.
  */
 export const railCounts = cache(async (): Promise<RailCounts | null> => {
+  const newSuppliers = countNewSupplierOffers();
   try {
     const [row] = await withDbRetry(() =>
       prisma.$queryRaw<[{
@@ -76,6 +83,7 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
       videos: Number(row.videos),
       queue: Number(row.queue),
       queueInvalid: Number(row.queueInvalid),
+      newSuppliers: await newSuppliers,
     };
   } catch (error) {
     // Decoration, not the page. A sleeping database must cost an administrator
@@ -87,3 +95,23 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
     return null;
   }
 });
+
+/**
+ * Applications from the supplier portal waiting for the team (status NEW).
+ *
+ * Its own statement and its own catch, unlike the eight above: the table is
+ * the newest in the schema, and if the portal's code ever reaches a database
+ * that does not have it yet, the rail should lose this figure alone. Started
+ * before the statement above so the two run side by side.
+ */
+async function countNewSupplierOffers(): Promise<number | null> {
+  try {
+    return await prisma.supplierOffer.count({ where: { status: "NEW" } });
+  } catch (error) {
+    console.error(
+      "rail count of supplier applications failed:",
+      error instanceof Error ? `${error.name}: ${error.message.split("\n")[0]}` : "unknown",
+    );
+    return null;
+  }
+}

@@ -12,6 +12,9 @@ const ROUTES = [
   "src/app/api/web/auth/forgot-password/route.ts", // customers, Send code
   "src/app/api/employee/auth/forgot-password/route.ts", // staff, Send code
   "src/app/api/contact/route.ts", // contact form
+  "src/app/api/supplier/auth/login/route.ts", // supplier portal, sign in (2026-10-21)
+  "src/app/api/supplier/auth/register/route.ts", // supplier portal, new account
+  "src/app/api/supplier/auth/forgot-password/route.ts", // supplier portal, Send code
 ];
 const LATER = [/\bcheck\w*RateLimit\(/, /\bbeginLoginAttempt\(/, /\bwindowLockRemainingMs\(/, /\bprisma\.\w+\.\w+\(/, /\bcanDeliverTo\(/];
 

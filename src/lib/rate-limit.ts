@@ -196,3 +196,15 @@ export async function checkImageSearchRateLimit(req: HasHeaders, accountId: stri
 /** A video view counted once an hour per connection; never refuses the video itself. */
 export const checkVideoViewRateLimit = (req: HasHeaders, videoId: string) =>
   checkLimit("videoView", `${videoId}:${getClientIp(req)}`);
+
+/** The supplier portal's sign-in, per connection. Fails open: the database lockout holds. */
+export const checkSupplierLoginRateLimit = (req: HasHeaders) => checkLimit("supplierLogin", getClientIp(req));
+
+/** New supplier accounts, per connection. Fails open: Turnstile holds. */
+export const checkSupplierRegisterRateLimit = (req: HasHeaders) => checkLimit("supplierRegister", getClientIp(req));
+
+/** A supplier's applications and profile saves, per account. Fails open: the daily cap in the database holds. */
+export const checkSupplierApplyRateLimit = (supplierId: string) => checkLimit("supplierApply", supplierId);
+
+/** A supplier's photo uploads, per account. Fails closed. */
+export const checkSupplierUploadRateLimit = (supplierId: string) => checkLimit("supplierUpload", supplierId);

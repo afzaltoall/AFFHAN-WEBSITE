@@ -18,7 +18,11 @@
 export const PHOTO_MAX_EDGE = 800;
 const QUALITY = 0.85;
 
-export async function preparePhoto(file: File): Promise<File> {
+/**
+ * `maxEdge`: the long edge to scale down to. A staff picture's 800 unless the caller asks for more, as the
+ * supplier portal does for product photos (1600), which the team reads for detail rather than shows at 96px.
+ */
+export async function preparePhoto(file: File, maxEdge: number = PHOTO_MAX_EDGE): Promise<File> {
   const looksLikeImage =
     file.type.startsWith("image/") || /\.(jpe?g|png|webp|gif|bmp|avif|heic|heif|tiff?)$/i.test(file.name);
   if (!looksLikeImage) throw new Error("Choose a photo — a JPEG, PNG or WebP picture.");
@@ -34,7 +38,7 @@ export async function preparePhoto(file: File): Promise<File> {
     );
   }
 
-  const scale = Math.min(1, PHOTO_MAX_EDGE / Math.max(bitmap.width, bitmap.height));
+  const scale = Math.min(1, maxEdge / Math.max(bitmap.width, bitmap.height));
   const width = Math.max(1, Math.round(bitmap.width * scale));
   const height = Math.max(1, Math.round(bitmap.height * scale));
 

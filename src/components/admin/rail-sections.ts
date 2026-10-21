@@ -1,5 +1,5 @@
 import {
-  Activity, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Timer, Trash2,
+  Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Timer, Trash2,
   TrendingUp, UserCog, Users, type LucideIcon,
 } from "lucide-react";
 
@@ -20,7 +20,7 @@ import {
 export type RailKey =
   | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-lock" | "trash"
   | "staff" | "team-performance" | "queue" | "activity"
-  | "suppliers" | "videos"
+  | "suppliers" | "new-suppliers" | "videos"
   | "website-users" | "app-users" | "app-inquiries";
 
 /** The dashboard's five in-page views. */
@@ -95,6 +95,9 @@ export const RAIL_GROUPS: RailGroup[] = [
     label: "Catalog & content",
     items: [
       { key: "suppliers", href: "/admin/suppliers/", label: "Suppliers", icon: Users },
+      // The supplier portal's accounts and what they applied to supply (2026-10-21). Beside the WeChat book,
+      // which holds the suppliers the team already deals with; these registered themselves.
+      { key: "new-suppliers", href: "/admin/new-suppliers/", label: "New Suppliers", icon: Factory },
       { key: "videos", href: "/admin/videos/", label: "Videos", icon: PlayCircle },
     ],
   },
@@ -129,7 +132,7 @@ export const fmtRailBadge = (n: number) =>
 /**
  * Which rows carry a count, and what it is. Rows left out carry none.
  *
- * Seven of the fourteen rows do, and each counts something different enough to
+ * Eight of the fifteen rows do, and each counts something different enough to
  * be worth writing down — the figures are read at a glance by people who will
  * not go and check what they mean:
  *
@@ -143,6 +146,8 @@ export const fmtRailBadge = (n: number) =>
  *   trash      what is sitting in Recently Deleted. Inquiries only, because
  *              that is what the view restores.
  *   suppliers  every row of the supplier book. A total, not a backlog.
+ *   new-suppliers  supplier-portal applications nobody has looked at yet
+ *              (status NEW). A backlog, like inquiries.
  *   videos     every uploaded video. Also a total.
  *   queue      customers the rotation is moving RIGHT NOW (state ROTATING).
  *              The ones it gave up on are counted separately and shown in

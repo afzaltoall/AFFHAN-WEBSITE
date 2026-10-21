@@ -8,8 +8,9 @@
  * missing, or Upstash did not answer in time.
  *
  * - closed: refused with 503 ("... is unavailable right now"). The console's
- *   and the staff sign-in, where a guess is worth the most, and photo search,
- *   where every request is a paid model call.
+ *   and the staff sign-in, where a guess is worth the most, photo search,
+ *   where every request is a paid model call, and a supplier's photo uploads,
+ *   where each is a file in our bucket and an application goes without them.
  * - open: let through with a warning in the log. Customers' sign-in, password
  *   reset, the contact form, quote requests, trip applications and saving a
  *   contact number, where a refused request is a customer lost and something
@@ -44,7 +45,7 @@ export const LIMITS = {
   staffLogin: { per: "IP", count: 10, window: "15 m", whenDown: "closed", feature: "Sign-in" },
   /** /api/web/auth/login-password and /api/mobile/auth/login, one count for both. */
   customerLogin: { per: "IP", count: 20, window: "15 m", whenDown: "open", feature: "Sign-in" },
-  /** The three steps of both resets, customer and staff: send, verify, set. Per address, lib/email-otp.ts. */
+  /** The three steps of every reset, customer, staff and supplier: send, verify, set. Per address, lib/email-otp.ts. */
   passwordReset: { per: "IP", count: 10, window: "15 m", whenDown: "open", feature: "Password reset" },
   /** /api/contact. Per sender, the route's own cap in the database. */
   contact: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "The contact form" },
@@ -62,6 +63,14 @@ export const LIMITS = {
   photoSearchPerIp: { per: "IP", count: 200, window: "1 h", whenDown: "closed", feature: "Photo search" },
   /** /api/videos/[id]: counts a view once an hour; never refuses anything. */
   videoView: { per: "IP and video", count: 1, window: "1 h", whenDown: "open", feature: "Video views" },
+  /** /api/supplier/auth/login, the supplier portal (2026-10-21). The database lockout holds per account. */
+  supplierLogin: { per: "IP", count: 20, window: "15 m", whenDown: "open", feature: "Sign-in" },
+  /** /api/supplier/auth/register: new supplier accounts. Turnstile holds. */
+  supplierRegister: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "Registration" },
+  /** /api/supplier/offers and /api/supplier/me: applications sent or withdrawn and profile saves. A daily cap in the database holds (OFFERS_PER_DAY). */
+  supplierApply: { per: "account", count: 100, window: "1 h", whenDown: "open", feature: "Applications" },
+  /** /api/supplier/upload-url: each upload is a file in our bucket, and photos are optional, so a refusal costs an application nothing. */
+  supplierUpload: { per: "account", count: 150, window: "1 h", whenDown: "closed", feature: "Photo upload" },
 } as const satisfies Record<string, LimitSpec>;
 
 export type LimitName = keyof typeof LIMITS;

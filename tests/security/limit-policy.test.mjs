@@ -11,8 +11,18 @@ const named = (when) =>
     .map(([name]) => name)
     .sort();
 
-test("fails closed: the console's and the staff sign-in, and photo search (its own count and its ceiling)", () => {
-  assert.deepEqual(named("closed"), ["consoleLogin", "photoSearch", "photoSearchPerIp", "staffLogin"]);
+test("fails closed: the console's and the staff sign-in, photo search (its own count and its ceiling), supplier photo uploads", () => {
+  assert.deepEqual(named("closed"), ["consoleLogin", "photoSearch", "photoSearchPerIp", "staffLogin", "supplierUpload"]);
+});
+
+test("the supplier portal (2026-10-21): sign-in, registration and applications fail open, each with its own hold", () => {
+  for (const name of ["supplierLogin", "supplierRegister", "supplierApply"]) assert.equal(LIMITS[name].whenDown, "open", name);
+  assert.equal(LIMITS.supplierLogin.per, "IP");
+  assert.equal(LIMITS.supplierRegister.per, "IP");
+  assert.equal(LIMITS.supplierApply.per, "account");
+  assert.equal(LIMITS.supplierUpload.per, "account");
+  // Five photos an application: room for a supplier's busy hour.
+  assert.ok(LIMITS.supplierUpload.count >= 5 * 20, `${LIMITS.supplierUpload.count}`);
 });
 
 test("photo search: at least 30 an hour for each user, counted by account when signed in", () => {

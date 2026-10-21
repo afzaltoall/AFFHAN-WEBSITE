@@ -223,6 +223,8 @@ interface Props {
     adminName: string; adminEmail: string; adminImage: string | null;
     stats: {
       products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number; queue: number; queueInvalid: number;
+      /** Supplier-portal applications waiting (lib/admin-rail-counts.ts); null when they could not be counted. */
+      newSuppliers: number | null;
       /** Freight requests from /shipping/: all live ones, and the untriaged. Counted
        *  by the server because the Shipping view loads its own rows. */
       shipments: number; shipmentsNew: number;
@@ -1086,6 +1088,7 @@ export function AdminConsole({ data }: Props) {
     shipping: data.stats.shipmentsNew,
     trash: deletedItems.length,
     suppliers: data.stats.suppliers,
+    "new-suppliers": data.stats.newSuppliers ?? undefined,
     videos: data.stats.videos,
     queue: data.stats.queue,
   };

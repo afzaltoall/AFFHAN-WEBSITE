@@ -278,11 +278,15 @@ export function Navbar() {
   // customer navbar over either one is a second, contradictory set of
   // navigation — and on /employee/ it offers a "Login" that means a different
   // account from the one the reader is already signed into.
+  // The supplier portal too (2026-10-21): suppliers are a separate phase from customers (the owner), and the
+  // shop's bar, with its customer Login, sat over the supplier sign-in.
   const isStaffArea =
     normalizedPath === "/admin" ||
     normalizedPath.startsWith("/admin/") ||
     normalizedPath === "/employee" ||
-    normalizedPath.startsWith("/employee/");
+    normalizedPath.startsWith("/employee/") ||
+    normalizedPath === "/supplier" ||
+    normalizedPath.startsWith("/supplier/");
   const disableAutoHide = normalizedPath === "/rankings" || normalizedPath === "/sourcing-company-chennai" || normalizedPath === "/sourcing-company-dubai";
   // Below 768px, every page but the trip's, admin and the staff workspace has the phone frame instead
   // (components/mobile/PhoneChrome.tsx, lib/phoneChrome.ts): there this bar is not shown, and it never

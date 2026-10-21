@@ -103,7 +103,7 @@ function extensionFor(contentType: string) {
  * product images included.
  */
 export async function createUploadTarget(
-  kind: "video" | "thumbnail" | "employee",
+  kind: "video" | "thumbnail" | "employee" | "supplier",
   contentType: string
 ) {
   const problem = storageConfigProblem();
@@ -119,10 +119,16 @@ export async function createUploadTarget(
   // deliberately does not admit it: the delete path exists for videos, and a
   // staff photo that has been replaced is not worth a delete that could be
   // pointed at anything else.
+  //
+  // Supplier photos (the supplier portal, 2026-10-21) likewise: under
+  // suppliers/, issued only to a signed-in supplier account, and the only
+  // pictures an application will accept (isSupplierPhotoUrl).
   const key =
     kind === "employee"
       ? `employees/${crypto.randomUUID()}.${extensionFor(contentType)}`
-      : `videos/${kind === "video" ? "source" : "thumbs"}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
+      : kind === "supplier"
+        ? `suppliers/${crypto.randomUUID()}.${extensionFor(contentType)}`
+        : `videos/${kind === "video" ? "source" : "thumbs"}/${crypto.randomUUID()}.${extensionFor(contentType)}`;
   const maxSize = kind === "video" ? MAX_VIDEO_BYTES : MAX_THUMB_BYTES;
 
   const { url, fields } = await createPresignedPost(s3, {
@@ -153,6 +159,17 @@ export async function createUploadTarget(
  */
 export function isStaffPhotoUrl(url: string): boolean {
   return Boolean(CDN) && url.startsWith(`${CDN}/employees/`) && !url.includes("..");
+}
+
+/**
+ * Is this a supplier's photo we issued the upload for? The same rule for the
+ * same reason: an application's pictures are shown to the team, so they must
+ * be objects under our own suppliers/ prefix, named the way the upload route
+ * names them, and nothing a supplier could paste in.
+ */
+export function isSupplierPhotoUrl(url: string): boolean {
+  if (!CDN || !url.startsWith(`${CDN}/suppliers/`)) return false;
+  return /^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(url.slice(`${CDN}/suppliers/`.length));
 }
 
 /** CloudFront URL back to the S3 key it was served from. */

@@ -64,6 +64,7 @@ function railCountOf(counts: RailCounts | null): RailCountMap {
         shipping: counts.shipping,
         trash: counts.trash,
         suppliers: counts.suppliers,
+        "new-suppliers": counts.newSuppliers ?? undefined,
         videos: counts.videos,
         queue: counts.queue,
       }

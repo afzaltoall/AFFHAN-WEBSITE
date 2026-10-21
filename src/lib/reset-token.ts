@@ -34,11 +34,12 @@ export const RESET_TOKEN_TTL_MS = 10 * 60 * 1000;
  * answered in the customer flow would set a staff password on the same
  * address. The audience is inside the signature, so it cannot be edited.
  */
-export type ResetAudience = "customer" | "employee";
+export type ResetAudience = "customer" | "employee" | "supplier";
 
 const KIND: Record<ResetAudience, string> = {
   customer: "pwreset",
   employee: "employee-pwreset",
+  supplier: "supplier-pwreset",
 };
 
 interface ResetClaims {

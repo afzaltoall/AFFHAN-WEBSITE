@@ -67,6 +67,7 @@ model Product {
   views           ProductView[]
   favourites      ProductFavourite[]
   variants        ProductVariant[]
+  supplierOffers  SupplierOffer[]
 
   @@index([supplierSource])
   @@index([categoryId])
@@ -523,6 +524,112 @@ model Supplier {
   @@index([serial])
   @@index([companyName])
   @@index([personName])
+}
+
+// The supplier portal (the owner, 2026-10-21): factories and traders sign in at
+// /supplier/login/, find products in the catalogue they can supply, and apply
+// for each with their MOQ, the product's details and, if they like, photos.
+// An account is made the way a customer's is, name, email, mobile and a
+// password; the company, the WeChat ID and the address are asked when the
+// supplier first applies ("only after login we can get the details").
+//
+// A new kind of account, kept apart from the two above it and the two below.
+// Supplier is the WeChat book the team imported, people we already deal with,
+// and nobody signs in to it; MobileUser is a customer; AdminUser and Employee
+// are us. Anyone can register here, so a supplier must never be mistaken for
+// any of those: its own table, and its own cookie signed with its own key
+// (lib/supplier-token.ts).
+model SupplierAccount {
+  id             String    @id @default(uuid())
+  /// Lower-cased. The sign-in name, and where reset codes go.
+  email          String    @unique
+  passwordHash   String
+  /// The person the team talks to.
+  name           String
+  /// With its country code, in E.164 ("+8613800138000"): a contact number,
+  /// checked by libphonenumber, never verified, and not unique (one office
+  /// number can stand behind two people).
+  mobile         String
+  /// Null until the first application, which asks for them; each application
+  /// then leaves its contact details here, to fill in the next one.
+  companyName    String?
+  wechatId       String?
+  companyAddress String?   @db.Text
+  /// ACTIVE | BLOCKED. Blocked accounts cannot sign in, and blocking one bumps
+  /// tokenVersion, so the sessions it already has end at once.
+  status         String    @default("ACTIVE")
+  /// Bumped to end every session already issued: a password change or reset,
+  /// a block. The same mechanism AdminUser and Employee use.
+  tokenVersion   Int       @default(0)
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  offers SupplierOffer[]
+
+  @@index([createdAt(sort: Desc)])
+}
+
+/// One application: "I have this product", from a supplier account.
+///
+/// The product is a catalogue product (productId), or, when the supplier makes
+/// something the catalogue does not list, a name they typed (productId null).
+/// Its name, picture and category are copied at the time, as MobileInquiry
+/// copies them: a product can leave the catalogue and an application still
+/// has to say what it was for.
+///
+/// The contact details are copied as well, from the form the supplier sent,
+/// which starts from their profile. The team reads each application on its
+/// own, and a profile edited next month must not rewrite what was offered.
+///
+/// No price and no lead time: the owner asked for the MOQ, the product's
+/// details and the contact details, and photos when they have them.
+model SupplierOffer {
+  id         String          @id @default(uuid())
+  supplierId String
+  supplier   SupplierAccount @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  /// SetNull: a product removed from the catalogue leaves the application.
+  productId    Int?
+  product      Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productName  String
+  productImage String?  @db.Text
+  categoryName String?
+
+  /// The minimum order quantity, as a whole number of `moqUnit`.
+  moq     Int
+  /// pieces | sets | pairs | boxes | cartons | kg | meters | dozens
+  moqUnit String   @default("pieces")
+  /// What the supplier says about their version: material, sizes, colours,
+  /// packing, anything.
+  details String   @db.Text
+  /// Up to five pictures, uploaded to our bucket under suppliers/ (the upload
+  /// route issues nothing else, and the create route accepts nothing else).
+  photos  String[]
+
+  contactName    String
+  companyName    String
+  mobile         String
+  wechatId       String
+  companyAddress String @db.Text
+
+  /// NEW | REVIEWING | ACCEPTED | REJECTED | WITHDRAWN (lib/supplier-offer.ts).
+  /// The supplier sees it; WITHDRAWN is theirs to set, the rest the team's.
+  status     String    @default("NEW")
+  /// The team's reply, shown to the supplier with the status.
+  reply      String?   @db.Text
+  /// When the team last changed the status or the reply, and who (an admin's
+  /// sign-in email).
+  reviewedAt DateTime?
+  reviewedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([supplierId, createdAt(sort: Desc)])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([productId])
 }
 
 // Videos shown in the app's Play tab and managed from /admin/videos.

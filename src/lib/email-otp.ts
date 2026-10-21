@@ -25,9 +25,10 @@ import {
  * PASSWORD_RESET is a customer's. EMPLOYEE_PASSWORD_RESET is a member of
  * staff's, and they are separate values on purpose: the same person may hold a
  * customer account and a staff account on one address, and a code issued for
- * one must not reset the other.
+ * one must not reset the other. SUPPLIER_PASSWORD_RESET is a supplier
+ * portal account's (2026-10-21), for the same reason.
  */
-export type OtpPurpose = "PASSWORD_RESET" | "EMPLOYEE_PASSWORD_RESET";
+export type OtpPurpose = "PASSWORD_RESET" | "EMPLOYEE_PASSWORD_RESET" | "SUPPLIER_PASSWORD_RESET";
 
 /**
  * Codes per address per window, enforced in the database.

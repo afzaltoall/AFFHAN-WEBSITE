@@ -5,7 +5,8 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin', '/admin/login', '/employee', '/api/'],
+      // /supplier: the supplier portal (2026-10-21), sign-in pages included, as /employee.
+      disallow: ['/admin', '/admin/login', '/employee', '/supplier', '/api/'],
     },
     // Two sitemaps, both listed. robots.txt allows any number of Sitemap
     // lines and Google reads them all, which is simpler than maintaining a

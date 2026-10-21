@@ -113,6 +113,8 @@ export async function clearLoginFailures(email: string): Promise<void> {
 
 export const adminLoginKey = (email: string) => `admin:${email.trim().toLowerCase()}`;
 export const customerLoginKey = (email: string) => `customer:${email.trim().toLowerCase()}`;
+/** The supplier portal's door (2026-10-21): a supplier who is also a customer is two counts. */
+export const supplierLoginKey = (email: string) => `supplier:${email.trim().toLowerCase()}`;
 
 export type LoginAttemptGate = { locked: false } | { locked: true; retryAfterMs: number };
 

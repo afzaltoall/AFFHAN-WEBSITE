@@ -17,7 +17,7 @@ import { AnimatePresence, motion } from "framer-motion";
  * fade reads as a slide change; a stagger reads as writing, which is what holds
  * attention on a screen where someone is waiting for an SMS.
  */
-interface Quote {
+export interface Quote {
   lead: string;
   accent: string;
   sub: string;
@@ -59,11 +59,15 @@ const word = {
   exit: { opacity: 0, y: -14, filter: "blur(4px)" },
 };
 
-export function RotatingQuote() {
+/**
+ * `quotes`: what to say, the customer sign-in's own by default. The supplier sign-in passes its own
+ * (SupplierBrandPanel) and keeps everything else, so the two doors move alike.
+ */
+export function RotatingQuote({ quotes = QUOTES }: { quotes?: Quote[] } = {}) {
   const [index, setIndex] = useState(0);
   const [rotating, setRotating] = useState(true);
 
-  const go = useCallback((i: number) => setIndex(((i % QUOTES.length) + QUOTES.length) % QUOTES.length), []);
+  const go = useCallback((i: number) => setIndex(((i % quotes.length) + quotes.length) % quotes.length), [quotes.length]);
 
   // Someone who asked for less motion gets the first line and no carousel — a
   // headline that rewrites itself every few seconds is exactly what that
@@ -87,11 +91,11 @@ export function RotatingQuote() {
   // on one statement with a half-drawn line under it until the tab came back.
   useEffect(() => {
     if (!rotating) return;
-    const t = setInterval(() => setIndex((i) => (i + 1) % QUOTES.length), ROTATE_MS);
+    const t = setInterval(() => setIndex((i) => (i + 1) % quotes.length), ROTATE_MS);
     return () => clearInterval(t);
-  }, [rotating, index]);
+  }, [rotating, index, quotes.length]);
 
-  const quote = QUOTES[index];
+  const quote = quotes[index] ?? quotes[0];
   const leadWords = quote.lead.split(" ");
   const accentWords = quote.accent.split(" ");
 
@@ -151,7 +155,7 @@ export function RotatingQuote() {
 
       {rotating && (
         <div className="mt-6 flex items-center gap-2">
-          {QUOTES.map((_, i) => (
+          {quotes.map((_, i) => (
             <button
               key={i}
               onClick={() => go(i)}

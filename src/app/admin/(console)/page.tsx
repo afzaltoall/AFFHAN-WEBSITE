@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { prisma, withDbRetry } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { AdminConsole } from "@/components/admin/AdminConsole";
+import { railCounts } from "@/lib/admin-rail-counts";
 
 export const dynamic = "force-dynamic";
 
@@ -223,6 +224,10 @@ export default async function AdminPage() {
   const toAssigneeCounts = (rows: { assignedToId: string | null; _count: { _all: number } }[]) =>
     rows.map((r) => ({ employeeId: r.assignedToId, count: r._count._all }));
 
+  // The supplier portal's waiting applications, for the rail's New Suppliers row: the layout's own read of the
+  // rail figures, answered again by React's cache, so it costs no query and keeps its own failure to itself.
+  const newSuppliers = (await railCounts())?.newSuppliers ?? null;
+
   const data = {
     adminName: admin.name || admin.email,
     adminEmail: admin.email,
@@ -239,6 +244,7 @@ export default async function AdminPage() {
       queueInvalid: queueInvalidCount,
       shipments: shipmentCount,
       shipmentsNew: shipmentNewCount,
+      newSuppliers,
     },
     inquiries: inquiries.map(mapInquiry),
     deletedInquiries: deletedInquiries.map(mapInquiry),

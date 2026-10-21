@@ -84,6 +84,14 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - Password reset sends a 6-digit code by email (Brevo).
 - Cloudflare Turnstile guards the website's three sign-ins (customer, staff, console), both password resets and the contact form; nothing the app calls asks for it.
 
+## Supplier portal (2026-10-21)
+
+- Suppliers are a **separate phase from customers** (the owner): their own tables (`SupplierAccount`, `SupplierOffer`), their own cookie `affhan_supplier` signed with a key *derived* from AUTH_SECRET (`src/lib/supplier-token.ts`, so it can never pass for an admin, staff or customer session), their own lockout key, reset-code purpose and reset-token audience. The shop's navbar, phone frame and chat bubble hide on `/supplier`.
+- `/supplier/login/` and `/supplier/register/` are one card in the customer login's style; an account is **name, email, mobile and password only**. The company, WeChat ID and address are asked with the first application and remembered on the account.
+- Signed in: `/supplier/` (the whole catalogue through `/api/products`, with "I have this" on every product, or "apply with your own product"), `/supplier/applications/` (status and the team's reply; withdraw while open), `/supplier/profile/`. An application is the MOQ, the product's details, up to 5 optional photos (presigned uploads under `suppliers/` in the bucket) and the contact details. No price, no lead time.
+- Admin: "New Suppliers" in the rail (`/admin/new-suppliers/`): applications (New / Reviewing / Accepted / Not selected; a reply the supplier reads) and accounts (block / unblock). "Suppliers" is still the WeChat book, the suppliers the team already deals with.
+- The migration `prisma/migrations/20261021120000_supplier_portal` must be applied **before** this code is deployed.
+
 ## What works — don't touch unless asked
 
 - Email through Brevo, and the daily refresh
