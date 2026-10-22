@@ -172,6 +172,31 @@ export function isSupplierPhotoUrl(url: string): boolean {
   return /^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(url.slice(`${CDN}/suppliers/`.length));
 }
 
+/** A supplier photo's key in the bucket, or null for anything that is not one the upload route issued. */
+export function supplierPhotoKey(url: string): string | null {
+  return isSupplierPhotoUrl(url) ? url.slice(`${CDN}/`.length) : null;
+}
+
+/**
+ * Take deleted applications' photos out of the bucket. Called after their rows are gone, so it is best effort:
+ * a photo that stays is logged, never an error to the admin who deleted. Only keys under suppliers/ named the
+ * way the upload route names them (supplierPhotoKey), so no row can point this at any other object.
+ */
+export async function removeSupplierPhotos(urls: readonly string[]): Promise<number> {
+  let removed = 0;
+  for (const url of new Set(urls)) {
+    const key = supplierPhotoKey(url);
+    if (!key) continue;
+    try {
+      await deleteObject(key);
+      removed++;
+    } catch (e) {
+      console.error(`supplier photo ${key} was not removed from the bucket:`, e instanceof Error ? e.name : "unknown");
+    }
+  }
+  return removed;
+}
+
 /** CloudFront URL back to the S3 key it was served from. */
 export function keyFromPublicUrl(url: string): string | null {
   if (!url.startsWith(`${CDN}/`)) return null;

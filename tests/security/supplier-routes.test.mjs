@@ -37,7 +37,7 @@ for (const rel of SIGNED_IN) {
   });
 }
 
-for (const rel of ["src/app/api/admin/supplier-offers/[id]/route.ts", "src/app/api/admin/supplier-accounts/[id]/route.ts"]) {
+for (const rel of ["src/app/api/admin/supplier-offers/[id]/route.ts", "src/app/api/admin/supplier-accounts/[id]/route.ts", "src/app/api/admin/supplier-accounts/delete/route.ts"]) {
   test(`${rel}: admins only, before anything else`, () => {
     for (const h of handlers(read(rel))) {
       const gate = h.indexOf('admin.role !== "admin"');

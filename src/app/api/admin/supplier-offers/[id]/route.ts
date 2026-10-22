@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { REPLY_MAX, TEAM_STATUSES, isOfferStatus } from "@/lib/supplier-offer";
+import { removeSupplierPhotos } from "@/lib/video-storage";
 
 export const dynamic = "force-dynamic";
 
@@ -45,4 +46,26 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
     select: { id: true, status: true, reply: true, reviewedAt: true, reviewedBy: true },
   });
   return NextResponse.json(row);
+}
+
+/**
+ * Delete one application for good, from its review panel (the owner, 2026-10-22). Admins only. Its photos leave
+ * the bucket after the row (best effort, removeSupplierPhotos); the supplier's account and their other
+ * applications stay.
+ */
+export async function DELETE(_req: Request, ctx: { params: Promise<{ id: string }> }) {
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== "admin") return new NextResponse("Unauthorized", { status: 401 });
+  const { id } = await ctx.params;
+
+  try {
+    const offer = await prisma.supplierOffer.findUnique({ where: { id }, select: { photos: true } });
+    if (!offer) return NextResponse.json({ error: "That application is already deleted." }, { status: 404 });
+    await prisma.supplierOffer.delete({ where: { id } });
+    const photos = await removeSupplierPhotos(offer.photos);
+    return NextResponse.json({ success: true, photos });
+  } catch (error) {
+    console.error("supplier application delete failed:", error instanceof Error ? error.name : "unknown");
+    return NextResponse.json({ error: "The application was not deleted. Try again." }, { status: 500 });
+  }
 }

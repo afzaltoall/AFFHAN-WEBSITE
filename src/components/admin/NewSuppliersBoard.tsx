@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Building2, Check, CheckCircle2, Clock, Copy, Download, ExternalLink, Loader2, Mail, MapPin,
-  MessageCircle, Moon, Package, Phone, RefreshCw, Search, SlidersHorizontal, Sun, User, Users, X,
+  AlertTriangle, ArrowLeft, Building2, Check, CheckCircle2, CheckSquare, Clock, Copy, Download, ExternalLink, Loader2,
+  Mail, MapPin, MessageCircle, Moon, Package, Phone, RefreshCw, Search, SlidersHorizontal, Sun, Trash2, User, Users, X,
 } from "lucide-react";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 import { useAdminDark } from "@/lib/useAdminDark";
@@ -25,6 +25,10 @@ import { REPLY_MAX, TEAM_STATUSES, TEAM_STATUS_LABEL, moqPhrase, type OfferStatu
  * Read on the server (the newest 2,000 of each) and filtered here, as the book is, so the search answers on
  * every keystroke. A supplier can be blocked: signed out at once, unable to sign in until unblocked; their
  * applications stay.
+ *
+ * Rows can be ticked, one by one or every one the search shows, as in the book (the owner, 2026-10-22): the
+ * ticked ones can be exported, or deleted for good, account, applications and photos, after a window that
+ * says exactly what goes. One application can be deleted from its own panel.
  */
 
 export interface BoardOffer {
@@ -112,6 +116,31 @@ interface Row {
   accepted: number;
 }
 
+/** What the delete window is about to delete. */
+type Pending = { kind: "suppliers"; ids: string[] } | { kind: "application"; id: string };
+
+/** The book's checkbox (SupplierDirectory): a real one, with "some ticked" shown as the indeterminate state. */
+function Tick({
+  checked, indeterminate = false, onChange, label, dark,
+}: {
+  checked: boolean; indeterminate?: boolean; onChange: () => void; label: string; dark: boolean;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      checked={checked}
+      onChange={onChange}
+      aria-label={label}
+      className={`h-4 w-4 shrink-0 cursor-pointer rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${dark ? "accent-white" : "accent-[#1d1d1f]"}`}
+    />
+  );
+}
+
 export function NewSuppliersBoard({
   offers: initialOffers,
   accounts: initialAccounts,
@@ -133,6 +162,10 @@ export function NewSuppliersBoard({
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  /** Ticked suppliers, by account id; kept across searches and chips, as in the book. */
+  const [picked, setPicked] = useState<Set<string>>(() => new Set());
+  const [pending, setPending] = useState<Pending | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [dark, setDark] = useAdminDark();
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -238,6 +271,107 @@ export function NewSuppliersBoard({
   const visible = results.slice(0, limit);
   const filtered = needle !== "" || lens !== "all";
 
+  // Ticked suppliers that still exist, whether or not this search shows them (the book's rule: a selection
+  // outlives a search, and the bar says how many it is not showing).
+  const pickedRows = useMemo(() => rows.filter((r) => picked.has(r.account.id)), [rows, picked]);
+  const resultIds = useMemo(() => new Set(results.map((r) => r.account.id)), [results]);
+  const allMatchingPicked = results.length > 0 && results.every((r) => picked.has(r.account.id));
+  const someMatchingPicked = !allMatchingPicked && results.some((r) => picked.has(r.account.id));
+  const pickedOffscreen = pickedRows.filter((r) => !resultIds.has(r.account.id)).length;
+  const togglePick = (id: string) =>
+    setPicked((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleAllMatching = () =>
+    setPicked((s) => {
+      const next = new Set(s);
+      for (const r of results) {
+        if (allMatchingPicked) next.delete(r.account.id);
+        else next.add(r.account.id);
+      }
+      return next;
+    });
+
+  // A done-delete's line, for a moment.
+  useEffect(() => {
+    if (!notice) return;
+    const timer = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+
+  const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString("en-US")} ${n === 1 ? one : many}`;
+
+  /** The delete the window asked about: null when done, or the sentence to show when it was not. */
+  const runDelete = async (): Promise<string | null> => {
+    if (!pending) return null;
+    try {
+      if (pending.kind === "suppliers") {
+        const res = await fetch("/api/admin/supplier-accounts/delete/", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ids: pending.ids }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return res.status === 401 ? "Your admin session has ended. Sign in again." : data?.error ?? "The suppliers were not deleted.";
+        const gone = new Set<string>(Array.isArray(data.ids) ? data.ids : pending.ids);
+        setAccounts((all) => all.filter((a) => !gone.has(a.id)));
+        setOffers((all) => all.filter((o) => !gone.has(o.supplierId)));
+        setPicked((s) => new Set([...s].filter((id) => !gone.has(id))));
+        if (openId && offers.some((o) => o.id === openId && gone.has(o.supplierId))) setOpenId(null);
+        setNotice(`Deleted ${plural(Number(data.deleted) || gone.size, "supplier")}${data.applications ? ` and ${plural(Number(data.applications), "application")}` : ""}.`);
+      } else {
+        const res = await fetch(`/api/admin/supplier-offers/${pending.id}/`, { method: "DELETE" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return res.status === 401 ? "Your admin session has ended. Sign in again." : data?.error ?? "The application was not deleted.";
+        const gone = offers.find((o) => o.id === pending.id);
+        setOffers((all) => all.filter((o) => o.id !== pending.id));
+        if (gone) setAccounts((all) => all.map((a) => (a.id === gone.supplierId ? { ...a, offers: Math.max(0, a.offers - 1) } : a)));
+        setOpenId(null);
+        setNotice(`Deleted the application${gone ? ` for ${gone.productName.slice(0, 80)}` : ""}.`);
+      }
+      setPending(null);
+      router.refresh();
+      return null;
+    } catch {
+      return "Network error: nothing was deleted. Try again.";
+    }
+  };
+
+  /** What the delete window says about what it is about to delete. */
+  const pendingView = (() => {
+    if (!pending) return null;
+    if (pending.kind === "suppliers") {
+      const chosen = rows.filter((r) => pending.ids.includes(r.account.id));
+      const apps = chosen.reduce((n, r) => n + r.offers.length, 0);
+      const photos = chosen.reduce((n, r) => n + r.offers.reduce((m, o) => m + o.photos.length, 0), 0);
+      const names = chosen.slice(0, 5).map((r) => `${r.account.companyName ?? r.account.name} · ${r.account.email}`);
+      if (chosen.length > 5) names.push(`and ${plural(chosen.length - 5, "more", "more")}`);
+      // Only what there is: "The account is deleted", "The account, 2 applications and 1 photo are deleted".
+      const parts = [chosen.length === 1 ? "The account" : "Their accounts", apps ? plural(apps, "application") : "", photos ? plural(photos, "photo") : ""].filter(Boolean);
+      const what = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
+      return {
+        title: `Delete ${plural(chosen.length, "supplier")}?`,
+        lines: [
+          `${what} ${parts.length > 1 || chosen.length > 1 ? "are" : "is"} deleted for good. This cannot be undone.`,
+          `${chosen.length === 1 ? "They are" : "Each is"} signed out at once, and can register again with the same email.`,
+        ],
+        names,
+      };
+    }
+    const o = offers.find((x) => x.id === pending.id);
+    return {
+      title: "Delete this application?",
+      lines: [
+        `${o ? `${o.productName} from ${o.companyName}` : "The application"}${o?.photos.length ? `, with ${plural(o.photos.length, "photo")},` : ""} is deleted for good. This cannot be undone.`,
+        "The supplier's account and their other applications stay.",
+      ],
+      names: [],
+    };
+  })();
+
   const counters = [
     { label: "Suppliers", value: accounts.length, Icon: Users, tint: "text-sky-500" },
     { label: "Applications", value: offers.length, Icon: Package, tint: "text-violet-500" },
@@ -306,13 +440,15 @@ export function NewSuppliersBoard({
         }
       };
       const sHead = ["S.No", "Company", "Name", "Email", "Mobile", "WeChat ID", "Company address", "Registered", "Last signed in", "Account", "Applications", "Products applied for"];
-      const sRows = results.map((r) => [
+      // The ticked suppliers when there are any, as the book exports; otherwise the list as it stands.
+      const list = pickedRows.length ? pickedRows : results;
+      const sRows = list.map((r) => [
         r.serial, r.account.companyName ?? "", r.account.name, r.account.email, r.account.mobile, r.account.wechatId ?? "", r.account.companyAddress ?? "",
         stamp(r.account.createdAt), r.account.lastLoginAt ? stamp(r.account.lastLoginAt) : "", r.account.status === "BLOCKED" ? "Blocked" : "Active",
         r.offers.length, r.offers.map((o) => `${o.productName} (MOQ ${moqPhrase(o.moq, o.moqUnit)}, ${TEAM_STATUS_LABEL[o.status]})`).join("\n"),
       ]);
       const aHead = ["Sent", "Status", "Product", "Product ID", "Category", "MOQ", "Unit", "Product details", "Photos", "Contact name", "Company", "Mobile", "WeChat ID", "Company address", "Account email", "Reply", "Reviewed by", "Reviewed"];
-      const aRows = results.flatMap((r) =>
+      const aRows = list.flatMap((r) =>
         r.offers.map((o) => [
           stamp(o.createdAt), TEAM_STATUS_LABEL[o.status], o.productName, o.productId ?? "Their own product", o.categoryName ?? "", o.moq, o.moqUnit,
           o.details, o.photos.join("\n"), o.contactName, o.companyName, o.mobile, o.wechatId, o.companyAddress, o.supplierEmail,
@@ -326,13 +462,14 @@ export function NewSuppliersBoard({
       const book = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(book, suppliers, "New suppliers");
       XLSX.utils.book_append_sheet(book, applications, "Applications");
-      XLSX.writeFile(book, `affhan-new-suppliers-${new Date().toISOString().slice(0, 10)}${filtered ? "-filtered" : ""}.xlsx`);
+      const tag = pickedRows.length ? "-selected" : filtered ? "-filtered" : "";
+      XLSX.writeFile(book, `affhan-new-suppliers-${new Date().toISOString().slice(0, 10)}${tag}.xlsx`);
     } catch (e) {
       setError(e instanceof Error ? `Export failed: ${e.message}` : "Export failed.");
     } finally {
       setExporting(false);
     }
-  }, [results, exporting, filtered]);
+  }, [results, pickedRows, exporting, filtered]);
 
   const phoneOf = (e164: string) => [{ value: spaced(e164), label: null, tags: [], e164, assumed: false, incomplete: false }];
   const wechatOf = (id: string | null) => (id ? [{ value: id, label: "WeChat ID", tags: [] }] : []);
@@ -584,12 +721,50 @@ export function NewSuppliersBoard({
               className="ml-auto inline-flex h-9 items-center gap-2 rounded-xl bg-[#1d1d1f] px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               {exporting ? <Loader2 size={14} aria-hidden="true" className="animate-spin" /> : <Download size={14} aria-hidden="true" />}
-              {exporting ? "Building Excel file…" : `Export ${filtered ? `these ${results.length.toLocaleString("en-US")}` : "all"}`}
+              {exporting
+                ? "Building Excel file…"
+                : pickedRows.length
+                  ? `Export ${pickedRows.length.toLocaleString("en-US")} selected`
+                  : `Export ${filtered ? `these ${results.length.toLocaleString("en-US")}` : "all"}`}
             </button>
           </div>
         </div>
 
+        {/* The selection, as the book shows it, with what can be done to it: export (the button above) or delete. */}
+        {pickedRows.length > 0 && (
+          <div className={`mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl px-4 py-3 ring-1 ${t.card}`}>
+            <CheckSquare size={16} aria-hidden="true" className="shrink-0 text-brand" />
+            <p className="text-[13px] font-semibold">
+              {pickedRows.length.toLocaleString("en-US")} selected
+              {pickedOffscreen > 0 && (
+                <span className={`ml-1.5 font-normal ${t.soft}`}>({pickedOffscreen.toLocaleString("en-US")} not in this list)</span>
+              )}
+            </p>
+            <div className="ml-auto flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPending({ kind: "suppliers", ids: pickedRows.map((r) => r.account.id) })}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+              >
+                <Trash2 size={13} aria-hidden="true" /> Delete {pickedRows.length.toLocaleString("en-US")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPicked(new Set())}
+                className={`rounded-xl px-3 py-1.5 text-[12px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
+              >
+                Clear selection
+              </button>
+            </div>
+          </div>
+        )}
+
         {error && <p role="alert" className="mt-3 rounded-xl bg-red-500/10 px-4 py-2.5 text-[13px] font-medium text-red-600">{error}</p>}
+        {notice && (
+          <p role="status" className="mt-3 flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-2.5 text-[13px] font-medium text-emerald-600">
+            <Check size={15} aria-hidden="true" /> {notice}
+          </p>
+        )}
 
         <p aria-live="polite" className={`px-1 py-3 text-[12.5px] ${t.soft}`}>
           {results.length === 0
@@ -632,7 +807,8 @@ export function NewSuppliersBoard({
               <table className="w-full table-fixed border-collapse text-left">
                 <caption className="sr-only">New suppliers, showing {visible.length} of {results.length}</caption>
                 <colgroup>
-                  <col className="w-[58px]" />
+                  <col className="w-[44px]" />
+                  <col className="w-[54px]" />
                   <col className="w-[23%]" />
                   <col className="w-[30%]" />
                   <col className="w-[24%]" />
@@ -640,7 +816,16 @@ export function NewSuppliersBoard({
                 </colgroup>
                 <thead className={`${t.head} border-b ${t.border}`}>
                   <tr className={`text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
-                    <th scope="col" className="py-2.5 pl-4 pr-2">S.No</th>
+                    <th scope="col" className="py-2.5 pl-4 pr-1">
+                      <Tick
+                        checked={allMatchingPicked}
+                        indeterminate={someMatchingPicked}
+                        onChange={toggleAllMatching}
+                        label={allMatchingPicked ? `Clear all ${results.length} suppliers shown` : `Select all ${results.length} suppliers shown`}
+                        dark={dark}
+                      />
+                    </th>
+                    <th scope="col" className="px-2 py-2.5">S.No</th>
                     <th scope="col" className="px-3 py-2.5">Supplier</th>
                     <th scope="col" className="px-3 py-2.5">Products</th>
                     <th scope="col" className="px-3 py-2.5">Contact</th>
@@ -649,8 +834,16 @@ export function NewSuppliersBoard({
                 </thead>
                 <tbody className={`divide-y ${t.divide}`}>
                   {visible.map((r) => (
-                    <tr key={r.account.id} className={`align-top transition-colors ${t.hover}`}>
-                      <td className={`py-3.5 pl-4 pr-2 text-[12px] tabular-nums ${t.soft}`}>{r.serial}</td>
+                    <tr key={r.account.id} className={`align-top transition-colors ${picked.has(r.account.id) ? "bg-brand/[0.06]" : t.hover}`}>
+                      <td className="py-3.5 pl-4 pr-1">
+                        <Tick
+                          checked={picked.has(r.account.id)}
+                          onChange={() => togglePick(r.account.id)}
+                          label={`Select ${r.account.companyName ?? r.account.name}`}
+                          dark={dark}
+                        />
+                      </td>
+                      <td className={`px-2 py-3.5 text-[12px] tabular-nums ${t.soft}`}>{r.serial}</td>
                       <td className="px-3 py-3.5">{supplierCell(r)}</td>
                       <td className="px-3 py-3.5">{productsCell(r)}</td>
                       <td className="px-3 py-3.5">{contactCell(r)}</td>
@@ -665,8 +858,16 @@ export function NewSuppliersBoard({
 
             <ul className="space-y-3 lg:hidden">
               {visible.map((r) => (
-                <li key={r.account.id} className={`rounded-2xl p-4 ring-1 ${t.card}`}>
+                <li key={r.account.id} className={`rounded-2xl p-4 ring-1 ${t.card} ${picked.has(r.account.id) ? "ring-brand/40" : ""}`}>
                   <div className="flex items-start gap-3">
+                    <span className="pt-0.5">
+                      <Tick
+                        checked={picked.has(r.account.id)}
+                        onChange={() => togglePick(r.account.id)}
+                        label={`Select ${r.account.companyName ?? r.account.name}`}
+                        dark={dark}
+                      />
+                    </span>
                     <div className="min-w-0 flex-1">{supplierCell(r, true)}</div>
                     <span className={`shrink-0 text-[11px] tabular-nums ${t.soft}`}>#{r.serial}</span>
                   </div>
@@ -706,6 +907,18 @@ export function NewSuppliersBoard({
           pill={status}
           onClose={() => setOpenId(null)}
           onSave={(change) => saveOffer(open.id, change)}
+          onDelete={() => setPending({ kind: "application", id: open.id })}
+        />
+      )}
+
+      {pending && pendingView && (
+        <ConfirmDelete
+          title={pendingView.title}
+          lines={pendingView.lines}
+          names={pendingView.names}
+          t={t}
+          onCancel={() => setPending(null)}
+          onConfirm={runDelete}
         />
       )}
     </div>
@@ -713,6 +926,118 @@ export function NewSuppliersBoard({
 }
 
 type Theme = { [K in "page" | "card" | "soft" | "body2" | "border" | "pill" | "pillOn" | "sheet" | "well" | "input" | "ink"]: string };
+
+/**
+ * The window before a delete: what goes, in words and by name, and that it cannot be undone. Cancel has the
+ * focus, so Enter does not delete by accident; Escape cancels. If the delete fails, it says why and stays.
+ */
+function ConfirmDelete({
+  title,
+  lines,
+  names,
+  t,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  lines: string[];
+  names: string[];
+  t: Theme;
+  onCancel: () => void;
+  /** Resolves to null when done, or to the sentence to show when not. */
+  onConfirm: () => Promise<string | null>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const cancel = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    cancel.current?.focus();
+  }, []);
+  // Escape answers this window only: caught on the way down, so the review panel under it stays open.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      if (!busy) onCancel();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onCancel, busy]);
+
+  const go = async () => {
+    setBusy(true);
+    setProblem(null);
+    const answer = await onConfirm();
+    if (answer) {
+      setProblem(answer);
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onCancel()}>
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-title"
+        aria-describedby="delete-body"
+        onClick={(e) => e.stopPropagation()}
+        className={`w-full max-w-md rounded-2xl p-6 shadow-2xl ring-1 ${t.card} ${t.ink}`}
+      >
+        <div className="flex items-start gap-3.5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-red-500/10 text-red-600">
+            <AlertTriangle size={18} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 id="delete-title" className="text-[16px] font-semibold tracking-tight">
+              {title}
+            </h2>
+            <div id="delete-body" className={`mt-1.5 space-y-1.5 text-[13.5px] leading-relaxed ${t.body2}`}>
+              {lines.map((line) => (
+                <p key={line}>{line}</p>
+              ))}
+            </div>
+            {names.length > 0 && (
+              <ul className={`mt-3 space-y-1 rounded-xl px-3 py-2.5 text-[12.5px] font-medium ${t.well}`}>
+                {names.map((name) => (
+                  <li key={name} className="truncate">
+                    {name}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+        {problem && (
+          <p role="alert" className="mt-4 rounded-xl bg-red-500/10 px-3 py-2 text-[13px] font-medium text-red-600">
+            {problem}
+          </p>
+        )}
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            ref={cancel}
+            type="button"
+            onClick={onCancel}
+            disabled={busy}
+            className={`rounded-xl px-4 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50 ${t.pill}`}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={() => void go()}
+            disabled={busy}
+            className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
+          >
+            {busy ? <Loader2 size={14} aria-hidden="true" className="animate-spin" /> : <Trash2 size={14} aria-hidden="true" />}
+            {busy ? "Deleting…" : "Delete for good"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** One application, opened from the Products column: the decision, the reply, the product and every contact. */
 function Review({
@@ -722,6 +1047,7 @@ function Review({
   pill,
   onClose,
   onSave,
+  onDelete,
 }: {
   offer: BoardOffer;
   account: BoardAccount | null;
@@ -729,6 +1055,8 @@ function Review({
   pill: Record<OfferStatus, string>;
   onClose: () => void;
   onSave: (change: { status?: OfferStatus; reply?: string }) => Promise<boolean>;
+  /** Asks the board's delete window about this application. */
+  onDelete: () => void;
 }) {
   const [reply, setReply] = useState(o.reply ?? "");
   const [busy, setBusy] = useState(false);
@@ -846,6 +1174,14 @@ function Review({
                 </button>
               ))
             )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onDelete}
+              className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold text-red-600 hover:bg-red-500/10 disabled:opacity-50"
+            >
+              <Trash2 size={14} aria-hidden="true" /> Delete application
+            </button>
           </div>
 
           <section className={`flex gap-4 rounded-2xl p-5 ring-1 ${t.card}`}>
