@@ -15,7 +15,8 @@ import { LEAD_STATUS_META, STAFF_OUTCOME_ORDER, outcomeMeta, outcomeOf, type Lea
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
 import { CustomerDetail, type RecordedUpdate } from "@/components/employee/CustomerDetail";
 import { WorkspaceToast, type ToastMessage } from "@/components/employee/WorkspaceToast";
-import { groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
+import { customerOf, groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
+import { capitalized } from "@/lib/customer-label";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
@@ -186,7 +187,7 @@ export function EmployeeLeadBoard({
       // It is no longer theirs, so the panel must not sit open over a customer
       // they cannot act on any more.
       setOpenKey(null);
-      setToast({ id: Date.now(), text: "Recorded. This customer is back in the open pool.", detail: "Anybody can take them; you can again from the next office day.", tone: "moved" });
+      setToast({ id: Date.now(), text: `Recorded. ${capitalized(customerOf(open))} is back in the open pool.`, detail: "Anybody can take them; you can again from the next office day.", tone: "moved" });
     } else {
       setToast({
         id: Date.now(),
@@ -202,7 +203,7 @@ export function EmployeeLeadBoard({
 
   const released = () => {
     setOpenKey(null);
-    setToast({ id: Date.now(), text: "Released. This customer is back in the open pool.", detail: "Anybody can take them; you can again from the next office day.", tone: "moved" });
+    setToast({ id: Date.now(), text: `${capitalized(customerOf(open))} is back in the open pool.`, detail: "Anybody can take them; you can again from the next office day.", tone: "moved" });
     refresh();
   };
 

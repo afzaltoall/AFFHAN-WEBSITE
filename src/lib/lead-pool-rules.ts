@@ -163,6 +163,22 @@ export function poolKindLabel(kind: string): string {
   }
 }
 
+/**
+ * The word before a member of staff's name on the trail (the owner, 2026-10-22: staff are always "by", "held by" or
+ * "taken by" somebody, so their names never read as a customer's). "by" whoever did it: took the customer, released
+ * them, recorded an outcome, closed their requests. "held by" whoever had the customer when the pool, the console or
+ * an administrator moved them, or a new request joined them. "to" whom an administrator once handed them (the old
+ * assign, on older trails).
+ */
+export function staffWord(kind: string): "by" | "held by" | "to" {
+  const acted: string[] = [
+    POOL_EVENT.TAKEN, POOL_EVENT.RELEASED, POOL_EVENT.NOT_ATTENDED, POOL_EVENT.HELD, POOL_EVENT.RESOLVED, POOL_EVENT.REQUESTS_CLOSED,
+  ];
+  if (acted.includes(kind)) return "by";
+  if (kind === POOL_EVENT.ADMIN_ASSIGNED || kind === "MANUAL_ASSIGN") return "to";
+  return "held by";
+}
+
 /** The trail's line when Lead or No lead closes a customer's open requests: "closed by Priya: 2 requests marked Handled". */
 export function closedByNote(name: string, requests: number): string {
   return `closed by ${name}: ${requests} ${requests === 1 ? "request" : "requests"} marked Handled`;

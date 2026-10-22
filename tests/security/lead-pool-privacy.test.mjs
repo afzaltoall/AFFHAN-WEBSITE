@@ -173,13 +173,32 @@ test("the Queue page is gone: one redirect, no API, no rail row, the pool's figu
   assert.match(read("src/components/admin/AdminConsole.tsx"), /const handlingParam = params\.get\("handling"\);/);
 });
 
-// The daily net must reach the sweep: with trailingSlash on, a path without its slash answers 308, which Vercel's
-// cron does not follow (2026-10-22: the rotate path had none).
-test("every scheduled path ends with its slash", () => {
+// The schedule must reach the sweep: with trailingSlash on, a path without its slash answers 308, which Vercel's
+// cron does not follow (2026-10-22: the rotate path had none). Vercel runs the sweep every fifteen minutes (Pro).
+test("every scheduled path ends with its slash, and the sweep runs every fifteen minutes", () => {
   const crons = JSON.parse(read("vercel.json")).crons;
   assert.ok(crons.length >= 2);
   for (const c of crons) assert.match(c.path, /\/$/, c.path);
-  assert.ok(crons.some((c) => c.path === "/api/cron/leads/rotate/"));
+  assert.equal(crons.find((c) => c.path === "/api/cron/leads/rotate/")?.schedule, "*/15 * * * *");
+});
+
+// Vercel's cron and an external scheduler may both call the sweep, even at once (the owner, 2026-10-22).
+test("the sweep is safe with two callers: each customer taken in once, the Brevo keep-alive once a day", () => {
+  const cron = read("src/app/api/cron/leads/rotate/route.ts");
+  assert.match(cron, /const dailyRun = wall\.getUTCHours\(\) === 5 && wall\.getUTCMinutes\(\) < 15;/);
+  assert.match(cron, /startsWith\("vercel-cron\/"\) && dailyRun \? brevoKeepAlive\(\) : null;/);
+  const takeIn = read(POOL).slice(read(POOL).indexOf("async function takeIn("), read(POOL).indexOf("async function announceGivenUp("));
+  // An old place is converted only while it is old; a new one is unique by customer, and the loser's P2002 is let go.
+  assert.match(takeIn, /where: \{ id, state: \{ notIn: NEW_STATES \} \},/);
+  assert.match(takeIn, /if \(converted\.count !== 1\) return;/);
+  assert.match(takeIn, /error\.code === "P2002"\) return;/);
+  assert.ok(takeIn.indexOf("if (converted.count !== 1) return;") < takeIn.indexOf("await assignAll("), "the place is settled before any request moves");
+  assert.ok(takeIn.indexOf("await tx.leadQueueEntry.create(") < takeIn.indexOf("await assignAll("), "a new place is claimed before any request moves");
+  // Every other move the sweep makes is conditional: only one of two runs can win it.
+  const pool = read(POOL);
+  assert.match(fn(pool, "reconsiderTriage"), /where: \{ id: e\.id, state: e\.state, currentEmployeeId: e\.currentEmployeeId \}/);
+  assert.match(pool, /where: \{ id: e\.id, state: POOL_STATE\.HELD, currentEmployeeId: e\.currentEmployeeId, \.\.\.still \}/);
+  assert.match(pool, /where: \{ id: e\.id, state: e\.state, expiresAt: \{ lte: now \} \}/);
 });
 
 test("the sweep's test clock stays off unless a build turns it on", () => {
@@ -272,4 +291,32 @@ test("Lead or No lead closes the customer's open requests, after deciding them, 
   assert.match(closer, /status: \{ notIn: \[\.\.\.SETTLED_TRIAGE\] \},/);
   assert.match(closer, /const data = \{ status: "handled" \};/);
   assert.match(closer, /logEvent\(tx, entry\.id, POOL_EVENT\.REQUESTS_CLOSED, \{ from: opts\.employee, note: closedByNote\(opts\.employee\.name, marked\) \}\)/);
+});
+
+// 2026-10-22, the owner: a customer's name must never read as a member of staff's. Customers are "customer <name>"
+// with what they asked for; staff come after "by", "held by" or "taken by"; the pool names nobody before Take.
+test("lead actions and messages name the customer as one, staff after 'by', and the pool nobody before Take", () => {
+  const open = code(read("src/components/employee/OpenLeads.tsx"));
+  // The name arrives with a successful Take and is used there only; the card and "already taken" use the number.
+  assert.equal((open.match(/customerLabel\(/g) ?? []).length, 1);
+  assert.match(open, /if \(res\.ok\) \{\s+onToast\(\{ id: toastId\(\), text: `You took \$\{customerLabel\(data\.name, row\.items\)\}\.`/);
+  assert.match(open, /`\$\{capitalized\(poolLabel\(row\.code, row\.items\)\)\} was already taken by \$\{data\.by\}\.`/);
+  assert.match(open, /const takeLabel = `Take \$\{poolLabel\(row\.code, row\.items\)\}`;/);
+  // The take route hands the name over on success only.
+  const take = read("src/app/api/employee/pool/take/route.ts");
+  assert.equal((take.match(/name: result\.name/g) ?? []).length, 1);
+  assert.match(take, /case "taken":\s+return NextResponse\.json\(\{ ok: true, code: result\.code, name: result\.name, leads: result\.leads \}/);
+  // The staff card and board.
+  assert.match(read("src/components/employee/CustomerDetail.tsx"), /Release \{customerOf\(group\)\} to the open pool\?/);
+  const board = read("src/components/employee/EmployeeLeadBoard.tsx");
+  assert.equal((board.match(/\$\{capitalized\(customerOf\(open\)\)\} is back in the open pool\./g) ?? []).length, 2);
+  assert.match(read("src/components/employee/lead-groups.ts"), /title: l\.kind === "inquiry" \? l\.title : null/);
+  // The console: the popup's Release, the trail's people, Activity's sentence.
+  assert.match(read("src/components/admin/AdminConsole.tsx"), /`Release \$\{who\} \(held by \$\{h\.by\.name\}\) to the pool\?/);
+  assert.match(read("src/components/admin/PoolMoves.tsx"), /\{staffWord\(e\.kind\)\} \{person\(e\.from\)\}/);
+  assert.match(read("src/components/admin/PoolMoves.tsx"), / · customer \{e\.customerName\}/);
+  assert.match(read("src/components/admin/HandlingHistory.tsx"), /`\$\{staffWord\(s\.kind\)\} \$\{s\.who\}`/);
+  const activity = read("src/app/admin/(console)/activity/page.tsx");
+  assert.match(activity, /\{capitalized\(customerLabel\(lead\.name, covered\)\)\}/);
+  assert.match(activity, /by\{" "\}\s+<Link href=\{`\/admin\/employees\/\$\{r\.employee\.id\}\/`\}/);
 });

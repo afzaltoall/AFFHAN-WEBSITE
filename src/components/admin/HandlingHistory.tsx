@@ -5,6 +5,7 @@ import { RotateCcw } from "lucide-react";
 import { formatDateTime } from "@/lib/datetime";
 import { timeAgo } from "@/lib/relative-time";
 import { leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { staffWord } from "@/lib/lead-pool-rules";
 import type { HandlingStep, LeadKind } from "@/lib/lead-pool";
 import type { Theme } from "@/components/admin/console-theme";
 
@@ -69,7 +70,8 @@ export function HandlingHistory({ kind, id, t, dark }: { kind: LeadKind; id: str
                 ) : (
                   <span className={`font-semibold ${t.strong}`}>{s.label}</span>
                 )}
-                {s.who && <span className={t.mid}>{s.kind === "STATUS" ? `by ${s.who}` : s.who}</span>}
+                {/* "by Khaja" who did it, "held by Khaja" who had the customer: never a bare name (staffWord). */}
+                {s.who && <span className={t.mid}>{s.kind === "STATUS" ? `by ${s.who}` : `${staffWord(s.kind)} ${s.who}`}</span>}
                 <span className={t.soft} title={formatDateTime(s.at)}>
                   · {formatDateTime(s.at)} ({timeAgo(s.at)})
                 </span>

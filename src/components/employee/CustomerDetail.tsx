@@ -18,7 +18,7 @@ import {
   LEAD_NOTE_MAX, LEAD_STATUSES, LEAD_STATUS_META, leadStatusChip, leadStatusLabel, NOT_STARTED_META,
   normalizeStatus, showsTimeToStaff, type LeadStatus,
 } from "@/lib/leadStatus";
-import { batchesOf, type CustomerLeadGroup } from "@/components/employee/lead-groups";
+import { batchesOf, customerOf, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
@@ -374,7 +374,7 @@ export function CustomerDetail({
                         {leadStatusLabel(b.status)}
                       </span>
                       <span className={wt.soft} {...(timed ? { title: formatDateTime(b.createdAt) } : {})}>
-                        {timed ? `${timeAgo(b.createdAt)} · ` : ""}{b.byMe ? "you" : b.byName}
+                        {timed ? `${timeAgo(b.createdAt)} · ` : ""}{b.byMe ? "by you" : `by ${b.byName}`}
                         {b.titles.length > 1 && ` · ${b.titles.length} items`}
                       </span>
                     </span>
@@ -393,7 +393,8 @@ export function CustomerDetail({
         {/* Letting the customer go, when the reader cannot take them on: asked once, with room for why. */}
         {releasing !== "idle" && (
           <div className={`border-t bg-amber-500/[0.06] px-5 py-3.5 ${wt.border}`}>
-            <p className="text-[13px] font-semibold">Release {group.customerName} to the open pool?</p>
+            {/* "customer Siddiq (O-neck T-Shirt + 1 more)": a customer's name must never read as a colleague's. */}
+            <p className="text-[13px] font-semibold">Release {customerOf(group)} to the open pool?</p>
             <p className={`mt-0.5 text-[12px] ${wt.soft}`}>
               Anybody on the team can take them at once; you can take them again from the next office day.
             </p>

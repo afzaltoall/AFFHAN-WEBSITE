@@ -9,6 +9,7 @@ import type { LeadRef, PoolRow, PoolView } from "@/lib/lead-pool";
 import { wt } from "@/components/employee/workspace-ui";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 import type { ToastMessage } from "@/components/employee/WorkspaceToast";
+import { capitalized, customerLabel, poolLabel } from "@/lib/customer-label";
 
 type KindFilter = "all" | "inquiry" | "contact" | "shipment";
 
@@ -26,6 +27,9 @@ const toastId = () => ++toastSeq;
  * Take claims the customer, every request and message of theirs, and their card opens on My leads. If somebody got
  * there first the answer says who; at the cap Take waits until the reader records an outcome or releases somebody;
  * and a customer the reader let go is theirs to take again from the next office day.
+ *
+ * The words name the customer as "customer <name>" once they are the reader's, and by their AFFHAN number before
+ * that, always with what they asked for, so no customer reads as a member of staff (lib/customer-label.ts).
  */
 export function OpenLeads({
   pool,
@@ -75,10 +79,13 @@ export function OpenLeads({
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        onToast({ id: toastId(), text: `Taken. ${data.code ?? "This customer"} is yours now.`, detail: "Every request and message of theirs moved to My leads.", tone: "done" });
+        onToast({ id: toastId(), text: `You took ${customerLabel(data.name, row.items)}.`, detail: "Every request and message of theirs moved to My leads.", tone: "done" });
         onTaken(Array.isArray(data.leads) ? data.leads : [], data.code ?? null);
       } else if (res.status === 401) {
         onToast({ id: toastId(), text: "Your session has ended. Sign in again to take a customer.", tone: "moved" });
+      } else if (res.status === 409 && typeof data.by === "string") {
+        // Somebody else holds them now, so their name stays hidden: the AFFHAN number, and who got there first.
+        onToast({ id: toastId(), text: `${capitalized(poolLabel(row.code, row.items))} was already taken by ${data.by}.`, tone: "moved" });
       } else {
         onToast({ id: toastId(), text: data.error || "Could not take this customer.", tone: "moved" });
       }
@@ -164,6 +171,8 @@ function PoolCard({ row, at, busy, disabled, onTake }: { row: PoolRow; at: strin
   const summary =
     titles.length > 0 ? titles.join(" · ") : row.counts.shipment > 0 ? "Freight request" : row.counts.contact > 0 ? "Contact message" : "Request";
   const waiting = row.retakeFrom !== null;
+  // "Take AFFHAN-0123 (O-neck T-Shirt)": the pool may not name the customer before Take (lib/customer-label.ts).
+  const takeLabel = `Take ${poolLabel(row.code, row.items)}`;
 
   return (
     <li className={`rounded-xl shadow-sm ring-1 ${wt.card}`}>
@@ -227,10 +236,11 @@ function PoolCard({ row, at, busy, disabled, onTake }: { row: PoolRow; at: strin
             type="button"
             onClick={onTake}
             disabled={disabled || waiting}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-dark px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50"
+            title={takeLabel}
+            className="inline-flex max-w-full items-center justify-center gap-2 rounded-xl bg-brand-dark px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-[18rem]"
           >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hand className="h-4 w-4" />}
-            Take
+            {busy ? <Loader2 className="h-4 w-4 shrink-0 animate-spin" /> : <Hand className="h-4 w-4 shrink-0" />}
+            <span className="truncate">{takeLabel}</span>
           </button>
           {waiting && <span className="text-[11.5px] text-amber-700">You let them go: yours to take again from {formatDateTime(row.retakeFrom!)}</span>}
         </div>

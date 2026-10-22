@@ -17,16 +17,13 @@ export const maxDuration = 60;
  * days, so the granularity only decides how late a release can be (a quarter
  * of an hour), not whether it happens.
  *
- * WHO CALLS THIS. Vercel's own cron runs a job once a day on this plan, which
- * is nowhere near often enough. The project already solved that for the
- * catalogue sync: an external scheduler (cron-job.org) calls the route on a
- * schedule of its own. This is the same arrangement and the same bearer token,
- * so there is one secret and one thing to configure rather than two.
- *
- * vercel.json also has this route at 05:00 UTC — 10:30 in the office, half an
- * hour after it opens. That is not the schedule; it is the net under it. If
- * the external scheduler stops, customers still move once a day and somebody
- * notices a pool that has gone quiet rather than one that has gone silent.
+ * WHO CALLS THIS. Vercel's own cron, every fifteen minutes (vercel.json,
+ * "*\/15 * * * *"): the project is on Vercel Pro, which runs cron jobs as often
+ * as once a minute (the owner, 2026-10-22; the once-a-day limit is Hobby's).
+ * An external scheduler (cron-job.org, set up by somebody else) may call it as
+ * well, with the same bearer token. Two callers are safe: a run that finds
+ * nothing to do does nothing, and every move it makes is a conditional update
+ * that only one of two overlapping runs can win (lib/lead-pool.ts).
  *
  *   GET /api/cron/leads/rotate/
  *   Authorization: Bearer $CRON_SECRET
@@ -83,12 +80,15 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "now must be an ISO date" }, { status: 400 });
   }
 
-  // The daily run, Vercel's own cron (vercel.json; it calls as "vercel-cron/1.0"),
+  // One run a day, Vercel's own (it calls as "vercel-cron/1.0") at 05:00 UTC,
   // also keeps Brevo's API key in use (lib/brevo.ts, brevoKeepAlive): once a day,
-  // not on every one of the external scheduler's quarter-hours. Alongside the
-  // sweep, never in its way: it cannot throw, a failure is a log line, and the
-  // answer below is the sweep's whatever Brevo said.
-  const keepAlive = request.headers.get("user-agent")?.startsWith("vercel-cron/") ? brevoKeepAlive() : null;
+  // not on every quarter-hour now that Vercel calls every fifteen minutes. The
+  // real clock, not ?now=. Alongside the sweep, never in its way: it cannot
+  // throw, a failure is a log line, and the answer below is the sweep's whatever
+  // Brevo said.
+  const wall = new Date();
+  const dailyRun = wall.getUTCHours() === 5 && wall.getUTCMinutes() < 15;
+  const keepAlive = request.headers.get("user-agent")?.startsWith("vercel-cron/") && dailyRun ? brevoKeepAlive() : null;
 
   try {
     const report = await runPoolSweep({ now, dryRun });

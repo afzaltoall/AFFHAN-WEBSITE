@@ -2575,11 +2575,12 @@ function OutcomeChip({ value }: { value: LeadOutcome | null }) {
   const working = isInProgress(value.status);
   return (
     <span
-      title={`${leadStatusLabel(value.status)} — ${value.by}, ${formatDateTime(value.at)}${value.note ? `\n\n${value.note}` : ""}`}
+      title={`${leadStatusLabel(value.status)} — by ${value.by}, ${formatDateTime(value.at)}${value.note ? `\n\n${value.note}` : ""}`}
       className={`inline-flex max-w-[15rem] items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${leadStatusChip(value.status)}`}
     >
       <span className="truncate">{leadStatusLabel(value.status)}</span>
-      <span className={`truncate font-semibold opacity-75`}>{who}</span>
+      {/* "by Khaja": a member of staff is always named after "by", never bare beside a customer's name. */}
+      <span className={`truncate font-semibold opacity-75`}>by {who}</span>
       <span className="shrink-0 font-medium opacity-60 tabular-nums">
         {working ? `since ${formatSince(value.at)}` : timeAgo(value.at)}
       </span>
@@ -3640,7 +3641,7 @@ function ShipmentsSection({
       commodityTypeLabel(r.commodityType), modeLabel(r.mode), methodLabel(r.method), r.portOfLoading,
       r.portOfDischarge, termsLabel(r.terms), Number(r.cbm), Number(r.weightKg), r.cartonBoxes ?? "",
       r.notes ?? "", asStatus(r.status), nameOf(r.assignedToId),
-      r.lastStatus ? `${leadStatusLabel(r.lastStatus.status)} (${r.lastStatus.by})` : "", r.source,
+      r.lastStatus ? `${leadStatusLabel(r.lastStatus.status)} (by ${r.lastStatus.by})` : "", r.source,
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
     // The phone column as text, or Excel shows 919876543210 as 9.19E+11.
@@ -4022,7 +4023,7 @@ function ShipmentModal({
           {s.lastStatus?.note && (
             <div className={`mt-4 rounded-xl p-3 ${t.thumb}`}>
               <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>
-                Latest note · {s.lastStatus.by}
+                Latest note · by {s.lastStatus.by}
               </p>
               <p className={`whitespace-pre-wrap break-words text-sm font-medium leading-relaxed ${t.strong}`}>{s.lastStatus.note}</p>
             </div>
@@ -4084,8 +4085,10 @@ function HeldRelease({ h, lead, customer, t, dark, now, onReleased }: {
   const [busy, setBusy] = useState(false);
   if (h?.state !== "held") return null;
   const release = async () => {
-    const who = customer.trim() || "this customer";
-    if (!window.confirm(`Put ${who} back in the open pool?\n\n${h.by.name} stops holding them, and anybody on the team can take them.`)) return;
+    // "customer Siddiq (held by Khaja)": the customer named as one, the member of staff after "held by", so neither
+    // reads as the other (the owner, 2026-10-22; lib/customer-label.ts).
+    const who = customer.trim() ? `customer ${customer.trim()}` : "this customer";
+    if (!window.confirm(`Release ${who} (held by ${h.by.name}) to the pool?\n\n${h.by.name} stops holding them, and anybody on the team can take them.`)) return;
     setBusy(true);
     try {
       const answer = (await adminWrite("/api/admin/handling/", { ...lead, action: "release" })) as { handling?: Handling | null } | null;

@@ -7,12 +7,13 @@ import assert from "node:assert/strict";
 import { addOfficeMinutes, isOfficeOpen, officeMinutesBetween, startOfNextOfficeDay } from "../../src/lib/office-hours.ts";
 import {
   ASSIGN_GONE, LEAVE_KINDS, POOL_EVENT, POOL_STATE, SETTLED_TRIAGE, closedByNote, firstName, isFinalOutcome, needsHandling,
-  placeOnFile, poolKindLabel, releaseDeadline, retakeAllowedFrom, staleDeadline, triageMove, weekEnds,
+  placeOnFile, poolKindLabel, releaseDeadline, retakeAllowedFrom, staffWord, staleDeadline, triageMove, weekEnds,
 } from "../../src/lib/lead-pool-rules.ts";
 import { MAX_OPEN_LEADS, RELEASE_AFTER_OFFICE_MINUTES, STALE_IN_PROGRESS_OFFICE_DAYS } from "../../src/lib/lead-pool-config.ts";
 import {
   handlingKey, handlingText, heldByMessage, heldByOf, heldRefusal, heldSince, matchesHandling, span, waitingRank,
 } from "../../src/lib/handling.ts";
+import { askedFor, capitalized, customerLabel, poolLabel } from "../../src/lib/customer-label.ts";
 
 /** A moment in the office's own time: ist("2026-10-19 17:30") is Monday 19 October, 5:30 PM in Chennai. */
 const ist = (s) => new Date(`${s.replace(" ", "T")}:00+05:30`);
@@ -275,4 +276,41 @@ test("durations in words", () => {
   assert.equal(span(47 * 60 * MIN + 59 * MIN), "47h 59m");
   assert.equal(span(48 * 60 * MIN), "2d 0h");
   assert.equal(span(-5 * MIN), "0m");
+});
+
+// ---- naming a customer, and a member of staff, in a lead action or message (the owner, 2026-10-22) -----------------
+
+test("a customer is always 'customer <name>' with what they asked for; before Take, their AFFHAN number", () => {
+  const tee = { kind: "inquiry", title: "O-neck T-Shirt" };
+  const mug = { kind: "inquiry", title: "Ceramic Mug" };
+  const message = { kind: "contact", title: "Siddiq" }; // a message's title is the sender's own name: never shown
+  const freight = { kind: "shipment", title: null };
+  assert.equal(customerLabel("Siddiq", [tee, message]), "customer Siddiq (O-neck T-Shirt + 1 more)");
+  assert.equal(customerLabel("Siddiq", [tee]), "customer Siddiq (O-neck T-Shirt)");
+  // Their first product, wherever it comes in the list; else what their first request is.
+  assert.equal(askedFor([message, mug, tee]), "Ceramic Mug + 2 more");
+  assert.equal(askedFor([message]), "Contact message");
+  assert.equal(askedFor([freight, message]), "Freight request + 1 more");
+  assert.equal(askedFor([]), "");
+  assert.equal(customerLabel("  Siddiq  ", []), "customer Siddiq");
+  assert.equal(customerLabel("", [tee]), "this customer (O-neck T-Shirt)");
+  // The pool may not name anybody before Take.
+  assert.equal(poolLabel("AFFHAN-0123", [tee]), "AFFHAN-0123 (O-neck T-Shirt)");
+  assert.equal(poolLabel(null, [tee, mug]), "this customer (O-neck T-Shirt + 1 more)");
+  assert.equal(`Take ${poolLabel("AFFHAN-0123", [tee])}`, "Take AFFHAN-0123 (O-neck T-Shirt)");
+  // At the start of a sentence.
+  assert.equal(`${capitalized(customerLabel("Siddiq", [tee]))} is back in the open pool.`, "Customer Siddiq (O-neck T-Shirt) is back in the open pool.");
+  assert.equal(`${capitalized(poolLabel("AFFHAN-0123", [tee]))} was already taken by Khaja.`, "AFFHAN-0123 (O-neck T-Shirt) was already taken by Khaja.");
+});
+
+test("a member of staff on the trail is 'by' whoever did it, 'held by' whoever had the customer", () => {
+  for (const kind of [POOL_EVENT.TAKEN, POOL_EVENT.RELEASED, POOL_EVENT.NOT_ATTENDED, POOL_EVENT.RESOLVED, POOL_EVENT.REQUESTS_CLOSED, POOL_EVENT.HELD]) {
+    assert.equal(staffWord(kind), "by", kind);
+  }
+  // Moved by the pool, the console or an administrator, or joined by a new request: the person who had them.
+  for (const kind of [POOL_EVENT.AUTO_RELEASED, POOL_EVENT.ADMIN_UNASSIGNED, POOL_EVENT.INVALIDATED, POOL_EVENT.DONE, POOL_EVENT.SWITCHED, POOL_EVENT.JOINED]) {
+    assert.equal(staffWord(kind), "held by", kind);
+  }
+  assert.equal(staffWord(POOL_EVENT.ADMIN_ASSIGNED), "to");
+  assert.equal(staffWord("MANUAL_ASSIGN"), "to");
 });

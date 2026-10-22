@@ -13,6 +13,7 @@ import {
   needsHandling, placeOnFile, poolKindLabel, releaseDeadline, retakeAllowedFrom, staleDeadline, triageMove, weekEnds,
 } from "@/lib/lead-pool-rules";
 import { normalizeStatus } from "@/lib/leadStatus";
+import { askedFor, type AskedItem } from "@/lib/customer-label";
 
 /**
  * The open pool: customers nobody holds, which the sales team take for themselves.
@@ -338,8 +339,11 @@ export async function listPool(employeeId: string | null, now = new Date()): Pro
 // ---- Take ---------------------------------------------------------------------------------------------------------------
 
 export type TakeResult =
-  /** `leads`: every request and message now theirs, so the board can open the customer. */
-  | { outcome: "taken"; code: string | null; leads: LeadRef[] }
+  /**
+   * `leads`: every request and message now theirs, so the board can open the customer; `name`: the name the customer
+   * is filed under, which the taker may see now they hold them ("You took customer Siddiq").
+   */
+  | { outcome: "taken"; code: string | null; name: string; leads: LeadRef[] }
   | { outcome: "already"; by: string }
   | { outcome: "cap"; held: number; cap: number }
   | { outcome: "cooldown"; until: string }
@@ -359,7 +363,7 @@ export async function takeCustomer(opts: { entryId: string; employee: Person; no
   const me = opts.employee;
   const entry = await prisma.leadQueueEntry.findUnique({
     where: { id: opts.entryId },
-    select: { id: true, customerKey: true, state: true, currentEmployee: { select: { name: true } } },
+    select: { id: true, customerKey: true, customerName: true, state: true, currentEmployee: { select: { name: true } } },
   });
   if (!entry) return { outcome: "gone" };
   if (entry.state === POOL_STATE.HELD) return { outcome: "already", by: firstName(entry.currentEmployee?.name) };
@@ -394,7 +398,7 @@ export async function takeCustomer(opts: { entryId: string; employee: Person; no
     }
     await assignAll(tx, entry.customerKey, me.id, now);
     await logEvent(tx, entry.id, POOL_EVENT.TAKEN, { to: me });
-    return { outcome: "taken", code: null, leads: [] };
+    return { outcome: "taken", code: null, name: entry.customerName, leads: [] };
   }, TX);
 
   if (result.outcome === "taken") {
@@ -410,7 +414,7 @@ export async function takeCustomer(opts: { entryId: string; employee: Person; no
       ...c.map((r) => ({ kind: "contact" as const, id: r.id })),
       ...s.map((r) => ({ kind: "shipment" as const, id: r.id })),
     ];
-    return { outcome: "taken", code: codes[entry.customerKey] ?? null, leads };
+    return { outcome: "taken", code: codes[entry.customerKey] ?? null, name: entry.customerName, leads };
   }
   return result;
 }
@@ -990,17 +994,24 @@ async function takeIn(now: Date, dryRun: boolean, report: PoolSweepReport) {
     if (dryRun) continue;
 
     await prisma.$transaction(async (tx) => {
+      // The place first, so a sweep running beside this one (Vercel's and an external scheduler's) takes each
+      // customer in once: a new place is unique by customer (P2002, caught below), and an old one from the rotation
+      // is converted only while it is still old.
+      const legacyId = legacyBy.get(key);
+      const id = legacyId ?? randomUUID();
+      if (legacyId) {
+        const converted = await tx.leadQueueEntry.updateMany({
+          where: { id, state: { notIn: NEW_STATES } },
+          data: { ...data, customerName: name, enteredAt: now, expiresAt: weekEnds(now), passes: 0 },
+        });
+        if (converted.count !== 1) return;
+      } else {
+        await tx.leadQueueEntry.create({ data: { id, customerKey: key, customerName: name, ...data, enteredAt: now, expiresAt: weekEnds(now) } });
+      }
       // Released with nobody holding them (in the pool, or set aside as already handled), or joined to the one
       // person who does.
       if ((data.state === POOL_STATE.OPEN || data.state === POOL_STATE.DONE) && assigned.length) await assignAll(tx, key, null, now);
       if (data.state === POOL_STATE.HELD && joined) await assignAll(tx, key, data.currentEmployeeId, now);
-      const legacyId = legacyBy.get(key);
-      const id = legacyId ?? randomUUID();
-      if (legacyId) {
-        await tx.leadQueueEntry.update({ where: { id }, data: { ...data, customerName: name, enteredAt: now, expiresAt: weekEnds(now), passes: 0 } });
-      } else {
-        await tx.leadQueueEntry.create({ data: { id, customerKey: key, customerName: name, ...data, enteredAt: now, expiresAt: weekEnds(now) } });
-      }
       // Set aside from somebody who held them: the trail names who let go.
       const from = data.state === POOL_STATE.DONE && holderId ? (people.get(holderId) ?? null) : null;
       await logEvent(tx, id, POOL_EVENT.SWITCHED, { to: data.state === POOL_STATE.HELD ? holder : null, from, note });
@@ -1082,7 +1093,29 @@ export interface PoolEventRow {
   to: { id: string | null; name: string | null };
   note: string | null;
   customerName: string;
+  /** What the customer asked for, as the trail names them: "O-neck T-Shirt + 1 more" (lib/customer-label.ts). */
+  asked: string;
   code: string | null;
+}
+
+/** Each customer's live requests, newest first, as lib/customer-label.ts names them: products by name, else a kind. */
+async function askedItems(keys: string[]): Promise<Map<string, AskedItem[]>> {
+  const out = new Map<string, AskedItem[]>();
+  const unique = [...new Set(keys)];
+  if (unique.length === 0) return out;
+  const rows = await prisma.$queryRaw<{ k: string; kind: AskedItem["kind"]; title: string | null }[]>`
+    SELECT k, kind, title FROM (
+      SELECT "customerKey" AS k, 'inquiry' AS kind, "productName" AS title, "createdAt" AS at FROM "Inquiry"
+       WHERE "customerKey" = ANY(${unique}) AND status <> 'deleted'
+      UNION ALL SELECT "customerKey", 'contact', NULL, "createdAt" FROM "ContactMessage" WHERE "customerKey" = ANY(${unique}) AND status <> 'deleted'
+      UNION ALL SELECT "customerKey", 'shipment', NULL, "createdAt" FROM "ShipmentInquiry" WHERE "customerKey" = ANY(${unique}) AND status <> 'deleted'
+    ) x ORDER BY at DESC`;
+  for (const r of rows) {
+    const list = out.get(r.k);
+    if (list) list.push({ kind: r.kind, title: r.title });
+    else out.set(r.k, [{ kind: r.kind, title: r.title }]);
+  }
+  return out;
 }
 
 export async function poolEvents(opts: { employeeId?: string; page?: number; perPage?: number } = {}): Promise<{ total: number; rows: PoolEventRow[] }> {
@@ -1105,7 +1138,8 @@ export async function poolEvents(opts: { employeeId?: string; page?: number; per
       },
     }),
   ]);
-  const codes = await customerCodesFor(events.map((e) => e.entry.customerKey));
+  const keys = events.map((e) => e.entry.customerKey);
+  const [codes, asked] = await Promise.all([customerCodesFor(keys), askedItems(keys)]);
   return {
     total,
     rows: events.map((e) => ({
@@ -1116,6 +1150,7 @@ export async function poolEvents(opts: { employeeId?: string; page?: number; per
       to: { id: e.toEmployeeId, name: e.toName },
       note: e.note,
       customerName: e.entry.customerName,
+      asked: askedFor(asked.get(e.entry.customerKey) ?? []),
       code: codes[e.entry.customerKey] ?? null,
     })),
   };

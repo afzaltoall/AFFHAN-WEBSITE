@@ -12,6 +12,7 @@ import { normalizePhoneKey } from "@/lib/customerGroups";
 import { collapseUpdates } from "@/lib/statusBatch";
 import { handoffsFor } from "@/lib/lead-handoff";
 import { poolEvents } from "@/lib/lead-pool";
+import { capitalized, customerLabel, type AskedItem } from "@/lib/customer-label";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
 import { PoolMoves } from "@/components/admin/PoolMoves";
 
@@ -175,6 +176,10 @@ export default async function ActivityPage({
               const items = batch
                 .map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : b.shipment ? `Freight request ${b.shipment.referenceNo}` : null))
                 .filter((x): x is string => Boolean(x));
+              // The same, as the sentence names the customer: "(O-neck T-Shirt + 2 more)".
+              const covered: AskedItem[] = batch.flatMap((b): AskedItem[] =>
+                b.inquiry ? [{ kind: "inquiry", title: b.inquiry.productName }] : b.contact ? [{ kind: "contact" }] : b.shipment ? [{ kind: "shipment" }] : [],
+              );
               const image = batch.find((b) => b.inquiry?.product?.imageUrl)?.inquiry?.product?.imageUrl ?? null;
               const lead = r.inquiry
                 ? { name: r.inquiry.customerName, detail: items.join(" · "), href: `/admin/?inquiry=${r.inquiry.id}`, country: r.inquiry.country, image }
@@ -203,28 +208,25 @@ export default async function ActivityPage({
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
+                      {/* "Customer Siddiq (O-neck T-Shirt + 1 more) marked Not attended by Khaja": the customer named as
+                          one, with what the action covered, and the member of staff after "by", so neither reads as
+                          the other (the owner, 2026-10-22; lib/customer-label.ts). */}
                       <p className="text-[13.5px] leading-snug">
-                        <Link href={`/admin/employees/${r.employee.id}/`} className="relative z-10 font-semibold hover:underline">
-                          {who}
-                        </Link>{" "}
-                        marked{" "}
                         {lead ? (
                           <Link href={lead.href} className="font-semibold after:absolute after:inset-0 after:rounded-2xl after:content-[''] group-hover:underline">
-                            {lead.name}
+                            {capitalized(customerLabel(lead.name, covered))}
                           </Link>
                         ) : (
-                          <span className="font-semibold">a lead since removed</span>
+                          <span className="font-semibold">A lead since removed</span>
                         )}{" "}
-                        as{" "}
+                        marked{" "}
                         <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${leadStatusChip(r.status)}`}>
                           {leadStatusLabel(r.status)}
-                        </span>
-                        {batch.length > 1 && (
-                          <span className="text-[#86868b]">
-                            {" "}
-                            across {batch.length} products
-                          </span>
-                        )}
+                        </span>{" "}
+                        by{" "}
+                        <Link href={`/admin/employees/${r.employee.id}/`} className="relative z-10 font-semibold hover:underline">
+                          {who}
+                        </Link>
                         {/* Where the customer went next, in the same sentence.
                             The arrow does the work a second line would, and
                             keeps one action on one line. */}

@@ -1,4 +1,5 @@
 import { customerKeyOf } from "@/lib/customerGroups";
+import { customerLabel } from "@/lib/customer-label";
 import { collapseUpdates } from "@/lib/statusBatch";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 
@@ -66,6 +67,15 @@ export interface CustomerLeadGroup {
   updates: GroupUpdate[];
   /** The newest entry across all of their leads, or null. */
   latest: GroupUpdate | null;
+}
+
+/**
+ * "customer Siddiq (O-neck T-Shirt + 1 more)": how a lead action or message names this customer, so they never read
+ * as a member of staff (lib/customer-label.ts). Products by name, newest first as the card lists them; a message's
+ * title is the sender's own name, so never that.
+ */
+export function customerOf(group: Pick<CustomerLeadGroup, "customerName" | "leads"> | null | undefined): string {
+  return customerLabel(group?.customerName, (group?.leads ?? []).map((l) => ({ kind: l.kind, title: l.kind === "inquiry" ? l.title : null })));
 }
 
 /**

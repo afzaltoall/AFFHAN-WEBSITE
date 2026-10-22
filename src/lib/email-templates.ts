@@ -238,7 +238,8 @@ export function poolGivenUpEmail(customers: { code: string | null; name: string;
   const n = customers.length;
   const shown = customers.slice(0, 50);
   return render(
-    n === 1 ? `Open pool: nobody took on ${customers[0].name}` : `Open pool: nobody took on ${n} customers`,
+    // "customer Siddiq": a customer's name never reads as a member of staff's (lib/customer-label.ts).
+    n === 1 ? `Open pool: nobody took on customer ${customers[0].name}` : `Open pool: nobody took on ${n} customers`,
     [
       {
         kind: "para",

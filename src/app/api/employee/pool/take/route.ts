@@ -10,7 +10,8 @@ const PRIVATE = { "Cache-Control": "private, no-store" };
 /**
  * Take a customer from the open pool: { entryId }, their place in it.
  *
- *   200  taken: every request and message of theirs is the reader's now
+ *   200  taken: every request and message of theirs is the reader's now, and so is their name, for "You took
+ *        customer Siddiq" (lib/customer-label.ts); the pool showed only their AFFHAN number
  *   409  somebody else took them first: "Already taken by <first name>"
  *   403  the reader holds as many open customers as anyone may, or let this one go too recently to take them back
  *        before the next office day
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     const result = await takeCustomer({ entryId, employee: { id: auth.employee.id, name: auth.employee.name } });
     switch (result.outcome) {
       case "taken":
-        return NextResponse.json({ ok: true, code: result.code, leads: result.leads }, { headers: PRIVATE });
+        return NextResponse.json({ ok: true, code: result.code, name: result.name, leads: result.leads }, { headers: PRIVATE });
       case "already":
         return NextResponse.json({ error: `Already taken by ${result.by}`, by: result.by }, { status: 409, headers: PRIVATE });
       case "cap":
