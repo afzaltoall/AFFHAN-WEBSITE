@@ -11,7 +11,7 @@ import {
 } from "../../src/lib/lead-pool-rules.ts";
 import { MAX_OPEN_LEADS, RELEASE_AFTER_OFFICE_MINUTES, STALE_IN_PROGRESS_OFFICE_DAYS } from "../../src/lib/lead-pool-config.ts";
 import {
-  handlingKey, handlingText, heldByMessage, heldByOf, heldRefusal, matchesHandling, span, waitingRank,
+  handlingKey, handlingText, heldByMessage, heldByOf, heldRefusal, heldSince, matchesHandling, span, waitingRank,
 } from "../../src/lib/handling.ts";
 
 /** A moment in the office's own time: ist("2026-10-19 17:30") is Monday 19 October, 5:30 PM in Chennai. */
@@ -145,7 +145,9 @@ test("every event the pool writes has the office's words, and the old assign say
     const label = poolKindLabel(kind);
     assert.ok(label && label !== kind.replace(/_/g, " ").toLowerCase(), `${kind}: ${label}`);
   }
-  assert.match(ASSIGN_GONE, /Release to pool on the Queue page/);
+  // The Queue page has gone (2026-10-22): the one control left is in the customer's popup.
+  assert.match(ASSIGN_GONE, /Release to pool in their popup/);
+  assert.doesNotMatch(ASSIGN_GONE, /Queue/);
 });
 
 // 2026-10-22, the owner: Lead or No lead closes the customer's open requests, and the trail says who.
@@ -161,22 +163,38 @@ test("Lead or No lead closing a customer's requests: the trail's words name who 
 
 const priya = { id: "e1", name: "Priya" };
 
-test("an open row says how long it has waited", () => {
+test("an open row says how long it has waited, and its title when the week runs out", () => {
   const now = ist("2026-10-19 12:35").getTime();
-  assert.equal(handlingText({ state: "open", since: iso("2026-10-19 12:00") }, iso("2026-10-19 11:00"), now).text, "Open · waiting 35m");
+  const open = handlingText({ state: "open", since: iso("2026-10-19 12:00"), until: iso("2026-10-26 12:00") }, iso("2026-10-19 11:00"), now);
+  assert.equal(open.text, "Open · waiting 35m");
+  assert.equal(open.title, "In the pool since 19 Oct 2026, 12:00 PM · given up on 26 Oct 2026, 12:00 PM if nobody takes them");
   // No place in the pool yet (before the first sweep): waiting since it arrived.
   assert.equal(handlingText(null, iso("2026-10-19 10:05"), now).text, "Open · waiting 2h 30m");
 });
 
-test("a held row says who, when they took it, how long, and the newest outcome", () => {
-  const h = { state: "held", by: priya, takenAt: iso("2026-10-19 10:42"), status: "IN_PROGRESS" };
-  assert.equal(handlingText(h, iso("2026-10-19 09:00"), ist("2026-10-19 12:02").getTime()).text, "Taken by Priya · 10:42 AM · held 1h 20m · In progress");
-  // Across a night the clock time gains its date, and the hold is the real seventeen hours.
-  const evening = { state: "held", by: priya, takenAt: iso("2026-10-19 17:00"), status: null };
+// 2026-10-22, the owner: what the Queue page showed (who holds whom, time left before auto-release) is on the chip.
+test("a held row says who, and when they go back to the pool by themselves", () => {
+  const taken = { state: "held", by: priya, takenAt: iso("2026-10-19 10:42"), status: null, releaseAt: iso("2026-10-19 12:42"), clock: "silent" };
+  const silent = handlingText(taken, iso("2026-10-19 09:00"), ist("2026-10-19 11:32").getTime());
+  assert.equal(silent.text, "Taken by Priya · auto-release in 1h 10m");
+  assert.equal(silent.title, "Taken 19 Oct 2026, 10:42 AM · back to the pool 19 Oct 2026, 12:42 PM if nothing is recorded");
+  // In progress: two office days of nothing newer, with the outcome on the chip too.
+  const working = { ...taken, status: "IN_PROGRESS", releaseAt: iso("2026-10-21 12:00"), clock: "stale" };
+  const stale = handlingText(working, iso("2026-10-19 09:00"), ist("2026-10-19 10:00").getTime());
+  assert.equal(stale.text, "Taken by Priya · In progress · auto-release in 2d 2h");
+  assert.match(stale.title, /back to the pool 21 Oct 2026, 12:00 PM unless something newer is recorded$/);
+  // Past the moment: the next sweep releases them while the office is open, else the first one after it opens.
+  assert.equal(handlingText(taken, iso("2026-10-19 09:00"), ist("2026-10-19 12:50").getTime()).text, "Taken by Priya · auto-release due");
+  assert.equal(isOfficeOpen(ist("2026-10-19 19:00")), false);
   assert.equal(
-    handlingText(evening, iso("2026-10-19 09:00"), ist("2026-10-20 10:00").getTime()).text,
-    "Taken by Priya · 19 Oct, 5:00 PM · held 17h 0m · nothing recorded yet",
+    handlingText({ ...taken, releaseAt: iso("2026-10-19 18:20") }, iso("2026-10-19 09:00"), ist("2026-10-19 19:00").getTime()).text,
+    "Taken by Priya · auto-release when the office opens, 20 Oct, 9:30 AM",
   );
+  // No clock at all, which the sweep's rules leave only for odd cases on file before the switch.
+  assert.equal(handlingText({ ...taken, releaseAt: null, clock: null }, iso("2026-10-19 09:00"), ist("2026-10-19 12:00").getTime()).text, "Taken by Priya · no auto-release");
+  // The popup's line beside Release to pool; across a night the time gains its date.
+  assert.equal(heldSince(taken, ist("2026-10-19 12:00").getTime()), "Held by Priya since 10:42 AM");
+  assert.equal(heldSince({ ...taken, takenAt: iso("2026-10-19 17:00") }, ist("2026-10-20 10:00").getTime()), "Held by Priya since 19 Oct, 5:00 PM");
 });
 
 test("a decided row says the outcome, who, and how long from taking it, across a Sunday too", () => {

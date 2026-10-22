@@ -8,11 +8,11 @@ import { prisma, withDbRetry } from "@/lib/prisma";
  * dashboard loads its lists anyway, counted them in the browser, and put the
  * numbers on its own rail. Every other page gets AdminRail, which had nothing
  * to put there — so "3 new inquiries" was visible on /admin and invisible on
- * Staff, Suppliers, Queue and the rest. A number that is only sometimes there
+ * Staff, Suppliers and the rest. A number that is only sometimes there
  * is worse than no number: it reads as zero.
  *
  * So the counting happens here, in the console layout, which is the one piece
- * of server code every admin route already runs. One statement, eight
+ * of server code every admin route already runs. One statement, seven
  * count(*)s, none of them touching Product — the biggest table any of them
  * reads is Supplier at a few hundred rows, and the layout renders alongside
  * the page rather than before it, so it costs a page load nothing it waits on.
@@ -21,7 +21,7 @@ import { prisma, withDbRetry } from "@/lib/prisma";
  * one call per request, so asking twice is one query.
  *
  * WHEN IT FAILS IT RETURNS NULL, not zeroes. Zero is a fact — no new
- * inquiries, an empty queue — and handing it back for "the database did not
+ * inquiries, an empty pool — and handing it back for "the database did not
  * answer" tells an administrator the office is quiet when in truth nobody
  * asked. Null means "no figure", the rail prints none, and the badges are
  * simply absent, which is what they looked like before any of this existed.
@@ -37,10 +37,11 @@ export interface RailCounts {
   trash: number;
   suppliers: number;
   videos: number;
-  /** Customers waiting in the open pool right now. */
-  queue: number;
-  /** And the ones it gave up on, which need a person rather than a wait. */
-  queueInvalid: number;
+  /**
+   * Customers waiting in the open pool right now: the figure on the Inquiries row since the Queue page went (the
+   * owner, 2026-10-22). The untriaged counts above still make the phone's Menu badge.
+   */
+  pool: number;
 }
 
 /**
@@ -54,7 +55,7 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
     const [row] = await withDbRetry(() =>
       prisma.$queryRaw<[{
         inquiries: bigint; contacts: bigint; shipping: bigint; trash: bigint;
-        suppliers: bigint; videos: bigint; queue: bigint; queueInvalid: bigint;
+        suppliers: bigint; videos: bigint; pool: bigint;
       }]>`
         SELECT
           (SELECT count(*) FROM "Inquiry"        WHERE status NOT IN ('handled', 'spam', 'deleted')) AS inquiries,
@@ -63,8 +64,7 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
           (SELECT count(*) FROM "Inquiry"        WHERE status = 'deleted')                           AS trash,
           (SELECT count(*) FROM "Supplier")                                                          AS suppliers,
           (SELECT count(*) FROM "Video")                                                             AS videos,
-          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'OPEN')                               AS queue,
-          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'INVALID')                            AS "queueInvalid"
+          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'OPEN')                               AS pool
       `
     );
     return {
@@ -74,8 +74,7 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
       trash: Number(row.trash),
       suppliers: Number(row.suppliers),
       videos: Number(row.videos),
-      queue: Number(row.queue),
-      queueInvalid: Number(row.queueInvalid),
+      pool: Number(row.pool),
     };
   } catch (error) {
     // Decoration, not the page. A sleeping database must cost an administrator

@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/cron/leads/rotate",
+      "path": "/api/cron/leads/rotate/",
       "schedule": "0 5 * * *"
     },
     {

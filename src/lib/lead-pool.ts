@@ -29,8 +29,8 @@ import { normalizeStatus } from "@/lib/leadStatus";
  *   - a customer still unhandled a week after first arriving in the pool is Invalid, as before.
  *
  * A returning customer's new request joins whoever holds them, or their place in the pool, and restarts no clock.
- * Administrators hand nobody out (the owner, 2026-10-22): their one control is Release to pool on the Queue page, for
- * a held customer whose holder is away, and deactivating somebody releases everything they hold. Every move is
+ * Administrators hand nobody out (the owner, 2026-10-22): their one control is Release to pool in a customer's popup
+ * in the console, for a held customer whose holder is away, and deactivating somebody releases everything they hold. Every move is
  * written to the trail (LeadQueueEvent), which /admin/activity, the staff pages and Team Performance read.
  *
  * Only customers with something to handle are in the pool or held (the owner, 2026-10-22): one whose every request
@@ -532,6 +532,19 @@ export async function adminRelease(opts: { entryId: string; by: string; now?: Da
     return true;
   }, TX);
   return { ok: done };
+}
+
+/**
+ * adminRelease from a lead's popup in the console, which knows one request of the customer's rather than their place
+ * in the pool. The key comes back so the caller can say where the customer stands now.
+ */
+export async function adminReleaseLead(lead: LeadRef, by: string, now = new Date()): Promise<{ ok: boolean; key: string | null }> {
+  const key = await keyForLeads(prisma, [lead]);
+  if (!key) return { ok: false, key: null };
+  const entry = await prisma.leadQueueEntry.findUnique({ where: { customerKey: key }, select: { id: true } });
+  if (!entry) return { ok: false, key };
+  const { ok } = await adminRelease({ entryId: entry.id, by, now });
+  return { ok, key };
 }
 
 /**
@@ -1121,17 +1134,27 @@ const HOLD_ENDS: string[] = [
 /**
  * Where a customer stands in the pool, as the console's rows say it (every request and message of theirs shares it):
  *
- *   open      in the pool since it arrived or was let go
- *   held      taken by somebody, when, and what they have recorded since
+ *   open      in the pool since it arrived or was let go, and when its week runs out
+ *   held      taken by somebody, when, what they have recorded since, and when they go back to the pool by themselves:
+ *             the two-office-hour clock while nothing is recorded ("silent"), or two office days after In progress
+ *             with nothing newer ("stale"), as the sweep judges it
  *   done      Lead or No lead, by whom, and when they took the customer
  *   handled   set aside: every request marked Handled, Spam or deleted in the console (the filters count it as done)
  *   invalid   given up on, and why
  *
- * The times are the real ones; the console works out "waiting 35m" and "held 2h" against its own clock.
+ * The times are the real ones; the console works out "waiting 35m" and "auto-release in 1h 10m" against its own
+ * clock. What the Queue page showed lives here since it went (the owner, 2026-10-22).
  */
 export type Handling =
-  | { state: "open"; since: string }
-  | { state: "held"; by: { id: string; name: string }; takenAt: string; status: string | null }
+  | { state: "open"; since: string; until: string }
+  | {
+      state: "held";
+      by: { id: string; name: string };
+      takenAt: string;
+      status: string | null;
+      releaseAt: string | null;
+      clock: "silent" | "stale" | null;
+    }
   | { state: "done"; outcome: string; by: { id: string | null; name: string | null }; takenAt: string | null; doneAt: string }
   | { state: "handled"; at: string }
   | { state: "invalid"; reason: string; at: string };
@@ -1142,7 +1165,7 @@ export async function handlingFor(keys: (string | null | undefined)[]): Promise<
   const entries = await prisma.leadQueueEntry.findMany({
     where: { customerKey: { in: unique } },
     select: {
-      customerKey: true, state: true, enteredAt: true, closedAt: true,
+      customerKey: true, state: true, enteredAt: true, expiresAt: true, nextRotationAt: true, closedAt: true,
       currentEmployee: { select: { id: true, name: true } },
       events: { orderBy: { createdAt: "asc" }, select: { kind: true, createdAt: true, fromEmployeeId: true, fromName: true, toEmployeeId: true, note: true } },
     },
@@ -1153,17 +1176,21 @@ export async function handlingFor(keys: (string | null | undefined)[]): Promise<
     const events = [...e.events].reverse();
     if (e.state === POOL_STATE.OPEN) {
       const since = events.find((x) => x.kind === POOL_EVENT.OPENED || x.kind === POOL_EVENT.REOPENED || x.kind === POOL_EVENT.SWITCHED || HOLD_ENDS.includes(x.kind));
-      out[e.customerKey] = { state: "open", since: (since?.createdAt ?? e.enteredAt).toISOString() };
+      out[e.customerKey] = { state: "open", since: (since?.createdAt ?? e.enteredAt).toISOString(), until: e.expiresAt.toISOString() };
     } else if (e.state === POOL_STATE.HELD && e.currentEmployee) {
       const holder = e.currentEmployee;
       const started = events.find((x) => HOLD_STARTS.includes(x.kind) && x.toEmployeeId === holder.id);
       const takenAt = started?.createdAt ?? e.enteredAt;
       const last = latest.get(e.customerKey);
+      // The sweep's own two rules: the silent clock while it runs, else In progress gone quiet (runPoolSweep).
+      const stale = !e.nextRotationAt && last && normalizeStatus(last.status) === "IN_PROGRESS" ? staleDeadline(last.createdAt) : null;
       out[e.customerKey] = {
         state: "held",
         by: holder,
         takenAt: takenAt.toISOString(),
         status: last && last.createdAt >= takenAt ? normalizeStatus(last.status) : null,
+        releaseAt: (e.nextRotationAt ?? stale)?.toISOString() ?? null,
+        clock: e.nextRotationAt ? "silent" : stale ? "stale" : null,
       };
     } else if (e.state === POOL_STATE.RESOLVED) {
       const resolved = events.find((x) => x.kind === POOL_EVENT.RESOLVED);

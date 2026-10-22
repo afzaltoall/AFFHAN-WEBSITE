@@ -8,7 +8,7 @@ import type { PoolEventRow } from "@/lib/lead-pool";
  * The open pool's moves, newest first: who took, released or lost a customer, and which held customers an
  * administrator put back. Read from the trail (LeadQueueEvent) by lib/lead-pool.ts, poolEvents. For
  * /admin/activity (everybody) and /admin/employees/[id] (one person). The names link to the people; the customer is
- * named by name and number, as on the Queue page. Exact times, as an audit wants them, and the same wherever the
+ * named by name and number, as in the console's lists. Exact times, as an audit wants them, and the same wherever the
  * list is drawn.
  */
 export function PoolMoves({ rows, empty }: { rows: PoolEventRow[]; empty: string }) {

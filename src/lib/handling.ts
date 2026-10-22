@@ -1,15 +1,20 @@
 import { formatDateTime, formatSince } from "./datetime";
 import { leadStatusLabel } from "./leadStatus";
+import { isOfficeOpen, nextOfficeOpening } from "./office-hours";
 import type { Handling } from "./lead-pool";
 
 /**
  * Where a lead's customer stands in the open pool, in words, for the console's rows (HandlingChip draws it):
  *
- *   Open · waiting 35m                                    in the pool since it arrived or was let go
- *   Taken by Priya · 10:42 AM · held 1h 20m · In progress  somebody has them
- *   Lead by Priya · took 2h 10m                           decided, and how long from taking them
- *   Done · already handled                                every request marked Handled, Spam or deleted
- *   Invalid · a week in the pool, unhandled               given up on
+ *   Open · waiting 35m                                     in the pool since it arrived or was let go
+ *   Taken by Priya · auto-release in 1h 10m                somebody has them, and when they go back by themselves
+ *   Taken by Priya · In progress · auto-release in 1d 20h  the same, with what they recorded since taking them
+ *   Lead by Priya · took 2h 10m                            decided, and how long from taking them
+ *   Done · already handled                                 every request marked Handled, Spam or deleted
+ *   Invalid · a week in the pool, unhandled                given up on
+ *
+ * The Queue page used to say who holds whom and the time left; the chip and the popup say it since it went (the
+ * owner, 2026-10-22). The exact times are in the chip's title.
  *
  * Real clock times and durations: the office-hours averages are Team Performance's. Every request and message of
  * one customer reads the same, since the pool holds customers, not rows. No JSX and only relative imports, so the
@@ -59,6 +64,10 @@ export function heldByMessage(holders: string[], customers = 1): string {
   return `Held by ${who} — they will close ${customers === 1 ? "it" : "them"}`;
 }
 
+/** "Held by Priya Raman since 10:42 AM": the popup's line beside Release to pool. */
+export const heldSince = (h: Extract<Handling, { state: "held" }>, now = Date.now()): string =>
+  `Held by ${h.by.name} since ${formatSince(h.takenAt, new Date(now))}`;
+
 /** The same words for one console row, when somebody holds its customer; null when nobody does. */
 export const heldByOf = (h: Handling | null | undefined): string | null => (h?.state === "held" ? heldByMessage([h.by.name]) : null);
 
@@ -81,16 +90,34 @@ export function span(ms: number): string {
   return `${Math.floor(hours / 24)}d ${hours % 24}h`;
 }
 
-export function handlingText(h: Handling | null | undefined, createdAt: string, now = Date.now()): { text: string; title: string } {
+/**
+ * When a held customer goes back to the pool by themselves, as the Queue page said it: real time left, since the
+ * deadline is already a moment inside office hours. Past it, the next sweep releases them, or the first one after the
+ * office opens.
+ */
+function releaseWords(h: Extract<Handling, { state: "held" }>, now: number): { text: string; title: string } {
+  if (!h.releaseAt) return { text: " · no auto-release", title: "" };
   const at = new Date(now);
+  const left = new Date(h.releaseAt).getTime() - now;
+  const title = ` · back to the pool ${formatDateTime(h.releaseAt)} ${h.clock === "stale" ? "unless something newer is recorded" : "if nothing is recorded"}`;
+  if (left > 0) return { text: ` · auto-release in ${span(left)}`, title };
+  return isOfficeOpen(at)
+    ? { text: " · auto-release due", title }
+    : { text: ` · auto-release when the office opens, ${formatSince(nextOfficeOpening(at), at)}`, title };
+}
+
+export function handlingText(h: Handling | null | undefined, createdAt: string, now = Date.now()): { text: string; title: string } {
   if (!h) return { text: `Open · waiting ${span(now - new Date(createdAt).getTime())}`, title: `Arrived ${formatDateTime(createdAt)}` };
-  if (h.state === "open") return { text: `Open · waiting ${span(now - new Date(h.since).getTime())}`, title: `In the pool since ${formatDateTime(h.since)}` };
-  if (h.state === "held") {
-    const status = h.status ? ` · ${leadStatusLabel(h.status)}` : " · nothing recorded yet";
+  if (h.state === "open") {
     return {
-      text: `Taken by ${h.by.name} · ${formatSince(h.takenAt, at)} · held ${span(now - new Date(h.takenAt).getTime())}${status}`,
-      title: `Taken ${formatDateTime(h.takenAt)}`,
+      text: `Open · waiting ${span(now - new Date(h.since).getTime())}`,
+      title: `In the pool since ${formatDateTime(h.since)} · given up on ${formatDateTime(h.until)} if nobody takes them`,
     };
+  }
+  if (h.state === "held") {
+    const status = h.status ? ` · ${leadStatusLabel(h.status)}` : "";
+    const clock = releaseWords(h, now);
+    return { text: `Taken by ${h.by.name}${status}${clock.text}`, title: `Taken ${formatDateTime(h.takenAt)}${clock.title}` };
   }
   if (h.state === "done") {
     const took = h.takenAt ? ` · took ${span(new Date(h.doneAt).getTime() - new Date(h.takenAt).getTime())}` : "";

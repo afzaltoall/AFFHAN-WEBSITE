@@ -35,7 +35,7 @@ export default async function AdminPage() {
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
-        inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint; queue: bigint; queueInvalid: bigint;
+        inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint; pool: bigint;
         shipments: bigint; shipmentsNew: bigint;
       }]>`
         SELECT
@@ -57,13 +57,11 @@ export default async function AdminPage() {
              WHERE status NOT IN ('handled', 'spam', 'deleted'))                   AS "shipmentsNew",
           (SELECT count(*) FROM "Supplier")                                        AS suppliers,
           (SELECT count(*) FROM "Video")                                           AS videos,
-          -- Customers waiting in the open pool right now, nobody holding them. It
+          -- Customers waiting in the open pool right now, nobody holding them:
+          -- the figure on the Inquiries row since the Queue page went. It
           -- belongs on the sidebar because a pool nobody looks at is a pool that
           -- has quietly stopped emptying.
-          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'OPEN')             AS queue,
-          -- Given up on, and counted separately: folding them into the pool's
-          -- figure would hide them.
-          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'INVALID')           AS "queueInvalid"
+          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'OPEN')             AS pool
       `,
       // High take so the "All" customer checklist and grouping never silently
       // drop rows — the master export reads the full DB server-side regardless.
@@ -165,8 +163,7 @@ export default async function AdminPage() {
   const inquiryCount = n(counts[0].inquiries);
   const contactCount = n(counts[0].contacts);
   const supplierCount = n(counts[0].suppliers);
-  const queueCount = n(counts[0].queue);
-  const queueInvalidCount = n(counts[0].queueInvalid);
+  const poolCount = n(counts[0].pool);
   const videoCount = n(counts[0].videos);
   const shipmentCount = n(counts[0].shipments);
   const shipmentNewCount = n(counts[0].shipmentsNew);
@@ -241,8 +238,7 @@ export default async function AdminPage() {
       contacts: contactCount,
       suppliers: supplierCount,
       videos: videoCount,
-      queue: queueCount,
-      queueInvalid: queueInvalidCount,
+      pool: poolCount,
       shipments: shipmentCount,
       shipmentsNew: shipmentNewCount,
     },

@@ -226,7 +226,7 @@ export function inquiryReceivedEmail(details: {
  *
  * The only message here that goes to the office rather than to a customer, and the only one anybody is expected
  * to act on. It exists because INVALID is otherwise a state with no witness: the customer stops being anybody's
- * work and waits on somebody opening the Queue page to notice.
+ * work and waits on somebody filtering the console's lists for Invalid to notice.
  *
  * One email per sweep however many there are, not one per customer: a week after a busy day, or after the switch
  * to self-claim put the whole backlog into the pool at once, one per customer would be a flood that buries the
@@ -238,7 +238,7 @@ export function poolGivenUpEmail(customers: { code: string | null; name: string;
   const n = customers.length;
   const shown = customers.slice(0, 50);
   return render(
-    n === 1 ? `Queue: nobody took on ${customers[0].name}` : `Queue: nobody took on ${n} customers`,
+    n === 1 ? `Open pool: nobody took on ${customers[0].name}` : `Open pool: nobody took on ${n} customers`,
     [
       {
         kind: "para",
@@ -246,7 +246,7 @@ export function poolGivenUpEmail(customers: { code: string | null; name: string;
       },
       { kind: "details", rows: shown.map((c) => [c.code ?? "No number yet", `${c.name} · ${c.items} · in the pool since ${c.since}`]) },
       ...(n > shown.length ? [{ kind: "para" as const, text: `And ${n - shown.length} more.` }] : []),
-      { kind: "para", text: "Nobody holds them now. The Queue page in the admin console lists them under Given up on, and a new request from any of them puts them back in the pool for a new week." },
+      { kind: "para", text: "Nobody holds them now. In the admin console, the Inquiries, Contact Us and Shipping lists show them under the Invalid filter, and a new request from any of them puts them back in the pool for a new week." },
     ],
     `Sent to every administrator of the ${BRAND} console.`
   );

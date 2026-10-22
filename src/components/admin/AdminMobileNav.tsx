@@ -27,7 +27,6 @@ export interface AdminNavTheme {
 export function AdminRailList({
   t,
   counts,
-  queueInvalid = 0,
   dark = false,
   isActive,
   onView,
@@ -36,8 +35,6 @@ export function AdminRailList({
   t: AdminNavTheme;
   /** The figures beside the rows, as the desktop rail shows them; none when they could not be read. */
   counts: RailCountMap;
-  /** The queue's given-up-on customers, shown beside its figure rather than added to it. */
-  queueInvalid?: number;
   dark?: boolean;
   isActive: (item: RailItem) => boolean;
   /** On the dashboard, its five views are state: a press changes the view. Elsewhere they are links (?view=). */
@@ -55,9 +52,6 @@ export function AdminRailList({
         <span className="flex-1 text-left">{item.label}</span>
         {count !== undefined && <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${t.chip}`}>{fmtRailNum(count)}</span>}
         {item.key === "trip-lock" && <TripLockRailPill open dark={dark} />}
-        {item.key === "queue" && queueInvalid > 0 && (
-          <span className="rounded-full bg-amber-500/15 px-2 text-[10.5px] font-bold leading-5 text-amber-700">{fmtRailNum(queueInvalid)} invalid</span>
-        )}
       </>
     );
     return item.view && onView ? (

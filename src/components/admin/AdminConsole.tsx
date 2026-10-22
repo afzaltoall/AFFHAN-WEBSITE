@@ -6,7 +6,7 @@ import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { Avatar } from "@/components/admin/AssigneePicker";
 import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
 import { HandlingChip } from "@/components/admin/HandlingChip";
-import { HANDLING_FILTERS, handlingKey, heldByOf, heldRefusal, matchesHandling, waitingRank, type HandlingFilter } from "@/lib/handling";
+import { HANDLING_FILTERS, handlingKey, heldByOf, heldRefusal, heldSince, matchesHandling, waitingRank, type HandlingFilter } from "@/lib/handling";
 import type { Handling } from "@/lib/lead-pool";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
@@ -128,14 +128,15 @@ const CUSTOMER_STATUSES = Object.keys(CUSTOMER_STATUS_META) as CustomerStatus[];
  */
 class AdminWriteError extends Error {}
 
-async function adminWrite(url: string, body: unknown, method: "POST" | "PATCH" = "POST"): Promise<void> {
+async function adminWrite(url: string, body: unknown, method: "POST" | "PATCH" = "POST"): Promise<unknown> {
   const res = await fetch(url, {
     method,
     headers: { "Content-Type": "application/json" },
     cache: "no-store",
     body: JSON.stringify(body),
   });
-  if (res.ok) return;
+  // What the server answered, for the writes that report back (Release to pool says where the customer stands).
+  if (res.ok) return res.json().catch(() => null);
 
   if (res.status === 401) {
     window.alert("Your admin session has ended — signing in again will restore it.\n\n(It closes after 30 minutes with no activity.)");
@@ -250,7 +251,9 @@ interface Props {
   data: {
     adminName: string; adminEmail: string; adminImage: string | null;
     stats: {
-      products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number; queue: number; queueInvalid: number;
+      products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number;
+      /** Customers waiting in the open pool: the Inquiries row's figure since the Queue page went. */
+      pool: number;
       /** Freight requests from /shipping/: all live ones, and the untriaged. Counted
        *  by the server because the Shipping view loads its own rows. */
       shipments: number; shipmentsNew: number;
@@ -366,6 +369,8 @@ export function AdminConsole({ data }: Props) {
   const [sideOpen, setSideOpen] = useState(false);
   /** A freight request a link asked for — the Shipping view opens it once its rows arrive. */
   const [shipmentLink, setShipmentLink] = useState<string | null>(null);
+  /** The handling filter a link asked the Shipping view to open with (?view=shipping&handling=…); it keeps its own. */
+  const [shipmentHandling, setShipmentHandling] = useState<HandlingFilter>("all");
   const clearShipmentLink = useCallback(() => setShipmentLink(null), []);
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
@@ -430,15 +435,24 @@ export function AdminConsole({ data }: Props) {
     const contactId = params.get("contact");
     const shipmentId = params.get("shipment");
     const viewParam = params.get("view");
+    // A handling filter to open the list with: the old Queue page's address
+    // lands on ?view=inquiries&handling=open (app/admin/queue).
+    const handlingParam = params.get("handling");
     // The two account dialogs live here, so the rail on every other admin page
     // links to them rather than carrying its own copy — see AccountMenu.
     const accountParam = params.get("account");
     if (accountParam === "email") setShowEmail(true);
     if (accountParam === "password") setShowPwd(true);
-    if (!inquiryId && !contactId && !shipmentId && !viewParam && !accountParam) return;
+    if (!inquiryId && !contactId && !shipmentId && !viewParam && !accountParam && !handlingParam) return;
 
     if (viewParam === "all" || viewParam === "inquiries" || viewParam === "contacts" || viewParam === "shipping" || viewParam === "trash") {
       setView(viewParam);
+    }
+    const handlingFilterParam = HANDLING_FILTERS.find((f) => f.key === handlingParam)?.key;
+    if (handlingFilterParam) {
+      if (viewParam === "contacts") setContactHandlingFilter(handlingFilterParam);
+      else if (viewParam === "shipping") setShipmentHandling(handlingFilterParam);
+      else setHandlingFilter(handlingFilterParam);
     }
 
     if (inquiryId) {
@@ -693,6 +707,20 @@ export function AdminConsole({ data }: Props) {
   // reloading — and reloading is no longer a thing that signs anyone out.
   // The spinner is the real refresh now, not a fixed 700ms.
   const { refresh, refreshing, updatedAt } = useLiveRefresh(60_000);
+
+  /**
+   * After Release to pool in a popup: where the customer stands now (the server's answer), on the open popup and on
+   * every row of theirs in both lists at once; then a refresh, which brings Shipping and the rail's figure along.
+   */
+  const released = (row: { id: string; phone?: string | null; email?: string | null }, h: Handling | null) => {
+    const key = customerKeyOf(row);
+    const theirs = (x: { id: string; phone?: string | null; email?: string | null }) => x.id === row.id || (key !== null && customerKeyOf(x) === key);
+    setItems((cur) => cur.map((x) => (theirs(x) ? { ...x, handling: h } : x)));
+    setContactItems((cur) => cur.map((x) => (theirs(x) ? { ...x, handling: h } : x)));
+    setActiveInquiry((cur) => (cur && theirs(cur) ? { ...cur, handling: h } : cur));
+    setActiveContact((cur) => (cur && theirs(cur) ? { ...cur, handling: h } : cur));
+    refresh();
+  };
   const logout = async () => {
     // Through session-client, which holds the clearing header back until any
     // keep-alive already in flight has landed — including the one this very
@@ -1111,10 +1139,6 @@ export function AdminConsole({ data }: Props) {
      survive the collapse instead of leaving with the text. */
   const sideDot = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand-dark px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${sideOpen ? "opacity-0" : "opacity-100"}`;
   const sidePill = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[11px] font-semibold leading-5 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${sideOpen ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
-  /* The same collapse as sidePill, in the colour of something that needs a
-     person: the queue's given-up-on count, which is not a workload figure
-     but a backlog nobody else is going to notice. */
-  const sideAlert = `shrink-0 overflow-hidden whitespace-nowrap rounded-full bg-amber-500/15 text-[10.5px] font-bold leading-5 text-amber-700 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${sideOpen ? "ml-1 max-w-[96px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
   /* A group's heading. It collapses in HEIGHT rather than width, because a
      zero-width label still owns a line box and every group would cost the
      collapsed rail 14px of nothing. The hairline above each group stays, so
@@ -1124,15 +1148,16 @@ export function AdminConsole({ data }: Props) {
   /* The figure beside a row, where it has one. Keyed off rail-sections so the
      other rail can never be given a different set. */
   const railCount: Partial<Record<RailItem["key"], number>> = {
-    inquiries: statusCounts.new,
+    // Customers waiting in the open pool, from the server: the Queue row's
+    // figure, moved here when that page went (the owner, 2026-10-22).
+    inquiries: data.stats.pool,
     contacts: newContactCount,
-    // The whole table's untriaged count, from the server: unlike the two
-    // above, these rows are not loaded on this page.
+    // The whole table's untriaged count, from the server: unlike contacts,
+    // these rows are not loaded on this page.
     shipping: data.stats.shipmentsNew,
     trash: deletedItems.length,
     suppliers: data.stats.suppliers,
     videos: data.stats.videos,
-    queue: data.stats.queue,
   };
 
   /* One row of the rail. A function rather than a component so React sees the
@@ -1144,35 +1169,19 @@ export function AdminConsole({ data }: Props) {
   const railRow = (item: RailItem) => {
     const active = item.view ? view === item.view : false;
     const count = railCount[item.key];
-    /* Collapsed to 60px, one number has to stand for the whole queue — and a
-       customer the pool gave up on is exactly the one nobody else will
-       notice, so it counts here. */
-    const dot = item.key === "queue" ? data.stats.queue + data.stats.queueInvalid : count;
     const body = (
       <>
         <span className={sideIconCol}>
           <item.icon size={17} className={active ? "text-brand" : t.soft} />
-          {dot !== undefined && dot > 0 && <span className={sideDot}>{fmtBadge(dot)}</span>}
+          {count !== undefined && count > 0 && <span className={sideDot}>{fmtBadge(count)}</span>}
           {item.key === "trip-lock" && <TripLockRailDot open={sideOpen} />}
         </span>
         <span className={`flex-1 ${sideLabel}`}>{item.label}</span>
         {count !== undefined && <span className={sidePill}>{fmtNum(count)}</span>}
         {item.key === "trip-lock" && <TripLockRailPill open={sideOpen} dark={dark} />}
-        {/* Beside the pool's figure rather than added to it: the two numbers
-            mean different things, and only one of them is somebody's job to fix
-            today. The word rides along because two bare numbers side by side
-            say nothing about which is which. */}
-        {item.key === "queue" && data.stats.queueInvalid > 0 && (
-          <span className={sideAlert}>{fmtNum(data.stats.queueInvalid)} invalid</span>
-        )}
       </>
     );
-    const title =
-      item.key === "queue"
-        ? data.stats.queueInvalid > 0
-          ? `Queue — ${fmtNum(data.stats.queue)} in the open pool, ${fmtNum(data.stats.queueInvalid)} given up on`
-          : `Queue — ${fmtNum(data.stats.queue)} in the open pool`
-        : item.label;
+    const title = item.key === "inquiries" ? `Inquiries — ${fmtNum(data.stats.pool)} waiting in the open pool` : item.label;
 
     // The rail's tooltip. Collapsed, the icon is all there is.
     return item.view ? (
@@ -1431,6 +1440,7 @@ export function AdminConsole({ data }: Props) {
               // refetch lands when the counts on the rail have been re-read.
               onChanged={refresh}
               onConfirm={setConfirm}
+              initialHandling={shipmentHandling}
             />
           ) : view === "contacts" ? (
             <ContactsSection
@@ -1869,6 +1879,7 @@ export function AdminConsole({ data }: Props) {
           onDelete={() => deleteInquiry(activeInquiry.id)}
           onSetStatus={(s) => setStatus(activeInquiry.id, s)}
           onSetCustomerStatus={(s, note) => void setCustomerStatus(activeInquiry.id, s, note)}
+          onReleased={(h) => released(activeInquiry, h)}
         />
       )}
 
@@ -1883,6 +1894,7 @@ export function AdminConsole({ data }: Props) {
           onDelete={() => deleteContact(activeContact.id)}
           onRestore={() => restoreContact(activeContact.id)}
           onSetStatus={(s) => setContactStatus(activeContact.id, s)}
+          onReleased={(h) => released(activeContact, h)}
         />
       )}
 
@@ -1931,7 +1943,6 @@ export function AdminConsole({ data }: Props) {
               <AdminRailList
                 t={t}
                 counts={railCount}
-                queueInvalid={data.stats.queueInvalid}
                 dark={dark}
                 isActive={(item) => (item.view ? view === item.view : false)}
                 onView={(v) => { setView(v); setQ(""); }}
@@ -2197,7 +2208,7 @@ function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNull
 
 // Opens the ordered product's image + full details inside the admin, so staff
 // never have to leave the console to see what a customer requested.
-function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCustomerStatus, t, dark, now }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; onSetCustomerStatus: (s: CustomerStatus, note: string) => void; t: Theme; dark: boolean; now: number }) {
+function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCustomerStatus, onReleased, t, dark, now }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; onSetCustomerStatus: (s: CustomerStatus, note: string) => void; onReleased: (h: Handling | null) => void; t: Theme; dark: boolean; now: number }) {
   const img = inquiry.productImage ? (getCdnUrl(inquiry.productImage, 256) as string) : null;
   const zoomImg = inquiry.productImage ? (getCdnUrl(inquiry.productImage, 1600) as string) : null;
   return (
@@ -2266,6 +2277,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
                 <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[asStatus(inquiry.status)].chip}`}>{STATUS_META[asStatus(inquiry.status)].label}</span>
                 <HandlingChip h={inquiry.handling} createdAt={inquiry.createdAt} dark={dark} now={now} />
               </div>
+              <HeldRelease h={inquiry.handling} lead={{ kind: "inquiry", id: inquiry.id }} customer={inquiry.customerName} t={t} dark={dark} now={now} onReleased={onReleased} />
             </div>
           </div>
 
@@ -3298,7 +3310,7 @@ function ContactsSection({
 }
 
 // Contact message detail modal — name, email, optional product, full message.
-function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetStatus, t, dark, now }: { contact: ContactMessage; deleted: boolean; onClose: () => void; onDelete: () => void; onRestore: () => void; onSetStatus: (s: Status) => void; t: Theme; dark: boolean; now: number }) {
+function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetStatus, onReleased, t, dark, now }: { contact: ContactMessage; deleted: boolean; onClose: () => void; onDelete: () => void; onRestore: () => void; onSetStatus: (s: Status) => void; onReleased: (h: Handling | null) => void; t: Theme; dark: boolean; now: number }) {
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
@@ -3320,6 +3332,7 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
                 <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_META[asStatus(contact.status)].chip}`}>{STATUS_META[asStatus(contact.status)].label}</span>
                 <HandlingChip h={contact.handling} createdAt={contact.createdAt} dark={dark} now={now} />
               </div>
+              <HeldRelease h={contact.handling} lead={{ kind: "contact", id: contact.id }} customer={contactName(contact)} t={t} dark={dark} now={now} onReleased={onReleased} />
             </div>
           </div>
 
@@ -3408,7 +3421,7 @@ const fmtFigure = (v: string) => Number(v).toLocaleString("en-IN", { maximumFrac
  * person are one customer in the open pool, taken by one person.
  */
 function ShipmentsSection({
-  t, dark, now, employees, customerCodes, reloadKey, openId, onOpened, onChanged, onConfirm,
+  t, dark, now, employees, customerCodes, reloadKey, openId, onOpened, onChanged, onConfirm, initialHandling = "all",
 }: {
   t: Theme;
   dark: boolean;
@@ -3425,6 +3438,8 @@ function ShipmentsSection({
   /** Something changed on the server, and the rail's counts are the console's to re-read. */
   onChanged: () => void;
   onConfirm: (c: ConfirmState) => void;
+  /** The handling filter to open with: a deep link's (/admin/?view=shipping&handling=invalid). */
+  initialHandling?: HandlingFilter;
 }) {
   const [rows, setRows] = useState<Shipment[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -3434,7 +3449,7 @@ function ShipmentsSection({
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [countryFilter, setCountryFilter] = useState<string | null>(null);
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
-  const [handlingFilter, setHandlingFilter] = useState<HandlingFilter>("all");
+  const [handlingFilter, setHandlingFilter] = useState<HandlingFilter>(initialHandling);
   const [sortWaiting, setSortWaiting] = useState(false);
   const [modeFilter, setModeFilter] = useState<"all" | "SEA" | "AIR">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -3579,6 +3594,15 @@ function ShipmentsSection({
     } finally {
       setBusy(false);
     }
+  };
+
+  // After Release to pool in the popup: where the customer stands now, on every freight row of theirs; then the
+  // console's refresh, which brings the other lists along.
+  const released = (s: Shipment, h: Handling | null) => {
+    const key = s.customerKey ?? customerKeyOf(s);
+    const theirs = (r: Shipment) => r.id === s.id || (key !== null && (r.customerKey ?? customerKeyOf(r)) === key);
+    setRows((cur) => (cur ? cur.map((r) => (theirs(r) ? { ...r, handling: h } : r)) : cur));
+    onChanged();
   };
 
   const confirmDelete = (ids: string[]) =>
@@ -3868,6 +3892,7 @@ function ShipmentsSection({
           onSetStatus={(s) => void act([active.id], "status", s)}
           onDelete={() => confirmDelete([active.id])}
           onRestore={() => void act([active.id], "restore")}
+          onReleased={(h) => released(active, h)}
         />
       )}
     </>
@@ -3882,7 +3907,7 @@ function ShipmentsSection({
  * and the figures that decide the rate sit directly under it.
  */
 function ShipmentModal({
-  s, code, onClose, onSetStatus, onDelete, onRestore, t, dark, now,
+  s, code, onClose, onSetStatus, onDelete, onRestore, onReleased, t, dark, now,
 }: {
   s: Shipment;
   code: string | null;
@@ -3890,6 +3915,7 @@ function ShipmentModal({
   onSetStatus: (s: Status) => void;
   onDelete: () => void;
   onRestore: () => void;
+  onReleased: (h: Handling | null) => void;
   t: Theme;
   dark: boolean;
   now: number;
@@ -3936,6 +3962,7 @@ function ShipmentModal({
                 {code && <CustomerCodeBadge code={code} chip={t.chip} size="sm" />}
                 <HandlingChip h={s.handling} createdAt={s.createdAt} dark={dark} now={now} />
               </div>
+              <HeldRelease h={s.handling} lead={{ kind: "shipment", id: s.id }} customer={s.customerName} t={t} dark={dark} now={now} onReleased={onReleased} />
             </div>
           </div>
 
@@ -4036,6 +4063,54 @@ function ShipmentModal({
         </div>
       </div>
     </div>
+  );
+}
+
+// Release to pool, in a lead's popup, shown only while somebody holds the
+// customer: "Held by Priya since 10:42 AM · Release to pool". The
+// administrator's one control over who holds whom, here since the Queue page
+// went (the owner, 2026-10-22), with the same rules it had there: the trail
+// logs it as the administrator's doing, and it costs the holder no wait. The
+// answer says where the customer stands now, for the popup and their rows.
+function HeldRelease({ h, lead, customer, t, dark, now, onReleased }: {
+  h: Handling | null;
+  lead: { kind: "inquiry" | "contact" | "shipment"; id: string };
+  customer: string;
+  t: Theme;
+  dark: boolean;
+  now: number;
+  onReleased: (h: Handling | null) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  if (h?.state !== "held") return null;
+  const release = async () => {
+    const who = customer.trim() || "this customer";
+    if (!window.confirm(`Put ${who} back in the open pool?\n\n${h.by.name} stops holding them, and anybody on the team can take them.`)) return;
+    setBusy(true);
+    try {
+      const answer = (await adminWrite("/api/admin/handling/", { ...lead, action: "release" })) as { handling?: Handling | null } | null;
+      onReleased(answer?.handling ?? null);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Could not release them.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <p className={`mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] ${t.soft}`}>
+      <span>{heldSince(h, now)}</span>
+      <span aria-hidden="true">·</span>
+      <button
+        type="button"
+        onClick={() => void release()}
+        disabled={busy}
+        className={`rounded-full px-3 py-1 text-[12px] font-semibold transition-colors disabled:opacity-60 ${
+          dark ? "bg-amber-500/15 text-amber-300 hover:bg-amber-500/25" : "bg-amber-500/10 text-amber-800 hover:bg-amber-500/20"
+        }`}
+      >
+        {busy ? "Releasing…" : "Release to pool"}
+      </button>
+    </p>
   );
 }
 

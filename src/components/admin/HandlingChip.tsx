@@ -7,7 +7,7 @@ import type { Handling } from "@/lib/lead-pool";
 /**
  * Where a lead's customer stands in the open pool, in the place the console's assign dropdown used to be
  * (administrators no longer hand leads out; staff take them). The words are lib/handling.ts's: "Open · waiting 35m",
- * "Taken by Priya · 10:42 AM · held 1h 20m · In progress", "Lead by Priya · took 2h 10m", "Invalid · …".
+ * "Taken by Priya · auto-release in 1h 10m", "Lead by Priya · took 2h 10m", "Invalid · …".
  */
 export function HandlingChip({ h, createdAt, dark = false, now }: { h: Handling | null | undefined; createdAt: string; dark?: boolean; now: number }) {
   const key = handlingKey(h);

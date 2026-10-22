@@ -28,8 +28,13 @@ export const maxDuration = 60;
  * the external scheduler stops, customers still move once a day and somebody
  * notices a pool that has gone quiet rather than one that has gone silent.
  *
- *   GET /api/cron/leads/rotate
+ *   GET /api/cron/leads/rotate/
  *   Authorization: Bearer $CRON_SECRET
+ *
+ * The trailing slash matters. The site has trailingSlash on, so the address
+ * without it answers 308 and the sweep never runs: Vercel's cron does not
+ * follow a redirect, and a scheduler that does not either just records the
+ * 308. vercel.json named it without the slash until 2026-10-22.
  *
  * Fails closed: with no CRON_SECRET configured the route refuses everybody
  * rather than letting anybody release the sales team's leads.

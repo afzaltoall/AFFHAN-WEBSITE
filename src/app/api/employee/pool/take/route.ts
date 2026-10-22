@@ -17,8 +17,8 @@ const PRIVATE = { "Cache-Control": "private, no-store" };
  *   404  not in the pool any more (decided, given up on, or never there)
  *
  * The claim is one conditional update (lib/lead-pool.ts, takeCustomer), so two people pressing Take together get
- * one 200 and one 409. Staff only: administrators neither take customers nor hand them out; the Queue's Release to
- * pool is their one control.
+ * one 200 and one 409. Staff only: administrators neither take customers nor hand them out; Release to pool, in the
+ * console's popup, is their one control.
  */
 export async function POST(request: Request) {
   const auth = await readEmployeeAuth();

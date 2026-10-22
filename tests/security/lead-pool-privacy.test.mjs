@@ -2,8 +2,9 @@
 // customer's AFFHAN number, the products' titles and photographs, quantities, the country, when each request
 // arrived and what kind it is. Never a name, phone number, email, company or message, and never the customer key,
 // which is the phone number. Administrators no longer hand anyone out; the old assign actions answer 410, and the
-// one control left is Release to pool on the Queue page. Read from the sources: the gate's end-to-end run exercises
-// the same rules against a running build, and these keep them from quietly coming undone.
+// one control left is Release to pool, in the customer's popup since the Queue page went. Read from the sources: the
+// gate's end-to-end run exercises the same rules against a running build, and these keep them from quietly coming
+// undone.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -108,11 +109,20 @@ test("Release and Not attended: only the holder, and the customer leaves them at
   assert.match(read("src/app/api/employee/leads/status/route.ts"), /releaseCustomer\(\{[^}]*kind: POOL_EVENT\.NOT_ATTENDED/s);
 });
 
-test("the console's handling history: administrators only, private", () => {
+test("the console's handling history and Release to pool: administrators only, private", () => {
   const source = read("src/app/api/admin/handling/route.ts");
-  assert.match(source, /const auth = await readAdminSession\(\);/);
+  // Both handlers read the admin session first and refuse without one.
+  assert.equal((source.match(/const auth = await readAdminSession\(\);\s+if \(!auth\.ok\) return refusal\(auth\);/g) ?? []).length, 2);
   assert.match(source, /status: forbidden \? 403 : 401/);
   for (const r of responses(source)) assert.match(r, /headers: PRIVATE/, r.slice(0, 60));
+  // Release only, by a lead the popup names, and logged as the administrator's own doing.
+  assert.match(source, /if \(body\?\.action !== "release"\) return NextResponse\.json\(\{ error: "action must be release" \}, \{ status: 400, headers: PRIVATE \}\);/);
+  assert.match(source, /await adminReleaseLead\(lead, auth\.user\.name \|\| auth\.user\.email\)/);
+  // The same release the Queue page had: back to the pool, and no wait on the holder (it is not one of LEAVE_KINDS).
+  const pool = read(POOL);
+  assert.match(fn(pool, "adminReleaseLead"), /await adminRelease\(\{ entryId: entry\.id, by, now \}\)/);
+  assert.match(fn(pool, "adminRelease"), /logEvent\(tx, entry\.id, POOL_EVENT\.ADMIN_UNASSIGNED, \{ from: holder, note: `released to the pool by \$\{opts\.by\}` \}\)/);
+  assert.doesNotMatch(read("src/lib/lead-pool-rules.ts").match(/export const LEAVE_KINDS[^;]*;/)[0], /ADMIN_UNASSIGNED/);
 });
 
 test("no assign control is left in the admin's screens", () => {
@@ -125,10 +135,12 @@ test("no assign control is left in the admin's screens", () => {
   // The picker itself has gone; the file keeps the avatar it shared.
   const picker = read("src/components/admin/AssigneePicker.tsx");
   assert.deepEqual([...picker.matchAll(/^export (?:function|const) (\w+)/gm)].map((m) => m[1]), ["Avatar"]);
-  // The Queue's one control is Release to pool, on held rows.
-  const queue = read("src/components/admin/QueueBoard.tsx");
-  assert.match(queue, /body: JSON\.stringify\(\{ entryId: row\.id, action: "release" \}\)/);
-  assert.match(queue, /\{row\.state === "HELD" && \(\s+<button/);
+  // The one control left is Release to pool, in the popup, drawn only while somebody holds the customer.
+  const consoleUi = read("src/components/admin/AdminConsole.tsx");
+  const release = consoleUi.slice(consoleUi.indexOf("function HeldRelease("), consoleUi.indexOf("function StatusControl("));
+  assert.match(release, /if \(h\?\.state !== "held"\) return null;/);
+  assert.match(release, /adminWrite\("\/api\/admin\/handling\/", \{ \.\.\.lead, action: "release" \}\)/);
+  assert.equal((consoleUi.match(/<HeldRelease h=\{(inquiry|contact|s)\.handling\} lead=\{\{ kind: "(inquiry|contact|shipment)"/g) ?? []).length, 3, "the three popups");
   // And the server has no way to hand a customer out any more.
   assert.doesNotMatch(read(POOL), /export async function admin(Assign|Move)|export async function reopenCustomer/);
 });
@@ -137,10 +149,37 @@ test("the old assign actions answer 410 Gone, with where the control went", () =
   for (const route of ["src/app/api/admin/inquiry/route.ts", "src/app/api/admin/contact/route.ts", "src/app/api/admin/shipping/route.ts"]) {
     assert.match(read(route), /if \(action === "assign"\) return NextResponse\.json\(\{ error: ASSIGN_GONE \}, \{ status: 410 \}\);/, route);
   }
-  const queue = read("src/app/api/admin/queue/route.ts");
-  assert.match(queue, /if \(action === "assign" \|\| action === "requeue"\) return NextResponse\.json\(\{ error: ASSIGN_GONE \}, \{ status: 410 \}\);/);
-  assert.match(queue, /if \(action !== "release"\) return NextResponse\.json\(\{ error: "action must be release" \}, \{ status: 400 \}\);/);
-  assert.match(queue, /if \(!admin \|\| admin\.role !== "admin"\)/);
+});
+
+// 2026-10-22, the owner: the Queue page has gone. Its address redirects to the inquiries in the open pool; the rail's
+// Queue row and its figure have gone, the figure now on Inquiries; Release to pool is in the popup (above).
+test("the Queue page is gone: one redirect, no API, no rail row, the pool's figure on Inquiries", () => {
+  const exists = (p) => fs.existsSync(new URL(p, ROOT));
+  for (const gone of ["src/app/admin/(console)/queue", "src/app/api/admin/queue", "src/components/admin/QueueBoard.tsx"]) {
+    assert.equal(exists(gone), false, `${gone} is still there`);
+  }
+  const page = code(read("src/app/admin/queue/page.tsx"));
+  assert.match(page, /redirect\("\/admin\/\?view=inquiries&handling=open"\);/);
+  assert.equal((page.match(/^import /gm) ?? []).length, 1, "the redirect needs nothing but next/navigation");
+  for (const p of sources.filter((s) => s !== "src/app/admin/queue/page.tsx")) {
+    assert.doesNotMatch(code(read(p)), /\/api\/admin\/queue|\/admin\/queue\/?["'`]/, `${p} still points at the Queue`);
+  }
+  const rail = read("src/components/admin/rail-sections.ts");
+  assert.doesNotMatch(code(rail), /"queue"|Queue/);
+  assert.match(code(read("src/components/admin/AdminRail.tsx")), /inquiries: counts\.pool,/);
+  assert.match(code(read("src/components/admin/AdminConsole.tsx")), /inquiries: data\.stats\.pool,/);
+  assert.match(read("src/lib/admin-rail-counts.ts"), /\(SELECT count\(\*\) FROM "LeadQueueEntry" WHERE state = 'OPEN'\)\s+AS pool/);
+  // The console opens a list with the filter a link names, which is where the old address lands.
+  assert.match(read("src/components/admin/AdminConsole.tsx"), /const handlingParam = params\.get\("handling"\);/);
+});
+
+// The daily net must reach the sweep: with trailingSlash on, a path without its slash answers 308, which Vercel's
+// cron does not follow (2026-10-22: the rotate path had none).
+test("every scheduled path ends with its slash", () => {
+  const crons = JSON.parse(read("vercel.json")).crons;
+  assert.ok(crons.length >= 2);
+  for (const c of crons) assert.match(c.path, /\/$/, c.path);
+  assert.ok(crons.some((c) => c.path === "/api/cron/leads/rotate/"));
 });
 
 test("the sweep's test clock stays off unless a build turns it on", () => {

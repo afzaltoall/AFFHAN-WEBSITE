@@ -67,10 +67,11 @@ export const AUTO_RELEASE_REASON = {
 
 /**
  * What the console's old assign action answers now (410 Gone): administrators no longer hand customers to people.
- * Staff take them from the open pool; the one control left is Release to pool, on the Queue page.
+ * Staff take them from the open pool; the one control left is Release to pool, in the customer's popup in the console
+ * (on the Queue page until that went, 2026-10-22).
  */
 export const ASSIGN_GONE =
-  "Assigning has gone: staff take customers from the open pool themselves. To free a held customer, use Release to pool on the Queue page.";
+  "Assigning has gone: staff take customers from the open pool themselves. To free a held customer, use Release to pool in their popup.";
 
 /** Lead, No lead and Invalid end a customer's open life; nothing else does. */
 export function isFinalOutcome(status: string | null | undefined): boolean {
@@ -132,7 +133,7 @@ export function weekEnds(from: Date): Date {
   return new Date(from.getTime() + POOL_WEEK_MS);
 }
 
-/** The trail's own words, as the office says them: the Queue page, Activity and a person's page. */
+/** The trail's own words, as the office says them: Activity, a person's page and the popup's handling history. */
 export function poolKindLabel(kind: string): string {
   switch (kind) {
     case POOL_EVENT.OPENED: return "Arrived in the pool";
