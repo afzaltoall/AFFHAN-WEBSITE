@@ -6,7 +6,7 @@
  * a database, so the columns hold whatever the person typing them had to hand:
  * the "CONTACT NO." column mixes phone numbers, WeChat IDs, DingTalk IDs and
  * the occasional website, sometimes several in one cell, separated by slashes,
- * commas or newlines and sometimes labelled ("Tel :", "Lin Liyu =").
+ * commas or newlines and sometimes labelled ("Tel :", "Wang Example =").
  *
  * The governing rule for all of it: never lose anything. Every record keeps the
  * original cell verbatim in `contactRaw`, and the UI shows that raw text
@@ -26,7 +26,7 @@ export type ContactTag = "whatsapp" | "wechat" | "dingtalk" | "viber" | "telegra
 export interface ContactEntry {
   /** The contact itself, cleaned of labels and channel tags but not reformatted. */
   value: string;
-  /** A name or role written before the value — "Tel", "Mobile", "Lin Liyu". */
+  /** A name or role written before the value — "Tel", "Mobile", "Wang Example". */
   label: string | null;
   /** Channels named in trailing parentheses: "(wechat & WHATSAPP)". */
   tags: ContactTag[];
@@ -44,10 +44,10 @@ const digitsOf = (s: string) => (s.match(/\d/g) || []).length;
 /**
  * Pull a leading label off a token.
  *
- * Two shapes appear in the sheet: an explicit "Tel : 86…" / "Lin Liyu = +86…",
- * and a bare "Mobile 86-3266128220" or "LAN 15158976666" where a name simply
+ * Two shapes appear in the sheet: an explicit "Tel : 86…" / "Wang Example = +86…",
+ * and a bare "Mobile 86-1000000001" or "LAN 10000000002" where a name simply
  * runs into the number. The second form only applies when what follows is
- * unambiguously a number — otherwise a WeChat ID like "chinaxiaolian" would be
+ * unambiguously a number — otherwise a WeChat ID like "wechat_example_1" would be
  * cut in half.
  */
 function stripLabel(token: string): { label: string | null; value: string } {
@@ -93,13 +93,13 @@ function classify(value: string): ContactKind {
  * Break a cell into individual contacts.
  *
  * Newlines, slashes, semicolons and pipes always separate. Commas separate too
- * — no address ever reaches this function, so "8613967922798,KOLLMAX85" is
+ * — no address ever reaches this function, so "8610000000003,WECHAT_EXAMPLE_2" is
  * safe to split. A slash followed by Chinese text is left alone: one entry
- * reads "0757-289170028/5号送到", where the slash is part of a delivery note.
+ * reads "0757-100000004/5号送到", where the slash is part of a delivery note.
  *
  * A run of two or more spaces separates only when both halves are substantial
- * numbers, which distinguishes "0757 86768320  13922133384" (a landline and a
- * mobile) from "+86  13662111277" (one number typed with a stray space).
+ * numbers, which distinguishes "0757 10000005  10000000006" (a landline and a
+ * mobile) from "+86  10000000007" (one number typed with a stray space).
  */
 function splitTokens(raw: string): string[] {
   return raw
@@ -119,7 +119,7 @@ function splitTokens(raw: string): string[] {
  *
  * Three forms in the sheet need it: "(+)351 …" (the code fell out of the
  * brackets), "(+86) 187…" (bracketed code) and "+86 86 182…" (code typed
- * twice). A bracketed "(0)" mid-number — "+86 (0)20 2388 9722" — is the
+ * twice). A bracketed "(0)" mid-number — "+86 (0)20 1000 0008" — is the
  * standard way of writing an optional trunk digit and is deliberately left
  * alone, since these rules only ever fire at the very start of the string.
  */
@@ -129,7 +129,7 @@ const normalisePrefix = (v: string) =>
     .replace(/^\(\s*\+?\s*(\d{1,4})\s*\)\s*/, "+$1 ")
     // The separator here must be at least one space or hyphen. With it
     // optional, the engine backtracks the code down to a single digit and
-    // "+66 99 142 7146" collapses to "+6 99 142 7146" — a real number quietly
+    // "+66 10 000 0009" collapses to "+6 10 000 0009" — a real number quietly
     // corrupted. Requiring a separator makes the two halves unambiguous.
     .replace(/^(\+(\d{1,4}))[\s-]+\+?\2(?=[\s-]*\d)/, "$1");
 
@@ -196,7 +196,7 @@ export function dialTarget(value: string): DialTarget {
   if (/^1\d{10}$/.test(digits)) return { e164: "+86" + digits, assumed: true, incomplete: false };
   // Country code written without the plus.
   if (/^86(1\d{10})$/.test(digits)) return { e164: "+" + digits, assumed: false, incomplete: false };
-  // "86-0574-63090810" — country code, then the domestic trunk zero.
+  // "86-0574-10000010" — country code, then the domestic trunk zero.
   const cnTrunk = digits.match(/^860(\d{9,11})$/);
   if (cnTrunk) return { e164: "+86" + cnTrunk[1], assumed: false, incomplete: false };
   // Domestic landline: trunk zero, 2–3 digit area code, 7–8 digit subscriber.
@@ -362,7 +362,7 @@ export function toSupplierRecord(row: SupplierRow): SupplierRecord {
  * in the admin. Rebuilding it costs a single pass at mount.
  *
  * `digits` exists so that typing a phone number finds it however the sheet
- * punctuated it: "13802226624" matches a row recorded as "+86 138 0222 6624".
+ * punctuated it: "10000000011" matches a row recorded as "+86 100 0000 0011".
  */
 export function haystack(r: SupplierRecord): { search: string; digits: string } {
   return {

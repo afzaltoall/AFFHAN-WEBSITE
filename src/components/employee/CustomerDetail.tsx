@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   Box, Boxes, Building2, Calendar, ChevronDown, ExternalLink, FileText, Inbox, Layers, Loader2, Mail, MapPin, MessageCircle,
   MessageSquare, Package, Phone, PhoneCall, Plane, Scale, Ship, Users, X, ZoomIn, type LucideIcon,
@@ -22,6 +23,10 @@ import { wt } from "@/components/employee/workspace-ui";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 
 const waLink = (phone: string) => `https://wa.me/${phone.replace(/[^0-9]/g, "")}`;
+
+// The console's "Matching suppliers", for an inquiry of the reader's own: its code and its request both wait for the
+// item to be opened, and the staff route answers only while the lead is assigned to them.
+const InquirySupplierMatches = dynamic(() => import("@/components/admin/InquirySupplierMatches"), { ssr: false });
 
 /** One row the caller should merge into its own copy of the trail. */
 export interface RecordedUpdate {
@@ -599,6 +604,8 @@ function ItemPanel({
               )}
             </div>
           </div>
+          {/* Full width under the product, so a supplier's numbers and buttons have the room the console gives them. */}
+          {lead.kind === "inquiry" && <InquirySupplierMatches key={lead.id} inquiryId={lead.id} t={wt} dark={false} audience="employee" />}
         </div>
       )}
     </li>
