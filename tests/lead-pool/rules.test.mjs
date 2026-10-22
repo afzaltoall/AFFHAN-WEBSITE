@@ -6,11 +6,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { addOfficeMinutes, isOfficeOpen, officeMinutesBetween, startOfNextOfficeDay } from "../../src/lib/office-hours.ts";
 import {
-  ASSIGN_GONE, LEAVE_KINDS, POOL_EVENT, POOL_STATE, SETTLED_TRIAGE, firstName, isFinalOutcome, needsHandling, placeOnFile,
-  poolKindLabel, releaseDeadline, retakeAllowedFrom, staleDeadline, triageMove, weekEnds,
+  ASSIGN_GONE, LEAVE_KINDS, POOL_EVENT, POOL_STATE, SETTLED_TRIAGE, closedByNote, firstName, isFinalOutcome, needsHandling,
+  placeOnFile, poolKindLabel, releaseDeadline, retakeAllowedFrom, staleDeadline, triageMove, weekEnds,
 } from "../../src/lib/lead-pool-rules.ts";
 import { MAX_OPEN_LEADS, RELEASE_AFTER_OFFICE_MINUTES, STALE_IN_PROGRESS_OFFICE_DAYS } from "../../src/lib/lead-pool-config.ts";
-import { handlingKey, handlingText, matchesHandling, span, waitingRank } from "../../src/lib/handling.ts";
+import {
+  handlingKey, handlingText, heldByMessage, heldByOf, heldRefusal, matchesHandling, span, waitingRank,
+} from "../../src/lib/handling.ts";
 
 /** A moment in the office's own time: ist("2026-10-19 17:30") is Monday 19 October, 5:30 PM in Chennai. */
 const ist = (s) => new Date(`${s.replace(" ", "T")}:00+05:30`);
@@ -146,6 +148,15 @@ test("every event the pool writes has the office's words, and the old assign say
   assert.match(ASSIGN_GONE, /Release to pool on the Queue page/);
 });
 
+// 2026-10-22, the owner: Lead or No lead closes the customer's open requests, and the trail says who.
+test("Lead or No lead closing a customer's requests: the trail's words name who closed them", () => {
+  assert.equal(poolKindLabel(POOL_EVENT.REQUESTS_CLOSED), "Requests marked Handled");
+  // The rotation wrote CLOSED when a customer had no leads left; older trails keep their own word.
+  assert.equal(poolKindLabel("CLOSED"), "Closed");
+  assert.equal(closedByNote("Alpha Tester", 1), "closed by Alpha Tester: 1 request marked Handled");
+  assert.equal(closedByNote("Alpha Tester", 3), "closed by Alpha Tester: 3 requests marked Handled");
+});
+
 // ---- what a console row says (real clock times; Team Performance's averages are the office-hours ones) -------------
 
 const priya = { id: "e1", name: "Priya" };
@@ -186,6 +197,30 @@ test("a customer set aside as already handled reads Done, and is counted and sor
   assert.equal(matchesHandling(h, "done"), true);
   assert.equal(matchesHandling(h, "open"), false);
   assert.equal(waitingRank(h, iso("2026-09-21 10:00"))[0], 2);
+});
+
+// 2026-10-22, the owner: the person holding a customer closes them; the console says so instead of marking Handled.
+test("Handled on a held customer: the console and the server say who will close it", () => {
+  const raman = { state: "held", by: { id: "e1", name: "Priya Raman" }, takenAt: iso("2026-10-19 10:00"), status: null };
+  const karan = { state: "held", by: { id: "e2", name: "Karan" }, takenAt: iso("2026-10-19 11:00"), status: "IN_PROGRESS" };
+  const open = { state: "open", since: iso("2026-10-19 09:00") };
+  const decided = { state: "done", outcome: "LEAD", by: priya, takenAt: null, doneAt: iso("2026-10-19 12:00") };
+  assert.equal(heldByMessage(["Priya Raman"]), "Held by Priya Raman — they will close it");
+  // Several people in alphabetical order, so the console and the server agree; each named once.
+  assert.equal(heldByMessage(["Priya Raman", "Karan"], 2), "Held by Karan and Priya Raman — they will close them");
+  assert.equal(heldByMessage(["C", "A", "B", "A"], 4), "Held by A, B and C — they will close them");
+  assert.equal(heldByMessage(["Priya Raman", "Priya Raman"], 2), "Held by Priya Raman — they will close them");
+  assert.equal(heldByMessage([""]), "Held by somebody — they will close it");
+  // One row.
+  assert.equal(heldByOf(raman), "Held by Priya Raman — they will close it");
+  for (const h of [open, decided, null, undefined]) assert.equal(heldByOf(h), null);
+  // A selection: customers, not rows; nobody held, nothing refused.
+  assert.equal(
+    heldRefusal([{ key: "k1", handling: raman }, { key: "k1", handling: raman }, { key: "k2", handling: open }]),
+    "Held by Priya Raman — they will close it",
+  );
+  assert.equal(heldRefusal([{ key: "k3", handling: karan }, { key: "k1", handling: raman }]), "Held by Karan and Priya Raman — they will close them");
+  assert.equal(heldRefusal([{ key: "k2", handling: open }, { key: "k4", handling: decided }, { key: "k5", handling: null }]), null);
 });
 
 test("an invalid row says why", () => {

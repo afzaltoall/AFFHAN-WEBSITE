@@ -48,6 +48,30 @@ export function waitingRank(h: Handling | null | undefined, createdAt: string): 
   return [2, -new Date(h.state === "done" ? h.doneAt : h.at).getTime()];
 }
 
+/**
+ * What the console says when an administrator tries to mark a held customer Handled (the owner, 2026-10-22): the
+ * person holding them closes them, by recording Lead or No lead. The server refuses with the same words.
+ */
+export function heldByMessage(holders: string[], customers = 1): string {
+  // In alphabetical order, so the console and the server name several people the same way.
+  const names = [...new Set(holders.filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const who = names.length === 0 ? "somebody" : names.length === 1 ? names[0] : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  return `Held by ${who} — they will close ${customers === 1 ? "it" : "them"}`;
+}
+
+/** The same words for one console row, when somebody holds its customer; null when nobody does. */
+export const heldByOf = (h: Handling | null | undefined): string | null => (h?.state === "held" ? heldByMessage([h.by.name]) : null);
+
+/**
+ * For a selection in the console: the words refusing Handled when any of its customers is held, or null. Counts
+ * customers, not rows, since one customer's requests all share the holder.
+ */
+export function heldRefusal(rows: { key: string; handling: Handling | null | undefined }[]): string | null {
+  const holders = new Map<string, string>();
+  for (const r of rows) if (r.handling?.state === "held") holders.set(r.key, r.handling.by.name);
+  return holders.size ? heldByMessage([...holders.values()], holders.size) : null;
+}
+
 /** "35m", "1h 20m", "3d 4h": how long, in words, from a duration in ms. */
 export function span(ms: number): string {
   const minutes = Math.max(0, Math.round(ms / 60_000));

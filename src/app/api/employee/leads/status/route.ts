@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readEmployeeAuth } from "@/lib/employee-session";
 import { isLeadStatus, LEAD_NOTE_MAX } from "@/lib/leadStatus";
-import { releaseCustomer, touchCustomer, type LeadRef } from "@/lib/lead-pool";
+import { closeOpenRequests, releaseCustomer, touchCustomer, type LeadRef } from "@/lib/lead-pool";
 import { POOL_EVENT } from "@/lib/lead-pool-rules";
 
 export const dynamic = "force-dynamic";
@@ -170,7 +170,9 @@ export async function POST(request: Request) {
     //   Not attended  they cannot take it on, so it goes back to the open
     //                 pool at once, and they may not take it again until the
     //                 next office day.
-    //   Lead/No lead  decided; the customer stays with them.
+    //   Lead/No lead  decided; the customer stays with them, and every
+    //                 request of theirs still open is marked Handled in the
+    //                 console, "closed by" them on the trail.
     //   In progress   they are on it, which stops the release clock.
     //
     // Deliberately after the response's data is assembled and inside its own
@@ -182,6 +184,9 @@ export async function POST(request: Request) {
         await releaseCustomer({ leads: refs, employee, kind: POOL_EVENT.NOT_ATTENDED, reason: rawNote || null, now: createdAt });
       } else {
         await touchCustomer({ leads: refs, employee, status, now: createdAt });
+        // Decided first, then closed: a held customer with nothing left to
+        // handle would otherwise be set aside as already handled.
+        if (status === "LEAD" || status === "NO_LEAD") await closeOpenRequests({ leads: refs, employee });
       }
     } catch (error) {
       // The name alone was not enough to act on the first time this failed:

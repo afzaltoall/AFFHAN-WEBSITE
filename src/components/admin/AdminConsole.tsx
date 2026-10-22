@@ -6,7 +6,7 @@ import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { Avatar } from "@/components/admin/AssigneePicker";
 import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
 import { HandlingChip } from "@/components/admin/HandlingChip";
-import { HANDLING_FILTERS, handlingKey, matchesHandling, waitingRank, type HandlingFilter } from "@/lib/handling";
+import { HANDLING_FILTERS, handlingKey, heldByOf, heldRefusal, matchesHandling, waitingRank, type HandlingFilter } from "@/lib/handling";
 import type { Handling } from "@/lib/lead-pool";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
@@ -473,6 +473,14 @@ export function AdminConsole({ data }: Props) {
   ) => {
     if (ids.length === 0) return;
     const idset = new Set(ids);
+    // As in bulkAction: Handled on a held customer is refused before anything changes on screen.
+    if (action === "status" && newStatus === "handled") {
+      const refusal = heldRefusal(contactItems.filter((x) => idset.has(x.id)).map((x) => ({ key: customerKeyOf(x) ?? x.id, handling: x.handling })));
+      if (refusal) {
+        window.alert(refusal);
+        return;
+      }
+    }
     const prevA = contactItems, prevD = contactDeleted;
     if (action === "delete") {
       const moving = contactItems.filter((x) => idset.has(x.id)).map((x) => ({ ...x, status: "deleted" }));
@@ -505,6 +513,11 @@ export function AdminConsole({ data }: Props) {
       router.refresh();
     } catch (e) {
       setContactItems(prevA); setContactDeleted(prevD);
+      // The open message too, which the optimistic change above re-marked.
+      setActiveContact((cur) => {
+        const was = cur && prevA.find((x) => x.id === cur.id);
+        return cur && was ? { ...cur, status: was.status } : cur;
+      });
       window.alert(e instanceof Error ? e.message : "Action failed.");
     } finally {
       setContactBusy(false);
@@ -539,6 +552,15 @@ export function AdminConsole({ data }: Props) {
   ) => {
     if (ids.length === 0) return;
     const idset = new Set(ids);
+    // A customer somebody holds is closed by them, with Lead or No lead (the owner, 2026-10-22): the server refuses
+    // Handled on one, so the console says so before anything changes on screen. Spam and delete still go through.
+    if (action === "status" && newStatus === "handled") {
+      const refusal = heldRefusal(items.filter((x) => idset.has(x.id)).map((x) => ({ key: customerKeyOf(x) ?? x.id, handling: x.handling })));
+      if (refusal) {
+        window.alert(refusal);
+        return;
+      }
+    }
     const prevA = items, prevD = deletedItems;
     if (action === "delete") {
       const moving = items.filter((x) => idset.has(x.id)).map((x) => ({ ...x, status: "deleted" }));
@@ -574,6 +596,11 @@ export function AdminConsole({ data }: Props) {
       router.refresh();
     } catch (e) {
       setItems(prevA); setDeletedItems(prevD);
+      // The open inquiry too, which the optimistic change above re-marked.
+      setActiveInquiry((cur) => {
+        const was = cur && prevA.find((x) => x.id === cur.id);
+        return cur && was ? { ...cur, status: was.status } : cur;
+      });
       window.alert(e instanceof Error ? e.message : "Action failed.");
     } finally {
       setBulkBusy(false);
@@ -1779,7 +1806,7 @@ export function AdminConsole({ data }: Props) {
                           {/* Where the customer stands in the pool, where the assign picker used to be: staff take
                               customers now. The chip carries the newest outcome too. */}
                           <HandlingChip h={i.handling} createdAt={i.createdAt} dark={dark} now={now} />
-                          <StatusControl t={t} value={st} onChange={(s) => setStatus(i.id, s)} />
+                          <StatusControl t={t} value={st} onChange={(s) => setStatus(i.id, s)} heldBy={heldByOf(i.handling)} />
                           <button onClick={() => deleteInquiry(i.id)} aria-label="Delete inquiry" title="Delete inquiry" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -2276,7 +2303,8 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
             {/* Triage the customer: New / Handled / Spam (fake). */}
             <div className="mt-5">
               <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this customer</p>
-              <StatusControl t={t} value={asStatus(inquiry.status)} onChange={onSetStatus} big />
+              <StatusControl t={t} value={asStatus(inquiry.status)} onChange={onSetStatus} big heldBy={heldByOf(inquiry.handling)} />
+              {heldByOf(inquiry.handling) && <p className={`mt-1.5 text-[12px] font-medium ${t.soft}`}>{heldByOf(inquiry.handling)}</p>}
             </div>
 
             {/* What the customer is told. Only shown when there is a customer
@@ -3242,7 +3270,7 @@ function ContactsSection({
                   {tab === "active" ? (
                     <>
                       <HandlingChip h={c.handling} createdAt={c.createdAt} dark={dark} now={now} />
-                      <StatusControl t={t} value={st} onChange={(s) => onSetStatus(c.id, s)} />
+                      <StatusControl t={t} value={st} onChange={(s) => onSetStatus(c.id, s)} heldBy={heldByOf(c.handling)} />
                       <button onClick={() => onDelete(c.id)} aria-label="Delete message" title="Delete message" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                         <Trash2 className="h-4 w-4" />
                       </button>
@@ -3316,7 +3344,8 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
           {!deleted && (
             <div className="mt-5">
               <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this message</p>
-              <StatusControl t={t} value={asStatus(contact.status)} onChange={onSetStatus} big />
+              <StatusControl t={t} value={asStatus(contact.status)} onChange={onSetStatus} big heldBy={heldByOf(contact.handling)} />
+              {heldByOf(contact.handling) && <p className={`mt-1.5 text-[12px] font-medium ${t.soft}`}>{heldByOf(contact.handling)}</p>}
             </div>
           )}
 
@@ -3522,6 +3551,14 @@ function ShipmentsSection({
   const act = async (ids: string[], action: "delete" | "restore" | "purge" | "status", newStatus?: Status) => {
     if (!rows || ids.length === 0) return;
     const idset = new Set(ids);
+    // As on the inquiries: Handled on a held customer is refused before anything changes on screen.
+    if (action === "status" && newStatus === "handled") {
+      const refusal = heldRefusal(rows.filter((r) => idset.has(r.id)).map((r) => ({ key: r.customerKey ?? customerKeyOf(r) ?? r.id, handling: r.handling })));
+      if (refusal) {
+        window.alert(refusal);
+        return;
+      }
+    }
     const before = rows;
     setRows(rows.flatMap((r) => {
       if (!idset.has(r.id)) return [r];
@@ -3785,7 +3822,7 @@ function ShipmentsSection({
                     {tab === "active" ? (
                       <>
                         <HandlingChip h={r.handling} createdAt={r.createdAt} dark={dark} now={now} />
-                        <StatusControl t={t} value={st} onChange={(s) => void act([r.id], "status", s)} />
+                        <StatusControl t={t} value={st} onChange={(s) => void act([r.id], "status", s)} heldBy={heldByOf(r.handling)} />
                         <button onClick={() => confirmDelete([r.id])} aria-label={`Delete ${r.referenceNo}`} title="Delete request" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -3969,7 +4006,8 @@ function ShipmentModal({
           {!deleted && (
             <div className="mt-5">
               <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this request</p>
-              <StatusControl t={t} value={st} onChange={onSetStatus} big />
+              <StatusControl t={t} value={st} onChange={onSetStatus} big heldBy={heldByOf(s.handling)} />
+              {heldByOf(s.handling) && <p className={`mt-1.5 text-[12px] font-medium ${t.soft}`}>{heldByOf(s.handling)}</p>}
             </div>
           )}
 
@@ -4003,19 +4041,30 @@ function ShipmentModal({
 
 // Segmented New / Handled / Spam control. `stopPropagation` so clicking a
 // status inside a clickable row doesn't also open the detail modal.
-function StatusControl({ value, onChange, t, big }: { value: Status; onChange: (s: Status) => void; t: Theme; big?: boolean }) {
+//
+// `heldBy` ("Held by Priya — they will close it") when somebody holds the
+// customer: Handled is theirs to reach, by recording Lead or No lead (the
+// owner, 2026-10-22), so it shows greyed with those words and a press explains
+// instead of saving. The server refuses it too. New and Spam stay as they are.
+function StatusControl({ value, onChange, t, big, heldBy }: { value: Status; onChange: (s: Status) => void; t: Theme; big?: boolean; heldBy?: string | null }) {
   const pad = big ? "px-4 py-2 text-sm" : "px-2.5 py-1 text-[11px]";
   return (
     <div className={`inline-flex rounded-full p-0.5 ${t.thumb}`} onClick={(e) => e.stopPropagation()}>
-      {(["new", "handled", "spam"] as Status[]).map((s) => (
-        <button
-          key={s}
-          onClick={(e) => { e.stopPropagation(); onChange(s); }}
-          className={`rounded-full font-bold transition-colors ${pad} ${value === s ? STATUS_META[s].chip : `${t.soft} hover:opacity-80`}`}
-        >
-          {STATUS_META[s].label}
-        </button>
-      ))}
+      {(["new", "handled", "spam"] as Status[]).map((s) => {
+        const blocked = s === "handled" && heldBy ? heldBy : null;
+        const look = value === s ? STATUS_META[s].chip : blocked ? `${t.soft} cursor-not-allowed opacity-40` : `${t.soft} hover:opacity-80`;
+        return (
+          <button
+            key={s}
+            onClick={(e) => { e.stopPropagation(); if (blocked) window.alert(blocked); else onChange(s); }}
+            title={blocked ?? undefined}
+            aria-disabled={blocked ? true : undefined}
+            className={`rounded-full font-bold transition-colors ${pad} ${look}`}
+          >
+            {STATUS_META[s].label}
+          </button>
+        );
+      })}
     </div>
   );
 }

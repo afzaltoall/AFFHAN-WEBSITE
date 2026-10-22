@@ -9,8 +9,8 @@ import { sendEmail } from "@/lib/email";
 import { poolGivenUpEmail } from "@/lib/email-templates";
 import { MAX_OPEN_LEADS, RELEASE_REASON_MAX } from "@/lib/lead-pool-config";
 import {
-  AUTO_RELEASE_REASON, LEAVE_KINDS, POOL_EVENT, POOL_STATE, SETTLED_TRIAGE, firstName, isFinalOutcome, needsHandling,
-  placeOnFile, poolKindLabel, releaseDeadline, retakeAllowedFrom, staleDeadline, triageMove, weekEnds,
+  AUTO_RELEASE_REASON, LEAVE_KINDS, POOL_EVENT, POOL_STATE, SETTLED_TRIAGE, closedByNote, firstName, isFinalOutcome,
+  needsHandling, placeOnFile, poolKindLabel, releaseDeadline, retakeAllowedFrom, staleDeadline, triageMove, weekEnds,
 } from "@/lib/lead-pool-rules";
 import { normalizeStatus } from "@/lib/leadStatus";
 
@@ -36,7 +36,9 @@ import { normalizeStatus } from "@/lib/leadStatus";
  * Only customers with something to handle are in the pool or held (the owner, 2026-10-22): one whose every request
  * is marked Handled, Spam or deleted in the console is set aside as Done, nobody's and on no clock, at the switch,
  * the moment the console marks their last request, or at the next sweep; a new request, or one marked New again,
- * puts them back in the pool for a new week (reconsiderTriage).
+ * puts them back in the pool for a new week (reconsiderTriage). Lead or No lead closes the customer's open requests,
+ * marked Handled with "closed by" the person on the trail (closeOpenRequests), and while somebody holds a customer an
+ * administrator may not mark their requests Handled: the holder closes them (heldAmong). The owner's, 2026-10-22.
  *
  * No table is new. LeadQueueEntry, one row per customer since the rotation queue, is the customer's place in the
  * pool: state OPEN or HELD (or RESOLVED, DONE, INVALID), currentEmployeeId the holder, nextRotationAt the moment a
@@ -474,6 +476,32 @@ export async function touchCustomer(opts: { leads: LeadRef[]; employee: Person; 
   return "held";
 }
 
+/**
+ * Lead or No lead closes the customer's open requests (the owner, 2026-10-22): every quote request, message and
+ * freight request of theirs not yet marked Handled, Spam or deleted is marked Handled in the console, and the trail
+ * says who closed them. Called after touchCustomer has decided them, so the triage leaves them decided rather than
+ * setting them aside. Returns how many it marked.
+ */
+export async function closeOpenRequests(opts: { leads: LeadRef[]; employee: Person }): Promise<number> {
+  const key = await keyForLeads(prisma, opts.leads);
+  const ids = (kind: LeadKind) => opts.leads.filter((l) => l.kind === kind).map((l) => l.id);
+  // Every request of the customer's, and the ones recorded against by id, in case one was filed before keys existed.
+  const where = (kind: LeadKind) => ({
+    status: { notIn: [...SETTLED_TRIAGE] },
+    OR: [{ id: { in: ids(kind) } }, ...(key ? [{ customerKey: key }] : [])],
+  });
+  const data = { status: "handled" };
+  return prisma.$transaction(async (tx) => {
+    const marked =
+      (await tx.inquiry.updateMany({ where: where("inquiry"), data })).count +
+      (await tx.contactMessage.updateMany({ where: where("contact"), data })).count +
+      (await tx.shipmentInquiry.updateMany({ where: where("shipment"), data })).count;
+    const entry = marked > 0 && key ? await tx.leadQueueEntry.findUnique({ where: { customerKey: key }, select: { id: true } }) : null;
+    if (entry) await logEvent(tx, entry.id, POOL_EVENT.REQUESTS_CLOSED, { from: opts.employee, note: closedByNote(opts.employee.name, marked) });
+    return marked;
+  }, TX);
+}
+
 // ---- administrators -----------------------------------------------------------------------------------------------------
 
 /**
@@ -544,6 +572,19 @@ async function keysNeedingHandling(keys: string[]): Promise<Set<string>> {
       UNION SELECT "customerKey" FROM "ShipmentInquiry" WHERE "customerKey" = ANY(${keys}) AND status <> ALL(${settled})
     ) x`;
   return new Set(rows.map((r) => r.k));
+}
+
+/**
+ * Of these customers, the ones somebody holds, and who: an administrator may not mark them Handled (the owner,
+ * 2026-10-22). The holder closes them, by recording Lead or No lead; Spam and delete still end the hold.
+ */
+export async function heldAmong(keys: string[]): Promise<{ customerKey: string; holder: string | null }[]> {
+  if (keys.length === 0) return [];
+  const rows = await prisma.leadQueueEntry.findMany({
+    where: { customerKey: { in: keys }, state: POOL_STATE.HELD },
+    select: { customerKey: true, currentEmployee: { select: { name: true } } },
+  });
+  return rows.map((r) => ({ customerKey: r.customerKey, holder: r.currentEmployee?.name ?? null }));
 }
 
 /** The customers behind some of the console's rows: read before it changes them, since a purge removes the rows. */
@@ -1011,10 +1052,13 @@ async function fillMissingKeys(limit = 500): Promise<number> {
 
 // ---- the history ----------------------------------------------------------------------------------------------------------
 
-/** The moves the office reads in Activity and on a person's page: who took, let go, lost or was given whom. */
+/**
+ * The moves the office reads in Activity and on a person's page: who took, let go, lost or was given whom, and who
+ * closed a customer's requests by recording Lead or No lead.
+ */
 export const HISTORY_KINDS: string[] = [
   POOL_EVENT.TAKEN, POOL_EVENT.RELEASED, POOL_EVENT.NOT_ATTENDED, POOL_EVENT.AUTO_RELEASED, POOL_EVENT.ADMIN_ASSIGNED,
-  POOL_EVENT.ADMIN_UNASSIGNED, POOL_EVENT.REOPENED, POOL_EVENT.INVALIDATED, POOL_EVENT.DONE,
+  POOL_EVENT.ADMIN_UNASSIGNED, POOL_EVENT.REOPENED, POOL_EVENT.INVALIDATED, POOL_EVENT.DONE, POOL_EVENT.REQUESTS_CLOSED,
 ];
 
 export interface PoolEventRow {

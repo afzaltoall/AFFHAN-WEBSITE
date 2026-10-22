@@ -49,6 +49,11 @@ export const POOL_EVENT = {
   SWITCHED: "SWITCHED",
   /** Set aside: every request of theirs is now marked Handled, Spam or deleted in the console. */
   DONE: "DONE",
+  /**
+   * Lead or No lead closed their open requests: marked Handled in the console, "closed by" whoever recorded it. Not
+   * "CLOSED", which the rotation wrote when a customer had no leads left, and older trails still carry.
+   */
+  REQUESTS_CLOSED: "REQUESTS_CLOSED",
 } as const;
 
 /** Leaving somebody these ways keeps that person from taking the customer back until the next office day. */
@@ -144,6 +149,7 @@ export function poolKindLabel(kind: string): string {
     case POOL_EVENT.REOPENED: return "Back into the pool";
     case POOL_EVENT.SWITCHED: return "Taken in at the switch to self-claim";
     case POOL_EVENT.DONE: return "Already handled: out of the pool";
+    case POOL_EVENT.REQUESTS_CLOSED: return "Requests marked Handled";
     // The rotation's kinds, on customers it handled before the pool.
     case "ENTERED": return "Entered the rotation";
     case "ROTATED": return "Handed on by the rotation";
@@ -154,6 +160,11 @@ export function poolKindLabel(kind: string): string {
     case "CLOSED": return "Closed";
     default: return kind.replace(/_/g, " ").toLowerCase();
   }
+}
+
+/** The trail's line when Lead or No lead closes a customer's open requests: "closed by Priya: 2 requests marked Handled". */
+export function closedByNote(name: string, requests: number): string {
+  return `closed by ${name}: ${requests} ${requests === 1 ? "request" : "requests"} marked Handled`;
 }
 
 /** "Priya" of "Priya Raman": what "Already taken by …" says. */

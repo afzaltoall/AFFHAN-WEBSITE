@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma, withDbRetry } from "@/lib/prisma";
-import { applyConsoleTriage, customerKeysOf, handlingFor } from "@/lib/lead-pool";
+import { applyConsoleTriage, customerKeysOf, handlingFor, heldAmong } from "@/lib/lead-pool";
+import { heldByMessage } from "@/lib/handling";
 import { ASSIGN_GONE } from "@/lib/lead-pool-rules";
 import { getCurrentUser } from "@/lib/session";
 
@@ -95,7 +96,8 @@ export async function GET() {
 // Bulk actions, and single-row ones as a list of one — the same shape as
 // /api/admin/contact:
 //   { ids: string[], action: "delete" | "restore" | "purge" | "status", status?: "new"|"handled"|"spam" }
-// "assign" is gone, as on the other two lists: 410 with the reason.
+// "assign" is gone, as on the other two lists: 410 with the reason. Handled on
+// a held customer answers 409, as there.
 // delete/restore/status flip `status` and lose nothing; purge removes the rows,
 // and with them their sales trail (StatusUpdate cascades).
 const TRIAGE = ["new", "handled", "spam"] as const;
@@ -139,6 +141,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "status must be new | handled | spam" }, { status: 400 });
       }
       status = body.status;
+      // A held customer is closed by the person holding them, with Lead or No lead (the owner, 2026-10-22). Spam and
+      // delete still end the hold.
+      if (status === "handled") {
+        const held = await heldAmong(keys);
+        if (held.length) return NextResponse.json({ error: heldByMessage(held.map((h) => h.holder ?? ""), held.length) }, { status: 409 });
+      }
     } else {
       status = action === "delete" ? "deleted" : "new"; // restore -> new
     }

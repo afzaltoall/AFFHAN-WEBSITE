@@ -179,3 +179,58 @@ test("already-handled customers stay out of the pool: the switch, the console's 
   // The pool only ever lists customers in it.
   assert.match(fn(pool, "listPool"), /where: \{ state: POOL_STATE\.OPEN \}/);
 });
+
+// 2026-10-22, the owner: the person holding a customer closes them. Lead or No lead marks every open request of the
+// customer's Handled, "closed by" them on the trail, and an administrator may not mark a held customer Handled. Spam
+// and delete still end the hold.
+const TRIAGE_ROUTES = [
+  ["src/app/api/admin/inquiry/route.ts", "inquiry"],
+  ["src/app/api/admin/contact/route.ts", "contact"],
+  ["src/app/api/admin/shipping/route.ts", "shipment"],
+  ["src/app/api/admin/inquiry/[id]/route.ts", "inquiry"],
+  ["src/app/api/admin/contact/[id]/route.ts", "contact"],
+];
+
+test("Handled on a held customer is refused by every console route that can set it, before anything is written", () => {
+  for (const [route, kind] of TRIAGE_ROUTES) {
+    const s = code(read(route));
+    assert.match(s, new RegExp(`const keys = await customerKeysOf\\("${kind}", `), route);
+    assert.match(
+      s,
+      /if \(status === "handled"\) \{\s+const held = await heldAmong\(keys\);\s+if \(held\.length\) return NextResponse\.json\(\{ error: heldByMessage\(held\.map\(\(h\) => h\.holder \?\? ""\), held\.length\) \}, \{ status: 409 \}\);\s+\}/,
+      route,
+    );
+    const refusal = s.indexOf("await heldAmong(keys)");
+    const write = s.search(/\.update(Many)?\(\{\s+where: \{ id[^;]*?data: \{ status \}/);
+    assert.ok(refusal > 0 && write > refusal, `${route}: the check comes before the write`);
+    // Spam, delete, restore and purge are never checked: only Handled.
+    assert.equal((s.match(/heldAmong\(/g) ?? []).length, 1, route);
+  }
+  // And no other route writes a request's triage status.
+  const writers = sources.filter((p) => p.startsWith("src/app/api/") && /\.(inquiry|contactMessage|shipmentInquiry)\.update(Many)?\(\{[^;]*?data: \{ status/.test(code(read(p))));
+  assert.deepEqual(writers.sort(), TRIAGE_ROUTES.map(([r]) => r).sort());
+  // Held means held: the pool's HELD state, nobody else.
+  assert.match(fn(read(POOL), "heldAmong"), /where: \{ customerKey: \{ in: keys \}, state: POOL_STATE\.HELD \}/);
+  // The console greys Handled on every status control that knows the customer is held, and checks a selection first.
+  const ui = read("src/components/admin/AdminConsole.tsx");
+  const controls = ui.match(/<StatusControl\b[\s\S]*?\/>/g) ?? [];
+  assert.equal(controls.length, 6);
+  for (const c of controls) assert.match(c, /heldBy=\{heldByOf\(\w+\.handling\)\}/, `every status control knows who holds the customer: ${c}`);
+  assert.equal((ui.match(/const refusal = heldRefusal\(/g) ?? []).length, 3, "inquiries, messages and freight check a selection");
+  assert.match(ui, /if \(blocked\) window\.alert\(blocked\); else onChange\(s\);/);
+});
+
+test("Lead or No lead closes the customer's open requests, after deciding them, and nothing else closes them", () => {
+  const status = code(read("src/app/api/employee/leads/status/route.ts"));
+  const touch = status.indexOf("await touchCustomer(");
+  const close = status.indexOf("await closeOpenRequests({ leads: refs, employee })");
+  assert.ok(touch > 0 && close > touch, "decided first, then closed");
+  assert.match(status, /if \(status === "LEAD" \|\| status === "NO_LEAD"\) await closeOpenRequests\(\{ leads: refs, employee \}\);/);
+  const callers = sources.filter((p) => p !== POOL && /closeOpenRequests\(/.test(code(read(p))));
+  assert.deepEqual(callers, ["src/app/api/employee/leads/status/route.ts"]);
+  // Only what is still open is marked (never a deleted or spam request back to life), and the trail says who.
+  const closer = code(fn(read(POOL), "closeOpenRequests"));
+  assert.match(closer, /status: \{ notIn: \[\.\.\.SETTLED_TRIAGE\] \},/);
+  assert.match(closer, /const data = \{ status: "handled" \};/);
+  assert.match(closer, /logEvent\(tx, entry\.id, POOL_EVENT\.REQUESTS_CLOSED, \{ from: opts\.employee, note: closedByNote\(opts\.employee\.name, marked\) \}\)/);
+});
