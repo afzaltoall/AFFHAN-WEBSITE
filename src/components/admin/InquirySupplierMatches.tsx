@@ -74,6 +74,9 @@ export function InquirySupplierMatches({ inquiryId, t, dark }: { inquiryId: stri
   };
 
   const chip = dark ? "bg-white/[0.08] text-[#e5e5e7]" : "bg-black/[0.05] text-[#1d1d1f]";
+  // The console's teal in each theme (its quantity chip's): brand-dark is too dark to read on the dark panel.
+  const accent = dark ? "text-[#7fd8ea]" : "text-brand-dark";
+  const accentHover = dark ? "hover:text-[#7fd8ea]" : "hover:text-brand-dark";
   const data = state.status === "done" ? state.data : null;
   const shown = data ? (all ? data.suggestions : data.suggestions.slice(0, FIRST)) : [];
 
@@ -125,7 +128,7 @@ export function InquirySupplierMatches({ inquiryId, t, dark }: { inquiryId: stri
             href={data.searchWord ? `/admin/suppliers/?q=${encodeURIComponent(data.searchWord)}` : "/admin/suppliers/"}
             target="_blank"
             rel="noopener"
-            className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold text-brand-dark hover:underline"
+            className={`mt-1.5 inline-flex items-center gap-1.5 text-xs font-semibold hover:underline ${accent}`}
           >
             <Search className="h-3.5 w-3.5" aria-hidden="true" />
             {data.searchWord ? `Search the supplier book for “${data.searchWord}”` : "Open the supplier book"}
@@ -143,7 +146,7 @@ export function InquirySupplierMatches({ inquiryId, t, dark }: { inquiryId: stri
                     href={`/admin/suppliers/${s.id}/`}
                     target="_blank"
                     rel="noopener"
-                    className={`inline-flex items-center gap-1.5 text-sm font-semibold hover:text-brand-dark ${t.strong}`}
+                    className={`inline-flex items-center gap-1.5 text-sm font-semibold ${accentHover} ${t.strong}`}
                   >
                     <Factory className={`h-3.5 w-3.5 shrink-0 ${t.soft}`} aria-hidden="true" />
                     <span className="break-words">{s.name}</span>
