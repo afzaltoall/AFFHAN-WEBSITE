@@ -40,7 +40,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     serial: row.serial,
     id: numericId,
   });
-  return { title: `${name} | Affhan Suppliers`, robots };
+  return { title: `${name} | Affhan Old Suppliers`, robots };
 }
 
 const SELECT = {

@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 // is the company's entire supplier list — the one thing on the site a
 // competitor would most like to read.
 export const metadata: Metadata = {
-  title: "Suppliers | Affhan Admin",
+  title: "Old Suppliers | Affhan Admin",
   robots: { index: false, follow: false },
 };
 

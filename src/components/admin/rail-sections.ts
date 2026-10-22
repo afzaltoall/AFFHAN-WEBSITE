@@ -94,9 +94,9 @@ export const RAIL_GROUPS: RailGroup[] = [
   {
     label: "Catalog & content",
     items: [
-      { key: "suppliers", href: "/admin/suppliers/", label: "Suppliers", icon: Users },
-      // The supplier portal's accounts and what they applied to supply (2026-10-21). Beside the WeChat book,
-      // which holds the suppliers the team already deals with; these registered themselves.
+      // The WeChat book, the suppliers the team already dealt with: "Old Suppliers" since the supplier portal
+      // (the owner, 2026-10-21), beside the ones who register themselves there, "New Suppliers".
+      { key: "suppliers", href: "/admin/suppliers/", label: "Old Suppliers", icon: Users },
       { key: "new-suppliers", href: "/admin/new-suppliers/", label: "New Suppliers", icon: Factory },
       { key: "videos", href: "/admin/videos/", label: "Videos", icon: PlayCircle },
     ],

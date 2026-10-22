@@ -10,7 +10,7 @@ Each folder here holds the SQL for one schema change, generated with `prisma mig
 | `20261009110827_email_suppression` | the `EmailSuppression` table | applied |
 | `20261014104914_db_load` | `Product.isBlockedName`, `Category.productCount`, the `Snapshot` table; `product-index.sql` beside it | applied 2026-10-14, index included |
 | `20261016095341_mobile_user_profile` | seven optional columns on `MobileUser`: `companyName` and the address (the app's "Complete your profile") | applied 2026-10-16 10:34 IST (05:04 UTC), before its code was deployed; recorded here only, not in a `_prisma_migrations` table (the owner's call) |
-| `20261021120000_supplier_portal` | the supplier portal's two tables, `SupplierAccount` and `SupplierOffer` (new tables only) | **not applied**: apply before the supplier portal's code is deployed |
+| `20261021120000_supplier_portal` | the supplier portal's two tables, `SupplierAccount` and `SupplierOffer` (new tables only) | applied 2026-10-21 18:20 IST (12:50 UTC) on the owner's go, before its code was deployed, over the `.env`'s direct endpoint (`.env` has no `DIRECT_URL`); checked: 13 and 21 columns, every index and both foreign keys |
 
 `20261008181537_otp_send_caps` (`MobilePhoneOtp.ipHash` and two indexes, for text-message caps) was deleted on 2026-10-15, never applied, together with phone sign-in and its codes; `schema.prisma` no longer has those columns either.
 

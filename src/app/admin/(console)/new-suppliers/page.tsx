@@ -20,16 +20,10 @@ export const metadata: Metadata = {
  * Read here and handed to the board, as the supplier book's page does. The newest 2,000 of each, which is
  * years of applications at any rate a portal like this sees; the board says so if it is ever reached.
  */
-export default async function NewSuppliersPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
-}) {
+export default async function NewSuppliersPage() {
   const admin = await getCurrentUser();
   if (!admin) redirect("/admin/login");
   if (admin.role !== "admin") redirect("/");
-  const params = await searchParams;
-  const tab = (Array.isArray(params.tab) ? params.tab[0] : params.tab) === "accounts" ? "accounts" : "applications";
 
   const data = await readBoard();
   if (!data) {
@@ -43,7 +37,7 @@ export default async function NewSuppliersPage({
       </div>
     );
   }
-  return <NewSuppliersBoard offers={data.offers} accounts={data.accounts} initialTab={tab} capped={data.capped} />;
+  return <NewSuppliersBoard offers={data.offers} accounts={data.accounts} capped={data.capped} />;
 }
 
 /** Both lists for the board, or null when they could not be read (most likely: the migration is not applied yet). */
@@ -114,6 +108,11 @@ async function readBoard(): Promise<{ offers: BoardOffer[]; accounts: BoardAccou
 
     return { offers: boardOffers, accounts: boardAccounts, capped: offers.length === 2000 || accounts.length === 2000 };
   } catch (error) {
+    // The portal not set up yet (P2021: the table is missing) is said quietly; anything else is an error.
+    if ((error as { code?: string })?.code === "P2021") {
+      console.warn("new suppliers page: the supplier portal's tables are missing (prisma/migrations, supplier_portal).");
+      return null;
+    }
     console.error("new suppliers page:", error instanceof Error ? `${error.name}: ${error.message.split("\n")[0]}` : "unknown");
     return null;
   }

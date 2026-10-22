@@ -68,7 +68,7 @@ export function SupplierDetail({ supplier: s, related, relatedTerm }: Props) {
             className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
           >
             <ArrowLeft size={15} aria-hidden="true" />
-            <span className="hidden sm:inline">All suppliers</span>
+            <span className="hidden sm:inline">Old Suppliers</span>
           </Link>
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />

@@ -27,7 +27,7 @@ export function AdminFrame({
   if (pathname === "/admin" || pathname === "/admin/") return <>{children}</>;
 
   // The pages that have a dark theme of their own for the rail to match.
-  const supportsDark = /^\/admin\/(suppliers|videos)(\/|$)/.test(pathname);
+  const supportsDark = /^\/admin\/(suppliers|new-suppliers|videos)(\/|$)/.test(pathname);
 
   return (
     <>

@@ -96,6 +96,8 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
   }
 });
 
+let warnedNotSetUp = false;
+
 /**
  * Applications from the supplier portal waiting for the team (status NEW).
  *
@@ -105,9 +107,26 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
  * before the statement above so the two run side by side.
  */
 async function countNewSupplierOffers(): Promise<number | null> {
+  // Not set up yet, rather than broken: a Prisma client generated before the model existed (a dev server that
+  // has not restarted since `prisma generate`), or a database without the table (P2021: the migration not
+  // applied). Said once per server as a warning: as an error, Next's dev overlay put it in front of every
+  // admin page (the owner's screenshot, 2026-10-21) while the rail was doing exactly what it should, showing
+  // no figure.
+  const notSetUp = (error?: unknown) => {
+    if (!warnedNotSetUp) {
+      warnedNotSetUp = true;
+      console.warn(
+        "rail count of supplier applications: the supplier portal is not set up here yet " +
+          `(${error ? "its table is missing: apply prisma/migrations/20261021120000_supplier_portal" : "run prisma generate and restart"}); showing no figure.`,
+      );
+    }
+    return null;
+  };
+  if (!(prisma as unknown as { supplierOffer?: unknown }).supplierOffer) return notSetUp();
   try {
     return await prisma.supplierOffer.count({ where: { status: "NEW" } });
   } catch (error) {
+    if ((error as { code?: string })?.code === "P2021") return notSetUp(error);
     console.error(
       "rail count of supplier applications failed:",
       error instanceof Error ? `${error.name}: ${error.message.split("\n")[0]}` : "unknown",

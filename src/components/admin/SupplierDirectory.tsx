@@ -309,7 +309,7 @@ export function SupplierDirectory({ suppliers, initialQuery = "", initialProduct
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <div className="min-w-0 leading-tight">
-            <h1 className="truncate text-[15px] font-semibold tracking-tight">Suppliers</h1>
+            <h1 className="truncate text-[15px] font-semibold tracking-tight">Old Suppliers</h1>
             <p className={`text-[11px] ${t.soft}`}>{suppliers.length.toLocaleString("en-US")} in the book</p>
           </div>
           <button

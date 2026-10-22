@@ -1050,7 +1050,7 @@ export function AdminConsole({ data }: Props) {
     },
     { label: "Inquiries", value: data.stats.inquiries, icon: Inbox, tint: "text-amber-500", bg: dark ? "bg-amber-500/15" : "bg-amber-50" },
     { label: "Messages", value: data.stats.contacts, icon: MessageSquare, tint: "text-emerald-500", bg: dark ? "bg-emerald-500/15" : "bg-emerald-50" },
-    { label: "Suppliers", value: data.stats.suppliers, hint: "From the WeChat book", icon: Users, tint: "text-teal-500", bg: dark ? "bg-teal-500/15" : "bg-teal-50" },
+    { label: "Old Suppliers", value: data.stats.suppliers, hint: "From the WeChat book", icon: Users, tint: "text-teal-500", bg: dark ? "bg-teal-500/15" : "bg-teal-50" },
     { label: "Videos", value: data.stats.videos, icon: PlayCircle, tint: "text-fuchsia-500", bg: dark ? "bg-fuchsia-500/15" : "bg-fuchsia-50" },
   ];
 
@@ -1304,7 +1304,7 @@ export function AdminConsole({ data }: Props) {
             {statCards.map((s) => (
               <button
                 key={s.label}
-                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Suppliers") router.push("/admin/suppliers/"); else if (s.label === "Videos") router.push("/admin/videos/"); }}
+                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Old Suppliers") router.push("/admin/suppliers/"); else if (s.label === "Videos") router.push("/admin/videos/"); }}
                 className={`rounded-2xl p-5 text-left shadow-sm ring-1 transition-all hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
               >
                 <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${s.bg}`}>

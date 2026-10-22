@@ -1,29 +1,31 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Copy, Download, ExternalLink, Mail, MessageCircle, Phone, RefreshCw, Search, X } from "lucide-react";
+import {
+  ArrowLeft, Building2, Check, CheckCircle2, Clock, Copy, Download, ExternalLink, Loader2, Mail, MapPin,
+  MessageCircle, Moon, Package, Phone, RefreshCw, Search, SlidersHorizontal, Sun, User, Users, X,
+} from "lucide-react";
+import { parsePhoneNumberFromString } from "libphonenumber-js/min";
+import { useAdminDark } from "@/lib/useAdminDark";
 import { getCdnUrl } from "@/lib/cdn";
+import { SupplierContacts } from "@/components/admin/SupplierContacts";
 import { REPLY_MAX, TEAM_STATUSES, TEAM_STATUS_LABEL, moqPhrase, type OfferStatus } from "@/lib/supplier-offer";
 
 /**
- * The supplier portal, for the office (the admin rail's "New Suppliers", 2026-10-21): every application a
- * supplier has sent, "I have this product" with its MOQ, details, photos and contact, and the accounts behind
- * them.
+ * New Suppliers (the admin rail, 2026-10-21): everyone who registered on the supplier portal, and every
+ * product they applied to supply, kept as the owner asked, "everything stored", in the same shape as the WeChat
+ * book beside it (Old Suppliers, SupplierDirectory): the same counters, search, chips and table, the same
+ * WhatsApp and copy buttons, the same dark mode. One row is one supplier; their applications are listed in the
+ * Products column with where each stands, and pressing one opens it to review: the status the supplier sees
+ * (New, Reviewing, Accepted, Not selected), a reply they read beside it, the photos and every contact.
  *
- * The board's vocabulary is the trip board's (TripApplicationsBoard): status tabs with counts, a search, a list
- * that opens one application in a panel with call, WhatsApp, WeChat and email on top. The team's statuses are
- * New, Reviewing, Accepted and Not selected; the supplier sees each (as Sent, Being reviewed, Accepted, Not
- * selected) with the reply written here. Withdrawn is the supplier's own, and stays as they left it.
- *
- * Accounts can be blocked: the supplier is signed out at once and cannot sign in again until unblocked. Their
+ * Read on the server (the newest 2,000 of each) and filtered here, as the book is, so the search answers on
+ * every keystroke. A supplier can be blocked: signed out at once, unable to sign in until unblocked; their
  * applications stay.
  */
-
-const sfFont = {
-  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif',
-};
 
 export interface BoardOffer {
   id: string;
@@ -64,100 +66,190 @@ export interface BoardAccount {
   offers: number;
 }
 
-type StatusTab = OfferStatus | "ALL";
-const STATUS_TABS: StatusTab[] = ["NEW", "REVIEWING", "ACCEPTED", "REJECTED", "WITHDRAWN", "ALL"];
+type Lens = "all" | "waiting" | "accepted" | "none" | "blocked";
+type SortKey = "newest" | "oldest" | "company" | "most";
 
-const statusPill: Record<OfferStatus, string> = {
-  NEW: "bg-[#0071e3]/10 text-[#0058b0]",
-  REVIEWING: "bg-amber-500/15 text-amber-800",
-  ACCEPTED: "bg-emerald-500/10 text-emerald-700",
-  REJECTED: "bg-black/[0.06] text-[#48484a]",
-  WITHDRAWN: "bg-black/[0.04] text-[#86868b]",
-};
+const LENSES: { key: Lens; label: string; hint: string }[] = [
+  { key: "all", label: "All", hint: "Every supplier who registered" },
+  { key: "waiting", label: "Waiting", hint: "Has an application nobody has looked at yet" },
+  { key: "accepted", label: "Accepted", hint: "Has an accepted application" },
+  { key: "none", label: "No applications yet", hint: "Registered, and applied for nothing yet" },
+  { key: "blocked", label: "Blocked", hint: "Cannot sign in" },
+];
 
-const digits = (phone: string) => phone.replace(/[^\d]/g, "");
-const fmtDate = (iso: string) =>
+const SORTS: { key: SortKey; label: string }[] = [
+  { key: "newest", label: "Newest first" },
+  { key: "oldest", label: "Oldest first" },
+  { key: "company", label: "Company A–Z" },
+  { key: "most", label: "Most applications" },
+];
+
+const PAGE = 60;
+/** Products shown in a row before "more". */
+const SHOWN = 4;
+
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+const stamp = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
-const shortDate = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" });
+/** "+86 138 0013 8000" for the eye; the E.164 underneath for tel: and wa.me. */
+const spaced = (e164: string) => parsePhoneNumberFromString(e164)?.formatInternational() ?? e164;
+
+/** Whether a supplier's row belongs under a chip. */
+const inLens = (r: Row, l: Lens) =>
+  l === "all" ||
+  (l === "waiting" && r.waiting > 0) ||
+  (l === "accepted" && r.accepted > 0) ||
+  (l === "none" && r.offers.length === 0) ||
+  (l === "blocked" && r.account.status === "BLOCKED");
+
+interface Row {
+  account: BoardAccount;
+  /** Registration order, 1 for the first supplier who registered. */
+  serial: number;
+  offers: BoardOffer[];
+  words: string;
+  waiting: number;
+  accepted: number;
+}
 
 export function NewSuppliersBoard({
   offers: initialOffers,
   accounts: initialAccounts,
-  initialTab,
   capped,
 }: {
   offers: BoardOffer[];
   accounts: BoardAccount[];
-  initialTab: "applications" | "accounts";
   capped: boolean;
 }) {
   const router = useRouter();
   const [offers, setOffers] = useState(initialOffers);
   const [accounts, setAccounts] = useState(initialAccounts);
-  const [view, setView] = useState<"applications" | "accounts">(initialTab);
-  const [tab, setTab] = useState<StatusTab>("NEW");
   const [q, setQ] = useState("");
+  const [lens, setLens] = useState<Lens>("all");
+  const [sort, setSort] = useState<SortKey>("newest");
+  const [limit, setLimit] = useState(PAGE);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [dark, setDark] = useAdminDark();
+  const searchRef = useRef<HTMLInputElement>(null);
 
   // A refresh (router.refresh) hands new rows down: take them.
   useEffect(() => setOffers(initialOffers), [initialOffers]);
   useEffect(() => setAccounts(initialAccounts), [initialAccounts]);
   useEffect(() => setRefreshing(false), [initialOffers, initialAccounts]);
 
-  // The view in the address, so a reload or a link opens the same one.
+  // "/" focuses the search, as in the book, unless something is being typed already.
   useEffect(() => {
-    const url = `${window.location.pathname}${view === "accounts" ? "?tab=accounts" : ""}`;
-    if (url !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, "", url);
-  }, [view]);
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      const typing = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement;
+      if (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const t = dark
+    ? {
+        page: "bg-[#0b0b0c] text-[#f2f2f4]", card: "bg-[#151517] ring-white/[0.08]",
+        soft: "text-[#8a8a8e]", body2: "text-[#b5b5ba]",
+        border: "border-white/[0.08]", divide: "divide-white/[0.06]",
+        hover: "hover:bg-white/[0.03]", input: "bg-white/[0.05] text-white placeholder:text-[#8a8a8e]",
+        pill: "bg-white/[0.06] text-[#e5e5e7] ring-white/[0.1] hover:bg-white/[0.1]",
+        pillOn: "bg-white text-[#1d1d1f] ring-transparent", head: "bg-white/[0.03]",
+        bar: "bg-[#151517]/90 border-white/10", sheet: "bg-[#0f0f11]", well: "bg-white/[0.04]", ink: "text-[#f2f2f4]",
+      }
+    : {
+        page: "bg-[#f5f5f7] text-[#1d1d1f]", card: "bg-white ring-black/[0.04]",
+        soft: "text-[#6e6e73]", body2: "text-[#4e4e53]",
+        border: "border-black/[0.06]", divide: "divide-black/[0.06]",
+        hover: "hover:bg-black/[0.015]", input: "bg-[#f5f5f7] text-[#1d1d1f] placeholder:text-[#86868b]",
+        pill: "bg-white text-[#1d1d1f] ring-black/[0.06] hover:bg-black/[0.02]",
+        pillOn: "bg-[#1d1d1f] text-white ring-transparent", head: "bg-black/[0.02]",
+        bar: "bg-white/80 border-black/[0.06]", sheet: "bg-[#f5f5f7]", well: "bg-black/[0.03]", ink: "text-[#1d1d1f]",
+      };
+  const status: Record<OfferStatus, string> = dark
+    ? {
+        NEW: "bg-[#0a84ff]/15 text-[#64a8ff]",
+        REVIEWING: "bg-amber-400/15 text-amber-300",
+        ACCEPTED: "bg-emerald-400/15 text-emerald-300",
+        REJECTED: "bg-white/[0.08] text-[#c7c7cc]",
+        WITHDRAWN: "bg-white/[0.05] text-[#8a8a8e]",
+      }
+    : {
+        NEW: "bg-[#0071e3]/10 text-[#0058b0]",
+        REVIEWING: "bg-amber-500/15 text-amber-800",
+        ACCEPTED: "bg-emerald-500/10 text-emerald-700",
+        REJECTED: "bg-black/[0.06] text-[#48484a]",
+        WITHDRAWN: "bg-black/[0.04] text-[#86868b]",
+      };
+
+  /** One row per supplier, their applications newest first, numbered in the order they registered. */
+  const rows = useMemo<Row[]>(() => {
+    const byAccount = new Map<string, BoardOffer[]>();
+    for (const o of offers) {
+      const list = byAccount.get(o.supplierId) ?? [];
+      list.push(o);
+      byAccount.set(o.supplierId, list);
+    }
+    const order = [...accounts].sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+    return order.map((account, i) => {
+      const own = (byAccount.get(account.id) ?? []).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+      return {
+        account,
+        serial: i + 1,
+        offers: own,
+        waiting: own.filter((o) => o.status === "NEW").length,
+        accepted: own.filter((o) => o.status === "ACCEPTED").length,
+        words: [
+          account.companyName, account.name, account.email, account.mobile, account.wechatId, account.companyAddress,
+          ...own.flatMap((o) => [o.productName, o.categoryName, o.details, o.companyName, o.wechatId, o.mobile]),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase(),
+      };
+    });
+  }, [accounts, offers]);
 
   const needle = q.trim().toLowerCase();
-  const offerWords = useMemo(
-    () =>
-      new Map(
-        offers.map((o) => [
-          o.id,
-          [o.productName, o.categoryName, o.contactName, o.companyName, o.mobile, o.wechatId, o.supplierEmail, o.details, o.productId]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase(),
-        ]),
-      ),
-    [offers],
-  );
 
-  const tabCounts = useMemo(() => {
-    const c: Record<StatusTab, number> = { NEW: 0, REVIEWING: 0, ACCEPTED: 0, REJECTED: 0, WITHDRAWN: 0, ALL: 0 };
-    for (const o of offers) {
-      if (needle && !(offerWords.get(o.id) ?? "").includes(needle)) continue;
-      c[o.status]++;
-      c.ALL++;
-    }
+  const searched = useMemo(() => (needle ? rows.filter((r) => r.words.includes(needle) || r.account.mobile.includes(needle.replace(/[\s()-]/g, ""))) : rows), [rows, needle]);
+  const lensCounts = useMemo(() => {
+    const c = { all: 0, waiting: 0, accepted: 0, none: 0, blocked: 0 } as Record<Lens, number>;
+    for (const r of searched) for (const l of LENSES) if (inLens(r, l.key)) c[l.key]++;
     return c;
-  }, [offers, offerWords, needle]);
+  }, [searched]);
+  const results = useMemo(() => {
+    const list = searched.filter((r) => inLens(r, lens));
+    const name = (r: Row) => (r.account.companyName ?? r.account.name).toLowerCase();
+    if (sort === "newest") list.sort((a, b) => b.serial - a.serial);
+    else if (sort === "oldest") list.sort((a, b) => a.serial - b.serial);
+    else if (sort === "company") list.sort((a, b) => name(a).localeCompare(name(b)));
+    else list.sort((a, b) => b.offers.length - a.offers.length || b.serial - a.serial);
+    return list;
+  }, [searched, lens, sort]);
+  const visible = results.slice(0, limit);
+  const filtered = needle !== "" || lens !== "all";
 
-  const list = offers.filter((o) => (tab === "ALL" || o.status === tab) && (!needle || (offerWords.get(o.id) ?? "").includes(needle)));
-  const accountList = accounts.filter(
-    (a) => !needle || [a.name, a.email, a.mobile, a.companyName, a.wechatId, a.companyAddress].filter(Boolean).join(" ").toLowerCase().includes(needle),
-  );
-
-  const waiting = offers.filter((o) => o.status === "NEW").length;
-  const stats = useMemo(
-    () => [
-      ["Applications", offers.length],
-      ["Waiting", offers.filter((o) => o.status === "NEW").length],
-      ["Accepted", offers.filter((o) => o.status === "ACCEPTED").length],
-      ["Suppliers", accounts.length],
-    ] as const,
-    [offers, accounts],
-  );
+  const counters = [
+    { label: "Suppliers", value: accounts.length, Icon: Users, tint: "text-sky-500" },
+    { label: "Applications", value: offers.length, Icon: Package, tint: "text-violet-500" },
+    { label: "Waiting", value: offers.filter((o) => o.status === "NEW").length, Icon: Clock, tint: "text-amber-500" },
+    { label: "Accepted", value: offers.filter((o) => o.status === "ACCEPTED").length, Icon: CheckCircle2, tint: "text-emerald-500" },
+  ] as const;
 
   const open = offers.find((o) => o.id === openId) ?? null;
 
   const saveOffer = async (id: string, change: { status?: OfferStatus; reply?: string }) => {
     const before = offers;
-    setOffers((all) => all.map((o) => (o.id === id ? { ...o, ...change, reply: change.reply !== undefined ? change.reply || null : o.reply } : o)));
+    setOffers((all) => all.map((o) => (o.id === id ? { ...o, ...change, reply: change.reply !== undefined ? change.reply.trim() || null : o.reply } : o)));
     setError(null);
     try {
       const res = await fetch(`/api/admin/supplier-offers/${id}/`, {
@@ -168,6 +260,7 @@ export function NewSuppliersBoard({
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : data?.error ?? "That change did not save.");
       setOffers((all) => all.map((o) => (o.id === id ? { ...o, status: data.status, reply: data.reply, reviewedAt: data.reviewedAt, reviewedBy: data.reviewedBy } : o)));
+      router.refresh();
       return true;
     } catch (e) {
       setOffers(before);
@@ -177,8 +270,8 @@ export function NewSuppliersBoard({
   };
 
   const setBlocked = async (account: BoardAccount, block: boolean) => {
-    const verb = block ? "Block" : "Unblock";
-    if (!window.confirm(`${verb} ${account.companyName ?? account.name} (${account.email})?${block ? " They are signed out at once and cannot sign in until unblocked." : ""}`)) return;
+    const who = `${account.companyName ?? account.name} (${account.email})`;
+    if (!window.confirm(block ? `Block ${who}? They are signed out at once and cannot sign in until unblocked.` : `Unblock ${who}?`)) return;
     setError(null);
     try {
       const res = await fetch(`/api/admin/supplier-accounts/${account.id}/`, {
@@ -187,7 +280,7 @@ export function NewSuppliersBoard({
         body: JSON.stringify({ status: block ? "BLOCKED" : "ACTIVE" }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data?.error ?? "That change did not save.");
+      if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : data?.error ?? "That change did not save.");
       setAccounts((all) => all.map((a) => (a.id === account.id ? { ...a, status: block ? "BLOCKED" : "ACTIVE" } : a)));
       setOffers((all) => all.map((o) => (o.supplierId === account.id ? { ...o, supplierBlocked: block } : o)));
     } catch (e) {
@@ -195,235 +288,422 @@ export function NewSuppliersBoard({
     }
   };
 
-  const exportExcel = async () => {
-    const XLSX = await import("xlsx");
-    const headers = [
-      "Sent", "Status", "Product", "Product ID", "Category", "MOQ", "Unit", "Product details", "Photos",
-      "Contact name", "Company", "Mobile", "WeChat ID", "Company address", "Account email", "Reply", "Reviewed by", "Reviewed",
-    ];
-    const rows = list.map((o) => [
-      fmtDate(o.createdAt), TEAM_STATUS_LABEL[o.status], o.productName, o.productId ?? "Their own product", o.categoryName ?? "", o.moq, o.moqUnit,
-      o.details, o.photos.join("\n"), o.contactName, o.companyName, o.mobile, o.wechatId, o.companyAddress, o.supplierEmail,
-      o.reply ?? "", o.reviewedBy ?? "", o.reviewedAt ? fmtDate(o.reviewedAt) : "",
-    ]);
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-    // Mobile numbers as text, or Excel shows 8613800138000 as 8.61E+12.
-    for (let r = 1; r <= rows.length; r++) {
-      const cell = ws[XLSX.utils.encode_cell({ r, c: headers.indexOf("Mobile") })];
-      if (cell) {
-        cell.t = "s";
-        cell.z = "@";
-        cell.v = String(cell.v ?? "");
-      }
+  /** Two sheets: the suppliers shown, one a row; and their applications, one a row. Numbers as text for Excel. */
+  const exportRows = useCallback(async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const asText = (ws: import("xlsx").WorkSheet, headers: string[], column: string, count: number) => {
+        const c = headers.indexOf(column);
+        for (let r = 1; r <= count; r++) {
+          const cell = ws[XLSX.utils.encode_cell({ r, c })];
+          if (cell) {
+            cell.t = "s";
+            cell.z = "@";
+            cell.v = String(cell.v ?? "");
+          }
+        }
+      };
+      const sHead = ["S.No", "Company", "Name", "Email", "Mobile", "WeChat ID", "Company address", "Registered", "Last signed in", "Account", "Applications", "Products applied for"];
+      const sRows = results.map((r) => [
+        r.serial, r.account.companyName ?? "", r.account.name, r.account.email, r.account.mobile, r.account.wechatId ?? "", r.account.companyAddress ?? "",
+        stamp(r.account.createdAt), r.account.lastLoginAt ? stamp(r.account.lastLoginAt) : "", r.account.status === "BLOCKED" ? "Blocked" : "Active",
+        r.offers.length, r.offers.map((o) => `${o.productName} (MOQ ${moqPhrase(o.moq, o.moqUnit)}, ${TEAM_STATUS_LABEL[o.status]})`).join("\n"),
+      ]);
+      const aHead = ["Sent", "Status", "Product", "Product ID", "Category", "MOQ", "Unit", "Product details", "Photos", "Contact name", "Company", "Mobile", "WeChat ID", "Company address", "Account email", "Reply", "Reviewed by", "Reviewed"];
+      const aRows = results.flatMap((r) =>
+        r.offers.map((o) => [
+          stamp(o.createdAt), TEAM_STATUS_LABEL[o.status], o.productName, o.productId ?? "Their own product", o.categoryName ?? "", o.moq, o.moqUnit,
+          o.details, o.photos.join("\n"), o.contactName, o.companyName, o.mobile, o.wechatId, o.companyAddress, o.supplierEmail,
+          o.reply ?? "", o.reviewedBy ?? "", o.reviewedAt ? stamp(o.reviewedAt) : "",
+        ]),
+      );
+      const suppliers = XLSX.utils.aoa_to_sheet([sHead, ...sRows]);
+      asText(suppliers, sHead, "Mobile", sRows.length);
+      const applications = XLSX.utils.aoa_to_sheet([aHead, ...aRows]);
+      asText(applications, aHead, "Mobile", aRows.length);
+      const book = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(book, suppliers, "New suppliers");
+      XLSX.utils.book_append_sheet(book, applications, "Applications");
+      XLSX.writeFile(book, `affhan-new-suppliers-${new Date().toISOString().slice(0, 10)}${filtered ? "-filtered" : ""}.xlsx`);
+    } catch (e) {
+      setError(e instanceof Error ? `Export failed: ${e.message}` : "Export failed.");
+    } finally {
+      setExporting(false);
     }
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Supplier applications");
-    const status = tab === "ALL" ? "" : `-${TEAM_STATUS_LABEL[tab].toLowerCase().replace(/\s+/g, "-")}`;
-    XLSX.writeFile(wb, `supplier-applications-${new Date().toISOString().slice(0, 10)}${status}.xlsx`);
-  };
+  }, [results, exporting, filtered]);
 
-  const refresh = () => {
-    setRefreshing(true);
-    router.refresh();
-  };
+  const phoneOf = (e164: string) => [{ value: spaced(e164), label: null, tags: [], e164, assumed: false, incomplete: false }];
+  const wechatOf = (id: string | null) => (id ? [{ value: id, label: "WeChat ID", tags: [] }] : []);
 
-  return (
-    <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
-      <div className="px-5 py-8 sm:px-8 lg:px-10">
-        <div className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
-          <Link
-            href="/admin/"
-            aria-label="Back to the dashboard"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] rail:hidden"
-          >
-            <ArrowLeft size={16} />
-          </Link>
-          <div className="min-w-[min(100%,15rem)] flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight">New Suppliers</h1>
-            <p className="text-[13px] text-[#86868b]">
-              Suppliers who registered on the supplier portal, and the products they applied to supply
-              {waiting ? ` · ${waiting} waiting` : ""}
-            </p>
-          </div>
-          <div className="ml-auto flex shrink-0 items-center gap-2">
+  const productsCell = (r: Row, big = false) => {
+    if (!r.offers.length) return <span className={`text-[12px] ${t.soft}`}>No applications yet</span>;
+    const all = expanded.has(r.account.id);
+    const shown = all ? r.offers : r.offers.slice(0, SHOWN);
+    return (
+      <ul className="space-y-2">
+        {shown.map((o) => (
+          <li key={o.id}>
             <button
               type="button"
-              onClick={refresh}
-              disabled={refreshing}
-              className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:cursor-wait"
+              onClick={() => setOpenId(o.id)}
+              className="group flex w-full items-start gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              <RefreshCw size={14} className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} /> {refreshing ? "Refreshing…" : "Refresh"}
+              <span className={`mt-px shrink-0 rounded-full px-1.5 py-px text-[10px] font-bold ${status[o.status]}`}>{TEAM_STATUS_LABEL[o.status]}</span>
+              <span className="min-w-0">
+                <span className={`line-clamp-2 font-semibold leading-snug underline-offset-2 group-hover:underline ${big ? "text-[13px]" : "text-[12.5px]"}`}>{o.productName}</span>
+                <span className={`block text-[11.5px] ${t.soft}`}>
+                  MOQ {moqPhrase(o.moq, o.moqUnit)}
+                  {o.photos.length ? ` · ${o.photos.length} photo${o.photos.length === 1 ? "" : "s"}` : ""}
+                  {o.productId === null ? " · their own product" : ""}
+                </span>
+              </span>
             </button>
-            {view === "applications" && (
-              <button
-                type="button"
-                onClick={() => void exportExcel()}
-                disabled={!list.length}
-                className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:opacity-50"
-              >
-                <Download size={14} /> Export
-              </button>
-            )}
-          </div>
-        </div>
+          </li>
+        ))}
+        {r.offers.length > SHOWN && (
+          <li>
+            <button
+              type="button"
+              onClick={() =>
+                setExpanded((s) => {
+                  const next = new Set(s);
+                  if (all) next.delete(r.account.id);
+                  else next.add(r.account.id);
+                  return next;
+                })
+              }
+              className={`text-[12px] font-semibold underline-offset-2 hover:underline ${t.body2}`}
+            >
+              {all ? "Show fewer" : `${r.offers.length - SHOWN} more`}
+            </button>
+          </li>
+        )}
+      </ul>
+    );
+  };
 
-        <dl className="mb-5 grid grid-cols-4 gap-2 sm:gap-3">
-          {stats.map(([label, n]) => (
-            <div key={label} className="min-w-0 rounded-2xl bg-white px-2.5 py-2 shadow-sm ring-1 ring-black/[0.06] sm:px-4 sm:py-3">
-              <dt className="truncate text-[11px] text-[#86868b] sm:text-[12px]">{label}</dt>
-              <dd className="mt-0.5 text-[19px] font-semibold tabular-nums tracking-tight sm:text-[24px]">{n}</dd>
+  const supplierCell = (r: Row, big = false) => (
+    <>
+      <span className="flex items-start gap-1.5">
+        <Building2 size={big ? 13 : 12} aria-hidden="true" className={`mt-[3.5px] shrink-0 ${t.soft}`} />
+        <span className={`font-semibold leading-snug tracking-tight ${big ? "text-[14px]" : "text-[13px]"}`}>
+          <span className="sr-only">Company: </span>
+          {r.account.companyName ?? <span className={t.soft}>Company not given yet</span>}
+        </span>
+      </span>
+      <span className="mt-1 flex items-center gap-1.5">
+        <User size={12} aria-hidden="true" className={`shrink-0 ${t.soft}`} />
+        <span className={`text-[12px] ${t.body2}`}>
+          <span className="sr-only">Contact person: </span>
+          {r.account.name}
+        </span>
+      </span>
+      <span className={`mt-1 block text-[11px] ${t.soft}`}>
+        Joined {day(r.account.createdAt)}
+        {r.account.lastLoginAt ? ` · signed in ${day(r.account.lastLoginAt)}` : ""}
+      </span>
+      <span className="mt-1.5 flex flex-wrap items-center gap-2">
+        {r.account.status === "BLOCKED" && (
+          <span className="rounded-full bg-red-500/10 px-1.5 py-px text-[10px] font-bold text-red-600">Blocked</span>
+        )}
+        <button
+          type="button"
+          onClick={() => void setBlocked(r.account, r.account.status !== "BLOCKED")}
+          className={`text-[11.5px] font-semibold underline-offset-2 hover:underline ${r.account.status === "BLOCKED" ? t.body2 : "text-red-600"}`}
+        >
+          {r.account.status === "BLOCKED" ? "Unblock" : "Block"}
+        </button>
+      </span>
+    </>
+  );
+
+  const contactCell = (r: Row) => (
+    <>
+      <SupplierContacts phones={phoneOf(r.account.mobile)} handles={wechatOf(r.account.wechatId)} webs={[]} raw="" dark={dark} />
+      <div className="mt-1.5 flex items-center gap-2">
+        <Mail size={13} aria-hidden="true" className={`shrink-0 ${t.soft}`} />
+        <a href={`mailto:${r.account.email}`} className="min-w-0 truncate text-[12.5px] font-medium underline-offset-2 hover:underline">
+          {r.account.email}
+        </a>
+      </div>
+    </>
+  );
+
+  return (
+    <div className={`min-h-screen ${t.page}`} style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif' }}>
+      <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${t.bar}`}>
+        <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
+          <Link
+            href="/admin/"
+            className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rail:hidden ${t.pill}`}
+          >
+            <ArrowLeft size={15} aria-hidden="true" />
+            <span className="hidden sm:inline">Dashboard</span>
+          </Link>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
+            <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
+          </span>
+          <div className="min-w-0 leading-tight">
+            <h1 className="truncate text-[15px] font-semibold tracking-tight">New Suppliers</h1>
+            <p className={`text-[11px] ${t.soft}`}>{accounts.length.toLocaleString("en-US")} registered on the supplier portal</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setRefreshing(true);
+              router.refresh();
+            }}
+            disabled={refreshing}
+            className={`ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-wait ${t.pill}`}
+          >
+            <RefreshCw size={15} aria-hidden="true" className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} />
+            <span className="hidden sm:inline">{refreshing ? "Refreshing…" : "Refresh"}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setDark((d) => !d)}
+            aria-pressed={dark}
+            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
+          >
+            {dark ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />}
+            <span className="hidden sm:inline">{dark ? "Light" : "Dark"}</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="px-4 py-6 sm:px-6 lg:px-10">
+        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {counters.map(({ label, value, Icon, tint }) => (
+            <div key={label} className={`flex items-center gap-3 rounded-2xl px-4 py-3.5 ring-1 ${t.card}`}>
+              <Icon size={18} className={tint} aria-hidden="true" />
+              <div className="min-w-0 leading-tight">
+                <p className="text-[19px] font-semibold tracking-tight tabular-nums">{value.toLocaleString("en-US")}</p>
+                <p className={`truncate text-[11.5px] ${t.soft}`}>{label}</p>
+              </div>
             </div>
           ))}
-        </dl>
+        </div>
 
         {capped && (
-          <p className="mb-4 rounded-xl bg-amber-500/10 px-4 py-2.5 text-[13px] font-medium text-amber-800">
-            Showing the newest 2,000. Older ones are in the database and in no list here yet.
+          <p className="mb-4 rounded-xl bg-amber-500/10 px-4 py-2.5 text-[13px] font-medium text-amber-700">
+            Showing the newest 2,000 suppliers and applications. Older ones are in the database.
           </p>
         )}
-        {error && <p className="mb-4 rounded-xl bg-red-500/10 px-4 py-2.5 text-[13px] font-medium text-red-700">{error}</p>}
 
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div role="tablist" aria-label="What to show" className="flex rounded-full bg-white p-1 shadow-sm ring-1 ring-black/[0.06]">
-            {(["applications", "accounts"] as const).map((v) => (
+        <div className={`rounded-2xl p-3.5 ring-1 ${t.card}`}>
+          <form role="search" onSubmit={(e) => e.preventDefault()}>
+            <label htmlFor="new-supplier-search" className="sr-only">
+              Search new suppliers by company, name, product, number, WeChat ID, email or address
+            </label>
+            <div className="relative">
+              <Search size={17} aria-hidden="true" className={`pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 ${t.soft}`} />
+              <input
+                id="new-supplier-search"
+                ref={searchRef}
+                type="search"
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setLimit(PAGE);
+                }}
+                autoComplete="off"
+                placeholder="Search company, name, product, number, WeChat ID, email or address…"
+                className={`h-12 w-full rounded-xl border-0 pl-11 pr-24 text-[14px] outline-none ring-1 ring-transparent transition-shadow focus:ring-2 focus:ring-brand [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden ${t.input}`}
+              />
+              <span className="absolute right-3 top-1/2 flex -translate-y-1/2 items-center gap-2">
+                {q && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQ("");
+                      searchRef.current?.focus();
+                    }}
+                    aria-label="Clear search"
+                    className={`inline-flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${t.soft} ${t.hover}`}
+                  >
+                    <X size={15} aria-hidden="true" />
+                  </button>
+                )}
+                <kbd className={`hidden rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1 sm:inline ${t.pill}`}>/</kbd>
+              </span>
+            </div>
+          </form>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {LENSES.map((l) => (
               <button
-                key={v}
-                role="tab"
+                key={l.key}
                 type="button"
-                aria-selected={view === v}
-                onClick={() => setView(v)}
-                className={`rounded-full px-4 py-1.5 text-[13px] font-medium transition-colors ${view === v ? "bg-[#1d1d1f] text-white" : "hover:bg-black/[0.04]"}`}
+                onClick={() => {
+                  setLens(l.key);
+                  setLimit(PAGE);
+                }}
+                aria-pressed={lens === l.key}
+                title={l.hint}
+                className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${lens === l.key ? t.pillOn : t.pill}`}
               >
-                {v === "applications" ? "Applications" : "Accounts"}{" "}
-                <span className={view === v ? "text-white/70" : "text-[#86868b]"}>{v === "applications" ? offers.length : accounts.length}</span>
+                {l.label}
+                <span className={`ml-1.5 tabular-nums ${lens === l.key ? "opacity-70" : t.soft}`}>{lensCounts[l.key].toLocaleString("en-US")}</span>
               </button>
             ))}
           </div>
-          <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
-            <span className="sr-only">Search</span>
-            <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#86868b]" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder={view === "applications" ? "Search product, company, WeChat, mobile…" : "Search company, name, email, WeChat…"}
-              className="h-9 w-full rounded-full bg-white pl-9 pr-4 text-[13px] shadow-sm ring-1 ring-black/[0.06] outline-none focus:ring-2 focus:ring-[#0071e3]/40"
-            />
-          </label>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <SlidersHorizontal size={15} aria-hidden="true" className={t.soft} />
+            <label htmlFor="new-supplier-sort" className="sr-only">Sort suppliers</label>
+            <select
+              id="new-supplier-sort"
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              className={`h-9 rounded-xl border-0 px-3 text-[12.5px] font-semibold outline-none ring-1 transition-shadow focus:ring-2 focus:ring-brand ${t.pill}`}
+            >
+              {SORTS.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            {filtered && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQ("");
+                  setLens("all");
+                }}
+                className={`h-9 rounded-xl px-3 text-[12.5px] font-semibold ring-1 transition-colors ${t.pill}`}
+              >
+                Reset
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void exportRows()}
+              disabled={exporting || !results.length}
+              className="ml-auto inline-flex h-9 items-center gap-2 rounded-xl bg-[#1d1d1f] px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              {exporting ? <Loader2 size={14} aria-hidden="true" className="animate-spin" /> : <Download size={14} aria-hidden="true" />}
+              {exporting ? "Building Excel file…" : `Export ${filtered ? `these ${results.length.toLocaleString("en-US")}` : "all"}`}
+            </button>
+          </div>
         </div>
 
-        {view === "applications" ? (
-          <>
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {STATUS_TABS.map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setTab(t)}
-                  aria-pressed={tab === t}
-                  className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium ring-1 ring-black/[0.06] transition-colors ${
-                    tab === t ? "bg-[#1d1d1f] text-white" : "bg-white hover:bg-black/[0.03]"
-                  }`}
-                >
-                  {t === "ALL" ? "All" : TEAM_STATUS_LABEL[t]} <span className={tab === t ? "text-white/70" : "text-[#86868b]"}>{tabCounts[t]}</span>
-                </button>
-              ))}
-            </div>
+        {error && <p role="alert" className="mt-3 rounded-xl bg-red-500/10 px-4 py-2.5 text-[13px] font-medium text-red-600">{error}</p>}
 
-            {list.length === 0 ? (
-              <div className="rounded-2xl bg-white px-6 py-16 text-center shadow-sm ring-1 ring-black/[0.06]">
-                <p className="text-[15px] font-medium">{needle ? "No applications match." : offers.length ? `No applications marked ${tab === "ALL" ? "" : TEAM_STATUS_LABEL[tab].toLowerCase()}.` : "No applications yet."}</p>
-                {!offers.length && <p className="mt-1 text-[13px] text-[#86868b]">Applications from suppliers on /supplier/ arrive here.</p>}
-              </div>
+        <p aria-live="polite" className={`px-1 py-3 text-[12.5px] ${t.soft}`}>
+          {results.length === 0
+            ? accounts.length
+              ? "No suppliers match."
+              : "No supplier has registered yet."
+            : `Showing ${visible.length.toLocaleString("en-US")} of ${results.length.toLocaleString("en-US")}${filtered ? ` matching (${accounts.length.toLocaleString("en-US")} in total)` : ""}`}
+        </p>
+
+        {results.length === 0 ? (
+          <div className={`rounded-2xl px-6 py-16 text-center ring-1 ${t.card}`}>
+            {accounts.length && needle ? (
+              <>
+                <p className="text-[14px] font-semibold">Nothing matched that.</p>
+                <p className={`mt-1 text-[13px] ${t.soft}`}>Try part of a company name, a product, or any run of digits from a number.</p>
+              </>
+            ) : accounts.length ? (
+              <>
+                <p className="text-[14px] font-semibold">No suppliers under {LENSES.find((l) => l.key === lens)?.label ?? "this"} right now.</p>
+                <button
+                  type="button"
+                  onClick={() => setLens("all")}
+                  className={`mt-3 rounded-xl px-4 py-2 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}
+                >
+                  Show all {accounts.length.toLocaleString("en-US")}
+                </button>
+              </>
             ) : (
-              <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.06]">
-                <ul className="divide-y divide-black/[0.06]">
-                  {list.map((o) => {
-                    const picture = getCdnUrl(o.productImage, 120) ?? o.photos[0] ?? null;
-                    return (
-                      <li key={o.id}>
-                        <button
-                          type="button"
-                          onClick={() => setOpenId(o.id)}
-                          className="flex w-full items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-black/[0.02] lg:px-5"
-                        >
-                          <span className="h-12 w-12 shrink-0 overflow-hidden rounded-xl bg-[#f5f5f7] ring-1 ring-black/[0.05]">
-                            {picture ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={picture} alt="" className="h-full w-full object-cover" />
-                            ) : null}
-                          </span>
-                          <span className="min-w-0 flex-1">
-                            <span className="block truncate text-[14px] font-semibold">{o.productName}</span>
-                            <span className="block truncate text-[12.5px] text-[#86868b]">
-                              {o.companyName} · {o.contactName}
-                              {o.productId === null ? " · their own product" : ""}
-                            </span>
-                          </span>
-                          <span className="hidden shrink-0 text-right text-[13px] sm:block">
-                            <span className="block font-medium tabular-nums">MOQ {moqPhrase(o.moq, o.moqUnit)}</span>
-                            <span className="block text-[12px] text-[#86868b]">
-                              {shortDate(o.createdAt)}
-                              {o.photos.length ? ` · ${o.photos.length} photo${o.photos.length === 1 ? "" : "s"}` : ""}
-                            </span>
-                          </span>
-                          <span className={`w-fit shrink-0 rounded-full px-2.5 py-1 text-[12px] font-medium ${statusPill[o.status]}`}>{TEAM_STATUS_LABEL[o.status]}</span>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
+              <>
+                <p className="text-[14px] font-semibold">No supplier has registered yet.</p>
+                <p className={`mt-1 text-[13px] ${t.soft}`}>
+                  Suppliers register at /supplier/register/ (the footer&apos;s Supplier Login), and everything they apply for arrives here.
+                </p>
+              </>
             )}
-          </>
-        ) : accountList.length === 0 ? (
-          <div className="rounded-2xl bg-white px-6 py-16 text-center shadow-sm ring-1 ring-black/[0.06]">
-            <p className="text-[15px] font-medium">{needle ? "No accounts match." : "No supplier has registered yet."}</p>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.06]">
-            <ul className="divide-y divide-black/[0.06]">
-              {accountList.map((a) => (
-                <li key={a.id} className="grid gap-2 px-4 py-3.5 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1fr)_auto] lg:items-center lg:gap-4 lg:px-5">
-                  <div className="min-w-0">
-                    <p className="truncate text-[14px] font-semibold">{a.companyName ?? <span className="text-[#86868b]">No company yet</span>}</p>
-                    <p className="truncate text-[12.5px] text-[#86868b]">
-                      {a.name} · {a.email}
+          <>
+            <div className={`hidden overflow-hidden rounded-2xl ring-1 lg:block ${t.card}`}>
+              <table className="w-full table-fixed border-collapse text-left">
+                <caption className="sr-only">New suppliers, showing {visible.length} of {results.length}</caption>
+                <colgroup>
+                  <col className="w-[58px]" />
+                  <col className="w-[23%]" />
+                  <col className="w-[30%]" />
+                  <col className="w-[24%]" />
+                  <col />
+                </colgroup>
+                <thead className={`${t.head} border-b ${t.border}`}>
+                  <tr className={`text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
+                    <th scope="col" className="py-2.5 pl-4 pr-2">S.No</th>
+                    <th scope="col" className="px-3 py-2.5">Supplier</th>
+                    <th scope="col" className="px-3 py-2.5">Products</th>
+                    <th scope="col" className="px-3 py-2.5">Contact</th>
+                    <th scope="col" className="px-3 py-2.5">Address</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${t.divide}`}>
+                  {visible.map((r) => (
+                    <tr key={r.account.id} className={`align-top transition-colors ${t.hover}`}>
+                      <td className={`py-3.5 pl-4 pr-2 text-[12px] tabular-nums ${t.soft}`}>{r.serial}</td>
+                      <td className="px-3 py-3.5">{supplierCell(r)}</td>
+                      <td className="px-3 py-3.5">{productsCell(r)}</td>
+                      <td className="px-3 py-3.5">{contactCell(r)}</td>
+                      <td className={`px-3 py-3.5 text-[12.5px] leading-relaxed ${r.account.companyAddress ? t.body2 : t.soft}`}>
+                        {r.account.companyAddress || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <ul className="space-y-3 lg:hidden">
+              {visible.map((r) => (
+                <li key={r.account.id} className={`rounded-2xl p-4 ring-1 ${t.card}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">{supplierCell(r, true)}</div>
+                    <span className={`shrink-0 text-[11px] tabular-nums ${t.soft}`}>#{r.serial}</span>
+                  </div>
+                  <div className={`mt-3 border-t pt-3 ${t.border}`}>{productsCell(r, true)}</div>
+                  <div className={`mt-3 border-t pt-3 ${t.border}`}>{contactCell(r)}</div>
+                  {r.account.companyAddress && (
+                    <p className={`mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed ${t.body2}`}>
+                      <MapPin size={13} aria-hidden="true" className={`mt-0.5 shrink-0 ${t.soft}`} />
+                      {r.account.companyAddress}
                     </p>
-                  </div>
-                  <div className="min-w-0 text-[13px]">
-                    <p className="truncate">
-                      {a.mobile}
-                      {a.wechatId ? <span className="text-[#86868b]"> · WeChat {a.wechatId}</span> : null}
-                    </p>
-                    <p className="truncate text-[12px] text-[#86868b]">{a.companyAddress ?? "Address not given yet"}</p>
-                  </div>
-                  <div className="text-[12.5px] text-[#86868b]">
-                    <p>
-                      {a.offers} application{a.offers === 1 ? "" : "s"} · joined {shortDate(a.createdAt)}
-                    </p>
-                    <p>{a.lastLoginAt ? `Last signed in ${shortDate(a.lastLoginAt)}` : "Never signed in again"}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {a.status === "BLOCKED" && <span className="rounded-full bg-red-500/10 px-2.5 py-1 text-[12px] font-medium text-red-700">Blocked</span>}
-                    <button
-                      type="button"
-                      onClick={() => void setBlocked(a, a.status !== "BLOCKED")}
-                      className={`rounded-full px-3 py-1.5 text-[12.5px] font-medium ring-1 ring-black/[0.06] ${a.status === "BLOCKED" ? "bg-white hover:bg-black/[0.03]" : "text-red-600 hover:bg-red-500/10"}`}
-                    >
-                      {a.status === "BLOCKED" ? "Unblock" : "Block"}
-                    </button>
-                  </div>
+                  )}
                 </li>
               ))}
             </ul>
-          </div>
+
+            {visible.length < results.length && (
+              <div className="mt-5 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setLimit((n) => n + PAGE * 2)}
+                  className={`rounded-xl px-5 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}
+                >
+                  Show {Math.min(PAGE * 2, results.length - visible.length).toLocaleString("en-US")} more
+                  <span className={`ml-1.5 ${t.soft}`}>({(results.length - visible.length).toLocaleString("en-US")} left)</span>
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
       {open && (
-        <Detail
+        <Review
           offer={open}
           account={accounts.find((a) => a.id === open.supplierId) ?? null}
+          t={t}
+          pill={status}
           onClose={() => setOpenId(null)}
           onSave={(change) => saveOffer(open.id, change)}
         />
@@ -432,21 +712,28 @@ export function NewSuppliersBoard({
   );
 }
 
-function Detail({
+type Theme = { [K in "page" | "card" | "soft" | "body2" | "border" | "pill" | "pillOn" | "sheet" | "well" | "input" | "ink"]: string };
+
+/** One application, opened from the Products column: the decision, the reply, the product and every contact. */
+function Review({
   offer: o,
   account,
+  t,
+  pill,
   onClose,
   onSave,
 }: {
   offer: BoardOffer;
   account: BoardAccount | null;
+  t: Theme;
+  pill: Record<OfferStatus, string>;
   onClose: () => void;
   onSave: (change: { status?: OfferStatus; reply?: string }) => Promise<boolean>;
 }) {
   const [reply, setReply] = useState(o.reply ?? "");
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [savedReply, setSavedReply] = useState(false);
+  const [copied, setCopied] = useState(false);
   const withdrawn = o.status === "WITHDRAWN";
 
   useEffect(() => {
@@ -455,7 +742,7 @@ function Detail({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const status = async (s: OfferStatus) => {
+  const decide = async (s: OfferStatus) => {
     setBusy(true);
     await onSave({ status: s });
     setBusy(false);
@@ -471,43 +758,49 @@ function Detail({
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
-      // Clipboard refused (an insecure context); the ID is on screen to copy by hand.
+      // The clipboard refused (an insecure origin): the ID is on screen to copy by hand.
     }
   };
 
   const picture = getCdnUrl(o.productImage, 300);
-  const section = (title: string, rows: Array<[string, React.ReactNode]>) => (
-    <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/[0.06]">
-      <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">{title}</h3>
-      <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        {rows.map(([k, v]) => (
-          <div key={k} className="min-w-0">
-            <dt className="text-[12px] text-[#86868b]">{k}</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap break-words text-[14px]">{v || "—"}</dd>
-          </div>
-        ))}
-      </dl>
+  const button = `inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold ring-1 sm:h-9 ${t.pill}`;
+  const section = (title: string, children: React.ReactNode) => (
+    <section className={`rounded-2xl p-5 ring-1 ${t.card}`}>
+      <h3 className={`text-[11px] font-bold uppercase tracking-[0.1em] ${t.soft}`}>{title}</h3>
+      <div className="mt-2.5">{children}</div>
     </section>
+  );
+  const facts = (rows: Array<[string, React.ReactNode]>) => (
+    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+      {rows.map(([k, v]) => (
+        <div key={k} className="min-w-0">
+          <dt className={`text-[12px] ${t.soft}`}>{k}</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap break-words text-[14px]">{v || "—"}</dd>
+        </div>
+      ))}
+    </dl>
   );
 
   return (
-    <div className="fixed inset-0 z-[120] flex justify-end bg-black/30" onClick={onClose}>
+    <div className="fixed inset-0 z-[120] flex justify-end bg-black/40" onClick={onClose}>
       <aside
         role="dialog"
         aria-modal="true"
         aria-labelledby="supplier-offer-title"
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-2xl flex-col overflow-y-auto bg-[#f5f5f7] shadow-2xl"
+        className={`flex h-full w-full max-w-2xl flex-col overflow-y-auto shadow-2xl ${t.sheet} ${t.ink}`}
       >
-        <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-black/[0.06] bg-[#f5f5f7]/95 px-6 py-4 backdrop-blur">
+        <div className={`sticky top-0 z-10 flex items-start gap-3 border-b px-6 py-4 backdrop-blur ${t.border} ${t.sheet}`}>
           <div className="min-w-0 flex-1">
-            <p className="text-[12px] text-[#86868b]">Sent {fmtDate(o.createdAt)}</p>
-            <h2 id="supplier-offer-title" className="mt-0.5 line-clamp-2 text-xl font-semibold tracking-tight">{o.productName}</h2>
-            <p className="truncate text-[13px] text-[#86868b]">
+            <p className={`text-[12px] ${t.soft}`}>Sent {stamp(o.createdAt)}</p>
+            <h2 id="supplier-offer-title" className="mt-0.5 line-clamp-2 text-xl font-semibold tracking-tight">
+              {o.productName}
+            </h2>
+            <p className={`truncate text-[13px] ${t.soft}`}>
               {o.companyName} · {o.contactName}
             </p>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06]">
+          <button type="button" onClick={onClose} aria-label="Close" className={`flex h-9 w-9 items-center justify-center rounded-full ring-1 ${t.pill}`}>
             <X size={16} />
           </button>
         </div>
@@ -517,41 +810,37 @@ function Detail({
             <button
               type="button"
               onClick={() => void copyWechat()}
-              className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#07c160] px-4 text-[13px] font-medium text-white sm:h-9"
+              className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#07c160] px-4 text-[13px] font-semibold text-white sm:h-9"
             >
               {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "WeChat ID copied" : `WeChat ${o.wechatId}`}
             </button>
-            <a href={`tel:${o.mobile}`} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#1d1d1f] px-4 text-[13px] font-medium text-white sm:h-9">
+            <a href={`tel:${o.mobile}`} className={button}>
               <Phone size={14} /> Call
             </a>
-            <a
-              href={`https://wa.me/${digits(o.mobile)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] sm:h-9"
-            >
+            <a href={`https://wa.me/${o.mobile.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className={button}>
               <MessageCircle size={14} /> WhatsApp
             </a>
             <a
               href={`mailto:${o.supplierEmail}?subject=${encodeURIComponent(`Your AFFHAN supplier application: ${o.productName.slice(0, 80)}`)}`}
-              className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] sm:h-9"
+              className={`col-span-2 ${button}`}
             >
               <Mail size={14} /> Email
             </a>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-[13px]">
-            <span className="text-[#86868b]">Status:</span>
+            <span className={t.soft}>Status:</span>
             {withdrawn ? (
-              <span className={`rounded-full px-3 py-1.5 font-medium ${statusPill.WITHDRAWN}`}>Withdrawn by the supplier</span>
+              <span className={`rounded-full px-3 py-1.5 font-semibold ${pill.WITHDRAWN}`}>Withdrawn by the supplier</span>
             ) : (
               TEAM_STATUSES.map((s) => (
                 <button
                   key={s}
                   type="button"
                   disabled={busy || o.status === s}
-                  onClick={() => void status(s)}
-                  className={`rounded-full px-3 py-1.5 font-medium ring-1 ring-black/[0.06] ${o.status === s ? statusPill[s] : "bg-white hover:bg-black/[0.03]"} disabled:cursor-default`}
+                  onClick={() => void decide(s)}
+                  aria-pressed={o.status === s}
+                  className={`rounded-full px-3 py-1.5 font-semibold ring-1 disabled:cursor-default ${o.status === s ? `${pill[s]} ring-transparent` : t.pill}`}
                 >
                   {TEAM_STATUS_LABEL[s]}
                 </button>
@@ -559,92 +848,102 @@ function Detail({
             )}
           </div>
 
-          <section className="flex gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/[0.06]">
-            <div className="h-24 w-24 shrink-0 overflow-hidden rounded-xl bg-[#f5f5f7]">
+          <section className={`flex gap-4 rounded-2xl p-5 ring-1 ${t.card}`}>
+            <div className={`h-24 w-24 shrink-0 overflow-hidden rounded-xl ${t.well}`}>
               {picture ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={picture} alt="" className="h-full w-full object-cover" />
               ) : null}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[12px] text-[#86868b]">{o.productId === null ? "Their own product (not in the catalogue)" : o.categoryName ?? "Catalogue product"}</p>
+              <p className={`text-[12px] ${t.soft}`}>{o.productId === null ? "Their own product (not in the catalogue)" : o.categoryName ?? "Catalogue product"}</p>
               <p className="mt-0.5 text-[15px] font-semibold leading-snug">{o.productName}</p>
               <p className="mt-1.5 text-[14px]">
                 MOQ <span className="font-semibold tabular-nums">{moqPhrase(o.moq, o.moqUnit)}</span>
               </p>
               {o.productId !== null && (
-                <a href={`/products/${o.productId}/`} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-medium text-[#0058b0] hover:underline">
+                <a href={`/products/${o.productId}/`} target="_blank" rel="noopener noreferrer" className="mt-1.5 inline-flex items-center gap-1 text-[13px] font-semibold text-brand-dark hover:underline">
                   Open the product <ExternalLink size={13} />
                 </a>
               )}
             </div>
           </section>
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/[0.06]">
-            <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Product details</h3>
-            <p className="mt-2 whitespace-pre-wrap break-words text-[14px] leading-relaxed">{o.details}</p>
-            {o.photos.length > 0 && (
-              <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
-                {o.photos.map((p) => (
-                  <a key={p} href={p} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-xl ring-1 ring-black/[0.06]">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={p} alt="" className="h-full w-full object-cover transition-transform hover:scale-105" />
-                  </a>
-                ))}
+          {section(
+            "Product details",
+            <>
+              <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed">{o.details}</p>
+              {o.photos.length > 0 && (
+                <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {o.photos.map((p) => (
+                    <a key={p} href={p} target="_blank" rel="noopener noreferrer" className="block aspect-square overflow-hidden rounded-xl ring-1 ring-black/[0.06]">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={p} alt="" className="h-full w-full object-cover transition-transform hover:scale-105" />
+                    </a>
+                  ))}
+                </div>
+              )}
+            </>,
+          )}
+
+          {section(
+            "Reply to the supplier",
+            <>
+              <p className={`text-[12.5px] ${t.soft}`}>The supplier reads this beside the status, in My applications.</p>
+              <textarea
+                value={reply}
+                onChange={(e) => {
+                  setSavedReply(false);
+                  setReply(e.target.value);
+                }}
+                maxLength={REPLY_MAX}
+                rows={3}
+                disabled={withdrawn}
+                placeholder={withdrawn ? "The supplier withdrew this application." : "e.g. Please send a sample to our Guangzhou office."}
+                className={`mt-2.5 w-full resize-y rounded-xl px-3.5 py-2.5 text-[14px] outline-none ring-1 ring-transparent focus:ring-2 focus:ring-brand disabled:opacity-60 ${t.input}`}
+              />
+              <div className="mt-2 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => void saveReply()}
+                  disabled={busy || withdrawn || reply.trim() === (o.reply ?? "")}
+                  className="rounded-full bg-[#1d1d1f] px-4 py-1.5 text-[13px] font-semibold text-white disabled:opacity-40"
+                >
+                  Save reply
+                </button>
+                {savedReply && (
+                  <span className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-emerald-600">
+                    <Check size={14} /> Saved
+                  </span>
+                )}
+                {o.reviewedBy && o.reviewedAt && (
+                  <span className={`ml-auto text-[12px] ${t.soft}`}>
+                    Last changed by {o.reviewedBy}, {stamp(o.reviewedAt)}
+                  </span>
+                )}
               </div>
-            )}
-          </section>
+            </>,
+          )}
 
-          <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/[0.06]">
-            <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Reply to the supplier</h3>
-            <p className="mt-1 text-[12.5px] text-[#86868b]">The supplier reads this beside the status, in My applications.</p>
-            <textarea
-              value={reply}
-              onChange={(e) => {
-                setSavedReply(false);
-                setReply(e.target.value);
-              }}
-              maxLength={REPLY_MAX}
-              rows={3}
-              disabled={withdrawn}
-              placeholder={withdrawn ? "The supplier withdrew this application." : "e.g. Please send a sample to our Guangzhou office."}
-              className="mt-2.5 w-full resize-y rounded-xl bg-[#f5f5f7] px-3.5 py-2.5 text-[14px] outline-none ring-1 ring-black/[0.06] focus:bg-white focus:ring-2 focus:ring-[#0071e3]/40 disabled:opacity-60"
-            />
-            <div className="mt-2 flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => void saveReply()}
-                disabled={busy || withdrawn || reply.trim() === (o.reply ?? "")}
-                className="rounded-full bg-[#1d1d1f] px-4 py-1.5 text-[13px] font-medium text-white disabled:opacity-40"
-              >
-                Save reply
-              </button>
-              {savedReply && (
-                <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-emerald-700">
-                  <Check size={14} /> Saved
-                </span>
-              )}
-              {o.reviewedBy && o.reviewedAt && (
-                <span className="ml-auto text-[12px] text-[#86868b]">
-                  Last changed by {o.reviewedBy}, {fmtDate(o.reviewedAt)}
-                </span>
-              )}
-            </div>
-          </section>
-
-          {section("Contact on this application", [
-            ["Name", o.contactName],
-            ["Company", o.companyName],
-            ["Mobile", o.mobile],
-            ["WeChat ID", o.wechatId],
-            ["Company address", o.companyAddress],
-          ])}
-          {section("Supplier account", [
-            ["Sign-in email", o.supplierEmail],
-            ["Registered", account ? fmtDate(account.createdAt) : null],
-            ["Applications", account ? String(account.offers) : null],
-            ["Account", o.supplierBlocked ? "Blocked" : "Active"],
-          ])}
+          {section(
+            "Contact on this application",
+            facts([
+              ["Name", o.contactName],
+              ["Company", o.companyName],
+              ["Mobile", spaced(o.mobile)],
+              ["WeChat ID", o.wechatId],
+              ["Company address", o.companyAddress],
+            ]),
+          )}
+          {section(
+            "Supplier account",
+            facts([
+              ["Sign-in email", o.supplierEmail],
+              ["Registered", account ? stamp(account.createdAt) : null],
+              ["Applications", account ? String(account.offers) : null],
+              ["Account", o.supplierBlocked ? "Blocked" : "Active"],
+            ]),
+          )}
         </div>
       </aside>
     </div>
