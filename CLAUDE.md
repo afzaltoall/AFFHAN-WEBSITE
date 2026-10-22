@@ -17,7 +17,7 @@ The old corporate site (affhan.com) is being replaced by this. The new site is m
 - **Neon** (PostgreSQL) — pooled connection string as `DATABASE_URL`, non-pooled `DIRECT_URL` for migrations
 - **Brevo** — transactional email (the password-reset codes): `src/lib/brevo.ts` behind `src/lib/email.ts`
 - **Upstash** — rate limits; `src/lib/limit-policy.ts` is the table of them
-- Deployed on **Vercel** (Hobby tier — each cron runs **at most once a day**; see "Scheduled jobs")
+- Deployed on **Vercel** (**Pro** plan, team "AFFHAN" — cron jobs can run as often as once a minute; see "Scheduled jobs")
 - Local dev on **Windows** (see gotcha below)
 
 **Removed — don't bring back without asking (2026-10-15):** the CJ Dropshipping API and its sync (the sync stopped 2026-10-09), Amazon SES (replaced by Brevo on 2026-10-14), and Twilio with phone sign-in and its text-message codes. Their env vars (`CJ_API_KEY`, `AWS_SES_*`, `TWILIO_*`, `SMS_PROVIDER`, `OTP_DAILY_CAP`) are read by nothing.
@@ -39,7 +39,10 @@ The frontend never calls a supplier. Product images are either **hotlinked** fro
 `/api/cron/refresh/` (Vercel cron at 18:00 UTC, 23:30 IST, under a lock row) recomputes the name flags (`Product.isBlockedName`), the category counts (`Category.productCount`), the homepage's draws for today and tomorrow, and the hero's pool, and stores them as `Snapshot` rows. Requests only read those rows; nothing heavy runs per request. `GET /api/cron/refresh/?force=1` with `CRON_SECRET` runs it at once, e.g. after a catalogue script.
 
 ### Scheduled jobs
-`vercel.json` runs `/api/cron/leads/rotate` at 05:00 UTC (a daily net) and `/api/cron/refresh/` at 18:00 UTC. cron-job.org calls `/api/cron/leads/rotate` about every 15 minutes with `Authorization: Bearer $CRON_SECRET`. Every cron route refuses a missing secret or one shorter than 32 characters.
+`vercel.json` runs `/api/cron/leads/rotate/` **every 15 minutes** (`*/15 * * * *` — the open pool's sweep) and `/api/cron/refresh/` at 18:00 UTC. Vercel's cron sends `Authorization: Bearer $CRON_SECRET` itself. Every cron route refuses a missing secret or one shorter than 32 characters.
+
+- **Keep the trailing slash on every cron path.** The site has `trailingSlash: true`, so a path without the slash answers 308, and Vercel's cron does not follow redirects. That is why the sweep never ran until 2026-10-22. A test checks every path in `vercel.json`.
+- **Nothing depends on cron-job.org** (we have no account). A job somebody else set up may still call the sweep; two callers are safe, since a run with nothing to do changes nothing and every move is a conditional update.
 
 ### DB models
 - `Product` — `cjPid` (the supplier's own id; named for CJ), `supplierSource` (CJ | EPROLO), `name`, `imageUrl`, `allImages`, `price` (stored but never displayed), `categoryId`, `isBlockedName`, `lastSynced` (when it was imported)
@@ -96,7 +99,7 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - **CJ product data has no structured attributes.** No material, colour, size, gender, style, fabric. For CJ's 1,068,225 rows, only category-based filtering and sorting are possible. Don't create filter UI backed by data we don't have.
   - **This is not true of EPROLO.** Every one of its 12,746 rows carries a `description`, and 11,858 of them parse into real attribute pairs — Color (8,545), Size (8,020), Style (6,271), Sleeve Length (6,082), Material (5,717), Fabric (5,525), Neckline, Occasion, Fit Type, Gender — plus a size chart on 8,869. See `src/lib/productDescription.ts`, which reads them. Attribute filters are therefore possible *for EPROLO products only*; any such UI has to cope with the CJ majority having none, so it cannot be a site-wide facet.
 - **We have no user tracking**, so Alibaba's "Browsing history" / "Keep looking for" personalised cards can't be replicated — use static equivalents instead.
-- Vercel Hobby tier = each cron at most once a day. Anything more frequent goes through cron-job.org (see "Scheduled jobs").
+- Cron paths in `vercel.json` must end in `/` (see "Scheduled jobs").
 
 ## Windows dev gotcha (hit this three times already)
 
