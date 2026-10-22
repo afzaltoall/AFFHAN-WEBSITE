@@ -116,7 +116,7 @@ export function SupplierApplications({ offers: initial }: { offers: MyOffer[] })
   };
 
   return (
-    <main className="mx-auto max-w-[1000px] px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <main className="px-4 pb-16 pt-6 sm:px-6 sm:pt-8 lg:px-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[24px] font-extrabold tracking-tight text-[#0b2230]">My applications</h1>
@@ -175,7 +175,7 @@ export function SupplierApplications({ offers: initial }: { offers: MyOffer[] })
       ) : list.length === 0 ? (
         <p className="mt-8 text-center text-[13.5px] text-[#5b6f76]">No applications match.</p>
       ) : (
-        <ul className="mt-4 space-y-3">
+        <ul className="mt-4 grid items-start gap-3 xl:grid-cols-2">
           {list.map((o) => {
             const expanded = openId === o.id;
             const picture = getCdnUrl(o.productImage, 200) ?? o.photos[0] ?? null;

@@ -101,6 +101,17 @@ function settleSelfPops() {
 
 type MarkerState = Record<string, unknown> | null;
 
+/**
+ * Whether the history entry now current is an open overlay's. Closing the overlay pops it, a task later, and
+ * the browser then restores the scroll position it saved for the page's own entry; so whatever has to land on
+ * the page's entry (a replaceState, a scroll) waits for that pop rather than being undone by it.
+ */
+export function overlayEntryIsCurrent(): boolean {
+  if (typeof window === "undefined") return false;
+  const state = window.history.state as MarkerState;
+  return Boolean(state && state[MARKER]);
+}
+
 export function useBackDismiss(open: boolean, onClose: () => void) {
   // Held in a ref so a caller passing an inline arrow function does not tear
   // the history entry down and rebuild it on every render.

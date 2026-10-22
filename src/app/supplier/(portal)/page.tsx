@@ -47,7 +47,7 @@ export default async function SupplierCataloguePage({
   const blocked = blockedCategoryIdSet(all);
   const cat = catId && !blocked.has(catId) ? all.find((c) => c.id === catId) : undefined;
   const familyId = cat
-    ? (families.find((f) => f.id === cat.id) ?? families.find((f) => f.children.some((c) => c.id === cat.id)))?.id ?? null
+    ? families.find((f) => f.id === cat.id || f.children.some((g) => g.id === cat.id || g.kinds.some((k) => k.id === cat.id)))?.id ?? null
     : null;
 
   return (
@@ -65,6 +65,8 @@ export default async function SupplierCataloguePage({
       initial={{
         q: one(params.q).slice(0, 120),
         scope: cat ? { id: cat.id, name: categoryLabel(cat.name, cat.parentName), familyId } : null,
+        sort: one(params.sort),
+        exact: one(params.exact) === "1",
       }}
       welcome={one(params.welcome) === "1"}
       firstName={supplier.name.split(/\s+/)[0] || supplier.name}

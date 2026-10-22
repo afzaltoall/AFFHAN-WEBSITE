@@ -31,16 +31,23 @@ export interface SupplierCategory {
   name: string;
   /** Products in it and every category under it. */
   count: number;
+  /** Its picture (scripts/assign_category_thumbnails.mjs), or its biggest kind's when it has none of its own. */
+  thumbnailUrl: string | null;
+}
+
+/** A family's group (the tree's second level), with its kinds: the phone's "Select category" shows them all. */
+export interface SupplierGroup extends SupplierCategory {
+  kinds: SupplierCategory[];
 }
 
 export interface SupplierFamily extends SupplierCategory {
-  children: SupplierCategory[];
+  children: SupplierGroup[];
 }
 
 /**
- * The catalogue's top-level families with the categories directly under each, biggest first, moderated ones
- * left out. The real tree only: the copies the homepage promotes to the top (displayAsTopLevel) would list a
- * category twice here, which is a filter, not a shop window.
+ * The catalogue's top-level families, each with its groups and their kinds, biggest first, moderated ones and
+ * empty ones left out. The real tree only: the copies the homepage promotes to the top (displayAsTopLevel)
+ * would list a category twice here, which is a filter, not a shop window.
  */
 export async function supplierFamilies(): Promise<SupplierFamily[]> {
   const all = await getCachedAllCategories();
@@ -54,18 +61,32 @@ export async function supplierFamilies(): Promise<SupplierFamily[]> {
     children.set(c.parentId, list);
   }
   const subtree = (id: string): string[] => [id, ...(children.get(id) ?? []).flatMap((c) => subtree(c.id))];
+  const byCount = <T extends SupplierCategory>(a: T, b: T) => b.count - a.count || a.name.localeCompare(b.name);
   const counted = (c: (typeof shown)[number]): SupplierCategory => ({
     id: c.id,
     name: categoryLabel(c.name, c.parentName),
     count: sumProductCounts(all, subtree(c.id)),
+    thumbnailUrl: c.thumbnailUrl ?? null,
   });
-  const byCount = (a: SupplierCategory, b: SupplierCategory) => b.count - a.count || a.name.localeCompare(b.name);
+  const below = (id: string) =>
+    (children.get(id) ?? [])
+      .map(counted)
+      .filter((c) => c.count > 0)
+      .sort(byCount);
+  /** Its own picture, or the first of its biggest kinds' that has one. */
+  const pictured = <T extends SupplierCategory>(c: T, under: SupplierCategory[]): T => ({
+    ...c,
+    thumbnailUrl: c.thumbnailUrl ?? under.find((k) => k.thumbnailUrl)?.thumbnailUrl ?? null,
+  });
   return shown
     .filter((c) => !c.parentId)
-    .map((root) => ({
-      ...counted(root),
-      children: (children.get(root.id) ?? []).map(counted).filter((c) => c.count > 0).sort(byCount),
-    }))
+    .map((root) => {
+      const groups = below(root.id).map((g) => {
+        const kinds = below(g.id);
+        return { ...pictured(g, kinds), kinds };
+      });
+      return { ...pictured(counted(root), groups), children: groups };
+    })
     .filter((f) => f.count > 0)
     .sort(byCount);
 }

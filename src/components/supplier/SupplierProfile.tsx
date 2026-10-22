@@ -102,13 +102,14 @@ export function SupplierProfile({ account }: { account: Account }) {
   const since = new Date(account.since).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <main className="mx-auto max-w-[760px] px-4 pb-16 pt-6 sm:px-6 sm:pt-8">
+    <main className="px-4 pb-16 pt-6 sm:px-6 sm:pt-8 lg:px-8">
       <h1 className="text-[24px] font-extrabold tracking-tight text-[#0b2230]">Profile</h1>
       <p className="mt-0.5 text-[13.5px] text-[#5b6f76]">
         Signed in as <span className="font-semibold text-[#10262e]">{account.email}</span> · Supplier since {since}
       </p>
 
-      <form onSubmit={save} noValidate className="mt-6 space-y-4 rounded-[22px] bg-white p-5 ring-1 ring-[#e1e8ea] sm:p-7">
+      <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+      <form onSubmit={save} noValidate className="space-y-4 rounded-[22px] bg-white p-5 ring-1 ring-[#e1e8ea] sm:p-7">
         <div>
           <h2 className="text-[16px] font-bold text-[#0b2230]">Your details</h2>
           <p className="text-[12.5px] text-[#5b6f76]">Every application starts from these. The team uses them to reach you.</p>
@@ -174,7 +175,7 @@ export function SupplierProfile({ account }: { account: Account }) {
         </div>
       </form>
 
-      <form onSubmit={changePassword} noValidate className="mt-5 space-y-4 rounded-[22px] bg-white p-5 ring-1 ring-[#e1e8ea] sm:p-7">
+      <form onSubmit={changePassword} noValidate className="space-y-4 rounded-[22px] bg-white p-5 ring-1 ring-[#e1e8ea] sm:p-7">
         <div>
           <h2 className="text-[16px] font-bold text-[#0b2230]">Password</h2>
           <p className="text-[12.5px] text-[#5b6f76]">Changing it signs you out on every other device.</p>
@@ -227,6 +228,7 @@ export function SupplierProfile({ account }: { account: Account }) {
           )}
         </div>
       </form>
+      </div>
     </main>
   );
 }

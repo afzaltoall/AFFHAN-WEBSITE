@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { currentSupplier } from "@/lib/supplier-session";
 import { OPEN_STATUSES } from "@/lib/supplier-offer";
 import { OFFICES } from "@/lib/brand";
+import { PHONE_TABS_HEIGHT } from "@/lib/phoneChrome";
 import { SupplierTopBar } from "@/components/supplier/SupplierTopBar";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function SupplierPortalLayout({ children }: { children: Rea
       <SupplierTopBar companyName={supplier.companyName} name={supplier.name} openCount={openCount} />
       <div className="flex-1">{children}</div>
       <footer className="border-t border-[#dde5e8] bg-white">
-        <div className="mx-auto flex max-w-[1320px] flex-col gap-1 px-4 py-5 text-[12.5px] text-[#5b6f76] sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex flex-col gap-1 px-4 py-5 text-[12.5px] text-[#5b6f76] sm:flex-row sm:items-center sm:justify-between sm:px-6 lg:px-8">
           <p>© {new Date().getFullYear()} AFFHAN International Pvt Ltd</p>
           <p>
             Questions about supplying AFFHAN?{" "}
@@ -50,6 +51,8 @@ export default async function SupplierPortalLayout({ children }: { children: Rea
           </p>
         </div>
       </footer>
+      {/* A phone: the room the tabs along the bottom take (SupplierTopBar), so the footer's last line clears them. */}
+      <div aria-hidden="true" className="shrink-0 md:hidden" style={{ height: `calc(${PHONE_TABS_HEIGHT} + env(safe-area-inset-bottom))` }} />
     </div>
   );
 }

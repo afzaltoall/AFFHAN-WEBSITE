@@ -126,6 +126,8 @@ export function useSearchAssist({
   onProduct,
   onClose,
   onPhotoSearch,
+  examples = EXAMPLES,
+  recentKey = RECENT_KEY,
 }: {
   query: string;
   /** The dropdown is showing: load the engine, fetch products. */
@@ -136,6 +138,10 @@ export function useSearchAssist({
   onClose?: () => void;
   /** A box with photo search beside it: the empty dropdown offers it first ("Search with a photo"). */
   onPhotoSearch?: () => void;
+  /** The empty box's example searches; the shop's by default. Pass a constant: it is a dependency. */
+  examples?: readonly string[];
+  /** Where recent searches are kept, so a second kind of searcher (a supplier) keeps their own. */
+  recentKey?: string;
 }) {
   const [kit, setKit] = useState<SearchKit | null>(null);
   const [active, setActive] = useState(-1);
@@ -159,16 +165,16 @@ export function useSearchAssist({
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(RECENT_KEY);
+      const saved = localStorage.getItem(recentKey);
       if (saved) setRecent((JSON.parse(saved) as unknown[]).filter((x): x is string => typeof x === "string").slice(0, 6));
     } catch {
       /* private window: no recent searches */
     }
-  }, []);
+  }, [recentKey]);
   const storeRecent = (next: string[]) => {
     setRecent(next);
     try {
-      localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      localStorage.setItem(recentKey, JSON.stringify(next));
     } catch {
       /* not kept */
     }
@@ -179,13 +185,13 @@ export function useSearchAssist({
     setRecent((r) => {
       const next = [t, ...r.filter((x) => x.toLowerCase() !== t.toLowerCase())].slice(0, 6);
       try {
-        localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+        localStorage.setItem(recentKey, JSON.stringify(next));
       } catch {
         /* not kept */
       }
       return next;
     });
-  }, []);
+  }, [recentKey]);
   const removeRecent = (term: string) => storeRecent(recent.filter((x) => x !== term));
   const clearRecent = () => storeRecent([]);
 
@@ -229,7 +235,7 @@ export function useSearchAssist({
       return [
         ...(onPhotoSearch ? [{ kind: "photo" as const }] : []),
         ...recent.map((text) => ({ kind: "phrase" as const, text })),
-        ...EXAMPLES.map((text) => ({ kind: "phrase" as const, text })),
+        ...examples.map((text) => ({ kind: "phrase" as const, text })),
         ...(kit?.popular ?? []).slice(0, 8).map((c) => ({ kind: "category" as const, id: c.id })),
       ];
     const out: AssistItem[] = [];
@@ -242,7 +248,7 @@ export function useSearchAssist({
     for (const p of shownProducts) out.push({ kind: "product", id: p.id });
     out.push({ kind: "search", text: query.trim() });
     return out;
-  }, [query, model, shownProducts, recent, kit, onPhotoSearch]);
+  }, [query, model, shownProducts, recent, kit, onPhotoSearch, examples]);
 
   useEffect(() => setActive(-1), [query]);
 
@@ -291,6 +297,7 @@ export function useSearchAssist({
   return {
     kit,
     model,
+    examples,
     products: shownProducts,
     productsStale: loadingProducts || (!!products && products.q !== query.trim()),
     loadingProducts,
@@ -335,7 +342,7 @@ const PANEL_TOP = 76;
  * (the homepage's box sits mid-page), the page first brings the box up
  * under the navbar, as a phone's search does. Returns the panel's height.
  */
-export function usePanelFit(anchor: RefObject<HTMLElement | null>, open: boolean): number | undefined {
+export function usePanelFit(anchor: RefObject<HTMLElement | null>, open: boolean, top: number = PANEL_TOP): number | undefined {
   const [maxHeight, setMaxHeight] = useState<number>();
   useLayoutEffect(() => {
     const el = anchor.current;
@@ -345,9 +352,9 @@ export function usePanelFit(anchor: RefObject<HTMLElement | null>, open: boolean
     // 24: the panel's 8–12px gap from the box, and as much again below it.
     const measure = () => setMaxHeight(Math.max(PANEL_MIN, Math.floor(seen() - el.getBoundingClientRect().bottom - 24)));
     const r = el.getBoundingClientRect();
-    if (seen() - r.bottom < Math.min(PANEL_ROOM, seen() * 0.6) && r.top > PANEL_TOP + 8) {
+    if (seen() - r.bottom < Math.min(PANEL_ROOM, seen() * 0.6) && r.top > top + 8) {
       const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      window.scrollTo({ top: window.scrollY + r.top - PANEL_TOP, behavior: reduce ? "auto" : "smooth" });
+      window.scrollTo({ top: window.scrollY + r.top - top, behavior: reduce ? "auto" : "smooth" });
     }
     measure();
     window.addEventListener("resize", measure);
@@ -360,7 +367,7 @@ export function usePanelFit(anchor: RefObject<HTMLElement | null>, open: boolean
       vv?.removeEventListener("resize", measure);
       vv?.removeEventListener("scroll", measure);
     };
-  }, [anchor, open]);
+  }, [anchor, open, top]);
   return open ? maxHeight : undefined;
 }
 
@@ -386,6 +393,8 @@ export function SearchAssistPanel({
   onFill,
   popular = [],
   className = "",
+  examplesTitle = "Search the way you would ask us",
+  footer,
 }: {
   assist: SearchAssistState;
   query: string;
@@ -393,6 +402,10 @@ export function SearchAssistPanel({
   /** Categories to show an empty box before the engine has loaded (the page's own, from the server). */
   popular?: { id: string; name: string; thumbnailUrl: string | null }[];
   className?: string;
+  /** The heading over the empty box's examples. */
+  examplesTitle?: string;
+  /** What sits beside "See all results": the shop's "we'll source it" link unless given; null for nothing. */
+  footer?: React.ReactNode;
 }) {
   const { model, items, active, setActive, activate, optionId, listboxId, kit } = assist;
   const popularShown: { id: string; name: string; thumbnailUrl: string | null }[] = kit
@@ -463,10 +476,10 @@ export function SearchAssistPanel({
         )}
         <div className="mb-3">
           <p className={SECTION}>
-            Search the way you would ask us
+            {examplesTitle}
           </p>
           <div className="flex flex-wrap gap-2 px-1">
-            {EXAMPLES.map((term) => {
+            {assist.examples.map((term) => {
               const i = at((it) => it.kind === "phrase" && it.text === term && !assist.recent.includes(term));
               return (
                 <button key={term} type="button" {...optionProps(i)} onClick={() => activate({ kind: "phrase", text: term })} className={`rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${active === i ? "border-brand/40 bg-brand/5 text-brand-dark" : "border-slate-200 text-slate-600 hover:border-brand/30 hover:text-brand-dark"}`}>
@@ -652,14 +665,18 @@ export function SearchAssistPanel({
             </button>
           );
         })()}
-        <Link
-          href={`/contact/?message=${encodeURIComponent(sourcingMessage(q, model?.intent))}`}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-[12.5px] font-semibold text-brand-dark hover:bg-brand/5"
-        >
-          <Handshake size={14} />
-          Not quite it? We&apos;ll source it for you
-          <ChevronRight size={14} />
-        </Link>
+        {footer !== undefined ? (
+          footer
+        ) : (
+          <Link
+            href={`/contact/?message=${encodeURIComponent(sourcingMessage(q, model?.intent))}`}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-[12.5px] font-semibold text-brand-dark hover:bg-brand/5"
+          >
+            <Handshake size={14} />
+            Not quite it? We&apos;ll source it for you
+            <ChevronRight size={14} />
+          </Link>
+        )}
       </div>
     </div>
   );
