@@ -54,8 +54,6 @@ export interface MatchIndex {
   terms: Map<string, Term>;
   /** Every term and synonym variant, once: the array the one statement matches. */
   texts: string[];
-  /** The words of every term, for choosing a search word when nothing matches. */
-  vocabulary: ReadonlySet<string>;
 }
 
 /** The suppliers and their terms, read once (02-suppliers.mjs and 04-match.mjs of the analysis). */
@@ -94,8 +92,7 @@ export async function loadIndex(query: Query): Promise<MatchIndex> {
     });
   }
   const texts = [...new Set([...terms.values()].flatMap((t) => t.variants))];
-  const vocabulary = new Set([...terms.keys()].flatMap((t) => t.split(" ")));
-  return { rows: bySupplier, terms, texts, vocabulary };
+  return { rows: bySupplier, terms, texts };
 }
 
 export type CategorySource = "linked product" | "same title" | null;
@@ -246,7 +243,8 @@ export async function matchInquiry(
     })),
     total: ranked.length,
     excluded,
-    searchWord: searchWordOf(input.title, index.vocabulary),
+    // From the title as matched: an excluded word ("lunch" of a takeout box) would lead back to those suppliers.
+    searchWord: searchWordOf(title),
   };
 }
 
@@ -255,29 +253,34 @@ export function supplierDisplayName(company: string | null | undefined, person: 
   return (company ?? "").trim() || (person ?? "").trim() || `Supplier #${id}`;
 }
 
+// Words a product title carries that never name the product: who it is for, sizes, seasons, selling words.
 const TITLE_FLUFF = new Set([
-  "women", "woman", "men", "man", "lady", "ladies", "girl", "boy", "kid", "children", "child", "baby", "fashion",
-  "style", "new", "hot", "sale", "simple", "cute", "creative", "multifunctional", "portable", "large", "mini",
-  "inch", "cm", "mm", "piece", "pack", "color", "colour", "design", "modern", "retro", "vintage", "korean",
+  "women", "woman", "men", "man", "lady", "ladies", "girl", "boy", "kid", "children", "child", "baby", "unisex",
+  "fashion", "style", "new", "hot", "sale", "simple", "cute", "creative", "multifunctional", "portable", "versatile",
+  "intelligent", "quality", "high", "large", "big", "small", "mini", "ultra", "thick", "solid", "casual", "dual",
+  "disposable", "summer", "winter", "spring", "autumn", "inch", "cm", "mm", "length", "mid", "total", "piece", "pcs",
+  "pack", "set", "pair", "roll", "color", "colour", "design", "modern", "retro", "vintage", "korean",
 ]);
 
 /**
- * The word to search the supplier book for when nothing matched: of the title's content words (before any
- * "with ..." or "for ..."), one the suppliers' own terms use if there is one, the most repeated, then the last;
- * otherwise the last content word.
+ * The word to search the supplier book for when nothing matched: the inquired product's main word. Of the title's
+ * content words before any "with ..." or "for ...", the one it repeats most (a catalogue title names its product
+ * twice: "Dock Stand USB Charging Dock Station Stand"), else the last, which heads an English product name
+ * ("Electric car helmet unisex" is a helmet). Shown in the link's text, so a poor pick is visible before the click.
  */
-export function searchWordOf(title: string, vocabulary: ReadonlySet<string>): string {
+export function searchWordOf(title: string): string {
   const head = title.toLowerCase().split(/\b(?:with|for)\b/)[0];
+  // Checked again once singular: "mens" is "men", "pcs" would be "pc".
   const words = head
     .split(/[^a-z]+/)
     .filter((w) => w.length >= 3 && !NOISE.has(w) && !TITLE_FLUFF.has(w))
-    .map(singular);
+    .map(singular)
+    .filter((w) => w.length >= 3 && !TITLE_FLUFF.has(w));
   if (!words.length) return "";
-  const known = words.filter((w) => vocabulary.has(w));
-  const pool = known.length ? known : words;
   const counts = new Map<string, number>();
-  for (const w of pool) counts.set(w, (counts.get(w) ?? 0) + 1);
-  let pick = pool[pool.length - 1];
-  for (const w of pool) if ((counts.get(w) ?? 0) > (counts.get(pick) ?? 0)) pick = w;
+  for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
+  // From the end, so a tie goes to the later word.
+  let pick = words[words.length - 1];
+  for (let i = words.length - 2; i >= 0; i--) if (counts.get(words[i])! > counts.get(pick)!) pick = words[i];
   return pick;
 }

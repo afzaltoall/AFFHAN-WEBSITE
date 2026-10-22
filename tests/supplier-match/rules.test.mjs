@@ -67,12 +67,19 @@ test("the display name falls back from company to contact person to the supplier
   assert.equal(supplierDisplayName(null, "  ", 491), "Supplier #491");
 });
 
-test("the search word when nothing matches: a word the book uses, the most repeated, else the last", () => {
-  assert.equal(searchWordOf("Steak Plate, Round Flat Plate, Western Food Plate", new Set(["plate"])), "plate");
-  assert.equal(searchWordOf("Decanter", new Set()), "decanter");
-  assert.equal(searchWordOf("Spiralizer 3-Blade Vegetable Slicer", new Set()), "slicer");
-  assert.equal(searchWordOf("62.99 inch Modern Design Console Table with Roman-style Legs", new Set()), "table");
-  assert.equal(searchWordOf("", new Set()), "");
+test("the search word when nothing matches: the product's main word, the most repeated, else the last", () => {
+  assert.equal(searchWordOf("Steak Plate, Round Flat Plate, Western Food Plate"), "plate");
+  assert.equal(searchWordOf("Decanter"), "decanter");
+  assert.equal(searchWordOf("Spiralizer 3-Blade Vegetable Slicer"), "slicer");
+  assert.equal(searchWordOf("62.99 inch Modern Design Console Table with Roman-style Legs"), "table");
+  // Who it is for, sizes and counts are never the product.
+  assert.equal(searchWordOf("Electric car helmet unisex"), "helmet");
+  assert.equal(searchWordOf("Mens Solid-color Versatile Mid-length Trench Coat"), "coat");
+  assert.equal(searchWordOf("Mop set"), "mop");
+  assert.equal(searchWordOf("Ceramic Soup Bowl 6 Pcs"), "bowl");
+  // A tie goes to the later word.
+  assert.equal(searchWordOf("Dual USB Charge Dock Stand USB Charging Dock Station Stand With usb charging cable"), "stand");
+  assert.equal(searchWordOf(""), "");
 });
 
 // ---- scoring, with a stand-in for Postgres ---------------------------------------------------------------------
@@ -180,6 +187,8 @@ test("a synonym matches and says so; a takeout lunch box does not reach the tiff
   assert.deepEqual(lunch.matches[0].matchedWords, ["lunch", "box"]);
   const takeout = await run("Light Food Salad Fried Rice Takeout Packing Box Disposable Lunch");
   assert.ok(!takeout.matches.some((m) => m.supplierId === 7));
+  // Nor does the book search it offers instead: the excluded word is not the search word.
+  assert.equal(takeout.searchWord, "box");
 });
 
 test("nothing matching is an empty list, not an error", async () => {
