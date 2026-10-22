@@ -12,6 +12,8 @@ import { collapseUpdates } from "@/lib/statusBatch";
 import { BookSummary, OutcomeBar, OutcomeLegend, OutcomeTiles, WinRateCard } from "@/components/ui/OutcomeVisuals";
 import { EmployeeForm, type EmployeeRow } from "@/components/admin/EmployeeForm";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
+import { PoolMoves } from "@/components/admin/PoolMoves";
+import type { PerfWindow, PoolEventRow, PoolPerformance } from "@/lib/lead-pool";
 
 const sfFont = {
   fontFamily:
@@ -42,7 +44,13 @@ export function EmployeeDetail({
   counts,
   performance,
   updates,
+  poolMoves,
+  poolCounts,
 }: {
+  /** Their Takes, Releases, auto-releases and administrators' releases, newest first (lib/lead-pool.ts). */
+  poolMoves: PoolEventRow[];
+  /** The same figures Team Performance shows for them, the last 7 and 30 days. */
+  poolCounts: PoolPerformance | null;
   employee: EmployeeRow;
   counts: { inquiries: number; contacts: number; shipments: number; updates: number };
   /**
@@ -320,9 +328,44 @@ export function EmployeeDetail({
             </table>
           </div>
         </div>
+
+        {/* What they took from the open pool and let go of, and what an administrator took back: the trail
+            lib/lead-pool.ts writes. Release and Not attended count as releases; auto-release is the pool's. */}
+        <div className="mt-6">
+          <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-[15px] font-semibold">Pool moves</h2>
+            {poolCounts && (
+              <span className="flex flex-col items-end text-right text-[12px] tabular-nums text-[#86868b]">
+                <span>Last 7 days: {perfLine(poolCounts.d7)}</span>
+                <span>Last 30 days: {perfLine(poolCounts.d30)}</span>
+              </span>
+            )}
+          </div>
+          <PoolMoves rows={poolMoves} empty="Nothing yet. Takes and releases involving this person appear here." />
+        </div>
       </div>
     </div>
   );
+}
+
+/** Office minutes: "45m", "2h 15m". */
+function officeSpan(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const m = minutes % 60;
+  return m ? `${Math.floor(minutes / 60)}h ${m}m` : `${minutes / 60}h`;
+}
+
+/** One window of Team Performance's pool figures, as a line; the averages are office hours only. */
+function perfLine(w: PerfWindow): string {
+  const parts = [
+    `${w.taken} taken`,
+    `${w.completed} completed`,
+    `${w.released} released`,
+    `${w.autoReleased} back automatically`,
+  ];
+  if (w.toFirstUpdate !== null) parts.push(`first update ${officeSpan(w.toFirstUpdate)}`);
+  if (w.toCompletion !== null) parts.push(`completion ${officeSpan(w.toCompletion)}`);
+  return `${parts.join(" · ")}${w.toFirstUpdate !== null || w.toCompletion !== null ? " (office hours)" : ""}`;
 }
 
 export default EmployeeDetail;

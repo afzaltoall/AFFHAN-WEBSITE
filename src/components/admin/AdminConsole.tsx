@@ -3,8 +3,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
-import { AssigneePicker, Avatar } from "@/components/admin/AssigneePicker";
+import { Avatar } from "@/components/admin/AssigneePicker";
 import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
+import { HandlingChip } from "@/components/admin/HandlingChip";
+import { HANDLING_FILTERS, handlingKey, matchesHandling, waitingRank, type HandlingFilter } from "@/lib/handling";
+import type { Handling } from "@/lib/lead-pool";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
 import { AdminRailList } from "@/components/admin/AdminMobileNav";
@@ -20,7 +23,7 @@ import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, SlidersHorizontal, UserCog,
+  MessageSquare, Calendar, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, SlidersHorizontal,
   Ship, Plane, Boxes, Smartphone, ExternalLink,
   type LucideIcon,
 } from "lucide-react";
@@ -53,11 +56,13 @@ interface Inquiry {
   // The lifecycle the CUSTOMER sees, distinct from `status` above, which is
   // internal triage. See the note on the Inquiry model in schema.prisma.
   customerStatus: string; statusNote: string | null; statusUpdatedAt: string | null;
-  /** The employee working this lead, or null. Set from the console; read by
-   *  the staff workspace at /employee/dashboard. */
+  /** Who holds this lead's customer, or decided them; null while they are in the open pool. Set when somebody
+   *  takes the customer on the staff workspace (lib/lead-pool.ts), never from the console. */
   assignedToId: string | null;
   /** The newest sales outcome recorded against it, if anybody has. */
   lastStatus: LeadOutcome | null;
+  /** Where the customer stands in the open pool (HandlingChip); null before their first sweep. */
+  handling: Handling | null;
 }
 
 /**
@@ -69,14 +74,31 @@ interface Inquiry {
  */
 interface LeadOutcome { status: string; by: string; note: string | null; at: string }
 
-/** Rows per employee across the whole table; employeeId null is "unassigned". */
+/** Rows per employee across the whole table; employeeId null is nobody's (in the pool, or given up on). */
 interface AssigneeCount { employeeId: string | null; count: number }
-/** The filter's value: null is "everyone", UNASSIGNED is "nobody yet". */
-const UNASSIGNED = "__unassigned__";
 
 // The inquiry panel's "Matching suppliers": its code and its request both wait for the panel to open, so the
 // inquiries list carries neither.
 const InquirySupplierMatches = dynamic(() => import("@/components/admin/InquirySupplierMatches"), { ssr: false });
+// The popups' "Handling history", asked for the same way: when a popup opens, one customer at a time.
+const HandlingHistory = dynamic(() => import("@/components/admin/HandlingHistory"), { ssr: false });
+
+/** Rows per handling state, for the Filter panel's Handling pills. */
+const countHandling = (rows: { handling: Handling | null }[]) => {
+  const c: Record<HandlingFilter, number> = { all: rows.length, open: 0, held: 0, done: 0, invalid: 0 };
+  for (const r of rows) c[handlingKey(r.handling)]++;
+  return c;
+};
+
+/**
+ * "Longest wait first": open rows by how long they have waited for somebody to take them, then held rows by how
+ * long they have been held, then the decided and given-up ones, newest first. See waitingRank.
+ */
+const byWaiting = <T extends { handling: Handling | null; createdAt: string }>(a: T, b: T) => {
+  const [ra, ta] = waitingRank(a.handling, a.createdAt);
+  const [rb, tb] = waitingRank(b.handling, b.createdAt);
+  return ra - rb || ta - tb;
+};
 
 // Kept in step with lib/inquiry-status.ts. Not imported from it because that
 // module is server-shaped; this is only the wording for the console's own
@@ -135,6 +157,7 @@ interface ContactMessage {
   email: string; country: string; phone: string; message: string; status: string;
   assignedToId: string | null;
   lastStatus: LeadOutcome | null;
+  handling: Handling | null;
 }
 const contactName = (c: ContactMessage) => c.fullName.trim();
 
@@ -217,9 +240,9 @@ const matchesCountry = (value: string | null | undefined, selected: string | nul
  */
 const matchesCompany = (name: string | null | undefined, f: CompanyFilter) =>
   f === "all" || Boolean(name?.trim());
-/** null selects everyone, UNASSIGNED selects the rows nobody is working. */
+/** null selects everyone; otherwise the rows that person holds or decided. Nobody's rows are Handling: Open. */
 const matchesAssignee = (assignedToId: string | null, selected: string | null) =>
-  !selected || (selected === UNASSIGNED ? assignedToId === null : assignedToId === selected);
+  !selected || assignedToId === selected;
 
 // Light/dark class-name bundle threaded through every panel/dialog below —
 // built once from the `dark` toggle (see the `t` definition further down).
@@ -242,9 +265,9 @@ interface Props {
      * every row, including any past the cap.
      */
     inquiryCountries: CountryOption[]; contactCountries: CountryOption[];
-    /** Active staff, for the assignment pickers. */
+    /** Active staff, for the Employee filter. */
     employees: EmployeeOption[];
-    /** Whole-table assignment counts, for the filter panel. */
+    /** Whole-table counts of who holds or decided what, for the filter panel. */
     inquiryAssignees: AssigneeCount[]; contactAssignees: AssigneeCount[];
     /**
      * customerKey → AFFHAN-xxxx, their permanent number (lib/customerCode.ts).
@@ -254,6 +277,8 @@ interface Props {
      * rather than inventing a placeholder.
      */
     customerCodes: Record<string, string>;
+    /** When the server drew the page, in ms: the clock the handling chips start from (see `now` below). */
+    renderedAt: number;
   };
 }
 
@@ -300,6 +325,13 @@ export function AdminConsole({ data }: Props) {
   const [countryFilter, setCountryFilter] = useState<string | null>(null);
   // Shared and remembered across the admin — see useAdminDark.
   const [dark, setDark] = useAdminDark();
+  // The clock the handling chips read: the server's moment for the first draw, so the browser's first draw says
+  // exactly what the server's did, then the browser's own, every half minute.
+  const [now, setNow] = useState(data.renderedAt);
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, []);
   const [activeInquiry, setActiveInquiry] = useState<Inquiry | null>(null);
   const [zoomImg, setZoomImg] = useState<string | null>(null);
   // Local copy so the checklist toggle / delete reflect instantly, re-synced
@@ -308,8 +340,12 @@ export function AdminConsole({ data }: Props) {
   const [deletedItems, setDeletedItems] = useState<Inquiry[]>(data.deletedInquiries);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
-  /** null = everyone, UNASSIGNED = nobody yet, otherwise an employee id. */
+  /** null = everyone, otherwise an employee id: the rows they hold or decided. */
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  /** Open / Held / Done / Invalid in the pool, or all of them. */
+  const [handlingFilter, setHandlingFilter] = useState<HandlingFilter>("all");
+  /** Longest wait first, instead of newest first. */
+  const [sortWaiting, setSortWaiting] = useState(false);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [showPwd, setShowPwd] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
@@ -334,7 +370,7 @@ export function AdminConsole({ data }: Props) {
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
   // Clear the multi-select whenever the user switches views/filters.
-  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, countryFilter, assigneeFilter, q]);
+  useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, countryFilter, assigneeFilter, handlingFilter, q]);
 
   // The drawer closes itself when a view is chosen, and Escape closes it too.
   useEffect(() => setMenuOpen(false), [view]);
@@ -363,11 +399,13 @@ export function AdminConsole({ data }: Props) {
   const [contactTab, setContactTab] = useState<"active" | "trash">("active");
   const [contactSelected, setContactSelected] = useState<Set<string>>(new Set());
   const [contactAssigneeFilter, setContactAssigneeFilter] = useState<string | null>(null);
+  const [contactHandlingFilter, setContactHandlingFilter] = useState<HandlingFilter>("all");
+  const [contactSortWaiting, setContactSortWaiting] = useState(false);
   const [contactBusy, setContactBusy] = useState(false);
   const [activeContact, setActiveContact] = useState<ContactMessage | null>(null);
   useEffect(() => setContactItems(data.contacts), [data.contacts]);
   useEffect(() => setContactDeleted(data.deletedContacts), [data.deletedContacts]);
-  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactQ, view]);
+  useEffect(() => setContactSelected(new Set()), [contactTab, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactHandlingFilter, contactQ, view]);
 
 
   // Whether the Inquiries list is collapsed to one row per customer (deduped by
@@ -426,27 +464,6 @@ export function AdminConsole({ data }: Props) {
     // Once, on arrival: this is a deep link, not a subscription.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /** The contact list's half of assignment. Same shape as assignInquiries. */
-  const assignContacts = async (ids: string[], assignedToId: string | null) => {
-    if (ids.length === 0) return;
-    const idset = new Set(ids);
-    const prevA = contactItems, prevD = contactDeleted;
-    setContactItems((cur) => cur.map((x) => (idset.has(x.id) ? { ...x, assignedToId } : x)));
-    setContactDeleted((cur) => cur.map((x) => (idset.has(x.id) ? { ...x, assignedToId } : x)));
-    setActiveContact((cur) => (cur && idset.has(cur.id) ? { ...cur, assignedToId } : cur));
-    setContactSelected(new Set());
-    setContactBusy(true);
-    try {
-      await adminWrite("/api/admin/contact/", { ids, action: "assign", assignedToId });
-      router.refresh();
-    } catch (e) {
-      setContactItems(prevA); setContactDeleted(prevD);
-      window.alert(e instanceof Error ? e.message : "Could not assign.");
-    } finally {
-      setContactBusy(false);
-    }
-  };
 
   // Bulk contact action — same optimistic-with-rollback shape as bulkAction.
   const contactBulkAction = async (
@@ -554,39 +571,10 @@ export function AdminConsole({ data }: Props) {
       // router.refresh() re-runs it. Deleting, restoring, purging or
       // re-triaging all move one of those numbers, so without this the badge
       // beside Inquiries stays at what it read when the tab was opened.
-      // Assignment already did this; these did not.
       router.refresh();
     } catch (e) {
       setItems(prevA); setDeletedItems(prevD);
       window.alert(e instanceof Error ? e.message : "Action failed.");
-    } finally {
-      setBulkBusy(false);
-    }
-  };
-
-  /**
-   * Hand inquiries to somebody, or take them back with null.
-   *
-   * Optimistic like every other write here: the row shows the new name at
-   * once, and the whole list is put back if the server refuses — which it
-   * does for a deactivated employee, so a lead cannot be parked where nobody
-   * will see it.
-   */
-  const assignInquiries = async (ids: string[], assignedToId: string | null) => {
-    if (ids.length === 0) return;
-    const idset = new Set(ids);
-    const prevA = items, prevD = deletedItems;
-    setItems((cur) => cur.map((x) => (idset.has(x.id) ? { ...x, assignedToId } : x)));
-    setDeletedItems((cur) => cur.map((x) => (idset.has(x.id) ? { ...x, assignedToId } : x)));
-    setActiveInquiry((cur) => (cur && idset.has(cur.id) ? { ...cur, assignedToId } : cur));
-    setSelected(new Set());
-    setBulkBusy(true);
-    try {
-      await adminWrite(`/api/admin/inquiry/`, { ids, action: "assign", assignedToId });
-      router.refresh();
-    } catch (e) {
-      setItems(prevA); setDeletedItems(prevD);
-      window.alert(e instanceof Error ? e.message : "Could not assign.");
     } finally {
       setBulkBusy(false);
     }
@@ -727,18 +715,22 @@ export function AdminConsole({ data }: Props) {
   );
 
   const inquiries = useMemo(
-    () => items.filter((i) =>
-      (statusFilter === "all" || asStatus(i.status) === statusFilter) &&
-      // Narrowed to one stage of the customer-facing lifecycle, when a chip in
-      // the signed-in strip has been clicked. Anonymous rows are excluded
-      // outright: they have no account, so they are in no stage at all.
-      (customerStageFilter === null ||
-        (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
-      matchesCountry(i.country, countryFilter) &&
-      matchesAssignee(i.assignedToId, assigneeFilter) &&
-      (!q || searchMatches(`${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`, q, codeOf(i)))
-    ),
-    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter, codeOf]
+    () => {
+      const shown = items.filter((i) =>
+        (statusFilter === "all" || asStatus(i.status) === statusFilter) &&
+        // Narrowed to one stage of the customer-facing lifecycle, when a chip in
+        // the signed-in strip has been clicked. Anonymous rows are excluded
+        // outright: they have no account, so they are in no stage at all.
+        (customerStageFilter === null ||
+          (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
+        matchesCountry(i.country, countryFilter) &&
+        matchesAssignee(i.assignedToId, assigneeFilter) &&
+        matchesHandling(i.handling, handlingFilter) &&
+        (!q || searchMatches(`${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`, q, codeOf(i)))
+      );
+      return sortWaiting ? shown.sort(byWaiting) : shown;
+    },
+    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter, handlingFilter, sortWaiting, codeOf]
   );
   /**
    * Narrowed by country, like contactStatusCounts is by company: these numbers
@@ -768,20 +760,17 @@ export function AdminConsole({ data }: Props) {
     [data.inquiryCountries],
   );
   /**
-   * The names in the filter panel, each with how many rows it holds.
+   * The names in the filter panel, each with how many rows they hold or
+   * decided.
    *
    * Counts come from the server's groupBy — the whole table, not the
-   * take-capped arrays — for the same reason the country counts do. An
-   * employee deactivated while still holding leads is not in this list, since
-   * the picker only offers people who can work them; their rows still read
-   * "Assigned" on the row itself.
+   * take-capped arrays — for the same reason the country counts do. Only
+   * active staff are listed; somebody deactivated holds nothing, since
+   * deactivating puts everything they held back in the pool.
    */
   const buildAssigneeOptions = (counts: AssigneeCount[]) => {
     const byId = new Map(counts.map((c) => [c.employeeId, c.count]));
-    return {
-      unassigned: byId.get(null) ?? 0,
-      rows: data.employees.map((e) => ({ ...e, count: byId.get(e.id) ?? 0 })),
-    };
+    return { rows: data.employees.map((e) => ({ ...e, count: byId.get(e.id) ?? 0 })) };
   };
   const inquiryAssigneeOptions = useMemo(
     () => buildAssigneeOptions(data.inquiryAssignees),
@@ -799,6 +788,7 @@ export function AdminConsole({ data }: Props) {
     countryScopedItems.forEach((i) => { c[asStatus(i.status)]++; });
     return c;
   }, [countryScopedItems]);
+  const handlingCounts = useMemo(() => countHandling(countryScopedItems), [countryScopedItems]);
 
   /**
    * The lifecycle backlog: how many signed-in customers are currently being
@@ -829,9 +819,11 @@ export function AdminConsole({ data }: Props) {
     // The printed sheet has to say it is one country's rows, or it reads as
     // the whole book with most of it missing.
     if (countryFilter) parts.push(`country: ${countryFilter}`);
+    if (handlingFilter !== "all") parts.push(`handling: ${HANDLING_FILTERS.find((h) => h.key === handlingFilter)?.label ?? handlingFilter}`);
+    if (assigneeFilter) parts.push(`employee: ${data.employees.find((e) => e.id === assigneeFilter)?.name ?? "one person"}`);
     if (q.trim()) parts.push(`search: “${q.trim()}”`);
     return parts.join("  ·  ");
-  }, [statusFilter, customerStageFilter, countryFilter, q, selected]);
+  }, [statusFilter, customerStageFilter, countryFilter, handlingFilter, assigneeFilter, data.employees, q, selected]);
 
   // Counts the country-scoped rows, so the "N of M can see a status" strip
   // describes the list on screen rather than the whole table.
@@ -875,14 +867,18 @@ export function AdminConsole({ data }: Props) {
   );
 
   const contactActive = useMemo(
-    () => contactItems.filter((c) =>
-      (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) &&
-      matchesCompany(c.companyName, contactCompanyFilter) &&
-      matchesCountry(c.country, contactCountryFilter) &&
-      matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
-      contactMatch(c, contactQ)
-    ),
-    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactMatch]
+    () => {
+      const shown = contactItems.filter((c) =>
+        (contactStatusFilter === "all" || asStatus(c.status) === contactStatusFilter) &&
+        matchesCompany(c.companyName, contactCompanyFilter) &&
+        matchesCountry(c.country, contactCountryFilter) &&
+        matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
+        matchesHandling(c.handling, contactHandlingFilter) &&
+        contactMatch(c, contactQ)
+      );
+      return contactSortWaiting ? shown.sort(byWaiting) : shown;
+    },
+    [contactItems, contactQ, contactStatusFilter, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactHandlingFilter, contactSortWaiting, contactMatch]
   );
   const contactTrash = useMemo(
     () => contactDeleted.filter((c) =>
@@ -893,14 +889,18 @@ export function AdminConsole({ data }: Props) {
     ),
     [contactDeleted, contactQ, contactCompanyFilter, contactCountryFilter, contactAssigneeFilter, contactMatch]
   );
-  const contactStatusCounts = useMemo(() => {
-    const scoped = contactItems.filter(
+  const contactScoped = useMemo(
+    () => contactItems.filter(
       (c) => matchesCompany(c.companyName, contactCompanyFilter) && matchesCountry(c.country, contactCountryFilter),
-    );
-    const c = { all: scoped.length, new: 0, handled: 0, spam: 0 };
-    scoped.forEach((cItem) => { c[asStatus(cItem.status)]++; });
+    ),
+    [contactItems, contactCompanyFilter, contactCountryFilter],
+  );
+  const contactStatusCounts = useMemo(() => {
+    const c = { all: contactScoped.length, new: 0, handled: 0, spam: 0 };
+    contactScoped.forEach((cItem) => { c[asStatus(cItem.status)]++; });
     return c;
-  }, [contactItems, contactCompanyFilter, contactCountryFilter]);
+  }, [contactScoped]);
+  const contactHandlingCounts = useMemo(() => countHandling(contactScoped), [contactScoped]);
   const contactList = contactTab === "trash" ? contactTrash : contactActive;
   const contactVisibleIds = contactList.map((c) => c.id);
   const contactAllSelected = contactVisibleIds.length > 0 && contactVisibleIds.every((id) => contactSelected.has(id));
@@ -912,9 +912,22 @@ export function AdminConsole({ data }: Props) {
   // Deduplicated customers (by phone) from the currently-filtered inquiries —
   // powers the "Group by customer" view. Note this groups the loaded page; the
   // master/grouped Excel exports run server-side over the whole database.
-  const customerGroups = useMemo<CustomerGroup[]>(() => groupCustomers(inquiries), [inquiries]);
+  // A customer's place in the pool is every one of their rows', so a group reads it off its first inquiry.
+  const handlingById = useMemo(() => new Map(items.map((i) => [i.id, i.handling])), [items]);
+  const handlingOfGroup = useCallback((g: CustomerGroup) => handlingById.get(g.inquiryIds[0]) ?? null, [handlingById]);
+  const customerGroups = useMemo<CustomerGroup[]>(() => {
+    const groups = groupCustomers(inquiries);
+    if (!sortWaiting) return groups;
+    // Waiting since their first request, for a customer the pool has not taken in yet.
+    const rank = (g: CustomerGroup) => waitingRank(handlingOfGroup(g), g.firstInquiry);
+    return groups.sort((a, b) => {
+      const [ra, ta] = rank(a);
+      const [rb, tb] = rank(b);
+      return ra - rb || ta - tb;
+    });
+  }, [inquiries, sortWaiting, handlingOfGroup]);
   // How many customers the ticked inquiries belong to — what the selection bar
-  // says while the list is grouped, and what "Assign N selected" is acting on.
+  // says while the list is grouped.
   const selectedCustomerCount = useMemo(
     () => (selected.size === 0 ? 0 : customerGroups.filter((g) => g.inquiryIds.some((id) => selected.has(id))).length),
     [customerGroups, selected]
@@ -1105,7 +1118,7 @@ export function AdminConsole({ data }: Props) {
     const active = item.view ? view === item.view : false;
     const count = railCount[item.key];
     /* Collapsed to 60px, one number has to stand for the whole queue — and a
-       customer the rotation gave up on is exactly the one nobody else will
+       customer the pool gave up on is exactly the one nobody else will
        notice, so it counts here. */
     const dot = item.key === "queue" ? data.stats.queue + data.stats.queueInvalid : count;
     const body = (
@@ -1118,7 +1131,7 @@ export function AdminConsole({ data }: Props) {
         <span className={`flex-1 ${sideLabel}`}>{item.label}</span>
         {count !== undefined && <span className={sidePill}>{fmtNum(count)}</span>}
         {item.key === "trip-lock" && <TripLockRailPill open={sideOpen} dark={dark} />}
-        {/* Beside the rotating figure rather than added to it: the two numbers
+        {/* Beside the pool's figure rather than added to it: the two numbers
             mean different things, and only one of them is somebody's job to fix
             today. The word rides along because two bare numbers side by side
             say nothing about which is which. */}
@@ -1130,8 +1143,8 @@ export function AdminConsole({ data }: Props) {
     const title =
       item.key === "queue"
         ? data.stats.queueInvalid > 0
-          ? `Queue — ${fmtNum(data.stats.queue)} going round, ${fmtNum(data.stats.queueInvalid)} given up on and waiting for you`
-          : `Queue — ${fmtNum(data.stats.queue)} going round`
+          ? `Queue — ${fmtNum(data.stats.queue)} in the open pool, ${fmtNum(data.stats.queueInvalid)} given up on`
+          : `Queue — ${fmtNum(data.stats.queue)} in the open pool`
         : item.label;
 
     // The rail's tooltip. Collapsed, the icon is all there is.
@@ -1380,6 +1393,8 @@ export function AdminConsole({ data }: Props) {
           ) : view === "shipping" ? (
             <ShipmentsSection
               t={t}
+              dark={dark}
+              now={now}
               employees={data.employees}
               customerCodes={data.customerCodes}
               reloadKey={updatedAt}
@@ -1407,12 +1422,16 @@ export function AdminConsole({ data }: Props) {
               countryOptions={data.contactCountries}
               crossCount={contactCountryFilter ? (inquiryCountByCountry.get(contactCountryFilter.trim().toLowerCase()) ?? 0) : 0}
               onCrossJump={() => { setCountryFilter(contactCountryFilter); setView("inquiries"); }}
-              employees={data.employees}
+              dark={dark}
+              now={now}
               assigneeFilter={contactAssigneeFilter}
               setAssigneeFilter={setContactAssigneeFilter}
               assigneeOptions={contactAssigneeOptions}
-              onAssign={(id, employeeId) => void assignContacts([id], employeeId)}
-              onAssignSelected={(employeeId) => void assignContacts([...contactSelected], employeeId)}
+              handlingFilter={contactHandlingFilter}
+              setHandlingFilter={setContactHandlingFilter}
+              handlingCounts={contactHandlingCounts}
+              sortWaiting={contactSortWaiting}
+              setSortWaiting={setContactSortWaiting}
               statusCounts={contactStatusCounts}
               list={contactList}
               selected={contactSelected}
@@ -1482,9 +1501,14 @@ export function AdminConsole({ data }: Props) {
                     assigneeFilter={assigneeFilter}
                     setAssigneeFilter={setAssigneeFilter}
                     assigneeOptions={inquiryAssigneeOptions}
+                    handlingFilter={handlingFilter}
+                    setHandlingFilter={setHandlingFilter}
+                    handlingCounts={handlingCounts}
+                    sortWaiting={sortWaiting}
+                    setSortWaiting={setSortWaiting}
                     extraActive={groupByCustomer}
                     summarySuffix={groupByCustomer ? " · grouped" : ""}
-                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setGroupByCustomer(false); }}
+                    onClear={() => { setStatusFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setHandlingFilter("all"); setSortWaiting(false); setGroupByCustomer(false); }}
                     viewSection={
                       <button
                         role="menuitemcheckbox"
@@ -1498,18 +1522,6 @@ export function AdminConsole({ data }: Props) {
                         {groupByCustomer && <Check className="h-3.5 w-3.5 shrink-0" />}
                       </button>
                     }
-                  />
-                )}
-                {/* Assignment on its own button, outside the Filter — see
-                    AssignMenu. It assigns whatever is ticked, grouped or not:
-                    ticking a customer ticks every product they asked about. */}
-                {view === "inquiries" && (
-                  <AssignMenu
-                    t={t}
-                    employees={data.employees}
-                    selectedCount={selected.size}
-                    onAssignSelected={(employeeId) => void assignInquiries([...selected], employeeId)}
-                    busy={bulkBusy}
                   />
                 )}
                 <div className={`flex flex-wrap items-center gap-2 ${view === "inquiries" ? "" : "sm:ml-auto"}`}>
@@ -1634,8 +1646,9 @@ export function AdminConsole({ data }: Props) {
                 <CustomerGroupSummary
                   t={t}
                   groups={customerGroups}
-                  onlyUnassigned={assigneeFilter === UNASSIGNED}
-                  onToggleUnassigned={() => setAssigneeFilter(assigneeFilter === UNASSIGNED ? null : UNASSIGNED)}
+                  handlingOf={handlingOfGroup}
+                  onlyOpen={handlingFilter === "open"}
+                  onToggleOpen={() => setHandlingFilter(handlingFilter === "open" ? "all" : "open")}
                 />
               )}
 
@@ -1697,8 +1710,9 @@ export function AdminConsole({ data }: Props) {
                           g={g}
                           code={data.customerCodes[g.key]}
                           t={t}
-                          employees={data.employees}
-                          busy={bulkBusy}
+                          dark={dark}
+                          now={now}
+                          handling={handlingOfGroup(g)}
                           selected={g.inquiryIds.length > 0 && g.inquiryIds.every((id) => selected.has(id))}
                           onToggleSelect={() =>
                             setSelected((prev) => {
@@ -1711,7 +1725,6 @@ export function AdminConsole({ data }: Props) {
                               return next;
                             })
                           }
-                          onAssign={(employeeId) => void assignInquiries(g.inquiryIds, employeeId)}
                           // Opens the drawer the ungrouped list uses. Looked up
                           // by id rather than passed down, so the row the drawer
                           // shows is the live one, not a copy frozen at group time.
@@ -1763,14 +1776,9 @@ export function AdminConsole({ data }: Props) {
                         </div>
                         <div className="flex flex-wrap items-center gap-2.5 pl-[92px] @min-[62rem]:justify-end @min-[62rem]:pl-0">
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {i.quantity}</span>
-                          <OutcomeChip value={i.lastStatus} />
-                          <AssigneePicker
-                            t={t}
-                            employees={data.employees}
-                            value={i.assignedToId}
-                            onChange={(employeeId) => void assignInquiries([i.id], employeeId)}
-                            busy={bulkBusy}
-                          />
+                          {/* Where the customer stands in the pool, where the assign picker used to be: staff take
+                              customers now. The chip carries the newest outcome too. */}
+                          <HandlingChip h={i.handling} createdAt={i.createdAt} dark={dark} now={now} />
                           <StatusControl t={t} value={st} onChange={(s) => setStatus(i.id, s)} />
                           <button onClick={() => deleteInquiry(i.id)} aria-label="Delete inquiry" title="Delete inquiry" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                             <Trash2 className="h-4 w-4" />
@@ -1827,6 +1835,7 @@ export function AdminConsole({ data }: Props) {
         <InquiryModal
           t={t}
           dark={dark}
+          now={now}
           inquiry={activeInquiry}
           onClose={() => setActiveInquiry(null)}
           onZoom={(src) => setZoomImg(src)}
@@ -1839,6 +1848,8 @@ export function AdminConsole({ data }: Props) {
       {activeContact && (
         <ContactModal
           t={t}
+          dark={dark}
+          now={now}
           contact={activeContact}
           deleted={contactTab === "trash"}
           onClose={() => setActiveContact(null)}
@@ -2159,7 +2170,7 @@ function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNull
 
 // Opens the ordered product's image + full details inside the admin, so staff
 // never have to leave the console to see what a customer requested.
-function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCustomerStatus, t, dark }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; onSetCustomerStatus: (s: CustomerStatus, note: string) => void; t: Theme; dark: boolean }) {
+function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCustomerStatus, t, dark, now }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; onSetCustomerStatus: (s: CustomerStatus, note: string) => void; t: Theme; dark: boolean; now: number }) {
   const img = inquiry.productImage ? (getCdnUrl(inquiry.productImage, 256) as string) : null;
   const zoomImg = inquiry.productImage ? (getCdnUrl(inquiry.productImage, 1600) as string) : null;
   return (
@@ -2226,6 +2237,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${t.qty}`}>Quantity: {inquiry.quantity}</span>
                 <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[asStatus(inquiry.status)].chip}`}>{STATUS_META[asStatus(inquiry.status)].label}</span>
+                <HandlingChip h={inquiry.handling} createdAt={inquiry.createdAt} dark={dark} now={now} />
               </div>
             </div>
           </div>
@@ -2256,6 +2268,9 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
                 <p className={`text-sm font-medium leading-relaxed ${t.strong}`}>{inquiry.message}</p>
               </div>
             )}
+            {/* Who took the customer, when, what they recorded, who let them go and why: from the trail, when the
+                panel opens. */}
+            <HandlingHistory key={`h-${inquiry.id}`} kind="inquiry" id={inquiry.id} t={t} dark={dark} />
             {/* Who in the supplier book could source it: asked for when the panel opens, one inquiry at a time. */}
             <InquirySupplierMatches key={inquiry.id} inquiryId={inquiry.id} t={t} dark={dark} />
             {/* Triage the customer: New / Handled / Spam (fake). */}
@@ -2503,9 +2518,9 @@ function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: str
   );
 }
 
-/** The newest outcome, beside the triage control rather than replacing it. */
 /**
- * The newest outcome, on the row itself.
+ * The newest outcome on one product line of a grouped customer. The rows
+ * themselves carry the HandlingChip, which says the same and who holds them.
  *
  * In progress prints the exact moment it was picked up rather than "2h": the
  * question an administrator is asking of this chip is "who is on this, and
@@ -2557,169 +2572,6 @@ function FilterPill({
 }
 
 /**
- * Assignment, as a button of its own on the toolbar: one job, one list.
- *
- * It held two for a while. "Assigned to" had been a section inside Filter,
- * which hid handing work over behind a second click, so both were brought out
- * here together — and with five people on the team the panel then showed the
- * same five names twice, once to assign to and once to filter by, the second
- * list reading as a broken duplicate of the first.
- *
- * They are two different questions. Who should take this (an action, on the
- * rows you have ticked) belongs on a button you can reach at once; whose leads
- * am I looking at (a filter, like status and country) belongs in Filter, which
- * is where it is now. With nothing ticked this says how to use it rather than
- * disappearing, so the button never looks broken.
- *
- * The panel is portalled and clamped to the viewport, as FilterMenu's is, for
- * the same reason: the toolbar sits in an overflow-hidden card.
- */
-function AssignMenu({
-  t, employees, selectedCount, onAssignSelected, busy = false,
-}: {
-  t: Theme;
-  employees: EmployeeOption[];
-  selectedCount: number;
-  onAssignSelected: (employeeId: string | null) => void;
-  busy?: boolean;
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const ref = useRef<HTMLDivElement | null>(null);
-  const btnRef = useRef<HTMLButtonElement | null>(null);
-  const panelRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState<{ left: number; width: number; top?: number; bottom?: number; maxHeight: number } | null>(null);
-
-  useEffect(() => { if (!open) setQuery(""); }, [open]);
-
-  useIsomorphicLayoutEffect(() => {
-    if (!open) { setPos(null); return; }
-    const place = () => {
-      const b = btnRef.current?.getBoundingClientRect();
-      if (!b) return;
-      const M = 8;
-      const vw = document.documentElement.clientWidth;
-      const vh = window.innerHeight;
-      const width = Math.min(300, vw - M * 2);
-      const left = Math.max(M, Math.min(b.right - width, vw - width - M));
-      const below = vh - b.bottom - M * 2;
-      const above = b.top - M * 2;
-      const flip = below < 260 && above > below;
-      setPos(flip
-        ? { left, width, bottom: vh - b.top + M, maxHeight: above }
-        : { left, width, top: b.bottom + M, maxHeight: below });
-    };
-    place();
-    window.addEventListener("scroll", place, true);
-    window.addEventListener("resize", place);
-    return () => {
-      window.removeEventListener("scroll", place, true);
-      window.removeEventListener("resize", place);
-    };
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (ref.current?.contains(target) || panelRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-
-  const term = query.trim().toLowerCase();
-  const people = term
-    ? employees.filter((e) => `${e.name} ${e.region ?? ""}`.toLowerCase().includes(term))
-    : employees;
-  const row = (on: boolean) =>
-    `flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${
-      on ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`
-    }`;
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        ref={btnRef}
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        disabled={busy}
-        className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold ring-1 transition-colors disabled:opacity-60 ${
-          selectedCount > 0 ? "bg-brand-dark text-white ring-transparent" : t.pill
-        }`}
-      >
-        {busy ? <Loader2 size={15} className="animate-spin" /> : <UserCog size={15} />}
-        {selectedCount > 0 ? `Assign ${selectedCount} selected` : "Assign"}
-        <ChevronDown size={14} className={`transition-transform ${open ? "rotate-180" : ""}`} />
-      </button>
-
-      {open && pos && createPortal(
-        <div
-          ref={panelRef}
-          role="menu"
-          style={{
-            position: "fixed", left: pos.left, top: pos.top, bottom: pos.bottom, width: pos.width,
-            maxHeight: pos.maxHeight, overflowY: "auto",
-          }}
-          className={`z-[200] overflow-hidden rounded-2xl p-1.5 shadow-xl ring-1 ${t.modal}`}
-        >
-          <p className={`px-2.5 pb-1 pt-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
-            {selectedCount > 0 ? `Assign ${selectedCount} selected to` : "Assign to"}
-          </p>
-          {selectedCount === 0 ? (
-            <p className={`px-2.5 pb-2 text-[12.5px] leading-snug ${t.soft}`}>
-              Tick leads in the list, then pick who takes them here. Each row also has its own picker.
-            </p>
-          ) : (
-            <>
-              {employees.length > 6 && (
-                <div className="px-1 pb-1">
-                  <div className="relative">
-                    <Search className={`pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 ${t.soft}`} />
-                    <input
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search staff…"
-                      aria-label="Search staff"
-                      autoFocus
-                      className={`w-full rounded-xl py-1.5 pl-8 pr-2.5 text-[13px] font-medium outline-none ring-1 ring-transparent focus:ring-brand/40 ${t.input}`}
-                    />
-                  </div>
-                </div>
-              )}
-              {people.map((e) => (
-                <button key={e.id} role="menuitem" onClick={() => { onAssignSelected(e.id); setOpen(false); }} className={row(false)}>
-                  <Avatar name={e.name} image={e.image} size={20} />
-                  <span className="flex-1 truncate">
-                    {e.name}
-                    {e.region && <span className={`font-normal ${t.soft}`}> — {e.region}</span>}
-                  </span>
-                </button>
-              ))}
-              {people.length === 0 && (
-                <p className={`px-2.5 py-2 text-[12.5px] ${t.soft}`}>{employees.length ? "Nobody matches." : "No active staff yet."}</p>
-              )}
-              <button role="menuitem" onClick={() => { onAssignSelected(null); setOpen(false); }} className={`${row(false)} text-red-600`}>
-                <X className="h-4 w-4 shrink-0" />
-                <span className="flex-1">Unassign</span>
-              </button>
-            </>
-          )}
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
-
-/**
  * A filter whose options are too many to lay out flat: the row shows what is
  * currently chosen, and opens the list in place when you want to change it.
  */
@@ -2758,6 +2610,8 @@ function FilterMenu({
   companyFilter, setCompanyFilter, withCompanyCount = 0,
   countryFilter = null, setCountryFilter, countryOptions = [],
   assigneeFilter = null, setAssigneeFilter, assigneeOptions,
+  handlingFilter = "all", setHandlingFilter, handlingCounts,
+  sortWaiting = false, setSortWaiting,
   viewSection, extraActive = false, summarySuffix = "", onClear,
 }: {
   t: Theme;
@@ -2774,16 +2628,20 @@ function FilterMenu({
   /** Distinct countries with row counts. Empty hides the section. */
   countryOptions?: CountryOption[];
   /**
-   * Whose leads to show: null is everyone, UNASSIGNED is nobody yet, otherwise
-   * an employee id. Narrowing the list by who holds it is a filter like any
-   * other and belongs here with them — handing work OVER is the Assign
-   * button's job, and the two were one panel for a while, which read as the
-   * same five names listed twice.
+   * Whose leads to show: null is everyone, otherwise an employee id, for the
+   * rows they hold or decided. The rows nobody holds are Handling: Open.
    */
   assigneeFilter?: string | null;
   setAssigneeFilter?: (v: string | null) => void;
-  /** Staff with their lead counts, and how many nobody holds. */
-  assigneeOptions?: { unassigned: number; rows: (EmployeeOption & { count: number })[] };
+  /** Staff with their lead counts. */
+  assigneeOptions?: { rows: (EmployeeOption & { count: number })[] };
+  /** Open / Held / Done / Invalid in the pool (HandlingChip). Omitted hides the section. */
+  handlingFilter?: HandlingFilter;
+  setHandlingFilter?: (v: HandlingFilter) => void;
+  handlingCounts?: Record<HandlingFilter, number>;
+  /** Longest wait first instead of newest first (waitingRank). Omitted hides the section. */
+  sortWaiting?: boolean;
+  setSortWaiting?: (v: boolean) => void;
   /** Optional rows under a "View" heading — grouping, on the inquiries list. */
   viewSection?: React.ReactNode;
   /** Whether anything in `viewSection` is currently on. */
@@ -2795,7 +2653,9 @@ function FilterMenu({
   const ref = useRef<HTMLDivElement | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const active = statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || Boolean(assigneeFilter) || extraActive;
+  const active =
+    statusFilter !== "all" || (companyFilter && companyFilter !== "all") || Boolean(countryFilter) || Boolean(assigneeFilter) ||
+    handlingFilter !== "all" || sortWaiting || extraActive;
 
   // The country search box. Local to the panel and cleared when it closes, so
   // reopening always shows the whole list rather than yesterday's query.
@@ -2822,12 +2682,10 @@ function FilterMenu({
     return rows.filter((e) => `${e.name} ${e.region ?? ""}`.toLowerCase().includes(term));
   }, [assigneeOptions, staffQuery]);
 
-  const assigneeName =
-    assigneeFilter === UNASSIGNED
-      ? "Unassigned"
-      : assigneeFilter
-        ? assigneeOptions?.rows.find((e) => e.id === assigneeFilter)?.name ?? "Someone"
-        : null;
+  const assigneeName = assigneeFilter
+    ? assigneeOptions?.rows.find((e) => e.id === assigneeFilter)?.name ?? "Someone"
+    : null;
+  const handlingName = handlingFilter !== "all" ? HANDLING_FILTERS.find((h) => h.key === handlingFilter)?.label ?? null : null;
 
   // The panel is rendered into document.body rather than beside the button.
   //
@@ -2895,7 +2753,7 @@ function FilterMenu({
   // What is left for an open list once the pills, the rows and the padding
   // have taken their share — so a short window shrinks the list rather than
   // giving the panel a second scrollbar.
-  const listMax = Math.max(132, Math.min(232, (pos?.maxHeight ?? 320) - 330));
+  const listMax = Math.max(132, Math.min(232, (pos?.maxHeight ?? 320) - (setHandlingFilter ? 450 : 330)));
 
   return (
     <div className="relative sm:ml-auto" ref={ref}>
@@ -2919,8 +2777,9 @@ function FilterMenu({
             <span className="truncate">{countryFilter}</span>
           </span>
         )}
-        {/* And who the list is narrowed to, for the same reason: it used to be
-            announced by the Assign button, which is no longer where it lives. */}
+        {/* And who, and which handling state, the list is narrowed to, for the
+            same reason. */}
+        {handlingName && <span className="max-w-[5rem] truncate">{handlingName}</span>}
         {assigneeName && <span className="max-w-[7.5rem] truncate">{assigneeName}</span>}
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${active ? "bg-white/25" : t.chip}`}>
           {statusFilter === "all" ? statusCounts.all : statusCounts[statusFilter]}
@@ -2980,6 +2839,41 @@ function FilterMenu({
             </div>
           )}
 
+          {/* Where the customer stands in the open pool: waiting for somebody, taken, decided, given up on. */}
+          {setHandlingFilter && handlingCounts && (
+            <div className="px-1 pb-1">
+              <p className={`px-1.5 pb-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Handling</p>
+              <div className="flex flex-wrap gap-1.5 px-0.5">
+                {HANDLING_FILTERS.map((h) => (
+                  <FilterPill
+                    key={h.key}
+                    t={t}
+                    on={handlingFilter === h.key}
+                    dot={h.dot}
+                    count={handlingCounts[h.key]}
+                    onClick={() => { setHandlingFilter(h.key); setOpen(false); }}
+                  >
+                    {h.label}
+                  </FilterPill>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {setSortWaiting && (
+            <div className="px-1 pb-1">
+              <p className={`px-1.5 pb-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Order</p>
+              <div className="flex flex-wrap gap-1.5 px-0.5">
+                <FilterPill t={t} on={!sortWaiting} onClick={() => { setSortWaiting(false); setOpen(false); }}>
+                  Newest first
+                </FilterPill>
+                <FilterPill t={t} on={sortWaiting} onClick={() => { setSortWaiting(true); setOpen(false); }}>
+                  Longest wait first
+                </FilterPill>
+              </div>
+            </div>
+          )}
+
           {/* The two that grow. Each opens in place, and opening one closes the
               other, so the panel's height stays put however many people are on
               the team or countries have written in. */}
@@ -2991,12 +2885,8 @@ function FilterMenu({
             <>
               <FilterRow
                 t={t}
-                label="Assigned to"
-                value={
-                  assigneeFilter === UNASSIGNED
-                    ? `Unassigned · ${assigneeOptions.unassigned}`
-                    : assigneeName ?? "Anyone"
-                }
+                label="Employee"
+                value={assigneeName ?? "Anyone"}
                 active={Boolean(assigneeFilter)}
                 open={section === "assignee"}
                 onToggle={() => setSection((cur) => (cur === "assignee" ? null : "assignee"))}
@@ -3029,18 +2919,7 @@ function FilterMenu({
                       <span className="flex-1">Anyone</span>
                       {!assigneeFilter && <Check className="h-3.5 w-3.5 shrink-0" />}
                     </button>
-                    {/* The Monday-morning question: what has nobody picked up. */}
-                    <button
-                      role="menuitemradio"
-                      aria-checked={assigneeFilter === UNASSIGNED}
-                      onClick={() => { setAssigneeFilter(assigneeFilter === UNASSIGNED ? null : UNASSIGNED); setOpen(false); }}
-                      className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-[13px] font-semibold transition-colors ${assigneeFilter === UNASSIGNED ? "bg-brand/10 text-brand-dark" : `${t.hover} ${t.mid}`}`}
-                    >
-                      <span className={`h-2 w-2 shrink-0 rounded-full ${assigneeFilter === UNASSIGNED ? "bg-brand" : "bg-slate-300"}`} />
-                      <span className="flex-1">Unassigned</span>
-                      <span className={`text-[12px] font-bold tabular-nums ${assigneeFilter === UNASSIGNED ? "text-brand-dark" : t.soft}`}>{assigneeOptions.unassigned}</span>
-                      {assigneeFilter === UNASSIGNED && <Check className="h-3.5 w-3.5 shrink-0" />}
-                    </button>
+                    {/* What nobody has taken is Handling: Open, above. */}
                     {shownStaff.map((e) => {
                       const on = assigneeFilter === e.id;
                       return (
@@ -3173,7 +3052,8 @@ function ContactsSection({
   t, tab, setTab, q, setQ, statusFilter, setStatusFilter, statusCounts, list,
   companyFilter, setCompanyFilter, withCompanyCount,
   countryFilter, setCountryFilter, countryOptions, crossCount, onCrossJump,
-  employees, assigneeFilter, setAssigneeFilter, assigneeOptions, onAssign, onAssignSelected,
+  dark, now, assigneeFilter, setAssigneeFilter, assigneeOptions,
+  handlingFilter, setHandlingFilter, handlingCounts, sortWaiting, setSortWaiting,
   selected, toggleSelect, allSelected, toggleSelectAll, busy, onOpen, onExportExcel, onExportPDF,
   onSetStatus, onDelete, onRestore, onPurge, onStatusSelected, onDeleteSelected,
   onRestoreSelected, onPurgeSelected,
@@ -3187,12 +3067,15 @@ function ContactsSection({
   countryOptions: CountryOption[];
   /** Inquiries carrying the selected country — powers the cross-reference. */
   crossCount: number; onCrossJump: () => void;
-  /** Active staff a message can be handed to, and the filter over them. */
-  employees: EmployeeOption[];
+  dark: boolean;
+  /** The handling chips' clock (AdminConsole). */
+  now: number;
+  /** Who holds or decided each message's customer, as a filter. */
   assigneeFilter: string | null; setAssigneeFilter: (v: string | null) => void;
-  assigneeOptions: { unassigned: number; rows: (EmployeeOption & { count: number })[] };
-  onAssign: (id: string, employeeId: string | null) => void;
-  onAssignSelected: (employeeId: string | null) => void;
+  assigneeOptions: { rows: (EmployeeOption & { count: number })[] };
+  handlingFilter: HandlingFilter; setHandlingFilter: (v: HandlingFilter) => void;
+  handlingCounts: Record<HandlingFilter, number>;
+  sortWaiting: boolean; setSortWaiting: (v: boolean) => void;
   statusCounts: { all: number; new: number; handled: number; spam: number };
   list: ContactMessage[]; selected: Set<string>; toggleSelect: (id: string) => void;
   allSelected: boolean; toggleSelectAll: () => void; busy: boolean;
@@ -3243,16 +3126,12 @@ function ContactsSection({
             assigneeFilter={assigneeFilter}
             setAssigneeFilter={setAssigneeFilter}
             assigneeOptions={assigneeOptions}
-            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); setAssigneeFilter(null); }}
-          />
-        )}
-        {tab === "active" && (
-          <AssignMenu
-            t={t}
-            employees={employees}
-            selectedCount={selected.size}
-            onAssignSelected={onAssignSelected}
-            busy={busy}
+            handlingFilter={handlingFilter}
+            setHandlingFilter={setHandlingFilter}
+            handlingCounts={handlingCounts}
+            sortWaiting={sortWaiting}
+            setSortWaiting={setSortWaiting}
+            onClear={() => { setStatusFilter("all"); setCompanyFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setHandlingFilter("all"); setSortWaiting(false); }}
           />
         )}
         <div className={`flex items-center gap-2 ${tab === "active" ? "" : "sm:ml-auto"}`}>
@@ -3362,14 +3241,7 @@ function ContactsSection({
                 <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
                   {tab === "active" ? (
                     <>
-                      <OutcomeChip value={c.lastStatus} />
-                      <AssigneePicker
-                        t={t}
-                        employees={employees}
-                        value={c.assignedToId}
-                        onChange={(employeeId) => onAssign(c.id, employeeId)}
-                        busy={busy}
-                      />
+                      <HandlingChip h={c.handling} createdAt={c.createdAt} dark={dark} now={now} />
                       <StatusControl t={t} value={st} onChange={(s) => onSetStatus(c.id, s)} />
                       <button onClick={() => onDelete(c.id)} aria-label="Delete message" title="Delete message" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                         <Trash2 className="h-4 w-4" />
@@ -3398,7 +3270,7 @@ function ContactsSection({
 }
 
 // Contact message detail modal — name, email, optional product, full message.
-function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetStatus, t }: { contact: ContactMessage; deleted: boolean; onClose: () => void; onDelete: () => void; onRestore: () => void; onSetStatus: (s: Status) => void; t: Theme }) {
+function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetStatus, t, dark, now }: { contact: ContactMessage; deleted: boolean; onClose: () => void; onDelete: () => void; onRestore: () => void; onSetStatus: (s: Status) => void; t: Theme; dark: boolean; now: number }) {
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" onClick={onClose}>
       <div className={`absolute inset-0 ${t.overlay}`} />
@@ -3416,7 +3288,10 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
             </span>
             <div className="min-w-0">
               <h3 className={`text-lg font-semibold leading-snug ${t.strong}`}>{contactName(contact)}</h3>
-              <span className={`mt-1 inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_META[asStatus(contact.status)].chip}`}>{STATUS_META[asStatus(contact.status)].label}</span>
+              <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_META[asStatus(contact.status)].chip}`}>{STATUS_META[asStatus(contact.status)].label}</span>
+                <HandlingChip h={contact.handling} createdAt={contact.createdAt} dark={dark} now={now} />
+              </div>
             </div>
           </div>
 
@@ -3435,6 +3310,8 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
             <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Message</p>
             <p className={`whitespace-pre-wrap text-sm font-medium leading-relaxed ${t.strong}`}>{contact.message}</p>
           </div>
+
+          <HandlingHistory key={`h-${contact.id}`} kind="contact" id={contact.id} t={t} dark={dark} />
 
           {!deleted && (
             <div className="mt-5">
@@ -3472,6 +3349,7 @@ interface Shipment {
   notes: string | null; source: string; status: string;
   assignedToId: string | null; customerKey: string | null;
   lastStatus: LeadOutcome | null;
+  handling: Handling | null;
 }
 
 /**
@@ -3497,14 +3375,17 @@ const fmtFigure = (v: string) => Number(v).toLocaleString("en-IN", { maximumFrac
  *
  * Otherwise it is Contact Us over again, on purpose: the same Inbox and
  * Recently Deleted tabs, the same New / Handled / Spam triage and the same
- * assignment — which goes through the rotation-aware path, so a freight
- * request, a quote request and a message from one person are one customer to
- * the team.
+ * handling chips — a freight request, a quote request and a message from one
+ * person are one customer in the open pool, taken by one person.
  */
 function ShipmentsSection({
-  t, employees, customerCodes, reloadKey, openId, onOpened, onChanged, onConfirm,
+  t, dark, now, employees, customerCodes, reloadKey, openId, onOpened, onChanged, onConfirm,
 }: {
   t: Theme;
+  dark: boolean;
+  /** The handling chips' clock (AdminConsole). */
+  now: number;
+  /** Active staff, for the Employee filter and the export's names. */
   employees: EmployeeOption[];
   customerCodes: Record<string, string>;
   /** Changes whenever the console refreshes; each change is a refetch. */
@@ -3524,6 +3405,8 @@ function ShipmentsSection({
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   const [countryFilter, setCountryFilter] = useState<string | null>(null);
   const [assigneeFilter, setAssigneeFilter] = useState<string | null>(null);
+  const [handlingFilter, setHandlingFilter] = useState<HandlingFilter>("all");
+  const [sortWaiting, setSortWaiting] = useState(false);
   const [modeFilter, setModeFilter] = useState<"all" | "SEA" | "AIR">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
@@ -3564,7 +3447,7 @@ function ShipmentsSection({
     onOpened();
   }, [openId, rows, onOpened]);
 
-  useEffect(() => setSelected(new Set()), [tab, q, statusFilter, countryFilter, assigneeFilter, modeFilter]);
+  useEffect(() => setSelected(new Set()), [tab, q, statusFilter, countryFilter, assigneeFilter, handlingFilter, modeFilter]);
 
   const codeOf = useCallback(
     (r: Shipment) => (r.customerKey ? customerCodes[r.customerKey] : undefined) ?? customerCodes[customerKeyOf(r) ?? ""] ?? null,
@@ -3589,10 +3472,14 @@ function ShipmentsSection({
   );
 
   const list = useMemo(
-    () => tab === "trash"
-      ? deleted.filter(inScope)
-      : live.filter((r) => (statusFilter === "all" || asStatus(r.status) === statusFilter) && inScope(r)),
-    [tab, deleted, live, statusFilter, inScope],
+    () => {
+      if (tab === "trash") return deleted.filter(inScope);
+      const shown = live.filter((r) =>
+        (statusFilter === "all" || asStatus(r.status) === statusFilter) && matchesHandling(r.handling, handlingFilter) && inScope(r),
+      );
+      return sortWaiting ? shown.sort(byWaiting) : shown;
+    },
+    [tab, deleted, live, statusFilter, handlingFilter, sortWaiting, inScope],
   );
 
   // What the filter panel counts: the inbox, narrowed by everything except the
@@ -3615,8 +3502,13 @@ function ShipmentsSection({
   const assigneeOptions = useMemo(() => {
     const by = new Map<string | null, number>();
     for (const r of live) by.set(r.assignedToId, (by.get(r.assignedToId) ?? 0) + 1);
-    return { unassigned: by.get(null) ?? 0, rows: employees.map((e) => ({ ...e, count: by.get(e.id) ?? 0 })) };
+    return { rows: employees.map((e) => ({ ...e, count: by.get(e.id) ?? 0 })) };
   }, [live, employees]);
+  // Like the status counts: the inbox, narrowed by everything except handling itself.
+  const handlingCounts = useMemo(
+    () => countHandling(live.filter((r) => (statusFilter === "all" || asStatus(r.status) === statusFilter) && inScope(r))),
+    [live, statusFilter, inScope],
+  );
   const modeCounts = useMemo(() => ({
     SEA: live.filter((r) => r.mode === "SEA").length,
     AIR: live.filter((r) => r.mode === "AIR").length,
@@ -3652,24 +3544,6 @@ function ShipmentsSection({
     }
   };
 
-  const assign = async (ids: string[], assignedToId: string | null) => {
-    if (!rows || ids.length === 0) return;
-    const idset = new Set(ids);
-    const before = rows;
-    setRows(rows.map((r) => (idset.has(r.id) ? { ...r, assignedToId } : r)));
-    setSelected(new Set());
-    setBusy(true);
-    try {
-      await adminWrite("/api/admin/shipping/", { ids, action: "assign", assignedToId });
-      onChanged();
-    } catch (e) {
-      setRows(before);
-      window.alert(e instanceof Error ? e.message : "Could not assign.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   const confirmDelete = (ids: string[]) =>
     onConfirm({
       title: "Move to Recently Deleted?",
@@ -3698,7 +3572,7 @@ function ShipmentsSection({
     const headers = [
       "Reference", "Date", "Customer", "Phone", "Email", "Shipment Country", "Commodity", "Cargo Type",
       "Mode", "Method", "POL", "POD", "Terms", "CBM", "Weight (kg)", "Cartons", "Notes",
-      "Status", "Assigned To", "Latest Outcome", "Source",
+      "Status", "Handled By", "Latest Outcome", "Source",
     ];
     const data: (string | number)[][] = exportRows().map((r) => [
       r.referenceNo, fmtDate(r.createdAt), r.customerName, r.phone, r.email ?? "", r.country, r.commodity,
@@ -3775,9 +3649,14 @@ function ShipmentsSection({
               assigneeFilter={assigneeFilter}
               setAssigneeFilter={setAssigneeFilter}
               assigneeOptions={assigneeOptions}
+              handlingFilter={handlingFilter}
+              setHandlingFilter={setHandlingFilter}
+              handlingCounts={handlingCounts}
+              sortWaiting={sortWaiting}
+              setSortWaiting={setSortWaiting}
               extraActive={modeFilter !== "all"}
               summarySuffix={modeFilter !== "all" ? ` · ${modeLabel(modeFilter).toLowerCase()}` : ""}
-              onClear={() => { setStatusFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setModeFilter("all"); }}
+              onClear={() => { setStatusFilter("all"); setCountryFilter(null); setAssigneeFilter(null); setHandlingFilter("all"); setSortWaiting(false); setModeFilter("all"); }}
               viewSection={
                 <div className="px-1 pb-1 pt-1">
                   <p className={`px-1.5 pb-1.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>Mode</p>
@@ -3788,15 +3667,6 @@ function ShipmentsSection({
                   </div>
                 </div>
               }
-            />
-          )}
-          {tab === "active" && (
-            <AssignMenu
-              t={t}
-              employees={employees}
-              selectedCount={selected.size}
-              onAssignSelected={(employeeId) => void assign([...selected], employeeId)}
-              busy={busy}
             />
           )}
           <div className={`flex items-center gap-2 ${tab === "active" ? "" : "sm:ml-auto"}`}>
@@ -3914,8 +3784,7 @@ function ShipmentsSection({
                   <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
                     {tab === "active" ? (
                       <>
-                        <OutcomeChip value={r.lastStatus} />
-                        <AssigneePicker t={t} employees={employees} value={r.assignedToId} onChange={(employeeId) => void assign([r.id], employeeId)} busy={busy} />
+                        <HandlingChip h={r.handling} createdAt={r.createdAt} dark={dark} now={now} />
                         <StatusControl t={t} value={st} onChange={(s) => void act([r.id], "status", s)} />
                         <button onClick={() => confirmDelete([r.id])} aria-label={`Delete ${r.referenceNo}`} title="Delete request" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                           <Trash2 className="h-4 w-4" />
@@ -3954,12 +3823,11 @@ function ShipmentsSection({
       {active && (
         <ShipmentModal
           t={t}
+          dark={dark}
+          now={now}
           s={active}
           code={codeOf(active)}
-          employees={employees}
-          busy={busy}
           onClose={() => setActiveId(null)}
-          onAssign={(employeeId) => void assign([active.id], employeeId)}
           onSetStatus={(s) => void act([active.id], "status", s)}
           onDelete={() => confirmDelete([active.id])}
           onRestore={() => void act([active.id], "restore")}
@@ -3977,18 +3845,17 @@ function ShipmentsSection({
  * and the figures that decide the rate sit directly under it.
  */
 function ShipmentModal({
-  s, code, employees, busy, onClose, onAssign, onSetStatus, onDelete, onRestore, t,
+  s, code, onClose, onSetStatus, onDelete, onRestore, t, dark, now,
 }: {
   s: Shipment;
   code: string | null;
-  employees: EmployeeOption[];
-  busy: boolean;
   onClose: () => void;
-  onAssign: (employeeId: string | null) => void;
   onSetStatus: (s: Status) => void;
   onDelete: () => void;
   onRestore: () => void;
   t: Theme;
+  dark: boolean;
+  now: number;
 }) {
   const deleted = s.status === "deleted";
   const st = asStatus(s.status);
@@ -4030,7 +3897,7 @@ function ShipmentModal({
                   {deleted ? "Deleted" : STATUS_META[st].label}
                 </span>
                 {code && <CustomerCodeBadge code={code} chip={t.chip} size="sm" />}
-                <OutcomeChip value={s.lastStatus} />
+                <HandlingChip h={s.handling} createdAt={s.createdAt} dark={dark} now={now} />
               </div>
             </div>
           </div>
@@ -4097,16 +3964,12 @@ function ShipmentModal({
             </div>
           )}
 
+          <HandlingHistory key={`h-${s.id}`} kind="shipment" id={s.id} t={t} dark={dark} />
+
           {!deleted && (
-            <div className="mt-5 flex flex-wrap items-end gap-x-6 gap-y-4">
-              <div>
-                <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Assigned to</p>
-                <AssigneePicker t={t} employees={employees} value={s.assignedToId} onChange={onAssign} busy={busy} />
-              </div>
-              <div>
-                <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this request</p>
-                <StatusControl t={t} value={st} onChange={onSetStatus} big />
-              </div>
+            <div className="mt-5">
+              <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this request</p>
+              <StatusControl t={t} value={st} onChange={onSetStatus} big />
             </div>
           )}
 
@@ -4379,38 +4242,29 @@ function Empty({ label, pad, t }: { label: string; pad?: boolean; t: Theme }) {
  *
  * The grouping has always been able to SHOW that four inquiries are one
  * person; what it could not do was treat them as one. Everything on the right
- * of this row now does: assigning hands over every product they asked about in
- * a single action, the outcome chip is the newest one across those products,
- * and the tick box selects the lot. That is the difference between a reading
- * view and the way the office actually works — nobody gives Karan three of a
- * customer's four products.
- *
- * Where the products disagree — two assigned to Karan, one to nobody — the row
- * says "Mixed" rather than choosing a winner to display, and the lines inside
- * name who has each.
+ * of this row now does: the handling chip is the customer's place in the open
+ * pool (one person takes all their products at once, from the staff
+ * workspace), and the tick box selects the lot. That is the difference between
+ * a reading view and the way the office actually works — nobody takes three of
+ * a customer's four products.
  */
 function CustomerGroupRow({
-  g, t, employees, selected, onToggleSelect, onAssign, onOpenInquiry, busy = false, code,
+  g, t, dark, now, handling, selected, onToggleSelect, onOpenInquiry, code,
 }: {
   g: CustomerGroup;
   t: Theme;
+  dark: boolean;
+  now: number;
+  /** Where the customer stands in the pool, which every product of theirs shares. */
+  handling: Handling | null;
   /** Their AFFHAN number, when one has been issued. */
   code?: string;
-  employees: EmployeeOption[];
   /** True when every one of this customer's inquiries is ticked. */
   selected: boolean;
   onToggleSelect: () => void;
-  /** Hands over every inquiry behind this customer at once. */
-  onAssign: (employeeId: string | null) => void;
   onOpenInquiry?: (inquiryId: string) => void;
-  busy?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const mixed = g.assignees.length > 1;
-  const only = mixed ? null : g.assignees[0] ?? null;
-  const assignedCount = g.products.filter((p) => p.assignedToId).length;
-  const nameOf = (id: string | null | undefined) =>
-    id ? employees.find((e) => e.id === id)?.name ?? "(inactive)" : "Unassigned";
 
   return (
     <li
@@ -4476,23 +4330,7 @@ function CustomerGroupRow({
 
         <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
           <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-semibold sm:px-2.5 sm:text-xs ${t.qty}`}>{g.inquiryCount} {g.inquiryCount === 1 ? "product" : "products"}</span>
-          <OutcomeChip value={g.lastStatus} />
-          <AssigneePicker
-            t={t}
-            employees={employees}
-            value={only}
-            mixed={mixed}
-            label={mixed ? `Mixed · ${assignedCount}/${g.inquiryCount}` : undefined}
-            title={
-              mixed
-                ? `Their products are with different people. Choosing somebody assigns all ${g.inquiryCount}.`
-                : only
-                  ? `All ${g.inquiryCount} assigned to ${nameOf(only)}`
-                  : `Assign all ${g.inquiryCount} of their products at once`
-            }
-            onChange={onAssign}
-            busy={busy}
-          />
+          <HandlingChip h={handling} createdAt={g.firstInquiry} dark={dark} now={now} />
           <a href={waLink(g.phone)} target="_blank" rel="noopener noreferrer" className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500 hover:text-white sm:inline-flex">
             <MessageCircle className="h-3.5 w-3.5" /> WhatsApp
           </a>
@@ -4546,7 +4384,6 @@ function CustomerGroupRow({
                       {p.message && <span className={`mt-0.5 line-clamp-2 text-xs ${t.mid}`}>{p.message}</span>}
                       <span className={`mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs ${t.soft}`}>
                         <span>{fmtDate(p.createdAt)}</span>
-                        {mixed && <span className="font-semibold">{nameOf(p.assignedToId)}</span>}
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">

@@ -17,8 +17,8 @@
  *   IN_PROGRESS   they have picked it up and are working it
  *   LEAD          the customer agreed — terminal, and the good end
  *   NO_LEAD       the customer declined — terminal, and the closed end
- *   NOT_ATTENDED  they cannot take this one on. NOT terminal: it hands the
- *                 customer to somebody else (the rotation queue).
+ *   NOT_ATTENDED  they cannot take this one on. NOT terminal: it puts the
+ *                 customer back in the open pool (lib/lead-pool.ts).
  *
  * The previous vocabulary was CONVERTED / NOT_CONVERTED / FOLLOW_UP /
  * IN_PROGRESS. LEAD and NO_LEAD are the same two ends of a deal under the
@@ -31,8 +31,8 @@ export type LeadStatus = (typeof LEAD_STATUSES)[number];
 /**
  * Written by the system, never by a person.
  *
- * A customer nobody took on, after the rotation has offered them to the whole
- * team and given up. It is not an outcome anybody reached, which is why it is
+ * A customer nobody took on: a week in the open pool, or the old rotation
+ * offering them to the whole team. It is not an outcome anybody reached, which is why it is
  * not in the list above: no button offers it, the recording route rejects it,
  * and it is shown in the admin's own views rather than on a workspace.
  */

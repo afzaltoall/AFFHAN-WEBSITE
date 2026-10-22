@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { NOT_STARTED, outcomeMeta, type LeadOutcomeKey } from "@/lib/leadStatus";
+import type { PerfWindow, PoolPerformance } from "@/lib/lead-pool";
 import { Avatar } from "@/components/admin/AssigneePicker";
 import { OutcomeBar, STAFF_ORDER } from "@/components/ui/OutcomeVisuals";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
@@ -26,6 +27,13 @@ export interface TeamRow {
   won: number;
   thisWeek: number;
   winRate: number | null;
+  /**
+   * What they did with the open pool in the last 7 and 30 days (lib/lead-pool.ts, poolPerformance): customers
+   * taken, completed (Lead or No lead), released (Release or Not attended) and sent back automatically (nothing
+   * recorded in time, or In progress gone quiet), and the average office time from taking a customer to their first
+   * update and to Lead or No lead.
+   */
+  pool: PoolPerformance;
 }
 
 interface Totals {
@@ -50,12 +58,13 @@ type SortKey = "name" | "assigned" | "winRate" | "recorded" | "passedOn" | "won"
  * them now, bucketed by what they themselves last recorded on each. Everything
  * right of it is their WORK: what they have written, whoever holds the lead
  * today. A lead that changes hands leaves the first and stays in the second,
- * which is the whole point — Khaja passing on a customer disappears from his
- * book the moment the rotation moves them, and this is where it survives.
+ * which is the whole point — somebody passing on a customer loses them from
+ * their book the moment the customer goes back to the pool, and this is where
+ * the work survives.
  *
  * Counted in customers rather than rows: somebody who asked about four
  * products is one person to call and one piece of work, however many rows the
- * status route wrote. Same key as the rotation queue's, Inquiry.customerKey.
+ * status route wrote. Same key as the open pool's, Inquiry.customerKey.
  *
  * No win rate here. A rate over work recorded rather than work held is a
  * different denominator from the one beside it, and two numbers called "win
@@ -320,8 +329,145 @@ export function TeamPerformance({ rows, totals }: { rows: TeamRow[]; totals: Tot
           The four figures at the top count leads, once each, wherever they sit now —
           so the columns below are not a breakdown of them and will not add up to them.
         </p>
+
+        {rows.length > 0 && <PoolTable rows={rows} />}
       </div>
     </div>
+  );
+}
+
+type PoolSortKey = "name" | keyof PerfWindow;
+
+const POOL_COLUMNS: { key: keyof PerfWindow; label: string; hint: string }[] = [
+  { key: "taken", label: "Taken", hint: "customers they took from the pool" },
+  { key: "completed", label: "Completed", hint: "Lead or No lead recorded" },
+  { key: "released", label: "Released", hint: "their own Release, or Not attended" },
+  { key: "autoReleased", label: "Back automatically", hint: "nothing recorded within two office hours, or In progress gone quiet" },
+  { key: "toFirstUpdate", label: "Take → first update", hint: "average, office hours only" },
+  { key: "toCompletion", label: "Take → completion", hint: "average to Lead or No lead, office hours only" },
+];
+
+/** Office minutes as the office reads them: "45m", "2h 15m", "11h". Office hours, not the clock. */
+function officeSpan(minutes: number): string {
+  if (minutes < 60) return `${minutes}m`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+}
+
+/**
+ * The open pool, person by person: what each of them took, finished, let go and lost to the pool's clocks, and how
+ * quickly they move once they have taken somebody, over the last 7 or 30 days.
+ *
+ * Its own table rather than more columns on the one above: that one is about the leads people hold now, this one
+ * about a window of time, and the switch between a week and a month belongs to this block alone. The two averages
+ * count office hours only (Monday to Saturday, 09:30–18:30 IST), so a customer taken at six in the evening and
+ * answered at ten the next morning took 1h, not 16h; the rows on the lead lists keep real clock times.
+ */
+function PoolTable({ rows }: { rows: TeamRow[] }) {
+  const [range, setRange] = useState<"d7" | "d30">("d7");
+  const [sort, setSort] = useState<PoolSortKey>("taken");
+  const [asc, setAsc] = useState(false);
+
+  const shown = useMemo(() => {
+    const value = (r: TeamRow) => (sort === "name" ? r.name.toLowerCase() : r.pool[range][sort]);
+    return [...rows].sort((a, b) => {
+      const av = value(a), bv = value(b);
+      // An average nobody has yet goes last whichever way the column is sorted.
+      if (av === null || bv === null) return av === bv ? a.name.localeCompare(b.name) : av === null ? 1 : -1;
+      const cmp = typeof av === "string" && typeof bv === "string" ? av.localeCompare(bv) : Number(av) - Number(bv);
+      return (asc ? cmp : -cmp) || a.name.localeCompare(b.name);
+    });
+  }, [rows, range, sort, asc]);
+
+  const head = (key: PoolSortKey, label: string, title?: string, align: "left" | "right" = "right") => {
+    const on = sort === key;
+    return (
+      <th key={key} aria-sort={on ? (asc ? "ascending" : "descending") : "none"} className={`px-3 py-3 ${align === "right" ? "text-right" : "text-left"}`}>
+        <button
+          type="button"
+          title={title}
+          onClick={() => { if (on) setAsc(!asc); else { setSort(key); setAsc(key === "toFirstUpdate" || key === "toCompletion"); } }}
+          className={`inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-semibold uppercase tracking-wider transition-colors ${
+            on ? "text-[#1d1d1f]" : "text-[#86868b] hover:text-[#1d1d1f]"
+          }`}
+        >
+          {align === "right" && on && (asc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+          {label}
+          {align === "left" && on && (asc ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />)}
+        </button>
+      </th>
+    );
+  };
+
+  return (
+    <section aria-labelledby="pool-performance" className="mt-8">
+      <div className="mb-3 flex flex-wrap items-end gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 id="pool-performance" className="text-[17px] font-semibold tracking-tight">From the open pool</h2>
+          <p className="text-[12.5px] text-[#86868b]">
+            Taking customers and moving them on. The two averages count office hours only, Monday to Saturday, 09:30–18:30 IST.
+          </p>
+        </div>
+        <div role="group" aria-label="Period" className="inline-flex rounded-full bg-white p-0.5 shadow-sm ring-1 ring-black/[0.06]">
+          {([["d7", "Last 7 days"], ["d30", "Last 30 days"]] as const).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={range === key}
+              onClick={() => setRange(key)}
+              className={`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                range === key ? "bg-[#1d1d1f] text-white" : "text-[#48484a] hover:bg-black/[0.03]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.04]">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[52rem] text-[13px]">
+            <thead className="bg-[#f5f5f7]">
+              <tr>
+                {head("name", "Staff", undefined, "left")}
+                {POOL_COLUMNS.map((c) => head(c.key, c.label, c.hint))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black/[0.04]">
+              {shown.map((r) => {
+                const w = r.pool[range];
+                return (
+                  <tr key={r.id} className="group relative transition-colors hover:bg-black/[0.015]">
+                    <td className="px-3 py-3">
+                      <Link href={`/admin/employees/${r.id}/`} className="flex items-center gap-2.5 after:absolute after:inset-0 after:content-['']">
+                        <Avatar name={r.name} image={r.image} size={24} />
+                        <span className="truncate font-semibold group-hover:underline">{r.name}</span>
+                      </Link>
+                    </td>
+                    {(["taken", "completed", "released", "autoReleased"] as const).map((key) => (
+                      <td key={key} className="px-3 py-3 text-right tabular-nums">
+                        <span className={w[key] === 0 ? "text-[#c7c7cc]" : key === "taken" ? "font-semibold" : ""}>{w[key]}</span>
+                      </td>
+                    ))}
+                    {(["toFirstUpdate", "toCompletion"] as const).map((key) => (
+                      <td key={key} className="whitespace-nowrap px-3 py-3 text-right tabular-nums">
+                        {w[key] === null ? <span className="text-[#c7c7cc]">—</span> : <span className="font-semibold">{officeSpan(w[key]!)}</span>}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p className="mt-2 px-1 text-[12px] text-[#86868b]">
+        Counted by when each thing happened; the averages follow each customer from the moment they were taken until
+        they went back to the pool or were decided. A dash means nothing to average yet.
+      </p>
+    </section>
   );
 }
 

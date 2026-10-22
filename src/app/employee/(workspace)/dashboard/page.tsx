@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { customerCodesFor } from "@/lib/customerCode";
 import { EMPLOYEE_IDLE_MS, readWorkspaceAuth } from "@/lib/employee-session";
+import { listPool } from "@/lib/lead-pool";
 import type { LeadCardData, LeadUpdate } from "@/components/employee/lead-types";
 import { EmployeeLeadBoard } from "@/components/employee/EmployeeLeadBoard";
 import { wt } from "@/components/employee/workspace-ui";
@@ -24,13 +25,14 @@ function galleryOf(main: string | null, allImages: unknown): string[] {
  * A member of staff's own work.
  *
  * Everything here is scoped by `assignedToId` in the query itself, not by
- * hiding rows after the fact: an employee is shown the leads handed to them
- * and has no route to anybody else's. Deleted rows are left out — a lead in
- * the console's Recently Deleted is not work.
+ * hiding rows after the fact: an employee is shown the customers they have
+ * taken and has no route to anybody else's. Deleted rows are left out — a lead
+ * in the console's Recently Deleted is not work.
  *
  * The cards carry what the console's own rows carry, photograph included,
  * because this is the whole of what somebody has before they pick up the
- * phone.
+ * phone. The open pool beside them carries none of that: listPool reads only
+ * what may be shown before a Take (lib/lead-pool.ts).
  */
 export default async function EmployeeDashboardPage() {
   const auth = await readWorkspaceAuth();
@@ -40,7 +42,7 @@ export default async function EmployeeDashboardPage() {
 
   const employeeId = auth.kind === "employee" ? auth.employee.id : null;
 
-  const [inquiries, contacts, shipments] = employeeId
+  const [inquiries, contacts, shipments, pool] = employeeId
     ? await Promise.all([
         prisma.inquiry.findMany({
           where: { assignedToId: employeeId, status: { not: "deleted" } },
@@ -76,8 +78,9 @@ export default async function EmployeeDashboardPage() {
             cbm: true, weightKg: true, cartonBoxes: true, notes: true,
           },
         }),
+        listPool(employeeId),
       ])
-    : [[], [], []];
+    : [[], [], [], null];
 
   // One query for the trail on every card, rather than one per card.
   const updates = employeeId && (inquiries.length || contacts.length || shipments.length)
@@ -206,7 +209,7 @@ export default async function EmployeeDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {auth.kind === "employee" ? (
+      {auth.kind === "employee" && pool ? (
         // Searching and filtering are the client's job; everything above is
         // already fetched, so narrowing it costs no round trip.
         <EmployeeLeadBoard
@@ -215,12 +218,13 @@ export default async function EmployeeDashboardPage() {
           )}
           name={auth.employee.name}
           codes={codes}
+          pool={pool}
         />
       ) : (
         <div>
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Staff workspace</h1>
           <p className={`mt-0.5 text-[13px] ${wt.soft}`}>
-            You are signed in as an administrator. Employees see the leads assigned to them here.
+            You are signed in as an administrator. Employees see the customers they hold, and the open pool, here.
           </p>
         </div>
       )}

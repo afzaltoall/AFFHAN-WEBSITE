@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { runRotation } from "@/lib/lead-queue";
+import { runPoolSweep } from "@/lib/lead-pool";
 import { brevoKeepAlive } from "@/lib/brevo";
 import { refuseUnlessCron } from "@/lib/cron-auth";
 
@@ -7,11 +7,15 @@ export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 /**
- * The rotation sweep: hand on the customers nobody has picked up.
+ * The open pool's sweep (lib/lead-pool.ts, runPoolSweep): customers taken and
+ * left silent for two office hours, or In progress and quiet for two office
+ * days, go back to the pool; a week unhandled is Invalid; and anybody with live
+ * requests and no place in the pool yet is taken in. The address keeps its old
+ * name, rotate, because the scheduler calls it by that.
  *
- * Every fifteen minutes or so. The window it enforces is two working hours, so
- * the granularity only decides how late a handover can be (a quarter of an
- * hour), not whether it happens.
+ * Every fifteen minutes or so. The windows it enforces are office hours and
+ * days, so the granularity only decides how late a release can be (a quarter
+ * of an hour), not whether it happens.
  *
  * WHO CALLS THIS. Vercel's own cron runs a job once a day on this plan, which
  * is nowhere near often enough. The project already solved that for the
@@ -22,13 +26,13 @@ export const maxDuration = 60;
  * vercel.json also has this route at 05:00 UTC — 10:30 in the office, half an
  * hour after it opens. That is not the schedule; it is the net under it. If
  * the external scheduler stops, customers still move once a day and somebody
- * notices a queue that has gone quiet rather than one that has gone silent.
+ * notices a pool that has gone quiet rather than one that has gone silent.
  *
  *   GET /api/cron/leads/rotate
  *   Authorization: Bearer $CRON_SECRET
  *
  * Fails closed: with no CRON_SECRET configured the route refuses everybody
- * rather than letting anybody reassign the sales team's leads.
+ * rather than letting anybody release the sales team's leads.
  *
  * Two parameters, both behind the same token, both there because a job that
  * can only be understood by watching it work is a job nobody dares run:
@@ -40,7 +44,7 @@ export const maxDuration = 60;
  *
  * It is safe to call at any hour. Outside office hours the sweep still runs —
  * that is how a customer whose week has run out is marked INVALID — but no
- * customer is handed to anybody who is not at work.
+ * clock runs out on anybody who is not at work.
  */
 export async function GET(request: Request) {
   const refused = refuseUnlessCron(request);
@@ -50,8 +54,8 @@ export async function GET(request: Request) {
   const dryRun = url.searchParams.get("dryRun") === "1";
   const nowParam = url.searchParams.get("now");
 
-  // ?now= moves the clock, and a moved clock can hand every customer in the
-  // queue to the wrong person at once — "pretend it is Tuesday" run against
+  // ?now= moves the clock, and a moved clock can release every customer in the
+  // pool at once — "pretend it is Tuesday" run against
   // production during an incident is a worse outcome than whatever was being
   // debugged. The bearer token is not enough of a gate for that: it is held by
   // a scheduler, sits in an environment variable, and is meant for a machine
@@ -82,13 +86,13 @@ export async function GET(request: Request) {
   const keepAlive = request.headers.get("user-agent")?.startsWith("vercel-cron/") ? brevoKeepAlive() : null;
 
   try {
-    const report = await runRotation({ now, dryRun });
+    const report = await runPoolSweep({ now, dryRun });
     return NextResponse.json({ ok: true, ...report });
   } catch (error) {
     // The name only: a stack in a log the scheduler can read back is a gift to
     // nobody useful.
-    console.error("lead rotation failed:", error instanceof Error ? error.name : "unknown");
-    return NextResponse.json({ error: "Rotation failed" }, { status: 500 });
+    console.error("lead pool sweep failed:", error instanceof Error ? error.name : "unknown");
+    return NextResponse.json({ error: "Sweep failed" }, { status: 500 });
   } finally {
     await keepAlive;
   }

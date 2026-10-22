@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
+import { leadArrived } from "@/lib/lead-pool";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 import { describeInquiryProblems, inquiryInput } from "@/lib/inquiry-input";
 import { checkInquiryRateLimit, limitReached } from "@/lib/rate-limit";
@@ -91,6 +92,11 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("customer code:", e);
     }
+
+    // To whoever holds this customer, or their place in the open pool, or into
+    // the pool as somebody new; never a reason for the request to fail (see
+    // lib/lead-pool.ts).
+    await leadArrived({ kind: "inquiry", id: newInquiry.id, customerKey: customerKeyOf({ phone, email }), createdAt: newInquiry.createdAt });
 
     // The new row's id and nothing else. The whole row used to come back,
     // internal fields (customerKey, assignedToId, status) included; the quote

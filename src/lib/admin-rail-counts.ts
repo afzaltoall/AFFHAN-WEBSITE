@@ -37,7 +37,7 @@ export interface RailCounts {
   trash: number;
   suppliers: number;
   videos: number;
-  /** Customers going round the rotation right now. */
+  /** Customers waiting in the open pool right now. */
   queue: number;
   /** And the ones it gave up on, which need a person rather than a wait. */
   queueInvalid: number;
@@ -63,7 +63,7 @@ export const railCounts = cache(async (): Promise<RailCounts | null> => {
           (SELECT count(*) FROM "Inquiry"        WHERE status = 'deleted')                           AS trash,
           (SELECT count(*) FROM "Supplier")                                                          AS suppliers,
           (SELECT count(*) FROM "Video")                                                             AS videos,
-          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'ROTATING')                           AS queue,
+          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'OPEN')                               AS queue,
           (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'INVALID')                            AS "queueInvalid"
       `
     );

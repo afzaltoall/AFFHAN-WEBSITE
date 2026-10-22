@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { checkPasswordStrength, hashPassword } from "@/lib/password";
+import { releaseDeactivated } from "@/lib/lead-pool";
 
 export const dynamic = "force-dynamic";
 
@@ -67,7 +68,8 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
  * already issued to that person rather than waiting for them to lapse.
  */
 export async function PATCH(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!(await requireAdmin())) {
+  const admin = await requireAdmin();
+  if (!admin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -124,7 +126,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     // Somebody switched off keeps nothing.
     //
-    // Deactivating already signs them out and takes them out of the rotation's
+    // Deactivating already signs them out, so they can take nothing from the
     // pool. What it did not do was let go of the leads they were holding,
     // which left those customers assigned to an account that cannot sign in —
     // invisible on every workspace, and not unassigned either, so nobody was
@@ -141,13 +143,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         prisma.shipmentInquiry.updateMany({ where: held, data: letGo }),
       ]);
       released = inquiries.count + contacts.count + shipments.count;
-      // A customer they were holding for the queue is now held by nobody, so
-      // the queue has to know: parked, and on the Queue page where an
-      // administrator will see it, rather than rotating from a ghost.
-      await prisma.leadQueueEntry.updateMany({
-        where: { currentEmployeeId: id, state: "ROTATING" },
-        data: { currentEmployeeId: null, lastEmployeeId: id, nextRotationAt: null },
-      });
+      // Their customers go back to the open pool, each with a line on the
+      // trail saying why, rather than sitting with a ghost.
+      await releaseDeactivated(id, admin.name || admin.email);
     }
 
     return NextResponse.json({ employee, passwordChanged: newPassword !== null, released });

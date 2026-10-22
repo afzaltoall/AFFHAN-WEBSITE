@@ -24,6 +24,9 @@ import { OFFICE_TIME_ZONE } from "@/lib/datetime";
 export const OFFICE_OPENS_AT = 9 * 60 + 30; // 09:30
 export const OFFICE_CLOSES_AT = 18 * 60 + 30; // 18:30
 
+/** One working day, in minutes: what "two office days" counts in. */
+export const OFFICE_DAY_MINUTES = OFFICE_CLOSES_AT - OFFICE_OPENS_AT;
+
 /** Sunday is 0, as JavaScript counts. The office is shut on Sundays only. */
 const CLOSED_DAYS = new Set([0]);
 
@@ -132,6 +135,37 @@ export function addOfficeMinutes(from: Date, minutes: number): Date {
     cursor = nextOfficeOpening(new Date(cursor.getTime() + untilClose * 60_000 + 60_000));
   }
   return cursor;
+}
+
+/**
+ * The opening of the first office day after the one `at` falls on: "not until the next office day". A moment on
+ * Tuesday, whatever the hour, gives Wednesday 09:30; Saturday gives Monday's (Sunday is shut). Counted from the
+ * office's own midnight, so 23:00 is still the same day and 00:30 already the next.
+ */
+export function startOfNextOfficeDay(at: Date): Date {
+  const p = officeParts(at);
+  // The midnight that ends `at`'s office day; Date.UTC carries minute 1440 into the next date.
+  const midnight = instantAt(p.year, p.month, p.day, 24 * 60, at);
+  return nextOfficeOpening(midnight);
+}
+
+/**
+ * How many WORKING minutes lie between two instants: addOfficeMinutes the other way round. For averages that must
+ * not count nights or Sundays against anybody: from 17:30 on Saturday to 10:30 on Monday is two hours, not forty.
+ */
+export function officeMinutesBetween(from: Date, to: Date): number {
+  if (to.getTime() <= from.getTime()) return 0;
+  let cursor = nextOfficeOpening(from);
+  let total = 0;
+  for (let i = 0; i < 1000 && cursor.getTime() < to.getTime(); i++) {
+    const p = officeParts(cursor);
+    const close = instantAt(p.year, p.month, p.day, OFFICE_CLOSES_AT, cursor);
+    const end = close.getTime() < to.getTime() ? close : to;
+    total += Math.max(0, end.getTime() - cursor.getTime());
+    if (end === to) break;
+    cursor = nextOfficeOpening(new Date(close.getTime() + 60_000));
+  }
+  return Math.round(total / 60_000);
 }
 
 /** For the admin's Queue view: how the office reads a moment's working day. */

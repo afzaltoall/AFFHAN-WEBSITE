@@ -190,7 +190,7 @@ export function AdminRail({
                     <span className={`flex-1 ${label}`}>{item.label}</span>
                     {count !== undefined && <span className={pillCls}>{fmtRailNum(count)}</span>}
                     {item.key === "trip-lock" && <TripLockRailPill open={open} dark={dark} />}
-                    {/* Beside the rotating figure rather than added to it: the
+                    {/* Beside the pool's figure rather than added to it: the
                         two numbers mean different things, and only one of them
                         is somebody's job to fix today. The word rides along
                         because two bare numbers side by side say nothing about

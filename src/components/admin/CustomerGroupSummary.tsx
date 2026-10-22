@@ -3,7 +3,9 @@
 import { useMemo } from "react";
 import { Users } from "lucide-react";
 import type { Theme } from "@/components/admin/console-theme";
+import { handlingKey } from "@/lib/handling";
 import type { CustomerGroup } from "@/lib/customerGroups";
+import type { Handling } from "@/lib/lead-pool";
 
 const fmt = (n: number) => n.toLocaleString("en-GB");
 const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : many);
@@ -11,9 +13,11 @@ const plural = (n: number, one: string, many = `${one}s`) => (n === 1 ? one : ma
 interface Props {
   t: Theme;
   groups: CustomerGroup[];
-  /** True while the list is already narrowed to customers nobody is working. */
-  onlyUnassigned: boolean;
-  onToggleUnassigned: () => void;
+  /** Where a customer stands in the open pool (every product of theirs shares it). */
+  handlingOf: (g: CustomerGroup) => Handling | null | undefined;
+  /** True while the list is already narrowed to customers waiting in the pool. */
+  onlyOpen: boolean;
+  onToggleOpen: () => void;
 }
 
 /**
@@ -23,39 +27,37 @@ interface Props {
  * rows — so that number leads, at figure size, with the fold it came from
  * underneath it. The three facts beside it are the ones that change what the
  * admin does next: how many products are riding on those customers, how many
- * of them came back for more than one thing, and how many nobody has picked
- * up. That last one is a filter, not a caption: the number you want to act on
- * is the number you should be able to click.
+ * of them came back for more than one thing, and how many are waiting in the
+ * open pool for somebody to take them. That last one is a filter, not a
+ * caption: the number you want to act on is the number you should be able to
+ * click.
  *
  * Everything here is counted from the groups already computed for the list, so
  * the strip costs a pass over an array that is at most a few hundred long, and
  * can never disagree with the rows underneath it.
  */
-export function CustomerGroupSummary({ t, groups, onlyUnassigned, onToggleUnassigned }: Props) {
+export function CustomerGroupSummary({ t, groups, handlingOf, onlyOpen, onToggleOpen }: Props) {
   const s = useMemo(() => {
-    let inquiries = 0, products = 0, quantity = 0, repeat = 0, unassigned = 0, split = 0;
+    let inquiries = 0, products = 0, quantity = 0, repeat = 0;
+    const by = { open: 0, held: 0, done: 0, invalid: 0 };
     for (const g of groups) {
       inquiries += g.inquiryCount;
       products += g.products.length;
       quantity += g.totalQuantity;
       if (g.products.length > 1) repeat += 1;
-      // One entry means the whole customer sits with one person — or with
-      // nobody. More than one means their products are spread across the team,
-      // which is its own state and must not be counted as "assigned".
-      if (g.assignees.length > 1) split += 1;
-      else if (g.assignees[0] == null) unassigned += 1;
+      by[handlingKey(handlingOf(g))] += 1;
     }
-    const customers = groups.length;
-    return { customers, inquiries, products, quantity, repeat, unassigned, split, assigned: customers - unassigned - split };
-  }, [groups]);
+    return { customers: groups.length, inquiries, products, quantity, repeat, ...by };
+  }, [groups, handlingOf]);
 
-  // Assigned / split / unassigned, in that order, as one thin rail. Segments
-  // that are zero are dropped rather than drawn at 0% — a rounded end with no
-  // width still paints a dot.
+  // Held / open / done / given up, in that order, as one thin rail, in the
+  // handling chips' colours. Segments that are zero are dropped rather than
+  // drawn at 0% — a rounded end with no width still paints a dot.
   const rail = [
-    { n: s.assigned, fill: "bg-emerald-500", label: "with one person" },
-    { n: s.split, fill: "bg-sky-500", label: "split across the team" },
-    { n: s.unassigned, fill: "bg-amber-500", label: "nobody yet" },
+    { n: s.held, fill: "bg-amber-500", label: "taken by somebody" },
+    { n: s.open, fill: "bg-sky-500", label: "waiting in the pool" },
+    { n: s.done, fill: "bg-emerald-500", label: "decided" },
+    { n: s.invalid, fill: "bg-slate-600", label: "given up on" },
   ].filter((seg) => seg.n > 0);
 
   return (
@@ -92,13 +94,13 @@ export function CustomerGroupSummary({ t, groups, onlyUnassigned, onToggleUnassi
           />
           <Fact
             t={t}
-            value={s.unassigned}
-            label="Unassigned"
-            hint={onlyUnassigned ? "showing only these" : s.unassigned === 0 ? "everyone is covered" : "show only these"}
-            tone={s.unassigned > 0 ? "text-amber-500" : undefined}
+            value={s.open}
+            label="Open"
+            hint={onlyOpen ? "showing only these" : s.open === 0 ? "nobody is waiting" : "show only these"}
+            tone={s.open > 0 ? "text-sky-500" : undefined}
             divided
-            active={onlyUnassigned}
-            onClick={s.unassigned > 0 || onlyUnassigned ? onToggleUnassigned : undefined}
+            active={onlyOpen}
+            onClick={s.open > 0 || onlyOpen ? onToggleOpen : undefined}
           />
         </div>
       </div>
@@ -120,8 +122,8 @@ export function CustomerGroupSummary({ t, groups, onlyUnassigned, onToggleUnassi
       )}
 
       <p className={`mt-2.5 text-[11.5px] leading-relaxed ${t.soft}`}>
-        Assigning a row hands over every product that customer asked about. &ldquo;Grouped .xlsx&rdquo; exports the
-        whole database, not only what is loaded here.
+        Staff take a customer from the open pool with every product they asked about. &ldquo;Grouped .xlsx&rdquo;
+        exports the whole database, not only what is loaded here.
       </p>
     </div>
   );
@@ -162,7 +164,7 @@ function Fact({
         // Offset left only: the hit area grows into the gap beside it, never
         // past the card's right edge, where it would crowd the padding.
         className={`-ml-2 -my-1.5 rounded-xl px-2 py-1.5 text-left transition-colors cursor-pointer ${
-          active ? "ring-1 ring-amber-500/50 bg-amber-500/10" : t.hover
+          active ? "ring-1 ring-sky-500/50 bg-sky-500/10" : t.hover
         }`}
       >
         {body}

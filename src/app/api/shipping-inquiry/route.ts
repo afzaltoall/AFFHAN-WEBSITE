@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
+import { leadArrived } from "@/lib/lead-pool";
 import { validateShipmentInquiry } from "@/lib/shipment-inquiry";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 
@@ -54,7 +55,7 @@ export async function POST(req: Request) {
         customerKey: customerKeyOf({ phone: v.phone, email: v.email }),
         userId: user.id,
       },
-      select: { referenceNo: true, createdAt: true },
+      select: { id: true, referenceNo: true, createdAt: true },
     });
 
     // The number they would get through any other door, because it is the same
@@ -64,6 +65,10 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("customer code:", e);
     }
+
+    // To whoever holds this customer, or their place in the open pool, or into
+    // the pool; never a reason for the request to fail (see lib/lead-pool.ts).
+    await leadArrived({ kind: "shipment", id: saved.id, customerKey: customerKeyOf({ phone: v.phone, email: v.email }), createdAt: saved.createdAt });
 
     return NextResponse.json({ referenceNo: saved.referenceNo }, { status: 201 });
   } catch (error: unknown) {

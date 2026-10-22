@@ -144,7 +144,7 @@ export const fmtRailBadge = (n: number) =>
  *              that is what the view restores.
  *   suppliers  every row of the supplier book. A total, not a backlog.
  *   videos     every uploaded video. Also a total.
- *   queue      customers the rotation is moving RIGHT NOW (state ROTATING).
+ *   queue      customers waiting in the open pool RIGHT NOW (state OPEN).
  *              The ones it gave up on are counted separately and shown in
  *              amber beside this, never added to it — see railDotFor, which
  *              folds them in only for the single dot the collapsed rail has

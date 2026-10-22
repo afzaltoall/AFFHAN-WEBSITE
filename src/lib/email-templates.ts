@@ -221,49 +221,32 @@ export function inquiryReceivedEmail(details: {
 }
 
 /**
- * A customer the rotation has given up on.
+ * The customers the open pool gave up on in one sweep: a week in the pool, and nobody took them on or recorded
+ * an outcome.
  *
- * The only message here that goes to the office rather than to a customer, and
- * the only one anybody is expected to act on. It exists because INVALID is
- * otherwise a state with no witness: the customer stops moving, stops being
- * anybody's work, and waits on somebody opening the Queue page to notice. A
- * customer who asked for a quote and was offered to the whole team twice
- * deserves better than being found later.
+ * The only message here that goes to the office rather than to a customer, and the only one anybody is expected
+ * to act on. It exists because INVALID is otherwise a state with no witness: the customer stops being anybody's
+ * work and waits on somebody opening the Queue page to notice.
  *
- * Says what it is, who it was, and where to go. No link to click for the same
- * reason the reset email has none — and because the admin console is behind a
- * login anyway, so a URL in an inbox saves nobody anything. The customer's
- * name is whatever they typed on a form; it used to go into the HTML as it
- * was, and is escaped now like everything else.
+ * One email per sweep however many there are, not one per customer: a week after a busy day, or after the switch
+ * to self-claim put the whole backlog into the pool at once, one per customer would be a flood that buries the
+ * point. Says who, what they asked for, and where to go. No link, as in the reset email: the console is behind a
+ * login, so a URL in an inbox saves nobody anything. Names are whatever customers typed, and are escaped like
+ * everything else.
  */
-export function leadGivenUpEmail(details: {
-  customerName: string;
-  products: number;
-  messages: number;
-  /** Freight quote requests from /shipping/. */
-  freight?: number;
-  passes: number;
-  handoffs: number;
-  enteredAt: string;
-}): Omit<EmailMessage, "to"> {
-  const { customerName, products, messages, freight = 0, passes, handoffs, enteredAt } = details;
-  const parts = [
-    products > 0 ? `${products} ${products === 1 ? "product" : "products"}` : "",
-    messages > 0 ? `${messages} ${messages === 1 ? "message" : "messages"}` : "",
-    freight > 0 ? `${freight} ${freight === 1 ? "freight request" : "freight requests"}` : "",
-  ].filter(Boolean);
-  // "a and b", "a, b and c".
-  const has = parts.length > 1 ? `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}` : parts.join("");
-
+export function poolGivenUpEmail(customers: { code: string | null; name: string; items: string; since: string }[]): Omit<EmailMessage, "to"> {
+  const n = customers.length;
+  const shown = customers.slice(0, 50);
   return render(
-    `Queue: nobody took on ${customerName}`,
+    n === 1 ? `Queue: nobody took on ${customers[0].name}` : `Queue: nobody took on ${n} customers`,
     [
-      { kind: "para", text: `${customerName} has been given up on by the rotation and needs somebody to look at them.` },
       {
         kind: "para",
-        text: `They asked about ${has || "nothing that is still on file"}, and were offered to the whole sales team ${passes} times over (${handoffs} handovers) since ${enteredAt} without anybody recording an outcome.`,
+        text: `${n === 1 ? "This customer was" : `These ${n} customers were`} in the open pool for a week without anybody taking them on or recording an outcome, and ${n === 1 ? "has" : "have"} been given up on.`,
       },
-      { kind: "para", text: "Nobody holds them now. Open Queue in the admin console to assign them to somebody, or to put them back into the rotation." },
+      { kind: "details", rows: shown.map((c) => [c.code ?? "No number yet", `${c.name} · ${c.items} · in the pool since ${c.since}`]) },
+      ...(n > shown.length ? [{ kind: "para" as const, text: `And ${n - shown.length} more.` }] : []),
+      { kind: "para", text: "Nobody holds them now. The Queue page in the admin console lists them under Given up on, and a new request from any of them puts them back in the pool for a new week." },
     ],
     `Sent to every administrator of the ${BRAND} console.`
   );
