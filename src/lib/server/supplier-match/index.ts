@@ -6,9 +6,10 @@ import { categoryPath } from "./categories";
 import { loadIndex, matchInquiry, resolveInquiryCategory, supplierDisplayName, type CategorySource, type MatchIndex, type Query } from "./match";
 
 /**
- * Supplier suggestions for one inquiry, for the admin console's inquiry panel only
- * (GET /api/admin/inquiries/[id]/supplier-matches). Supplier data never leaves through anything else: every file of
- * this folder is server-only, and nothing public imports it.
+ * Supplier suggestions for one inquiry, for the inquiry panel in the admin console
+ * (GET /api/admin/inquiries/[id]/supplier-matches) and in the staff workspace, for the reader's own leads
+ * (GET /api/employee/inquiries/[id]/supplier-matches). Supplier data never leaves through anything else: every file
+ * of this folder is server-only, and nothing but those two routes imports it.
  *
  * The suppliers and their terms are read once and kept in memory for ten minutes (the book changes only when
  * scripts/import_suppliers.mjs runs; invalidateSupplierMatchIndex() is for a future edit route). An inquiry then
@@ -71,11 +72,22 @@ export interface SupplierMatchesResponse {
   ms: number;
 }
 
-/** Up to ten suppliers for the inquiry (website or app), or null when there is no such inquiry. */
-export async function supplierMatchesFor(inquiryId: string): Promise<SupplierMatchesResponse | null> {
+/** Who is asking: an admin may see any inquiry, an employee only one assigned to them. */
+export type SupplierMatchViewer = { kind: "admin" } | { kind: "employee"; employeeId: string };
+
+/**
+ * Up to ten suppliers for the inquiry, or null when the viewer has no such inquiry. An admin's is any inquiry, website
+ * or app. An employee's must be a website inquiry assigned to them now and not deleted: the assignment is part of the
+ * lookup, read on every request, so one passed to somebody else, released to nobody, deleted or never theirs is not
+ * found, exactly as one that does not exist.
+ */
+export async function supplierMatchesFor(inquiryId: string, viewer: SupplierMatchViewer): Promise<SupplierMatchesResponse | null> {
+  const select = { id: true, productId: true, productName: true } as const;
   const inquiry =
-    (await prisma.inquiry.findUnique({ where: { id: inquiryId }, select: { id: true, productId: true, productName: true } })) ??
-    (await prisma.mobileInquiry.findUnique({ where: { id: inquiryId }, select: { id: true, productId: true, productName: true } }));
+    viewer.kind === "employee"
+      ? await prisma.inquiry.findFirst({ where: { id: inquiryId, assignedToId: viewer.employeeId, status: { not: "deleted" } }, select })
+      : ((await prisma.inquiry.findUnique({ where: { id: inquiryId }, select })) ??
+        (await prisma.mobileInquiry.findUnique({ where: { id: inquiryId }, select })));
   if (!inquiry) return null;
 
   const index = await currentIndex();
