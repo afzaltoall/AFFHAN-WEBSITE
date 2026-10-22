@@ -181,7 +181,7 @@ export function SupplierDirectory({ suppliers, initialQuery = "", initialProduct
     const query = q.trim().toLowerCase();
     const tokens = query.split(/\s+/).filter(Boolean);
     // Numbers are searched against a digits-only copy of the contact cell, so
-    // "13802226624" finds a supplier recorded as "+86 138 0222 6624".
+    // "10000000011" finds a supplier recorded as "+86 100 0000 0011".
     const digits = q.replace(/\D/g, "");
     const wanted = product.toLowerCase();
 

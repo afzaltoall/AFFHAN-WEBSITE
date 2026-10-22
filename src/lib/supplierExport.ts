@@ -8,7 +8,7 @@ import { supplierTitle } from "@/lib/suppliers";
  * This replaced a CSV, which could not carry column widths and — worse — had to
  * defend itself against Excel. A cell beginning "+" is read as a formula, so
  * every phone number in the file needed a leading apostrophe to survive, and
- * that apostrophe was then visible in the cell: "'+86 (0)20 2388 9722". An xlsx
+ * that apostrophe was then visible in the cell: "'+86 (0)20 1000 0008". An xlsx
  * has real cell types, so a phone number is simply declared text and arrives
  * exactly as it was written, with no escaping and no stray punctuation.
  *
