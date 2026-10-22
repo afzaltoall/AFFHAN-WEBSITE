@@ -128,6 +128,11 @@ public/static/images/map*.png
 # search box completes to, read from the catalogue's own product names. A
 # catalogue that has changed a lot is this script run again.
 !scripts/build_search_lexicon.mjs
+# The supplier suggestions' clean categories (src/lib/server/supplier-match/
+# clean-categories.json): the categories whose own products name them often
+# enough for the category alone to match a supplier. A catalogue that has
+# changed a lot is this script run again; it only reads.
+!scripts/build_clean_categories.mjs
 # The one-time reset that cleared what testing recorded against the live
 # database. Kept because it documents exactly what was removed and what was
 # deliberately left alone, and because its dry run is the safe way to ask the

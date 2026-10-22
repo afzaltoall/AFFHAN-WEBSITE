@@ -1,0 +1,1948 @@
+{
+  "rule": "at least half of the category's titles name it (a word of its name, with its parent's when the name is one word; English stemming)",
+  "threshold": 0.5,
+  "generatedAt": "2026-10-22",
+  "checked": 597,
+  "categories": [
+    {
+      "id": "A0D39205-3770-4F0B-91BD-65E711263577",
+      "path": "Accessories & Parts > Batteries",
+      "share": 0.74
+    },
+    {
+      "id": "6DB79FAF-593D-4F52-B6FF-AB1D14331862",
+      "path": "Accessories & Parts > Charger",
+      "share": 0.57
+    },
+    {
+      "id": "ECF5842F-2FE6-4DD7-8827-FAA8A1D3D199",
+      "path": "Accessories > Belts",
+      "share": 0.89
+    },
+    {
+      "id": "1E4A1FD7-738C-4AEF-9793-BDE062158BD6",
+      "path": "Accessories > Belts & Cummerbunds",
+      "share": 1
+    },
+    {
+      "id": "1374953557614268416",
+      "path": "Accessories > Face Masks",
+      "share": 0.95
+    },
+    {
+      "id": "44A3ADE0-A8EC-4101-A8DE-DF42F56EF3F1",
+      "path": "Accessories > Man Gloves & Mittens",
+      "share": 0.91
+    },
+    {
+      "id": "2410301013241608600",
+      "path": "Accessories > Men's Ties",
+      "share": 0.9
+    },
+    {
+      "id": "1C592A63-6E0F-4F25-9496-8BDD82BF4281",
+      "path": "Accessories > Socks",
+      "share": 0.88
+    },
+    {
+      "id": "7B2039D9-FF87-4514-954B-021289724271",
+      "path": "Accessories > Woman Gloves & Mittens",
+      "share": 0.86
+    },
+    {
+      "id": "F72DD534-E394-4958-B591-149C488648D7",
+      "path": "Accessories > Woman Hats & Caps",
+      "share": 0.85
+    },
+    {
+      "id": "96EBD53A-C941-445C-BBBD-C1D9F858E433",
+      "path": "Accessories > Woman Socks",
+      "share": 0.91
+    },
+    {
+      "id": "2409230854411618700",
+      "path": "Arts, Crafts & Sewing > Decor Paintings",
+      "share": 0.62
+    },
+    {
+      "id": "EEC881A3-0A55-4BBF-9ADB-EB290116A67A",
+      "path": "Arts, Crafts & Sewing > Diamond Painting Cross Stitch",
+      "share": 0.9
+    },
+    {
+      "id": "C8B7A95E-0E98-41F8-892B-35B5679713A6",
+      "path": "Auto Replacement Parts > Automobiles Sensors",
+      "share": 0.58
+    },
+    {
+      "id": "E987126C-FF3D-4BCF-B496-40990D39D2F8",
+      "path": "Auto Replacement Parts > Car Lights",
+      "share": 0.75
+    },
+    {
+      "id": "9F6B73A9-0E4F-4EE9-978F-69984CF3E300",
+      "path": "Auto Replacement Parts > Spark Plugs & Ignition System",
+      "share": 0.54
+    },
+    {
+      "id": "AE1E932F-7832-4CE8-9DFE-885044383863",
+      "path": "Automobiles & Motorcycles > Car Electronics",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-80",
+      "path": "Automobiles & Motorcycles > Car Repair Tools",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-79",
+      "path": "Automobiles & Motorcycles > Car Wash & Maintenance",
+      "share": 0.8
+    },
+    {
+      "id": "D82400A8-94A4-410C-9155-0DCD4115DEA4",
+      "path": "Automobiles & Motorcycles > Motorcycle Accessories & Parts",
+      "share": 0.67
+    },
+    {
+      "id": "77A1D79C-B67E-42C0-850F-00005042548C",
+      "path": "Baby & Mother > Baby Care",
+      "share": 0.65
+    },
+    {
+      "id": "8F8C7970-3965-4EB6-8E13-ED77EB686DBA",
+      "path": "Baby Clothing > Baby Accessories",
+      "share": 0.6
+    },
+    {
+      "id": "04D82B39-7CF8-4CA5-ABC9-279181DE7E26",
+      "path": "Baby Clothing > Baby Clothing Sets",
+      "share": 0.6
+    },
+    {
+      "id": "B34957D5-3AF6-4BE7-AC9F-72BAB8433CB6",
+      "path": "Baby Clothing > Baby Dresses",
+      "share": 0.77
+    },
+    {
+      "id": "B81FEFAC-C995-4665-8154-631E447F7236",
+      "path": "Baby Clothing > Baby Pants",
+      "share": 0.66
+    },
+    {
+      "id": "80304DEB-99FB-4E29-9065-A99F732702C4",
+      "path": "Baby Clothing > Baby Rompers",
+      "share": 0.77
+    },
+    {
+      "id": "2415A90C-5D7B-4CC7-BA8C-C0949F9FF5D8",
+      "path": "Bags & Shoes",
+      "share": 0.67
+    },
+    {
+      "id": "EPROLO-L2-1224",
+      "path": "Bags & Shoes > Boots & High Top",
+      "share": 0.65
+    },
+    {
+      "id": "EPROLO-L2-1215",
+      "path": "Bags & Shoes > Canvas Shoes",
+      "share": 1
+    },
+    {
+      "id": "FE8AD446-B2BF-4C8C-B90B-49A6F2B3FF6A",
+      "path": "Bags & Shoes > Men's Shoes",
+      "share": 0.97
+    },
+    {
+      "id": "EPROLO-L2-1218",
+      "path": "Bags & Shoes > Sports Shoes",
+      "share": 1
+    },
+    {
+      "id": "E93B19EF-4E2C-4526-B2DF-BBFB6F2A80A7",
+      "path": "Bags & Shoes > Women's Shoes",
+      "share": 0.82
+    },
+    {
+      "id": "6D086E0D-8C3F-4B99-BA44-140F3F7C444E",
+      "path": "Beauty Tools > Electric Face Cleanser",
+      "share": 0.5
+    },
+    {
+      "id": "2502140311201613700",
+      "path": "Beauty Tools > Mirrors",
+      "share": 0.99
+    },
+    {
+      "id": "2410110344551611100",
+      "path": "Bird Supplies > Bird Accessories",
+      "share": 1
+    },
+    {
+      "id": "2410110344031621500",
+      "path": "Bird Supplies > Bird Cages",
+      "share": 0.81
+    },
+    {
+      "id": "2410110343481625100",
+      "path": "Bird Supplies > Bird Feeders",
+      "share": 0.94
+    },
+    {
+      "id": "2410110344161629700",
+      "path": "Bird Supplies > Bird Swings",
+      "share": 0.72
+    },
+    {
+      "id": "2410110344291609800",
+      "path": "Bird Supplies > Bird Toys",
+      "share": 0.9
+    },
+    {
+      "id": "2410110344421608600",
+      "path": "Bird Supplies > Bird Travel Bags",
+      "share": 0.83
+    },
+    {
+      "id": "846D76D8-095D-4DD8-89DF-1E48D869F60C",
+      "path": "Bottoms > Cargo Pants",
+      "share": 0.55
+    },
+    {
+      "id": "C992BFAB-12A9-4C61-A1DA-6E09C926BB81",
+      "path": "Bottoms > Casual Pants",
+      "share": 0.72
+    },
+    {
+      "id": "B97A0CAD-6160-485B-A3FD-04EE4493A442",
+      "path": "Bottoms > Harem Pants",
+      "share": 0.66
+    },
+    {
+      "id": "911754C0-443D-4ECF-9083-DF04C907BD81",
+      "path": "Bottoms > Man Jeans",
+      "share": 0.69
+    },
+    {
+      "id": "7D830BF3-03DB-4EBB-8A50-ED5F1231E17A",
+      "path": "Bottoms > Man Shorts",
+      "share": 0.61
+    },
+    {
+      "id": "9694B484-7EA0-4D71-993B-9CF02D24B271",
+      "path": "Bottoms > Pants & Capris",
+      "share": 0.56
+    },
+    {
+      "id": "3B8946E7-B608-4DAB-B2F0-C425B7875035",
+      "path": "Bottoms > Skirts",
+      "share": 0.81
+    },
+    {
+      "id": "A7DE167B-ECFF-481E-A52A-2E7937BFAA95",
+      "path": "Bottoms > Wide Leg Pants",
+      "share": 0.78
+    },
+    {
+      "id": "63584B9B-5275-4268-8BEA-7D3C7A7BB925",
+      "path": "Bottoms > Woman Jeans",
+      "share": 0.63
+    },
+    {
+      "id": "C938C806-CB88-46AB-B782-89ECD0B25E25",
+      "path": "Boys Clothing > Boy Clothing Sets",
+      "share": 0.61
+    },
+    {
+      "id": "8DA1BB63-9FC2-4817-9271-3474CDBDDB30",
+      "path": "Boys Clothing > Boy T-Shirts",
+      "share": 0.78
+    },
+    {
+      "id": "AD21D6F7-42CB-44E7-89B2-542692C7D101",
+      "path": "Camera & Photo > Action Cameras",
+      "share": 0.79
+    },
+    {
+      "id": "DE5A9724-8B92-404F-B15E-1FCAD6594BAF",
+      "path": "Camera & Photo > Camcorders",
+      "share": 0.8
+    },
+    {
+      "id": "AA40156F-A334-475E-9CA0-7E5520645980",
+      "path": "Camera & Photo > Digital Cameras",
+      "share": 0.85
+    },
+    {
+      "id": "11D96803-A0A3-4175-B49B-2102EC285965",
+      "path": "Camera & Photo > Photo Studio",
+      "share": 0.77
+    },
+    {
+      "id": "B43C754E-838C-4028-99E7-D3D0E029C68C",
+      "path": "Car Electronics > Car Multimedia Player",
+      "share": 0.82
+    },
+    {
+      "id": "A3E67E41-8A5C-449F-8C22-739889760AAD",
+      "path": "Car Electronics > Car Radios",
+      "share": 0.88
+    },
+    {
+      "id": "B39B6F95-9C89-4D6C-9E98-1633DA6A51CF",
+      "path": "Car Electronics > GPS Trackers",
+      "share": 0.7
+    },
+    {
+      "id": "1EE2EA4E-87BC-4108-BBF3-0A98A4A1EF89",
+      "path": "Cases & Covers > Cases For iPhone 6 & 6 Plus",
+      "share": 0.84
+    },
+    {
+      "id": "496A6FD1-4D2C-4E96-93B3-1BEBF5D7DA34",
+      "path": "Cases & Covers > Cases For iPhone 7 & 7 Plus",
+      "share": 0.79
+    },
+    {
+      "id": "7FD2D2BD-852D-4028-870E-AEB73594A95E",
+      "path": "Cases & Covers > Cases For iPhone 8 & 8 Plus",
+      "share": 0.86
+    },
+    {
+      "id": "DD47EFC1-E65E-469A-94DA-658707A124B3",
+      "path": "Cases & Covers > Flip Cases",
+      "share": 0.8
+    },
+    {
+      "id": "7CB75550-C920-47A8-8A65-27C34ED1C05E",
+      "path": "Cases & Covers > Galaxy S7 Cases",
+      "share": 0.76
+    },
+    {
+      "id": "4E8B1C9C-3126-4115-A5CA-357A8C164AD2",
+      "path": "Cases & Covers > Galaxy S8 Cases",
+      "share": 0.76
+    },
+    {
+      "id": "0480D511-C923-4F7A-90F2-435F439DFE00",
+      "path": "Cases & Covers > Huawei Cases",
+      "share": 0.77
+    },
+    {
+      "id": "65AC23D3-BA63-438B-B8FE-71E117D717AF",
+      "path": "Cases & Covers > IPhone X Cases",
+      "share": 0.81
+    },
+    {
+      "id": "F77E8C4C-649A-4553-BD44-7604FADBB0BD",
+      "path": "Cases & Covers > Leather Cases",
+      "share": 0.83
+    },
+    {
+      "id": "0B52E7DF-CBBD-4C4C-A43D-46B53056313C",
+      "path": "Cases & Covers > Patterned Cases",
+      "share": 0.83
+    },
+    {
+      "id": "C19F0351-2A98-43FF-BEA2-952BA6F75997",
+      "path": "Cases & Covers > Silicone Cases",
+      "share": 0.89
+    },
+    {
+      "id": "2CF32BF2-246D-4EC7-A060-6835C7EFD4AD",
+      "path": "Cases & Covers > Wallet Cases",
+      "share": 0.59
+    },
+    {
+      "id": "E6C70353-4E58-4253-A840-3760667A9BE4",
+      "path": "Cases & Covers > Waterproof Cases",
+      "share": 0.84
+    },
+    {
+      "id": "948E69C1-D825-4797-B7F9-8D4FC69A20DA",
+      "path": "Cases & Covers > Xiaomi Cases",
+      "share": 0.53
+    },
+    {
+      "id": "EPROLO-L2-130",
+      "path": "Consumer Electronics >  Power Source ",
+      "share": 0.6
+    },
+    {
+      "id": "85E0D3B7-C3C4-4F1B-98A6-958389A1BEBE",
+      "path": "Consumer Electronics > Camera & Photo",
+      "share": 0.5
+    },
+    {
+      "id": "2502190916401605200",
+      "path": "Couple&Parent-Child Clothing > Couple&Parent -Child Jackets",
+      "share": 0.67
+    },
+    {
+      "id": "2502190917241609600",
+      "path": "Couple&Parent-Child Clothing > Couple&Parent-Child Pants",
+      "share": 0.6
+    },
+    {
+      "id": "2502190916291603600",
+      "path": "Couple&Parent-Child Clothing > Couple&Parent-Child Short-Sleeves",
+      "share": 0.81
+    },
+    {
+      "id": "2502190917131623500",
+      "path": "Couple&Parent-Child Clothing > Couple&Parent-Child Suits",
+      "share": 0.8
+    },
+    {
+      "id": "2502190916161603800",
+      "path": "Couple&Parent-Child Clothing > Couple&Parent-Child Sweatshirts·",
+      "share": 0.52
+    },
+    {
+      "id": "A0A24BC7-F4F4-4090-9D83-6ECA1F4A78FD",
+      "path": "Cycling > Bicycle Frames",
+      "share": 0.53
+    },
+    {
+      "id": "3D0169CF-0F24-4EEA-948E-E48C3980862E",
+      "path": "Cycling > Bicycle Helmets",
+      "share": 0.93
+    },
+    {
+      "id": "161FA128-487C-4451-8B49-CB81B5A30A54",
+      "path": "Cycling > Bicycle Lights",
+      "share": 0.83
+    },
+    {
+      "id": "FF18DE9F-3D6A-48A0-A246-EF5B1D0D4E0E",
+      "path": "Cycling > Bicycles",
+      "share": 0.52
+    },
+    {
+      "id": "2502140309251616200",
+      "path": "Cycling > Cycling Gloves",
+      "share": 0.93
+    },
+    {
+      "id": "BE08AC4E-D953-413F-93FC-452F635E73EC",
+      "path": "Cycling > Cycling Jerseys",
+      "share": 0.73
+    },
+    {
+      "id": "2410301013021610400",
+      "path": "Cycling > Scooters",
+      "share": 0.71
+    },
+    {
+      "id": "ED8B5070-DA72-451A-A0BF-DBE65FDA465E",
+      "path": "Exterior Accessories > Car Covers",
+      "share": 0.79
+    },
+    {
+      "id": "255A489E-8518-4E31-AC84-A2E8EB645C78",
+      "path": "Exterior Accessories > Car Stickers",
+      "share": 0.85
+    },
+    {
+      "id": "EPROLO-L2-COSTUMES",
+      "path": "Fashion & Clothing > Costumes & Cosplay",
+      "share": 0.88
+    },
+    {
+      "id": "EPROLO-L2-155",
+      "path": "Fashion & Clothing > Jackets & Coats",
+      "share": 0.85
+    },
+    {
+      "id": "EPROLO-L2-159",
+      "path": "Fashion & Clothing > Socks & Leggings",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-158",
+      "path": "Fashion & Clothing > Suits & Sets",
+      "share": 0.85
+    },
+    {
+      "id": "EPROLO-L2-104",
+      "path": "Fashion & Clothing > Unisex Dresses",
+      "share": 0.79
+    },
+    {
+      "id": "EPROLO-L2-106",
+      "path": "Fashion & Clothing > Unisex Hoodies & Sweatshirts",
+      "share": 0.59
+    },
+    {
+      "id": "EPROLO-L2-108",
+      "path": "Fashion & Clothing > Unisex Jeans",
+      "share": 0.55
+    },
+    {
+      "id": "EPROLO-L2-37",
+      "path": "Fashion & Clothing > Unisex T-Shirts",
+      "share": 0.76
+    },
+    {
+      "id": "2601070548141611900",
+      "path": "Fashion Jewelry > Anklets",
+      "share": 0.83
+    },
+    {
+      "id": "0615F8DB-C10F-4BEF-892B-1C5B04268938",
+      "path": "Fashion Jewelry > Bracelets & Bangles",
+      "share": 0.9
+    },
+    {
+      "id": "1363024200339689472",
+      "path": "Fashion Jewelry > Brooches",
+      "share": 0.86
+    },
+    {
+      "id": "D28405AE-66C6-42E6-BFF0-D6FDCB5C083C",
+      "path": "Fashion Jewelry > Earrings",
+      "share": 0.9
+    },
+    {
+      "id": "1363289906151034880",
+      "path": "Fashion Jewelry > Keychains",
+      "share": 0.67
+    },
+    {
+      "id": "B5525066-3504-4E5C-962F-9C2D8C38F66D",
+      "path": "Fashion Jewelry > Men's Cuff Links",
+      "share": 0.54
+    },
+    {
+      "id": "95D9F317-1DB3-4E42-A031-02223215B9C5",
+      "path": "Fashion Jewelry > Necklace & Pendants",
+      "share": 0.88
+    },
+    {
+      "id": "2601070547231620800",
+      "path": "Fashion Jewelry > Pocket Watches",
+      "share": 1
+    },
+    {
+      "id": "56B4F8B6-8600-4A18-913E-53F2F693EC2C",
+      "path": "Fashion Jewelry > Rings",
+      "share": 0.97
+    },
+    {
+      "id": "779524FE-7E6E-4948-A739-999E07602BE5",
+      "path": "Festive & Party Supplies > Cake Decorating Supplies",
+      "share": 0.67
+    },
+    {
+      "id": "621F9C38-814C-40C2-9F9D-7CE12DB8FB4C",
+      "path": "Festive & Party Supplies > Christmas Decoration Supplies",
+      "share": 0.87
+    },
+    {
+      "id": "768DE38B-3FCB-4DD1-B14C-687F03F78D0A",
+      "path": "Festive & Party Supplies > Invitation Cards",
+      "share": 0.82
+    },
+    {
+      "id": "9F52617D-F420-4FA7-8F25-53A9577A9111",
+      "path": "Festive & Party Supplies > Party Masks",
+      "share": 0.78
+    },
+    {
+      "id": "552F095A-904C-40E4-A43B-0CD1CE15D29F",
+      "path": "Fine Jewelry > 925 Silver Jewelry",
+      "share": 0.95
+    },
+    {
+      "id": "D7CE9827-F50A-4B07-84BF-1BFE44188A1C",
+      "path": "Fine Jewelry > Fine Earrings",
+      "share": 0.81
+    },
+    {
+      "id": "E8B256EF-44F0-4FA0-847B-F104FD29E101",
+      "path": "Fine Jewelry > Fine Jewelry Sets",
+      "share": 0.56
+    },
+    {
+      "id": "E403FB8A-B59A-4A81-B776-EBF3343FE3E3",
+      "path": "Fine Jewelry > Men's Fine Jewelry",
+      "share": 0.54
+    },
+    {
+      "id": "84ED4B7F-D7C3-412F-AF18-04F25C91985C",
+      "path": "Fine Jewelry > Pearls Jewelry",
+      "share": 0.64
+    },
+    {
+      "id": "2410110347591607300",
+      "path": "Fish & Aquatic Pets > Fish Tank Cleaning Supplies",
+      "share": 0.77
+    },
+    {
+      "id": "2410110345231624700",
+      "path": "Fish & Aquatic Pets > Fish Tank Decorations",
+      "share": 0.78
+    },
+    {
+      "id": "2410110345121610800",
+      "path": "Fish & Aquatic Pets > Fish Tanks",
+      "share": 0.76
+    },
+    {
+      "id": "E2019E0B-EDC1-4B90-8C65-EE6A87AF7E73",
+      "path": "Fishing > Fishing Lines",
+      "share": 0.77
+    },
+    {
+      "id": "9704D88F-46A0-49F6-98C4-929AE91941F5",
+      "path": "Fishing > Fishing Lures",
+      "share": 0.68
+    },
+    {
+      "id": "11E0FCD6-AD17-4F72-B5FF-8F8C79F85CE5",
+      "path": "Fishing > Fishing Reels",
+      "share": 0.83
+    },
+    {
+      "id": "B27D0790-81A0-484A-9D92-0AFBA04FDA31",
+      "path": "Fishing > Fishing Rods",
+      "share": 0.87
+    },
+    {
+      "id": "37C76B77-3E08-456A-B184-4516E7D6EE81",
+      "path": "Fishing > Fishing Tackle Boxes",
+      "share": 0.84
+    },
+    {
+      "id": "EPROLO-L2-1237",
+      "path": "Fully Printing  Hat > Visor Hat & Snapback Cap",
+      "share": 1
+    },
+    {
+      "id": "713CBA54-B38E-4C86-9323-1252113E437F",
+      "path": "Girls Clothing > Girl Clothing Sets",
+      "share": 0.6
+    },
+    {
+      "id": "C421D769-76CC-4515-909E-4E7167EE6ABE",
+      "path": "Girls Clothing > Girl Dresses",
+      "share": 0.83
+    },
+    {
+      "id": "2601070549181635500",
+      "path": "Girls Clothing > Girls' Pants",
+      "share": 0.81
+    },
+    {
+      "id": "2502140903111619100",
+      "path": "Hair & Accessories > Headband & Hair Band & Hairpin",
+      "share": 0.75
+    },
+    {
+      "id": "B3D7C9CA-9B1E-4E97-8310-39083F0308C9",
+      "path": "Hair & Accessories > Human Hair",
+      "share": 0.59
+    },
+    {
+      "id": "57DCC498-DF74-4E8F-929F-F4DF256AA72D",
+      "path": "Hair Weaves > Hair Weaving",
+      "share": 0.56
+    },
+    {
+      "id": "D7EF49F5-F75D-45DC-A0BB-CFCFF4346E18",
+      "path": "Hair Weaves > Pre-Colored Hair Weave",
+      "share": 0.69
+    },
+    {
+      "id": "C6368BAF-38E8-4741-86F3-66878F069841",
+      "path": "Hair Weaves > Salon Bundle Hair",
+      "share": 0.62
+    },
+    {
+      "id": "0203EC28-49AF-49E4-B899-333C0A235BD4",
+      "path": "Hats & Caps > Baseball Caps",
+      "share": 0.67
+    },
+    {
+      "id": "3F464061-C4C7-43FE-A3FE-84AD92838E56",
+      "path": "Hats & Caps > Berets",
+      "share": 0.96
+    },
+    {
+      "id": "243C5278-C220-4110-B2AF-129118F09171",
+      "path": "Hats & Caps > Bomber Hats",
+      "share": 0.76
+    },
+    {
+      "id": "EB891BA4-6F5C-4625-B76A-49504556B127",
+      "path": "Hats & Caps > Fedoras",
+      "share": 0.88
+    },
+    {
+      "id": "EPROLO-L2-89",
+      "path": "Health, Beauty & Hair > Fragrances & Deodorants",
+      "share": 0.5
+    },
+    {
+      "id": "EPROLO-L2-86",
+      "path": "Health, Beauty & Hair > Hair Care & Styling",
+      "share": 0.91
+    },
+    {
+      "id": "EPROLO-L2-91",
+      "path": "Health, Beauty & Hair > Shaving & Hair Removal",
+      "share": 0.75
+    },
+    {
+      "id": "6289460B-5660-468A-AE43-3D619A05AAC2",
+      "path": "Health, Beauty & Hair > Skin Care",
+      "share": 0.81
+    },
+    {
+      "id": "0AC6B44A-12CC-456F-831F-54064C77D303",
+      "path": "Home Audio & Video > Projectors",
+      "share": 0.77
+    },
+    {
+      "id": "D8515A8C-ECAC-422B-9963-14D7B07E10DB",
+      "path": "Home Audio & Video > TV Sticks",
+      "share": 0.5
+    },
+    {
+      "id": "EPROLO-L2-140",
+      "path": "Home Improvement >  Home Decor",
+      "share": 0.63
+    },
+    {
+      "id": "EPROLO-L2-117",
+      "path": "Home Improvement > Cleaning Tools",
+      "share": 0.63
+    },
+    {
+      "id": "EPROLO-L2-1214",
+      "path": "Home Improvement > Clothes for pets",
+      "share": 0.86
+    },
+    {
+      "id": "EPROLO-L2-144",
+      "path": "Home Improvement > Home Storage & Organization",
+      "share": 0.6
+    },
+    {
+      "id": "EPROLO-L2-109",
+      "path": "Home Improvement > Lights & Lighting",
+      "share": 0.63
+    },
+    {
+      "id": "EPROLO-L2-128",
+      "path": "Home Improvement > Pet Products ",
+      "share": 0.84
+    },
+    {
+      "id": "2502140315331600200",
+      "path": "Home Storage > Storage Bags & Cases & Boxes",
+      "share": 0.8
+    },
+    {
+      "id": "1A9A9965-A914-46D7-B8E2-49AD256F2B6B",
+      "path": "Home Textiles > Curtains",
+      "share": 0.53
+    },
+    {
+      "id": "300CC260-CF9D-4AEA-9FC2-6C8DB8A35B51",
+      "path": "Home Textiles > Cushion Covers",
+      "share": 0.56
+    },
+    {
+      "id": "2601070550351602500",
+      "path": "Home Textiles > Floor Mats",
+      "share": 0.67
+    },
+    {
+      "id": "6939DA08-F7F8-48FB-A7E8-169AEAC92404",
+      "path": "Home Textiles > Pillows",
+      "share": 0.77
+    },
+    {
+      "id": "331F43CE-CA1D-45F2-BE2A-8AE62EC10251",
+      "path": "Home Textiles > Towels",
+      "share": 0.81
+    },
+    {
+      "id": "EPROLO-L2-1258",
+      "path": "Home, Garden & Furniture > Cup",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-1188",
+      "path": "Home, Garden & Furniture > Outdoor",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-1171",
+      "path": "Home, Garden & Furniture > Wall Deco",
+      "share": 1
+    },
+    {
+      "id": "D6A70719-5E93-40E6-AE8B-A060D667A17B",
+      "path": "Indoor Lighting > Ceiling Lights",
+      "share": 0.55
+    },
+    {
+      "id": "02795B1D-0E81-4201-B6D5-19A2605DEC10",
+      "path": "Indoor Lighting > Chandeliers",
+      "share": 0.81
+    },
+    {
+      "id": "538CB48E-B7A0-46F7-B5A2-BB8183247B23",
+      "path": "Indoor Lighting > Night Lights",
+      "share": 0.55
+    },
+    {
+      "id": "AC4A8F93-27FF-4531-8394-53E97F02159D",
+      "path": "Indoor Lighting > Wall Lamps",
+      "share": 0.78
+    },
+    {
+      "id": "808A409E-8E16-43A8-879A-153672135DB9",
+      "path": "Interior Accessories > Automobiles Seat Covers",
+      "share": 0.61
+    },
+    {
+      "id": "2601070551311618400",
+      "path": "Interior Accessories > Car Aromatherapy",
+      "share": 0.68
+    },
+    {
+      "id": "2601070551481626500",
+      "path": "Interior Accessories > Car Perfume",
+      "share": 0.63
+    },
+    {
+      "id": "090E48F4-B406-438B-9EBF-D52450AC370A",
+      "path": "Interior Accessories > Floor Mats",
+      "share": 0.57
+    },
+    {
+      "id": "309854A6-BDC2-4F52-80D8-93E5109B3A53",
+      "path": "Interior Accessories > Key Case for Car",
+      "share": 0.83
+    },
+    {
+      "id": "5559DD57-7F12-44BC-9C29-9E9BD1CDB029",
+      "path": "Interior Accessories > Steering Covers",
+      "share": 0.89
+    },
+    {
+      "id": "EPROLO-L2-131",
+      "path": "Jewelry & Watches > Beads & DIY Jewelry",
+      "share": 0.82
+    },
+    {
+      "id": "EPROLO-L2-49",
+      "path": "Jewelry & Watches > Watches",
+      "share": 0.95
+    },
+    {
+      "id": "EPROLO-L2-138",
+      "path": "Jewelry & Watches > Wedding & Engagement",
+      "share": 0.5
+    },
+    {
+      "id": "25E64DFD-1ED3-4171-86CD-0C2F40052F3B",
+      "path": "Laptop & Tablets > 2 in 1 Tablets",
+      "share": 0.5
+    },
+    {
+      "id": "1E9A3E86-7E5A-439E-9B33-CBD495421F0B",
+      "path": "Laptop & Tablets > Phone Call Tablets",
+      "share": 0.5
+    },
+    {
+      "id": "D190FBF9-A352-48BD-9F4B-B6AB432988E5",
+      "path": "Laptop & Tablets > Tablets",
+      "share": 0.67
+    },
+    {
+      "id": "2502140902411611700",
+      "path": "Makeup > Eyebrow Pencil",
+      "share": 0.63
+    },
+    {
+      "id": "E31E5996-7B86-4FEC-B929-9AEB11E76853",
+      "path": "Makeup > False Eyelashes",
+      "share": 0.82
+    },
+    {
+      "id": "B68DF53F-4DD5-4659-A530-66D414CF2147",
+      "path": "Makeup > Lipstick",
+      "share": 0.51
+    },
+    {
+      "id": "A30E8F55-DC2C-4842-9372-91B96DEFDCC2",
+      "path": "Makeup > Makeup Brushes",
+      "share": 0.81
+    },
+    {
+      "id": "C118B8EA-D1AF-4C66-AA8A-FCCC28B8C073",
+      "path": "Men's Clothing > T-Shirts",
+      "share": 0.85
+    },
+    {
+      "id": "9F5FDE97-3BE8-4EBE-A8EA-48723A307E37",
+      "path": "Men's Luggage & Bags > Briefcases",
+      "share": 0.89
+    },
+    {
+      "id": "EA292A58-E696-428B-8BEB-DE105690DDB3",
+      "path": "Men's Luggage & Bags > Crossbody Bags",
+      "share": 0.89
+    },
+    {
+      "id": "C50C5B6E-1517-4CBE-97FE-ECC923C83D35",
+      "path": "Men's Luggage & Bags > Girls Bags",
+      "share": 0.51
+    },
+    {
+      "id": "E89AC661-0B9E-4967-A0A3-7B0C6DEDDC7D",
+      "path": "Men's Luggage & Bags > Luggage & Travel Bags",
+      "share": 0.81
+    },
+    {
+      "id": "F3F4B418-17DF-49A1-AD76-A436B7618FFC",
+      "path": "Men's Luggage & Bags > Man Wallets",
+      "share": 0.6
+    },
+    {
+      "id": "CDCCB9B1-D5DD-4C20-AF32-101FE427B63C",
+      "path": "Men's Luggage & Bags > Men's Backpacks",
+      "share": 0.76
+    },
+    {
+      "id": "B701FAC3-80F0-43B1-9EA5-2C05C55F582A",
+      "path": "Men's Luggage & Bags > Waist Bags",
+      "share": 0.82
+    },
+    {
+      "id": "F419006D-AE55-4691-93FC-52FEBB459DBA",
+      "path": "Men's Shoes > Casual Shoes",
+      "share": 0.88
+    },
+    {
+      "id": "11C9DE73-0438-40E2-80B8-72697795C9F2",
+      "path": "Men's Shoes > Formal Shoes",
+      "share": 0.89
+    },
+    {
+      "id": "0F0296D6-F057-4FD4-9E06-95D5DBCCE6EB",
+      "path": "Men's Shoes > Man Boots",
+      "share": 0.77
+    },
+    {
+      "id": "D0E37ED0-65C8-43E3-8B84-C973040DCE9C",
+      "path": "Men's Shoes > Man Sandals",
+      "share": 0.6
+    },
+    {
+      "id": "312428E8-5075-4F74-A317-8EB051C0C068",
+      "path": "Men's Shoes > Man Slippers",
+      "share": 0.66
+    },
+    {
+      "id": "2502190401401619600",
+      "path": "Men's Shoes > Men's Insoles",
+      "share": 0.96
+    },
+    {
+      "id": "B8640E7B-F07D-4C0F-A5CF-8ACC533DA86F",
+      "path": "Men's Shoes > Vulcanize Shoe",
+      "share": 0.81
+    },
+    {
+      "id": "3D882765-B20E-4EFD-BFCC-136942A83C4C",
+      "path": "Men's Watches > Digital Watches",
+      "share": 0.81
+    },
+    {
+      "id": "76B0FCF7-2571-4B64-AE23-82D6A15C4C19",
+      "path": "Men's Watches > Dual Display Watches",
+      "share": 0.81
+    },
+    {
+      "id": "369EB061-A5CD-4F1F-A105-6DAB1D520F49",
+      "path": "Men's Watches > Mechanical Watches",
+      "share": 0.97
+    },
+    {
+      "id": "BF68CA3E-F698-475E-A1AD-C8E4C44D7C8D",
+      "path": "Men's Watches > Men Sports Watches",
+      "share": 0.85
+    },
+    {
+      "id": "1987B0AD-8C6A-4D02-B5B2-5D94E83B069F",
+      "path": "Men's Watches > Quartz Watches",
+      "share": 0.96
+    },
+    {
+      "id": "00134C46-B7DF-4500-A3D9-ABB7B779EFD0",
+      "path": "Mobile Phone Accessories > Cables",
+      "share": 0.72
+    },
+    {
+      "id": "B200FABB-A76B-4750-9957-FEA3DCB21F1F",
+      "path": "Mobile Phone Accessories > Chargers",
+      "share": 0.73
+    },
+    {
+      "id": "82643737-E055-4FDF-AD69-4E2C3FB6970B",
+      "path": "Mobile Phone Accessories > Lenses",
+      "share": 0.54
+    },
+    {
+      "id": "491E5474-524C-4666-BDD7-4E35E38900EA",
+      "path": "Mobile Phone Accessories > Power Bank",
+      "share": 0.82
+    },
+    {
+      "id": "5FE5E389-0B85-4592-A08D-B4AD79B164D4",
+      "path": "Mobile Phone Parts > Flex Cables",
+      "share": 0.61
+    },
+    {
+      "id": "3F222BC3-4864-487B-8E89-CE516D55638B",
+      "path": "Mobile Phone Parts > Housings",
+      "share": 0.7
+    },
+    {
+      "id": "14CC2DBB-21D3-4D3B-A263-75BF069ED074",
+      "path": "Mobile Phone Parts > SIM Card & Tools",
+      "share": 0.55
+    },
+    {
+      "id": "45EA5F91-6654-48C5-8D3A-0E5E97156F16",
+      "path": "Motorcycle Accessories & Parts > Exhaust & Exhaust Systems",
+      "share": 0.58
+    },
+    {
+      "id": "683FC820-3B12-4F92-A250-FF213D8D3899",
+      "path": "Motorcycle Accessories & Parts > Helmet Headset",
+      "share": 0.85
+    },
+    {
+      "id": "11B12208-A434-467B-8AD3-DC65E32EC2E5",
+      "path": "Motorcycle Accessories & Parts > Lighting",
+      "share": 0.84
+    },
+    {
+      "id": "4FB5AA23-AA52-4928-A653-616ED3347074",
+      "path": "Motorcycle Accessories & Parts > Motorcycle Seat Covers",
+      "share": 0.73
+    },
+    {
+      "id": "628E44C8-73BF-4D4C-87C9-0B4F9A60D0C3",
+      "path": "Motorcycle Accessories & Parts > Other Motorcycle Accessories",
+      "share": 0.58
+    },
+    {
+      "id": "2502140306571605000",
+      "path": "Musical Instruments > Guitars",
+      "share": 0.59
+    },
+    {
+      "id": "2603180848241600400",
+      "path": "Musical Instruments > Steel Tongue Drum",
+      "share": 0.89
+    },
+    {
+      "id": "EADB666A-12A5-4FA1-AD1F-BC351A7E7AF5",
+      "path": "Nail Art & Tools > Nail Art Kits",
+      "share": 0.76
+    },
+    {
+      "id": "26F7660F-A00A-468A-BA29-E61A465C0D0B",
+      "path": "Nail Art & Tools > Nail Decorations",
+      "share": 0.81
+    },
+    {
+      "id": "E157D35B-156B-49F6-A678-7C55D4E81D6C",
+      "path": "Nail Art & Tools > Nail Dryers",
+      "share": 0.81
+    },
+    {
+      "id": "9F96CE84-962D-4992-81DC-BF79A4A9002D",
+      "path": "Nail Art & Tools > Nail Gel",
+      "share": 0.82
+    },
+    {
+      "id": "1B1A9B82-1833-4721-88CA-86F5F542D7A5",
+      "path": "Nail Art & Tools > Nail Glitters",
+      "share": 0.74
+    },
+    {
+      "id": "4F7EE88B-4209-42E8-A501-5F634B58BB35",
+      "path": "Networking > Modem-Router Combos",
+      "share": 0.5
+    },
+    {
+      "id": "C019C59C-C274-44F9-B04B-5520F1EBE5FA",
+      "path": "Networking > Network Cards",
+      "share": 0.67
+    },
+    {
+      "id": "76CD1BD4-2A0A-4D72-913C-6DAADD7E9EDB",
+      "path": "Networking > Wireless Routers",
+      "share": 0.76
+    },
+    {
+      "id": "C7365895-913A-4078-9946-681EFD45D2B8",
+      "path": "Office Electronics > 3D Printers",
+      "share": 1
+    },
+    {
+      "id": "874B7C94-D225-43FE-AB79-FFAF1B800651",
+      "path": "Office Electronics > Printer Supplies",
+      "share": 0.53
+    },
+    {
+      "id": "E33443F7-144C-4CBE-8D34-C1B6256A6325",
+      "path": "Office Electronics > Printers",
+      "share": 0.89
+    },
+    {
+      "id": "FD5E95E1-C8DC-4CBD-A203-8BCF3BA951B9",
+      "path": "Other Sports Equipment > Golf",
+      "share": 0.62
+    },
+    {
+      "id": "7E431502-1275-4FF3-A236-B97C107C3AFA",
+      "path": "Outdoor Lighting > Flashlights & Torches",
+      "share": 0.76
+    },
+    {
+      "id": "A33B0665-E26F-4870-B2B3-B13B4C36EE66",
+      "path": "Outdoor Lighting > Floodlights",
+      "share": 0.77
+    },
+    {
+      "id": "F9749558-9C47-4612-9411-88FF301DB7AD",
+      "path": "Outdoor Lighting > Solar Lamps",
+      "share": 0.89
+    },
+    {
+      "id": "EDB5F43E-EAC0-489A-8355-5188EAB72D08",
+      "path": "Outdoor Lighting > String Lights",
+      "share": 0.84
+    },
+    {
+      "id": "E6271C99-8F7B-457D-AE11-3950081DD093",
+      "path": "Outdoor Lighting > Underwater Lights",
+      "share": 0.7
+    },
+    {
+      "id": "F7CF2C2C-A7F5-488B-B457-646028917DF2",
+      "path": "Outerwear & Jackets > Down Jackets",
+      "share": 0.63
+    },
+    {
+      "id": "1ED06BF8-F5D4-45E5-A95F-D7FC278C7EF3",
+      "path": "Outerwear & Jackets > Genuine Leather",
+      "share": 0.52
+    },
+    {
+      "id": "D680731F-1AE8-46E4-9BE7-E98C39F07E1E",
+      "path": "Outerwear & Jackets > Leather & Suede",
+      "share": 0.58
+    },
+    {
+      "id": "2409230540351618000",
+      "path": "Outerwear & Jackets > Men's Jackets",
+      "share": 0.9
+    },
+    {
+      "id": "2409230540121629100",
+      "path": "Outerwear & Jackets > Men's Shirts",
+      "share": 0.92
+    },
+    {
+      "id": "2502140305411618900",
+      "path": "Outerwear & Jackets > Men's Suits",
+      "share": 0.82
+    },
+    {
+      "id": "1357252400104214528",
+      "path": "Outerwear & Jackets > Men's Sweaters",
+      "share": 0.91
+    },
+    {
+      "id": "E6E0E866-DB80-4EC9-9557-578320427C34",
+      "path": "Outerwear & Jackets > Parkas",
+      "share": 0.59
+    },
+    {
+      "id": "2409230541081607100",
+      "path": "Outerwear & Jackets > Women's Padded Jackets",
+      "share": 0.86
+    },
+    {
+      "id": "2410110351121613900",
+      "path": "Pet Apparels > Pet Bags",
+      "share": 1
+    },
+    {
+      "id": "2410110350161600700",
+      "path": "Pet Apparels > Pet Clothing Sets",
+      "share": 0.73
+    },
+    {
+      "id": "2410110349471606300",
+      "path": "Pet Apparels > Pet Clothings",
+      "share": 0.83
+    },
+    {
+      "id": "2410110349061619800",
+      "path": "Pet Apparels > Pet Coats & Jackets",
+      "share": 0.84
+    },
+    {
+      "id": "2410110350311612500",
+      "path": "Pet Apparels > Pet Down & Parkas",
+      "share": 0.63
+    },
+    {
+      "id": "2410110348131619300",
+      "path": "Pet Apparels > Pet Dresses",
+      "share": 0.82
+    },
+    {
+      "id": "2410110350021615300",
+      "path": "Pet Apparels > Pet Functional Clothings",
+      "share": 0.65
+    },
+    {
+      "id": "2410110349201623700",
+      "path": "Pet Apparels > Pet Jumpsuits",
+      "share": 0.72
+    },
+    {
+      "id": "2410110349341618600",
+      "path": "Pet Apparels > Pet Pajamas",
+      "share": 0.77
+    },
+    {
+      "id": "2410110350591620800",
+      "path": "Pet Apparels > Pet Scarves",
+      "share": 0.72
+    },
+    {
+      "id": "2410110350451606900",
+      "path": "Pet Apparels > Pet Shoes & Socks",
+      "share": 0.91
+    },
+    {
+      "id": "2410110348401611500",
+      "path": "Pet Apparels > Pet Sweaters",
+      "share": 0.91
+    },
+    {
+      "id": "2410110348531624100",
+      "path": "Pet Apparels > Pet Sweatshirts & Hoodies",
+      "share": 0.67
+    },
+    {
+      "id": "2410110348271614500",
+      "path": "Pet Apparels > Pet Tops",
+      "share": 0.62
+    },
+    {
+      "id": "2410110358051626100",
+      "path": "Pet Bedding > Pet Beds",
+      "share": 0.88
+    },
+    {
+      "id": "2410110358191601900",
+      "path": "Pet Bedding > Pet Blankets & Quilts",
+      "share": 0.72
+    },
+    {
+      "id": "2410110357391611900",
+      "path": "Pet Bedding > Pet Mats",
+      "share": 0.8
+    },
+    {
+      "id": "2410110357511615700",
+      "path": "Pet Bedding > Pet Nests",
+      "share": 0.67
+    },
+    {
+      "id": "2410110354301620700",
+      "path": "Pet Collars, Harnesses & Accessories > Custom Pet tags, Collars, Leashes & Harnesses",
+      "share": 0.92
+    },
+    {
+      "id": "2410110351401621300",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Bows & Ties",
+      "share": 0.87
+    },
+    {
+      "id": "2410110353301600600",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Collar, Leash & Harness Sets",
+      "share": 1
+    },
+    {
+      "id": "2410110352331629800",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Collars",
+      "share": 0.9
+    },
+    {
+      "id": "2410110352191611200",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Glasses",
+      "share": 0.82
+    },
+    {
+      "id": "2410110351231616600",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Hair Accessories",
+      "share": 0.84
+    },
+    {
+      "id": "2410110352591600400",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Harnesses",
+      "share": 0.56
+    },
+    {
+      "id": "2410110352051607900",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Headwears",
+      "share": 0.72
+    },
+    {
+      "id": "2410110352471611400",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Leashes",
+      "share": 0.73
+    },
+    {
+      "id": "2410110353131601000",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Muzzles",
+      "share": 0.69
+    },
+    {
+      "id": "2410110351521627800",
+      "path": "Pet Collars, Harnesses & Accessories > Pet Necklaces",
+      "share": 0.74
+    },
+    {
+      "id": "2410110341061612000",
+      "path": "Pet Drinking & Feeding > Pet Bowls",
+      "share": 0.94
+    },
+    {
+      "id": "2410110341331606800",
+      "path": "Pet Drinking & Feeding > Pet Drinking Tools",
+      "share": 0.76
+    },
+    {
+      "id": "2410110341451628800",
+      "path": "Pet Drinking & Feeding > Pet Feeding Tools",
+      "share": 0.67
+    },
+    {
+      "id": "2410110355491614000",
+      "path": "Pet Furnitures > Cat Scratching Posts",
+      "share": 0.94
+    },
+    {
+      "id": "2410110356161627200",
+      "path": "Pet Furnitures > Cat Trees & Condos",
+      "share": 0.93
+    },
+    {
+      "id": "2410110356561607500",
+      "path": "Pet Furnitures > Dog Stairs & Steps",
+      "share": 0.82
+    },
+    {
+      "id": "2410110357221629500",
+      "path": "Pet Furnitures > Pet Hammocks",
+      "share": 0.81
+    },
+    {
+      "id": "2410110356441603600",
+      "path": "Pet Furnitures > Pet Houses & Cages",
+      "share": 0.64
+    },
+    {
+      "id": "2410110357091627600",
+      "path": "Pet Furnitures > Pet Tents",
+      "share": 0.9
+    },
+    {
+      "id": "2410110354491625800",
+      "path": "Pet Groomings > Pet Hair Removers & Combs",
+      "share": 0.93
+    },
+    {
+      "id": "2410110355021623200",
+      "path": "Pet Groomings > Pet Nail Polishers",
+      "share": 0.91
+    },
+    {
+      "id": "2410110355151622300",
+      "path": "Pet Groomings > Pet Shower Products",
+      "share": 0.7
+    },
+    {
+      "id": "2410110355321622400",
+      "path": "Pet Groomings > Pet Towels",
+      "share": 0.94
+    },
+    {
+      "id": "2410110342021620700",
+      "path": "Pet Outdoor Supplies > Barking Control Equipments",
+      "share": 0.51
+    },
+    {
+      "id": "2410110342321607200",
+      "path": "Pet Outdoor Supplies > Dog Training Pads & Diapers",
+      "share": 0.52
+    },
+    {
+      "id": "2410110342571606700",
+      "path": "Pet Outdoor Supplies > Pet Bags",
+      "share": 0.76
+    },
+    {
+      "id": "2410110343211625200",
+      "path": "Pet Outdoor Supplies > Pet Car Mats",
+      "share": 0.97
+    },
+    {
+      "id": "2410110343091603200",
+      "path": "Pet Outdoor Supplies > Pet Seat Belts",
+      "share": 0.65
+    },
+    {
+      "id": "2410110342161616300",
+      "path": "Pet Outdoor Supplies > Trainers",
+      "share": 0.66
+    },
+    {
+      "id": "EPROLO-L2-1234",
+      "path": "Pet Supplies > Accessories",
+      "share": 0.86
+    },
+    {
+      "id": "EPROLO-L2-1233",
+      "path": "Pet Supplies > Pet Clothes",
+      "share": 1
+    },
+    {
+      "id": "2410110339311602900",
+      "path": "Pet Toys > Pet Chase Toys",
+      "share": 0.85
+    },
+    {
+      "id": "2410110339451623300",
+      "path": "Pet Toys > Pet Chew Toys",
+      "share": 0.9
+    },
+    {
+      "id": "2410110340531618900",
+      "path": "Pet Toys > Pet Plush Toys",
+      "share": 0.81
+    },
+    {
+      "id": "2410110340161623400",
+      "path": "Pet Toys > Pet Sound Toys",
+      "share": 0.95
+    },
+    {
+      "id": "2410110340411608400",
+      "path": "Pet Toys > Pet Toy Set",
+      "share": 0.85
+    },
+    {
+      "id": "2410110340031614900",
+      "path": "Pet Toys > Pet Training and Educational Toys",
+      "share": 0.83
+    },
+    {
+      "id": "2410110340291603400",
+      "path": "Pet Toys > Pet Tunnel Toys",
+      "share": 0.76
+    },
+    {
+      "id": "912FD088-248B-4D58-84F7-1F10B888CF8A",
+      "path": "Phones & Accessories > Mobile Phone Accessories",
+      "share": 0.5
+    },
+    {
+      "id": "EPROLO-L2-36",
+      "path": "Phones & Accessories > Phone Bags & Cases",
+      "share": 1
+    },
+    {
+      "id": "8FD4CA46-AA88-4CDC-8EBA-EBD8412152E2",
+      "path": "Portable Audio & Video > Microphones",
+      "share": 0.89
+    },
+    {
+      "id": "C1AB7563-AED4-44D8-9F01-05BD91C65307",
+      "path": "Portable Audio & Video > Speakers",
+      "share": 0.85
+    },
+    {
+      "id": "0598E853-9BF7-4939-A571-2407E819C91E",
+      "path": "Security & Protection > Alarm & Sensor",
+      "share": 0.68
+    },
+    {
+      "id": "EPROLO-L2-166",
+      "path": "Shoes & Bags >  Kids & Baby's Bags",
+      "share": 1
+    },
+    {
+      "id": "C7FEF0C8-C59D-44DC-9715-7C377441ECFE",
+      "path": "Shoes & Bags > Baby's First Walkers",
+      "share": 0.58
+    },
+    {
+      "id": "EPROLO-L2-58",
+      "path": "Shoes & Bags > Backpacks",
+      "share": 1
+    },
+    {
+      "id": "5AF1783E-547C-44E5-AD8A-82B354860BCB",
+      "path": "Shoes & Bags > Boys Shoes",
+      "share": 0.75
+    },
+    {
+      "id": "2502190154341624400",
+      "path": "Shoes & Bags > Children's Shoes",
+      "share": 0.84
+    },
+    {
+      "id": "EPROLO-L2-61",
+      "path": "Shoes & Bags > Coin Purses & Holders",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-62",
+      "path": "Shoes & Bags > Functional Bags",
+      "share": 1
+    },
+    {
+      "id": "C6FBABFE-2E34-4BD8-B643-C3060E9D343B",
+      "path": "Shoes & Bags > Girls Shoes",
+      "share": 0.79
+    },
+    {
+      "id": "EPROLO-L2-56",
+      "path": "Shoes & Bags > Men's Bags",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-57",
+      "path": "Shoes & Bags > Unisex Wallets",
+      "share": 0.83
+    },
+    {
+      "id": "EPROLO-L2-55",
+      "path": "Shoes & Bags > Women's Bags",
+      "share": 0.97
+    },
+    {
+      "id": "CB1A9CEF-8333-4D2F-B19A-418C6DE376C7",
+      "path": "Skin Care > Essential Oil",
+      "share": 0.55
+    },
+    {
+      "id": "88AF62DE-5586-40E4-A287-864523D9AE50",
+      "path": "Skin Care > Face Masks",
+      "share": 0.82
+    },
+    {
+      "id": "E95322D2-FF23-4837-A0C0-0CA686B9F062",
+      "path": "Smart Electronics > Smart Remote Controls",
+      "share": 0.59
+    },
+    {
+      "id": "C83EF2A0-8FA3-4713-9901-2FD6E4554D97",
+      "path": "Smart Electronics > Smart Watches",
+      "share": 0.81
+    },
+    {
+      "id": "895CF515-0F6B-481D-8A32-604EDCBEFBED",
+      "path": "Smart Electronics > Smart Wristbands",
+      "share": 0.58
+    },
+    {
+      "id": "C8FD79F7-DF24-495F-BE12-5F8585A8E5ED",
+      "path": "Sneakers > Basketball Shoes",
+      "share": 0.59
+    },
+    {
+      "id": "3928EB2C-04C4-4862-BCBD-A4987005A629",
+      "path": "Sneakers > Dance Shoes",
+      "share": 0.94
+    },
+    {
+      "id": "5F140735-E3D7-46A0-A28D-34607B05B720",
+      "path": "Sneakers > Hiking Shoes",
+      "share": 0.89
+    },
+    {
+      "id": "24A29AC9-8B9B-4552-AF5E-431E6CF47C67",
+      "path": "Sneakers > Running Shoes",
+      "share": 0.82
+    },
+    {
+      "id": "9DA4624F-A8A2-4DC1-9088-81877A4944F2",
+      "path": "Sneakers > Soccer Shoes",
+      "share": 0.67
+    },
+    {
+      "id": "CD4184EB-CD02-4789-8CFA-8FF3B4DEFC4E",
+      "path": "Sports & Outdoors > Fishing",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-142",
+      "path": "Sports & Outdoors > Survival",
+      "share": 0.6
+    },
+    {
+      "id": "8E8CE199-A134-45B1-9EDE-0D4F122F4568",
+      "path": "Sportswear > Outdoor Shorts",
+      "share": 0.75
+    },
+    {
+      "id": "FE1DB733-120C-4506-B990-107EAC5E62E5",
+      "path": "Sportswear > Pants",
+      "share": 0.69
+    },
+    {
+      "id": "937A06CE-ECCC-4C7D-A270-B216DE612AC0",
+      "path": "Sportswear > Sports Bags",
+      "share": 0.76
+    },
+    {
+      "id": "C62BC6BF-BA2B-41ED-AB12-599A6D7FCAA5",
+      "path": "Storage Devices > External Hard Drives",
+      "share": 0.63
+    },
+    {
+      "id": "7E65A403-CF6E-4B55-96FF-B7C3C376A47A",
+      "path": "Storage Devices > Memory Cards",
+      "share": 0.76
+    },
+    {
+      "id": "591E8920-019B-42FA-AE0B-420052E6C4F0",
+      "path": "Storage Devices > USB Flash Drives",
+      "share": 0.54
+    },
+    {
+      "id": "2605290527531628800",
+      "path": "Swimming > Swimming Goggles",
+      "share": 1
+    },
+    {
+      "id": "C8148B69-25D4-4DEE-8388-3D627D35163D",
+      "path": "Synthetic Hair > Cosplay Wigs",
+      "share": 0.68
+    },
+    {
+      "id": "9E77F21D-54E4-41B5-BB97-2CECBEA9DA96",
+      "path": "T-Shirts > 3D",
+      "share": 0.75
+    },
+    {
+      "id": "05B15AC3-931A-4A72-9F1D-DC54CBCA51C4",
+      "path": "T-Shirts > Geometric",
+      "share": 0.61
+    },
+    {
+      "id": "2502140308291606200",
+      "path": "T-Shirts > Men's Long-Sleeved",
+      "share": 0.87
+    },
+    {
+      "id": "BE11EEDB-B765-4A39-8A3D-F6015FC7A846",
+      "path": "T-Shirts > Print",
+      "share": 0.8
+    },
+    {
+      "id": "655B8008-6BB9-4AA1-8025-6206ACFF018A",
+      "path": "T-Shirts > Solid",
+      "share": 0.71
+    },
+    {
+      "id": "521887E1-D6D5-4475-81B7-63B9F72DDFCA",
+      "path": "T-Shirts > Striped",
+      "share": 0.72
+    },
+    {
+      "id": "74B144C9-321D-4E78-986C-757BA551DD8C",
+      "path": "Tablet & Laptop Accessories > Laptop Bags & Cases",
+      "share": 0.84
+    },
+    {
+      "id": "87A618B5-7CB0-4AF7-BCF8-9E9455F06B7E",
+      "path": "Tablet & Laptop Accessories > Tablet Cases",
+      "share": 0.53
+    },
+    {
+      "id": "24FAA1AB-BF10-41ED-8405-A9FA53031B3A",
+      "path": "Tablet & Laptop Accessories > Tablet LCD Screens",
+      "share": 0.67
+    },
+    {
+      "id": "924090C3-8179-437F-8219-37582113FB08",
+      "path": "Tools > Tools Storage",
+      "share": 0.59
+    },
+    {
+      "id": "00E6FC51-B865-4D50-9EF9-21E7050F5653",
+      "path": "Tools, Maintenance & Care > Car Washer",
+      "share": 0.73
+    },
+    {
+      "id": "5A3E7341-18B5-4C61-BFCD-8965B3479A9A",
+      "path": "Tops & Sets > Blouses & Shirts",
+      "share": 0.78
+    },
+    {
+      "id": "1357251872037146624",
+      "path": "Tops & Sets > Ladies Short Sleeve",
+      "share": 0.8
+    },
+    {
+      "id": "D2432903-0D4E-4787-886F-D3D9DA7890D9",
+      "path": "Tops & Sets > Lady Dresses",
+      "share": 0.93
+    },
+    {
+      "id": "DE9C662C-3F48-4855-87E7-E18733EFF6D2",
+      "path": "Tops & Sets > Sweaters",
+      "share": 0.81
+    },
+    {
+      "id": "2502190153531612600",
+      "path": "Tops & Sets > Women's Long-Sleeved Shirts",
+      "share": 0.9
+    },
+    {
+      "id": "2502140253001614100",
+      "path": "Tops & Sets > Women's Vests",
+      "share": 0.93
+    },
+    {
+      "id": "835F7743-8432-4D0F-90F0-E76C89F7C5B7",
+      "path": "Toys & Hobbies > Blocks",
+      "share": 0.71
+    },
+    {
+      "id": "DD918287-C279-466A-B9C6-56079DE4B37A",
+      "path": "Toys & Hobbies > Stuffed & Plush Animals",
+      "share": 0.66
+    },
+    {
+      "id": "A50A92FA-BCB3-4716-9BD9-BEC629BEE735",
+      "path": "Toys, Kids & Babies",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-97",
+      "path": "Toys, Kids & Babies > Feeding",
+      "share": 1
+    },
+    {
+      "id": "0F88CF9B-C46C-491B-8933-115806ED8A13",
+      "path": "Toys, Kids & Babies > Shoes & Bags",
+      "share": 1
+    },
+    {
+      "id": "04D68B68-1048-4971-BAFA-18FA0A6DB95C",
+      "path": "Toys, Kids & Babies > Toys & Hobbies",
+      "share": 0.55
+    },
+    {
+      "id": "1F23F16D-0A39-4D38-AB9C-1F21EEDEBEDD",
+      "path": "Video Games > Gamepads",
+      "share": 0.6
+    },
+    {
+      "id": "2F6CCFAA-853F-41EF-8B91-24028A333948",
+      "path": "Video Games > Handheld Game Players",
+      "share": 0.67
+    },
+    {
+      "id": "A96C59E8-C39A-4C8E-BA75-5B4AA347FCCC",
+      "path": "Video Games > Joysticks",
+      "share": 0.5
+    },
+    {
+      "id": "A8EBE688-6787-4ECF-8E5A-8802AC9C2135",
+      "path": "Video Games > Stickers",
+      "share": 0.74
+    },
+    {
+      "id": "56892B7E-0C59-4DAB-8336-57C6CA548043",
+      "path": "Video Games > Video Game Consoles",
+      "share": 0.61
+    },
+    {
+      "id": "04B879BE-79E7-4CB9-B493-B03F628B5130",
+      "path": "Wedding & Engagement > Bridal Jewelry Sets",
+      "share": 0.78
+    },
+    {
+      "id": "FCE034F6-A2BF-47E3-852F-FA9F67F904B2",
+      "path": "Wedding & Engagement > Engagement Rings",
+      "share": 0.96
+    },
+    {
+      "id": "443467E0-29C5-4850-9BF4-B0D8F9008EEB",
+      "path": "Wedding & Engagement > Wedding Hair Jewelry",
+      "share": 0.53
+    },
+    {
+      "id": "B30591BD-0353-4791-8BF6-F4876CC7F9B1",
+      "path": "Wigs & Extensions > Hair Braids",
+      "share": 0.71
+    },
+    {
+      "id": "93B5702F-DEF0-443D-847B-9287DEDF5BD9",
+      "path": "Wigs & Extensions > Human Hair Lace Wigs",
+      "share": 0.87
+    },
+    {
+      "id": "44733589-BEE4-448D-86F9-A1B5A9710C79",
+      "path": "Wigs & Extensions > Human Hair Wigs",
+      "share": 0.93
+    },
+    {
+      "id": "6ADDD8E4-4141-4B5A-9A85-6D87FED7799C",
+      "path": "Wigs & Extensions > Synthetic Hair Pieces",
+      "share": 0.6
+    },
+    {
+      "id": "6C4CEB64-10FD-447E-BB1D-F6F5C1E71442",
+      "path": "Wigs & Extensions > Synthetic Lace Wigs",
+      "share": 0.83
+    },
+    {
+      "id": "DB81767B-2083-4C66-8E8D-1A0D897ABA7C",
+      "path": "Wigs & Extensions > Synthetic Wigs",
+      "share": 0.78
+    },
+    {
+      "id": "EPROLO-L2-1241",
+      "path": "Women's Clothing > Dresses",
+      "share": 1
+    },
+    {
+      "id": "EPROLO-L2-1246",
+      "path": "Women's Clothing > Suit",
+      "share": 1
+    },
+    {
+      "id": "96C833A9-93EC-4D76-B093-3A3B945659C6",
+      "path": "Women's Luggage & Bags > Boys Bags",
+      "share": 0.54
+    },
+    {
+      "id": "CB7C7348-41DC-4AA5-9BD0-CC2D555899BB",
+      "path": "Women's Luggage & Bags > Clutches",
+      "share": 0.85
+    },
+    {
+      "id": "33AFFE07-CC46-4557-9FD9-27CC9975BEED",
+      "path": "Women's Luggage & Bags > Evening Bags",
+      "share": 0.86
+    },
+    {
+      "id": "7DC7FA45-C8E1-4A2E-BA84-B81FB9CA2815",
+      "path": "Women's Luggage & Bags > Shoulder Bags",
+      "share": 0.92
+    },
+    {
+      "id": "8F3ADC01-68FE-4CBE-BB1D-0DE42A730749",
+      "path": "Women's Luggage & Bags > Totes",
+      "share": 0.88
+    },
+    {
+      "id": "2410301013451614000",
+      "path": "Women's Luggage & Bags > Women's Crossbody Bags",
+      "share": 0.97
+    },
+    {
+      "id": "F35FC838-1CFE-49D1-A8CA-CF7401F9C444",
+      "path": "Women's Shoes > Flats",
+      "share": 0.89
+    },
+    {
+      "id": "638284D0-3651-4FC9-9F25-B0A0BA323D83",
+      "path": "Women's Shoes > Pumps",
+      "share": 0.68
+    },
+    {
+      "id": "1B559D30-B370-4C8E-8CFD-1E1BC47E217F",
+      "path": "Women's Shoes > Vulcanize Shoes",
+      "share": 0.77
+    },
+    {
+      "id": "1988B912-7A18-4ED2-B1E1-61ED290A0E82",
+      "path": "Women's Shoes > Woman Boots",
+      "share": 0.88
+    },
+    {
+      "id": "AAB54987-4E92-40C7-B0F5-5E814C1E6980",
+      "path": "Women's Shoes > Woman Sandals",
+      "share": 0.76
+    },
+    {
+      "id": "8F756420-4840-474E-B2D6-6725ED219970",
+      "path": "Women's Shoes > Woman Slippers",
+      "share": 0.72
+    },
+    {
+      "id": "2502190401571622500",
+      "path": "Women's Shoes > Women's Insoles",
+      "share": 0.91
+    },
+    {
+      "id": "FBD85934-5409-4EC6-A6B5-FDBF072AA0E2",
+      "path": "Women's Watches > Children's Watches",
+      "share": 0.93
+    },
+    {
+      "id": "DAE17D16-A15F-445D-AE34-B698F3290E56",
+      "path": "Women's Watches > Creative Watches",
+      "share": 0.83
+    },
+    {
+      "id": "A044AC0D-BA3B-4967-8300-1BD57F00048E",
+      "path": "Women's Watches > Dress Watches",
+      "share": 0.88
+    },
+    {
+      "id": "DC682F4C-BD7E-4DB0-93CB-33B4CD54BE87",
+      "path": "Women's Watches > Lovers' Watches",
+      "share": 0.95
+    },
+    {
+      "id": "2601070548491632400",
+      "path": "Women's Watches > Watch Accessories",
+      "share": 0.87
+    },
+    {
+      "id": "9D78B3E3-99F4-4EDA-8C70-2F5B95061CAA",
+      "path": "Women's Watches > Women Sports Watches",
+      "share": 0.72
+    },
+    {
+      "id": "F40CB152-1391-4CA9-9BAE-0316DA2D3D2B",
+      "path": "Women's Watches > Women's Bracelet Watches",
+      "share": 0.95
+    }
+  ]
+}

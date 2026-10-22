@@ -15,6 +15,7 @@ import type { EmployeeOption, Theme } from "@/components/admin/console-theme";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
@@ -72,6 +73,10 @@ interface LeadOutcome { status: string; by: string; note: string | null; at: str
 interface AssigneeCount { employeeId: string | null; count: number }
 /** The filter's value: null is "everyone", UNASSIGNED is "nobody yet". */
 const UNASSIGNED = "__unassigned__";
+
+// The inquiry panel's "Matching suppliers": its code and its request both wait for the panel to open, so the
+// inquiries list carries neither.
+const InquirySupplierMatches = dynamic(() => import("@/components/admin/InquirySupplierMatches"), { ssr: false });
 
 // Kept in step with lib/inquiry-status.ts. Not imported from it because that
 // module is server-shaped; this is only the wording for the console's own
@@ -1821,6 +1826,7 @@ export function AdminConsole({ data }: Props) {
       {activeInquiry && (
         <InquiryModal
           t={t}
+          dark={dark}
           inquiry={activeInquiry}
           onClose={() => setActiveInquiry(null)}
           onZoom={(src) => setZoomImg(src)}
@@ -2153,7 +2159,7 @@ function ConfirmDialog({ state, onConfirm, onCancel, busy, t }: { state: NonNull
 
 // Opens the ordered product's image + full details inside the admin, so staff
 // never have to leave the console to see what a customer requested.
-function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCustomerStatus, t }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; onSetCustomerStatus: (s: CustomerStatus, note: string) => void; t: Theme }) {
+function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCustomerStatus, t, dark }: { inquiry: Inquiry; onClose: () => void; onZoom: (src: string) => void; onDelete: () => void; onSetStatus: (s: Status) => void; onSetCustomerStatus: (s: CustomerStatus, note: string) => void; t: Theme; dark: boolean }) {
   const img = inquiry.productImage ? (getCdnUrl(inquiry.productImage, 256) as string) : null;
   const zoomImg = inquiry.productImage ? (getCdnUrl(inquiry.productImage, 1600) as string) : null;
   return (
@@ -2250,6 +2256,8 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
                 <p className={`text-sm font-medium leading-relaxed ${t.strong}`}>{inquiry.message}</p>
               </div>
             )}
+            {/* Who in the supplier book could source it: asked for when the panel opens, one inquiry at a time. */}
+            <InquirySupplierMatches key={inquiry.id} inquiryId={inquiry.id} t={t} dark={dark} />
             {/* Triage the customer: New / Handled / Spam (fake). */}
             <div className="mt-5">
               <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this customer</p>
