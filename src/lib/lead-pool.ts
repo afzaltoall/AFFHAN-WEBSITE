@@ -9,8 +9,8 @@ import { sendEmail } from "@/lib/email";
 import { poolGivenUpEmail } from "@/lib/email-templates";
 import { MAX_OPEN_LEADS, RELEASE_REASON_MAX } from "@/lib/lead-pool-config";
 import {
-  AUTO_RELEASE_REASON, LEAVE_KINDS, POOL_EVENT, POOL_STATE, firstName, isFinalOutcome, poolKindLabel, releaseDeadline,
-  retakeAllowedFrom, staleDeadline, weekEnds,
+  AUTO_RELEASE_REASON, LEAVE_KINDS, POOL_EVENT, POOL_STATE, SETTLED_TRIAGE, firstName, isFinalOutcome, needsHandling,
+  placeOnFile, poolKindLabel, releaseDeadline, retakeAllowedFrom, staleDeadline, triageMove, weekEnds,
 } from "@/lib/lead-pool-rules";
 import { normalizeStatus } from "@/lib/leadStatus";
 
@@ -33,9 +33,14 @@ import { normalizeStatus } from "@/lib/leadStatus";
  * a held customer whose holder is away, and deactivating somebody releases everything they hold. Every move is
  * written to the trail (LeadQueueEvent), which /admin/activity, the staff pages and Team Performance read.
  *
+ * Only customers with something to handle are in the pool or held (the owner, 2026-10-22): one whose every request
+ * is marked Handled, Spam or deleted in the console is set aside as Done, nobody's and on no clock, at the switch,
+ * the moment the console marks their last request, or at the next sweep; a new request, or one marked New again,
+ * puts them back in the pool for a new week (reconsiderTriage).
+ *
  * No table is new. LeadQueueEntry, one row per customer since the rotation queue, is the customer's place in the
- * pool: state OPEN or HELD (or RESOLVED, INVALID), currentEmployeeId the holder, nextRotationAt the moment a taken
- * customer goes back if nothing is recorded, enteredAt and expiresAt their week. The rotation that used those
+ * pool: state OPEN or HELD (or RESOLVED, DONE, INVALID), currentEmployeeId the holder, nextRotationAt the moment a
+ * taken customer goes back if nothing is recorded, enteredAt and expiresAt their week. The rotation that used those
  * columns to hand customers round the team is gone.
  */
 
@@ -526,14 +531,156 @@ export async function releaseDeactivated(employeeId: string, by: string, now = n
   return entries.length;
 }
 
+// ---- the console's triage -------------------------------------------------------------------------------------------------
+
+/** Of these customers, the ones with at least one request the console has not marked Handled, Spam or deleted. */
+async function keysNeedingHandling(keys: string[]): Promise<Set<string>> {
+  if (keys.length === 0) return new Set();
+  const settled = [...SETTLED_TRIAGE];
+  const rows = await prisma.$queryRaw<{ k: string }[]>`
+    SELECT DISTINCT k FROM (
+      SELECT "customerKey" AS k FROM "Inquiry" WHERE "customerKey" = ANY(${keys}) AND status <> ALL(${settled})
+      UNION SELECT "customerKey" FROM "ContactMessage" WHERE "customerKey" = ANY(${keys}) AND status <> ALL(${settled})
+      UNION SELECT "customerKey" FROM "ShipmentInquiry" WHERE "customerKey" = ANY(${keys}) AND status <> ALL(${settled})
+    ) x`;
+  return new Set(rows.map((r) => r.k));
+}
+
+/** The customers behind some of the console's rows: read before it changes them, since a purge removes the rows. */
+export async function customerKeysOf(kind: LeadKind, ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  const where = { id: { in: ids } };
+  const select = { customerKey: true } as const;
+  const rows =
+    kind === "inquiry"
+      ? await prisma.inquiry.findMany({ where, select })
+      : kind === "contact"
+        ? await prisma.contactMessage.findMany({ where, select })
+        : await prisma.shipmentInquiry.findMany({ where, select });
+  return [...new Set(rows.map((r) => r.customerKey).filter((k): k is string => Boolean(k)))];
+}
+
+export interface TriageMoves {
+  /** Out of the pool, or out of somebody's hands: nothing left to handle. */
+  setAside: string[];
+  /** Back into the pool for a new week: something to handle again. */
+  reopened: string[];
+}
+
+/**
+ * The console's triage, applied to customers the pool already knows (the owner, 2026-10-22). One in the pool, or held
+ * by somebody, whose every request is now marked Handled, Spam or deleted is set aside as Done: nobody's (their
+ * requests are let go), on no clock, never auto-released or given up on. One set aside who has a request to deal
+ * with again (marked New, or restored from Recently Deleted) goes back into the pool for a new week. Decided and
+ * given-up customers stay as they are.
+ *
+ * The console's routes call it as they change a request's status, so it happens at once; the sweep calls it for
+ * anything they missed. `by` names the administrator on the trail.
+ */
+export async function reconsiderTriage(keys: string[], opts: { now?: Date; by?: string | null; dryRun?: boolean } = {}): Promise<TriageMoves> {
+  const now = opts.now ?? new Date();
+  const out: TriageMoves = { setAside: [], reopened: [] };
+  const unique = [...new Set(keys.filter(Boolean))];
+  if (unique.length === 0) return out;
+  const [entries, needing] = await Promise.all([
+    prisma.leadQueueEntry.findMany({
+      where: { customerKey: { in: unique }, state: { in: [POOL_STATE.OPEN, POOL_STATE.HELD, POOL_STATE.DONE] } },
+      select: { id: true, customerKey: true, customerName: true, state: true, currentEmployeeId: true },
+    }),
+    keysNeedingHandling(unique),
+  ]);
+  const marked = opts.by ? ` (marked by ${opts.by})` : "";
+  for (const e of entries) {
+    const move = triageMove(e.state, needing.has(e.customerKey));
+    if (!move) continue;
+    if (opts.dryRun) {
+      (move === "set-aside" ? out.setAside : out.reopened).push(e.customerName);
+      continue;
+    }
+    if (move === "set-aside") {
+      const holder = await personOf(prisma, e.currentEmployeeId);
+      const moved = await prisma.$transaction(async (tx) => {
+        const changed = await tx.leadQueueEntry.updateMany({
+          where: { id: e.id, state: e.state, currentEmployeeId: e.currentEmployeeId },
+          data: {
+            state: POOL_STATE.DONE, currentEmployeeId: null, nextRotationAt: null, closedAt: now, closedReason: "HANDLED",
+            ...(e.currentEmployeeId ? { lastEmployeeId: e.currentEmployeeId } : {}),
+          },
+        });
+        if (changed.count !== 1) return false;
+        await assignAll(tx, e.customerKey, null, now);
+        await logEvent(tx, e.id, POOL_EVENT.DONE, { from: holder, note: `every request marked Handled, Spam or deleted${marked}: out of the pool` });
+        return true;
+      }, TX);
+      if (moved) out.setAside.push(e.customerName);
+    } else {
+      const moved = await prisma.$transaction(async (tx) => {
+        const changed = await tx.leadQueueEntry.updateMany({
+          where: { id: e.id, state: POOL_STATE.DONE },
+          data: {
+            state: POOL_STATE.OPEN, currentEmployeeId: null, nextRotationAt: null, closedAt: null, closedReason: null,
+            enteredAt: now, expiresAt: weekEnds(now),
+          },
+        });
+        if (changed.count !== 1) return false;
+        await logEvent(tx, e.id, POOL_EVENT.REOPENED, { note: `a request to deal with again${marked}: back in the pool for a new week` });
+        return true;
+      }, TX);
+      if (moved) out.reopened.push(e.customerName);
+    }
+  }
+  return out;
+}
+
+/**
+ * reconsiderTriage for the console's routes, after an administrator marks, deletes, restores or erases requests.
+ * Never the reason their change fails: the change is saved, and the sweep applies anything this could not.
+ */
+export async function applyConsoleTriage(keys: string[], by: string | null): Promise<void> {
+  try {
+    await reconsiderTriage(keys, { by });
+  } catch (error) {
+    const code = (error as { code?: string } | null)?.code;
+    console.error("pool triage after a console change failed:", error instanceof Error ? error.name : "unknown", code ?? "");
+  }
+}
+
+/**
+ * The customers whose place disagrees with the console's triage: in the pool or held with nothing left to handle,
+ * or set aside with something to handle. The sweep's net under the console's routes, which apply it at once.
+ */
+async function triageCandidates(): Promise<string[]> {
+  const settled = [...SETTLED_TRIAGE];
+  const working = [POOL_STATE.OPEN, POOL_STATE.HELD];
+  const rows = await prisma.$queryRaw<{ k: string }[]>`
+    SELECT e."customerKey" AS k FROM "LeadQueueEntry" e
+     WHERE (e.state = ANY(${working}) AND NOT EXISTS (
+              SELECT 1 FROM "Inquiry" i WHERE i."customerKey" = e."customerKey" AND i.status <> ALL(${settled})
+              UNION ALL SELECT 1 FROM "ContactMessage" c WHERE c."customerKey" = e."customerKey" AND c.status <> ALL(${settled})
+              UNION ALL SELECT 1 FROM "ShipmentInquiry" s WHERE s."customerKey" = e."customerKey" AND s.status <> ALL(${settled})))
+        OR (e.state = ${POOL_STATE.DONE} AND EXISTS (
+              SELECT 1 FROM "Inquiry" i WHERE i."customerKey" = e."customerKey" AND i.status <> ALL(${settled})
+              UNION ALL SELECT 1 FROM "ContactMessage" c WHERE c."customerKey" = e."customerKey" AND c.status <> ALL(${settled})
+              UNION ALL SELECT 1 FROM "ShipmentInquiry" s WHERE s."customerKey" = e."customerKey" AND s.status <> ALL(${settled})))
+     LIMIT 2000`;
+  return rows.map((r) => r.k);
+}
+
 // ---- the sweep ------------------------------------------------------------------------------------------------------------
 
 export interface PoolSweepReport {
   at: string;
   officeOpen: boolean;
   dryRun: boolean;
-  /** Customers already on file taken into the pool (the first sweep after the switch, then anyone an arrival missed). */
-  takenIn: { open: number; held: number; heldOnClock: number; resolved: number; joinedHolder: number };
+  /**
+   * Customers already on file taken in (the first sweep after the switch, then anyone an arrival missed): into the
+   * pool, held, decided, or set aside as already handled (`done`: every request Handled, Spam or deleted).
+   */
+  takenIn: { open: number; held: number; heldOnClock: number; resolved: number; done: number; joinedHolder: number };
+  /** Set aside since the last sweep: nothing left to handle, though the console's own route did not say so at once. */
+  setAside: string[];
+  /** Back in the pool: set aside before, with something to handle again. */
+  reopened: string[];
   autoReleased: string[];
   stale: string[];
   invalidated: string[];
@@ -547,11 +694,15 @@ export interface PoolSweepReport {
  *
  *   1. Nets under the forms: a customer key and an AFFHAN number for every lead.
  *   2. Anyone with live requests and no place in the pool is taken in (the switch to self-claim, then anybody an
- *      arrival missed): nobody holds them, so the pool, for a week from now; or held by one person, whose two-hour
- *      clock starts now unless they have recorded something since getting them; or decided, and left alone.
- *   3. In office hours: taken and silent for two office hours, or In progress and quiet for two office days, back to
+ *      arrival missed): every request marked Handled, Spam or deleted, so set aside as Done; nobody holds them, so
+ *      the pool, for a week from now; or held by one person, whose two-hour clock starts now unless they have
+ *      recorded something since getting them; or decided, and left alone.
+ *   3. The console's triage, for anything its routes did not apply at once: in the pool or held with nothing left to
+ *      handle, set aside; set aside with something to handle again, back into the pool. Before the clocks, so a
+ *      customer already handled is never auto-released or given up on.
+ *   4. In office hours: taken and silent for two office hours, or In progress and quiet for two office days, back to
  *      the pool.
- *   4. Any hour: a week in the pool and still unhandled (waiting, or taken and never touched) is Invalid, and the
+ *   5. Any hour: a week in the pool and still unhandled (waiting, or taken and never touched) is Invalid, and the
  *      administrators get one email listing them.
  */
 export async function runPoolSweep(opts: { now?: Date; dryRun?: boolean } = {}): Promise<PoolSweepReport> {
@@ -561,7 +712,9 @@ export async function runPoolSweep(opts: { now?: Date; dryRun?: boolean } = {}):
     at: now.toISOString(),
     officeOpen: isOfficeOpen(now),
     dryRun,
-    takenIn: { open: 0, held: 0, heldOnClock: 0, resolved: 0, joinedHolder: 0 },
+    takenIn: { open: 0, held: 0, heldOnClock: 0, resolved: 0, done: 0, joinedHolder: 0 },
+    setAside: [],
+    reopened: [],
     autoReleased: [],
     stale: [],
     invalidated: [],
@@ -573,6 +726,10 @@ export async function runPoolSweep(opts: { now?: Date; dryRun?: boolean } = {}):
   if (!dryRun) report.codesIssued = (await issueMissingCodes()).length;
 
   await takeIn(now, dryRun, report);
+
+  const triage = await reconsiderTriage(await triageCandidates(), { now, dryRun });
+  report.setAside = triage.setAside;
+  report.reopened = triage.reopened;
 
   if (report.officeOpen) {
     // Taken, and nothing recorded since.
@@ -690,7 +847,7 @@ async function takeIn(now: Date, dryRun: boolean, report: PoolSweepReport) {
   if (keys.length === 0) return;
 
   const where = { customerKey: { in: keys }, ...LIVE };
-  const leadSelect = { id: true, customerKey: true, assignedToId: true, assignedAt: true, createdAt: true } as const;
+  const leadSelect = { id: true, customerKey: true, assignedToId: true, assignedAt: true, createdAt: true, status: true } as const;
   const [inquiries, contacts, shipments, legacy, active] = await Promise.all([
     prisma.inquiry.findMany({ where, select: { ...leadSelect, customerName: true } }),
     prisma.contactMessage.findMany({ where, select: { ...leadSelect, fullName: true } }),
@@ -698,11 +855,11 @@ async function takeIn(now: Date, dryRun: boolean, report: PoolSweepReport) {
     prisma.leadQueueEntry.findMany({ where: { customerKey: { in: keys } }, select: { id: true, customerKey: true } }),
     prisma.employee.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
   ]);
-  type Row = { id: string; kind: LeadKind; key: string; holder: string | null; assignedAt: Date | null; createdAt: Date; name: string };
+  type Row = { id: string; kind: LeadKind; key: string; holder: string | null; assignedAt: Date | null; createdAt: Date; name: string; status: string };
   const rows: Row[] = [
-    ...inquiries.map((r) => ({ id: r.id, kind: "inquiry" as const, key: r.customerKey!, holder: r.assignedToId, assignedAt: r.assignedAt, createdAt: r.createdAt, name: r.customerName })),
-    ...contacts.map((r) => ({ id: r.id, kind: "contact" as const, key: r.customerKey!, holder: r.assignedToId, assignedAt: r.assignedAt, createdAt: r.createdAt, name: r.fullName })),
-    ...shipments.map((r) => ({ id: r.id, kind: "shipment" as const, key: r.customerKey!, holder: r.assignedToId, assignedAt: r.assignedAt, createdAt: r.createdAt, name: r.customerName })),
+    ...inquiries.map((r) => ({ id: r.id, kind: "inquiry" as const, key: r.customerKey!, holder: r.assignedToId, assignedAt: r.assignedAt, createdAt: r.createdAt, name: r.customerName, status: r.status })),
+    ...contacts.map((r) => ({ id: r.id, kind: "contact" as const, key: r.customerKey!, holder: r.assignedToId, assignedAt: r.assignedAt, createdAt: r.createdAt, name: r.fullName, status: r.status })),
+    ...shipments.map((r) => ({ id: r.id, kind: "shipment" as const, key: r.customerKey!, holder: r.assignedToId, assignedAt: r.assignedAt, createdAt: r.createdAt, name: r.customerName, status: r.status })),
   ];
   const updates = await prisma.statusUpdate.findMany({
     where: {
@@ -745,21 +902,33 @@ async function takeIn(now: Date, dryRun: boolean, report: PoolSweepReport) {
     let data: { state: string; currentEmployeeId: string | null; nextRotationAt: Date | null; closedAt: Date | null; closedReason: string | null };
     let note: string;
     let joined = 0;
-    if (latest && isFinalOutcome(latest.status)) {
-      data = { state: POOL_STATE.RESOLVED, currentEmployeeId: holder?.id ?? null, nextRotationAt: null, closedAt: latest.createdAt, closedReason: "RESOLVED" };
+    const place = placeOnFile({
+      decided: Boolean(latest && isFinalOutcome(latest.status)),
+      needsHandling: leads.some((l) => needsHandling(l.status)),
+      held: Boolean(holder),
+    });
+    if (place === POOL_STATE.RESOLVED) {
+      data = { state: POOL_STATE.RESOLVED, currentEmployeeId: holder?.id ?? null, nextRotationAt: null, closedAt: latest!.createdAt, closedReason: "RESOLVED" };
       note = "decided before the switch to self-claim";
       report.takenIn.resolved += 1;
-    } else if (!holder) {
+    } else if (place === POOL_STATE.DONE) {
+      // Every request already Handled, Spam or deleted in the console: never in the pool, nobody's, no clock.
+      data = { state: POOL_STATE.DONE, currentEmployeeId: null, nextRotationAt: null, closedAt: now, closedReason: "HANDLED" };
+      note = holderId ? "already handled in the console: kept out of the pool, and let go by the person holding them" : "already handled in the console: kept out of the pool";
+      report.takenIn.done += 1;
+    } else if (place === POOL_STATE.OPEN) {
       data = { state: POOL_STATE.OPEN, currentEmployeeId: null, nextRotationAt: null, closedAt: null, closedReason: null };
       note = holderId ? "into the pool: the person holding them is deactivated" : "into the pool";
       report.takenIn.open += 1;
     } else {
+      // Held: placeOnFile says so only when somebody who can still sign in has them.
+      const keeper = holder!;
       // "Has an update" means one recorded by them since they were given this customer, not any older one.
-      const since = new Date(Math.min(...assigned.filter((l) => l.holder === holder.id).map((l) => (l.assignedAt ?? l.createdAt).getTime())));
-      const touched = ups.some((u) => u.employeeId === holder.id && u.createdAt >= since);
-      joined = leads.filter((l) => l.holder !== holder.id).length;
-      data = { state: POOL_STATE.HELD, currentEmployeeId: holder.id, nextRotationAt: touched ? null : releaseDeadline(now), closedAt: null, closedReason: null };
-      note = touched ? `held by ${holder.name}, being worked` : `held by ${holder.name}: two office hours from now to record something`;
+      const since = new Date(Math.min(...assigned.filter((l) => l.holder === keeper.id).map((l) => (l.assignedAt ?? l.createdAt).getTime())));
+      const touched = ups.some((u) => u.employeeId === keeper.id && u.createdAt >= since);
+      joined = leads.filter((l) => l.holder !== keeper.id).length;
+      data = { state: POOL_STATE.HELD, currentEmployeeId: keeper.id, nextRotationAt: touched ? null : releaseDeadline(now), closedAt: null, closedReason: null };
+      note = touched ? `held by ${keeper.name}, being worked` : `held by ${keeper.name}: two office hours from now to record something`;
       report.takenIn.held += 1;
       if (!touched) report.takenIn.heldOnClock += 1;
       if (joined) report.takenIn.joinedHolder += 1;
@@ -767,8 +936,9 @@ async function takeIn(now: Date, dryRun: boolean, report: PoolSweepReport) {
     if (dryRun) continue;
 
     await prisma.$transaction(async (tx) => {
-      // Released with nobody holding them, or joined to the one person who does.
-      if (data.state === POOL_STATE.OPEN && assigned.length) await assignAll(tx, key, null, now);
+      // Released with nobody holding them (in the pool, or set aside as already handled), or joined to the one
+      // person who does.
+      if ((data.state === POOL_STATE.OPEN || data.state === POOL_STATE.DONE) && assigned.length) await assignAll(tx, key, null, now);
       if (data.state === POOL_STATE.HELD && joined) await assignAll(tx, key, data.currentEmployeeId, now);
       const legacyId = legacyBy.get(key);
       const id = legacyId ?? randomUUID();
@@ -777,7 +947,9 @@ async function takeIn(now: Date, dryRun: boolean, report: PoolSweepReport) {
       } else {
         await tx.leadQueueEntry.create({ data: { id, customerKey: key, customerName: name, ...data, enteredAt: now, expiresAt: weekEnds(now) } });
       }
-      await logEvent(tx, id, POOL_EVENT.SWITCHED, { to: data.state === POOL_STATE.HELD ? holder : null, note });
+      // Set aside from somebody who held them: the trail names who let go.
+      const from = data.state === POOL_STATE.DONE && holderId ? (people.get(holderId) ?? null) : null;
+      await logEvent(tx, id, POOL_EVENT.SWITCHED, { to: data.state === POOL_STATE.HELD ? holder : null, from, note });
     }, TX).catch((error) => {
       // An arrival opened this customer's place in the moment between reading and writing: theirs stands.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") return;
@@ -842,7 +1014,7 @@ async function fillMissingKeys(limit = 500): Promise<number> {
 /** The moves the office reads in Activity and on a person's page: who took, let go, lost or was given whom. */
 export const HISTORY_KINDS: string[] = [
   POOL_EVENT.TAKEN, POOL_EVENT.RELEASED, POOL_EVENT.NOT_ATTENDED, POOL_EVENT.AUTO_RELEASED, POOL_EVENT.ADMIN_ASSIGNED,
-  POOL_EVENT.ADMIN_UNASSIGNED, POOL_EVENT.REOPENED, POOL_EVENT.INVALIDATED,
+  POOL_EVENT.ADMIN_UNASSIGNED, POOL_EVENT.REOPENED, POOL_EVENT.INVALIDATED, POOL_EVENT.DONE,
 ];
 
 export interface PoolEventRow {
@@ -897,6 +1069,7 @@ const HOLD_STARTS: string[] = [POOL_EVENT.TAKEN, POOL_EVENT.SWITCHED, POOL_EVENT
 /** And the ones that end it. */
 const HOLD_ENDS: string[] = [
   POOL_EVENT.RELEASED, POOL_EVENT.NOT_ATTENDED, POOL_EVENT.AUTO_RELEASED, POOL_EVENT.ADMIN_UNASSIGNED, POOL_EVENT.INVALIDATED,
+  POOL_EVENT.DONE,
 ];
 
 // ---- where a customer stands, for the console's rows ------------------------------------------------------------------
@@ -907,6 +1080,7 @@ const HOLD_ENDS: string[] = [
  *   open      in the pool since it arrived or was let go
  *   held      taken by somebody, when, and what they have recorded since
  *   done      Lead or No lead, by whom, and when they took the customer
+ *   handled   set aside: every request marked Handled, Spam or deleted in the console (the filters count it as done)
  *   invalid   given up on, and why
  *
  * The times are the real ones; the console works out "waiting 35m" and "held 2h" against its own clock.
@@ -915,6 +1089,7 @@ export type Handling =
   | { state: "open"; since: string }
   | { state: "held"; by: { id: string; name: string }; takenAt: string; status: string | null }
   | { state: "done"; outcome: string; by: { id: string | null; name: string | null }; takenAt: string | null; doneAt: string }
+  | { state: "handled"; at: string }
   | { state: "invalid"; reason: string; at: string };
 
 export async function handlingFor(keys: (string | null | undefined)[]): Promise<Record<string, Handling>> {
@@ -959,6 +1134,9 @@ export async function handlingFor(keys: (string | null | undefined)[]): Promise<
         takenAt: started ? started.createdAt.toISOString() : null,
         doneAt: doneAt.toISOString(),
       };
+    } else if (e.state === POOL_STATE.DONE) {
+      const setAside = events.find((x) => x.kind === POOL_EVENT.DONE || x.kind === POOL_EVENT.SWITCHED);
+      out[e.customerKey] = { state: "handled", at: (e.closedAt ?? setAside?.createdAt ?? e.enteredAt).toISOString() };
     } else if (e.state === POOL_STATE.INVALID) {
       const invalidated = events.find((x) => x.kind === POOL_EVENT.INVALIDATED);
       out[e.customerKey] = {
@@ -1021,7 +1199,7 @@ export async function handlingHistory(lead: LeadRef): Promise<{ code: string | n
     if (e.kind === POOL_EVENT.HELD || e.kind === POOL_EVENT.OPENED) continue;
     const who =
       e.kind === POOL_EVENT.TAKEN || e.kind === POOL_EVENT.SWITCHED || e.kind === POOL_EVENT.ADMIN_ASSIGNED || e.kind === POOL_EVENT.JOINED
-        ? e.toName
+        ? e.toName ?? e.fromName
         : e.fromName;
     steps.push({ at: e.createdAt.toISOString(), kind: e.kind, label: e.kind === POOL_EVENT.RESOLVED ? "Completed" : poolKindLabel(e.kind), who, note: e.note });
   }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { applyConsoleTriage, customerKeysOf } from "@/lib/lead-pool";
 import { ASSIGN_GONE } from "@/lib/lead-pool-rules";
 import { getCurrentUser } from "@/lib/session";
 
@@ -18,7 +19,8 @@ async function requireAdmin() {
 const TRIAGE = ["new", "handled", "spam"] as const;
 
 export async function POST(req: Request) {
-  if (!(await requireAdmin())) return new NextResponse("Unauthorized", { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin) return new NextResponse("Unauthorized", { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const ids: unknown = body?.ids;
@@ -34,8 +36,15 @@ export async function POST(req: Request) {
   try {
     if (action === "assign") return NextResponse.json({ error: ASSIGN_GONE }, { status: 410 });
 
+    // Whose requests these are, read before the change (a purge removes the rows): the pool then applies its rule to
+    // them at once (lib/lead-pool.ts, reconsiderTriage). Nothing left to handle, out of the pool; something to handle
+    // again, back in.
+    const keys = await customerKeysOf("contact", ids as string[]);
+    const by = admin.name || admin.email;
+
     if (action === "purge") {
       const { count } = await prisma.contactMessage.deleteMany({ where: { id: { in: ids as string[] } } });
+      await applyConsoleTriage(keys, by);
       return NextResponse.json({ ok: true, action, count });
     }
     let status: string;
@@ -51,6 +60,7 @@ export async function POST(req: Request) {
       where: { id: { in: ids as string[] } },
       data: { status },
     });
+    await applyConsoleTriage(keys, by);
     return NextResponse.json({ ok: true, action, status, count });
   } catch {
     return NextResponse.json({ error: "Bulk action failed" }, { status: 500 });

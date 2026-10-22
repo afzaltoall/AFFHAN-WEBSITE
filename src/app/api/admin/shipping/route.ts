@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma, withDbRetry } from "@/lib/prisma";
-import { handlingFor } from "@/lib/lead-pool";
+import { applyConsoleTriage, customerKeysOf, handlingFor } from "@/lib/lead-pool";
 import { ASSIGN_GONE } from "@/lib/lead-pool-rules";
 import { getCurrentUser } from "@/lib/session";
 
@@ -101,7 +101,8 @@ export async function GET() {
 const TRIAGE = ["new", "handled", "spam"] as const;
 
 export async function POST(req: Request) {
-  if (!(await requireAdmin())) return new NextResponse("Unauthorized", { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin) return new NextResponse("Unauthorized", { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const ids: unknown = body?.ids;
@@ -118,10 +119,17 @@ export async function POST(req: Request) {
   try {
     if (action === "assign") return NextResponse.json({ error: ASSIGN_GONE }, { status: 410 });
 
+    // Whose requests these are, read before the change (a purge removes the rows): the pool then applies its rule to
+    // them at once (lib/lead-pool.ts, reconsiderTriage). Nothing left to handle, out of the pool; something to handle
+    // again, back in.
+    const keys = await customerKeysOf("shipment", idList);
+    const by = admin.name || admin.email;
+
     if (action === "purge") {
       // Only from Recently Deleted: a live request cannot be erased in one
       // step, whatever the client sends.
       const { count } = await prisma.shipmentInquiry.deleteMany({ where: { id: { in: idList }, status: "deleted" } });
+      await applyConsoleTriage(keys, by);
       return NextResponse.json({ ok: true, action, count });
     }
 
@@ -135,6 +143,7 @@ export async function POST(req: Request) {
       status = action === "delete" ? "deleted" : "new"; // restore -> new
     }
     const { count } = await prisma.shipmentInquiry.updateMany({ where: { id: { in: idList } }, data: { status } });
+    await applyConsoleTriage(keys, by);
     return NextResponse.json({ ok: true, action, status, count });
   } catch (error) {
     console.error("shipping action failed:", error instanceof Error ? error.name : "unknown");

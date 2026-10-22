@@ -149,3 +149,33 @@ test("the sweep's test clock stays off unless a build turns it on", () => {
   assert.match(cron, /if \(nowParam && process\.env\.LEAD_QUEUE_TEST_CLOCK !== "1"\)/);
   assert.match(cron, /runPoolSweep\(\{ now, dryRun \}\)/);
 });
+
+// 2026-10-22, the owner: a customer whose every request is marked Handled, Spam or deleted in the console never
+// enters the pool. The switch, the console's own routes and every sweep apply the same rule.
+test("already-handled customers stay out of the pool: the switch, the console's routes and the sweep apply the rule", () => {
+  const pool = read(POOL);
+  // The switch sorts each customer by the rule, and lets go of the ones it sets aside.
+  assert.match(pool, /needsHandling: leads\.some\(\(l\) => needsHandling\(l\.status\)\),/);
+  assert.match(pool, /if \(\(data\.state === POOL_STATE\.OPEN \|\| data\.state === POOL_STATE\.DONE\) && assigned\.length\) await assignAll\(tx, key, null, now\);/);
+  // The sweep applies the console's triage before any clock, so nobody already handled is auto-released or given up on.
+  const sweep = fn(pool, "runPoolSweep");
+  const triage = sweep.indexOf("reconsiderTriage(await triageCandidates(), { now, dryRun })");
+  assert.ok(triage > 0 && triage < sweep.indexOf("if (report.officeOpen)") && triage < sweep.indexOf("expiresAt: { lte: now }"), "the triage pass runs before the clocks");
+  // Set aside: nobody's, on no clock.
+  const reconsider = fn(pool, "reconsiderTriage");
+  assert.match(reconsider, /state: POOL_STATE\.DONE, currentEmployeeId: null, nextRotationAt: null/);
+  assert.match(reconsider, /await assignAll\(tx, e\.customerKey, null, now\);/);
+  // Each of the console's three lists reads whose requests they are before the change, and applies the rule after it.
+  for (const [route, kind] of [
+    ["src/app/api/admin/inquiry/route.ts", "inquiry"],
+    ["src/app/api/admin/contact/route.ts", "contact"],
+    ["src/app/api/admin/shipping/route.ts", "shipment"],
+  ]) {
+    const s = read(route);
+    assert.match(s, new RegExp(`const keys = await customerKeysOf\\("${kind}", `), route);
+    assert.ok(s.indexOf("customerKeysOf(") < s.indexOf("deleteMany("), `${route}: keys are read before a purge removes the rows`);
+    assert.equal((s.match(/await applyConsoleTriage\(keys, by\);/g) ?? []).length, 2, `${route}: after a purge and after a status change`);
+  }
+  // The pool only ever lists customers in it.
+  assert.match(fn(pool, "listPool"), /where: \{ state: POOL_STATE\.OPEN \}/);
+});

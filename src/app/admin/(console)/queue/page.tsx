@@ -28,7 +28,7 @@ export default async function QueuePage() {
   if (admin.role !== "admin") redirect("/");
 
   const states = [POOL_STATE.OPEN, POOL_STATE.HELD, POOL_STATE.INVALID];
-  const [entries, employees, history] = await Promise.all([
+  const [entries, employees, history, setAside] = await Promise.all([
     prisma.leadQueueEntry.findMany({
       where: { state: { in: states } },
       orderBy: [{ updatedAt: "desc" }],
@@ -50,6 +50,9 @@ export default async function QueuePage() {
       select: { id: true, name: true, region: true, image: true },
     }),
     poolEvents({ perPage: 60 }),
+    // Customers kept out of the pool because the console has every request of theirs marked Handled, Spam or
+    // deleted: a count, so the page says where the rest of the book is.
+    prisma.leadQueueEntry.count({ where: { state: POOL_STATE.DONE } }),
   ]);
 
   // How much of each customer is at stake, and where the held ones stand: three grouped counts and one read of the
@@ -101,6 +104,7 @@ export default async function QueuePage() {
       history={history.rows}
       employees={employees.map((p) => ({ ...p, held: heldBy.get(p.id) ?? 0 }))}
       cap={MAX_OPEN_LEADS}
+      setAside={setAside}
       renderedAt={renderTime()}
     />
   );

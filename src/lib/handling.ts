@@ -8,6 +8,7 @@ import type { Handling } from "./lead-pool";
  *   Open · waiting 35m                                    in the pool since it arrived or was let go
  *   Taken by Priya · 10:42 AM · held 1h 20m · In progress  somebody has them
  *   Lead by Priya · took 2h 10m                           decided, and how long from taking them
+ *   Done · already handled                                every request marked Handled, Spam or deleted
  *   Invalid · a week in the pool, unhandled               given up on
  *
  * Real clock times and durations: the office-hours averages are Team Performance's. Every request and message of
@@ -26,8 +27,12 @@ export const HANDLING_FILTERS: { key: HandlingFilter; label: string; dot: string
   { key: "invalid", label: "Invalid", dot: "bg-slate-600" },
 ];
 
-/** A lead with no place in the pool yet (before the first sweep after the switch) counts as open. */
-export const handlingKey = (h: Handling | null | undefined): HandlingKey => (h ? (h.state as HandlingKey) : "open");
+/**
+ * A lead with no place in the pool yet (before the first sweep after the switch) counts as open; one set aside as
+ * already handled counts as done, with the decided ones.
+ */
+export const handlingKey = (h: Handling | null | undefined): HandlingKey =>
+  !h ? "open" : h.state === "handled" ? "done" : h.state;
 
 export const matchesHandling = (h: Handling | null | undefined, filter: HandlingFilter) => filter === "all" || handlingKey(h) === filter;
 
@@ -66,6 +71,9 @@ export function handlingText(h: Handling | null | undefined, createdAt: string, 
   if (h.state === "done") {
     const took = h.takenAt ? ` · took ${span(new Date(h.doneAt).getTime() - new Date(h.takenAt).getTime())}` : "";
     return { text: `${leadStatusLabel(h.outcome)} by ${h.by.name ?? "somebody"}${took}`, title: `Decided ${formatDateTime(h.doneAt)}` };
+  }
+  if (h.state === "handled") {
+    return { text: "Done · already handled", title: `Out of the pool since ${formatDateTime(h.at)}: every request is marked Handled, Spam or deleted` };
   }
   return { text: `Invalid · ${h.reason}`, title: `Given up on ${formatDateTime(h.at)}` };
 }

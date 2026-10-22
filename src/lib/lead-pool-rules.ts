@@ -7,11 +7,13 @@ import { normalizeStatus } from "./leadStatus";
  * that happens, and the clocks. lib/lead-pool.ts applies them; tests/lead-pool reads them directly.
  */
 
-/** Where a customer stands (LeadQueueEntry.state): in the pool, held by somebody, decided, or given up on. */
+/** Where a customer stands (LeadQueueEntry.state): in the pool, held by somebody, decided, done with, or given up on. */
 export const POOL_STATE = {
   OPEN: "OPEN",
   HELD: "HELD",
   RESOLVED: "RESOLVED",
+  /** Every request of theirs is marked Handled, Spam or deleted in the console: out of the pool, nobody's, no clock. */
+  DONE: "DONE",
   INVALID: "INVALID",
 } as const;
 
@@ -38,10 +40,15 @@ export const POOL_EVENT = {
   ADMIN_ASSIGNED: "ADMIN_ASSIGNED",
   /** An administrator's Release to pool, or the holder's deactivation. */
   ADMIN_UNASSIGNED: "ADMIN_UNASSIGNED",
-  /** A customer given up on, or decided by somebody since deactivated, sent a new request: in the pool for a new week. */
+  /**
+   * Back in the pool for a new week: a customer given up on, set aside as already handled, or decided by somebody since
+   * deactivated, who sent a new request or has one to deal with again.
+   */
   REOPENED: "REOPENED",
   /** The first sweep after self-claim shipped, taking in a customer already on file. */
   SWITCHED: "SWITCHED",
+  /** Set aside: every request of theirs is now marked Handled, Spam or deleted in the console. */
+  DONE: "DONE",
 } as const;
 
 /** Leaving somebody these ways keeps that person from taking the customer back until the next office day. */
@@ -64,6 +71,40 @@ export const ASSIGN_GONE =
 export function isFinalOutcome(status: string | null | undefined): boolean {
   const s = normalizeStatus(status);
   return s === "LEAD" || s === "NO_LEAD" || s === "INVALID";
+}
+
+/**
+ * The console's triage marks (the `status` of an Inquiry, ContactMessage or ShipmentInquiry) that say a request
+ * needs nothing more from the team.
+ */
+export const SETTLED_TRIAGE: readonly string[] = ["handled", "spam", "deleted"];
+
+/** A request still to be dealt with: anything the console has not marked Handled, Spam or deleted. */
+export function needsHandling(status: string | null | undefined): boolean {
+  return !SETTLED_TRIAGE.includes((status ?? "").trim().toLowerCase());
+}
+
+/**
+ * Where a customer already on file goes when the pool first meets them (the switch, or the sweep taking in anybody an
+ * arrival missed). Decided stays decided; a customer with nothing left to handle, every request marked Handled, Spam
+ * or deleted, is set aside as Done and never enters the pool (the owner, 2026-10-22); anybody else is held by the
+ * person who has them, or goes into the pool.
+ */
+export function placeOnFile(c: { decided: boolean; needsHandling: boolean; held: boolean }): "RESOLVED" | "DONE" | "HELD" | "OPEN" {
+  if (c.decided) return POOL_STATE.RESOLVED;
+  if (!c.needsHandling) return POOL_STATE.DONE;
+  return c.held ? POOL_STATE.HELD : POOL_STATE.OPEN;
+}
+
+/**
+ * What a change in the console's triage does to a customer the pool already knows: in the pool or held, with
+ * nothing left to handle, they are set aside as Done (never auto-released); set aside, with something to handle
+ * again, they go back into the pool. Decided and given-up customers stay where they are.
+ */
+export function triageMove(state: string, needs: boolean): "set-aside" | "reopen" | null {
+  if (!needs && (state === POOL_STATE.OPEN || state === POOL_STATE.HELD)) return "set-aside";
+  if (needs && state === POOL_STATE.DONE) return "reopen";
+  return null;
 }
 
 /** When a customer taken now goes back to the pool if nothing is recorded: two office hours. */
@@ -102,6 +143,7 @@ export function poolKindLabel(kind: string): string {
     case POOL_EVENT.ADMIN_UNASSIGNED: return "Put in the pool by an administrator";
     case POOL_EVENT.REOPENED: return "Back into the pool";
     case POOL_EVENT.SWITCHED: return "Taken in at the switch to self-claim";
+    case POOL_EVENT.DONE: return "Already handled: out of the pool";
     // The rotation's kinds, on customers it handled before the pool.
     case "ENTERED": return "Entered the rotation";
     case "ROTATED": return "Handed on by the rotation";

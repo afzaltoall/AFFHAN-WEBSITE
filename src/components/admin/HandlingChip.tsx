@@ -13,17 +13,21 @@ export function HandlingChip({ h, createdAt, dark = false, now }: { h: Handling 
   const key = handlingKey(h);
   const { text, title } = handlingText(h, createdAt, now);
   const lead = h?.state === "done" && h.outcome === "LEAD";
+  // Set aside as already handled: done, but nobody's outcome, so neither the Lead green nor the No lead red.
+  const handled = h?.state === "handled";
   const tone =
     key === "open"
       ? dark ? "bg-sky-500/15 text-sky-300" : "bg-sky-500/10 text-sky-700"
       : key === "held"
         ? dark ? "bg-amber-500/15 text-amber-300" : "bg-amber-500/10 text-amber-800"
-        : key === "done"
-          ? lead
-            ? dark ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-500/10 text-emerald-700"
-            : dark ? "bg-red-500/15 text-red-300" : "bg-red-500/10 text-red-700"
-          : dark ? "bg-white/10 text-slate-300" : "bg-slate-700/10 text-slate-700";
-  const Icon = key === "open" ? CircleDashed : key === "held" ? Hand : key === "done" ? (lead ? CheckCircle2 : XCircle) : Clock3;
+        : handled
+          ? dark ? "bg-white/[0.07] text-[#c7c7cc]" : "bg-black/[0.05] text-[#48484a]"
+          : key === "done"
+            ? lead
+              ? dark ? "bg-emerald-500/15 text-emerald-300" : "bg-emerald-500/10 text-emerald-700"
+              : dark ? "bg-red-500/15 text-red-300" : "bg-red-500/10 text-red-700"
+            : dark ? "bg-white/10 text-slate-300" : "bg-slate-700/10 text-slate-700";
+  const Icon = key === "open" ? CircleDashed : key === "held" ? Hand : handled ? CheckCircle2 : key === "done" ? (lead ? CheckCircle2 : XCircle) : Clock3;
   // `now` is the caller's clock (the console starts it at the moment the server drew the page) and is never read
   // here, so the server's draw and the browser's first draw say the same thing.
   return (

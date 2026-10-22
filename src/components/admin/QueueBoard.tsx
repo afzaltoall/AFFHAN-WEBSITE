@@ -61,12 +61,14 @@ type Person = EmployeeOption & { held: number };
  * it costs the holder no cooldown.
  */
 export function QueueBoard({
-  rows, history, employees, cap, renderedAt,
+  rows, history, employees, cap, setAside, renderedAt,
 }: {
   rows: QueueRow[];
   history: PoolEventRow[];
   employees: Person[];
   cap: number;
+  /** Customers kept out of the pool because every request of theirs is marked Handled, Spam or deleted. */
+  setAside: number;
   /** When the server drew the page: the clock's first reading, so the browser's first draw matches the server's. */
   renderedAt: number;
 }) {
@@ -126,7 +128,8 @@ export function QueueBoard({
           <div className="min-w-0 flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">Queue</h1>
             <p className="text-[13px] text-[#86868b]">
-              {open.length} in the open pool · {held.length} held · {invalid.length} given up on
+              {open.length} in the open pool · {held.length} held · {invalid.length} given up on · {setAside} already handled, kept
+              out of the pool
               {!isOfficeOpen(new Date(now)) && (
                 <> · the office is shut, so no clock runs out until {formatSince(nextOfficeOpening(new Date(now)), new Date(now))}</>
               )}

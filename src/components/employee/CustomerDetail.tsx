@@ -16,7 +16,7 @@ import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import {
   LEAD_NOTE_MAX, LEAD_STATUSES, LEAD_STATUS_META, leadStatusChip, leadStatusLabel, NOT_STARTED_META,
-  showsTimeToStaff, type LeadStatus,
+  normalizeStatus, showsTimeToStaff, type LeadStatus,
 } from "@/lib/leadStatus";
 import { batchesOf, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
@@ -93,6 +93,7 @@ export function CustomerDetail({
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   const batches = batchesOf(group.updates);
+  const decided = ["LEAD", "NO_LEAD"].includes(normalizeStatus(group.latest?.status));
   const itemCount = group.leads.length;
 
   // The page behind stays put, Escape closes (the enlarged photograph first),
@@ -445,7 +446,8 @@ export function CustomerDetail({
               <Mail className="h-3.5 w-3.5" /> Email
             </a>
           )}
-          {releasing === "idle" && (
+          {/* Not for a customer already decided: Lead or No lead keeps them with the reader, and there is nothing to let go. */}
+          {releasing === "idle" && !decided && (
             <button
               type="button"
               onClick={() => setReleasing("asking")}

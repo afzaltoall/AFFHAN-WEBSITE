@@ -6,8 +6,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { addOfficeMinutes, isOfficeOpen, officeMinutesBetween, startOfNextOfficeDay } from "../../src/lib/office-hours.ts";
 import {
-  ASSIGN_GONE, LEAVE_KINDS, POOL_EVENT, firstName, isFinalOutcome, poolKindLabel, releaseDeadline, retakeAllowedFrom,
-  staleDeadline, weekEnds,
+  ASSIGN_GONE, LEAVE_KINDS, POOL_EVENT, POOL_STATE, SETTLED_TRIAGE, firstName, isFinalOutcome, needsHandling, placeOnFile,
+  poolKindLabel, releaseDeadline, retakeAllowedFrom, staleDeadline, triageMove, weekEnds,
 } from "../../src/lib/lead-pool-rules.ts";
 import { MAX_OPEN_LEADS, RELEASE_AFTER_OFFICE_MINUTES, STALE_IN_PROGRESS_OFFICE_DAYS } from "../../src/lib/lead-pool-config.ts";
 import { handlingKey, handlingText, matchesHandling, span, waitingRank } from "../../src/lib/handling.ts";
@@ -97,6 +97,40 @@ test("only Lead, No lead and Invalid end a customer's open life", () => {
   for (const s of ["IN_PROGRESS", "NOT_ATTENDED", "FOLLOW_UP", "", null, undefined]) assert.equal(isFinalOutcome(s), false, String(s));
 });
 
+// ---- already handled stays out of the pool (the owner, 2026-10-22) -----------------------------------------------------
+
+test("a request needs handling unless the console marks it Handled, Spam or deleted", () => {
+  assert.deepEqual([...SETTLED_TRIAGE].sort(), ["deleted", "handled", "spam"]);
+  for (const s of ["handled", "spam", "deleted", "Handled", " SPAM "]) assert.equal(needsHandling(s), false, s);
+  // New, and anything the console does not call settled, still needs somebody.
+  for (const s of ["new", "NEW", "", null, undefined, "something else"]) assert.equal(needsHandling(s), true, String(s));
+});
+
+test("at the switch: decided stays decided, nothing left to handle is Done, otherwise held or into the pool", () => {
+  const P = (decided, needs, held) => placeOnFile({ decided, needsHandling: needs, held });
+  assert.equal(P(true, true, true), POOL_STATE.RESOLVED);
+  assert.equal(P(true, false, false), POOL_STATE.RESOLVED);
+  // Held by somebody, but every request already handled: Done, not held, so never auto-released into the pool.
+  assert.equal(P(false, false, true), POOL_STATE.DONE);
+  assert.equal(P(false, false, false), POOL_STATE.DONE);
+  assert.equal(P(false, true, true), POOL_STATE.HELD);
+  assert.equal(P(false, true, false), POOL_STATE.OPEN);
+});
+
+test("after it, the console's triage moves customers out of the pool and back", () => {
+  assert.equal(triageMove(POOL_STATE.OPEN, false), "set-aside");
+  assert.equal(triageMove(POOL_STATE.HELD, false), "set-aside");
+  assert.equal(triageMove(POOL_STATE.DONE, true), "reopen");
+  assert.equal(triageMove(POOL_STATE.OPEN, true), null);
+  assert.equal(triageMove(POOL_STATE.HELD, true), null);
+  assert.equal(triageMove(POOL_STATE.DONE, false), null);
+  // Decided and given up on stay where they are, whatever the console marks.
+  for (const s of [POOL_STATE.RESOLVED, POOL_STATE.INVALID]) {
+    assert.equal(triageMove(s, true), null, s);
+    assert.equal(triageMove(s, false), null, s);
+  }
+});
+
 test("Already taken by: the first name, or somebody", () => {
   assert.equal(firstName("Priya Raman"), "Priya");
   assert.equal(firstName("  Karan  "), "Karan");
@@ -142,6 +176,16 @@ test("a decided row says the outcome, who, and how long from taking it, across a
   assert.equal(handlingText(weekend, iso("2026-10-23 09:00")).text, "No lead by Priya · took 2d 17h");
   // Decided before the switch, with no Take on the trail.
   assert.equal(handlingText({ ...h, takenAt: null }, iso("2026-10-19 09:00")).text, "Lead by Priya");
+});
+
+test("a customer set aside as already handled reads Done, and is counted and sorted with the done ones", () => {
+  const h = { state: "handled", at: iso("2026-10-22 19:43") };
+  assert.equal(handlingText(h, iso("2026-09-21 10:00")).text, "Done · already handled");
+  assert.match(handlingText(h, iso("2026-09-21 10:00")).title, /every request is marked Handled, Spam or deleted/);
+  assert.equal(handlingKey(h), "done");
+  assert.equal(matchesHandling(h, "done"), true);
+  assert.equal(matchesHandling(h, "open"), false);
+  assert.equal(waitingRank(h, iso("2026-09-21 10:00"))[0], 2);
 });
 
 test("an invalid row says why", () => {

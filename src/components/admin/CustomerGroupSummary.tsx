@@ -56,7 +56,7 @@ export function CustomerGroupSummary({ t, groups, handlingOf, onlyOpen, onToggle
   const rail = [
     { n: s.held, fill: "bg-amber-500", label: "taken by somebody" },
     { n: s.open, fill: "bg-sky-500", label: "waiting in the pool" },
-    { n: s.done, fill: "bg-emerald-500", label: "decided" },
+    { n: s.done, fill: "bg-emerald-500", label: "decided or already handled" },
     { n: s.invalid, fill: "bg-slate-600", label: "given up on" },
   ].filter((seg) => seg.n > 0);
 
