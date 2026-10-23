@@ -3,13 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { REPLY_MAX, TEAM_STATUSES, isOfferStatus } from "@/lib/supplier-offer";
 import { removeSupplierPhotos } from "@/lib/video-storage";
+import { scheduleSupplierNews } from "@/lib/supplier-news";
 
 export const dynamic = "force-dynamic";
+// The supplier's email waits for the change to settle (lib/supplier-news.ts) after the answer has gone; this
+// keeps the function alive for it.
+export const maxDuration = 60;
 
 /**
  * The team's decision on a supplier's application: its status (new, reviewing, accepted, not selected) and a
  * reply the supplier reads beside it. Admins only. An application the supplier withdrew is theirs and stays
- * withdrawn.
+ * withdrawn. The supplier is emailed about it once it settles (lib/supplier-news.ts, since 2026-10-23).
  */
 export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getCurrentUser();
@@ -31,9 +35,11 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   }
   if (!Object.keys(data).length) return NextResponse.json({ error: "Nothing to change." }, { status: 400 });
 
+  // The change's own time: the email it schedules goes only if this is still the latest change when it settles.
+  const changedAt = new Date();
   const { count } = await prisma.supplierOffer.updateMany({
     where: { id, status: { not: "WITHDRAWN" } },
-    data: { ...data, reviewedAt: new Date(), reviewedBy: admin.email },
+    data: { ...data, reviewedAt: changedAt, reviewedBy: admin.email },
   });
   if (count !== 1) {
     const exists = await prisma.supplierOffer.findUnique({ where: { id }, select: { status: true } });
@@ -41,6 +47,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       ? NextResponse.json({ error: "The supplier withdrew this application." }, { status: 409 })
       : NextResponse.json({ error: "Application not found." }, { status: 404 });
   }
+  scheduleSupplierNews(id, changedAt);
   const row = await prisma.supplierOffer.findUnique({
     where: { id },
     select: { id: true, status: true, reply: true, reviewedAt: true, reviewedBy: true },
