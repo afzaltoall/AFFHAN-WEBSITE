@@ -79,14 +79,33 @@ test("for an employee the assignment is part of the lookup, and app inquiries ar
   assert.doesNotMatch(employee, /mobileInquiry/);
 });
 
-test("the panel links into the supplier book (an admin page) for admins only", () => {
+test("the panel links into the supplier book and New Suppliers (admin pages) for admins only", () => {
   const source = read(PANEL);
-  const links = [...source.matchAll(/href=\{[^}]*\/admin\/suppliers\//g)];
-  assert.equal(links.length, 2, "the book search and the supplier's page");
+  const links = [...source.matchAll(/href=\{[^}]*\/admin\/(?:new-)?suppliers\//g)];
+  assert.equal(links.length, 3, "the book search, the supplier's page and the application on New Suppliers");
   for (const m of links) {
     const before = source.slice(Math.max(0, m.index - 400), m.index);
     assert.match(before, /\{admin (\?|&&) \(?\s*<Link\s*$/, "each one inside an admin-only branch");
   }
+});
+
+// 2026-10-23: new suppliers (the supplier portal's applications) answer an inquiry beside the book's.
+test("new suppliers: read only for an inquiry the viewer has, open or accepted applications of active accounts", () => {
+  const index = read(`${MATCHER}/index.ts`);
+  const body = index.slice(index.indexOf("export async function supplierMatchesFor"));
+  assert.ok(body.includes("portalSuggestionsFor(inquiry)"));
+  assert.ok(
+    body.indexOf("portalSuggestionsFor(inquiry)") > body.indexOf("if (!inquiry) return null;"),
+    "after the lookup, so a staff member's are as gated as the book's",
+  );
+  const portal = read(`${MATCHER}/portal.ts`);
+  assert.match(portal, /where: \{ status: \{ in: \[\.\.\.SUGGESTED_STATUSES\] \}, supplier: \{ status: "ACTIVE" \} \}/);
+  assert.match(read(`${MATCHER}/portal-rank.ts`), /export const SUGGESTED_STATUSES = \["NEW", "REVIEWING", "ACCEPTED"\] as const;/);
+  // What the application was sent with, never the account's sign-in email, password, address, details or photos.
+  const from = portal.indexOf("select: {");
+  const select = portal.slice(from, portal.indexOf("},", from));
+  assert.match(select, /mobile: true, wechatId: true/);
+  assert.doesNotMatch(select, /email|password|Hash|companyAddress|details|photos/);
 });
 
 test("the matcher's own folder never logs a number or a WeChat ID", () => {

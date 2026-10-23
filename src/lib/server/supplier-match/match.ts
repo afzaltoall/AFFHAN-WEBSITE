@@ -269,13 +269,7 @@ const TITLE_FLUFF = new Set([
  * ("Electric car helmet unisex" is a helmet). Shown in the link's text, so a poor pick is visible before the click.
  */
 export function searchWordOf(title: string): string {
-  const head = title.toLowerCase().split(/\b(?:with|for)\b/)[0];
-  // Checked again once singular: "mens" is "men", "pcs" would be "pc".
-  const words = head
-    .split(/[^a-z]+/)
-    .filter((w) => w.length >= 3 && !NOISE.has(w) && !TITLE_FLUFF.has(w))
-    .map(singular)
-    .filter((w) => w.length >= 3 && !TITLE_FLUFF.has(w));
+  const words = headWords(title);
   if (!words.length) return "";
   const counts = new Map<string, number>();
   for (const w of words) counts.set(w, (counts.get(w) ?? 0) + 1);
@@ -283,4 +277,24 @@ export function searchWordOf(title: string): string {
   let pick = words[words.length - 1];
   for (let i = words.length - 2; i >= 0; i--) if (counts.get(words[i])! > counts.get(pick)!) pick = words[i];
   return pick;
+}
+
+/**
+ * A title's content words, once each: the words searchWordOf weighs, so "Portable Soccer Goal, 12x6 Ft Soccer Net,
+ * ... With Carry Bag" is soccer, goal, net and the rest of its head, never the carry bag it comes with. The portal's
+ * applications are matched to an inquiry by the words they share (portal-rank.ts).
+ */
+export function contentWordsOf(title: string): string[] {
+  return [...new Set(headWords(title))];
+}
+
+/** The title before any "with ..." or "for ...", as content words in order, repeats kept. */
+function headWords(title: string): string[] {
+  const head = title.toLowerCase().split(/\b(?:with|for)\b/)[0];
+  // Checked again once singular: "mens" is "men", "pcs" would be "pc".
+  return head
+    .split(/[^a-z]+/)
+    .filter((w) => w.length >= 3 && !NOISE.has(w) && !TITLE_FLUFF.has(w))
+    .map(singular)
+    .filter((w) => w.length >= 3 && !TITLE_FLUFF.has(w));
 }

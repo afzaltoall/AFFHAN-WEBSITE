@@ -4,6 +4,9 @@ import { toSupplierRecord, type ContactEntry, type PhoneView } from "@/lib/suppl
 import cleanCategories from "./clean-categories.json";
 import { categoryPath } from "./categories";
 import { loadIndex, matchInquiry, resolveInquiryCategory, supplierDisplayName, type CategorySource, type MatchIndex, type Query } from "./match";
+import { portalSuggestionsFor, type PortalSuggestion } from "./portal";
+
+export type { PortalSuggestion } from "./portal";
 
 /**
  * Supplier suggestions for one inquiry, for the inquiry panel in the admin console
@@ -11,9 +14,13 @@ import { loadIndex, matchInquiry, resolveInquiryCategory, supplierDisplayName, t
  * (GET /api/employee/inquiries/[id]/supplier-matches). Supplier data never leaves through anything else: every file
  * of this folder is server-only, and nothing but those two routes imports it.
  *
- * The suppliers and their terms are read once and kept in memory for ten minutes (the book changes only when
+ * Two kinds, side by side (the owner, 2026-10-23): old suppliers, from the WeChat book, and new suppliers, whose
+ * applications on the supplier portal answer the inquiry (portal.ts), the ones who applied for the inquired product
+ * itself first.
+ *
+ * The book's suppliers and their terms are read once and kept in memory for ten minutes (the book changes only when
  * scripts/import_suppliers.mjs runs; invalidateSupplierMatchIndex() is for a future edit route). An inquiry then
- * costs two statements: its product's category, and the match itself.
+ * costs two statements: its product's category, and the match itself; plus one for the portal, read fresh.
  */
 
 const TTL_MS = 10 * 60 * 1000;
@@ -67,6 +74,8 @@ export interface SupplierMatchesResponse {
   categorySource: CategorySource;
   suggestions: SupplierSuggestion[];
   total: number;
+  /** New suppliers: the portal's applications for this product, then for similar ones. */
+  portal: PortalSuggestion[];
   searchWord: string;
   /** Milliseconds for the category and the match, on the server. */
   ms: number;
@@ -90,11 +99,13 @@ export async function supplierMatchesFor(inquiryId: string, viewer: SupplierMatc
         (await prisma.mobileInquiry.findUnique({ where: { id: inquiryId }, select })));
   if (!inquiry) return null;
 
+  const portalRead = portalSuggestionsFor(inquiry);
   const index = await currentIndex();
   const started = performance.now();
   const { category, source } = await resolveInquiryCategory(query, inquiry);
   const result = await matchInquiry(index, { title: inquiry.productName, category }, CLEAN, query, 10);
   const ms = Math.round(performance.now() - started);
+  const portal = await portalRead;
 
   const suggestions: SupplierSuggestion[] = [];
   for (const m of result.matches) {
@@ -125,6 +136,7 @@ export async function supplierMatchesFor(inquiryId: string, viewer: SupplierMatc
     categorySource: source,
     suggestions,
     total: result.total,
+    portal,
     searchWord: result.searchWord,
     ms,
   };
