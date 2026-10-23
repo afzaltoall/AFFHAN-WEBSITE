@@ -42,6 +42,7 @@ interface Suggestion {
 /** A new supplier: their application on the supplier portal (src/lib/server/supplier-match/portal.ts). */
 interface PortalSuggestion {
   offerId: string;
+  supplierId: string;
   name: string;
   person: string;
   match: "product" | "similar";
@@ -187,10 +188,10 @@ export function InquirySupplierMatches({
               <li key={p.offerId} className={`rounded-xl p-3 ${t.thumb}`}>
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
                   <div className="min-w-0">
-                    {/* The application opens on New Suppliers in a new tab, so the inquiry stays open here. */}
+                    {/* The supplier's page opens at this application, in a new tab, so the inquiry stays open here. */}
                     {admin ? (
                       <Link
-                        href={`/admin/new-suppliers/?offer=${encodeURIComponent(p.offerId)}`}
+                        href={`/admin/new-suppliers/${encodeURIComponent(p.supplierId)}/#application-${encodeURIComponent(p.offerId)}`}
                         target="_blank"
                         rel="noopener"
                         className={`inline-flex items-center gap-1.5 text-sm font-semibold ${accentHover} ${t.strong}`}

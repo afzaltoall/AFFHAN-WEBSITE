@@ -13,6 +13,8 @@ import { SUGGESTED_STATUSES, rankPortalOffers, type SuggestedStatus } from "./po
 
 export interface PortalSuggestion {
   offerId: string;
+  /** Their page on New Suppliers (admins only), where the application is: /admin/new-suppliers/<id>/. */
+  supplierId: string;
   /** Company on the application, else the contact name. */
   name: string;
   person: string;
@@ -51,6 +53,7 @@ export async function portalSuggestionsFor(inquiry: { productId: number | null; 
   const picks = rankPortalOffers(inquiry, offers.map((o) => ({ ...o, status: o.status as SuggestedStatus })), limit);
   return picks.map(({ offer: o, match, shared }) => ({
     offerId: o.id,
+    supplierId: o.supplierId,
     name: o.companyName.trim() || o.contactName.trim() || "Supplier",
     person: o.contactName.trim(),
     match,

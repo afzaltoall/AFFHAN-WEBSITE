@@ -48,6 +48,26 @@ for (const rel of ["src/app/api/admin/supplier-offers/[id]/route.ts", "src/app/a
   });
 }
 
+// New Suppliers and a new supplier's own page (2026-10-23): admins only, before anything is read; the page's tab
+// title too, since generateMetadata runs apart from the page and would otherwise name the supplier to anyone.
+for (const rel of ["src/app/admin/(console)/new-suppliers/page.tsx", "src/app/admin/(console)/new-suppliers/[id]/page.tsx"]) {
+  test(`${rel}: admins only, before anything is read`, () => {
+    const source = read(rel);
+    const page = source.slice(source.indexOf("export default async function"));
+    const gate = page.indexOf('admin.role !== "admin"');
+    assert.ok(gate > 0, "the page checks the admin role");
+    const first = /\bprisma\.\w+|readBoard\(/.exec(page);
+    assert.ok(first && gate < first.index, "before the first read");
+    if (source.includes("generateMetadata")) {
+      const meta = source.slice(source.indexOf("export async function generateMetadata"), source.indexOf("export default async function"));
+      const metaGate = meta.indexOf('admin.role !== "admin"');
+      assert.ok(metaGate > 0, "the tab title checks the admin role");
+      const metaRead = /\bprisma\.\w+/.exec(meta);
+      assert.ok(metaRead && metaGate < metaRead.index, "before reading the supplier's name");
+    }
+  });
+}
+
 test("the supplier reset flow uses its own code purpose and token audience", () => {
   assert.match(read("src/app/api/supplier/auth/forgot-password/route.ts"), /issueEmailOtp\(email, "SUPPLIER_PASSWORD_RESET"\)/);
   const verify = read("src/app/api/supplier/auth/verify-reset-otp/route.ts");

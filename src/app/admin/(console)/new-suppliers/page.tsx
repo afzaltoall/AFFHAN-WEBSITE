@@ -2,8 +2,9 @@ import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
-import { isOfferStatus } from "@/lib/supplier-offer";
-import { NewSuppliersBoard, type BoardAccount, type BoardOffer } from "@/components/admin/NewSuppliersBoard";
+import { NewSuppliersBoard } from "@/components/admin/NewSuppliersBoard";
+import type { BoardAccount, BoardOffer } from "@/components/admin/new-suppliers-shared";
+import { ACCOUNT_SELECT, OFFER_INCLUDE, toBoardAccount, toBoardOffer } from "@/lib/server/new-supplier-rows";
 
 export const dynamic = "force-dynamic";
 
@@ -44,69 +45,14 @@ export default async function NewSuppliersPage() {
 async function readBoard(): Promise<{ offers: BoardOffer[]; accounts: BoardAccount[]; capped: boolean } | null> {
   try {
     const [offers, accounts] = await Promise.all([
-      prisma.supplierOffer.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 2000,
-        include: { supplier: { select: { id: true, email: true, status: true } } },
-      }),
-      prisma.supplierAccount.findMany({
-        orderBy: { createdAt: "desc" },
-        take: 2000,
-        select: {
-          id: true,
-          email: true,
-          name: true,
-          mobile: true,
-          companyName: true,
-          wechatId: true,
-          companyAddress: true,
-          status: true,
-          lastLoginAt: true,
-          createdAt: true,
-          _count: { select: { offers: true } },
-        },
-      }),
+      prisma.supplierOffer.findMany({ orderBy: { createdAt: "desc" }, take: 2000, include: OFFER_INCLUDE }),
+      prisma.supplierAccount.findMany({ orderBy: { createdAt: "desc" }, take: 2000, select: ACCOUNT_SELECT }),
     ]);
-
-    const boardOffers: BoardOffer[] = offers.map((o) => ({
-      id: o.id,
-      productId: o.productId,
-      productName: o.productName,
-      productImage: o.productImage,
-      categoryName: o.categoryName,
-      moq: o.moq,
-      moqUnit: o.moqUnit,
-      details: o.details,
-      photos: o.photos,
-      contactName: o.contactName,
-      companyName: o.companyName,
-      mobile: o.mobile,
-      wechatId: o.wechatId,
-      companyAddress: o.companyAddress,
-      status: isOfferStatus(o.status) ? o.status : "NEW",
-      reply: o.reply,
-      reviewedAt: o.reviewedAt?.toISOString() ?? null,
-      reviewedBy: o.reviewedBy,
-      createdAt: o.createdAt.toISOString(),
-      supplierId: o.supplier.id,
-      supplierEmail: o.supplier.email,
-      supplierBlocked: o.supplier.status !== "ACTIVE",
-    }));
-    const boardAccounts: BoardAccount[] = accounts.map((a) => ({
-      id: a.id,
-      email: a.email,
-      name: a.name,
-      mobile: a.mobile,
-      companyName: a.companyName,
-      wechatId: a.wechatId,
-      companyAddress: a.companyAddress,
-      status: a.status === "BLOCKED" ? "BLOCKED" : "ACTIVE",
-      lastLoginAt: a.lastLoginAt?.toISOString() ?? null,
-      createdAt: a.createdAt.toISOString(),
-      offers: a._count.offers,
-    }));
-
-    return { offers: boardOffers, accounts: boardAccounts, capped: offers.length === 2000 || accounts.length === 2000 };
+    return {
+      offers: offers.map(toBoardOffer),
+      accounts: accounts.map(toBoardAccount),
+      capped: offers.length === 2000 || accounts.length === 2000,
+    };
   } catch (error) {
     // The portal not set up yet (P2021: the table is missing) is said quietly; anything else is an error.
     if ((error as { code?: string })?.code === "P2021") {

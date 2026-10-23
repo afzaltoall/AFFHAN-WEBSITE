@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Phone, Copy, Check, Globe, AlertTriangle } from "lucide-react";
+import { Phone, Copy, Check, Globe, AlertTriangle, Mail } from "lucide-react";
 import type { ContactEntry, PhoneView } from "@/lib/suppliers";
 
 /**
@@ -109,17 +109,19 @@ interface Props {
   phones: PhoneView[];
   handles: ContactEntry[];
   webs: ContactEntry[];
+  /** Email addresses: a new supplier's page shows the one they sign in with (the WeChat book has none). */
+  emails?: string[];
   /** The original cell. Printed verbatim in the `full` variant. */
   raw: string;
   dark: boolean;
   variant?: "row" | "full";
 }
 
-export function SupplierContacts({ phones, handles, webs, raw, dark, variant = "row" }: Props) {
+export function SupplierContacts({ phones, handles, webs, emails = [], raw, dark, variant = "row" }: Props) {
   const soft = dark ? "text-[#8a8a8e]" : "text-[#6e6e73]";
   const full = variant === "full";
 
-  if (!phones.length && !handles.length && !webs.length) {
+  if (!phones.length && !handles.length && !webs.length && !emails.length) {
     return (
       <p className={`inline-flex items-center gap-1.5 text-[12px] ${soft}`}>
         <AlertTriangle size={13} aria-hidden="true" className={dark ? "text-amber-500" : "text-amber-600"} />
@@ -206,6 +208,22 @@ export function SupplierContacts({ phones, handles, webs, raw, dark, variant = "
               it for the desktop app's search box is the honest action. */}
           <span className="ml-auto">
             <CopyButton value={h.value} what="ID" dark={dark} />
+          </span>
+        </div>
+      ))}
+
+      {/* The same line as a number's: the mark, the address, its copy button in the button column. */}
+      {emails.map((e, i) => (
+        <div key={`e${i}`} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Mail size={13} aria-hidden="true" className={`shrink-0 ${soft}`} />
+          <a
+            href={`mailto:${e}`}
+            className="min-w-0 break-all text-[13px] font-semibold tracking-tight underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand rounded"
+          >
+            {e}
+          </a>
+          <span className="ml-auto">
+            <CopyButton value={e} what="email" dark={dark} />
           </span>
         </div>
       ))}
