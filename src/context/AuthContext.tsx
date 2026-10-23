@@ -1,7 +1,9 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { ME_HINT_KEY } from "@/lib/firstPaintHints";
+import { isSupplierPath } from "@/lib/supplier-paths";
 
 export interface WebUser {
   id: string;
@@ -90,8 +92,17 @@ function keepHint(user: WebUser | null) {
  * That also means "still signed in" is not a guess. On mount the cookie goes
  * with the request whether or not the last visit is remembered in JavaScript,
  * which is what makes a returning visitor on the same device simply signed in.
+ *
+ * Not on the supplier portal (the owner, 2026-10-23: customers and suppliers
+ * are separate accounts with separate sessions, no crossing either way). Its
+ * pages do not ask for the customer's session, and nothing here tells them who
+ * the customer is: they read as signed out. Leaving the portal for the shop
+ * asks then.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() ?? "";
+  const supplierSide = isSupplierPath(pathname);
+  const asked = useRef(false);
   const [user, setUser] = useState<WebUser | null>(null);
   const [loading, setLoading] = useState(true);
   // The server never looks at the cookie, so it cannot know who is signed in —
@@ -134,11 +145,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  useEffect(() => setHydrated(true), []);
+
+  // Asked once, on the first page that is the shop's: at once on arrival there, or on leaving the portal for it.
   useEffect(() => {
-    setHydrated(true);
+    if (supplierSide || asked.current) return;
+    asked.current = true;
     setHint(readHint());
     void refreshSession();
-  }, [refreshSession]);
+  }, [supplierSide, refreshSession]);
 
   const adoptUser = useCallback((next: WebUser) => {
     setUser(next);
@@ -159,15 +174,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({
-      user: hydrated ? user : null,
-      loading: !hydrated || loading,
-      hint: hydrated && loading ? hint : null,
-      refreshSession,
-      adoptUser,
-      logout,
-    }),
-    [user, loading, hydrated, hint, refreshSession, adoptUser, logout]
+    () =>
+      supplierSide
+        ? // The portal's pages hold no customer: signed out, and settled.
+          { user: null, loading: false, hint: null, refreshSession, adoptUser, logout }
+        : {
+            user: hydrated ? user : null,
+            loading: !hydrated || loading,
+            hint: hydrated && loading ? hint : null,
+            refreshSession,
+            adoptUser,
+            logout,
+          },
+    [supplierSide, user, loading, hydrated, hint, refreshSession, adoptUser, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
