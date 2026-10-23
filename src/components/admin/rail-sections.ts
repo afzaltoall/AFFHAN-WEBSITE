@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import {
   Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Store, Trash2,
   TrendingUp, UserCog, Users, type LucideIcon,
@@ -124,6 +125,44 @@ export const RAIL_GROUPS: RailGroup[] = [
 
 /** Every row, flat, for the rails that do not care about the headings. */
 export const RAIL_ITEMS: RailItem[] = RAIL_GROUPS.flatMap((g) => g.items);
+
+/**
+ * The rail fits the window, with nothing to scroll (the owner, 2026-10-23: "remove the sidebar scroll"). Every row is
+ * one height: the window's height, less everything in the rail that is not a row, shared among the rows, between
+ * RAIL_ROW_MIN and RAIL_ROW_MAX. Both rails draw the same header, headings, hairlines and account row (the classes
+ * named below), so this one figure fits both. Only a window under about 620px tall, where a row would be smaller than
+ * a pointer can reliably hit, lets the list run on, still without a scrollbar.
+ */
+export const RAIL_ROW_MIN = 22;
+export const RAIL_ROW_MAX = 38;
+const RAIL_PX = {
+  /** py-3 around the 32px logo. */
+  header: 56,
+  /** The account row: its hairline, p-1.5, and the 40px row. */
+  account: 53,
+  /** A group's heading, open: a 14px line and mb-0.5. */
+  heading: 16,
+  /** Between groups: mt-1, the hairline, pt-1. */
+  divider: 9,
+  /** space-y-0.5 between a group's children. */
+  gap: 2,
+  /** pb-1 under the last group, and 2px for rounding. */
+  end: 6,
+};
+const railRows = RAIL_ITEMS.length;
+const railFixed =
+  RAIL_PX.header +
+  RAIL_PX.account +
+  RAIL_GROUPS.filter((g) => g.label).length * RAIL_PX.heading +
+  (RAIL_GROUPS.length - 1) * RAIL_PX.divider +
+  RAIL_GROUPS.reduce((n, g) => n + g.items.length + (g.label ? 1 : 0) - 1, 0) * RAIL_PX.gap +
+  RAIL_PX.end;
+/** On the rail's aside: --rail-row, the height every row takes (h-[var(--rail-row)]). */
+export const railFitStyle = {
+  "--rail-row": `clamp(${RAIL_ROW_MIN}px, calc((100vh - ${railFixed}px) / ${railRows}), ${RAIL_ROW_MAX}px)`,
+} as CSSProperties;
+/** Above this window height the open rail never runs past the bottom. */
+export const RAIL_FITS_FROM_PX = railFixed + railRows * RAIL_ROW_MIN;
 
 /**
  * The figure beside a row, in the two shapes the rail needs it.

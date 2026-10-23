@@ -124,8 +124,8 @@ export function AccountMenu({
           )}
         </span>
         <span className={`min-w-0 flex-1 leading-tight ${label}`}>
-          <span className="block truncate text-[13px] font-semibold">{name}</span>
-          <span className={`block text-[11px] ${t.soft}`}>Administrator</span>
+          <span className="block truncate text-[12.5px] font-semibold">{name}</span>
+          <span className={`block text-[10.5px] ${t.soft}`}>Administrator</span>
         </span>
         <span className={label}>
           <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? "" : "rotate-180"}`} />

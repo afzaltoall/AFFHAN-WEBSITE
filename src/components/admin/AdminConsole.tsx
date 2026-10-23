@@ -9,7 +9,7 @@ import { HandlingChip } from "@/components/admin/HandlingChip";
 import { HANDLING_FILTERS, handlingKey, heldByOf, heldRefusal, heldSince, matchesHandling, waitingRank, type HandlingFilter } from "@/lib/handling";
 import type { Handling } from "@/lib/lead-pool";
 import { AccountMenu } from "@/components/admin/AccountMenu";
-import { RAIL_GROUPS, type RailItem } from "@/components/admin/rail-sections";
+import { RAIL_GROUPS, railFitStyle, type RailItem } from "@/components/admin/rail-sections";
 import { AdminRailList } from "@/components/admin/AdminMobileNav";
 import { TripLockPanel } from "@/components/admin/TripLockPanel";
 import { TripLockRailDot, TripLockRailPill } from "@/components/admin/TripLockRailStatus";
@@ -1165,7 +1165,8 @@ export function AdminConsole({ data }: Props) {
      icon column puts every icon's centre on 30px, the rail's midline. The
      same numbers hold when the panel opens, so opening it moves no icon by a
      pixel — the labels simply arrive beside them. */
-  const sideRow = "flex w-full items-center rounded-xl px-1.5 py-2.5 text-[13px] font-medium transition-colors";
+  // One height for every row, the window's share (railFitStyle): the rail fits the window with nothing to scroll.
+  const sideRow = "flex h-[var(--rail-row)] w-full items-center rounded-xl px-1.5 text-[12px] font-medium transition-colors";
   const sideIconCol = "relative flex h-[22px] w-8 shrink-0 items-center justify-center";
   const sideLabel = `overflow-hidden whitespace-nowrap text-left transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${sideOpen ? "ml-2.5 max-w-[190px] opacity-100" : "ml-0 max-w-0 opacity-0"}`;
   /* A count in two forms: the pill beside the label when the panel is open,
@@ -1173,12 +1174,12 @@ export function AdminConsole({ data }: Props) {
      at a glance — how many new inquiries, how many unread messages — so they
      survive the collapse instead of leaving with the text. */
   const sideDot = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand-dark px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${sideOpen ? "opacity-0" : "opacity-100"}`;
-  const sidePill = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[11px] font-semibold leading-5 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${sideOpen ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
+  const sidePill = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[10.5px] font-semibold leading-[18px] transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${sideOpen ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
   /* A group's heading. It collapses in HEIGHT rather than width, because a
      zero-width label still owns a line box and every group would cost the
      collapsed rail 14px of nothing. The hairline above each group stays, so
      the grouping is still legible at 60px with the words gone. */
-  const sideGroupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[10px] font-bold uppercase tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${sideOpen ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
+  const sideGroupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[9.5px] font-bold uppercase leading-[14px] tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${sideOpen ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
 
   /* The figure beside a row, where it has one. Keyed off rail-sections so the
      other rail can never be given a different set. */
@@ -1208,7 +1209,7 @@ export function AdminConsole({ data }: Props) {
     const body = (
       <>
         <span className={sideIconCol}>
-          <item.icon size={17} className={active ? "text-brand" : t.soft} />
+          <item.icon size={16} className={active ? "text-brand" : t.soft} />
           {count !== undefined && count > 0 && <span className={sideDot}>{fmtBadge(count)}</span>}
           {item.key === "trip-lock" && <TripLockRailDot open={sideOpen} />}
         </span>
@@ -1270,15 +1271,16 @@ export function AdminConsole({ data }: Props) {
             onBlurCapture={(e) => {
               if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSideOpen(false);
             }}
+            style={railFitStyle}
             className={`sticky top-0 z-40 flex h-screen flex-col overflow-hidden border-r backdrop-blur-xl transition-[width,box-shadow] duration-300 ease-out motion-reduce:transition-none ${sideOpen ? `w-[272px] shadow-2xl ${t.sidebarOpen}` : `w-[60px] ${t.sidebar}`}`}
           >
-            <div className="flex items-center px-3.5 py-5">
+            <div className="flex items-center px-3.5 py-3">
               <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
                 <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
               </span>
               <div className={`leading-tight ${sideLabel}`}>
-                <p className="text-sm font-semibold tracking-tight">Affhan</p>
-                <p className={`text-[11px] ${t.soft}`}>Admin</p>
+                <p className="text-[13px] font-semibold tracking-tight">Affhan</p>
+                <p className={`text-[10.5px] ${t.soft}`}>Admin</p>
               </div>
             </div>
             {/* Thirteen destinations in one flat column read as a list of
@@ -1287,36 +1289,29 @@ export function AdminConsole({ data }: Props) {
                 so the grouping survives the collapse to 60px — where the
                 labels cannot follow, but the gaps between icon clusters can.
 
-                It scrolls rather than clipping: the rail is h-screen with
-                overflow-hidden, and the groups cost enough height that a short
-                laptop screen would otherwise lose whatever sat at the bottom. */}
+                It fits rather than scrolling (the owner, 2026-10-23): every row
+                is the window's share of the height left after the header, the
+                headings and the account row (railFitStyle), so the last group
+                ends at the bottom of the window instead of past it. */}
             <nav
-              className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 ${
-                // The scrollbar shows only once there is room for it. In the
-                // 60px rail it would take a tenth of the width; open, it is the
-                // only thing that says the list continues past the fold, which
-                // on a short laptop screen it does. When it shows it is the
-                // console's own (see .console-scroll) — the platform's was a
-                // pale grey column with arrow buttons, lit up against a black
-                // panel in dark mode.
-                sideOpen ? `console-scroll ${dark ? "console-scroll-dark" : ""}` : "scrollbar-hide"
-              }`}
+              // No scrollbar, ever: the rows fit (railFitStyle, rail-sections.ts). Only a window too short for the
+              // smallest row lets the list run on, and the wheel still reaches it.
+              className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2 pb-1"
             >
               {RAIL_GROUPS.map((group, i) => (
                 <div
                   key={group.label ?? "top"}
-                  className={i === 0 ? "space-y-1" : `mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}
+                  className={i === 0 ? "space-y-0.5" : `mt-1 space-y-0.5 border-t pt-1 ${t.border}`}
                 >
                   {group.label && <p className={sideGroupLabel}>{group.label}</p>}
                   {group.items.map(railRow)}
                 </div>
               ))}
-              <div className="pb-2" />
             </nav>
             {/* One row, not five. What you can do with the account is behind
                 it — see AccountMenu — which is 160px of rail handed back to
                 the navigation that has to scroll. */}
-            <div className={`border-t p-2 ${t.border}`}>
+            <div className={`border-t p-1.5 ${t.border}`}>
               <AccountMenu
                 t={t}
                 name={data.adminName}

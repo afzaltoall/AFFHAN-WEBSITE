@@ -10,7 +10,7 @@ import { useAdminDark } from "@/lib/useAdminDark";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { AdminRailList } from "@/components/admin/AdminMobileNav";
 import {
-  RAIL_GROUPS, fmtRailBadge, fmtRailNum, railRowIsCurrent,
+  RAIL_GROUPS, fmtRailBadge, fmtRailNum, railFitStyle, railRowIsCurrent,
   type RailCountMap, type RailItem,
 } from "@/components/admin/rail-sections";
 import type { RailCounts } from "@/lib/admin-rail-counts";
@@ -97,7 +97,8 @@ export function AdminRail({
   const dark = supportsDark && darkPref;
   const t = dark ? DARK : LIGHT;
 
-  const sideRow = "flex w-full items-center rounded-xl px-1.5 py-2.5 text-[13px] font-medium transition-colors";
+  // One height for every row, the window's share (railFitStyle): the rail fits the window with nothing to scroll.
+  const sideRow = "flex h-[var(--rail-row)] w-full items-center rounded-xl px-1.5 text-[12px] font-medium transition-colors";
   const iconCol = "relative flex h-[22px] w-8 shrink-0 items-center justify-center";
   const label = `overflow-hidden whitespace-nowrap text-left transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${
     open ? "ml-2.5 max-w-[190px] opacity-100" : "ml-0 max-w-0 opacity-0"
@@ -111,11 +112,11 @@ export function AdminRail({
      many unread messages — so they survive the collapse instead of leaving
      with the text. */
   const dotCls = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand-dark px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${open ? "opacity-0" : "opacity-100"}`;
-  const pillCls = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[11px] font-semibold leading-5 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${open ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
+  const pillCls = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[10.5px] font-semibold leading-[18px] transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${open ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
 
   const railCount = railCountOf(counts);
 
-  const groupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[10px] font-bold uppercase tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${open ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
+  const groupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[9.5px] font-bold uppercase leading-[14px] tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${open ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
 
   const signOut = async () => {
     await signOutThrough("/api/auth/logout/", "admin");
@@ -135,17 +136,18 @@ export function AdminRail({
         onBlurCapture={(e) => {
           if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
         }}
+        style={railFitStyle}
         className={`sticky top-0 z-40 flex h-screen flex-col overflow-hidden border-r backdrop-blur-xl transition-[width,box-shadow] duration-300 ease-out motion-reduce:transition-none ${
           open ? `w-[272px] shadow-2xl ${t.sidebarOpen}` : `w-[60px] ${t.sidebar}`
         }`}
       >
-        <Link href="/admin/" className="flex items-center px-3.5 py-5">
+        <Link href="/admin/" className="flex items-center px-3.5 py-3">
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
             <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
           </span>
           <span className={`leading-tight ${label}`}>
-            <span className={`block text-sm font-semibold tracking-tight ${t.strong}`}>Affhan</span>
-            <span className={`block text-[11px] ${t.soft}`}>Admin</span>
+            <span className={`block text-[13px] font-semibold tracking-tight ${t.strong}`}>Affhan</span>
+            <span className={`block text-[10.5px] ${t.soft}`}>Admin</span>
           </span>
         </Link>
 
@@ -154,14 +156,14 @@ export function AdminRail({
             rearranges itself when you open Staff is worse than one that was
             never grouped. */}
         <nav
-          className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2 ${
-            open ? `console-scroll ${dark ? "console-scroll-dark" : ""}` : "scrollbar-hide"
-          }`}
+          // No scrollbar, ever: the rows fit (railFitStyle). Only a window too short for the smallest row lets the list
+          // run on, and the wheel still reaches it.
+          className="scrollbar-hide min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2 pb-1"
         >
           {RAIL_GROUPS.map((group, i) => (
             <div
               key={group.label ?? "top"}
-              className={i === 0 ? "space-y-1" : `mt-1.5 space-y-1 border-t pt-1.5 ${t.border}`}
+              className={i === 0 ? "space-y-0.5" : `mt-1 space-y-0.5 border-t pt-1 ${t.border}`}
             >
               {group.label && <p className={groupLabel}>{group.label}</p>}
               {group.items.map((item: RailItem) => {
@@ -178,7 +180,7 @@ export function AdminRail({
                     className={`${sideRow} ${active ? t.navActive : t.navIdle}`}
                   >
                     <span className={iconCol}>
-                      <item.icon size={17} className={active ? "text-brand" : t.soft} />
+                      <item.icon size={16} className={active ? "text-brand" : t.soft} />
                       {count !== undefined && count > 0 && <span className={dotCls}>{fmtRailBadge(count)}</span>}
                       {item.key === "trip-lock" && <TripLockRailDot open={open} />}
                     </span>
@@ -190,14 +192,13 @@ export function AdminRail({
               })}
             </div>
           ))}
-          <div className="pb-2" />
         </nav>
 
         {/* One row, and what you can do with the account behind it — the same
             menu the dashboard shows. Change email and change password are
             dialogs that live on the dashboard, so from here they are links
             it opens on arrival. */}
-        <div className={`border-t p-2 ${t.border}`}>
+        <div className={`border-t p-1.5 ${t.border}`}>
           <AccountMenu
             t={t}
             name={name}
