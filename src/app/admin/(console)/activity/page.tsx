@@ -11,7 +11,10 @@ import { getCdnUrl } from "@/lib/cdn";
 import { normalizePhoneKey } from "@/lib/customerGroups";
 import { collapseUpdates } from "@/lib/statusBatch";
 import { handoffsFor } from "@/lib/lead-handoff";
+import { poolEvents } from "@/lib/lead-pool";
+import { capitalized, customerLabel, type AskedItem } from "@/lib/customer-label";
 import { LiveRefresh } from "@/components/ui/LiveRefresh";
+import { PoolMoves } from "@/components/admin/PoolMoves";
 
 export const dynamic = "force-dynamic";
 
@@ -43,13 +46,32 @@ const sfFont = {
 export default async function ActivityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; view?: string }>;
 }) {
   const admin = await getCurrentUser();
   if (!admin) redirect("/admin/login");
   if (admin.role !== "admin") redirect("/");
 
-  const page = Math.max(1, Number.parseInt((await searchParams).page ?? "1", 10) || 1);
+  const params = await searchParams;
+  const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
+
+  // The open pool's moves, on their own pages: who took, released or lost whom (lib/lead-pool.ts).
+  if (params.view === "pool") {
+    const moves = await poolEvents({ page, perPage: PER_PAGE });
+    const movePages = Math.max(1, Math.ceil(moves.total / PER_PAGE));
+    return (
+      <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
+        <div className="px-5 py-8 sm:px-8 lg:px-10">
+          <ActivityHeader
+            caption={moves.total === 0 ? "Nothing has moved yet. Takes and releases appear here as they happen." : `${moves.total} ${moves.total === 1 ? "move" : "moves"} · newest first`}
+            view="pool"
+          />
+          <PoolMoves rows={moves.rows} empty="When somebody takes or releases a customer, or the pool sends one back, it shows up here." />
+          <Pager page={page} pages={movePages} view="pool" />
+        </div>
+      </div>
+    );
+  }
 
   const [total, rows] = await Promise.all([
     prisma.statusUpdate.count(),
@@ -129,26 +151,16 @@ export default async function ActivityPage({
   return (
     <div style={sfFont} className="min-h-screen bg-[#f5f5f7] text-[#1d1d1f] antialiased">
       <div className="px-5 py-8 sm:px-8 lg:px-10">
-        <div className="mb-6 flex items-center gap-4">
-          <Link
-            href="/admin/"
-            aria-label="Back to the dashboard"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] rail:hidden"
-          >
-            <ArrowLeft size={16} />
-          </Link>
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Activity</h1>
-            <p className="text-[13px] text-[#86868b]">
-              {total === 0
-                ? "Nothing recorded yet. Outcomes appear here as the team records them."
-                : `${total} ${total === 1 ? "update" : "updates"} recorded · newest first${
-                    feed.length !== rows.length ? " · one line per outcome, however many products it covered" : ""
-                  }`}
-            </p>
-          </div>
-          <LiveRefresh intervalMs={30_000} />
-        </div>
+        <ActivityHeader
+          caption={
+            total === 0
+              ? "Nothing recorded yet. Outcomes appear here as the team records them."
+              : `${total} ${total === 1 ? "update" : "updates"} recorded · newest first${
+                  feed.length !== rows.length ? " · one line per outcome, however many products it covered" : ""
+                }`
+          }
+          view="outcomes"
+        />
 
         {rows.length === 0 ? (
           <p className="rounded-2xl bg-white px-5 py-12 text-center text-[13px] text-[#86868b] shadow-sm ring-1 ring-black/[0.04]">
@@ -164,6 +176,10 @@ export default async function ActivityPage({
               const items = batch
                 .map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : b.shipment ? `Freight request ${b.shipment.referenceNo}` : null))
                 .filter((x): x is string => Boolean(x));
+              // The same, as the sentence names the customer: "(O-neck T-Shirt + 2 more)".
+              const covered: AskedItem[] = batch.flatMap((b): AskedItem[] =>
+                b.inquiry ? [{ kind: "inquiry", title: b.inquiry.productName }] : b.contact ? [{ kind: "contact" }] : b.shipment ? [{ kind: "shipment" }] : [],
+              );
               const image = batch.find((b) => b.inquiry?.product?.imageUrl)?.inquiry?.product?.imageUrl ?? null;
               const lead = r.inquiry
                 ? { name: r.inquiry.customerName, detail: items.join(" · "), href: `/admin/?inquiry=${r.inquiry.id}`, country: r.inquiry.country, image }
@@ -192,35 +208,34 @@ export default async function ActivityPage({
                       </span>
                     )}
                     <div className="min-w-0 flex-1">
+                      {/* "Customer Siddiq (O-neck T-Shirt + 1 more) marked Not attended by Khaja": the customer named as
+                          one, with what the action covered, and the member of staff after "by", so neither reads as
+                          the other (the owner, 2026-10-22; lib/customer-label.ts). */}
                       <p className="text-[13.5px] leading-snug">
-                        <Link href={`/admin/employees/${r.employee.id}/`} className="relative z-10 font-semibold hover:underline">
-                          {who}
-                        </Link>{" "}
-                        marked{" "}
                         {lead ? (
                           <Link href={lead.href} className="font-semibold after:absolute after:inset-0 after:rounded-2xl after:content-[''] group-hover:underline">
-                            {lead.name}
+                            {capitalized(customerLabel(lead.name, covered))}
                           </Link>
                         ) : (
-                          <span className="font-semibold">a lead since removed</span>
+                          <span className="font-semibold">A lead since removed</span>
                         )}{" "}
-                        as{" "}
+                        marked{" "}
                         <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-bold ${leadStatusChip(r.status)}`}>
                           {leadStatusLabel(r.status)}
-                        </span>
-                        {batch.length > 1 && (
-                          <span className="text-[#86868b]">
-                            {" "}
-                            across {batch.length} products
-                          </span>
-                        )}
+                        </span>{" "}
+                        by{" "}
+                        <Link href={`/admin/employees/${r.employee.id}/`} className="relative z-10 font-semibold hover:underline">
+                          {who}
+                        </Link>
                         {/* Where the customer went next, in the same sentence.
                             The arrow does the work a second line would, and
                             keeps one action on one line. */}
                         {handoff && (
                           <span className="text-[#48484a]">
                             {" → "}
-                            {handoff.kind === "passed" ? (
+                            {handoff.kind === "pool" ? (
+                              <>back to the open pool</>
+                            ) : handoff.kind === "passed" ? (
                               <>
                                 passed to{" "}
                                 {handoff.toEmployeeId ? (
@@ -280,30 +295,69 @@ export default async function ActivityPage({
           </ol>
         )}
 
-        {pages > 1 && (
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-[12.5px] text-[#86868b]">
-              Page {page} of {pages}
-            </span>
-            <div className="flex items-center gap-2">
-              {page > 1 && (
-                <Link
-                  href={`/admin/activity/?page=${page - 1}`}
-                  className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-semibold ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
-                >
-                  Newer
-                </Link>
-              )}
-              {page < pages && (
-                <Link
-                  href={`/admin/activity/?page=${page + 1}`}
-                  className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-semibold ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]"
-                >
-                  Older
-                </Link>
-              )}
-            </div>
-          </div>
+        <Pager page={page} pages={pages} view="outcomes" />
+      </div>
+    </div>
+  );
+}
+
+/** The page's title, its two views (what the team recorded; how customers moved through the pool), and refresh. */
+function ActivityHeader({ caption, view }: { caption: string; view: "outcomes" | "pool" }) {
+  return (
+    <>
+      <div className="mb-4 flex items-center gap-4">
+        <Link
+          href="/admin/"
+          aria-label="Back to the dashboard"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02] rail:hidden"
+        >
+          <ArrowLeft size={16} />
+        </Link>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-2xl font-semibold tracking-tight">Activity</h1>
+          <p className="text-[13px] text-[#86868b]">{caption}</p>
+        </div>
+        <LiveRefresh intervalMs={30_000} />
+      </div>
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        {([
+          ["outcomes", "Outcomes", "/admin/activity/"],
+          ["pool", "Pool moves", "/admin/activity/?view=pool"],
+        ] as const).map(([key, label, href]) => (
+          <Link
+            key={key}
+            href={href}
+            aria-current={view === key ? "page" : undefined}
+            className={`inline-flex items-center rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+              view === key ? "bg-[#1d1d1f] text-white" : "bg-white text-[#1d1d1f] ring-1 ring-black/[0.06] hover:bg-black/[0.02]"
+            }`}
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
+    </>
+  );
+}
+
+function Pager({ page, pages, view }: { page: number; pages: number; view: "outcomes" | "pool" }) {
+  if (pages <= 1) return null;
+  const at = (p: number) => `/admin/activity/?${view === "pool" ? "view=pool&" : ""}page=${p}`;
+  return (
+    <div className="mt-4 flex items-center justify-between">
+      <span className="text-[12.5px] text-[#86868b]">
+        Page {page} of {pages}
+      </span>
+      <div className="flex items-center gap-2">
+        {page > 1 && (
+          <Link href={at(page - 1)} className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-semibold ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]">
+            Newer
+          </Link>
+        )}
+        {page < pages && (
+          <Link href={at(page + 1)} className="rounded-lg bg-white px-3 py-1.5 text-[13px] font-semibold ring-1 ring-black/[0.06] transition-colors hover:bg-black/[0.02]">
+            Older
+          </Link>
         )}
       </div>
     </div>

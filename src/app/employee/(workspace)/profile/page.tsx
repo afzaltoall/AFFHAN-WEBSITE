@@ -134,12 +134,15 @@ export default async function EmployeeProfilePage() {
       const items = batch
         .map((b) => (b.inquiry ? b.inquiry.productName : b.contact ? "Contact message" : b.shipment ? `Freight request ${b.shipment.referenceNo}` : null))
         .filter(Boolean);
+      // "Customer Siddiq", so a customer's name never reads as a colleague's (lib/customer-label.ts); what they asked
+      // for is the line under it.
+      const name = u.inquiry?.customerName ?? u.contact?.fullName ?? u.shipment?.customerName;
       return {
         id: u.id,
         status: u.status,
         note: u.note,
         createdAt: u.createdAt.toISOString(),
-        who: u.inquiry?.customerName ?? u.contact?.fullName ?? u.shipment?.customerName ?? "A lead",
+        who: name ? `Customer ${name}` : "A lead",
         what:
           items.length === 0
             ? "No longer on file"

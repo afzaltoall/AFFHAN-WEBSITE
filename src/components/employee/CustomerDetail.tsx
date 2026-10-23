@@ -5,8 +5,9 @@ import Image from "next/image";
 import dynamic from "next/dynamic";
 import {
   Box, Boxes, Building2, Calendar, ChevronDown, ExternalLink, FileText, Inbox, Layers, Loader2, Mail, MapPin, MessageCircle,
-  MessageSquare, Package, Phone, PhoneCall, Plane, Scale, Ship, Users, X, ZoomIn, type LucideIcon,
+  MessageSquare, Package, Phone, PhoneCall, Plane, Scale, Ship, Undo2, Users, X, ZoomIn, type LucideIcon,
 } from "lucide-react";
+import { RELEASE_REASON_MAX } from "@/lib/lead-pool-config";
 import {
   commodityTypeLabel, methodLabel, methodName, modeLabel, termsLabel, termsName,
 } from "@/lib/shipment-inquiry";
@@ -15,9 +16,9 @@ import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
 import {
   LEAD_NOTE_MAX, LEAD_STATUSES, LEAD_STATUS_META, leadStatusChip, leadStatusLabel, NOT_STARTED_META,
-  showsTimeToStaff, type LeadStatus,
+  normalizeStatus, showsTimeToStaff, type LeadStatus,
 } from "@/lib/leadStatus";
-import { batchesOf, type CustomerLeadGroup } from "@/components/employee/lead-groups";
+import { batchesOf, customerOf, type CustomerLeadGroup } from "@/components/employee/lead-groups";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
@@ -50,12 +51,17 @@ export interface RecordedUpdate {
  * The outcome is recorded against the customer for the same reason, and
  * lands as one entry per product (see the status route). The history below
  * shows those rows back as the single action that wrote them.
+ *
+ * Release, at the foot, puts the customer back in the open pool with an
+ * optional word for the office about why; the reader may take them again from
+ * the next office day, and anybody else at once.
  */
 export function CustomerDetail({
   group,
   code,
   onClose,
   onRecorded,
+  onReleased,
 }: {
   group: CustomerLeadGroup;
   /** Their AFFHAN number, when one has been issued. */
@@ -66,6 +72,8 @@ export function CustomerDetail({
    * closes this panel when the customer has just left the person reading it.
    */
   onRecorded: (rows: RecordedUpdate[], status: LeadStatus) => void;
+  /** The customer went back to the pool from here; the board closes this panel and says so. */
+  onReleased: () => void;
 }) {
   const [zoom, setZoom] = useState<string | null>(null);
   const [choice, setChoice] = useState<LeadStatus | null>(null);
@@ -73,6 +81,10 @@ export function CustomerDetail({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedAt, setSavedAt] = useState<number | null>(null);
+  // Release: closed, asking for the optional reason, or on its way.
+  const [releasing, setReleasing] = useState<"idle" | "asking" | "sending">("idle");
+  const [reason, setReason] = useState("");
+  const [releaseError, setReleaseError] = useState<string | null>(null);
   // The newest thing they asked about is open to begin with: it is what the
   // call is about, and it shows at a glance that a line opens.
   const [expanded, setExpanded] = useState<Set<string>>(
@@ -81,6 +93,7 @@ export function CustomerDetail({
   const closeRef = useRef<HTMLButtonElement | null>(null);
 
   const batches = batchesOf(group.updates);
+  const decided = ["LEAD", "NO_LEAD"].includes(normalizeStatus(group.latest?.status));
   const itemCount = group.leads.length;
 
   // The page behind stays put, Escape closes (the enlarged photograph first),
@@ -155,6 +168,28 @@ export function CustomerDetail({
       setError("Network error. Try again.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const release = async () => {
+    setReleasing("sending");
+    setReleaseError(null);
+    try {
+      const res = await fetch("/api/employee/leads/release/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leads: group.leads.map((l) => ({ kind: l.kind, id: l.id })), reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setReleaseError(res.status === 401 ? "Your session has ended. Sign in again to release this customer." : data.error || "Could not release this customer.");
+        setReleasing("asking");
+        return;
+      }
+      onReleased();
+    } catch {
+      setReleaseError("Network error. Try again.");
+      setReleasing("asking");
     }
   };
 
@@ -339,7 +374,7 @@ export function CustomerDetail({
                         {leadStatusLabel(b.status)}
                       </span>
                       <span className={wt.soft} {...(timed ? { title: formatDateTime(b.createdAt) } : {})}>
-                        {timed ? `${timeAgo(b.createdAt)} · ` : ""}{b.byMe ? "you" : b.byName}
+                        {timed ? `${timeAgo(b.createdAt)} · ` : ""}{b.byMe ? "by you" : `by ${b.byName}`}
                         {b.titles.length > 1 && ` · ${b.titles.length} items`}
                       </span>
                     </span>
@@ -354,6 +389,45 @@ export function CustomerDetail({
             )}
           </div>
         </div>
+
+        {/* Letting the customer go, when the reader cannot take them on: asked once, with room for why. */}
+        {releasing !== "idle" && (
+          <div className={`border-t bg-amber-500/[0.06] px-5 py-3.5 ${wt.border}`}>
+            {/* "customer Siddiq (O-neck T-Shirt + 1 more)": a customer's name must never read as a colleague's. */}
+            <p className="text-[13px] font-semibold">Release {customerOf(group)} to the open pool?</p>
+            <p className={`mt-0.5 text-[12px] ${wt.soft}`}>
+              Anybody on the team can take them at once; you can take them again from the next office day.
+            </p>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value.slice(0, RELEASE_REASON_MAX))}
+              rows={2}
+              autoFocus
+              placeholder="Why, for the office (optional)"
+              aria-label="Why you are releasing them (optional)"
+              className="mt-2 w-full rounded-xl border border-black/[0.08] bg-white px-3 py-2 text-[13px] outline-none transition-shadow focus:ring-2 focus:ring-brand/30"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => void release()}
+                disabled={releasing === "sending"}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-black disabled:opacity-60"
+              >
+                {releasing === "sending" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Undo2 className="h-4 w-4" />}
+                Release to the pool
+              </button>
+              <button
+                type="button"
+                onClick={() => { setReleasing("idle"); setReason(""); setReleaseError(null); }}
+                className={`rounded-xl px-3 py-2 text-[13px] font-semibold ${wt.soft} hover:text-[#1d1d1f]`}
+              >
+                Keep them
+              </button>
+            </div>
+            {releaseError && <p className="mt-2 rounded-xl bg-red-500/10 px-3 py-2 text-[12.5px] font-medium text-red-700">{releaseError}</p>}
+          </div>
+        )}
 
         {/* Reaching the customer is what the panel is for, so the ways to do it
             stay in reach however far the history above runs. */}
@@ -372,6 +446,16 @@ export function CustomerDetail({
             <a href={`mailto:${group.email}`} className="inline-flex items-center gap-2 rounded-full bg-white px-5 py-2.5 text-xs font-semibold text-[#1d1d1f] ring-1 ring-black/[0.08] transition-colors hover:bg-black/[0.02]">
               <Mail className="h-3.5 w-3.5" /> Email
             </a>
+          )}
+          {/* Not for a customer already decided: Lead or No lead keeps them with the reader, and there is nothing to let go. */}
+          {releasing === "idle" && !decided && (
+            <button
+              type="button"
+              onClick={() => setReleasing("asking")}
+              className={`ml-auto inline-flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-semibold transition-colors ${wt.soft} hover:bg-black/[0.04] hover:text-[#1d1d1f]`}
+            >
+              <Undo2 className="h-3.5 w-3.5" /> Release
+            </button>
           )}
         </div>
       </div>

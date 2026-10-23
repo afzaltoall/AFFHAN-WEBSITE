@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { leadPerformance, winRateOf } from "@/lib/lead-performance";
+import { emptyPerformance, poolEvents, poolPerformance } from "@/lib/lead-pool";
 import { EmployeeDetail } from "@/components/admin/EmployeeDetail";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +41,9 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
   // different calculation. A lead that arrived carrying somebody else's
   // history counts as untouched here until this person writes something.
   const [performance] = await leadPerformance({ employeeId: id });
+
+  // Their moves through the open pool, and Team Performance's figures for them over the last 7 and 30 days.
+  const [moves, perf] = await Promise.all([poolEvents({ employeeId: id, perPage: 100 }), poolPerformance()]);
 
   const updates = await prisma.statusUpdate.findMany({
     where: { employeeId: id },
@@ -101,6 +105,8 @@ export default async function EmployeeDetailPage({ params }: { params: Promise<{
         contact: u.contact,
         shipment: u.shipment,
       }))}
+      poolMoves={moves.rows}
+      poolCounts={perf.get(id) ?? emptyPerformance()}
     />
   );
 }

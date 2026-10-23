@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { manualAssignCustomers } from "@/lib/lead-queue";
+import { applyConsoleTriage, customerKeysOf, heldAmong } from "@/lib/lead-pool";
+import { heldByMessage } from "@/lib/handling";
+import { ASSIGN_GONE } from "@/lib/lead-pool-rules";
 import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -14,13 +16,15 @@ async function requireAdmin() {
 // sends an array). Soft-delete/restore/status are status flips (nothing lost);
 // "purge" is the only operation that actually removes rows.
 //   { ids: string[], action: "delete" | "restore" | "purge" | "status", status?: "new"|"handled"|"spam" }
-//   { ids: string[], action: "assign", assignedToId: string | null }
-// "assign" hands the inquiry to a member of staff (or takes it back with
-// null); it is the only action here that does not touch `status`.
+// "assign" is gone (2026-10-22): staff take customers from the open pool, and
+// it answers 410 with the reason (ASSIGN_GONE) for anything still sending it.
+// Handled on a customer somebody holds answers 409 and changes nothing: the
+// person holding them closes them, by recording Lead or No lead.
 const TRIAGE = ["new", "handled", "spam"] as const;
 
 export async function POST(req: Request) {
-  if (!(await requireAdmin())) return new NextResponse("Unauthorized", { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin) return new NextResponse("Unauthorized", { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const ids: unknown = body?.ids;
@@ -34,46 +38,17 @@ export async function POST(req: Request) {
   }
 
   try {
-    if (action === "assign") {
-      // null clears the assignment; a string must name an employee who can
-      // actually work it, so a lead cannot be parked on a deactivated account.
-      const assignedToId: unknown = body?.assignedToId;
-      if (assignedToId !== null && typeof assignedToId !== "string") {
-        return NextResponse.json({ error: "assignedToId must be a string or null" }, { status: 400 });
-      }
-      if (typeof assignedToId === "string") {
-        const employee = await prisma.employee.findUnique({
-          where: { id: assignedToId },
-          select: { isActive: true },
-        });
-        if (!employee) return NextResponse.json({ error: "No such employee" }, { status: 400 });
-        if (!employee.isActive) {
-          return NextResponse.json({ error: "That employee is deactivated" }, { status: 400 });
-        }
-      }
-      const { count } = await prisma.inquiry.updateMany({
-        where: { id: { in: ids as string[] } },
-        data: {
-          assignedToId: assignedToId as string | null,
-          // Stamped on every handover, cleared when nobody holds it: the
-          // question assignedAt answers is "how long has it been sitting with
-          // the person who has it now", which has no answer once it is back in
-          // nobody's hands.
-          assignedAt: assignedToId ? new Date() : null,
-        },
-      });
-      // Assigning a customer who is going round the rotation queue is a
-      // decision about who works them, and the queue must not undo it two
-      // hours later. See lib/lead-queue.ts.
-      const released = await manualAssignCustomers({
-        leads: (ids as string[]).map((id) => ({ kind: "inquiry" as const, id })),
-        employeeId: assignedToId as string | null,
-      });
-      return NextResponse.json({ ok: true, action, assignedToId, count, released });
-    }
+    if (action === "assign") return NextResponse.json({ error: ASSIGN_GONE }, { status: 410 });
+
+    // Whose requests these are, read before the change (a purge removes the rows): the pool then applies its rule to
+    // them at once (lib/lead-pool.ts, reconsiderTriage). Nothing left to handle, out of the pool; something to handle
+    // again, back in.
+    const keys = await customerKeysOf("inquiry", ids as string[]);
+    const by = admin.name || admin.email;
 
     if (action === "purge") {
       const { count } = await prisma.inquiry.deleteMany({ where: { id: { in: ids as string[] } } });
+      await applyConsoleTriage(keys, by);
       return NextResponse.json({ ok: true, action, count });
     }
     let status: string;
@@ -82,6 +57,12 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "status must be new | handled | spam" }, { status: 400 });
       }
       status = body.status;
+      // A held customer is closed by the person holding them, with Lead or No lead (the owner, 2026-10-22). Spam and
+      // delete still end the hold.
+      if (status === "handled") {
+        const held = await heldAmong(keys);
+        if (held.length) return NextResponse.json({ error: heldByMessage(held.map((h) => h.holder ?? ""), held.length) }, { status: 409 });
+      }
     } else {
       status = action === "delete" ? "deleted" : "new"; // restore -> new
     }
@@ -89,6 +70,7 @@ export async function POST(req: Request) {
       where: { id: { in: ids as string[] } },
       data: { status },
     });
+    await applyConsoleTriage(keys, by);
     return NextResponse.json({ ok: true, action, status, count });
   } catch {
     return NextResponse.json({ error: "Bulk action failed" }, { status: 500 });

@@ -1,5 +1,5 @@
 import {
-  Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Timer, Trash2,
+  Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Trash2,
   TrendingUp, UserCog, Users, type LucideIcon,
 } from "lucide-react";
 
@@ -19,7 +19,7 @@ import {
 
 export type RailKey =
   | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-lock" | "trash"
-  | "staff" | "team-performance" | "queue" | "activity"
+  | "staff" | "team-performance" | "activity"
   | "suppliers" | "new-suppliers" | "videos"
   | "website-users" | "app-users" | "app-inquiries";
 
@@ -79,15 +79,15 @@ export const RAIL_GROUPS: RailGroup[] = [
     ],
   },
   {
-    // The sales team: who they are, how they are doing, what the rotation is
-    // holding, and what they have recorded. Activity is here rather than under
-    // a heading of its own — it is the team's own trail, and a section with one
-    // row in it is a divider with a word on top.
+    // The sales team: who they are, how they are doing, and what they have
+    // recorded. Activity is here rather than under a heading of its own — it is
+    // the team's own trail, and a section with one row in it is a divider with
+    // a word on top. The Queue row went with its page (the owner, 2026-10-22):
+    // the lead lists say who holds whom, and the popup releases them.
     label: "Team",
     items: [
       { key: "staff", href: "/admin/employees/", label: "Staff", icon: UserCog },
       { key: "team-performance", href: "/admin/team-performance/", label: "Team performance", icon: TrendingUp },
-      { key: "queue", href: "/admin/queue/", label: "Queue", icon: Timer },
       { key: "activity", href: "/admin/activity/", label: "Activity", icon: Activity },
     ],
   },
@@ -132,40 +132,29 @@ export const fmtRailBadge = (n: number) =>
 /**
  * Which rows carry a count, and what it is. Rows left out carry none.
  *
- * Eight of the fifteen rows do, and each counts something different enough to
+ * Seven of the sixteen rows do, and each counts something different enough to
  * be worth writing down — the figures are read at a glance by people who will
  * not go and check what they mean:
  *
- *   inquiries  quote requests nobody has triaged yet — every status that is
- *              not handled, spam or deleted, which is what the console's own
- *              asStatus() treats as "new". NOT the total number of inquiries.
- *   contacts   the same rule over Contact Us messages.
+ *   inquiries  customers waiting in the open pool RIGHT NOW (state OPEN), for
+ *              anybody on the team to take: the Queue row's figure, moved here
+ *              when that page went (the owner, 2026-10-22). Customers, not
+ *              quote requests, and NOT the untriaged count it used to be.
+ *   contacts   Contact Us messages nobody has triaged yet — every status that
+ *              is not handled, spam or deleted, which is what the console's own
+ *              asStatus() treats as "new".
  *   shipping   the same rule over freight quote requests from /shipping/.
- *              Always the whole table: unlike the two above, the dashboard does
- *              not load these rows, so it takes the server's count too.
+ *              Always the whole table: the dashboard does not load these rows,
+ *              so it takes the server's count too.
  *   trash      what is sitting in Recently Deleted. Inquiries only, because
  *              that is what the view restores.
  *   suppliers  every row of the supplier book. A total, not a backlog.
  *   new-suppliers  supplier-portal applications nobody has looked at yet
  *              (status NEW). A backlog, like inquiries.
  *   videos     every uploaded video. Also a total.
- *   queue      customers the rotation is moving RIGHT NOW (state ROTATING).
- *              The ones it gave up on are counted separately and shown in
- *              amber beside this, never added to it — see railDotFor, which
- *              folds them in only for the single dot the collapsed rail has
- *              room for.
  *
  * The dashboard draws its own rail from the rows it has already loaded, so
- * its four lead figures honour whatever country filter is on; every other
- * page reads lib/admin-rail-counts.ts, which counts the whole table.
+ * its contact figure honours whatever country filter is on; every other page
+ * reads lib/admin-rail-counts.ts, which counts the whole table.
  */
 export type RailCountMap = Partial<Record<RailKey, number>>;
-
-/**
- * One number stands for the whole queue when the rail is collapsed to 60px,
- * and a customer the rotation gave up on is precisely the one nobody else will
- * notice — so the dot adds them in even though the pill beside the label keeps
- * them apart. Anything else shows the figure it has.
- */
-export const railDotFor = (key: RailKey, counts: RailCountMap, queueInvalid: number) =>
-  key === "queue" ? (counts.queue ?? 0) + queueInvalid : counts[key];

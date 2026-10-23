@@ -62,7 +62,7 @@ export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
     <EmployeeAuthShell
       stats={stats}
       title="The sales desk."
-      blurb="Your assigned inquiries and contact requests, and the record of what happened to each one. Sign in with the address your administrator registered."
+      blurb="The customers you take from the open pool, and the record of what happened to each one. Sign in with the address your administrator registered."
     >
       <h2 className="text-xl font-bold tracking-tight text-slate-900">Staff sign in</h2>
       {/* slate-600 on white is 7.0:1. The old white/80 on the brand gradient

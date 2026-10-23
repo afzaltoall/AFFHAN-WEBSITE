@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { applyConsoleTriage, customerKeysOf, heldAmong } from "@/lib/lead-pool";
+import { heldByMessage } from "@/lib/handling";
 import { describeStatus, isMobileInquiryStatus } from "@/lib/inquiry-status";
 
 export const dynamic = "force-dynamic";
@@ -96,10 +98,19 @@ export async function PATCH(
     });
   }
 
-  // ---- Internal triage (unchanged) ---------------------------------------
+  // ---- Internal triage ---------------------------------------------------
+  // The bulk route's rules (/api/admin/inquiry): Handled on a customer somebody
+  // holds answers 409, since the holder closes them with Lead or No lead; and
+  // the pool applies the triage to the customer afterwards.
   const status = (ALLOWED_STATUS as readonly string[]).includes(body?.status) ? body.status : "new";
   try {
+    const keys = await customerKeysOf("inquiry", [id]);
+    if (status === "handled") {
+      const held = await heldAmong(keys);
+      if (held.length) return NextResponse.json({ error: heldByMessage(held.map((h) => h.holder ?? ""), held.length) }, { status: 409 });
+    }
     const updated = await prisma.inquiry.update({ where: { id }, data: { status } });
+    await applyConsoleTriage(keys, admin.name || admin.email);
     return NextResponse.json({ id: updated.id, status: updated.status });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -111,10 +122,13 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!(await requireAdmin())) return new NextResponse("Unauthorized", { status: 401 });
+  const admin = await requireAdmin();
+  if (!admin) return new NextResponse("Unauthorized", { status: 401 });
   const { id } = await params;
   try {
+    const keys = await customerKeysOf("inquiry", [id]);
     await prisma.inquiry.delete({ where: { id } });
+    await applyConsoleTriage(keys, admin.name || admin.email);
     return NextResponse.json({ ok: true, id });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });

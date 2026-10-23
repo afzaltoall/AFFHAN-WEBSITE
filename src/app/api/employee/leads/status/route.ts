@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readEmployeeAuth } from "@/lib/employee-session";
 import { isLeadStatus, LEAD_NOTE_MAX } from "@/lib/leadStatus";
-import { declineCustomer, touchCustomer, type LeadRef } from "@/lib/lead-queue";
+import { closeOpenRequests, releaseCustomer, touchCustomer, type LeadRef } from "@/lib/lead-pool";
+import { POOL_EVENT } from "@/lib/lead-pool-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -164,21 +165,28 @@ export async function POST(request: Request) {
     }));
 
     // What the record MEANS for who holds this customer, after the record
-    // itself is safely written. See lib/lead-queue.ts.
+    // itself is safely written. See lib/lead-pool.ts.
     //
-    //   Not attended  they cannot take it on, so it goes to the next person
-    //                 immediately — not in two hours' time.
-    //   Lead/No lead  somebody has decided; the queue lets go.
-    //   In progress   they are on it, which stops the silence timer.
+    //   Not attended  they cannot take it on, so it goes back to the open
+    //                 pool at once, and they may not take it again until the
+    //                 next office day.
+    //   Lead/No lead  decided; the customer stays with them, and every
+    //                 request of theirs still open is marked Handled in the
+    //                 console, "closed by" them on the trail.
+    //   In progress   they are on it, which stops the release clock.
     //
     // Deliberately after the response's data is assembled and inside its own
     // try: a customer who cannot be moved must not cost the salesperson the
     // outcome they just recorded.
     try {
+      const employee = { id: auth.employee.id, name: auth.employee.name };
       if (status === "NOT_ATTENDED") {
-        await declineCustomer({ leads: refs, employeeId: auth.employee.id, employeeName: auth.employee.name, now: createdAt });
+        await releaseCustomer({ leads: refs, employee, kind: POOL_EVENT.NOT_ATTENDED, reason: rawNote || null, now: createdAt });
       } else {
-        await touchCustomer({ leads: refs, employeeId: auth.employee.id, employeeName: auth.employee.name, status, now: createdAt });
+        await touchCustomer({ leads: refs, employee, status, now: createdAt });
+        // Decided first, then closed: a held customer with nothing left to
+        // handle would otherwise be set aside as already handled.
+        if (status === "LEAD" || status === "NO_LEAD") await closeOpenRequests({ leads: refs, employee });
       }
     } catch (error) {
       // The name alone was not enough to act on the first time this failed:
@@ -186,7 +194,7 @@ export async function POST(request: Request) {
       // of the message says where. Neither carries customer data.
       const code = (error as { code?: string } | null)?.code;
       console.error(
-        "lead queue follow-up failed:",
+        "lead pool follow-up failed:",
         error instanceof Error ? error.name : "unknown",
         code ?? "",
         error instanceof Error ? error.message.split("\n")[0] : ""

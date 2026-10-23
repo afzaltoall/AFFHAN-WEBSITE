@@ -29,10 +29,15 @@ import { prisma } from "@/lib/prisma";
  * the gap measures about 140ms.
  */
 
-/** The kinds that answer "and then what?" — the rest are bookkeeping. */
-const DECISIVE = ["ENTERED", "ROTATED", "PARKED", "INVALIDATED"] as const;
+/**
+ * The kinds that answer "and then what?" — the rest are bookkeeping. Since self-claim, a decline writes
+ * NOT_ATTENDED: the customer went back to the open pool. The rotation's kinds stay for the declines it handled.
+ */
+const DECISIVE = ["NOT_ATTENDED", "ENTERED", "ROTATED", "PARKED", "INVALIDATED"] as const;
 
 export type Handoff =
+  /** Back to the open pool, for anybody to take (since self-claim). */
+  | { kind: "pool" }
   /** Straight to the next person in the rotation. */
   | { kind: "passed"; toName: string; toEmployeeId: string | null }
   /** Nobody to hand it to, so it is sitting unassigned until the team grows. */
@@ -114,6 +119,7 @@ export function handoffOf(events: QueueEventRow[], decline: Pick<Decline, "emplo
       && e.fromEmployeeId === decline.employeeId,
   );
   if (!event) return null;
+  if (event.kind === "NOT_ATTENDED") return { kind: "pool" };
   if (event.kind === "INVALIDATED") return { kind: "nobody" };
   if (event.kind === "PARKED") return { kind: "waiting", reason: event.note };
   return event.toName ? { kind: "passed", toName: event.toName, toEmployeeId: event.toEmployeeId } : null;

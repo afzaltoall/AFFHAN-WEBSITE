@@ -3,6 +3,8 @@ import { customerCodeMap } from "@/lib/customerCode";
 import type { Metadata } from "next";
 import { prisma, withDbRetry } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { handlingFor } from "@/lib/lead-pool";
+import { renderTime } from "@/lib/render-time";
 import { AdminConsole } from "@/components/admin/AdminConsole";
 import { railCounts } from "@/lib/admin-rail-counts";
 
@@ -34,7 +36,7 @@ export default async function AdminPage() {
     Promise.all([
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
-        inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint; queue: bigint; queueInvalid: bigint;
+        inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint; pool: bigint;
         shipments: bigint; shipmentsNew: bigint;
       }]>`
         SELECT
@@ -56,13 +58,11 @@ export default async function AdminPage() {
              WHERE status NOT IN ('handled', 'spam', 'deleted'))                   AS "shipmentsNew",
           (SELECT count(*) FROM "Supplier")                                        AS suppliers,
           (SELECT count(*) FROM "Video")                                           AS videos,
-          -- Customers going round the rotation queue right now. It belongs on
-          -- the sidebar because a queue nobody looks at is a queue that has
-          -- quietly stopped moving.
-          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'ROTATING')         AS queue,
-          -- Given up on, and counted separately: these need a person, and
-          -- folding them into the rotating figure would hide the ones that do.
-          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'INVALID')           AS "queueInvalid"
+          -- Customers waiting in the open pool right now, nobody holding them:
+          -- the figure on the Inquiries row since the Queue page went. It
+          -- belongs on the sidebar because a pool nobody looks at is a pool that
+          -- has quietly stopped emptying.
+          (SELECT count(*) FROM "LeadQueueEntry" WHERE state = 'OPEN')             AS pool
       `,
       // High take so the "All" customer checklist and grouping never silently
       // drop rows — the master export reads the full DB server-side regardless.
@@ -95,18 +95,16 @@ export default async function AdminPage() {
         where: { status: { not: "deleted" } },
         _count: { _all: true },
       }),
-      // Who a lead can be handed to. Active only: a deactivated colleague
-      // cannot sign in, so offering them in the picker would park work where
-      // nobody will see it. Existing assignments to somebody since deactivated
-      // still resolve, because the rows below are keyed by id.
+      // The names for the Employee filter. Active only: deactivating somebody
+      // puts everything they held back in the pool.
       prisma.employee.findMany({
         where: { isActive: true },
         orderBy: [{ name: "asc" }],
         select: { id: true, name: true, region: true, image: true },
       }),
-      // The counts beside each name in the filter, and the "Unassigned" count
-      // — the null group. groupBy for the same reason the country options use
-      // it: it counts the whole table rather than the take-capped slices.
+      // The counts beside each name in the Employee filter. groupBy for the
+      // same reason the country options use it: it counts the whole table
+      // rather than the take-capped slices.
       prisma.inquiry.groupBy({
         by: ["assignedToId"],
         where: { status: { not: "deleted" } },
@@ -148,6 +146,10 @@ export default async function AdminPage() {
   );
 
   // Keyed for the two mappers below.
+  // Where each customer stands in the open pool, for the rows' handling chips: two statements after the four above,
+  // one for the customers' places in the pool and one for their newest updates (lib/lead-pool.ts).
+  const handling = await handlingFor([...allInquiries.map((i) => i.customerKey), ...allContacts.map((c) => c.customerKey)]);
+
   const outcomeByLead = new Map(
     latestOutcomes.map((o) => [
       `${o.kind}:${o.leadId}`,
@@ -162,8 +164,7 @@ export default async function AdminPage() {
   const inquiryCount = n(counts[0].inquiries);
   const contactCount = n(counts[0].contacts);
   const supplierCount = n(counts[0].suppliers);
-  const queueCount = n(counts[0].queue);
-  const queueInvalidCount = n(counts[0].queueInvalid);
+  const poolCount = n(counts[0].pool);
   const videoCount = n(counts[0].videos);
   const shipmentCount = n(counts[0].shipments);
   const shipmentNewCount = n(counts[0].shipmentsNew);
@@ -191,6 +192,7 @@ export default async function AdminPage() {
     signIn: i.user?.authProvider ?? null,
     assignedToId: i.assignedToId,
     lastStatus: outcomeByLead.get(`inquiry:${i.id}`) ?? null,
+    handling: i.customerKey ? handling[i.customerKey] ?? null : null,
     customerStatus: i.customerStatus,
     statusNote: i.statusNote,
     statusUpdatedAt: i.statusUpdatedAt?.toISOString() ?? null,
@@ -208,6 +210,7 @@ export default async function AdminPage() {
     status: c.status,
     assignedToId: c.assignedToId,
     lastStatus: outcomeByLead.get(`contact:${c.id}`) ?? null,
+    handling: c.customerKey ? handling[c.customerKey] ?? null : null,
   });
 
   // ContactMessage.country is `String @default("")`, so blanks are real and
@@ -240,8 +243,7 @@ export default async function AdminPage() {
       contacts: contactCount,
       suppliers: supplierCount,
       videos: videoCount,
-      queue: queueCount,
-      queueInvalid: queueInvalidCount,
+      pool: poolCount,
       shipments: shipmentCount,
       shipmentsNew: shipmentNewCount,
       newSuppliers,
@@ -256,6 +258,9 @@ export default async function AdminPage() {
     inquiryAssignees: toAssigneeCounts(inquiryAssigneeRows),
     contactAssignees: toAssigneeCounts(contactAssigneeRows),
     customerCodes,
+    // The moment this page was drawn: the rows' "waiting 35m" count from it on the server and on the browser's
+    // first draw alike, then from the browser's clock.
+    renderedAt: renderTime(),
   };
 
   return <AdminConsole data={data} />;

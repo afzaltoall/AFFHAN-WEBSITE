@@ -5,6 +5,8 @@ import Image from "next/image";
 import {
   Building2, Check, ChevronRight, Mail, MapPin, MessageSquare, Phone, Search, Ship, SlidersHorizontal, Users, X,
 } from "lucide-react";
+import type { LeadRef, PoolView } from "@/lib/lead-pool";
+import { OpenLeads } from "@/components/employee/OpenLeads";
 import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime } from "@/lib/datetime";
@@ -13,7 +15,8 @@ import { LEAD_STATUS_META, STAFF_OUTCOME_ORDER, outcomeMeta, outcomeOf, type Lea
 import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
 import { CustomerDetail, type RecordedUpdate } from "@/components/employee/CustomerDetail";
 import { WorkspaceToast, type ToastMessage } from "@/components/employee/WorkspaceToast";
-import { groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
+import { customerOf, groupHaystack, groupLeads, type CustomerLeadGroup } from "@/components/employee/lead-groups";
+import { capitalized } from "@/lib/customer-label";
 import { leadKey, type LeadCardData, type LeadUpdate } from "@/components/employee/lead-types";
 import { wt } from "@/components/employee/workspace-ui";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
@@ -22,11 +25,13 @@ import { searchMatches } from "@/lib/customerCodeSearch";
 /**
  * A member of staff's work, as the people it belongs to.
  *
- * The console hands leads over one product at a time, but a customer who asks
- * about four things is one customer: same name, same number, four rows. This
- * folds them back together with the same key the console groups by (the last
- * ten digits of the phone — lib/customerGroups.ts), so a row here is a person
- * and opening it shows everything of theirs, each item expandable on its own.
+ * A customer who asks about four things is one customer: same name, same
+ * number, four rows. This folds them back together with the same key the
+ * console groups by (the last ten digits of the phone — lib/customerGroups.ts),
+ * so a row here is a person and opening it shows everything of theirs, each
+ * item expandable on its own.
+ *
+ * Two tabs. My leads, the customers the reader holds:
  *
  *   - Tiles across the top: how many customers are yours, and where each
  *     outcome stands. Each one is also the filter for itself.
@@ -35,12 +40,17 @@ import { searchMatches } from "@/lib/customerCodeSearch";
  *     outcome filter above it; rows with the product's photograph, the
  *     customer, and the outcome so far.
  *   - A row opens the customer in full (CustomerDetail), where the outcome is
- *     recorded — once, for the customer, against every item they asked about.
+ *     recorded — once, for the customer, against every item they asked about —
+ *     and where they can be released back to the pool.
  *
- * The page keeps itself current (useLiveRefresh): a lead assigned from /admin
- * appears here within half a minute without anybody reloading. Filtering is
- * client-side on purpose — the page already holds this person's whole list,
- * which is small by construction, so narrowing it should not cost a round trip.
+ * And Open leads, the customers nobody holds (OpenLeads), without their names
+ * or numbers until somebody takes them. A Take brings the customer here and
+ * opens them.
+ *
+ * The page keeps itself current (useLiveRefresh), and Refresh re-reads it at
+ * once. Filtering is client-side on purpose — the page already holds this
+ * person's whole list, which is small by construction (MAX_OPEN_LEADS), so
+ * narrowing it should not cost a round trip.
  */
 
 type OutcomeFilter = "all" | LeadOutcomeKey;
@@ -53,19 +63,25 @@ const hasKind = (g: CustomerLeadGroup, kind: Exclude<KindFilter, "all">) =>
 const outcomeFor = (g: CustomerLeadGroup) => outcomeOf(g.latest?.status);
 
 export function EmployeeLeadBoard({
-  leads, name, codes,
+  leads, name, codes, pool,
 }: {
   leads: LeadCardData[];
   name: string | null;
   /** customerKey → AFFHAN-xxxx, the number the console shows for the same person. */
   codes: Record<string, string>;
+  /** The open pool, as staff may see it before taking anybody (lib/lead-pool.ts, listPool). */
+  pool: PoolView;
 }) {
   const { refresh, refreshing, updatedAt } = useLiveRefresh(30_000);
+  // Somebody holding nobody yet starts where the work is.
+  const [tab, setTab] = useState<"mine" | "pool">(() => (leads.length === 0 && pool.rows.length > 0 ? "pool" : "mine"));
   const [q, setQ] = useState("");
   const [outcome, setOutcome] = useState<OutcomeFilter>("all");
   const [kind, setKind] = useState<KindFilter>("all");
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [toast, setToast] = useState<ToastMessage | null>(null);
+  /** The leads of a customer just taken: their card opens as soon as the refresh brings them here. */
+  const [justTaken, setJustTaken] = useState<LeadRef[] | null>(null);
   /**
    * Outcomes recorded here that the server's copy of the page may not have
    * yet, keyed by lead. Merged by id, so once the refresh brings them back
@@ -88,6 +104,15 @@ export function EmployeeLeadBoard({
   );
 
   const groups = useMemo(() => groupLeads(merged), [merged]);
+
+  useEffect(() => {
+    if (!justTaken?.length) return;
+    const wanted = new Set(justTaken.map((l) => leadKey(l)));
+    const found = groups.find((g) => g.leads.some((l) => wanted.has(leadKey(l))));
+    if (!found) return;
+    setOpenKey(found.key);
+    setJustTaken(null);
+  }, [groups, justTaken]);
 
   // The tiles describe the whole of this person's work, so they do not move
   // while somebody types.
@@ -144,10 +169,10 @@ export function EmployeeLeadBoard({
    * An outcome has been recorded: say so, and get out of the way.
    *
    * The confirmation lives here rather than in the panel because "Not
-   * attended" hands the customer to somebody else — the panel closes and the
-   * row leaves the list in the same second, which without a word looks like
-   * the screen threw the work away. The board survives both, so the message
-   * outlives what it is about.
+   * attended" puts the customer back in the open pool — the panel closes and
+   * the row leaves the list in the same second, which without a word looks
+   * like the screen threw the work away. The board survives both, so the
+   * message outlives what it is about.
    */
   const recorded = (rows: RecordedUpdate[], status: LeadStatus) => {
     setPending((cur) => {
@@ -162,7 +187,7 @@ export function EmployeeLeadBoard({
       // It is no longer theirs, so the panel must not sit open over a customer
       // they cannot act on any more.
       setOpenKey(null);
-      setToast({ id: Date.now(), text: "Recorded. This customer has been passed to the next person.", tone: "moved" });
+      setToast({ id: Date.now(), text: `Recorded. ${capitalized(customerOf(open))} is back in the open pool.`, detail: "Anybody can take them; you can again from the next office day.", tone: "moved" });
     } else {
       setToast({
         id: Date.now(),
@@ -176,22 +201,62 @@ export function EmployeeLeadBoard({
     refresh();
   };
 
+  const released = () => {
+    setOpenKey(null);
+    setToast({ id: Date.now(), text: `${capitalized(customerOf(open))} is back in the open pool.`, detail: "Anybody can take them; you can again from the next office day.", tone: "moved" });
+    refresh();
+  };
+
+  const taken = (refs: LeadRef[]) => {
+    setTab("mine");
+    clear();
+    setJustTaken(refs);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">My leads</h1>
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{tab === "mine" ? "My leads" : "Open leads"}</h1>
           <p className={`mt-0.5 text-[13px] ${wt.soft}`}>
             {name ? `Welcome back, ${name}.` : "Welcome back."}{" "}
-            {merged.length === 0
-              ? "Nothing is assigned to you yet — new leads appear here as soon as they are handed over."
-              : `${groups.length} ${groups.length === 1 ? "customer" : "customers"} · ${merged.length} ${
-                  merged.length === 1 ? "item" : "items"
-                } assigned to you.`}
+            {tab === "pool"
+              ? `${pool.rows.length} ${pool.rows.length === 1 ? "customer" : "customers"} waiting for somebody to take them.`
+              : merged.length === 0
+                ? "You hold no customers yet. Take one from Open leads."
+                : `${groups.length} ${groups.length === 1 ? "customer" : "customers"} · ${merged.length} ${
+                    merged.length === 1 ? "item" : "items"
+                  } yours.`}
           </p>
         </div>
         <LiveRefreshButton onRefresh={refresh} refreshing={refreshing} updatedAt={updatedAt} />
       </div>
+
+      <div role="tablist" aria-label="Leads" className="inline-flex rounded-full bg-white p-1 shadow-sm ring-1 ring-black/[0.06]">
+        {([
+          ["mine", "My leads", groups.length],
+          ["pool", "Open leads", pool.rows.length],
+        ] as const).map(([key, label, n]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${
+              tab === key ? "bg-[#1d1d1f] text-white" : "text-[#1d1d1f] hover:bg-black/[0.03]"
+            }`}
+          >
+            {label}
+            <span className={`text-[11px] font-bold ${tab === key ? "text-white/70" : wt.soft}`}>{n}</span>
+          </button>
+        ))}
+      </div>
+
+      {tab === "pool" ? (
+        <OpenLeads pool={pool} onTaken={taken} onToast={setToast} refresh={refresh} />
+      ) : (
+      <>
 
       {/* KPI row: stat tiles, not a chart — each is one number, and each is
           the filter for itself. Every tile counts CUSTOMERS, so they add up to
@@ -280,12 +345,17 @@ export function EmployeeLeadBoard({
 
         {shown.length === 0 ? (
           <div className="px-4 py-14 text-center">
-            <p className="text-[15px] font-semibold">{merged.length === 0 ? "Nothing assigned yet" : "Nothing matches"}</p>
+            <p className="text-[15px] font-semibold">{merged.length === 0 ? "No customers yet" : "Nothing matches"}</p>
             <p className={`mt-1 text-[13px] ${wt.soft}`}>
               {merged.length === 0
-                ? "When a lead is assigned to you from the console it appears here — this page checks every half minute."
+                ? "Customers you take from Open leads appear here, with everything they asked about."
                 : "No customer of yours matches that. Try a different search or outcome."}
             </p>
+            {merged.length === 0 && pool.rows.length > 0 && (
+              <button type="button" onClick={() => setTab("pool")} className="mt-3 inline-flex items-center rounded-full bg-brand-dark px-4 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-brand-deep">
+                See {pool.rows.length} open {pool.rows.length === 1 ? "lead" : "leads"}
+              </button>
+            )}
             {filtering && (
               <button type="button" onClick={clear} className={`mt-3 inline-flex items-center rounded-full px-4 py-2 text-[13px] font-semibold shadow-sm ${wt.pill}`}>
                 Clear the filters
@@ -300,9 +370,11 @@ export function EmployeeLeadBoard({
           </ul>
         )}
       </div>
+      </>
+      )}
 
       {open && (
-        <CustomerDetail group={open} code={codes[open.key]} onClose={() => setOpenKey(null)} onRecorded={recorded} />
+        <CustomerDetail group={open} code={codes[open.key]} onClose={() => setOpenKey(null)} onRecorded={recorded} onReleased={released} />
       )}
 
       {/* Outside the panel on purpose: what it confirms often closes the panel

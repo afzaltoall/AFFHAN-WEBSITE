@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
+import { leadArrived } from "@/lib/lead-pool";
 import { checkContactRateLimit, getClientIp, limitReached } from "@/lib/rate-limit";
 import { checkTurnstile } from "@/lib/turnstile";
 
@@ -94,6 +95,10 @@ export async function POST(req: Request) {
     } catch (e) {
       console.error("customer code:", e);
     }
+
+    // To whoever holds this customer, or their place in the open pool, or into
+    // the pool; never a reason for the message to fail (see lib/lead-pool.ts).
+    await leadArrived({ kind: "contact", id: saved.id, customerKey, createdAt: saved.createdAt });
 
     return NextResponse.json(
       { message: "Thanks for reaching out — we'll get back to you soon." },

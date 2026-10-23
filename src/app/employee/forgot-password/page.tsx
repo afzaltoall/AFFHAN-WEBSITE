@@ -122,7 +122,7 @@ export default function EmployeeForgotPasswordPage() {
   return (
     <EmployeeAuthShell
       title="The sales desk."
-      blurb="Your assigned inquiries and contact requests, and the record of what happened to each one. Reset the password for the address your administrator registered."
+      blurb="The customers you take from the open pool, and the record of what happened to each one. Reset the password for the address your administrator registered."
     >
       <div>
         {step === "done" ? (

@@ -10,7 +10,7 @@ import { useAdminDark } from "@/lib/useAdminDark";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { AdminRailList } from "@/components/admin/AdminMobileNav";
 import {
-  RAIL_GROUPS, fmtRailBadge, fmtRailNum, railDotFor,
+  RAIL_GROUPS, fmtRailBadge, fmtRailNum,
   type RailCountMap, type RailItem,
 } from "@/components/admin/rail-sections";
 import type { RailCounts } from "@/lib/admin-rail-counts";
@@ -54,19 +54,19 @@ const DARK = {
   chip: "bg-white/[0.08] text-[#d1d1d6]",
 };
 
-/* Which rows carry a figure — the same seven the dashboard badges, and read
-   through rail-sections so the rails cannot drift apart again. */
+/* Which rows carry a figure — the same six the dashboard badges, and read
+   through rail-sections so the rails cannot drift apart again. Inquiries
+   carries the open pool's figure (rail-sections says why). */
 function railCountOf(counts: RailCounts | null): RailCountMap {
   return counts
     ? {
-        inquiries: counts.inquiries,
+        inquiries: counts.pool,
         contacts: counts.contacts,
         shipping: counts.shipping,
         trash: counts.trash,
         suppliers: counts.suppliers,
         "new-suppliers": counts.newSuppliers ?? undefined,
         videos: counts.videos,
-        queue: counts.queue,
       }
     : {};
 }
@@ -112,13 +112,8 @@ export function AdminRail({
      with the text. */
   const dotCls = `absolute -right-1.5 -top-1 min-w-[15px] rounded-full bg-brand-dark px-1 text-center text-[9px] font-bold leading-[15px] text-white transition-opacity duration-200 motion-reduce:transition-none ${open ? "opacity-0" : "opacity-100"}`;
   const pillCls = `shrink-0 overflow-hidden whitespace-nowrap rounded-full text-[11px] font-semibold leading-5 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${t.chip} ${open ? "ml-1 max-w-[72px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
-  /* The same collapse in the colour of something that needs a person: the
-     queue's given-up-on count, which is not a workload figure but a backlog
-     nobody else is going to notice. */
-  const alertCls = `shrink-0 overflow-hidden whitespace-nowrap rounded-full bg-amber-500/15 text-[10.5px] font-bold leading-5 text-amber-700 transition-[max-width,opacity,padding] duration-300 ease-out motion-reduce:transition-none ${open ? "ml-1 max-w-[96px] px-2 opacity-100" : "ml-0 max-w-0 px-0 opacity-0"}`;
 
   const railCount = railCountOf(counts);
-  const queueInvalid = counts?.queueInvalid ?? 0;
 
   const groupLabel = `overflow-hidden whitespace-nowrap px-1.5 text-[10px] font-bold uppercase tracking-[0.09em] transition-[max-height,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${t.soft} ${open ? "mb-0.5 max-h-5 opacity-100" : "mb-0 max-h-0 opacity-0"}`;
 
@@ -174,31 +169,22 @@ export function AdminRail({
                 // none of them is ever the current one here.
                 const active = !item.view && pathname.startsWith(item.href);
                 const count = railCount[item.key];
-                const dot = counts ? railDotFor(item.key, railCount, queueInvalid) : undefined;
                 return (
                   <Link
                     key={item.key}
                     href={item.href}
-                    title={item.label}
+                    title={item.key === "inquiries" && counts ? `Inquiries — ${fmtRailNum(counts.pool)} waiting in the open pool` : item.label}
                     aria-current={active ? "page" : undefined}
                     className={`${sideRow} ${active ? t.navActive : t.navIdle}`}
                   >
                     <span className={iconCol}>
                       <item.icon size={17} className={active ? "text-brand" : t.soft} />
-                      {dot !== undefined && dot > 0 && <span className={dotCls}>{fmtRailBadge(dot)}</span>}
+                      {count !== undefined && count > 0 && <span className={dotCls}>{fmtRailBadge(count)}</span>}
                       {item.key === "trip-lock" && <TripLockRailDot open={open} />}
                     </span>
                     <span className={`flex-1 ${label}`}>{item.label}</span>
                     {count !== undefined && <span className={pillCls}>{fmtRailNum(count)}</span>}
                     {item.key === "trip-lock" && <TripLockRailPill open={open} dark={dark} />}
-                    {/* Beside the rotating figure rather than added to it: the
-                        two numbers mean different things, and only one of them
-                        is somebody's job to fix today. The word rides along
-                        because two bare numbers side by side say nothing about
-                        which is which. */}
-                    {item.key === "queue" && queueInvalid > 0 && (
-                      <span className={alertCls}>{fmtRailNum(queueInvalid)} invalid</span>
-                    )}
                   </Link>
                 );
               })}
@@ -335,7 +321,6 @@ export function AdminMobileBar({
               <AdminRailList
                 t={t}
                 counts={railCount}
-                queueInvalid={counts?.queueInvalid ?? 0}
                 dark={dark}
                 // The dashboard's views are pages of their own there, never the current one here.
                 isActive={(item) => !item.view && pathname.startsWith(item.href)}
