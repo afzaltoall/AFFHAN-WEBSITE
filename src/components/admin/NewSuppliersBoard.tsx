@@ -5,11 +5,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  AlertTriangle, ArrowLeft, Building2, Check, CheckCircle2, CheckSquare, Clock, Copy, Download, ExternalLink, Loader2,
+  AlertTriangle, ArrowLeft, Ban, Building2, Check, CheckCircle2, CheckSquare, ChevronRight, Clock, Copy, Download, ExternalLink, Loader2,
   Mail, MapPin, MessageCircle, Moon, Package, Phone, RefreshCw, Search, SlidersHorizontal, Sun, Trash2, User, Users, X,
 } from "lucide-react";
 import { parsePhoneNumberFromString } from "libphonenumber-js/min";
 import { useAdminDark } from "@/lib/useAdminDark";
+import { useLiveRefresh } from "@/lib/useLiveRefresh";
+import { timeAgo } from "@/lib/relative-time";
 import { getCdnUrl } from "@/lib/cdn";
 import { SupplierContacts } from "@/components/admin/SupplierContacts";
 import { REPLY_MAX, TEAM_STATUSES, TEAM_STATUS_LABEL, moqPhrase, type OfferStatus } from "@/lib/supplier-offer";
@@ -158,9 +160,10 @@ export function NewSuppliersBoard({
   const [sort, setSort] = useState<SortKey>("newest");
   const [limit, setLimit] = useState(PAGE);
   const [openId, setOpenId] = useState<string | null>(null);
+  /** The supplier whose account panel is open (from their company name). */
+  const [accountId, setAccountId] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
   /** Ticked suppliers, by account id; kept across searches and chips, as in the book. */
   const [picked, setPicked] = useState<Set<string>>(() => new Set());
@@ -169,10 +172,23 @@ export function NewSuppliersBoard({
   const [dark, setDark] = useAdminDark();
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // A refresh (router.refresh) hands new rows down: take them.
+  // Live, as the console's lists are (the owner, 2026-10-23: a supplier's application took too long to show here):
+  // the page reads itself again every twenty seconds while it is on screen, and at once on coming back to the tab.
+  // Each refresh hands new rows down: take them. An open panel keeps what is being typed in it.
+  const { refresh, refreshing, updatedAt } = useLiveRefresh(20_000);
   useEffect(() => setOffers(initialOffers), [initialOffers]);
   useEffect(() => setAccounts(initialAccounts), [initialAccounts]);
-  useEffect(() => setRefreshing(false), [initialOffers, initialAccounts]);
+
+  // /admin/new-suppliers/?offer=<id> opens that application: the inquiry panel's new suppliers link here. Once, on
+  // arrival; the address is then put back as it was.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const wanted = params.get("offer");
+    if (!wanted) return;
+    if (initialOffers.some((o) => o.id === wanted)) setOpenId(wanted);
+    window.history.replaceState(null, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // "/" focuses the search, as in the book, unless something is being typed already.
   useEffect(() => {
@@ -321,6 +337,7 @@ export function NewSuppliersBoard({
         setOffers((all) => all.filter((o) => !gone.has(o.supplierId)));
         setPicked((s) => new Set([...s].filter((id) => !gone.has(id))));
         if (openId && offers.some((o) => o.id === openId && gone.has(o.supplierId))) setOpenId(null);
+        if (accountId && gone.has(accountId)) setAccountId(null);
         setNotice(`Deleted ${plural(Number(data.deleted) || gone.size, "supplier")}${data.applications ? ` and ${plural(Number(data.applications), "application")}` : ""}.`);
       } else {
         const res = await fetch(`/api/admin/supplier-offers/${pending.id}/`, { method: "DELETE" });
@@ -380,6 +397,7 @@ export function NewSuppliersBoard({
   ] as const;
 
   const open = offers.find((o) => o.id === openId) ?? null;
+  const openAccount = accounts.find((a) => a.id === accountId) ?? null;
 
   const saveOffer = async (id: string, change: { status?: OfferStatus; reply?: string }) => {
     const before = offers;
@@ -474,28 +492,35 @@ export function NewSuppliersBoard({
   const phoneOf = (e164: string) => [{ value: spaced(e164), label: null, tags: [], e164, assumed: false, incomplete: false }];
   const wechatOf = (id: string | null) => (id ? [{ value: id, label: "WeChat ID", tags: [] }] : []);
 
+  // The row reads as the book's does (the owner, 2026-10-23: the old row was the one to match): the supplier, what
+  // they supply, how to reach them, where they are. Everything else about the account (when they joined, Block,
+  // Delete) is one press away, on their name.
   const productsCell = (r: Row, big = false) => {
     if (!r.offers.length) return <span className={`text-[12px] ${t.soft}`}>No applications yet</span>;
     const all = expanded.has(r.account.id);
     const shown = all ? r.offers : r.offers.slice(0, SHOWN);
     return (
-      <ul className="space-y-2">
+      // One line an application, the product in the book's plain text and where it stands at the line's end, so the
+      // statuses make one column down the cell. The MOQ, photos and the day it came are on hover and in the application.
+      <ul className="space-y-1">
         {shown.map((o) => (
           <li key={o.id}>
             <button
               type="button"
               onClick={() => setOpenId(o.id)}
-              className="group flex w-full items-start gap-2 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              title={[
+                o.productName,
+                `MOQ ${moqPhrase(o.moq, o.moqUnit)}`,
+                o.photos.length ? plural(o.photos.length, "photo") : "",
+                o.productId === null ? "their own product" : "",
+                `sent ${day(o.createdAt)}`,
+              ].filter(Boolean).join(" · ")}
+              className="group flex w-full min-w-0 cursor-pointer items-center gap-2 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              <span className={`mt-px shrink-0 rounded-full px-1.5 py-px text-[10px] font-bold ${status[o.status]}`}>{TEAM_STATUS_LABEL[o.status]}</span>
-              <span className="min-w-0">
-                <span className={`line-clamp-2 font-semibold leading-snug underline-offset-2 group-hover:underline ${big ? "text-[13px]" : "text-[12.5px]"}`}>{o.productName}</span>
-                <span className={`block text-[11.5px] ${t.soft}`}>
-                  MOQ {moqPhrase(o.moq, o.moqUnit)}
-                  {o.photos.length ? ` · ${o.photos.length} photo${o.photos.length === 1 ? "" : "s"}` : ""}
-                  {o.productId === null ? " · their own product" : ""}
-                </span>
+              <span className={`min-w-0 flex-1 truncate leading-snug underline-offset-2 group-hover:underline ${big ? "text-[13px]" : "text-[12.5px]"}`}>
+                {o.productName}
               </span>
+              <span className={`shrink-0 rounded-full px-1.5 py-px text-[10px] font-bold ${status[o.status]}`}>{TEAM_STATUS_LABEL[o.status]}</span>
             </button>
           </li>
         ))}
@@ -521,51 +546,56 @@ export function NewSuppliersBoard({
     );
   };
 
-  const supplierCell = (r: Row, big = false) => (
-    <>
-      <span className="flex items-start gap-1.5">
-        <Building2 size={big ? 13 : 12} aria-hidden="true" className={`mt-[3.5px] shrink-0 ${t.soft}`} />
-        <span className={`font-semibold leading-snug tracking-tight ${big ? "text-[14px]" : "text-[13px]"}`}>
-          <span className="sr-only">Company: </span>
-          {r.account.companyName ?? <span className={t.soft}>Company not given yet</span>}
+  // The book's Supplier cell: the company (the person until a first application gives one), opening the supplier as
+  // the book's opens its page; the person under it, then the email they sign in with (the book has none, so it is
+  // here rather than a third line in Contact, which keeps the rows the book's height); a flag only when there is
+  // something to know.
+  const supplierCell = (r: Row, big = false) => {
+    const Mark = r.account.companyName ? Building2 : User;
+    return (
+      <>
+        <span className="flex items-start gap-1.5">
+          <Mark size={big ? 13 : 12} aria-hidden="true" className={`mt-[3.5px] shrink-0 ${t.soft}`} />
+          <button
+            type="button"
+            onClick={() => setAccountId(r.account.id)}
+            title={`Registered ${day(r.account.createdAt)}${r.account.lastLoginAt ? ` · last signed in ${day(r.account.lastLoginAt)}` : ""}`}
+            className={`cursor-pointer rounded text-left font-semibold leading-snug tracking-tight underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${big ? "text-[14px]" : "text-[13px]"}`}
+          >
+            <span className="sr-only">{r.account.companyName ? "Company: " : "Contact person: "}</span>
+            {r.account.companyName ?? r.account.name}
+          </button>
         </span>
-      </span>
-      <span className="mt-1 flex items-center gap-1.5">
-        <User size={12} aria-hidden="true" className={`shrink-0 ${t.soft}`} />
-        <span className={`text-[12px] ${t.body2}`}>
-          <span className="sr-only">Contact person: </span>
-          {r.account.name}
-        </span>
-      </span>
-      <span className={`mt-1 block text-[11px] ${t.soft}`}>
-        Joined {day(r.account.createdAt)}
-        {r.account.lastLoginAt ? ` · signed in ${day(r.account.lastLoginAt)}` : ""}
-      </span>
-      <span className="mt-1.5 flex flex-wrap items-center gap-2">
-        {r.account.status === "BLOCKED" && (
-          <span className="rounded-full bg-red-500/10 px-1.5 py-px text-[10px] font-bold text-red-600">Blocked</span>
+        {r.account.companyName && (
+          <span className="mt-1 flex items-center gap-1.5">
+            <User size={big ? 13 : 12} aria-hidden="true" className={`shrink-0 ${t.soft}`} />
+            <span className={`text-[12px] ${t.body2}`}>
+              <span className="sr-only">Contact person: </span>
+              {r.account.name}
+            </span>
+          </span>
         )}
-        <button
-          type="button"
-          onClick={() => void setBlocked(r.account, r.account.status !== "BLOCKED")}
-          className={`text-[11.5px] font-semibold underline-offset-2 hover:underline ${r.account.status === "BLOCKED" ? t.body2 : "text-red-600"}`}
-        >
-          {r.account.status === "BLOCKED" ? "Unblock" : "Block"}
-        </button>
-      </span>
-    </>
-  );
+        <span className="mt-1 flex min-w-0 items-center gap-1.5">
+          <Mail size={big ? 13 : 12} aria-hidden="true" className={`shrink-0 ${t.soft}`} />
+          <a
+            href={`mailto:${r.account.email}`}
+            title={r.account.email}
+            className={`min-w-0 truncate rounded text-[12px] underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.body2}`}
+          >
+            <span className="sr-only">Email: </span>
+            {r.account.email}
+          </a>
+        </span>
+        {r.account.status === "BLOCKED" && (
+          <span className="mt-1 inline-flex rounded-full bg-red-500/10 px-1.5 py-px text-[10px] font-bold text-red-600">Blocked</span>
+        )}
+      </>
+    );
+  };
 
+  // The book's Contact cell: the number with WhatsApp and Copy, the WeChat ID with Copy.
   const contactCell = (r: Row) => (
-    <>
-      <SupplierContacts phones={phoneOf(r.account.mobile)} handles={wechatOf(r.account.wechatId)} webs={[]} raw="" dark={dark} />
-      <div className="mt-1.5 flex items-center gap-2">
-        <Mail size={13} aria-hidden="true" className={`shrink-0 ${t.soft}`} />
-        <a href={`mailto:${r.account.email}`} className="min-w-0 truncate text-[12.5px] font-medium underline-offset-2 hover:underline">
-          {r.account.email}
-        </a>
-      </div>
-    </>
+    <SupplierContacts phones={phoneOf(r.account.mobile)} handles={wechatOf(r.account.wechatId)} webs={[]} raw="" dark={dark} />
   );
 
   return (
@@ -586,14 +616,15 @@ export function NewSuppliersBoard({
             <h1 className="truncate text-[15px] font-semibold tracking-tight">New Suppliers</h1>
             <p className={`text-[11px] ${t.soft}`}>{accounts.length.toLocaleString("en-US")} registered on the supplier portal</p>
           </div>
+          {/* How fresh the board is: it refreshes itself (above), and the button is for "now". */}
+          <span className={`ml-auto hidden text-[12px] sm:inline ${t.soft}`} aria-live="polite">
+            {refreshing ? "Updating…" : `Updated ${timeAgo(new Date(updatedAt))}`}
+          </span>
           <button
             type="button"
-            onClick={() => {
-              setRefreshing(true);
-              router.refresh();
-            }}
+            onClick={refresh}
             disabled={refreshing}
-            className={`ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-wait ${t.pill}`}
+            className={`ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-wait sm:ml-0 ${t.pill}`}
           >
             <RefreshCw size={15} aria-hidden="true" className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} />
             <span className="hidden sm:inline">{refreshing ? "Refreshing…" : "Refresh"}</span>
@@ -871,7 +902,7 @@ export function NewSuppliersBoard({
                     <div className="min-w-0 flex-1">{supplierCell(r, true)}</div>
                     <span className={`shrink-0 text-[11px] tabular-nums ${t.soft}`}>#{r.serial}</span>
                   </div>
-                  <div className={`mt-3 border-t pt-3 ${t.border}`}>{productsCell(r, true)}</div>
+                  <div className="mt-2.5">{productsCell(r, true)}</div>
                   <div className={`mt-3 border-t pt-3 ${t.border}`}>{contactCell(r)}</div>
                   {r.account.companyAddress && (
                     <p className={`mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed ${t.body2}`}>
@@ -879,6 +910,13 @@ export function NewSuppliersBoard({
                       {r.account.companyAddress}
                     </p>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setAccountId(r.account.id)}
+                    className="mt-3 inline-flex cursor-pointer items-center gap-1 rounded text-[12px] font-semibold underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                  >
+                    Open supplier <ChevronRight size={13} aria-hidden="true" />
+                  </button>
                 </li>
               ))}
             </ul>
@@ -899,8 +937,25 @@ export function NewSuppliersBoard({
         )}
       </div>
 
+      {/* The supplier under an application opened from it: closing the application comes back to them. */}
+      {openAccount && (
+        <AccountPanel
+          key={openAccount.id}
+          account={openAccount}
+          offers={rows.find((r) => r.account.id === openAccount.id)?.offers ?? []}
+          t={t}
+          pill={status}
+          covered={open !== null}
+          onClose={() => setAccountId(null)}
+          onOpenOffer={setOpenId}
+          onBlock={(block) => void setBlocked(openAccount, block)}
+          onDelete={() => setPending({ kind: "suppliers", ids: [openAccount.id] })}
+        />
+      )}
+
       {open && (
         <Review
+          key={open.id}
           offer={open}
           account={accounts.find((a) => a.id === open.supplierId) ?? null}
           t={t}
@@ -908,6 +963,10 @@ export function NewSuppliersBoard({
           onClose={() => setOpenId(null)}
           onSave={(change) => saveOffer(open.id, change)}
           onDelete={() => setPending({ kind: "application", id: open.id })}
+          onOpenSupplier={() => {
+            setOpenId(null);
+            setAccountId(open.supplierId);
+          }}
         />
       )}
 
@@ -925,7 +984,7 @@ export function NewSuppliersBoard({
   );
 }
 
-type Theme = { [K in "page" | "card" | "soft" | "body2" | "border" | "pill" | "pillOn" | "sheet" | "well" | "input" | "ink"]: string };
+type Theme = { [K in "page" | "card" | "soft" | "body2" | "border" | "divide" | "hover" | "pill" | "pillOn" | "sheet" | "well" | "input" | "ink"]: string };
 
 /**
  * The window before a delete: what goes, in words and by name, and that it cannot be undone. Cancel has the
@@ -1048,6 +1107,7 @@ function Review({
   onClose,
   onSave,
   onDelete,
+  onOpenSupplier,
 }: {
   offer: BoardOffer;
   account: BoardAccount | null;
@@ -1057,6 +1117,8 @@ function Review({
   onSave: (change: { status?: OfferStatus; reply?: string }) => Promise<boolean>;
   /** Asks the board's delete window about this application. */
   onDelete: () => void;
+  /** Closes this and opens the supplier: their account and everything they applied for. */
+  onOpenSupplier: () => void;
 }) {
   const [reply, setReply] = useState(o.reply ?? "");
   const [busy, setBusy] = useState(false);
@@ -1092,22 +1154,8 @@ function Review({
 
   const picture = getCdnUrl(o.productImage, 300);
   const button = `inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold ring-1 sm:h-9 ${t.pill}`;
-  const section = (title: string, children: React.ReactNode) => (
-    <section className={`rounded-2xl p-5 ring-1 ${t.card}`}>
-      <h3 className={`text-[11px] font-bold uppercase tracking-[0.1em] ${t.soft}`}>{title}</h3>
-      <div className="mt-2.5">{children}</div>
-    </section>
-  );
-  const facts = (rows: Array<[string, React.ReactNode]>) => (
-    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
-      {rows.map(([k, v]) => (
-        <div key={k} className="min-w-0">
-          <dt className={`text-[12px] ${t.soft}`}>{k}</dt>
-          <dd className="mt-0.5 whitespace-pre-wrap break-words text-[14px]">{v || "—"}</dd>
-        </div>
-      ))}
-    </dl>
-  );
+  const section = (title: string, children: React.ReactNode) => <Section title={title} t={t}>{children}</Section>;
+  const facts = (rows: Array<[string, React.ReactNode]>) => <Facts rows={rows} t={t} />;
 
   return (
     <div className="fixed inset-0 z-[120] flex justify-end bg-black/40" onClick={onClose}>
@@ -1273,15 +1321,250 @@ function Review({
           )}
           {section(
             "Supplier account",
-            facts([
-              ["Sign-in email", o.supplierEmail],
-              ["Registered", account ? stamp(account.createdAt) : null],
-              ["Applications", account ? String(account.offers) : null],
-              ["Account", o.supplierBlocked ? "Blocked" : "Active"],
-            ]),
+            <>
+              {facts([
+                ["Sign-in email", o.supplierEmail],
+                ["Registered", account ? stamp(account.createdAt) : null],
+                ["Applications", account ? String(account.offers) : null],
+                ["Account", o.supplierBlocked ? "Blocked" : "Active"],
+              ])}
+              {account && (
+                <button
+                  type="button"
+                  onClick={onOpenSupplier}
+                  className="mt-4 inline-flex cursor-pointer items-center gap-1 rounded text-[13px] font-semibold text-brand-dark underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  Open the supplier <ChevronRight size={14} aria-hidden="true" />
+                </button>
+              )}
+            </>,
           )}
         </div>
       </aside>
     </div>
+  );
+}
+
+/**
+ * One supplier, opened from their name in the row, as the book opens a supplier's page: how to reach them, every
+ * application they sent and where each stands, and the account: when they joined and last signed in, Block and
+ * Delete, which the row used to carry. An application opened from here opens over it; closing that comes back here.
+ */
+function AccountPanel({
+  account: a,
+  offers,
+  t,
+  pill,
+  covered,
+  onClose,
+  onOpenOffer,
+  onBlock,
+  onDelete,
+}: {
+  account: BoardAccount;
+  /** Their applications, newest first. */
+  offers: BoardOffer[];
+  t: Theme;
+  pill: Record<OfferStatus, string>;
+  /** An application is open over this panel: Escape is that one's to answer. */
+  covered: boolean;
+  onClose: () => void;
+  onOpenOffer: (id: string) => void;
+  /** Asks first (the board's confirm), then blocks or unblocks. */
+  onBlock: (block: boolean) => void;
+  /** Asks the board's delete window about this supplier. */
+  onDelete: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+  const blocked = a.status === "BLOCKED";
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && !covered && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, covered]);
+
+  const copyWechat = async () => {
+    if (!a.wechatId) return;
+    try {
+      await navigator.clipboard.writeText(a.wechatId);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // The clipboard refused (an insecure origin): the ID is on screen to copy by hand.
+    }
+  };
+
+  const button = `inline-flex h-10 items-center justify-center gap-2 rounded-full px-4 text-[13px] font-semibold ring-1 sm:h-9 ${t.pill}`;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex justify-end bg-black/40" onClick={onClose}>
+      <aside
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="supplier-account-title"
+        onClick={(e) => e.stopPropagation()}
+        className={`flex h-full w-full max-w-2xl flex-col overflow-y-auto shadow-2xl ${t.sheet} ${t.ink}`}
+      >
+        <div className={`sticky top-0 z-10 flex items-start gap-3 border-b px-6 py-4 backdrop-blur ${t.border} ${t.sheet}`}>
+          <div className="min-w-0 flex-1">
+            <p className={`text-[12px] ${t.soft}`}>Registered {stamp(a.createdAt)}</p>
+            <h2 id="supplier-account-title" className="mt-0.5 line-clamp-2 text-xl font-semibold tracking-tight">
+              {a.companyName ?? a.name}
+            </h2>
+            <p className={`truncate text-[13px] ${t.soft}`}>
+              {a.companyName ? `${a.name} · ` : ""}
+              {a.email}
+            </p>
+          </div>
+          {blocked && <span className="mt-1.5 shrink-0 rounded-full bg-red-500/10 px-2 py-0.5 text-[11px] font-bold text-red-600">Blocked</span>}
+          <button type="button" onClick={onClose} aria-label="Close" className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ring-1 ${t.pill}`}>
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="grid gap-4 px-6 py-5">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            {a.wechatId && (
+              <button
+                type="button"
+                onClick={() => void copyWechat()}
+                className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#07c160] px-4 text-[13px] font-semibold text-white sm:h-9"
+              >
+                {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? "WeChat ID copied" : `WeChat ${a.wechatId}`}
+              </button>
+            )}
+            <a href={`tel:${a.mobile}`} className={button}>
+              <Phone size={14} /> Call
+            </a>
+            <a href={`https://wa.me/${a.mobile.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className={button}>
+              <MessageCircle size={14} /> WhatsApp
+            </a>
+            <a href={`mailto:${a.email}`} className={`col-span-2 ${button}`}>
+              <Mail size={14} /> Email
+            </a>
+          </div>
+
+          <Section title={offers.length ? `Applications · ${offers.length.toLocaleString("en-US")}` : "Applications"} t={t}>
+            {offers.length ? (
+              <ul className={`-mx-2 divide-y ${t.divide}`}>
+                {offers.map((o) => {
+                  const picture = getCdnUrl(o.productImage ?? o.photos[0] ?? null, 120);
+                  return (
+                    <li key={o.id}>
+                      <button
+                        type="button"
+                        onClick={() => onOpenOffer(o.id)}
+                        className={`group flex w-full cursor-pointer items-center gap-3 rounded-xl px-2 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.hover}`}
+                      >
+                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg ${t.well}`}>
+                          {picture ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={picture} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                          ) : (
+                            <Package size={16} aria-hidden="true" className={t.soft} />
+                          )}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[13.5px] font-semibold leading-snug underline-offset-2 group-hover:underline">{o.productName}</span>
+                          <span className={`mt-0.5 block truncate text-[12px] ${t.soft}`}>
+                            MOQ {moqPhrase(o.moq, o.moqUnit)} · sent {day(o.createdAt)}
+                            {o.productId === null ? " · their own product" : ""}
+                          </span>
+                        </span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${pill[o.status]}`}>{TEAM_STATUS_LABEL[o.status]}</span>
+                        <ChevronRight size={15} aria-hidden="true" className={`shrink-0 ${t.soft}`} />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className={`text-[13.5px] ${t.soft}`}>Nothing yet. Whatever they apply for arrives here.</p>
+            )}
+          </Section>
+
+          <Section title="Contact" t={t}>
+            <Facts
+              rows={[
+                ["Name", a.name],
+                ["Company", a.companyName],
+                ["Mobile", spaced(a.mobile)],
+                ["WeChat ID", a.wechatId],
+                ["Sign-in email", a.email],
+                ["Company address", a.companyAddress],
+              ]}
+              t={t}
+            />
+          </Section>
+
+          <Section title="Account" t={t}>
+            <Facts
+              rows={[
+                ["Registered", stamp(a.createdAt)],
+                ["Last signed in", a.lastLoginAt ? stamp(a.lastLoginAt) : null],
+                ["Account", blocked ? "Blocked: cannot sign in" : "Active"],
+              ]}
+              t={t}
+            />
+            <div className={`mt-4 flex flex-wrap items-center gap-2 border-t pt-4 text-[13px] ${t.border}`}>
+              {blocked ? (
+                <button
+                  type="button"
+                  onClick={() => onBlock(false)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
+                >
+                  <CheckCircle2 size={14} aria-hidden="true" /> Unblock
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onBlock(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold text-red-600 ring-1 ring-red-500/30 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+                >
+                  <Ban size={14} aria-hidden="true" /> Block
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onDelete}
+                className="ml-auto inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold text-red-600 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400"
+              >
+                <Trash2 size={14} aria-hidden="true" /> Delete supplier
+              </button>
+            </div>
+            <p className={`mt-2 text-[12.5px] ${t.soft}`}>
+              {blocked
+                ? "Unblocked, they can sign in again at once."
+                : "Blocked, they are signed out at once and cannot sign in until unblocked. Their applications stay."}
+            </p>
+          </Section>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+/** A panel's card: a small heading, then what it holds. */
+function Section({ title, t, children }: { title: string; t: Theme; children: React.ReactNode }) {
+  return (
+    <section className={`rounded-2xl p-5 ring-1 ${t.card}`}>
+      <h3 className={`text-[11px] font-bold uppercase tracking-[0.1em] ${t.soft}`}>{title}</h3>
+      <div className="mt-2.5">{children}</div>
+    </section>
+  );
+}
+
+/** Label over value, two columns from a small screen up; a dash for what was never given. */
+function Facts({ rows, t }: { rows: Array<[string, React.ReactNode]>; t: Theme }) {
+  return (
+    <dl className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
+      {rows.map(([k, v]) => (
+        <div key={k} className="min-w-0">
+          <dt className={`text-[12px] ${t.soft}`}>{k}</dt>
+          <dd className="mt-0.5 whitespace-pre-wrap break-words text-[14px]">{v || "—"}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
