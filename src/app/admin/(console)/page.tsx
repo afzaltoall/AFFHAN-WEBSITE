@@ -7,6 +7,7 @@ import { handlingFor } from "@/lib/lead-pool";
 import { renderTime } from "@/lib/render-time";
 import { AdminConsole } from "@/components/admin/AdminConsole";
 import { railCounts } from "@/lib/admin-rail-counts";
+import { describeStatus } from "@/lib/inquiry-status";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +38,7 @@ export default async function AdminPage() {
       prisma.$queryRaw<[{
         products: bigint; categories: bigint; categoriesTotal: bigint;
         inquiries: bigint; contacts: bigint; suppliers: bigint; videos: bigint; pool: bigint;
-        shipments: bigint; shipmentsNew: bigint;
+        shipments: bigint; shipmentsNew: bigint; appInquiries: bigint;
       }]>`
         SELECT
           (SELECT count(*) FROM "Product")                                        AS products,
@@ -48,6 +49,8 @@ export default async function AdminPage() {
              WHERE EXISTS (SELECT 1 FROM "Product" p WHERE p."categoryId" = c."id")) AS categories,
           (SELECT count(*) FROM "Category")                                       AS "categoriesTotal",
           (SELECT count(*) FROM "Inquiry"        WHERE status <> 'deleted')        AS inquiries,
+          -- The app's, which Inquiries lists beside the website's (tagged App).
+          (SELECT count(*) FROM "MobileInquiry")                                   AS "appInquiries",
           (SELECT count(*) FROM "ContactMessage" WHERE status <> 'deleted')        AS contacts,
           -- Freight requests. Counted here rather than loaded: the Shipping
           -- view fetches its own rows when opened, so a load of this page that
@@ -148,7 +151,22 @@ export default async function AdminPage() {
   // Keyed for the two mappers below.
   // Where each customer stands in the open pool, for the rows' handling chips: two statements after the four above,
   // one for the customers' places in the pool and one for their newest updates (lib/lead-pool.ts).
-  const handling = await handlingFor([...allInquiries.map((i) => i.customerKey), ...allContacts.map((c) => c.customerKey)]);
+  // Beside them, the app's inquiries, which Inquiries lists with the website's, each tagged where it came from (the
+  // owner, 2026-10-23). Here rather than above, where the ten already fill the pool.
+  const [handling, appRows] = await Promise.all([
+    handlingFor([...allInquiries.map((i) => i.customerKey), ...allContacts.map((c) => c.customerKey)]),
+    withDbRetry(() =>
+      prisma.mobileInquiry.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 2000,
+        select: {
+          id: true, createdAt: true, productName: true, productImage: true, requestedMOQ: true,
+          status: true, statusNote: true, moqEditedAt: true,
+          user: { select: { name: true, email: true, phone: true, companyName: true, city: true, state: true, authProvider: true } },
+        },
+      }),
+    ),
+  ]);
 
   const outcomeByLead = new Map(
     latestOutcomes.map((o) => [
@@ -246,9 +264,29 @@ export default async function AdminPage() {
       pool: poolCount,
       shipments: shipmentCount,
       shipmentsNew: shipmentNewCount,
+      appInquiries: n(counts[0].appInquiries),
       newSuppliers,
     },
     inquiries: inquiries.map(mapInquiry),
+    appInquiries: appRows.map((a) => {
+      const { status, label } = describeStatus(a.status, a.statusNote);
+      return {
+        id: a.id,
+        createdAt: a.createdAt.toISOString(),
+        productName: a.productName,
+        productImage: a.productImage,
+        quantity: a.requestedMOQ,
+        quantityEdited: a.moqEditedAt !== null,
+        stage: status,
+        stageLabel: label,
+        customerName: a.user.name,
+        companyName: a.user.companyName,
+        email: a.user.email,
+        phone: a.user.phone,
+        place: [a.user.city, a.user.state].filter(Boolean).join(", ") || null,
+        signIn: a.user.authProvider,
+      };
+    }),
     deletedInquiries: deletedInquiries.map(mapInquiry),
     contacts: contacts.map(mapContact),
     deletedContacts: deletedContacts.map(mapContact),
