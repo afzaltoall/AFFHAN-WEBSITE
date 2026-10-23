@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Globe, Loader2, RefreshCw, Search, Smartphone } from "lucide-react";
+import { ArrowLeft, Loader2, RefreshCw, Search } from "lucide-react";
 import { GoogleG } from "@/components/ui/GoogleG";
+import { UserTabs } from "@/components/admin/UserTabs";
 
 /**
  * One customer list, pointed at whichever client you want to see.
@@ -129,19 +130,9 @@ export function CustomerList({
           </button>
         </div>
 
-        {/* Switching between the two lists, and the honest note about why a
-            person can be on both. */}
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <Tab href="/admin/users/website/" active={platform === "WEB"} Icon={Globe}>
-            Website users
-          </Tab>
-          <Tab href="/admin/users/app/" active={platform === "APP"} Icon={Smartphone}>
-            App users
-          </Tab>
-          <Tab href="/admin/users/" active={platform === null} Icon={Globe}>
-            All accounts
-          </Tab>
-        </div>
+        {/* Switching between the lists (and the app's inquiries, which App users holds); the honest note about
+            why a person can be on both is under the table. */}
+        <UserTabs active={platform === "WEB" ? "website" : platform === "APP" ? "app" : "all"} />
 
         <div className="mb-6 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-black/[0.04]">
           <div className="relative">
@@ -314,32 +305,6 @@ export function CustomerList({
         </p>
       </div>
     </div>
-  );
-}
-
-function Tab({
-  href,
-  active,
-  Icon,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  Icon: React.ComponentType<{ size?: number }>;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-semibold transition-colors ${
-        active
-          ? "bg-[#1d1d1f] text-white"
-          : "bg-white text-[#1d1d1f] ring-1 ring-black/[0.06] hover:bg-black/[0.02]"
-      }`}
-    >
-      <Icon size={14} />
-      {children}
-    </Link>
   );
 }
 

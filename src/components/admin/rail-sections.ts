@@ -1,5 +1,5 @@
 import {
-  Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Trash2,
+  Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Store, Trash2,
   TrendingUp, UserCog, Users, type LucideIcon,
 } from "lucide-react";
 
@@ -21,7 +21,7 @@ export type RailKey =
   | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-lock" | "trash"
   | "staff" | "team-performance" | "activity"
   | "suppliers" | "new-suppliers" | "videos"
-  | "website-users" | "app-users" | "app-inquiries";
+  | "website-users" | "app-users" | "supplier-users";
 
 /** The dashboard's five in-page views. */
 export type RailView = "all" | "inquiries" | "contacts" | "shipping" | "trash";
@@ -38,7 +38,13 @@ export interface RailItem {
    * which the console reads on arrival.
    */
   view?: RailView;
+  /** Other pages that are this row's own, lit by it: App Users holds App Inquiries (the owner, 2026-10-23). */
+  also?: string[];
 }
+
+/** Whether the row stands for the page at `pathname`: its own address, or one of the pages it holds. */
+export const railRowIsCurrent = (item: RailItem, pathname: string) =>
+  !item.view && [item.href, ...(item.also ?? [])].some((href) => pathname.startsWith(href));
 
 export interface RailGroup {
   /** null for the first group, which is one row and needs no heading. */
@@ -102,15 +108,16 @@ export const RAIL_GROUPS: RailGroup[] = [
     ],
   },
   {
-    // Two lists, because the office asks two different questions: who signs in
-    // on the site, and who signs in on the app. One table underneath —
-    // somebody who uses both appears on both, which is the honest answer
-    // rather than a duplicate.
+    // Everyone who signs in, in the order the owner gave (2026-10-23): customers on the site, customers on the
+    // app, then suppliers. Website and App Users are one customer table read two ways (somebody who uses both is
+    // on both, the honest answer rather than a duplicate); App Users holds the app's inquiries as a tab of its
+    // own page, so the row stays lit there; Supplier Users is the supplier portal's own table, apart from
+    // customers'.
     label: "Users",
     items: [
       { key: "website-users", href: "/admin/users/website/", label: "Website Users", icon: Globe },
-      { key: "app-users", href: "/admin/users/app/", label: "App Users", icon: Smartphone },
-      { key: "app-inquiries", href: "/admin/mobile-inquiries/", label: "App Inquiries", icon: MessageSquare },
+      { key: "app-users", href: "/admin/users/app/", label: "App Users", icon: Smartphone, also: ["/admin/mobile-inquiries/"] },
+      { key: "supplier-users", href: "/admin/users/suppliers/", label: "Supplier Users", icon: Store },
     ],
   },
 ];

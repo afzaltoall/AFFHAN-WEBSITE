@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  ArrowLeft, Ban, Building2, CalendarDays, Check, CheckCircle2, ChevronRight, ExternalLink, LogIn, MapPin, Moon, Package,
-  Sun, Trash2, User,
+  ArrowLeft, Ban, Building2, CalendarDays, Check, CheckCircle2, ChevronRight, ExternalLink, LockOpen, LogIn, LogOut, MapPin, Moon,
+  Package, Sun, Trash2, User,
 } from "lucide-react";
 import { useAdminDark } from "@/lib/useAdminDark";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
@@ -30,6 +30,18 @@ import { REPLY_MAX, TEAM_STATUSES, TEAM_STATUS_LABEL, moqPhrase, type OfferStatu
  * Read again every twenty seconds while on screen, as the board is, so an application sent while it is open
  * appears by itself; a reply being typed stays as it is.
  */
+
+/** How the supplier signs in, and whether they can (NewSupplierPage.tsx reads it). */
+export interface SupplierSignIn {
+  /** Wrong passwords the lockout still remembers (the last day). */
+  failedSignIns: number;
+  /** Locked out by wrong passwords until then (lib/login-lockout.ts); null when they can sign in. */
+  lockedUntil: string | null;
+  /** When they last asked for a password-reset code. */
+  lastResetAskedAt: string | null;
+  /** When their address was proved with the sign-up code; null for accounts made before that was asked. */
+  emailCheckedAt: string | null;
+}
 
 /** Another new supplier's application for a product this one applied for. */
 export interface OtherApplication {
@@ -55,6 +67,8 @@ export function NewSupplierDetail({
   serial,
   offers: initialOffers,
   others,
+  signIn,
+  back,
 }: {
   account: BoardAccount;
   /** Registration order, as New Suppliers numbers its rows. */
@@ -62,6 +76,9 @@ export function NewSupplierDetail({
   /** Their applications, newest first. */
   offers: BoardOffer[];
   others: OtherApplication[];
+  signIn: SupplierSignIn;
+  /** The list it was opened from: New Suppliers, or Supplier Users. */
+  back: { href: string; label: string };
 }) {
   const router = useRouter();
   const [dark, setDark] = useAdminDark();
@@ -70,6 +87,8 @@ export function NewSupplierDetail({
   const [pending, setPending] = useState<Pending | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  /** An account action under way (Unlock sign-in, Sign out everywhere). */
+  const [acting, setActing] = useState<"unlock" | "sign-out" | null>(null);
   /** The application the address points at (#application-<id>), lit for a moment on arrival. */
   const [lit, setLit] = useState<string | null>(null);
 
@@ -171,6 +190,28 @@ export function NewSupplierDetail({
     }
   };
 
+  /** Forget their wrong passwords (they may sign in now), or end every session they have (they sign in again). */
+  const accountAction = async (action: "unlock" | "sign-out") => {
+    if (action === "sign-out" && !window.confirm(`Sign ${title} out everywhere? They sign in again with their password.`)) return;
+    setActing(action);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/supplier-accounts/${account.id}/`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(session(res.status, "That did not work. Try again.", data?.error));
+      setNotice(action === "unlock" ? "Unlocked: they can sign in now." : "Signed out everywhere. They sign in again with their password.");
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That did not work. Try again.");
+    } finally {
+      setActing(null);
+    }
+  };
+
   /** The delete the window asked about: null when done, or the sentence to show when it was not. */
   const runDelete = async (): Promise<string | null> => {
     if (!pending) return null;
@@ -238,11 +279,13 @@ export function NewSupplierDetail({
       <header className={`sticky top-0 z-30 border-b backdrop-blur-xl ${t.bar}`}>
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
           <Link
-            href="/admin/new-suppliers/"
+            href={back.href}
+            // Its words hide on a phone, where the arrow alone would otherwise go unnamed.
+            aria-label={`Back to ${back.label}`}
             className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
           >
             <ArrowLeft size={15} aria-hidden="true" />
-            <span className="hidden sm:inline">New Suppliers</span>
+            <span className="hidden sm:inline">{back.label}</span>
           </Link>
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
@@ -392,9 +435,37 @@ export function NewSupplierDetail({
 
         <section className={`mt-6 rounded-2xl p-5 ring-1 ${t.card}`} aria-labelledby="supplier-account-heading">
           <h2 id="supplier-account-heading" className={`mb-3.5 text-[10.5px] font-bold uppercase tracking-wider ${t.soft}`}>
-            Account
+            Account and sign-in
           </h2>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          {/* How they get in, and whether they can right now: what Supplier Users lists, in full. */}
+          <dl className="mb-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {(
+              [
+                ["Signs in with", "Email and password"],
+                [
+                  "Email",
+                  signIn.emailCheckedAt ? `Checked with a code at sign-up, ${stamp(signIn.emailCheckedAt)}` : "Not checked: they joined before sign-up asked for a code",
+                ],
+                [
+                  "Sign-in",
+                  blocked
+                    ? "Blocked"
+                    : signIn.lockedUntil
+                      ? `Locked out by wrong passwords until ${stamp(signIn.lockedUntil)}`
+                      : signIn.failedSignIns
+                        ? `Open · ${signIn.failedSignIns} wrong ${signIn.failedSignIns === 1 ? "password" : "passwords"} in the last day`
+                        : "Open",
+                ],
+                ["Password reset", signIn.lastResetAskedAt ? `Code last asked for ${stamp(signIn.lastResetAskedAt)}` : "Never asked for"],
+              ] as const
+            ).map(([label, value]) => (
+              <div key={label} className="min-w-0">
+                <dt className={`text-[12px] ${t.soft}`}>{label}</dt>
+                <dd className={`mt-0.5 break-words text-[13.5px] font-medium ${label === "Sign-in" && signIn.lockedUntil && !blocked ? "text-amber-600" : ""}`}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 border-t pt-4 ${t.border}`}>
             <span
               className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-bold ${
                 blocked ? "bg-red-500/10 text-red-600" : dark ? "bg-emerald-400/15 text-emerald-300" : "bg-emerald-500/10 text-emerald-700"
@@ -409,6 +480,26 @@ export function NewSupplierDetail({
                 : "Blocked, they are signed out at once and cannot sign in until unblocked. Their applications stay."}
             </p>
             <div className="flex flex-wrap items-center gap-2">
+              {signIn.failedSignIns > 0 && !blocked && (
+                <button
+                  type="button"
+                  onClick={() => void accountAction("unlock")}
+                  disabled={acting !== null}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-semibold ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60 ${t.pill}`}
+                >
+                  <LockOpen size={14} aria-hidden="true" /> {acting === "unlock" ? "Unlocking…" : "Unlock sign-in"}
+                </button>
+              )}
+              {!blocked && (
+                <button
+                  type="button"
+                  onClick={() => void accountAction("sign-out")}
+                  disabled={acting !== null}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[13px] font-semibold ring-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60 ${t.pill}`}
+                >
+                  <LogOut size={14} aria-hidden="true" /> {acting === "sign-out" ? "Signing out…" : "Sign out everywhere"}
+                </button>
+              )}
               {blocked ? (
                 <button
                   type="button"

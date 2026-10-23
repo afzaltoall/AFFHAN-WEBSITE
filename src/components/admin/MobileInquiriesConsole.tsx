@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
+import { UserTabs } from "@/components/admin/UserTabs";
 
 const sfFont = {
   fontFamily:
@@ -130,7 +131,7 @@ export function MobileInquiriesConsole() {
             <div>
               <h1 className="text-2xl font-semibold tracking-tight">App Inquiries</h1>
               <p className="text-[13px] text-[#86868b]">
-                {total} {total === 1 ? "inquiry" : "inquiries"} from the mobile app
+                {total} {total === 1 ? "inquiry" : "inquiries"} from the mobile app · also on the console&apos;s Inquiries, tagged App
               </p>
             </div>
           </div>
@@ -142,6 +143,9 @@ export function MobileInquiriesConsole() {
             Refresh
           </button>
         </div>
+
+        {/* Inside App users (the owner, 2026-10-23): the same tab bar as the customers' lists. */}
+        <UserTabs active="app-inquiries" />
 
         <div className="mb-5 flex flex-wrap gap-2">
           {STATUS_FILTERS.map((f) => (
@@ -284,14 +288,16 @@ export function MobileInquiriesConsole() {
   );
 }
 
-function InquiryDetailPanel({
+/** One app inquiry: shared with the console's Inquiries list, which opens its App rows with it (2026-10-23). */
+export function InquiryDetailPanel({
   id,
   onClose,
   onSaved,
 }: {
   id: string;
   onClose: () => void;
-  onSaved: () => void;
+  /** With the saved status and the label the customer now sees. */
+  onSaved: (next?: { status: string; label: string }) => void;
 }) {
   const [data, setData] = useState<InquiryDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -345,7 +351,7 @@ function InquiryDetailPanel({
         return;
       }
       setData((d) => (d ? { ...d, ...json.inquiry } : d));
-      onSaved();
+      onSaved(json.inquiry ? { status: json.inquiry.status, label: json.inquiry.label } : undefined);
       onClose();
     } catch {
       setError("Could not reach the server.");

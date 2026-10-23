@@ -10,7 +10,7 @@ import { useAdminDark } from "@/lib/useAdminDark";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { AdminRailList } from "@/components/admin/AdminMobileNav";
 import {
-  RAIL_GROUPS, fmtRailBadge, fmtRailNum,
+  RAIL_GROUPS, fmtRailBadge, fmtRailNum, railRowIsCurrent,
   type RailCountMap, type RailItem,
 } from "@/components/admin/rail-sections";
 import type { RailCounts } from "@/lib/admin-rail-counts";
@@ -167,7 +167,7 @@ export function AdminRail({
               {group.items.map((item: RailItem) => {
                 // The dashboard's four are views on a page this is not, so
                 // none of them is ever the current one here.
-                const active = !item.view && pathname.startsWith(item.href);
+                const active = railRowIsCurrent(item, pathname);
                 const count = railCount[item.key];
                 return (
                   <Link
@@ -323,7 +323,7 @@ export function AdminMobileBar({
                 counts={railCount}
                 dark={dark}
                 // The dashboard's views are pages of their own there, never the current one here.
-                isActive={(item) => !item.view && pathname.startsWith(item.href)}
+                isActive={(item) => railRowIsCurrent(item, pathname)}
                 onNavigate={() => setOpen(false)}
               />
             </nav>
