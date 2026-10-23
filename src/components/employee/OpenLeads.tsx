@@ -252,10 +252,13 @@ function PoolCard({ row, at, busy, disabled, onOpen, onTake }: { row: PoolRow; a
   const viewLabel = `View ${poolLabel(row.code, row.items)}`;
 
   return (
-    <li className={`rounded-xl shadow-sm ring-1 transition-shadow hover:shadow-md ${wt.card}`}>
-      <div className="flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center">
-        {/* The card itself opens the customer's view: everything the pool may show of them, in full. */}
-        <button type="button" onClick={onOpen} aria-haspopup="dialog" aria-label={viewLabel} className="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40">
+    <li className={`relative rounded-xl shadow-sm ring-1 transition-shadow hover:shadow-md ${wt.card}`}>
+      {/* The card itself opens the customer's view: a layer beneath the card's words, never around them, since the
+          AFFHAN number's copy button sits among them and a button may not hold another (React's hydration error,
+          2026-10-23). For the pointer alone: the View button is the same action for a keyboard and a screen reader. */}
+      <button type="button" onClick={onOpen} tabIndex={-1} aria-hidden="true" title={summary} className="absolute inset-0 cursor-pointer rounded-xl" />
+      <div className="pointer-events-none relative flex flex-col gap-3 p-3.5 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
           <span className="relative shrink-0">
             <PoolTile row={row} />
             {row.items.length > 1 && (
@@ -264,19 +267,23 @@ function PoolCard({ row, at, busy, disabled, onOpen, onTake }: { row: PoolRow; a
               </span>
             )}
           </span>
-          <span className="block min-w-0 flex-1">
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              {row.code ? <CustomerCodeBadge code={row.code} chip={wt.chip} /> : <span className={`text-[12px] ${wt.soft}`}>New customer</span>}
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              {row.code ? (
+                <span className="pointer-events-auto">
+                  <CustomerCodeBadge code={row.code} chip={wt.chip} />
+                </span>
+              ) : (
+                <span className={`text-[12px] ${wt.soft}`}>New customer</span>
+              )}
               <span className={`inline-flex items-center gap-1 text-[12px] ${wt.mid}`}>
                 <MapPin className={`h-3 w-3 ${wt.soft}`} />
                 {row.country || "Country not given"}
               </span>
-            </span>
+            </div>
             {/* line-clamp is its own display (-webkit-box): a `block` beside it would undo the clamp. */}
-            <span className="mt-1 line-clamp-2 text-[14px] font-semibold leading-snug" title={summary}>
-              {summary}
-            </span>
-            <span className={`mt-1.5 flex flex-wrap items-center gap-2 text-[12px] ${wt.mid}`}>
+            <p className="mt-1 line-clamp-2 text-[14px] font-semibold leading-snug">{summary}</p>
+            <div className={`mt-1.5 flex flex-wrap items-center gap-2 text-[12px] ${wt.mid}`}>
               {row.counts.inquiry > 0 && (
                 <span className="rounded-full bg-brand/10 px-2.5 py-0.5 font-semibold text-brand-dark">
                   {row.counts.inquiry} {row.counts.inquiry === 1 ? "product" : "products"}
@@ -300,15 +307,16 @@ function PoolCard({ row, at, busy, disabled, onOpen, onTake }: { row: PoolRow; a
                 <Inbox className="h-3 w-3" />
                 {formatSince(row.receivedAt, new Date(at))}
               </span>
-            </span>
-          </span>
-        </button>
-        <div className="flex shrink-0 flex-col items-stretch gap-1 pl-[76px] sm:items-end sm:pl-0">
+            </div>
+          </div>
+        </div>
+        <div className="pointer-events-auto flex shrink-0 flex-col items-stretch gap-1 pl-[76px] sm:items-end sm:pl-0">
           <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={onOpen}
               aria-haspopup="dialog"
+              aria-label={viewLabel}
               title={viewLabel}
               className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3.5 py-2 text-[13px] font-semibold text-[#1d1d1f] ring-1 ring-black/[0.08] transition-colors hover:bg-black/[0.03]"
             >
