@@ -36,8 +36,9 @@ test("a session's platform: its own column, or the app's Bearer envelope for an 
 test("the column is additive: a default of WEB, so every older row and every other writer is the website's", () => {
   const schema = read("prisma/schema.prisma");
   assert.match(schema, /source String @default\("WEB"\)/);
+  // Either line ending: a Windows checkout writes the file with CRLF.
   const sql = read("prisma/migrations/20261023160000_inquiry_source/migration.sql")
-    .split("\n")
+    .split(/\r?\n/)
     .filter((l) => !l.startsWith("--") && l.trim())
     .join("\n");
   assert.equal(sql, `ALTER TABLE "Inquiry" ADD COLUMN     "source" TEXT NOT NULL DEFAULT 'WEB';\nCREATE INDEX "Inquiry_source_idx" ON "Inquiry"("source");`);
