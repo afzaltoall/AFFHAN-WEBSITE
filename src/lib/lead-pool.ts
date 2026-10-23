@@ -235,9 +235,31 @@ export interface PoolItem {
   /** The product's title for a quote request; none for a message or a freight request. */
   title: string | null;
   image: string | null;
+  /** The catalogue product a quote request is for, so its page can be opened before Take; null once it has gone. */
+  productId: number | null;
   quantity: number | null;
   country: string;
   receivedAt: string;
+  /** What a freight request asks to move, and how; null for anything else. */
+  freight: PoolFreight | null;
+}
+
+/**
+ * A freight request as the pool may show it (the owner, 2026-10-23: a freight card read as an empty picture, with
+ * nothing to open): what is to move and how, as a quote request shows its product and quantity. The mode, method,
+ * ports, kind of cargo, volume, weight, cartons and terms; never the commodity as they typed it or their notes, which
+ * are their own words, and nothing of who they are.
+ */
+export interface PoolFreight {
+  mode: string;
+  method: string;
+  from: string;
+  to: string;
+  cargo: string;
+  cbm: string;
+  weightKg: string;
+  cartons: number | null;
+  terms: string;
 }
 
 /** A customer in the pool. `id` is their place in it (never the customer key, which is their phone number). */
@@ -265,9 +287,10 @@ export interface PoolView {
 /**
  * The pool for one member of staff: every customer nobody holds, newest request first.
  *
- * Only what the pool may show is ever read: the customer's AFFHAN number, the products' titles and photographs,
- * quantities, country, when each request arrived and what kind it is. No name, number, email, company or message is
- * selected here, so none can reach the page or the API; tests/security/lead-pool-privacy.test.mjs reads this.
+ * Only what the pool may show is ever read: the customer's AFFHAN number, what they asked for (the products' titles,
+ * photographs and catalogue ids, quantities; a freight request's route and load, PoolFreight), country, when each
+ * request arrived and what kind it is. No name, number, email, company, message, typed commodity or note is selected
+ * here, so none can reach the page or the API; tests/security/lead-pool-privacy.test.mjs reads this.
  */
 export async function listPool(employeeId: string | null, now = new Date()): Promise<PoolView> {
   const entries = await prisma.leadQueueEntry.findMany({
@@ -283,10 +306,16 @@ export async function listPool(employeeId: string | null, now = new Date()): Pro
   const [inquiries, contacts, shipments, codes, left] = await Promise.all([
     prisma.inquiry.findMany({
       where,
-      select: { customerKey: true, productName: true, quantity: true, country: true, createdAt: true, product: { select: { imageUrl: true } } },
+      select: { customerKey: true, productId: true, productName: true, quantity: true, country: true, createdAt: true, product: { select: { imageUrl: true } } },
     }),
     prisma.contactMessage.findMany({ where, select: { customerKey: true, country: true, createdAt: true } }),
-    prisma.shipmentInquiry.findMany({ where, select: { customerKey: true, country: true, createdAt: true } }),
+    prisma.shipmentInquiry.findMany({
+      where,
+      select: {
+        customerKey: true, country: true, createdAt: true,
+        mode: true, method: true, portOfLoading: true, portOfDischarge: true, commodityType: true, cbm: true, weightKg: true, cartonBoxes: true, terms: true,
+      },
+    }),
     customerCodesFor(keys),
     employeeId
       ? prisma.leadQueueEvent.findMany({
@@ -304,9 +333,24 @@ export async function listPool(employeeId: string | null, now = new Date()): Pro
     if (list) list.push(item);
     else items.set(key, [item]);
   };
-  for (const i of inquiries) add(i.customerKey, { kind: "inquiry", title: i.productName, image: i.product?.imageUrl ?? null, quantity: i.quantity, country: i.country, receivedAt: i.createdAt.toISOString() });
-  for (const c of contacts) add(c.customerKey, { kind: "contact", title: null, image: null, quantity: null, country: c.country, receivedAt: c.createdAt.toISOString() });
-  for (const s of shipments) add(s.customerKey, { kind: "shipment", title: null, image: null, quantity: null, country: s.country, receivedAt: s.createdAt.toISOString() });
+  for (const i of inquiries) {
+    add(i.customerKey, {
+      kind: "inquiry", title: i.productName, image: i.product?.imageUrl ?? null, productId: i.productId, quantity: i.quantity,
+      country: i.country, receivedAt: i.createdAt.toISOString(), freight: null,
+    });
+  }
+  for (const c of contacts) {
+    add(c.customerKey, { kind: "contact", title: null, image: null, productId: null, quantity: null, country: c.country, receivedAt: c.createdAt.toISOString(), freight: null });
+  }
+  for (const s of shipments) {
+    add(s.customerKey, {
+      kind: "shipment", title: null, image: null, productId: null, quantity: null, country: s.country, receivedAt: s.createdAt.toISOString(),
+      freight: {
+        mode: s.mode, method: s.method, from: s.portOfLoading, to: s.portOfDischarge, cargo: s.commodityType,
+        cbm: s.cbm.toString(), weightKg: s.weightKg.toString(), cartons: s.cartonBoxes, terms: s.terms,
+      },
+    });
+  }
 
   const lastLeft = new Map<string, Date>();
   for (const l of left) if (!lastLeft.has(l.entryId)) lastLeft.set(l.entryId, l.createdAt);

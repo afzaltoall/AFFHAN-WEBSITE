@@ -38,9 +38,15 @@ const FORBIDDEN = /\b(customerName|fullName|phone|email|message|companyName|note
 test("the pool reads only what it may show", () => {
   const list = code(fn(read(POOL), "listPool"));
   assert.match(list, /prisma\.leadQueueEntry\.findMany\(\{\s+where: \{ state: POOL_STATE\.OPEN \},\s+select: \{ id: true, customerKey: true, enteredAt: true \}/);
-  assert.match(list, /select: \{ customerKey: true, productName: true, quantity: true, country: true, createdAt: true, product: \{ select: \{ imageUrl: true \} \} \}/);
+  assert.match(list, /select: \{ customerKey: true, productId: true, productName: true, quantity: true, country: true, createdAt: true, product: \{ select: \{ imageUrl: true \} \} \}/);
   assert.match(list, /prisma\.contactMessage\.findMany\(\{ where, select: \{ customerKey: true, country: true, createdAt: true \} \}\)/);
-  assert.match(list, /prisma\.shipmentInquiry\.findMany\(\{ where, select: \{ customerKey: true, country: true, createdAt: true \} \}\)/);
+  // A freight request's route and load (2026-10-23), as a quote request's product and quantity: never the commodity
+  // as they typed it, their notes, or anything of who they are.
+  assert.match(
+    list,
+    /prisma\.shipmentInquiry\.findMany\(\{\s+where,\s+select: \{\s+customerKey: true, country: true, createdAt: true,\s+mode: true, method: true, portOfLoading: true, portOfDischarge: true, commodityType: true, cbm: true, weightKg: true, cartonBoxes: true, terms: true,\s+\},\s+\}\)/,
+  );
+  assert.doesNotMatch(list, /\bcommodity: true|\bnotes\b|referenceNo/);
   // Nothing else is selected, and no field that names or reaches the customer is so much as mentioned.
   assert.equal((list.match(/select:/g) ?? []).length, 6, "an extra select in listPool");
   assert.doesNotMatch(list, FORBIDDEN);
