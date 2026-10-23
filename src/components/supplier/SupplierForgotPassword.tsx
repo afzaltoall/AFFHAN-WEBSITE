@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Loader2, MessageCircle, Phone } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import { SupplierAuthLayout, SupplierCardHead } from "@/components/supplier/SupplierAuthLayout";
 import { authInput, authPrimaryButton } from "@/components/ui/authFieldStyles";
@@ -11,15 +11,14 @@ import { checkPasswordStrength } from "@/lib/password-rules";
 import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 
 type Step = "email" | "code" | "password" | "done";
-type Contact = { phone: string; tel: string; whatsappNumber: string; whatsapp: string };
-
-const contactClass =
-  "inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-[13px] font-semibold text-slate-800 ring-1 ring-slate-200 hover:bg-slate-50";
 
 /**
  * A supplier's password reset: the staff page's three steps (send a code, check it, choose a password) against
  * /api/supplier/auth/. One page, because the later steps mean nothing without the first one's state. The first
  * answer is the same whether or not the address has a supplier account; the server decides, this relays it.
+ *
+ * By email only (the owner, 2026-10-23): when no code can be sent, the supplier is asked to try again later, and
+ * is never shown the company's phone number or WhatsApp.
  */
 export function SupplierForgotPassword({ catalogueCount }: { catalogueCount: number | null }) {
   const router = useRouter();
@@ -32,7 +31,6 @@ export function SupplierForgotPassword({ catalogueCount }: { catalogueCount: num
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [contact, setContact] = useState<Contact | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
 
@@ -54,16 +52,11 @@ export function SupplierForgotPassword({ catalogueCount }: { catalogueCount: num
     if (TURNSTILE_SITE_KEY && !turnstileToken) return setError("Please complete the security check.");
     setBusy(true);
     setError(null);
-    setContact(null);
     const { ok, data } = await post("forgot-password", { email, turnstileToken });
     setBusy(false);
     turnstileRef.current?.reset();
     setTurnstileToken(null);
-    if (!ok) {
-      setError(data?.error ?? "Something went wrong. Try again.");
-      if (data?.reason === "cannot_send" && data?.contact?.whatsapp && data?.contact?.tel) setContact(data.contact);
-      return;
-    }
+    if (!ok) return setError(data?.error ?? "Something went wrong. Try again.");
     setNotice(data?.message ?? "If that email belongs to a supplier account, we've sent a code to it.");
     setStep("code");
   };
@@ -123,19 +116,6 @@ export function SupplierForgotPassword({ catalogueCount }: { catalogueCount: num
               {error}
             </div>
           )}
-          {contact && (
-            <div className="mt-3 flex flex-col gap-2">
-              <a href={contact.whatsapp} target="_blank" rel="noopener noreferrer" className={contactClass}>
-                <MessageCircle size={15} aria-hidden="true" />
-                WhatsApp {contact.whatsappNumber}
-              </a>
-              <a href={contact.tel} className={contactClass}>
-                <Phone size={15} aria-hidden="true" />
-                Call {contact.phone}
-              </a>
-            </div>
-          )}
-
           {step === "email" && (
             <form onSubmit={requestCode} className="mt-5 space-y-3">
               <input

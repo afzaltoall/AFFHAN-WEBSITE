@@ -27,6 +27,12 @@ const redis =
       })
     : null;
 
+/**
+ * The same client, for the little besides limits that Upstash keeps: what a supplier last heard about an
+ * application (lib/supplier-news.ts). Null where Upstash is not set up; every use has to manage without it.
+ */
+export const upstash = redis;
+
 /** How long a limit waits for Upstash before treating it as down. */
 const WAIT_MS = 1_500;
 
@@ -202,6 +208,9 @@ export const checkSupplierLoginRateLimit = (req: HasHeaders) => checkLimit("supp
 
 /** New supplier accounts, per connection. Fails open: Turnstile holds. */
 export const checkSupplierRegisterRateLimit = (req: HasHeaders) => checkLimit("supplierRegister", getClientIp(req));
+
+/** The email code that opens a new supplier account, per connection. Fails open: the code's attempt ceiling holds. */
+export const checkSupplierVerifyRateLimit = (req: HasHeaders) => checkLimit("supplierVerify", getClientIp(req));
 
 /** A supplier's applications and profile saves, per account. Fails open: the daily cap in the database holds. */
 export const checkSupplierApplyRateLimit = (supplierId: string) => checkLimit("supplierApply", supplierId);

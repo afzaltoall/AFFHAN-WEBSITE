@@ -35,7 +35,7 @@ const HEAD: Record<Mode, { title: string; sub: string; path: string; doc: string
   },
   signup: {
     title: "Create your supplier account",
-    sub: "Your company details are asked when you apply for a product.",
+    sub: "We'll email a code to confirm your address. Company details come when you apply.",
     path: "/supplier/register/",
     doc: "Create a supplier account | AFFHAN Supplier Centre",
   },
@@ -53,9 +53,9 @@ const EASE = [0.22, 1, 0.36, 1] as const;
  * two happens in place, the card easing to its new height while one form gives way to the other, and the
  * address follows, so a reload stays where the supplier is.
  *
- * Creating an account asks what a customer's sign-up asks, name, email, mobile and password. The company, the
- * WeChat ID and the address come with the first application, once the supplier has seen what there is to
- * apply for.
+ * Creating an account asks what a customer's sign-up asks, name, email, mobile and password, then a code sent
+ * to that email (2026-10-23), so every supplier address is real. The company, the WeChat ID and the address come
+ * with the first application, once the supplier has seen what there is to apply for.
  */
 export function SupplierAuth({ initialMode, catalogueCount }: { initialMode: Mode; catalogueCount: number | null }) {
   const [mode, setMode] = useState<Mode>(initialMode);
@@ -381,6 +381,13 @@ function SignInForm({ onCreateAccount, onFieldFocus, onRefused }: {
   );
 }
 
+/**
+ * Creating an account, in two steps on the one card (the owner, 2026-10-23: "email check at sign-up"): the
+ * details, which ask for a code by email (register), then the code, which opens the account and signs it in
+ * (register/verify). The details stay in this form between the two, so "Change details" goes back to them as
+ * they were, and a new code is one press once the minute between codes has passed. By email only: when no code
+ * can be sent, the supplier is asked to try again later, never shown a number or WhatsApp.
+ */
 function SignUpForm({ onHaveAccount, onFieldFocus, onRefused }: {
   onHaveAccount: () => void;
   onFieldFocus: (f: MascotFocus) => void;
@@ -388,47 +395,97 @@ function SignUpForm({ onHaveAccount, onFieldFocus, onRefused }: {
 }) {
   const router = useRouter();
   const human = useHumanCheck();
+  const [step, setStep] = useState<"details" | "code">("details");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  /** Seconds until another code may be asked for. */
+  const [resendIn, setResendIn] = useState(0);
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
 
   const strength = checkPasswordStrength(password);
   const emailTrimmed = email.trim();
   const emailBad = emailTrimmed !== "" && !EMAIL_RE.test(emailTrimmed);
   const ready = name.trim() !== "" && EMAIL_RE.test(emailTrimmed) && mobile !== "" && password !== "";
+  const details = { name: name.trim(), email: emailTrimmed, mobile, password };
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const t = window.setTimeout(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
+    return () => window.clearTimeout(t);
+  }, [resendIn]);
+
+  useEffect(() => {
+    if (step === "code") window.setTimeout(() => codeRef.current?.focus(), 300);
+  }, [step]);
+
+  const refuse = (message: string) => {
+    setError(message);
+    onRefused();
+  };
+
+  /** Step one, and "Send a new code": the details, for a code by email. */
+  const askForCode = async (again: boolean) => {
     const problem = !strength.ok
       ? strength.error
       : !isValidMobileE164(mobile)
         ? "Enter a valid mobile number for the country you picked."
         : human.needed && !human.token
-          ? "Please complete the security check."
+          ? again
+            ? "Wait a moment for the security check, then ask again."
+            : "Please complete the security check."
           : null;
-    if (problem) {
-      setError(problem);
-      onRefused();
-      return;
-    }
+    if (problem) return refuse(problem);
     setBusy(true);
     setError(null);
+    setNotice(null);
     try {
       const res = await fetch("/api/supplier/auth/register/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), email: emailTrimmed, mobile, password, turnstileToken: human.token }),
+        body: JSON.stringify({ ...details, turnstileToken: human.token }),
+      });
+      const data = await res.json().catch(() => ({}));
+      human.reset();
+      if (!res.ok) {
+        if (typeof data?.retryAfterSeconds === "number") setResendIn(data.retryAfterSeconds);
+        return refuse(data?.error ?? "Could not send the code. Try again.");
+      }
+      setResendIn(typeof data?.resendAfterSeconds === "number" ? data.resendAfterSeconds : 60);
+      setCode("");
+      setStep("code");
+      if (again) setNotice(`We've sent a new code to ${emailTrimmed}.`);
+    } catch {
+      human.reset();
+      refuse("Could not reach the server. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /** Step two: the code, and the account opens. */
+  const finish = async () => {
+    if (!/^\d{6}$/.test(code)) return refuse("Enter the six-digit code from the email.");
+    setBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const res = await fetch("/api/supplier/auth/register/verify/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...details, code }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.error ?? "Could not create your account. Try again.");
-        human.reset();
-        onRefused();
-        return;
+        // A detail refused now (it was fine a minute ago, or was edited elsewhere) is fixed on the details.
+        if (data?.field && data.field !== "code") setStep("details");
+        return refuse(data?.error ?? "Could not create your account. Try again.");
       }
       setDone(true);
       window.setTimeout(() => {
@@ -436,16 +493,109 @@ function SignUpForm({ onHaveAccount, onFieldFocus, onRefused }: {
         router.refresh();
       }, 420);
     } catch {
-      setError("Could not reach the server. Please try again.");
-      human.reset();
-      onRefused();
+      refuse("Could not reach the server. Please try again.");
     } finally {
       setBusy(false);
     }
   };
 
+  const messages = (
+    <AnimatePresence initial={false}>
+      {error && (
+        <motion.div key="error" {...reveal} className="overflow-hidden">
+          <p role="alert" className={authFormError}>
+            {error}
+          </p>
+        </motion.div>
+      )}
+      {notice && !error && (
+        <motion.p key="notice" {...reveal} role="status" className="overflow-hidden text-[13px] font-medium text-emerald-700">
+          {notice}
+        </motion.p>
+      )}
+    </AnimatePresence>
+  );
+
+  if (step === "code") {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void finish();
+        }}
+        noValidate
+        className={authStack}
+      >
+        <p className="text-[13.5px] leading-relaxed text-slate-600">
+          We emailed a six-digit code to <span className="font-semibold text-slate-900">{emailTrimmed}</span>. Enter it to finish creating
+          your account.
+        </p>
+
+        <label className="block" htmlFor="supplier-signup-code">
+          <span className={authLabel}>Code from the email</span>
+          <input
+            ref={codeRef}
+            id="supplier-signup-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            placeholder="123456"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+            onFocus={() => onFieldFocus("secret")}
+            onBlur={() => onFieldFocus(null)}
+            className={`${authInput} text-center !text-2xl font-bold tracking-[0.4em]`}
+          />
+        </label>
+
+        <SubmitButton
+          busy={busy}
+          done={done}
+          disabled={code.length !== 6}
+          label="Create supplier account"
+          busyLabel="Checking the code…"
+          doneLabel="Account created"
+        />
+
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[13px]">
+          <button
+            type="button"
+            onClick={() => {
+              setStep("details");
+              setError(null);
+              setNotice(null);
+            }}
+            className="font-medium text-slate-500 transition-colors hover:text-brand-dark"
+          >
+            Change details
+          </button>
+          <button
+            type="button"
+            onClick={() => void askForCode(true)}
+            disabled={busy || resendIn > 0}
+            className="font-semibold text-brand-dark transition-colors hover:underline disabled:cursor-default disabled:font-medium disabled:text-slate-400 disabled:no-underline"
+          >
+            {resendIn > 0 ? `Send a new code in ${resendIn}s` : "Send a new code"}
+          </button>
+        </div>
+
+        {/* For a new code: each one is asked for with a fresh security check, ready long before the minute is up. */}
+        {human.widget("supplier_register")}
+
+        {messages}
+      </form>
+    );
+  }
+
   return (
-    <form onSubmit={submit} noValidate className={authStack}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        void askForCode(false);
+      }}
+      noValidate
+      className={authStack}
+    >
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block">
           <span className={authLabel}>Full name</span>
@@ -494,14 +644,7 @@ function SignUpForm({ onHaveAccount, onFieldFocus, onRefused }: {
 
       {human.widget("supplier_register")}
 
-      <SubmitButton
-        busy={busy}
-        done={done}
-        disabled={!ready || !strength.ok}
-        label="Create supplier account"
-        busyLabel="Creating your account…"
-        doneLabel="Account created"
-      />
+      <SubmitButton busy={busy} done={false} disabled={!ready || !strength.ok} label="Continue" busyLabel="Sending a code…" doneLabel="" />
 
       <p className={authSwitchRow}>
         Already a supplier?{" "}
@@ -510,15 +653,7 @@ function SignUpForm({ onHaveAccount, onFieldFocus, onRefused }: {
         </button>
       </p>
 
-      <AnimatePresence initial={false}>
-        {error && (
-          <motion.div key="error" {...reveal} className="overflow-hidden">
-            <p role="alert" className={authFormError}>
-              {error}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {messages}
     </form>
   );
 }

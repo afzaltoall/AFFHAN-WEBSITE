@@ -4,8 +4,8 @@ import { checkPasswordResetRateLimit, getClientIp, limitReached } from "@/lib/ra
 import { checkTurnstile } from "@/lib/turnstile";
 import { issueEmailOtp } from "@/lib/email-otp";
 import { canSendEmail, sendEmail } from "@/lib/email";
-import { passwordResetCodeEmail } from "@/lib/email-templates";
-import { cannotSendResponse } from "@/lib/cannot-send";
+import { supplierPasswordResetCodeEmail } from "@/lib/email-templates";
+import { cannotSendEmailOnlyResponse } from "@/lib/cannot-send";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +17,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * reset a customer's or a member of staff's password on the same address.
  *
  * One sentence back whatever happened, so this cannot be used to ask which addresses are suppliers of ours.
- * When no code can leave at all, WhatsApp and a phone number instead (lib/cannot-send.ts), decided before any
- * account is read.
+ * When no code can leave at all, a request to try again later (lib/cannot-send.ts), decided before any account
+ * is read: a supplier gets back into their account by email only, never by the company's number or WhatsApp
+ * (the owner, 2026-10-23). The code comes in the Supplier Centre's own email, not the customers' reset email.
  */
 export async function POST(request: NextRequest) {
   const generic = NextResponse.json({
@@ -40,8 +41,8 @@ export async function POST(request: NextRequest) {
 
     const delivery = canSendEmail();
     if (!delivery.ok) {
-      console.warn(`[supplier forgot-password] no code can be sent (${delivery.why}); showed WhatsApp and phone instead.`);
-      return cannotSendResponse();
+      console.warn(`[supplier forgot-password] no code can be sent (${delivery.why}); asked to try again later.`);
+      return cannotSendEmailOnlyResponse();
     }
 
     const account = await prisma.supplierAccount.findUnique({ where: { email }, select: { status: true } });
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
     const issued = await issueEmailOtp(email, "SUPPLIER_PASSWORD_RESET");
     if (!issued.ok) return generic;
 
-    const sent = await sendEmail({ to: email, ...passwordResetCodeEmail(issued.code) });
+    const sent = await sendEmail({ to: email, ...supplierPasswordResetCodeEmail(issued.code) });
     if (!sent.ok) console.error("[supplier forgot-password] code not delivered:", sent.reason);
 
     return generic;

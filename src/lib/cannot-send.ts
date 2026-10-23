@@ -27,3 +27,16 @@ const CONTACT = {
 export function cannotSendResponse() {
   return NextResponse.json({ error: CANNOT_SEND, reason: "cannot_send", contact: CONTACT }, { status: 503 });
 }
+
+/**
+ * The supplier portal's answer when no code can leave (its sign-up and its password reset). By email only: the
+ * owner, 2026-10-23, "don't use that number or WhatsApp, use only email" for a supplier getting into their
+ * account. So no number to call and no WhatsApp, only to try again shortly, when a send that failed is no
+ * longer held against the sender (lib/email.ts, ten minutes).
+ */
+export function cannotSendEmailOnlyResponse() {
+  return NextResponse.json(
+    { error: "We couldn't send the email right now. Please try again in a few minutes.", reason: "cannot_send" },
+    { status: 503 },
+  );
+}

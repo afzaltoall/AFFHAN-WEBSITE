@@ -16,9 +16,10 @@ test("fails closed: the console's and the staff sign-in, photo search (its own c
 });
 
 test("the supplier portal (2026-10-21): sign-in, registration and applications fail open, each with its own hold", () => {
-  for (const name of ["supplierLogin", "supplierRegister", "supplierApply"]) assert.equal(LIMITS[name].whenDown, "open", name);
+  for (const name of ["supplierLogin", "supplierRegister", "supplierVerify", "supplierApply"]) assert.equal(LIMITS[name].whenDown, "open", name);
   assert.equal(LIMITS.supplierLogin.per, "IP");
   assert.equal(LIMITS.supplierRegister.per, "IP");
+  assert.equal(LIMITS.supplierVerify.per, "IP");
   assert.equal(LIMITS.supplierApply.per, "account");
   assert.equal(LIMITS.supplierUpload.per, "account");
   // Five photos an application: room for a supplier's busy hour.

@@ -64,14 +64,21 @@ const ACCENT = "#336888";
 const FONT = "-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
 const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
 
-function textOf(blocks: Block[], footerNote: string): string {
+/**
+ * Which part of AFFHAN is writing, under the logo: the Supplier Centre's emails carry it, so a supplier never takes
+ * one for a customer's, nor a customer the other way round (the owner, 2026-10-23: "supplier style for OTP, user
+ * style for users"). Customers' emails have none and read as they always have.
+ */
+const SUPPLIER_CENTRE = "Supplier Centre";
+
+function textOf(blocks: Block[], footerNote: string, brandLine?: string): string {
   const body = blocks
     .map((b) => (b.kind === "details" ? b.rows.map(([label, value]) => `${label}: ${value}`).join("\n") : b.text))
     .join("\n\n");
-  return `${body}\n\n--\n${office.legalName}\n${ADDRESS}\n${SITE}\n\n${footerNote}\n`;
+  return `${brandLine ? `${BRAND} ${brandLine}\n\n` : ""}${body}\n\n--\n${office.legalName}\n${ADDRESS}\n${SITE}\n\n${footerNote}\n`;
 }
 
-function htmlOf(subject: string, blocks: Block[], footerNote: string): string {
+function htmlOf(subject: string, blocks: Block[], footerNote: string, brandLine?: string): string {
   const body = blocks
     .map((b) => {
       switch (b.kind) {
@@ -116,7 +123,11 @@ function htmlOf(subject: string, blocks: Block[], footerNote: string): string {
 </head>
 <body class="bg" style="margin:0;padding:24px 16px;background:#ffffff;color:${INK};font-family:${FONT};line-height:1.55">
 <div style="max-width:520px;margin:0 auto">
-<img src="${LOGO.src}" width="${LOGO.width}" height="${LOGO.height}" alt="${BRAND}" style="display:block;margin:0 0 24px;border:0;outline:none;text-decoration:none;font-size:14px;font-weight:800;letter-spacing:3px;color:${ACCENT}">
+<img src="${LOGO.src}" width="${LOGO.width}" height="${LOGO.height}" alt="${BRAND}" style="display:block;margin:0 0 ${brandLine ? 8 : 24}px;border:0;outline:none;text-decoration:none;font-size:14px;font-weight:800;letter-spacing:3px;color:${ACCENT}">${
+    brandLine
+      ? `\n<p class="accent" style="margin:0 0 24px;font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:${ACCENT}">${escapeHtml(brandLine)}</p>`
+      : ""
+  }
 ${body}
 <hr class="rule" style="border:0;border-top:1px solid #e2e8f0;margin:28px 0 16px">
 <p class="quiet" style="margin:0 0 2px;font-size:12px;font-weight:700;color:${QUIET}">${escapeHtml(office.legalName)}</p>
@@ -129,8 +140,8 @@ ${body}
 `;
 }
 
-function render(subject: string, blocks: Block[], footerNote: string): Omit<EmailMessage, "to"> {
-  return { subject, text: textOf(blocks, footerNote), html: htmlOf(subject, blocks, footerNote) };
+function render(subject: string, blocks: Block[], footerNote: string, brandLine?: string): Omit<EmailMessage, "to"> {
+  return { subject, text: textOf(blocks, footerNote, brandLine), html: htmlOf(subject, blocks, footerNote, brandLine) };
 }
 
 /** Replies reach a person (REPLY_TO in lib/email.ts), so a customer can simply answer. */
@@ -250,5 +261,96 @@ export function poolGivenUpEmail(customers: { code: string | null; name: string;
       { kind: "para", text: "Nobody holds them now. In the admin console, the Inquiries, Contact Us and Shipping lists show them under the Invalid filter, and a new request from any of them puts them back in the pool for a new week." },
     ],
     `Sent to every administrator of the ${BRAND} console.`
+  );
+}
+
+/**
+ * The code a new supplier types to finish creating their account on the Supplier Centre (the owner, 2026-10-23:
+ * "email check at sign-up"): proof that the address is theirs before the account exists, so every supplier email
+ * the team holds is real. The reset email's rules: no link, the code kept out of the subject, and what to do if it
+ * was not them.
+ */
+export function supplierSignupCodeEmail(code: string): Omit<EmailMessage, "to"> {
+  return render(
+    `Your ${BRAND} Supplier Centre code`,
+    [
+      { kind: "heading", text: "Confirm your email" },
+      { kind: "para", text: `Use this code to finish creating your ${BRAND} supplier account:` },
+      { kind: "code", text: code },
+      { kind: "para", text: `Enter it on the page where you signed up. It expires in ${TTL_MINUTES} minutes and works only once.` },
+      { kind: "para", text: "If you didn't sign up, ignore this email. No account is created without this code." },
+      { kind: "para", text: "Don't share this code with anyone." },
+    ],
+    `You received this email because a supplier account was requested for this address on the ${BRAND} Supplier Centre. ${ASK}`,
+    SUPPLIER_CENTRE
+  );
+}
+
+/**
+ * A supplier's password-reset code, in the Supplier Centre's own words (the owner, 2026-10-23: "supplier style for
+ * OTP"): the customer's reset email names their AFFHAN account, which a supplier does not have. The same rules:
+ * no link, the code out of the subject, and what to do if it was not them.
+ */
+export function supplierPasswordResetCodeEmail(code: string): Omit<EmailMessage, "to"> {
+  return render(
+    `Your ${BRAND} Supplier Centre password reset code`,
+    [
+      { kind: "heading", text: "Reset your supplier password" },
+      { kind: "para", text: `Use this code to reset the password of your ${BRAND} supplier account:` },
+      { kind: "code", text: code },
+      { kind: "para", text: `Enter it on the page where you asked for it. It expires in ${TTL_MINUTES} minutes and works only once.` },
+      { kind: "para", text: "If you didn't request this, ignore this email. Your password has not been changed." },
+      { kind: "para", text: "Don't share this code with anyone." },
+    ],
+    `You received this email because a password reset was requested for this supplier account on the ${BRAND} Supplier Centre. ${ASK}`,
+    SUPPLIER_CENTRE
+  );
+}
+
+/**
+ * What a supplier hears when the team decides on their application or writes to them about it (the owner,
+ * 2026-10-23: "email on your decision"). Where it stands now, in the supplier's own words (SUPPLIER_STATUS_LABEL
+ * in lib/supplier-offer.ts), and the team's reply when there is one: the whole state rather than the one change,
+ * so a quick run of changes sent as one email (lib/supplier-news.ts) still reads true. One link, to My
+ * applications, behind the supplier's own sign-in.
+ */
+export function supplierApplicationNewsEmail(news: {
+  /** The name on the supplier's account. */
+  name: string;
+  productName: string;
+  /** Where it stands, as the team set it. */
+  status: "NEW" | "REVIEWING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN";
+  /** The same, in the supplier's words: "Being reviewed", "Accepted", "Not selected". */
+  statusLabel: string;
+  reply: string | null;
+  /** What moved since the supplier last heard: the status, the reply, or both. */
+  statusChanged: boolean;
+}): Omit<EmailMessage, "to"> {
+  const firstName = news.name.trim().split(/\s+/)[0] ?? "";
+  const reply = news.reply?.trim() ?? "";
+  const byStatus = news.statusChanged
+    ? news.status === "ACCEPTED"
+      ? { subject: `Your ${BRAND} application was accepted`, heading: "Your application was accepted", line: `The ${BRAND} sourcing team has accepted your application.` }
+      : news.status === "REJECTED"
+        ? { subject: `An update on your ${BRAND} application`, heading: "An update on your application", line: `Thank you for applying. The ${BRAND} sourcing team has not selected your application this time.` }
+        : { subject: `Your ${BRAND} application is being reviewed`, heading: "We're reviewing your application", line: `The ${BRAND} sourcing team is reviewing your application.` }
+    : { subject: `${BRAND} replied about your application`, heading: "A reply about your application", line: `The ${BRAND} sourcing team has written to you about your application.` };
+  const rows: [string, string][] = [
+    ["Product", news.productName.trim()],
+    ["Status", news.statusLabel],
+  ];
+  if (reply) rows.push(["Reply", reply]);
+
+  return render(
+    byStatus.subject,
+    [
+      { kind: "heading", text: byStatus.heading },
+      { kind: "para", text: `Hi ${firstName || "there"}, ${byStatus.line}` },
+      { kind: "details", rows },
+      { kind: "para", text: `See all your applications: ${SITE}/supplier/applications/` },
+      { kind: "signoff", text: `${BRAND} Sourcing Team` },
+    ],
+    `You received this email because you applied to supply a product on the ${BRAND} Supplier Centre. ${ASK}`,
+    SUPPLIER_CENTRE
   );
 }

@@ -2,9 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { checkTurnstile } from "@/lib/turnstile";
 import { checkSupplierRegisterRateLimit, getClientIp, limitReached } from "@/lib/rate-limit";
-import { checkPasswordStrength, hashPassword } from "@/lib/password";
+import { checkPasswordStrength } from "@/lib/password";
 import { readSignup } from "@/lib/supplier-offer";
-import { setSupplierCookie } from "@/lib/supplier-session";
+import { issueEmailOtp } from "@/lib/email-otp";
+import { canSendEmail, sendEmail } from "@/lib/email";
+import { supplierSignupCodeEmail } from "@/lib/email-templates";
+import { cannotSendEmailOnlyResponse } from "@/lib/cannot-send";
+import { OTP_RESEND_COOLDOWN_MS } from "@/lib/mobile-otp";
 
 export const dynamic = "force-dynamic";
 
@@ -12,18 +16,18 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const TAKEN = "A supplier account with this email already exists. Sign in instead.";
 
 /**
- * Create a supplier account, and sign it in (the supplier portal, 2026-10-21).
+ * Creating a supplier account, step one: check the details and email a code (the supplier portal, 2026-10-21;
+ * the code since 2026-10-23, the owner's "email check at sign-up").
  *
- * The customer sign-up's four fields, name, email, mobile and password (the
- * owner: "same as user login style"), in a table of its own: a supplier
- * account is never a customer's, nor the other way round. The company, the
- * WeChat ID and the address are asked when the supplier applies for a
- * product. Nothing waits for approval: the owner chose "apply right away".
+ * The customer sign-up's four fields, name, email, mobile and password (the owner: "same as user login style"),
+ * for a table of its own: a supplier account is never a customer's, nor the other way round. The company, the
+ * WeChat ID and the address are asked when the supplier applies for a product. Nothing waits for the team's
+ * approval: the owner chose "apply right away". What waits is the address: nothing is created here, and the
+ * account opens only when the code sent to it comes back (register/verify), so every supplier email is real.
  *
- * Open to anyone, so Turnstile comes first and a per-connection limit second,
- * as on the customer sign-in. An address that already has an account is told
- * so: someone registering needs to know to sign in instead, which is the
- * customer sign-up's trade too.
+ * Open to anyone, so Turnstile comes first and a per-connection limit second, as on the customer sign-in. An
+ * address that already has an account is told so: someone registering needs to know to sign in instead, which
+ * is the customer sign-up's trade too. Asking again sends a new code, within lib/email-otp.ts's limits.
  */
 export async function POST(request: NextRequest) {
   try {
@@ -42,6 +46,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Enter a valid email address.", field: "email" }, { status: 400 });
     }
 
+    // Every detail is checked now, so nothing about them can fail once the code is back.
     const password = typeof body?.password === "string" ? body.password : "";
     const strength = checkPasswordStrength(password);
     if (!strength.ok) return NextResponse.json({ error: strength.error, field: "password" }, { status: 400 });
@@ -49,27 +54,44 @@ export async function POST(request: NextRequest) {
     const who = readSignup(body && typeof body === "object" ? body : {});
     if (!who.ok) return NextResponse.json({ error: who.error, field: who.field }, { status: 400 });
 
-    // Asked first for the sentence; the unique index below is the guarantee when two arrive at once.
     const taken = await prisma.supplierAccount.findUnique({ where: { email }, select: { id: true } });
     if (taken) return NextResponse.json({ error: TAKEN, field: "email" }, { status: 409 });
 
-    let account: { id: string; tokenVersion: number };
-    try {
-      account = await prisma.supplierAccount.create({
-        data: { email, passwordHash: await hashPassword(password), ...who.value, lastLoginAt: new Date() },
-        select: { id: true, tokenVersion: true },
-      });
-    } catch (e) {
-      if ((e as { code?: string })?.code === "P2002") {
-        return NextResponse.json({ error: TAKEN, field: "email" }, { status: 409 });
-      }
-      throw e;
+    // When no code can leave at all, say so before a code is minted: by email only, never a number or WhatsApp
+    // (the owner, 2026-10-23).
+    const delivery = canSendEmail();
+    if (!delivery.ok) {
+      console.warn(`[supplier register] no code can be sent (${delivery.why}); asked to try again later.`);
+      return cannotSendEmailOnlyResponse();
     }
 
-    // Signed in straight away: registering and then signing in is typing the same password twice.
-    return setSupplierCookie(NextResponse.json({ success: true }), account);
+    const issued = await issueEmailOtp(email, "SUPPLIER_SIGNUP");
+    if (!issued.ok) {
+      const wait = issued.retryAfterSeconds;
+      return NextResponse.json(
+        {
+          error:
+            issued.reason === "cooldown"
+              ? `We've just sent a code. You can ask for another in ${wait} seconds.`
+              : `That's several codes for this email. Try again in ${Math.ceil(wait / 60)} minutes.`,
+          retryAfterSeconds: wait,
+        },
+        { status: 429, headers: { "Retry-After": String(wait) } },
+      );
+    }
+
+    const sent = await sendEmail({ to: email, ...supplierSignupCodeEmail(issued.code) });
+    if (!sent.ok) {
+      if (sent.reason === "suppressed") {
+        return NextResponse.json({ error: "We can't send email to this address any more. Use another email.", field: "email" }, { status: 400 });
+      }
+      console.error("[supplier register] code not delivered:", sent.reason);
+      return cannotSendEmailOnlyResponse();
+    }
+
+    return NextResponse.json({ sent: true, resendAfterSeconds: Math.round(OTP_RESEND_COOLDOWN_MS / 1000) });
   } catch (error) {
-    // The name only: a Prisma failure prints its arguments, and one of them is a password hash.
+    // The name only: a Prisma failure prints its arguments.
     console.error("Supplier register error:", error instanceof Error ? error.name : "unknown");
     return NextResponse.json({ error: "Something went wrong. Try again." }, { status: 500 });
   }

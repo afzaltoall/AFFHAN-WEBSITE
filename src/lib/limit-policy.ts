@@ -65,8 +65,10 @@ export const LIMITS = {
   videoView: { per: "IP and video", count: 1, window: "1 h", whenDown: "open", feature: "Video views" },
   /** /api/supplier/auth/login, the supplier portal (2026-10-21). The database lockout holds per account. */
   supplierLogin: { per: "IP", count: 20, window: "15 m", whenDown: "open", feature: "Sign-in" },
-  /** /api/supplier/auth/register: new supplier accounts. Turnstile holds. */
+  /** /api/supplier/auth/register: new supplier accounts, asking for the email code. Turnstile holds. */
   supplierRegister: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "Registration" },
+  /** /api/supplier/auth/register/verify: the code that opens the account (2026-10-23). The code's own attempt ceiling and the codes-per-address cap hold (lib/email-otp.ts). */
+  supplierVerify: { per: "IP", count: 20, window: "15 m", whenDown: "open", feature: "Registration" },
   /** /api/supplier/offers and /api/supplier/me: applications sent or withdrawn and profile saves. A daily cap in the database holds (OFFERS_PER_DAY). */
   supplierApply: { per: "account", count: 100, window: "1 h", whenDown: "open", feature: "Applications" },
   /** /api/supplier/upload-url: each upload is a file in our bucket, and photos are optional, so a refusal costs an application nothing. */

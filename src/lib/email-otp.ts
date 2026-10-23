@@ -26,9 +26,11 @@ import {
  * staff's, and they are separate values on purpose: the same person may hold a
  * customer account and a staff account on one address, and a code issued for
  * one must not reset the other. SUPPLIER_PASSWORD_RESET is a supplier
- * portal account's (2026-10-21), for the same reason.
+ * portal account's (2026-10-21), for the same reason. SUPPLIER_SIGNUP proves a
+ * new supplier owns the address before their account exists (2026-10-23): a
+ * code for it can open an account and nothing else.
  */
-export type OtpPurpose = "PASSWORD_RESET" | "EMPLOYEE_PASSWORD_RESET" | "SUPPLIER_PASSWORD_RESET";
+export type OtpPurpose = "PASSWORD_RESET" | "EMPLOYEE_PASSWORD_RESET" | "SUPPLIER_PASSWORD_RESET" | "SUPPLIER_SIGNUP";
 
 /**
  * Codes per address per window, enforced in the database.

@@ -14,7 +14,7 @@ const MAX = 500;
  * 2026-10-22). Admins only.
  *
  * Everything that is theirs goes with them, so nothing is left behind: their applications, their photos in the
- * bucket, their failed sign-ins (the lockout's rows) and their reset codes. A deleted supplier's cookie stops
+ * bucket, their failed sign-ins (the lockout's rows), and their reset and sign-up codes. A deleted supplier's cookie stops
  * working at once (the account it names is gone), and the email is free to register again.
  *
  * The rows go in one transaction; the photos after it, best effort (removeSupplierPhotos), since a photo left
@@ -42,7 +42,7 @@ export async function POST(req: Request) {
       prisma.supplierOffer.deleteMany({ where: { supplierId: { in: found } } }),
       prisma.supplierAccount.deleteMany({ where: { id: { in: found } } }),
       prisma.loginAttempt.deleteMany({ where: { email: { in: emails.map(supplierLoginKey) } } }),
-      prisma.emailOtp.deleteMany({ where: { email: { in: emails }, purpose: "SUPPLIER_PASSWORD_RESET" } }),
+      prisma.emailOtp.deleteMany({ where: { email: { in: emails }, purpose: { in: ["SUPPLIER_PASSWORD_RESET", "SUPPLIER_SIGNUP"] } } }),
     ]);
     const photos = await removeSupplierPhotos(accounts.flatMap((a) => a.offers.flatMap((o) => o.photos)));
 
