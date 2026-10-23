@@ -94,7 +94,17 @@ export function extractSessionCookie(request: Request): string | null {
  * one wins over the one the browser attached on its own.
  */
 export async function verifyMobileSession(request: Request) {
-  const rawToken = extractBearerToken(request) ?? extractSessionCookie(request);
+  return (await mobileSessionOf(request))?.user ?? null;
+}
+
+/**
+ * The signed-in customer and where they are signed in: APP for the AFFHAN app, WEB for the website (the Capacitor
+ * shell loads the website, so it is WEB too). From the session's own platform; a session from before that column
+ * goes by its envelope, since only the app sends a Bearer token.
+ */
+export async function mobileSessionOf(request: Request) {
+  const bearer = extractBearerToken(request);
+  const rawToken = bearer ?? extractSessionCookie(request);
   if (!rawToken) {
     return null;
   }
@@ -122,5 +132,6 @@ export async function verifyMobileSession(request: Request) {
     return null;
   }
 
-  return session.user;
+  const platform: "APP" | "WEB" = session.platform === "APP" || session.platform === "WEB" ? session.platform : bearer ? "APP" : "WEB";
+  return { user: session.user, platform };
 }

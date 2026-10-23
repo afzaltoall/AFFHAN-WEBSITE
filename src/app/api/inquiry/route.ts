@@ -3,7 +3,7 @@ import { prisma } from "../../../lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
 import { leadArrived } from "@/lib/lead-pool";
-import { verifyMobileSession } from "@/lib/mobile-auth";
+import { mobileSessionOf } from "@/lib/mobile-auth";
 import { describeInquiryProblems, inquiryInput } from "@/lib/inquiry-input";
 import { checkInquiryRateLimit, limitReached } from "@/lib/rate-limit";
 
@@ -43,8 +43,9 @@ export async function POST(req: Request) {
     // session gets it too, which is correct — the browser still holds the
     // cookie, so the UI would otherwise submit a form it cannot save and show
     // a success it did not get.
-    const user = await verifyMobileSession(req).catch(() => null);
-    if (!user) {
+    const session = await mobileSessionOf(req).catch(() => null);
+    const user = session?.user ?? null;
+    if (!session || !user) {
       return NextResponse.json(
         { error: "Sign in to request a quote" },
         { status: 401 }
@@ -74,6 +75,10 @@ export async function POST(req: Request) {
         // The whole point of the linkage: this is what lets the customer see
         // the inquiry again on /account/inquiries.
         userId: user.id,
+        // The AFFHAN app sends its quote requests here too (the same form):
+        // where this one came from, for the console's Web / App tags. The
+        // pool and everything else treat the two alike.
+        source: session.platform,
         // Opens the trail so the history reads from the beginning rather than
         // starting at whatever the first admin happened to do. Nested, so it is
         // the same round trip and cannot leave an inquiry with no first event.

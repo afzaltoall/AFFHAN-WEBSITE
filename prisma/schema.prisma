@@ -287,11 +287,18 @@ model Inquiry {
   /// predate it, and the rotation job refills anything it finds null.
   customerKey String?
 
+  /// Where it was sent from: WEB, the website (the Android app's Capacitor shell, which loads the website, included),
+  /// or APP, the AFFHAN app, read off the platform of the session that sent it (MobileSession.platform). For the
+  /// console's Web / App tags and App inquiries (the owner, 2026-10-23); everything else treats the two alike, the
+  /// open pool included. Rows from before the column are WEB.
+  source String @default("WEB")
+
   salesUpdates StatusUpdate[]
 
   statusEvents InquiryStatusEvent[]
 
   @@index([userId])
+  @@index([source])
   @@index([customerStatus])
   @@index([assignedToId])
   @@index([customerKey])
