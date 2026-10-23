@@ -11,21 +11,30 @@ async function requireAdmin() {
   return admin && admin.role === "admin" ? admin : null;
 }
 
-// Inquiries raised in the app, newest first, optionally narrowed to one status.
+/**
+ * The AFFHAN app's quote requests, newest first, for App inquiries (inside App users), optionally narrowed to one
+ * customer-facing stage. They are ordinary inquiries sent from the app (Inquiry.source APP, 2026-10-23), so the open
+ * pool, Lead / No lead, matching suppliers and the handling history treat them exactly as the website's; each opens in
+ * the console's own popup. Not the old MobileInquiry table, which no app writes (it has no rows on production).
+ */
 export async function GET(request: Request) {
   if (!(await requireAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   try {
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get("status");
+    const stage = searchParams.get("status");
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50", 10) || 50));
 
-    const where: Prisma.MobileInquiryWhereInput = isMobileInquiryStatus(status) ? { status } : {};
+    const where: Prisma.InquiryWhereInput = {
+      source: "APP",
+      status: { not: "deleted" },
+      ...(isMobileInquiryStatus(stage) ? { customerStatus: stage } : {}),
+    };
 
     const [total, rows] = await Promise.all([
-      prisma.mobileInquiry.count({ where }),
-      prisma.mobileInquiry.findMany({
+      prisma.inquiry.count({ where }),
+      prisma.inquiry.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -34,38 +43,29 @@ export async function GET(request: Request) {
           id: true,
           productId: true,
           productName: true,
-          productImage: true,
-          requestedMOQ: true,
+          quantity: true,
+          customerName: true,
+          email: true,
+          phone: true,
+          country: true,
           status: true,
+          customerStatus: true,
           statusNote: true,
-          moqEditedAt: true,
           createdAt: true,
-          updatedAt: true,
-          // No passwordHash or googleId — same rule as the app-users listing.
-          user: { select: { id: true, name: true, email: true } },
-          // Enough to flag "the customer changed this" in the list; the full
-          // trail is on the detail route.
-          _count: { select: { moqHistory: true } },
-          moqHistory: {
-            orderBy: { createdAt: "desc" },
-            take: 1,
-            select: { oldMOQ: true, newMOQ: true, createdAt: true },
-          },
+          product: { select: { imageUrl: true } },
         },
       }),
     ]);
 
     return NextResponse.json({
-      inquiries: rows.map(({ _count, moqHistory, ...i }) => ({
-        ...i,
-        ...describeStatus(i.status, i.statusNote),
-        moqEditCount: _count.moqHistory,
-        lastMoqEdit: moqHistory[0] ?? null,
-      })),
+      inquiries: rows.map(({ product, status, customerStatus, statusNote, ...i }) => {
+        const told = describeStatus(customerStatus, statusNote);
+        return { ...i, productImage: product?.imageUrl ?? null, triage: status, stage: told.status, label: told.label };
+      }),
       pagination: { total, page, limit, totalPages: Math.max(1, Math.ceil(total / limit)) },
     });
   } catch (error) {
-    console.error("Admin Mobile Inquiries Error:", error);
+    console.error("Admin App Inquiries Error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -47,6 +47,8 @@ interface Inquiry {
   id: string; createdAt: string; customerName: string; companyName: string | null;
   email: string | null; country: string; phone: string; productName: string; quantity: number;
   message: string | null; productId: number | null; productImage: string | null; status: string;
+  /** Where it was sent from: WEB (the website) or APP (the AFFHAN app). Tagged on the list; nothing else differs. */
+  source: string;
   // Set when the inquiry was raised by someone signed in. Null for the
   // anonymous majority, and for every row that predates the account linkage.
   userId: string | null;
@@ -65,33 +67,10 @@ interface Inquiry {
   handling: Handling | null;
 }
 
-/**
- * An inquiry raised in the app (MobileInquiry), listed on Inquiries beside the website's and tagged App (the owner,
- * 2026-10-23). It has the app's fields only: no triage status, no pool, no employee, no country and no message, so
- * the filters that read those are the website's. It opens in the App inquiries panel.
- */
-interface AppInquiry {
-  id: string; createdAt: string; productName: string; productImage: string | null;
-  /** requestedMOQ; `quantityEdited` once the customer has changed it in the app. */
-  quantity: number; quantityEdited: boolean;
-  /** What the customer sees: the same four stages as a website inquiry's customerStatus. */
-  stage: CustomerStatus; stageLabel: string;
-  customerName: string; companyName: string | null; email: string | null; phone: string | null;
-  /** City and state from the app's profile, when given. */
-  place: string | null;
-  signIn: string;
-}
-
+/** The Inquiries list's All / Web / App switch (the owner, 2026-10-23). */
 type Source = "all" | "web" | "app";
-
-/** A row of the printed sheet and the Excel export, from either table, in the columns they share. */
-interface SheetRow {
-  id: string; source: "Web" | "App"; createdAt: string; productName: string; productImage: string | null;
-  customerName: string; companyName: string | null; email: string | null; phone: string; country: string;
-  quantity: number; message: string | null;
-}
-const webSheetRow = (i: Inquiry): SheetRow => ({ ...i, source: "Web" });
-const appSheetRow = (a: AppInquiry): SheetRow => ({ ...a, source: "App", phone: a.phone ?? "", country: "", message: null });
+const sourceOf = (i: { source: string }): "Web" | "App" => (i.source === "APP" ? "App" : "Web");
+const matchesSource = (i: { source: string }, s: Source) => s === "all" || (s === "app") === (i.source === "APP");
 
 /** Where an inquiry came from, in the Users section's own tags (CustomerList). */
 function SourceTag({ source, dark }: { source: "Web" | "App"; dark: boolean }) {
@@ -119,8 +98,6 @@ interface AssigneeCount { employeeId: string | null; count: number }
 const InquirySupplierMatches = dynamic(() => import("@/components/admin/InquirySupplierMatches"), { ssr: false });
 // The popups' "Handling history", asked for the same way: when a popup opens, one customer at a time.
 const HandlingHistory = dynamic(() => import("@/components/admin/HandlingHistory"), { ssr: false });
-// An app inquiry opens in App inquiries' own panel, loaded when one is first opened.
-const AppInquiryPanel = dynamic(() => import("@/components/admin/MobileInquiriesConsole").then((m) => m.InquiryDetailPanel), { ssr: false });
 
 /** Rows per handling state, for the Filter panel's Handling pills. */
 const countHandling = (rows: { handling: Handling | null }[]) => {
@@ -298,12 +275,10 @@ interface Props {
       /** Freight requests from /shipping/: all live ones, and the untriaged. Counted
        *  by the server because the Shipping view loads its own rows. */
       shipments: number; shipmentsNew: number;
-      /** Every app inquiry (MobileInquiry), for the Inquiries card's overall figure. */
+      /** Of the inquiries, those sent from the AFFHAN app (Inquiry.source APP). */
       appInquiries: number;
     };
     inquiries: Inquiry[]; deletedInquiries: Inquiry[];
-    /** The app's inquiries, newest first, listed on Inquiries beside the website's. */
-    appInquiries: AppInquiry[];
     contacts: ContactMessage[]; deletedContacts: ContactMessage[];
     /**
      * Distinct countries per table with their row counts, computed by a
@@ -419,11 +394,8 @@ export function AdminConsole({ data }: Props) {
   const clearShipmentLink = useCallback(() => setShipmentLink(null), []);
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
-  // The app's inquiries, on the same list: which of the two it shows, and the one open in its panel.
-  const [appItems, setAppItems] = useState<AppInquiry[]>(data.appInquiries);
-  useEffect(() => setAppItems(data.appInquiries), [data.appInquiries]);
+  /** The website's and the app's together, or one of them. */
   const [source, setSource] = useState<Source>("all");
-  const [activeApp, setActiveApp] = useState<string | null>(null);
   // Clear the multi-select whenever the user switches views/filters.
   useEffect(() => setSelected(new Set()), [view, statusFilter, customerStageFilter, countryFilter, assigneeFilter, handlingFilter, q, source]);
 
@@ -819,9 +791,10 @@ export function AdminConsole({ data }: Props) {
     [data.customerCodes],
   );
 
-  const webShown = useMemo(
-    () => {
-      const shown = items.filter((i) =>
+  /** Every filter but the source: what All, Web and App each count, beside their names. */
+  const matching = useMemo(
+    () =>
+      items.filter((i) =>
         (statusFilter === "all" || asStatus(i.status) === statusFilter) &&
         // Narrowed to one stage of the customer-facing lifecycle, when a chip in
         // the signed-in strip has been clicked. Anonymous rows are excluded
@@ -832,59 +805,17 @@ export function AdminConsole({ data }: Props) {
         matchesAssignee(i.assignedToId, assigneeFilter) &&
         matchesHandling(i.handling, handlingFilter) &&
         (!q || searchMatches(`${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`, q, codeOf(i)))
-      );
-      return sortWaiting ? shown.sort(byWaiting) : shown;
-    },
-    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter, handlingFilter, sortWaiting, codeOf]
-  );
-  /** The website's rows on screen: none while the list shows the app's alone. Selection and bulk actions are theirs. */
-  const inquiries = useMemo(() => (source === "app" ? [] : webShown), [source, webShown]);
-  /**
-   * The app's rows that match. Status, handling, employee and country are the website's: an app inquiry has none of
-   * them, so with any of those on it is left out of All, as a row that does not match is; App alone sets them aside.
-   */
-  const webOnlyFilterOn = statusFilter !== "all" || countryFilter !== null || assigneeFilter !== null || handlingFilter !== "all";
-  const appMatching = useMemo(
-    () =>
-      appItems.filter(
-        (a) =>
-          (customerStageFilter === null || a.stage === customerStageFilter) &&
-          (!q || searchMatches(`${a.customerName} ${a.companyName ?? ""} ${a.productName} ${a.place ?? ""} ${a.email ?? ""} ${a.phone ?? ""}`, q, codeOf(a))),
       ),
-    [appItems, customerStageFilter, q, codeOf],
+    [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter, handlingFilter, codeOf]
   );
-  const appShown = useMemo(
-    () => (source === "web" || (source === "all" && webOnlyFilterOn) ? [] : appMatching),
-    [source, webOnlyFilterOn, appMatching],
-  );
-  /**
-   * The list itself: both kinds, newest first. Longest wait first is the pool's order, which the app's are not in, so
-   * they follow the website's then.
-   */
-  const listRows = useMemo(() => {
-    const web = inquiries.map((row) => ({ kind: "web" as const, row }));
-    const app = appShown.map((row) => ({ kind: "app" as const, row }));
-    if (!app.length || sortWaiting) return [...web, ...app];
-    const out: ({ kind: "web"; row: Inquiry } | { kind: "app"; row: AppInquiry })[] = [];
-    let a = 0;
-    for (const w of web) {
-      while (a < app.length && app[a].row.createdAt > w.row.createdAt) out.push(app[a++]);
-      out.push(w);
-    }
-    return [...out, ...app.slice(a)];
-  }, [inquiries, appShown, sortWaiting]);
-  /** The landing page's eight newest, from both. */
-  const recentRows = useMemo(() => {
-    const web = items.slice(0, 8).map((row) => ({ kind: "web" as const, row }));
-    const app = appItems.slice(0, 8).map((row) => ({ kind: "app" as const, row }));
-    return [...web, ...app].sort((x, y) => (x.row.createdAt < y.row.createdAt ? 1 : -1)).slice(0, 8);
-  }, [items, appItems]);
-  /** What each of All, Web and App would show, beside its name. */
-  const sourceCounts: Record<Source, number> = {
-    all: webShown.length + (webOnlyFilterOn ? 0 : appMatching.length),
-    web: webShown.length,
-    app: appMatching.length,
-  };
+  const sourceCounts = useMemo(() => {
+    const app = matching.filter((i) => i.source === "APP").length;
+    return { all: matching.length, web: matching.length - app, app } as Record<Source, number>;
+  }, [matching]);
+  const inquiries = useMemo(() => {
+    const shown = matching.filter((i) => matchesSource(i, source));
+    return sortWaiting ? shown.sort(byWaiting) : shown;
+  }, [matching, source, sortWaiting]);
   /**
    * Narrowed by country, like contactStatusCounts is by company: these numbers
    * sit next to the status rows inside the Filter panel, and if they counted
@@ -892,8 +823,8 @@ export function AdminConsole({ data }: Props) {
    * list nobody is looking at.
    */
   const countryScopedItems = useMemo(
-    () => items.filter((i) => matchesCountry(i.country, countryFilter)),
-    [items, countryFilter],
+    () => items.filter((i) => matchesCountry(i.country, countryFilter) && matchesSource(i, source)),
+    [items, countryFilter, source],
   );
 
   /**
@@ -958,12 +889,9 @@ export function AdminConsole({ data }: Props) {
    * the list is currently showing — the same rule Export already follows, so
    * the two buttons never disagree about what "this" means.
    */
-  const printRows = useMemo<SheetRow[]>(
-    () =>
-      selected.size > 0
-        ? inquiries.filter((i) => selected.has(i.id)).map(webSheetRow)
-        : listRows.map((r) => (r.kind === "web" ? webSheetRow(r.row) : appSheetRow(r.row))),
-    [inquiries, listRows, selected]
+  const printRows = useMemo(
+    () => (selected.size > 0 ? inquiries.filter((i) => selected.has(i.id)) : inquiries),
+    [inquiries, selected]
   );
 
   /** Says on the printed sheet which slice of the data it actually is. */
@@ -971,41 +899,28 @@ export function AdminConsole({ data }: Props) {
     if (selected.size > 0) return `${selected.size} selected`;
     const parts: string[] = [];
     parts.push(source === "web" ? "Website inquiries" : source === "app" ? "App inquiries" : "All inquiries");
+    if (statusFilter !== "all") parts.push(`status: ${statusFilter}`);
     if (customerStageFilter) parts.push(`signed-in · ${CUSTOMER_STATUS_META[customerStageFilter].label}`);
-    // The website's filters, which App sets aside.
-    if (source !== "app") {
-      if (statusFilter !== "all") parts.push(`status: ${statusFilter}`);
-      // The printed sheet has to say it is one country's rows, or it reads as
-      // the whole book with most of it missing.
-      if (countryFilter) parts.push(`country: ${countryFilter}`);
-      if (handlingFilter !== "all") parts.push(`handling: ${HANDLING_FILTERS.find((h) => h.key === handlingFilter)?.label ?? handlingFilter}`);
-      if (assigneeFilter) parts.push(`employee: ${data.employees.find((e) => e.id === assigneeFilter)?.name ?? "one person"}`);
-    }
+    // The printed sheet has to say it is one country's rows, or it reads as
+    // the whole book with most of it missing.
+    if (countryFilter) parts.push(`country: ${countryFilter}`);
+    if (handlingFilter !== "all") parts.push(`handling: ${HANDLING_FILTERS.find((h) => h.key === handlingFilter)?.label ?? handlingFilter}`);
+    if (assigneeFilter) parts.push(`employee: ${data.employees.find((e) => e.id === assigneeFilter)?.name ?? "one person"}`);
     if (q.trim()) parts.push(`search: “${q.trim()}”`);
     return parts.join("  ·  ");
   }, [source, statusFilter, customerStageFilter, countryFilter, handlingFilter, assigneeFilter, data.employees, q, selected]);
 
   // Counts the country-scoped rows, so the "N of M can see a status" strip
-  // describes the list on screen rather than the whole table. The app's are
-  // all signed in; having no country, a country filter leaves them out, as it
-  // does from the list.
+  // describes the list on screen rather than the whole table.
   const customerStatusCounts = useMemo(() => {
-    const c = { linked: 0, PENDING: 0, CHECKED: 0, IN_PROGRESS: 0, CUSTOM: 0, total: 0 };
-    if (source !== "app") {
-      c.total += countryScopedItems.length;
-      countryScopedItems.forEach((i) => {
-        if (!i.userId) return;
-        c.linked++;
-        c[asCustomerStatus(i.customerStatus)]++;
-      });
-    }
-    if (source === "app" || (source === "all" && !countryFilter)) {
-      c.total += appItems.length;
-      c.linked += appItems.length;
-      appItems.forEach((a) => { c[a.stage]++; });
-    }
+    const c = { linked: 0, PENDING: 0, CHECKED: 0, IN_PROGRESS: 0, CUSTOM: 0, total: countryScopedItems.length };
+    countryScopedItems.forEach((i) => {
+      if (!i.userId) return;
+      c.linked++;
+      c[asCustomerStatus(i.customerStatus)]++;
+    });
     return c;
-  }, [countryScopedItems, appItems, source, countryFilter]);
+  }, [countryScopedItems]);
   const trashList = useMemo(
     () => deletedItems.filter((i) =>
       matchesCountry(i.country, countryFilter) &&
@@ -1190,12 +1105,12 @@ export function AdminConsole({ data }: Props) {
     // If the user has ticked specific rows, export only those; otherwise export
     // the whole visible list. (selected is cleared on view/filter/search change,
     // so its ids always belong to the current list.)
-    // The printed sheet's rows, website and app alike, or Recently Deleted's.
-    const src = view === "trash" ? (selected.size > 0 ? trashList.filter((i) => selected.has(i.id)) : trashList).map(webSheetRow) : printRows;
+    const base = view === "trash" ? trashList : inquiries;
+    const src = selected.size > 0 ? base.filter((i) => selected.has(i.id)) : base;
     const headers = ["Date", "Source", "Customer", "Company", "Email", "Country", "Country Code", "Phone", "Product", "Quantity", "Message"];
     const rows: (string | number)[][] = src.map((i) => {
       const { code, number } = splitPhone(i.phone);
-      return [fmtDate(i.createdAt), i.source, i.customerName, i.companyName || "", i.email || "", i.country, code, number, i.productName, i.quantity, i.message || ""];
+      return [fmtDate(i.createdAt), sourceOf(i), i.customerName, i.companyName || "", i.email || "", i.country, code, number, i.productName, i.quantity, i.message || ""];
     });
     const textCols = [6, 7]; // 0-based: Country Code, Phone
     const file = view === "trash" ? "recently-deleted" : "inquiries";
@@ -1236,8 +1151,8 @@ export function AdminConsole({ data }: Props) {
     },
     {
       label: "Inquiries",
-      value: data.stats.inquiries + data.stats.appInquiries,
-      hint: `${fmtNum(data.stats.inquiries)} website · ${fmtNum(data.stats.appInquiries)} app`,
+      value: data.stats.inquiries,
+      hint: `${fmtNum(data.stats.inquiries - data.stats.appInquiries)} website · ${fmtNum(data.stats.appInquiries)} app`,
       icon: Inbox, tint: "text-amber-500", bg: dark ? "bg-amber-500/15" : "bg-amber-50",
     },
     { label: "Messages", value: data.stats.contacts, icon: MessageSquare, tint: "text-emerald-500", bg: dark ? "bg-emerald-500/15" : "bg-emerald-50" },
@@ -1504,28 +1419,17 @@ export function AdminConsole({ data }: Props) {
             <>
               <div className="mb-4 grid gap-4 lg:grid-cols-2">
               <Panel t={t} title="Recent inquiries" onView={() => setView("inquiries")}>
-                {recentRows.map((r) =>
-                  r.kind === "web" ? (
-                    <button key={r.row.id} onClick={() => setActiveInquiry(r.row)} className="flex w-full items-center gap-3 py-3 text-left">
-                      <Thumb t={t} src={r.row.productImage} alt={r.row.productName} />
-                      <div className="min-w-0 flex-1">
-                        <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand-dark ${asStatus(r.row.status) !== "new" ? "line-through opacity-60" : ""}`}>{r.row.productName}</p>
-                        <p className={`flex flex-wrap items-center gap-x-1 text-[12px] font-medium ${t.mid}`}><SourceTag source="Web" dark={dark} /><span className="ml-0.5">{r.row.customerName}</span><SignInMark provider={r.row.signIn} /><span>· {r.row.country}</span></p>
-                      </div>
-                      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(r.row.status)].chip}`}>{STATUS_META[asStatus(r.row.status)].label}</span>
-                    </button>
-                  ) : (
-                    <button key={r.row.id} onClick={() => setActiveApp(r.row.id)} className="flex w-full items-center gap-3 py-3 text-left">
-                      <Thumb t={t} src={r.row.productImage} alt={r.row.productName} />
-                      <div className="min-w-0 flex-1">
-                        <p className="line-clamp-1 text-[13px] font-semibold hover:text-brand-dark">{r.row.productName}</p>
-                        <p className={`flex flex-wrap items-center gap-x-1 text-[12px] font-medium ${t.mid}`}><SourceTag source="App" dark={dark} /><span className="ml-0.5">{r.row.customerName}</span><SignInMark provider={r.row.signIn} /></p>
-                      </div>
-                      <span className={`max-w-[7rem] shrink-0 truncate rounded-full px-2 py-0.5 text-[10px] font-bold ${CUSTOMER_STATUS_META[r.row.stage].chip}`}>{r.row.stageLabel}</span>
-                    </button>
-                  ),
-                )}
-                {!recentRows.length && <Empty t={t} label="No inquiries yet." />}
+                {items.slice(0, 8).map((i) => (
+                  <button key={i.id} onClick={() => setActiveInquiry(i)} className="flex w-full items-center gap-3 py-3 text-left">
+                    <Thumb t={t} src={i.productImage} alt={i.productName} />
+                    <div className="min-w-0 flex-1">
+                      <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand-dark ${asStatus(i.status) !== "new" ? "line-through opacity-60" : ""}`}>{i.productName}</p>
+                      <p className={`flex flex-wrap items-center gap-x-1 text-[12px] font-medium ${t.mid}`}><SourceTag source={sourceOf(i)} dark={dark} /><span className="ml-0.5">{i.customerName}</span><SignInMark provider={i.signIn} /><span>· {i.country}</span></p>
+                    </div>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(i.status)].chip}`}>{STATUS_META[asStatus(i.status)].label}</span>
+                  </button>
+                ))}
+                {!items.length && <Empty t={t} label="No inquiries yet." />}
               </Panel>
               <Panel t={t} title="Recent messages" onView={() => setView("contacts")}>
                 {contactItems.slice(0, 8).map((c) => (
@@ -1664,7 +1568,7 @@ export function AdminConsole({ data }: Props) {
                         key={key}
                         onClick={() => setSource(key)}
                         aria-pressed={source === key}
-                        title={key === "all" ? "The website's and the app's" : key === "web" ? "From the website" : "From the app"}
+                        title={key === "all" ? "The website's and the app's" : key === "web" ? "Sent from the website" : "Sent from the AFFHAN app"}
                         className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ring-1 transition-colors ${source === key ? "bg-[#1d1d1f] text-white ring-transparent" : t.pill}`}
                       >
                         {key === "all" ? "All" : key === "web" ? "Web" : "App"}
@@ -1675,9 +1579,8 @@ export function AdminConsole({ data }: Props) {
                 )}
                 {/* Every "what should this list show?" choice lives inside one
                     control — see FilterMenu. The grouping toggle is passed in
-                    as the View section because it is only meaningful here.
-                    Every one of them is the website's, so App has none. */}
-                {view === "inquiries" && source !== "app" && (
+                    as the View section because it is only meaningful here. */}
+                {view === "inquiries" && (
                   <FilterMenu
                     t={t}
                     statusFilter={statusFilter}
@@ -1712,7 +1615,7 @@ export function AdminConsole({ data }: Props) {
                     }
                   />
                 )}
-                <div className={`flex flex-wrap items-center gap-2 ${view === "inquiries" && source !== "app" ? "" : "sm:ml-auto"}`}>
+                <div className={`flex flex-wrap items-center gap-2 ${view === "inquiries" ? "" : "sm:ml-auto"}`}>
                   {view !== "trash" && (
                     <button onClick={exportExcel} title={selected.size > 0 ? `Export ${selected.size} selected` : "Export the visible list"} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black">
                       <Download size={15} /> Export{selected.size > 0 ? ` (${selected.size})` : ""}
@@ -1734,7 +1637,7 @@ export function AdminConsole({ data }: Props) {
                   )}
                   {/* Server-side grouped export: one row per unique customer,
                       over the WHOLE database (not just the loaded page). */}
-                  {view === "inquiries" && source !== "app" && (
+                  {view === "inquiries" && (
                     <a href="/api/admin/export/all/?only=customers" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-700">
                       <FileSpreadsheet size={15} /> Grouped .xlsx
                     </a>
@@ -1830,7 +1733,7 @@ export function AdminConsole({ data }: Props) {
               )}
 
               {/* What the grouping actually collapsed, before the list of it. */}
-              {view === "inquiries" && groupByCustomer && source !== "app" && (
+              {view === "inquiries" && groupByCustomer && (
                 <CustomerGroupSummary
                   t={t}
                   groups={customerGroups}
@@ -1887,17 +1790,8 @@ export function AdminConsole({ data }: Props) {
                 </div>
               )}
 
-              {view === "inquiries" && groupByCustomer && source !== "app" ? (
+              {view === "inquiries" && groupByCustomer ? (
                 <>
-                  {/* Grouping is the website's (its customers, by phone); the app's wait under App. */}
-                  {source === "all" && appShown.length > 0 && (
-                    <div className={`flex flex-wrap items-center gap-2 border-b px-4 py-2.5 text-[12px] font-medium ${t.border} ${t.mid}`}>
-                      <SourceTag source="Web" dark={dark} /> Grouped by customer: the website&apos;s inquiries.
-                      <button onClick={() => setSource("app")} className={`rounded-lg px-2 py-1 font-semibold text-brand-dark transition-colors ${t.hover}`}>
-                        See the app&apos;s {fmtNum(appShown.length)}
-                      </button>
-                    </div>
-                  )}
                   {customerGroups.length ? (
                     // @container: the rows fit their controls to this list's width (see the inquiry list below).
                     <ul className={`@container space-y-2 p-3 ${t.page}`}>
@@ -1935,7 +1829,7 @@ export function AdminConsole({ data }: Props) {
                   ) : <Empty t={t} label="No customers found." pad />}
                 </>
               ) : view === "inquiries" ? (
-                listRows.length ? (
+                inquiries.length ? (
                   // A row puts its controls beside the customer only when the list itself is wide enough for
                   // both: 62rem of its own width (@container, so the rail and the padding are already paid for).
                   // Narrower, they sit under the customer, as they always have on a phone. They used to go beside
@@ -1945,46 +1839,7 @@ export function AdminConsole({ data }: Props) {
                   // The customer list, Contact Us and Shipping do the same from 60rem inside their p-3, which is
                   // the same width of screen, so all four change together.
                   <ul className={`@container divide-y ${t.divide}`}>
-                    {listRows.map((r) => {
-                      if (r.kind === "app") {
-                        const a = r.row;
-                        return (
-                          // The app's: no tick (the bulk actions are the website's triage) and no delete; a press
-                          // opens App inquiries' panel, where its status is set.
-                          <li key={a.id} className={`flex flex-col gap-3 p-4 transition-colors @min-[62rem]:flex-row @min-[62rem]:items-center ${t.hover}`}>
-                            <div className="flex min-w-0 flex-1 items-center gap-3 @min-[62rem]:min-w-[20rem]">
-                              <span className="w-5 shrink-0" aria-hidden="true" />
-                              <button onClick={() => setActiveApp(a.id)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                                <Thumb t={t} src={a.productImage} alt={a.productName} big />
-                                <div className="min-w-0 flex-1">
-                                  <p className={`line-clamp-2 text-[14px] font-semibold leading-snug hover:text-brand-dark sm:text-[13.5px] ${t.strong}`}>{a.productName}</p>
-                                  <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-                                    <SourceTag source="App" dark={dark} />
-                                    <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Users className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-semibold">{a.customerName}</span><SignInMark provider={a.signIn} /></span>
-                                    {a.place && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{a.place}</span></span>}
-                                    {a.phone && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{a.phone}</span></span>}
-                                    {a.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{a.email}</span></span>}
-                                  </div>
-                                </div>
-                              </button>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2.5 pl-[92px] @min-[62rem]:justify-end @min-[62rem]:pl-0">
-                              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`} title={a.quantityEdited ? "The customer changed the quantity in the app" : undefined}>
-                                Qty {a.quantity.toLocaleString("en-IN")}{a.quantityEdited ? " · edited" : ""}
-                              </span>
-                              <button
-                                onClick={() => setActiveApp(a.id)}
-                                title="What the customer sees in the app. Press to change it."
-                                className={`inline-flex max-w-[14rem] items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold transition-opacity hover:opacity-80 ${CUSTOMER_STATUS_META[a.stage].chip}`}
-                              >
-                                <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${CUSTOMER_STATUS_META[a.stage].dot}`} />
-                                <span className="truncate">{a.stageLabel}</span>
-                              </button>
-                            </div>
-                          </li>
-                        );
-                      }
-                      const i = r.row;
+                    {inquiries.map((i) => {
                       const st = asStatus(i.status);
                       const sel = selected.has(i.id);
                       return (
@@ -2002,7 +1857,7 @@ export function AdminConsole({ data }: Props) {
                                   name, number and address are what the row is
                                   scanned for, so they carry the contrast. */}
                               <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-                                <SourceTag source="Web" dark={dark} />
+                                <SourceTag source={sourceOf(i)} dark={dark} />
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Users className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-semibold">{i.customerName}</span><SignInMark provider={i.signIn} /></span>
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{i.country}</span></span>
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{i.phone}</span></span>
@@ -2067,21 +1922,6 @@ export function AdminConsole({ data }: Props) {
           )}
         </main>
       </div>
-
-      {activeApp && (
-        <AppInquiryPanel
-          id={activeApp}
-          onClose={() => setActiveApp(null)}
-          // At once on the row, then the page's own read, which brings the counts with it.
-          onSaved={(next) => {
-            if (next) {
-              const { status, label } = next;
-              setAppItems((prev) => prev.map((a) => (a.id === activeApp ? { ...a, stage: asCustomerStatus(status), stageLabel: label } : a)));
-            }
-            refresh();
-          }}
-        />
-      )}
 
       {activeInquiry && (
         <InquiryModal
@@ -2488,6 +2328,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
             <div className="min-w-0 flex-1">
               <h3 className={`text-lg font-semibold leading-snug ${asStatus(inquiry.status) !== "new" ? `line-through ${t.soft}` : t.strong}`}>{inquiry.productName}</h3>
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <SourceTag source={sourceOf(inquiry)} dark={dark} />
                 <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${t.qty}`}>Quantity: {inquiry.quantity}</span>
                 <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[asStatus(inquiry.status)].chip}`}>{STATUS_META[asStatus(inquiry.status)].label}</span>
                 <HandlingChip h={inquiry.handling} createdAt={inquiry.createdAt} dark={dark} now={now} />
@@ -2672,7 +2513,7 @@ function CustomerStatusControl({
  * all — because "export what I am looking at" is the only rule that does not
  * surprise anyone. The heading says which that was.
  */
-function InquirySheet({ rows, filterLabel }: { rows: SheetRow[]; filterLabel: string }) {
+function InquirySheet({ rows, filterLabel }: { rows: Inquiry[]; filterLabel: string }) {
   return (
     <div className="hidden print:block">
       {/* Colour-exact, so the status chips do not print as empty outlines, and
@@ -2726,7 +2567,7 @@ function InquirySheet({ rows, filterLabel }: { rows: SheetRow[]; filterLabel: st
               return (
                 <tr key={i.id} className="border-b border-black/[0.08] align-top">
                   <td className="py-1.5 pr-1 tabular-nums text-[#6e6e73]">{idx + 1}</td>
-                  <td className="py-1.5 pr-1 font-semibold">{i.source}</td>
+                  <td className="py-1.5 pr-1 font-semibold">{sourceOf(i)}</td>
                   <td className="py-1.5 pr-2">
                     <span className="flex h-9 w-9 items-center justify-center overflow-hidden rounded border border-black/10 bg-[#f5f5f7]">
                       {src ? (
@@ -2741,8 +2582,8 @@ function InquirySheet({ rows, filterLabel }: { rows: SheetRow[]; filterLabel: st
                     {i.companyName ? <span className="block text-[9px] text-[#6e6e73]">{i.companyName}</span> : null}
                   </td>
                   <td className="py-1.5 pr-3 break-all leading-snug">{i.email || "—"}</td>
-                  <td className="py-1.5 pr-3 tabular-nums leading-snug">{i.phone || "—"}</td>
-                  <td className="py-1.5 pr-3 leading-snug">{i.country || "—"}</td>
+                  <td className="py-1.5 pr-3 tabular-nums leading-snug">{i.phone}</td>
+                  <td className="py-1.5 pr-3 leading-snug">{i.country}</td>
                   <td className="py-1.5 pr-2 text-right font-semibold tabular-nums">{i.quantity}</td>
                   <td className="py-1.5 tabular-nums leading-snug">{fmtDateTime(i.createdAt)}</td>
                 </tr>
