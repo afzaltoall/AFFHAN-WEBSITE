@@ -6,6 +6,7 @@ import { OFFICES } from "@/lib/brand";
 import { Reveal, RevealNoScriptFallback } from "@/components/ui/Reveal";
 import { ShippingHero } from "@/components/ui/ShippingHero";
 import { ShippingJourney } from "@/components/ui/ShippingJourney";
+import { CargoTracker } from "@/components/shipping/CargoTracker";
 import { FaqAccordion } from "@/components/sections/FaqAccordion";
 import { SHIPPING_FAQS } from "@/lib/shippingFaqs";
 import { SpatialFreightShowcase } from "@/components/ui/spatial-freight-showcase";
@@ -67,6 +68,11 @@ export function ShippingContent() {
       <ShippingHero officeCount={OFFICE_COUNT} />
 
       {/* Remove the wave divider, keep it clean */}
+      <div className="h-px w-full bg-[#08222e]/10"></div>
+
+      {/* Live track & trace: a customer follows their cargo by the number we gave them (2026-10-24). */}
+      <CargoTracker />
+
       <div className="h-px w-full bg-[#08222e]/10"></div>
 
       <ShippingJourney />

@@ -599,7 +599,7 @@ export async function adminReleaseLead(lead: LeadRef, by: string, now = new Date
  * Somebody deactivated keeps nothing: every customer they hold goes back to the pool, each with a line on the trail.
  * Their leads are let go by the caller (the employee route).
  */
-export async function releaseDeactivated(employeeId: string, by: string, now = new Date()): Promise<number> {
+export async function releaseDeactivated(employeeId: string, by: string, now = new Date(), because = "was deactivated"): Promise<number> {
   const person = await personOf(prisma, employeeId);
   const entries = await prisma.leadQueueEntry.findMany({
     where: { currentEmployeeId: employeeId, state: { in: [POOL_STATE.HELD, POOL_STATE.RESOLVED] } },
@@ -615,7 +615,7 @@ export async function releaseDeactivated(employeeId: string, by: string, now = n
           }
         : { currentEmployeeId: null, lastEmployeeId: employeeId },
     });
-    if (e.state === POOL_STATE.HELD) await logEvent(prisma, e.id, POOL_EVENT.ADMIN_UNASSIGNED, { from: person, note: `${person?.name ?? "the holder"} was deactivated by ${by}` });
+    if (e.state === POOL_STATE.HELD) await logEvent(prisma, e.id, POOL_EVENT.ADMIN_UNASSIGNED, { from: person, note: `${person?.name ?? "the holder"} ${because} by ${by}` });
   }
   return entries.length;
 }

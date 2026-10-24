@@ -253,6 +253,11 @@ export function EmployeeManagement({ initial }: { initial: EmployeeRow[] }) {
                           <span>
                             <span className="block font-semibold hover:underline">
                               {r.name}
+                              {r.job === "ASSIGNER" && (
+                                <span className="ml-2 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-bold text-sky-700">
+                                  Assigner
+                                </span>
+                              )}
                               {r.role === "ADMIN" && (
                                 <span className="ml-2 rounded-md bg-violet-500/10 px-1.5 py-0.5 text-[11px] font-bold text-violet-700">
                                   Admin

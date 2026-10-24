@@ -144,6 +144,10 @@ export function EmployeeDetail({
                 <dd className="font-medium">{row.role === "ADMIN" ? "Admin" : "Employee"}</dd>
               </div>
               <div>
+                <dt className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Account</dt>
+                <dd className="font-medium">{row.job === "ASSIGNER" ? "Assigner · cargo tracking" : "Sales · the open pool"}</dd>
+              </div>
+              <div>
                 <dt className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Status</dt>
                 <dd>
                   <span

@@ -60,12 +60,21 @@ export const staffCookieOptions = { ...cookieOptions, maxAge: Math.floor(EMPLOYE
 /** What /employee/login sends people back to when the timeout is what ended it. */
 export const EXPIRED_QUERY = "expired=1";
 
+/** Whether an account works the open pool (My leads); an ASSIGNER keeps cargo tracking instead (Employee.job). */
+export const isSalesJob = (employee: { job: string }) => employee.job !== "ASSIGNER";
+
+/** Where an account's workspace starts. */
+export const workspaceHome = (employee: { job: string }) => (isSalesJob(employee) ? "/employee/dashboard/" : "/employee/cargo/");
+
 export interface EmployeeIdentity {
   id: string;
   email: string;
   name: string;
   /** ADMIN | EMPLOYEE — the employee's own rank, not the session role. */
   role: string;
+  /** SALES | ASSIGNER: the workspace the account opens (Employee.job). Sales routes refuse an assigner, and the cargo
+   *  routes a salesperson (isSalesJob, lib/cargo.ts). */
+  job: string;
   region: string | null;
   image: string | null;
 }
@@ -100,6 +109,7 @@ const IDENTITY_FIELDS = {
   email: true,
   name: true,
   role: true,
+  job: true,
   region: true,
   image: true,
   isActive: true,
@@ -160,6 +170,7 @@ export async function authoriseEmployeeToken(token: string | undefined): Promise
       email: employee.email,
       name: employee.name,
       role: employee.role,
+      job: employee.job,
       region: employee.region,
       image: employee.image,
     },

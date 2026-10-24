@@ -73,6 +73,9 @@ export const LIMITS = {
   supplierApply: { per: "account", count: 100, window: "1 h", whenDown: "open", feature: "Applications" },
   /** /api/supplier/upload-url: each upload is a file in our bucket, and photos are optional, so a refusal costs an application nothing. */
   supplierUpload: { per: "account", count: 150, window: "1 h", whenDown: "closed", feature: "Photo upload" },
+  /** /api/track: Live track & trace on /shipping/. Room for a customer checking their cargo all day; not for walking
+   *  every number in turn. Fails open: a customer looking for their cargo is never turned away for Upstash's sake. */
+  cargoTrack: { per: "IP", count: 60, window: "10 m", whenDown: "open", feature: "Cargo tracking" },
 } as const satisfies Record<string, LimitSpec>;
 
 export type LimitName = keyof typeof LIMITS;

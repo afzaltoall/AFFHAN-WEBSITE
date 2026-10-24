@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutList, UserRound } from "lucide-react";
+import { LayoutList, Ship, UserRound } from "lucide-react";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { sideRow, wt } from "@/components/employee/workspace-ui";
 
@@ -18,21 +18,26 @@ import { sideRow, wt } from "@/components/employee/workspace-ui";
  * with more force, not less — this screen is a list of leads that wants the
  * width, and its navigation is read once a session.
  *
- * Two destinations: the leads, and the person's own profile.
+ * Two destinations: the person's work and their own profile. The work is their leads for a salesperson and cargo
+ * tracking for an assigner (Employee.job, 2026-10-24); an admin looking in sees both.
  */
 export function WorkspaceSidebar({
   name,
   detail,
   image,
+  pages = "sales",
 }: {
   name: string;
   detail: string;
   image: string | null;
+  /** Which work the account has: leads, cargo tracking, or both (an admin). */
+  pages?: "sales" | "assigner" | "both";
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const onDashboard = pathname?.startsWith("/employee/dashboard") ?? false;
   const onProfile = pathname?.startsWith("/employee/profile") ?? false;
+  const onCargo = pathname?.startsWith("/employee/cargo") ?? false;
 
   const label = `overflow-hidden whitespace-nowrap text-left transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${
     open ? "ml-2.5 max-w-[190px] opacity-100" : "ml-0 max-w-0 opacity-0"
@@ -55,7 +60,7 @@ export function WorkspaceSidebar({
           open ? "w-[272px] bg-white shadow-2xl" : "w-[60px] bg-white/80"
         }`}
       >
-        <Link href="/employee/dashboard/" className="flex items-center px-3.5 py-5">
+        <Link href={pages === "assigner" ? "/employee/cargo/" : "/employee/dashboard/"} className="flex items-center px-3.5 py-5">
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${wt.thumb}`}>
             <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
           </span>
@@ -66,18 +71,32 @@ export function WorkspaceSidebar({
         </Link>
 
         <nav className="flex-1 space-y-1 px-2">
-          <Link
-            href="/employee/dashboard/"
-            title="My leads"
-            aria-current={onDashboard ? "page" : undefined}
-            className={`${sideRow} gap-0 px-1.5 ${onDashboard ? wt.navActive : wt.navIdle}`}
-          >
-            <span className={iconCol}>
-              <LayoutList size={17} className={onDashboard ? "text-brand" : wt.soft} />
-            </span>
-            <span className={`flex-1 ${label}`}>My leads</span>
-          </Link>
-
+          {pages !== "assigner" && (
+            <Link
+              href="/employee/dashboard/"
+              title="My leads"
+              aria-current={onDashboard ? "page" : undefined}
+              className={`${sideRow} gap-0 px-1.5 ${onDashboard ? wt.navActive : wt.navIdle}`}
+            >
+              <span className={iconCol}>
+                <LayoutList size={17} className={onDashboard ? "text-brand" : wt.soft} />
+              </span>
+              <span className={`flex-1 ${label}`}>My leads</span>
+            </Link>
+          )}
+          {pages !== "sales" && (
+            <Link
+              href="/employee/cargo/"
+              title="Cargo tracking"
+              aria-current={onCargo ? "page" : undefined}
+              className={`${sideRow} gap-0 px-1.5 ${onCargo ? wt.navActive : wt.navIdle}`}
+            >
+              <span className={iconCol}>
+                <Ship size={17} className={onCargo ? "text-brand" : wt.soft} />
+              </span>
+              <span className={`flex-1 ${label}`}>Cargo tracking</span>
+            </Link>
+          )}
           <Link
             href="/employee/profile/"
             title="Profile"

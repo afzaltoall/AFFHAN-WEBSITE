@@ -215,5 +215,8 @@ export const checkSupplierVerifyRateLimit = (req: HasHeaders) => checkLimit("sup
 /** A supplier's applications and profile saves, per account. Fails open: the daily cap in the database holds. */
 export const checkSupplierApplyRateLimit = (supplierId: string) => checkLimit("supplierApply", supplierId);
 
+/** Live track & trace, per IP: a customer's checking, never a walk through every number. Fails open. */
+export const checkCargoTrackRateLimit = (req: HasHeaders) => checkLimit("cargoTrack", getClientIp(req));
+
 /** A supplier's photo uploads, per account. Fails closed. */
 export const checkSupplierUploadRateLimit = (supplierId: string) => checkLimit("supplierUpload", supplierId);

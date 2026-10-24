@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { loginRedirectFor, readWorkspaceAuth } from "@/lib/employee-session";
+import { isSalesJob, loginRedirectFor, readWorkspaceAuth } from "@/lib/employee-session";
 import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { WorkspaceSidebar } from "@/components/employee/WorkspaceSidebar";
@@ -50,6 +50,10 @@ export default async function EmployeeWorkspaceLayout({
           image: auth.session.image ?? null,
         };
 
+  // Which pages this account has: a salesperson their leads, an assigner cargo tracking, an admin both.
+  const pages: "sales" | "assigner" | "both" = auth.kind === "admin" ? "both" : isSalesJob(auth.employee) ? "sales" : "assigner";
+  const home = pages === "assigner" ? "/employee/cargo/" : "/employee/dashboard/";
+
   return (
     <div style={sfFont} className={`min-h-screen antialiased ${wt.page}`}>
       {/* Only a real employee session slides its own window; an admin keeps the
@@ -57,14 +61,14 @@ export default async function EmployeeWorkspaceLayout({
       {auth.kind === "employee" && <SessionKeeper role="staff" />}
 
       <div className="flex">
-        <WorkspaceSidebar name={who.name} detail={who.detail} image={who.image} />
+        <WorkspaceSidebar name={who.name} detail={who.detail} image={who.image} pages={pages} />
 
         <div className="min-w-0 flex-1">
           {/* The rail stands in for this bar from lg up, so the two never show
               at once. Below that it is the whole of the chrome. */}
           <header className={`border-b bg-white lg:hidden ${wt.border}`}>
             <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
-              <Link href="/employee/dashboard/" className="flex items-center gap-3">
+              <Link href={home} className="flex items-center gap-3">
                 <span className="relative block h-8 w-24">
                   <Image src="/logo.png" alt="Affhan" fill className="object-contain" />
                 </span>
@@ -82,9 +86,16 @@ export default async function EmployeeWorkspaceLayout({
             </div>
             {/* The rail's two destinations, for the screens the rail is not on. */}
             <nav className="flex gap-1 px-4 pb-2 sm:px-6">
-              <Link href="/employee/dashboard/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
-                My leads
-              </Link>
+              {pages !== "assigner" && (
+                <Link href="/employee/dashboard/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
+                  My leads
+                </Link>
+              )}
+              {pages !== "sales" && (
+                <Link href="/employee/cargo/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
+                  Cargo tracking
+                </Link>
+              )}
               <Link href="/employee/profile/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
                 Profile
               </Link>

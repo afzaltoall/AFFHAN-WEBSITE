@@ -20,6 +20,7 @@ const DETAIL_SELECT = {
   name: true,
   image: true,
   role: true,
+  job: true,
   region: true,
   isActive: true,
   lastLoginAt: true,
@@ -103,6 +104,12 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       }
       data.role = body.role;
     }
+    if (body?.job !== undefined) {
+      if (body.job !== "SALES" && body.job !== "ASSIGNER") {
+        return NextResponse.json({ error: "Account must be SALES or ASSIGNER." }, { status: 400 });
+      }
+      data.job = body.job;
+    }
     if (body?.isActive !== undefined) {
       const isActive = Boolean(body.isActive);
       data.isActive = isActive;
@@ -134,7 +141,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // deactivated employee for exactly this reason; this closes the same gap
     // from the other end.
     let released = 0;
-    if (body?.isActive !== undefined && !Boolean(body.isActive)) {
+    // Made an assigner: they can no longer open the pool, so what they held goes back to it, as on deactivation.
+    const leavesSales = body?.job === "ASSIGNER";
+    if ((body?.isActive !== undefined && !Boolean(body.isActive)) || leavesSales) {
       const held = { assignedToId: id, status: { not: "deleted" } };
       const letGo = { assignedToId: null, assignedAt: null };
       const [inquiries, contacts, shipments] = await Promise.all([
@@ -145,7 +154,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       released = inquiries.count + contacts.count + shipments.count;
       // Their customers go back to the open pool, each with a line on the
       // trail saying why, rather than sitting with a ghost.
-      await releaseDeactivated(id, admin.name || admin.email);
+      await releaseDeactivated(id, admin.name || admin.email, new Date(), leavesSales && body?.isActive !== false ? "was moved to cargo tracking" : undefined);
     }
 
     return NextResponse.json({ employee, passwordChanged: newPassword !== null, released });

@@ -49,6 +49,7 @@ const LIST_SELECT = {
   name: true,
   image: true,
   role: true,
+  job: true,
   region: true,
   isActive: true,
   lastLoginAt: true,
@@ -89,6 +90,8 @@ export async function POST(request: Request) {
     const region = typeof body?.region === "string" && body.region.trim() ? body.region.trim() : null;
     const image = typeof body?.image === "string" && body.image.trim() ? body.image.trim() : null;
     const rank = body?.role === "ADMIN" ? "ADMIN" : "EMPLOYEE";
+    // Sales (the open pool) unless the admin made an assigner, who keeps cargo tracking (2026-10-24).
+    const job = body?.job === "ASSIGNER" ? "ASSIGNER" : "SALES";
     const wantsGenerated = body?.password === undefined || body?.password === null || body?.password === "";
 
     if (!name) return NextResponse.json({ error: "Name is required." }, { status: 400 });
@@ -101,7 +104,7 @@ export async function POST(request: Request) {
     }
 
     const employee = await prisma.employee.create({
-      data: { name, email, region, image, role: rank, passwordHash: await hashPassword(password) },
+      data: { name, email, region, image, role: rank, job, passwordHash: await hashPassword(password) },
       select: LIST_SELECT,
     });
 

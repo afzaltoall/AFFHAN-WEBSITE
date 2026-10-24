@@ -1015,6 +1015,10 @@ model Employee {
   image        String?   @db.Text
   /// ADMIN | EMPLOYEE
   role         String    @default("EMPLOYEE")
+  /// The work the account does, which decides the workspace it opens (2026-10-24): SALES takes customers from the
+  /// open pool (My leads); ASSIGNER keeps the cargo-tracking sheet (/employee/cargo/) and nothing else. Not `role`,
+  /// which is a rank on the record and grants nothing.
+  job          String    @default("SALES")
   /// Free-text territory, e.g. "Dubai". Optional: not every rep has one.
   region       String?
   /// Soft disable. Deactivating must not delete the person, because their name
@@ -1366,4 +1370,74 @@ model TripApplication {
   @@index([createdAt])
   @@index([customerKey])
   @@index([userId])
+}
+
+/// One consignment on the cargo-tracking sheet (the owner, 2026-10-24): the office's own record, kept by an assigner
+/// (Employee.job ASSIGNER) in the staff workspace, as their spreadsheet was; and what a customer looks up by its number
+/// on /shipping/ (Live track & trace), which shows only the timeline of updates, never the customer or the sheet.
+model CargoShipment {
+  id           String  @id @default(uuid())
+  /// The console, FCL or LCL number the customer is given (CO-26-000002, FCL-26-000004), as it was typed.
+  reference    String
+  /// The same, upper case with everything but letters and digits taken out: what a lookup matches, so "co 26 000002"
+  /// finds CO-26-000002. Unique, so one number is one consignment.
+  referenceKey String  @unique
+  /// Who the cargo is for, as the office writes it (AM HYDRAULICS, 31ST CONSOLE). Never public.
+  customer     String
+  /// 40HQ, SEA / LCL, EXWS, FOB/SEA: the sheet's own words.
+  type         String?
+  /// Port of loading and port of discharge.
+  pol          String?
+  pod          String?
+  etd          DateTime? @db.Date
+  eta          DateTime? @db.Date
+  /// IN_POL_PORT | IN_SAILING | IN_CUSTOMS: the newest update's (lib/cargo.ts keeps it so).
+  status       String
+  createdById  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  events  CargoEvent[]
+  changes CargoChange[]
+
+  @@index([status])
+  @@index([updatedAt(sort: Desc)])
+}
+
+/// One update on a consignment's timeline: the date, what happened, and the stage it stood at. These are what the
+/// customer reads, one row each (event date, event, status), and what the assigner corrects when a line was wrong.
+model CargoEvent {
+  id          String        @id @default(uuid())
+  shipmentId  String
+  shipment    CargoShipment @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+  date        DateTime      @db.Date
+  /// "Loading on 17th Aug", "Reached agent warehouse on 28th Sep": public, so never a name or a price.
+  name        String
+  status      String
+  createdById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([shipmentId, date])
+}
+
+/// Every change made to the sheet, and by whom: what an admin reads under Shipping › Cargo tracking to see what the
+/// assigners have done. Written by lib/cargo.ts with each change, never edited; the number is kept as text so the
+/// trail outlives a deleted consignment.
+model CargoChange {
+  id         String         @id @default(uuid())
+  shipmentId String?
+  shipment   CargoShipment? @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  reference  String
+  /// CREATED | UPDATED | DELETED | EVENT_ADDED | EVENT_EDITED | EVENT_DELETED
+  action     String
+  /// What changed, in words: "Status In sailing → In customs".
+  summary    String         @db.Text
+  /// The Employee who made it; null when it was an administrator.
+  byId       String?
+  byName     String
+  createdAt  DateTime       @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([shipmentId])
 }

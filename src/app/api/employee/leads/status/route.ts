@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { readEmployeeAuth } from "@/lib/employee-session";
+import { isSalesJob, readEmployeeAuth } from "@/lib/employee-session";
 import { isLeadStatus, LEAD_NOTE_MAX } from "@/lib/leadStatus";
 import { closeOpenRequests, releaseCustomer, touchCustomer, type LeadRef } from "@/lib/lead-pool";
 import { POOL_EVENT } from "@/lib/lead-pool-rules";
@@ -50,6 +50,8 @@ export async function POST(request: Request) {
   if (!auth.ok) {
     return NextResponse.json({ error: "Not signed in", reason: auth.reason }, { status: 401 });
   }
+  // An assigner keeps cargo tracking, not leads (Employee.job, 2026-10-24).
+  if (!isSalesJob(auth.employee)) return NextResponse.json({ error: "This account keeps cargo tracking, not leads.", reason: "not_sales" }, { status: 403 });
 
   try {
     const body = await request.json().catch(() => ({}));

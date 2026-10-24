@@ -98,6 +98,8 @@ interface AssigneeCount { employeeId: string | null; count: number }
 const InquirySupplierMatches = dynamic(() => import("@/components/admin/InquirySupplierMatches"), { ssr: false });
 // The popups' "Handling history", asked for the same way: when a popup opens, one customer at a time.
 const HandlingHistory = dynamic(() => import("@/components/admin/HandlingHistory"), { ssr: false });
+// Shipping › Cargo tracking: the assigners' sheet, loaded when the tab is first opened.
+const CargoBoard = dynamic(() => import("@/components/cargo/CargoBoard"), { ssr: false });
 
 /** Rows per handling state, for the Filter panel's Handling pills. */
 const countHandling = (rows: { handling: Handling | null }[]) => {
@@ -391,6 +393,8 @@ export function AdminConsole({ data }: Props) {
   const [shipmentLink, setShipmentLink] = useState<string | null>(null);
   /** The handling filter a link asked the Shipping view to open with (?view=shipping&handling=…); it keeps its own. */
   const [shipmentHandling, setShipmentHandling] = useState<HandlingFilter>("all");
+  /** Shipping's two halves: the freight quote requests from /shipping/, and the cargo-tracking sheet the assigners keep. */
+  const [shippingTab, setShippingTab] = useState<"requests" | "cargo">("requests");
   const clearShipmentLink = useCallback(() => setShipmentLink(null), []);
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
@@ -467,6 +471,8 @@ export function AdminConsole({ data }: Props) {
     if (accountParam === "password") setShowPwd(true);
     if (!inquiryId && !contactId && !shipmentId && !viewParam && !accountParam && !handlingParam) return;
 
+    // ?view=shipping&tab=cargo opens the cargo-tracking sheet.
+    if (viewParam === "shipping" && params.get("tab") === "cargo") setShippingTab("cargo");
     if (viewParam === "all" || viewParam === "inquiries" || viewParam === "contacts" || viewParam === "shipping" || viewParam === "trash") {
       setView(viewParam);
     }
@@ -1458,6 +1464,25 @@ export function AdminConsole({ data }: Props) {
               />
             </>
           ) : view === "shipping" ? (
+            <>
+            {/* Freight requests are customers asking for a quote; cargo tracking is the sheet of consignments already
+                moving, kept by the assigners, which customers follow on /shipping/ (2026-10-24). */}
+            <div role="tablist" aria-label="Shipping" className={`mb-4 inline-flex rounded-full p-1 shadow-sm ring-1 ${t.card}`}>
+              {([["requests", "Freight requests"], ["cargo", "Cargo tracking"]] as const).map(([key, words]) => (
+                <button
+                  key={key}
+                  role="tab"
+                  aria-selected={shippingTab === key}
+                  onClick={() => setShippingTab(key)}
+                  className={`rounded-full px-4 py-1.5 text-[13px] font-semibold transition-colors ${shippingTab === key ? "bg-[#1d1d1f] text-white" : `${t.mid} ${t.hover}`}`}
+                >
+                  {words}
+                </button>
+              ))}
+            </div>
+            {shippingTab === "cargo" ? (
+              <CargoBoard t={t} dark={dark} admin />
+            ) : (
             <ShipmentsSection
               t={t}
               dark={dark}
@@ -1473,6 +1498,8 @@ export function AdminConsole({ data }: Props) {
               onConfirm={setConfirm}
               initialHandling={shipmentHandling}
             />
+            )}
+            </>
           ) : view === "contacts" ? (
             <ContactsSection
               t={t}

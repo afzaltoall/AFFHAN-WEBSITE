@@ -13,6 +13,8 @@ export interface EmployeeRow {
   image: string | null;
   /** ADMIN | EMPLOYEE — their rank, not their session role. */
   role: string;
+  /** SALES | ASSIGNER: their leads, or the cargo-tracking sheet (Employee.job). */
+  job?: string;
   region: string | null;
   isActive: boolean;
   lastLoginAt: string | null;
@@ -48,6 +50,7 @@ export function EmployeeForm({
   const [email, setEmail] = useState(initial?.email ?? "");
   const [region, setRegion] = useState(initial?.region ?? "");
   const [rank, setRank] = useState(initial?.role ?? "EMPLOYEE");
+  const [job, setJob] = useState(initial?.job ?? "SALES");
   const [image, setImage] = useState<string | null>(initial?.image ?? null);
   const [generate, setGenerate] = useState(mode === "create");
   const [password, setPassword] = useState("");
@@ -108,6 +111,7 @@ export function EmployeeForm({
         region,
         image,
         role: rank,
+        job,
         ...(wantsPassword ? { password } : {}),
       };
       const res = await fetch(
@@ -210,6 +214,32 @@ export function EmployeeForm({
           <p className="mt-1 text-[11px] text-[#86868b]">
             Rank is recorded on the staff account. It does not grant access to this console.
           </p>
+        </div>
+        {/* What the account does, which decides the page it opens at /employee/login (2026-10-24). */}
+        <div className="sm:col-span-2">
+          <span className={label}>Account</span>
+          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Account">
+            {([
+              ["SALES", "Sales", "Takes customers from the open pool: My leads."],
+              ["ASSIGNER", "Assigner", "Keeps the cargo-tracking sheet that customers follow on /shipping."],
+            ] as const).map(([value, title, hint]) => (
+              <label
+                key={value}
+                className={`flex cursor-pointer items-start gap-2.5 rounded-xl p-3 ring-1 transition-colors ${job === value ? "bg-brand/[0.06] ring-brand/40" : "ring-black/[0.08] hover:bg-black/[0.02]"}`}
+              >
+                <input type="radio" name="emp-job" value={value} checked={job === value} onChange={() => setJob(value)} className="mt-0.5" />
+                <span>
+                  <span className="block text-[13px] font-semibold">{title}</span>
+                  <span className="block text-[11.5px] text-[#86868b]">{hint}</span>
+                </span>
+              </label>
+            ))}
+          </div>
+          {mode === "edit" && initial?.job !== "ASSIGNER" && job === "ASSIGNER" && (
+            <p className="mt-1.5 text-[11.5px] font-medium text-amber-700">
+              Any customers they hold go back to the open pool when you save.
+            </p>
+          )}
         </div>
       </div>
 

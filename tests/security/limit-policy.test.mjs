@@ -26,6 +26,12 @@ test("the supplier portal (2026-10-21): sign-in, registration and applications f
   assert.ok(LIMITS.supplierUpload.count >= 5 * 20, `${LIMITS.supplierUpload.count}`);
 });
 
+test("cargo tracking (2026-10-24): per IP, open when Upstash is down, and too few to walk the numbers", () => {
+  assert.equal(LIMITS.cargoTrack.per, "IP");
+  assert.equal(LIMITS.cargoTrack.whenDown, "open");
+  assert.ok(LIMITS.cargoTrack.count <= 100, `${LIMITS.cargoTrack.count}`);
+});
+
 test("photo search: at least 30 an hour for each user, counted by account when signed in", () => {
   assert.equal(LIMITS.photoSearch.per, "account or IP");
   assert.equal(LIMITS.photoSearch.window, "1 h");
