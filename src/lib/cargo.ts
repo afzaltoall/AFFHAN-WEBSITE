@@ -136,6 +136,19 @@ function day(raw: unknown, what: string): string | null | undefined {
   return raw;
 }
 
+/**
+ * An update's day: what has happened, so never after today in the office's calendar. A later one (an update dated
+ * 2 Nov typed on 24 Oct, 2026-10-24) stayed the newest whatever was posted after it, and held the stage there.
+ * ETD and ETA are the dates still to come.
+ */
+function updateDay(raw: unknown, what: string): string | null | undefined {
+  const v = day(raw, what);
+  if (v && v > officeToday()) {
+    throw new CargoError(400, `${what} can't be after today: an update is something that has happened. Put dates still to come in ETD or ETA.`);
+  }
+  return v;
+}
+
 function reference(raw: unknown): { reference: string; referenceKey: string } {
   const v = text(raw, CARGO_LIMITS.reference, "The number");
   const key = v ? cargoKey(v) : "";
@@ -212,7 +225,7 @@ export async function createCargo(body: Record<string, unknown>, actor: CargoAct
   const eta = day(body.eta, "ETA") ?? null;
   const status = stage(body.status);
   const eventName = text(body.event, CARGO_LIMITS.event, "The update") || CARGO_STATUS_META[status].event;
-  const eventDay = day(body.date, "The update's date") || officeToday();
+  const eventDay = updateDay(body.date, "The update's date") || officeToday();
 
   try {
     const id = await prisma.$transaction(async (tx) => {
@@ -303,15 +316,29 @@ export async function deleteCargo(id: string, actor: CargoActor): Promise<void> 
 
 // ---- the timeline -------------------------------------------------------------------------------------------------------
 
-/** A new update: the customer sees it at once, and the consignment's stage follows the newest. */
+/**
+ * A new update: the customer sees it at once, and the consignment's stage follows the newest. An update dated before
+ * the newest one fills in the past and leaves the stage where it is. The sheet's status dropdown sends `current`:
+ * its update must become the newest, or nothing is written and the answer names the update in the way.
+ */
 export async function addCargoEvent(id: string, body: Record<string, unknown>, actor: CargoActor): Promise<CargoDetail> {
   const was = await prisma.cargoShipment.findUnique({ where: { id }, select: { id: true, reference: true } });
   if (!was) throw new CargoError(404, "That consignment is no longer on the sheet.");
   const status = stage(body.status);
   const name = text(body.name, CARGO_LIMITS.event, "The update") || CARGO_STATUS_META[status].event;
-  const date = day(body.date, "The date") || officeToday();
+  const date = updateDay(body.date, "The date") || officeToday();
   await prisma.$transaction(async (tx) => {
-    await tx.cargoEvent.create({ data: { shipmentId: id, date: asDate(date), name, status, createdById: actor.id } });
+    const made = await tx.cargoEvent.create({ data: { shipmentId: id, date: asDate(date), name, status, createdById: actor.id }, select: { id: true } });
+    if (body.current === true) {
+      const newest = await tx.cargoEvent.findFirst({
+        where: { shipmentId: id },
+        orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+        select: { id: true, date: true, name: true },
+      });
+      if (newest && newest.id !== made.id) {
+        throw new CargoError(409, `${was.reference} has a later update, dated ${fmtDay(isoDay(newest.date))} (${quote(newest.name)}). Open it and correct that date first.`);
+      }
+    }
     await settleStatus(tx, id);
     await tx.cargoShipment.update({ where: { id }, data: { updatedAt: new Date() } });
     await log(tx, actor, was, "EVENT_ADDED", `Update ${fmtDay(date)}: ${quote(name)} · ${labelOf(status)}`);
@@ -325,7 +352,7 @@ export async function editCargoEvent(id: string, eventId: string, body: Record<s
   if (!ev) throw new CargoError(404, "That update is no longer on the timeline.");
   const data: Prisma.CargoEventUpdateInput = {};
   const said: string[] = [];
-  const date = day(body.date, "The date");
+  const date = updateDay(body.date, "The date");
   if (date && date !== isoDay(ev.date)) {
     data.date = asDate(date);
     said.push(`date ${fmtDay(isoDay(ev.date))} → ${fmtDay(date)}`);

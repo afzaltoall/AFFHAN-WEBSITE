@@ -57,6 +57,43 @@ test("every change is written with its author, in the same transaction as the ch
   assert.match(lib, /data: \{ shipmentId: shipment\.id, reference: shipment\.reference, action, summary, byId: actor\.id, byName: actor\.name \}/);
 });
 
+test("an update is never dated after today; the sheet's dropdown posts only as the newest update", () => {
+  const lib = read("src/lib/cargo.ts");
+  const fnOf = (fn) => {
+    const start = lib.indexOf(`export async function ${fn}(`);
+    return lib.slice(start, lib.indexOf("\nexport ", start + 10));
+  };
+  assert.match(lib, /function updateDay\(raw: unknown, what: string\)[\s\S]{0,120}const v = day\(raw, what\);\s+if \(v && v > officeToday\(\)\) \{\s+throw new CargoError\(400,/);
+  // Every date an update is given goes through updateDay; ETD and ETA, dates still to come, do not.
+  assert.match(fnOf("createCargo"), /const eventDay = updateDay\(body\.date, /);
+  assert.match(fnOf("createCargo"), /const etd = day\(body\.etd, "ETD"\)/);
+  assert.match(fnOf("addCargoEvent"), /const date = updateDay\(body\.date, /);
+  assert.match(fnOf("editCargoEvent"), /const date = updateDay\(body\.date, /);
+  assert.match(fnOf("updateCargo"), /const v = day\(body\[key\], label\);/);
+  assert.doesNotMatch(lib.replace(/function updateDay[\s\S]*?\n\}\n/, ""), /\bday\(body\.date\b/);
+
+  // `current` (the dropdown): inside the transaction, after the insert and before the stage moves or anything is
+  // logged, an update that is not the newest throws, so the insert rolls back and nothing reaches the customer.
+  const add = fnOf("addCargoEvent");
+  const tx = add.indexOf("prisma.$transaction(async (tx) => {");
+  const guard = add.indexOf("if (body.current === true) {");
+  const refuse = add.indexOf("throw new CargoError(409,", guard);
+  assert.ok(tx > 0 && guard > add.indexOf("tx.cargoEvent.create(") && guard > tx, "the guard runs inside the transaction, after the insert");
+  assert.ok(refuse > guard && refuse < add.indexOf("await settleStatus(tx, id);") && refuse < add.indexOf("await log(tx, actor,"), "it refuses before the stage or the log");
+  assert.match(add.slice(guard, refuse), /orderBy: \[\{ date: "desc" \}, \{ createdAt: "desc" \}\]/);
+  assert.match(add.slice(guard, refuse + 200), /if \(newest && newest\.id !== made\.id\) \{\s+throw new CargoError\(409,/);
+
+  // The sheet asks as `current`, reports the stage the server answered with, and offers no date after today.
+  const board = read("src/components/cargo/CargoBoard.tsx");
+  const restage = board.slice(board.indexOf("const restage = async"), board.indexOf("const chip = (s: CargoStatus)"));
+  assert.match(restage, /name: CARGO_STATUS_META\[status\]\.event, current: true \}/);
+  assert.match(restage, /is now \$\{CARGO_STATUS_META\[d\.status\]\.label\}/);
+  assert.doesNotMatch(restage, /CARGO_STATUS_META\[status\]\.label/);
+  const updateDates = [...board.matchAll(/<input type="date" aria-label="Date"[^>]*>/g)].map((m) => m[0]);
+  assert.equal(updateDates.length, 3, "the panel's new and corrected update, and a new consignment's first");
+  for (const input of updateDates) assert.match(input, /max=\{(today|officeToday\(\))\}/);
+});
+
 test("the change log is the admin's alone", () => {
   const route = read("src/app/api/cargo/changes/route.ts");
   const gate = route.indexOf('if (!admin || admin.role !== "admin")');

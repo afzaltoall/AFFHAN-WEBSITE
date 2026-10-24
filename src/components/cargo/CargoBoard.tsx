@@ -15,8 +15,11 @@ import { formatDateTime } from "@/lib/datetime";
  * customer, type, ports, the newest update, ETD, ETA and its stage, in the sheet's own colours.
  *
  * The stage in a row is a dropdown: choosing another posts an update dated today, which the customer sees at once on
- * /shipping/ (Live track & trace). A row opens the consignment: its details, its timeline (add an update, correct one,
- * take one off), and what has been changed on it and by whom. Admins also see every change on the sheet, newest first.
+ * /shipping/ (Live track & trace). It must become the newest update: when one is dated later, nothing is posted and the
+ * sheet says which (2026-10-24: an update dated 2 Nov held a consignment "In sailing" through four tries at "In customs",
+ * each adding a line the customer saw). An update can't be dated after today, and one that already is shows a flag.
+ * A row opens the consignment: its details, its timeline (add an update, correct one, take one off), and what has been
+ * changed on it and by whom. Admins also see every change on the sheet, newest first.
  *
  * Everything is read from and written to /api/cargo (lib/cargo.ts), which records each change with its author.
  */
@@ -40,6 +43,10 @@ async function send(url: string, method: string, body?: unknown): Promise<{ ok: 
 const errorOf = (r: { status: number; json: Record<string, unknown> }) =>
   r.status === 401 ? "Your session has ended. Sign in again." : typeof r.json.error === "string" ? r.json.error : "Something went wrong. Try again.";
 
+/** The flag on an update dated after today, which no form accepts any more: it holds the stage until corrected. */
+const laterFlag = (dark: boolean) =>
+  `rounded-full px-2 py-0.5 text-[10.5px] font-bold ${dark ? "bg-amber-500/20 text-amber-300" : "bg-amber-500/15 text-amber-800"}`;
+
 export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?: boolean; admin?: boolean }) {
   const [rows, setRows] = useState<CargoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +55,7 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
   const [filter, setFilter] = useState<Filter>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; error?: boolean } | null>(null);
   const [busyRow, setBusyRow] = useState<string | null>(null);
   /** Bumped after every change, so the admin's change log reads itself again. */
   const [changed, setChanged] = useState(0);
@@ -74,7 +81,8 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
 
   useEffect(() => {
     if (!notice) return;
-    const id = window.setTimeout(() => setNotice(null), 4000);
+    // A refusal says what to do next, so it stays long enough to be read.
+    const id = window.setTimeout(() => setNotice(null), notice.error ? 9000 : 4000);
     return () => window.clearTimeout(id);
   }, [notice]);
 
@@ -103,19 +111,25 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
     );
   }, [rows, q, filter]);
 
-  /** The row's stage dropdown: a new update dated today, in the stage's own words, which the panel can correct. */
+  /**
+   * The row's stage dropdown: a new update dated today, in the stage's own words, which the panel can correct. It is
+   * sent as the current stage, so the server posts it only if it becomes the newest update; the notice reports the
+   * stage the server answered with, never the one asked for.
+   */
   const restage = async (row: CargoRow, status: CargoStatus) => {
     if (status === row.status) return;
     setBusyRow(row.id);
-    const r = await send(`/api/cargo/${row.id}/events/`, "POST", { status, date: officeToday(), name: CARGO_STATUS_META[status].event }).catch(() => null);
+    const r = await send(`/api/cargo/${row.id}/events/`, "POST", { status, date: officeToday(), name: CARGO_STATUS_META[status].event, current: true }).catch(() => null);
     setBusyRow(null);
     if (r?.ok) {
-      put(r.json.shipment as CargoDetail);
-      setNotice(`${row.reference} is now ${CARGO_STATUS_META[status].label}. Open it to word the update.`);
-    } else setNotice(r ? errorOf(r) : "Could not reach the server.");
+      const d = r.json.shipment as CargoDetail;
+      put(d);
+      setNotice({ text: `${row.reference} is now ${CARGO_STATUS_META[d.status].label}. Open it to word the update.` });
+    } else setNotice({ text: r ? errorOf(r) : "Could not reach the server.", error: true });
   };
 
   const chip = (s: CargoStatus) => (dark ? CARGO_STATUS_META[s].chipDark : CARGO_STATUS_META[s].chip);
+  const today = officeToday();
 
   return (
     <div className="space-y-4">
@@ -225,7 +239,10 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
                       {r.latest ? (
                         <>
                           <span className={`line-clamp-2 font-semibold ${t.strong}`}>{r.latest.name}</span>
-                          <span className={`text-[11.5px] ${t.soft}`}>{fmtDay(r.latest.date)}</span>
+                          <span className={`flex flex-wrap items-center gap-1.5 text-[11.5px] ${t.soft}`}>
+                            {fmtDay(r.latest.date)}
+                            {r.latest.date > today && <span className={laterFlag(dark)}>Dated after today</span>}
+                          </span>
                         </>
                       ) : (
                         <span className={t.soft}>—</span>
@@ -267,8 +284,11 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
       {admin && <CargoChanges t={t} reloadKey={changed} />}
 
       {notice && (
-        <p role="status" className="fixed bottom-6 left-1/2 z-[130] -translate-x-1/2 rounded-full bg-[#1d1d1f] px-5 py-2.5 text-[13px] font-medium text-white shadow-xl">
-          {notice}
+        <p
+          role={notice.error ? "alert" : "status"}
+          className={`fixed bottom-6 left-1/2 z-[130] w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-2xl px-5 py-2.5 text-center text-[13px] font-medium text-white shadow-xl ${notice.error ? "bg-red-600" : "bg-[#1d1d1f]"}`}
+        >
+          {notice.text}
         </p>
       )}
 
@@ -309,8 +329,11 @@ function CargoPanel({
   const [editing, setEditing] = useState<string | null>(null);
   const [edit, setEdit] = useState({ date: "", name: "", status: "IN_POL_PORT" as CargoStatus });
   const [copied, setCopied] = useState(false);
+  /** Why an update just posted left the status where it was: a later update is still the newest. */
+  const [note, setNote] = useState<string | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const input = `h-10 w-full rounded-xl px-3 text-[13px] outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`;
+  const today = officeToday();
 
   const adopt = useCallback((d: CargoDetail) => {
     setS(d);
@@ -343,19 +366,20 @@ function CargoPanel({
     };
   }, [onClose]);
 
-  const run = async (key: string, url: string, method: string, body?: unknown) => {
+  const run = async (key: string, url: string, method: string, body?: unknown): Promise<CargoDetail | null> => {
     setBusy(key);
     setError(null);
+    setNote(null);
     const r = await send(url, method, body).catch(() => null);
     setBusy(null);
     if (r?.ok) {
       const d = r.json.shipment as CargoDetail;
       adopt(d);
       onChanged(d);
-      return true;
+      return d;
     }
     setError(r ? errorOf(r) : "Could not reach the server.");
-    return false;
+    return null;
   };
 
   const dirty = s && (["reference", "customer", "type", "pol", "pod", "etd", "eta"] as const).some((k) => (form[k] ?? "") !== ((s[k] as string | null) ?? ""));
@@ -422,13 +446,19 @@ function CargoPanel({
                 onSubmit={(e) => {
                   e.preventDefault();
                   const status = (update.status || s.status) as CargoStatus;
-                  void run("add", `/api/cargo/${s.id}/events/`, "POST", { ...update, status }).then((ok) => {
-                    if (ok) setUpdate({ date: officeToday(), name: "", status: "" });
+                  void run("add", `/api/cargo/${s.id}/events/`, "POST", { ...update, status }).then((d) => {
+                    if (!d) return;
+                    setUpdate({ date: officeToday(), name: "", status: "" });
+                    // Dated before the newest update, it fills in the past: the status stays with the newest, and says so.
+                    const newest = d.events[d.events.length - 1];
+                    if (d.status !== status && newest) {
+                      setNote(`Added to the timeline. The status stays ${CARGO_STATUS_META[d.status].label}: the update of ${fmtDay(newest.date)} is later.`);
+                    }
                   });
                 }}
                 className={`grid gap-2 rounded-2xl p-3 ring-1 sm:grid-cols-[9.5rem_1fr_9rem] ${t.card}`}
               >
-                <input type="date" aria-label="Date" value={update.date} onChange={(e) => setUpdate((u) => ({ ...u, date: e.target.value }))} className={input} required />
+                <input type="date" aria-label="Date" value={update.date} max={today} onChange={(e) => setUpdate((u) => ({ ...u, date: e.target.value }))} className={input} required />
                 <input
                   aria-label="What happened"
                   value={update.name}
@@ -457,6 +487,11 @@ function CargoPanel({
                   {busy === "add" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Post update
                 </button>
               </form>
+              {note && (
+                <p role="status" className={`mt-2 rounded-xl px-3.5 py-2.5 text-[12.5px] font-medium ${dark ? "bg-amber-500/15 text-amber-200" : "bg-amber-500/10 text-amber-900"}`}>
+                  {note}
+                </p>
+              )}
 
               <ol className="mt-3 space-y-2">
                 {[...s.events].reverse().map((ev) => (
@@ -469,7 +504,7 @@ function CargoPanel({
                         }}
                         className="grid gap-2 sm:grid-cols-[9.5rem_1fr_9rem]"
                       >
-                        <input type="date" aria-label="Date" value={edit.date} onChange={(e) => setEdit((x) => ({ ...x, date: e.target.value }))} className={input} required />
+                        <input type="date" aria-label="Date" value={edit.date} max={today} onChange={(e) => setEdit((x) => ({ ...x, date: e.target.value }))} className={input} required />
                         <input aria-label="What happened" value={edit.name} onChange={(e) => setEdit((x) => ({ ...x, name: e.target.value }))} maxLength={160} className={input} required />
                         <select aria-label="Status" value={edit.status} onChange={(e) => setEdit((x) => ({ ...x, status: e.target.value as CargoStatus }))} className={input}>
                           {CARGO_STATUSES.map((st) => (
@@ -495,6 +530,7 @@ function CargoPanel({
                           <p className={`mt-0.5 flex flex-wrap items-center gap-2 text-[12px] ${t.soft}`}>
                             <span className="tabular-nums">{fmtDay(ev.date)}</span>
                             <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide ${chip(ev.status)}`}>{CARGO_STATUS_META[ev.status].label}</span>
+                            {ev.date > today && <span className={laterFlag(dark)}>Dated after today: correct its date</span>}
                           </p>
                         </div>
                         <button
@@ -680,7 +716,7 @@ function NewConsignment({ t, onClose, onCreated }: { t: Theme; onClose: () => vo
         <div className={`mt-5 rounded-2xl p-4 ring-1 ${t.card}`}>
           <p className={`mb-3 text-[13px] font-bold ${t.strong}`}>First update (the customer sees it)</p>
           <div className="grid gap-3 sm:grid-cols-[9.5rem_1fr_9rem]">
-            <input type="date" aria-label="Date" value={form.date} onChange={set("date")} className={input} required />
+            <input type="date" aria-label="Date" value={form.date} max={officeToday()} onChange={set("date")} className={input} required />
             <input aria-label="What happened" value={form.event} onChange={set("event")} placeholder={CARGO_STATUS_META[form.status].event} className={input} maxLength={160} />
             <select aria-label="Status" value={form.status} onChange={set("status")} className={input}>
               {CARGO_STATUSES.map((st) => (
