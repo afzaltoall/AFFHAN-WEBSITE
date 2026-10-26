@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isSalesJob, readWorkspaceAuth } from "@/lib/employee-session";
 import {
-  CARGO_LIMITS, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, isoDay, officeToday,
+  CARGO_LIMITS, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, isoDay, officeToday, sameWords,
   type CargoStatus, type CargoTrack,
 } from "@/lib/cargo-shared";
 
@@ -180,8 +180,6 @@ function cargoType(raw: unknown, kept: string | null = null): string | null | un
 
 const fmtOr = (d: string | null) => (d ? fmtDay(d) : "none");
 const quote = (s: string) => `“${s}”`;
-/** Two updates' words, the same but for case and spacing. */
-const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
 
 // ---- the sheet ------------------------------------------------------------------------------------------------------
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Anchor, Container, Loader2, PackageCheck, Printer, Ship, Stamp, Warehouse } from "lucide-react";
-import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtTrackDay, type CargoStatus, type CargoTrack } from "@/lib/cargo-shared";
+import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtTrackDay, trackDays, type CargoStatus, type CargoTrack } from "@/lib/cargo-shared";
 
 /**
  * Track your cargo, on /shipping/ under the hero (the owner, 2026-10-24): a customer types the console, FCL or LCL
@@ -14,7 +14,8 @@ import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtTrackDay, type CargoSta
  * Laid out as a carrier's tracker reads (the owner, 2026-10-26: the first one "feels like AI", everything pushed to
  * the right under a poster heading): one column, a plain heading, the box, then the cargo: its number, its status,
  * ETD and ETA, the six stages, and the updates as a plain table (Event Date, Event Name, Status), each change once
- * (the server leaves repeats out), oldest first. No "updated … ago" and no Live badge: not for the customer.
+ * (the server leaves repeats out), oldest first, a row a day: two updates on one date are one row, both names under
+ * the date and the status the day ended on (trackDays). No "updated … ago" and no Live badge: not for the customer.
  *
  * It reads itself again every minute while a result is open and the tab is in front, so an update the assigner
  * posts appears without a reload. A number travels in the address (?track=…#track), so the link we send a customer
@@ -191,10 +192,7 @@ function Result({ cargo }: { cargo: CargoTrack }) {
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-b border-[#08222e]/10 px-6 py-5 sm:grid-cols-3 sm:px-8">
         <div className="col-span-2 sm:col-span-1">
           <dt className={factLabel}>Status</dt>
-          <dd className={`mt-0.5 flex items-center gap-2 ${fact}`}>
-            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${CARGO_STATUS_META[now].dot}`} aria-hidden="true" />
-            {CARGO_STATUS_META[now].label}
-          </dd>
+          <dd className={`mt-0.5 ${fact}`}>{CARGO_STATUS_META[now].label}</dd>
         </div>
         <div>
           <dt className={factLabel}>ETD</dt>
@@ -206,12 +204,14 @@ function Result({ cargo }: { cargo: CargoTrack }) {
         </div>
       </dl>
 
-      {/* The six stages, the cargo's own one marked, the ones behind it done. A phone has no room for six names in a
-          row: there, the stage as a step of six, over a bar of six, and the one after it. */}
+      {/* The six stages, the cargo's own one marked, the ones behind it done: in the brand's two colours, navy for
+          where it is and teal for where it has been, never a colour per stage (the owner, 2026-10-26: "colour dots
+          feel like AI"). A phone has no room for six names in a row: there, the stage as a step of six, over a bar of
+          six, and the one after it. */}
       <div className="border-b border-[#08222e]/10 px-6 py-6 sm:px-8">
         <div className="sm:hidden">
           <div className="flex items-center gap-3">
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#08222e] ${CARGO_STATUS_META[now].dot}`}>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#08222e] text-white">
               <NowIcon className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
             </span>
             <div className="min-w-0">
@@ -223,7 +223,7 @@ function Result({ cargo }: { cargo: CargoTrack }) {
           </div>
           <div className="mt-4 grid grid-cols-6 gap-1.5" aria-hidden="true">
             {CARGO_STATUSES.map((s, i) => (
-              <span key={s} className={`h-1.5 rounded-full ${i < current ? "bg-[#176579]" : i === current ? CARGO_STATUS_META[s].dot : "bg-[#08222e]/10"}`} />
+              <span key={s} className={`h-1.5 rounded-full ${i < current ? "bg-[#176579]" : i === current ? "bg-[#08222e]" : "bg-[#08222e]/10"}`} />
             ))}
           </div>
           {next && (
@@ -247,7 +247,7 @@ function Result({ cargo }: { cargo: CargoTrack }) {
               <li key={s} className="relative flex flex-col items-center text-center" aria-current={step === "now" ? "step" : undefined}>
                 <span
                   className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full ring-4 ring-white ${
-                    step === "now" ? `${CARGO_STATUS_META[s].dot} text-[#08222e]` : step === "done" ? "bg-[#176579] text-white" : "bg-[#eef1f2] text-[#08222e]/35"
+                    step === "now" ? "bg-[#08222e] text-white" : step === "done" ? "bg-[#176579] text-white" : "bg-[#eef1f2] text-[#08222e]/35"
                   }`}
                 >
                   <Icon className="h-[17px] w-[17px]" strokeWidth={2.2} aria-hidden="true" />
@@ -263,7 +263,8 @@ function Result({ cargo }: { cargo: CargoTrack }) {
       </div>
 
       {/* Every update, oldest first, as a carrier's tracker lists them (the owner's reference, 2026-10-26): plain
-          columns, plain text. A phone has room for two: there the status sits under the event. */}
+          columns, plain text, each date once with its updates' names under it, the old first, and the status the
+          day ended on. A phone has room for two: there the status sits under the names. */}
       <div className="overflow-x-auto px-2 sm:px-4">
         <table className="w-full text-left text-[14px] text-[#08222e]">
           <thead>
@@ -274,14 +275,20 @@ function Result({ cargo }: { cargo: CargoTrack }) {
             </tr>
           </thead>
           <tbody>
-            {cargo.events.map((e, i) => (
-              <tr key={`${e.date}-${i}`} className="border-b border-[#08222e]/[0.06] last:border-b-0">
-                <td className="whitespace-nowrap px-4 py-3.5 align-top tabular-nums">{fmtTrackDay(e.date)}</td>
+            {trackDays(cargo.events).map((day) => (
+              <tr key={day.date} className="border-b border-[#08222e]/[0.06] last:border-b-0">
+                <td className="whitespace-nowrap px-4 py-3.5 align-top tabular-nums">{fmtTrackDay(day.date)}</td>
                 <td className="px-4 py-3.5 align-top">
-                  {e.name}
-                  <span className="mt-1 block text-[13px] text-[#5a6e77] sm:hidden">{CARGO_STATUS_META[e.status].label}</span>
+                  <div className="space-y-1.5">
+                    {day.names.map((name, i) => (
+                      <span key={i} className="block">
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="mt-1 block text-[13px] text-[#5a6e77] sm:hidden">{CARGO_STATUS_META[day.status].label}</span>
                 </td>
-                <td className="hidden px-4 py-3.5 align-top sm:table-cell">{CARGO_STATUS_META[e.status].label}</td>
+                <td className="hidden px-4 py-3.5 align-top sm:table-cell">{CARGO_STATUS_META[day.status].label}</td>
               </tr>
             ))}
           </tbody>

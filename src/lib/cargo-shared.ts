@@ -1,11 +1,12 @@
 /**
  * Cargo tracking's words and rules, for both sides of the wall (the owner, 2026-10-24): the stages a consignment
- * goes through, what each is called and how it looks, its container types, how a number is matched, and how a day
- * is written. No imports, so the browser, the server and the tests read the same.
+ * goes through and what each is called, its container types, how a number is matched, and how a day is written. No
+ * imports, so the browser, the server and the tests read the same.
  *
  * The stages are the owner's own list (2026-10-26, "Shipping Requirements"), in the order cargo meets them: loaded,
- * on the vessel, at sea, discharged at the port of discharge, through customs, in the warehouse. Each has its own
- * colour, the sheet's first three kept (loaded orange, sailing blue, customs yellow).
+ * on the vessel, at sea, discharged at the port of discharge, through customs, in the warehouse. They carry no
+ * colour: a stage is told by its name and its place among the six (the owner, 2026-10-26, of the dot each once had:
+ * "colour dots feel like AI").
  */
 export const CARGO_STATUSES = ["CARGO_LOADED", "VESSEL_LOADING", "VESSEL_SAILING", "VESSEL_DISCHARGED", "IN_CUSTOMS", "IN_WAREHOUSE"] as const;
 export type CargoStatus = (typeof CARGO_STATUSES)[number];
@@ -21,58 +22,14 @@ const EARLIER_CODES: Record<string, CargoStatus> = { IN_POL_PORT: "CARGO_LOADED"
 /** A stored code as a stage: today's codes as they are, the first ones as what they became, anything else the first. */
 export const cargoStatusOf = (code: string): CargoStatus => (isCargoStatus(code) ? code : EARLIER_CODES[code] ?? "CARGO_LOADED");
 
-export const CARGO_STATUS_META: Record<
-  CargoStatus,
-  { label: string; event: string; chip: string; chipDark: string; dot: string; ring: string }
-> = {
-  CARGO_LOADED: {
-    label: "Cargo loaded",
-    event: "Cargo loaded",
-    chip: "bg-orange-500/15 text-orange-800",
-    chipDark: "bg-orange-500/20 text-orange-300",
-    dot: "bg-orange-500",
-    ring: "ring-orange-500",
-  },
-  VESSEL_LOADING: {
-    label: "Vessel loading",
-    event: "Loading on the vessel",
-    chip: "bg-pink-500/15 text-pink-800",
-    chipDark: "bg-pink-500/20 text-pink-300",
-    dot: "bg-pink-500",
-    ring: "ring-pink-500",
-  },
-  VESSEL_SAILING: {
-    label: "Vessel sailing",
-    event: "Vessel sailing",
-    chip: "bg-sky-500/15 text-sky-800",
-    chipDark: "bg-sky-500/20 text-sky-300",
-    dot: "bg-sky-500",
-    ring: "ring-sky-500",
-  },
-  VESSEL_DISCHARGED: {
-    label: "Vessel discharged",
-    event: "Discharged at the port of discharge",
-    chip: "bg-indigo-500/15 text-indigo-800",
-    chipDark: "bg-indigo-500/20 text-indigo-300",
-    dot: "bg-indigo-500",
-    ring: "ring-indigo-500",
-  },
-  IN_CUSTOMS: {
-    label: "In customs clearance",
-    event: "In customs clearance",
-    chip: "bg-yellow-400/30 text-yellow-900",
-    chipDark: "bg-yellow-400/20 text-yellow-200",
-    dot: "bg-yellow-400",
-    ring: "ring-yellow-400",
-  },
-  IN_WAREHOUSE: {
-    label: "In warehouse",
-    event: "In warehouse",
-    chip: "bg-emerald-500/15 text-emerald-800",
-    chipDark: "bg-emerald-500/20 text-emerald-300",
-    dot: "bg-emerald-500",
-    ring: "ring-emerald-500",
-  },
+/** Each stage's name, and the words of an update posted for it unless the assigner writes their own. */
+export const CARGO_STATUS_META: Record<CargoStatus, { label: string; event: string }> = {
+  CARGO_LOADED: { label: "Cargo loaded", event: "Cargo loaded" },
+  VESSEL_LOADING: { label: "Vessel loading", event: "Loading on the vessel" },
+  VESSEL_SAILING: { label: "Vessel sailing", event: "Vessel sailing" },
+  VESSEL_DISCHARGED: { label: "Vessel discharged", event: "Discharged at the port of discharge" },
+  IN_CUSTOMS: { label: "In customs clearance", event: "In customs clearance" },
+  IN_WAREHOUSE: { label: "In warehouse", event: "In warehouse" },
 };
 
 /** The consignment's type, as the office's sheet writes it (the owner's list, 2026-10-26). */
@@ -113,6 +70,34 @@ export interface CargoTrack {
   etd: string | null;
   eta: string | null;
   events: { date: string; name: string; status: CargoStatus }[];
+}
+
+/** Two updates' words, the same but for case and spacing. */
+export const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
+
+/** A day of the customer's timeline: its date, the updates' names in the order they were posted, and its stage. */
+export interface TrackDay {
+  date: string;
+  names: string[];
+  status: CargoStatus;
+}
+
+/**
+ * The customer's timeline, a row a day (the owner, 2026-10-26, of two updates on one date, "loaded" and "no", each
+ * with the date and status again: "two times kaatura mari eruku ... event name old new katanum and status edhu
+ * mathunomo adhu matu katanum"). Each date once; under it every name posted that day, the old ones first, each once;
+ * and only the status the day ended on. `events` come oldest first, as /api/track answers.
+ */
+export function trackDays(events: CargoTrack["events"]): TrackDay[] {
+  const days: TrackDay[] = [];
+  for (const e of events) {
+    const day = days[days.length - 1];
+    if (day && day.date === e.date) {
+      if (!day.names.some((n) => sameWords(n, e.name))) day.names.push(e.name);
+      day.status = e.status;
+    } else days.push({ date: e.date, names: [e.name], status: e.status });
+  }
+  return days;
 }
 
 /** "24-Oct-2026", the way a carrier's tracker writes an event's date (the owner's reference, 2026-10-26). */

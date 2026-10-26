@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CARGO_STATUSES, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, officeToday } from "../../src/lib/cargo-shared.ts";
+import { CARGO_STATUSES, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, officeToday, trackDays } from "../../src/lib/cargo-shared.ts";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -85,13 +85,55 @@ test("an update is never dated after today; the sheet's dropdown posts only as t
 
   // The sheet asks as `current`, reports the stage the server answered with, and offers no date after today.
   const board = read("src/components/cargo/CargoBoard.tsx");
-  const restage = board.slice(board.indexOf("const restage = async"), board.indexOf("const chip = (s: CargoStatus)"));
+  const start = board.indexOf("const restage = async");
+  const restage = board.slice(start, board.indexOf("const today = officeToday();", start));
   assert.match(restage, /name: CARGO_STATUS_META\[status\]\.event, current: true \}/);
   assert.match(restage, /is now \$\{CARGO_STATUS_META\[d\.status\]\.label\}/);
   assert.doesNotMatch(restage, /CARGO_STATUS_META\[status\]\.label/);
-  const updateDates = [...board.matchAll(/<input type="date" aria-label="Date"[^>]*>/g)].map((m) => m[0]);
+  // Every date on the sheet's own calendar (2026-10-26), never the browser's; an update's stops at today.
+  assert.doesNotMatch(board, /type="date"/);
+  const updateDates = [...board.matchAll(/<CargoDatePicker\b[^\n]*ariaLabel="Event date"[^\n]*\/>/g)].map((m) => m[0]);
   assert.equal(updateDates.length, 3, "the panel's new and corrected update, and a new consignment's first");
-  for (const input of updateDates) assert.match(input, /max=\{(today|officeToday\(\))\}/);
+  for (const picker of updateDates) assert.match(picker, /max=\{(today|officeToday\(\))\} required/);
+  const calendar = read("src/components/cargo/CargoDatePicker.tsx");
+  assert.match(calendar, /const pick = \(day: string\) => \{\s+if \(max && day > max\) return;/, "a day after the last is never taken");
+  assert.match(calendar, /disabled=\{off\}/, "and is shown shut");
+});
+
+test("the customer's timeline, a row a day: the date once, the day's names old first, the status it ended on", () => {
+  const ev = (date, name, status) => ({ date, name, status });
+  // The owner's screenshot (2026-10-26): "loaded" and "no", both Cargo loaded, on one date, read as shown twice.
+  assert.deepEqual(trackDays([ev("2026-10-26", "loaded", "CARGO_LOADED"), ev("2026-10-26", "no", "CARGO_LOADED")]), [
+    { date: "2026-10-26", names: ["loaded", "no"], status: "CARGO_LOADED" },
+  ]);
+  // The status changed the same day: both names, only the status it was changed to; the same words once.
+  assert.deepEqual(
+    trackDays([
+      ev("2026-10-25", "Cargo loaded", "CARGO_LOADED"),
+      ev("2026-10-26", "loaded at Nansha", "CARGO_LOADED"),
+      ev("2026-10-26", "Loaded  at nansha", "VESSEL_LOADING"),
+      ev("2026-10-26", "Loading on the vessel", "VESSEL_LOADING"),
+      ev("2026-10-27", "Vessel sailing", "VESSEL_SAILING"),
+    ]),
+    [
+      { date: "2026-10-25", names: ["Cargo loaded"], status: "CARGO_LOADED" },
+      { date: "2026-10-26", names: ["loaded at Nansha", "Loading on the vessel"], status: "VESSEL_LOADING" },
+      { date: "2026-10-27", names: ["Vessel sailing"], status: "VESSEL_SAILING" },
+    ],
+  );
+  assert.deepEqual(trackDays([]), []);
+  // The tracker draws these days, not the raw updates.
+  const tracker = read("src/components/shipping/CargoTracker.tsx");
+  assert.match(tracker, /\{trackDays\(cargo\.events\)\.map\(\(day\) => \(/);
+  assert.doesNotMatch(tracker, /cargo\.events\.map\(/);
+});
+
+test("the stages are told by their names alone: no colour dots", () => {
+  // The owner, 2026-10-26: "colour dots feel like AI". A stage carries words, nothing to paint.
+  for (const s of CARGO_STATUSES) assert.deepEqual(Object.keys(CARGO_STATUS_META[s]).sort(), ["event", "label"]);
+  for (const rel of ["src/components/cargo/CargoBoard.tsx", "src/components/cargo/CargoDropdown.tsx", "src/components/shipping/CargoTracker.tsx"]) {
+    assert.doesNotMatch(read(rel), /\bdot\b\s*[:?=]|\.dot\b/, rel);
+  }
 });
 
 test("the same update is never posted twice", () => {

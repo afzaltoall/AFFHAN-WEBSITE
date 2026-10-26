@@ -16,6 +16,8 @@ export function ConfirmDelete({
   t,
   onCancel,
   onConfirm,
+  confirmLabel = "Delete for good",
+  busyLabel = "Deleting…",
 }: {
   title: string;
   lines: string[];
@@ -24,6 +26,9 @@ export function ConfirmDelete({
   onCancel: () => void;
   /** Resolves to null when done, or to the sentence to show when not. */
   onConfirm: () => Promise<string | null>;
+  /** The red button's words, and while it works (cargo tracking's "Remove" for one update, 2026-10-26). */
+  confirmLabel?: string;
+  busyLabel?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -109,7 +114,7 @@ export function ConfirmDelete({
             className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400 disabled:opacity-60"
           >
             {busy ? <Loader2 size={14} aria-hidden="true" className="animate-spin" /> : <Trash2 size={14} aria-hidden="true" />}
-            {busy ? "Deleting…" : "Delete for good"}
+            {busy ? busyLabel : confirmLabel}
           </button>
         </div>
       </div>
