@@ -94,6 +94,15 @@ test("an update is never dated after today; the sheet's dropdown posts only as t
   for (const input of updateDates) assert.match(input, /max=\{(today|officeToday\(\))\}/);
 });
 
+test("the same update is never posted twice", () => {
+  const lib = read("src/lib/cargo.ts");
+  const add = lib.slice(lib.indexOf("export async function addCargoEvent("), lib.indexOf("export async function editCargoEvent("));
+  const guard = add.indexOf("if (twins.some((t) => sameWords(t.name, name))) {");
+  assert.ok(guard > 0 && guard < add.indexOf("prisma.$transaction("), "checked before anything is written");
+  assert.match(add, /const twins = await prisma\.cargoEvent\.findMany\(\{ where: \{ shipmentId: id, date: asDate\(date\), status \}/);
+  assert.match(add.slice(guard, guard + 200), /throw new CargoError\(409,/);
+});
+
 test("a type from the sheet's list, or the one a consignment already had", () => {
   const lib = read("src/lib/cargo.ts");
   const start = (fn) => lib.indexOf(`export async function ${fn}(`);
@@ -112,10 +121,13 @@ test("the public lookup: the number, the stage and the timeline, nothing of the 
   const lib = read("src/lib/cargo.ts");
   const fn = lib.slice(lib.indexOf("export async function trackCargo"));
   const select = fn.slice(fn.indexOf("select: {"), fn.indexOf("if (!r) return null;"));
-  for (const field of ["customer", "type", "pol", "pod", "etd", "eta", "createdById", "changes", "byName", "byId"]) {
+  // ETD and ETA are the customer's since 2026-10-26 (the owner); the row's last-touched time no longer is.
+  for (const field of ["customer", "type", "pol", "pod", "createdById", "changes", "byName", "byId", "updatedAt"]) {
     assert.doesNotMatch(select, new RegExp(`\\b${field}\\b`), field);
   }
-  assert.match(select, /reference: true,\s+status: true,\s+updatedAt: true,\s+events: \{ orderBy: \[\{ date: "asc" \}, \{ createdAt: "asc" \}\], select: \{ date: true, name: true, status: true \} \}/);
+  assert.match(select, /reference: true,\s+status: true,\s+etd: true,\s+eta: true,\s+events: \{ orderBy: \[\{ date: "asc" \}, \{ createdAt: "asc" \}\], select: \{ date: true, name: true, status: true \} \}/);
+  // Each change once: an update saying again what the one before it said is left out of the customer's timeline.
+  assert.match(fn, /if \(before && before\.status === row\.status && sameWords\(before\.name, row\.name\)\) continue;/);
   const route = read("src/app/api/track/route.ts");
   assert.ok(route.indexOf("checkCargoTrackRateLimit(request)") < route.indexOf("trackCargo(ref)"), "the limit before the lookup");
   assert.match(route, /"Cache-Control": "no-store"/);

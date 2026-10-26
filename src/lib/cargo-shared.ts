@@ -102,10 +102,24 @@ export function officeToday(now = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 
-/** What the public tracker answers with: the number, the stage, and the timeline. Nothing of the sheet. */
+/**
+ * What the public tracker answers with: the number, the stage, ETD and ETA (the owner, 2026-10-26: shown to the
+ * customer), and the timeline, each change once. Nothing else of the sheet: never the customer, the ports, the type,
+ * who changed what, or when the row was last touched.
+ */
 export interface CargoTrack {
   reference: string;
   status: CargoStatus;
-  updatedAt: string;
+  etd: string | null;
+  eta: string | null;
   events: { date: string; name: string; status: CargoStatus }[];
+}
+
+/** "24-Oct-2026", the way a carrier's tracker writes an event's date (the owner's reference, 2026-10-26). */
+export function fmtTrackDay(day: string | null | undefined): string {
+  if (!day) return "";
+  const d = new Date(`${day.slice(0, 10)}T00:00:00Z`);
+  if (!Number.isFinite(d.getTime())) return "";
+  const month = d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" });
+  return `${String(d.getUTCDate()).padStart(2, "0")}-${month}-${d.getUTCFullYear()}`;
 }

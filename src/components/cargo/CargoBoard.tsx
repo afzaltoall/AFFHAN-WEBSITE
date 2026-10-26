@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Check, ClipboardCopy, ExternalLink, History, Loader2, Pencil, Plus, RefreshCw, Search, Ship, Trash2, X,
+  Check, ClipboardCopy, ExternalLink, History, Loader2, Pencil, Plus, RefreshCw, Search, Trash2, X,
 } from "lucide-react";
+import { roboto } from "@/components/mobile/roboto";
+import { CargoDropdown } from "@/components/cargo/CargoDropdown";
 import type { Theme } from "@/components/admin/console-theme";
 import type { CargoChangeRow, CargoDetail, CargoRow } from "@/lib/cargo";
 import { CARGO_STATUSES, CARGO_STATUS_META, CARGO_TYPES, fmtDay, officeToday, type CargoStatus } from "@/lib/cargo-shared";
@@ -25,6 +27,13 @@ import { formatDateTime } from "@/lib/datetime";
  */
 
 type Filter = "all" | CargoStatus;
+
+/** The stages as a dropdown lists them: each with its colour. */
+const STATUS_OPTIONS = CARGO_STATUSES.map((st) => ({ value: st, label: CARGO_STATUS_META[st].label, dot: CARGO_STATUS_META[st].dot }));
+const TYPE_OPTIONS = CARGO_TYPES.map((ty) => ({ value: ty, label: ty }));
+/** The type list, and a type written before it (2026-10-26), which stays until it is changed. */
+const typeOptions = (current: string | null | undefined) =>
+  current && !(CARGO_TYPES as readonly string[]).includes(current) ? [...TYPE_OPTIONS, { value: current, label: current }] : TYPE_OPTIONS;
 
 const SITE = "https://affhan.com";
 const trackLink = (reference: string) => `${SITE}/shipping/?track=${encodeURIComponent(reference)}#track`;
@@ -128,67 +137,61 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
     } else setNotice({ text: r ? errorOf(r) : "Could not reach the server.", error: true });
   };
 
-  const chip = (s: CargoStatus) => (dark ? CARGO_STATUS_META[s].chipDark : CARGO_STATUS_META[s].chip);
   const today = officeToday();
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    // Set like an office's own sheet, in the Centre's Roboto, not a dashboard (the owner, 2026-10-26: "fonts and ui
+    // ... feels like ai"): no icon or explanation by the title, no row of coloured pills, no headings in capitals.
+    <div className={`${roboto.className} space-y-4`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className={`flex items-center gap-2 text-2xl font-semibold tracking-tight ${t.strong}`}>
-            <Ship className="h-6 w-6 text-brand-dark" aria-hidden="true" />
-            Cargo tracking
-          </h2>
-          <p className={`mt-0.5 text-[13px] ${t.soft}`}>
-            {rows.length} {rows.length === 1 ? "consignment" : "consignments"} · customers follow each one by its number on affhan.com/shipping
+          <h2 className={`text-[22px] font-bold ${t.strong}`}>Cargo tracking</h2>
+          <p className={`mt-0.5 text-[13px] tabular-nums ${t.soft}`}>
+            {rows.length} {rows.length === 1 ? "consignment" : "consignments"}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => void load()}
-            className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}
+            className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-2 text-[14px] font-medium ring-1 transition-colors ${t.pill}`}
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
           </button>
           <button
             type="button"
             onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-2 rounded-xl bg-brand-dark px-4 py-2 text-[13px] font-bold text-white transition-colors hover:bg-brand-deep"
+            className="inline-flex items-center gap-2 rounded-lg bg-brand-dark px-4 py-2 text-[14px] font-medium text-white transition-colors hover:bg-brand-deep"
           >
             <Plus className="h-4 w-4" /> New consignment
           </button>
         </div>
       </div>
 
-      <div className={`overflow-hidden rounded-2xl shadow-sm ring-1 ${t.card}`}>
-        <div className={`flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center ${t.border}`}>
-          <div className="relative flex-1 lg:max-w-sm">
+      <div className={`overflow-hidden rounded-xl ring-1 ${t.card}`}>
+        <div className={`flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center ${t.border}`}>
+          <div className="relative flex-1 sm:max-w-sm">
             <Search className={`pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 ${t.soft}`} />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Search number, customer, port…"
               aria-label="Search the sheet"
-              className={`h-10 w-full rounded-xl pl-9 pr-3 text-sm outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`}
+              className={`h-10 w-full rounded-lg pl-9 pr-3 text-[14px] outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`}
             />
           </div>
-          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Status">
-            {(["all", ...CARGO_STATUSES] as Filter[]).map((key) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => setFilter(key)}
-                aria-pressed={filter === key}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ring-1 transition-colors ${
-                  filter === key ? "bg-[#1d1d1f] text-white ring-transparent" : t.pill
-                }`}
-              >
-                {key !== "all" && <span className={`h-2 w-2 rounded-full ${CARGO_STATUS_META[key].dot}`} />}
-                {key === "all" ? "All" : CARGO_STATUS_META[key].label}
-                <span className="tabular-nums opacity-60">{counts[key]}</span>
-              </button>
-            ))}
+          <div className="flex items-center gap-2 text-[14px]">
+            <span className={t.soft}>Status</span>
+            <div className="w-60">
+              <CargoDropdown
+                t={t}
+                dark={dark}
+                ariaLabel="Filter by status"
+                value={filter}
+                onChange={(v) => setFilter(v as Filter)}
+                options={[{ value: "all", label: `All (${counts.all})` }, ...STATUS_OPTIONS.map((o) => ({ ...o, label: `${o.label} (${counts[o.value]})` }))]}
+              />
+            </div>
           </div>
         </div>
 
@@ -202,13 +205,13 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
           <div className="px-4 py-14 text-center">
             <p className={`text-[15px] font-semibold ${t.strong}`}>{rows.length === 0 ? "No consignments yet" : "Nothing matches"}</p>
             <p className={`mt-1 text-[13px] ${t.soft}`}>
-              {rows.length === 0 ? "Add the first one with New consignment: its number is what the customer types to track it." : "Try another search or status."}
+              {rows.length === 0 ? "Add the first one with New consignment." : "Try another search or status."}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1080px] text-left text-[13px]">
-              <thead className={`text-[11px] font-semibold uppercase tracking-wider ${t.soft}`}>
+            <table className="w-full min-w-[1080px] text-left text-[14px]">
+              <thead className={`text-[13px] font-medium ${t.soft}`}>
                 <tr className={`border-b ${t.border}`}>
                   <th className="px-4 py-3">Console / FCL / LCL</th>
                   <th className="px-4 py-3">Customer</th>
@@ -225,11 +228,11 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
                 {shown.map((r) => (
                   <tr key={r.id} className={`cursor-pointer transition-colors ${t.hover}`} onClick={() => setOpenId(r.id)}>
                     <td className="px-4 py-3">
-                      <button type="button" onClick={() => setOpenId(r.id)} className={`font-bold tracking-tight hover:underline ${t.strong}`}>
+                      <button type="button" onClick={() => setOpenId(r.id)} className={`font-semibold hover:underline ${t.strong}`}>
                         {r.reference}
                       </button>
                     </td>
-                    <td className={`max-w-[14rem] px-4 py-3 font-medium ${t.mid}`}>
+                    <td className={`max-w-[14rem] px-4 py-3 ${t.mid}`}>
                       <span className="line-clamp-2">{r.customer}</span>
                     </td>
                     <td className={`whitespace-nowrap px-4 py-3 ${t.mid}`}>{r.type ?? "—"}</td>
@@ -238,8 +241,8 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
                     <td className="max-w-[18rem] px-4 py-3">
                       {r.latest ? (
                         <>
-                          <span className={`line-clamp-2 font-semibold ${t.strong}`}>{r.latest.name}</span>
-                          <span className={`flex flex-wrap items-center gap-1.5 text-[11.5px] ${t.soft}`}>
+                          <span className={`line-clamp-2 font-medium ${t.strong}`}>{r.latest.name}</span>
+                          <span className={`flex flex-wrap items-center gap-1.5 text-[12.5px] ${t.soft}`}>
                             {fmtDay(r.latest.date)}
                             {r.latest.date > today && <span className={laterFlag(dark)}>Dated after today</span>}
                           </span>
@@ -251,27 +254,18 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
                     <td className={`whitespace-nowrap px-4 py-3 tabular-nums ${t.mid}`}>{r.etd ? fmtDay(r.etd, false) : "—"}</td>
                     <td className={`whitespace-nowrap px-4 py-3 tabular-nums ${t.mid}`}>{r.eta ? fmtDay(r.eta, false) : "—"}</td>
                     <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                      {/* The assigner's dropdown: a new stage is a new update, dated today. */}
-                      <span className="relative inline-flex items-center">
-                        <select
-                          aria-label={`Status of ${r.reference}`}
-                          value={r.status}
-                          disabled={busyRow === r.id}
-                          onChange={(e) => void restage(r, e.target.value as CargoStatus)}
-                          className={`cursor-pointer appearance-none rounded-full py-1 pl-3 pr-7 text-[12px] font-bold uppercase tracking-wide outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-60 ${chip(r.status)}`}
-                        >
-                          {CARGO_STATUSES.map((s) => (
-                            <option key={s} value={s}>
-                              {CARGO_STATUS_META[s].label}
-                            </option>
-                          ))}
-                        </select>
-                        {busyRow === r.id ? (
-                          <Loader2 className="pointer-events-none absolute right-2 h-3 w-3 animate-spin" />
-                        ) : (
-                          <span aria-hidden="true" className="pointer-events-none absolute right-2.5 text-[9px]">▼</span>
-                        )}
-                      </span>
+                      {/* The assigner's dropdown: a new stage is a new update, dated today. The stage in plain words,
+                          its colour a dot beside them. */}
+                      <CargoDropdown
+                        t={t}
+                        dark={dark}
+                        variant="row"
+                        ariaLabel={`Status of ${r.reference}`}
+                        value={r.status}
+                        busy={busyRow === r.id}
+                        onChange={(v) => void restage(r, v as CargoStatus)}
+                        options={STATUS_OPTIONS}
+                      />
                     </td>
                   </tr>
                 ))}
@@ -281,7 +275,7 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
         )}
       </div>
 
-      {admin && <CargoChanges t={t} reloadKey={changed} />}
+      {admin && <CargoChanges t={t} dark={dark} reloadKey={changed} />}
 
       {notice && (
         <p
@@ -293,14 +287,14 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
       )}
 
       {openId && <CargoPanel id={openId} t={t} dark={dark} onClose={() => setOpenId(null)} onChanged={put} onDeleted={(id) => { setRows((p) => p.filter((r) => r.id !== id)); setOpenId(null); setChanged((n) => n + 1); }} />}
-      {creating && <NewConsignment t={t} onClose={() => setCreating(false)} onCreated={(s) => { put(s); setCreating(false); setOpenId(s.id); }} />}
+      {creating && <NewConsignment t={t} dark={dark} onClose={() => setCreating(false)} onCreated={(s) => { put(s); setCreating(false); setOpenId(s.id); }} />}
     </div>
   );
 }
 
 // ---- a consignment ------------------------------------------------------------------------------------------------
 
-const label = "mb-1 block text-[11px] font-bold uppercase tracking-wider";
+const label = "mb-1 block text-[13px] font-medium";
 
 function Field({ t, name, children }: { t: Theme; name: string; children: React.ReactNode }) {
   return (
@@ -383,7 +377,6 @@ function CargoPanel({
   };
 
   const dirty = s && (["reference", "customer", "type", "pol", "pod", "etd", "eta"] as const).some((k) => (form[k] ?? "") !== ((s[k] as string | null) ?? ""));
-  const chip = (st: CargoStatus) => (dark ? CARGO_STATUS_META[st].chipDark : CARGO_STATUS_META[st].chip);
 
   return (
     <div className={`fixed inset-0 z-[120] flex justify-end ${t.overlay}`} onClick={onClose}>
@@ -396,11 +389,13 @@ function CargoPanel({
       >
         <div className={`flex items-start gap-3 border-b px-5 py-4 ${t.border}`}>
           <div className="min-w-0 flex-1">
-            <p className={`text-[11px] font-bold uppercase tracking-wider ${t.soft}`}>Consignment</p>
             <h3 className={`truncate text-xl font-bold tracking-tight ${t.strong}`}>{s?.reference ?? "…"}</h3>
             {s && (
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${chip(s.status)}`}>{CARGO_STATUS_META[s.status].label}</span>
+                <span className={`inline-flex items-center gap-1.5 text-[14px] font-medium ${t.strong}`}>
+                  <span className={`h-2 w-2 rounded-full ${CARGO_STATUS_META[s.status].dot}`} aria-hidden="true" />
+                  {CARGO_STATUS_META[s.status].label}
+                </span>
                 <button
                   type="button"
                   onClick={() => {
@@ -441,7 +436,6 @@ function CargoPanel({
             {/* The customer's timeline first: it is what changes every day. */}
             <section aria-labelledby="cargo-timeline">
               <h4 id="cargo-timeline" className={`mb-1 text-[13px] font-bold ${t.strong}`}>Customer timeline</h4>
-              <p className={`mb-3 text-[12px] ${t.soft}`}>Each update is a line the customer sees: the date, what happened, and the status. No names or prices here.</p>
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -456,7 +450,7 @@ function CargoPanel({
                     }
                   });
                 }}
-                className={`grid gap-2 rounded-2xl p-3 ring-1 sm:grid-cols-[9.5rem_1fr_9rem] ${t.card}`}
+                className={`grid gap-2 rounded-2xl p-3 ring-1 sm:grid-cols-[9.5rem_1fr_12rem] ${t.card}`}
               >
                 <input type="date" aria-label="Date" value={update.date} max={today} onChange={(e) => setUpdate((u) => ({ ...u, date: e.target.value }))} className={input} required />
                 <input
@@ -467,18 +461,14 @@ function CargoPanel({
                   maxLength={160}
                   className={input}
                 />
-                <select
-                  aria-label="Status"
+                <CargoDropdown
+                  t={t}
+                  dark={dark}
+                  ariaLabel="Status"
                   value={update.status || s.status}
-                  onChange={(e) => setUpdate((u) => ({ ...u, status: e.target.value as CargoStatus }))}
-                  className={input}
-                >
-                  {CARGO_STATUSES.map((st) => (
-                    <option key={st} value={st}>
-                      {CARGO_STATUS_META[st].label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setUpdate((u) => ({ ...u, status: v as CargoStatus }))}
+                  options={STATUS_OPTIONS}
+                />
                 <button
                   type="submit"
                   disabled={busy !== null}
@@ -502,17 +492,11 @@ function CargoPanel({
                           e.preventDefault();
                           void run(`edit-${ev.id}`, `/api/cargo/${s.id}/events/${ev.id}/`, "PATCH", edit).then((ok) => ok && setEditing(null));
                         }}
-                        className="grid gap-2 sm:grid-cols-[9.5rem_1fr_9rem]"
+                        className="grid gap-2 sm:grid-cols-[9.5rem_1fr_12rem]"
                       >
                         <input type="date" aria-label="Date" value={edit.date} max={today} onChange={(e) => setEdit((x) => ({ ...x, date: e.target.value }))} className={input} required />
                         <input aria-label="What happened" value={edit.name} onChange={(e) => setEdit((x) => ({ ...x, name: e.target.value }))} maxLength={160} className={input} required />
-                        <select aria-label="Status" value={edit.status} onChange={(e) => setEdit((x) => ({ ...x, status: e.target.value as CargoStatus }))} className={input}>
-                          {CARGO_STATUSES.map((st) => (
-                            <option key={st} value={st}>
-                              {CARGO_STATUS_META[st].label}
-                            </option>
-                          ))}
-                        </select>
+                        <CargoDropdown t={t} dark={dark} ariaLabel="Status" value={edit.status} onChange={(v) => setEdit((x) => ({ ...x, status: v as CargoStatus }))} options={STATUS_OPTIONS} />
                         <div className="flex gap-2 sm:col-span-3">
                           <button type="submit" disabled={busy !== null} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-brand-dark px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-deep disabled:opacity-60">
                             {busy === `edit-${ev.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save correction
@@ -529,7 +513,10 @@ function CargoPanel({
                           <p className={`text-[13.5px] font-semibold leading-snug ${t.strong}`}>{ev.name}</p>
                           <p className={`mt-0.5 flex flex-wrap items-center gap-2 text-[12px] ${t.soft}`}>
                             <span className="tabular-nums">{fmtDay(ev.date)}</span>
-                            <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-wide ${chip(ev.status)}`}>{CARGO_STATUS_META[ev.status].label}</span>
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className={`h-1.5 w-1.5 rounded-full ${CARGO_STATUS_META[ev.status].dot}`} aria-hidden="true" />
+                              {CARGO_STATUS_META[ev.status].label}
+                            </span>
                             {ev.date > today && <span className={laterFlag(dark)}>Dated after today: correct its date</span>}
                           </p>
                         </div>
@@ -578,20 +565,19 @@ function CargoPanel({
                 <Field t={t} name="Console / FCL / LCL number">
                   <input value={form.reference ?? ""} onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))} className={input} required maxLength={40} />
                 </Field>
-                <Field t={t} name="Customer (never shown to the public)">
+                <Field t={t} name="Customer (private)">
                   <input value={form.customer ?? ""} onChange={(e) => setForm((f) => ({ ...f, customer: e.target.value }))} className={input} required maxLength={120} />
                 </Field>
                 <Field t={t} name="Type">
-                  <select value={form.type ?? ""} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className={input}>
-                    <option value="">Choose the type</option>
-                    {CARGO_TYPES.map((ty) => (
-                      <option key={ty} value={ty}>
-                        {ty}
-                      </option>
-                    ))}
-                    {/* A type written before the list (2026-10-26) stays as it is until changed. */}
-                    {form.type && !(CARGO_TYPES as readonly string[]).includes(form.type) && <option value={form.type}>{form.type}</option>}
-                  </select>
+                  <CargoDropdown
+                    t={t}
+                    dark={dark}
+                    ariaLabel="Type"
+                    placeholder="Choose the type"
+                    value={form.type ?? ""}
+                    onChange={(v) => setForm((f) => ({ ...f, type: v }))}
+                    options={typeOptions(form.type)}
+                  />
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field t={t} name="POL">
@@ -619,7 +605,7 @@ function CargoPanel({
 
             <section aria-labelledby="cargo-history">
               <h4 id="cargo-history" className={`mb-2 flex items-center gap-1.5 text-[13px] font-bold ${t.strong}`}>
-                <History className="h-4 w-4" /> What was changed
+                <History className="h-4 w-4" /> History
               </h4>
               <ChangeList t={t} changes={s.changes} showNumber={false} />
             </section>
@@ -651,7 +637,7 @@ function CargoPanel({
 
 // ---- a new consignment ------------------------------------------------------------------------------------------------
 
-function NewConsignment({ t, onClose, onCreated }: { t: Theme; onClose: () => void; onCreated: (s: CargoDetail) => void }) {
+function NewConsignment({ t, dark, onClose, onCreated }: { t: Theme; dark: boolean; onClose: () => void; onCreated: (s: CargoDetail) => void }) {
   const [form, setForm] = useState({ reference: "", customer: "", type: "", pol: "", pod: "", etd: "", eta: "", status: CARGO_STATUSES[0] as CargoStatus, event: "", date: officeToday() });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -690,7 +676,6 @@ function NewConsignment({ t, onClose, onCreated }: { t: Theme; onClose: () => vo
         <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <h3 className={`text-lg font-bold tracking-tight ${t.strong}`}>New consignment</h3>
-            <p className={`mt-0.5 text-[12.5px] ${t.soft}`}>Its number is what the customer types into Live track &amp; trace.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className={`rounded-full p-2 transition-colors ${t.hover} ${t.soft}`}>
             <X className="h-5 w-5" />
@@ -701,18 +686,11 @@ function NewConsignment({ t, onClose, onCreated }: { t: Theme; onClose: () => vo
           <Field t={t} name="Console / FCL / LCL number *">
             <input value={form.reference} onChange={set("reference")} placeholder="CO-26-000004" className={input} required maxLength={40} autoFocus />
           </Field>
-          <Field t={t} name="Customer * (never shown to the public)">
+          <Field t={t} name="Customer * (private)">
             <input value={form.customer} onChange={set("customer")} placeholder="AM HYDRAULICS" className={input} required maxLength={120} />
           </Field>
           <Field t={t} name="Type">
-            <select value={form.type} onChange={set("type")} className={input}>
-              <option value="">Choose the type</option>
-              {CARGO_TYPES.map((ty) => (
-                <option key={ty} value={ty}>
-                  {ty}
-                </option>
-              ))}
-            </select>
+            <CargoDropdown t={t} dark={dark} ariaLabel="Type" placeholder="Choose the type" value={form.type} onChange={(v) => setForm((f) => ({ ...f, type: v }))} options={TYPE_OPTIONS} />
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field t={t} name="POL">
@@ -730,17 +708,11 @@ function NewConsignment({ t, onClose, onCreated }: { t: Theme; onClose: () => vo
           </Field>
         </div>
         <div className={`mt-5 rounded-2xl p-4 ring-1 ${t.card}`}>
-          <p className={`mb-3 text-[13px] font-bold ${t.strong}`}>First update (the customer sees it)</p>
-          <div className="grid gap-3 sm:grid-cols-[9.5rem_1fr_9rem]">
+          <p className={`mb-3 text-[13px] font-bold ${t.strong}`}>First update</p>
+          <div className="grid gap-3 sm:grid-cols-[9.5rem_1fr_12rem]">
             <input type="date" aria-label="Date" value={form.date} max={officeToday()} onChange={set("date")} className={input} required />
             <input aria-label="What happened" value={form.event} onChange={set("event")} placeholder={CARGO_STATUS_META[form.status].event} className={input} maxLength={160} />
-            <select aria-label="Status" value={form.status} onChange={set("status")} className={input}>
-              {CARGO_STATUSES.map((st) => (
-                <option key={st} value={st}>
-                  {CARGO_STATUS_META[st].label}
-                </option>
-              ))}
-            </select>
+            <CargoDropdown t={t} dark={dark} ariaLabel="Status" value={form.status} onChange={(v) => setForm((f) => ({ ...f, status: v as CargoStatus }))} options={STATUS_OPTIONS} />
           </div>
         </div>
         <div className="mt-6 flex justify-end gap-2">
@@ -779,7 +751,7 @@ function ChangeList({ t, changes, showNumber }: { t: Theme; changes: CargoChange
 }
 
 /** For admins: every change on the sheet, newest first, and whose it was. */
-function CargoChanges({ t, reloadKey }: { t: Theme; reloadKey: number }) {
+function CargoChanges({ t, dark, reloadKey }: { t: Theme; dark: boolean; reloadKey: number }) {
   const [by, setBy] = useState("");
   const [data, setData] = useState<{ changes: CargoChangeRow[]; people: string[] } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -802,16 +774,18 @@ function CargoChanges({ t, reloadKey }: { t: Theme; reloadKey: number }) {
     <section aria-labelledby="cargo-changes" className={`rounded-2xl p-4 shadow-sm ring-1 ${t.card}`}>
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <h3 id="cargo-changes" className={`flex items-center gap-1.5 text-[15px] font-bold ${t.strong}`}>
-          <History className="h-4 w-4" /> What the assigners have done
+          <History className="h-4 w-4" /> Change log
         </h3>
-        <select aria-label="Whose changes" value={by} onChange={(e) => setBy(e.target.value)} className={`h-9 rounded-xl px-3 text-[13px] outline-none ${t.input}`}>
-          <option value="">Everyone</option>
-          {(data?.people ?? []).map((p) => (
-            <option key={p} value={p}>
-              {p}
-            </option>
-          ))}
-        </select>
+        <div className="w-52">
+          <CargoDropdown
+            t={t}
+            dark={dark}
+            ariaLabel="Whose changes"
+            value={by}
+            onChange={setBy}
+            options={[{ value: "", label: "Everyone" }, ...(data?.people ?? []).map((p) => ({ value: p, label: p }))]}
+          />
+        </div>
       </div>
       {error ? <p className="text-[13px] text-red-600">{error}</p> : data ? <ChangeList t={t} changes={data.changes} showNumber /> : <Loader2 className={`h-5 w-5 animate-spin ${t.soft}`} />}
     </section>

@@ -180,6 +180,8 @@ function cargoType(raw: unknown, kept: string | null = null): string | null | un
 
 const fmtOr = (d: string | null) => (d ? fmtDay(d) : "none");
 const quote = (s: string) => `“${s}”`;
+/** Two updates' words, the same but for case and spacing. */
+const sameWords = (a: string, b: string) => a.replace(/\s+/g, " ").trim().toLowerCase() === b.replace(/\s+/g, " ").trim().toLowerCase();
 
 // ---- the sheet ------------------------------------------------------------------------------------------------------
 
@@ -344,6 +346,12 @@ export async function addCargoEvent(id: string, body: Record<string, unknown>, a
   const status = stage(body.status);
   const name = text(body.name, CARGO_LIMITS.event, "The update") || CARGO_STATUS_META[status].event;
   const date = updateDay(body.date, "The date") || officeToday();
+  // The same update twice (a second press, a second person) is not posted again: the customer saw four
+  // "In customs clearance" on one day on the live sheet (2026-10-26).
+  const twins = await prisma.cargoEvent.findMany({ where: { shipmentId: id, date: asDate(date), status }, select: { name: true } });
+  if (twins.some((t) => sameWords(t.name, name))) {
+    throw new CargoError(409, `That update is already on the timeline: ${quote(name)}, ${fmtDay(date)}.`);
+  }
   await prisma.$transaction(async (tx) => {
     const made = await tx.cargoEvent.create({ data: { shipmentId: id, date: asDate(date), name, status, createdById: actor.id }, select: { id: true } });
     if (body.current === true) {
@@ -443,15 +451,27 @@ export async function trackCargo(input: string): Promise<CargoTrack | null> {
     select: {
       reference: true,
       status: true,
-      updatedAt: true,
+      etd: true,
+      eta: true,
       events: { orderBy: [{ date: "asc" }, { createdAt: "asc" }], select: { date: true, name: true, status: true } },
     },
   });
   if (!r) return null;
+  // Each change once (the owner, 2026-10-26: "repetative words ... once with change dha katanum per change"): an
+  // update that says again exactly what the one before it said is left out of the customer's timeline. The staff
+  // still see every row, to take the repeats off.
+  const events: CargoTrack["events"] = [];
+  for (const e of r.events) {
+    const row = { date: isoDay(e.date), name: e.name, status: statusOf(e.status) };
+    const before = events[events.length - 1];
+    if (before && before.status === row.status && sameWords(before.name, row.name)) continue;
+    events.push(row);
+  }
   return {
     reference: r.reference,
     status: statusOf(r.status),
-    updatedAt: r.updatedAt.toISOString(),
-    events: r.events.map((e) => ({ date: isoDay(e.date), name: e.name, status: statusOf(e.status) })),
+    etd: dayOrNull(r.etd),
+    eta: dayOrNull(r.eta),
+    events,
   };
 }

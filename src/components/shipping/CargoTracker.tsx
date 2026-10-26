@@ -2,28 +2,29 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Anchor, ArrowRight, Container, Loader2, PackageCheck, Printer, Ship, Stamp, Warehouse } from "lucide-react";
-import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtDay, type CargoStatus, type CargoTrack } from "@/lib/cargo-shared";
-import { timeAgo } from "@/lib/relative-time";
+import { Anchor, Container, Loader2, PackageCheck, Printer, Ship, Stamp, Warehouse } from "lucide-react";
+import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtTrackDay, type CargoStatus, type CargoTrack } from "@/lib/cargo-shared";
 
 /**
- * Live track & trace, on /shipping/ under the hero (the owner, 2026-10-24): a customer types the console, FCL or LCL
+ * Track your cargo, on /shipping/ under the hero (the owner, 2026-10-24): a customer types the console, FCL or LCL
  * number we gave them and sees where their cargo stands. Not the carrier's tracker, with its modules, vessels and
  * voyages: our own, in our own six stages (the owner's, 2026-10-26: loaded, vessel loading, sailing, discharged,
- * customs, warehouse) shown as a journey, and under it every update our assigners post, one row each: the date,
- * what happened, the status.
+ * customs, warehouse), and every update our assigners post.
  *
- * Live: while a result is open and the tab is in front, it reads itself again every minute, so an update the
- * assigner posts appears without a reload. A number travels in the address (?track=…#track), so the link we send a
- * customer opens straight on their cargo.
+ * Laid out as a carrier's tracker reads (the owner, 2026-10-26: the first one "feels like AI", everything pushed to
+ * the right under a poster heading): one column, a plain heading, the box, then the cargo: its number, its status,
+ * ETD and ETA, the six stages, and the updates as a plain table (Event Date, Event Name, Status), each change once
+ * (the server leaves repeats out), oldest first. No "updated … ago" and no Live badge: not for the customer.
  *
- * Only what /api/track answers is shown: never the customer's name or the office's sheet.
+ * It reads itself again every minute while a result is open and the tab is in front, so an update the assigner
+ * posts appears without a reload. A number travels in the address (?track=…#track), so the link we send a customer
+ * opens straight on their cargo. Only what /api/track answers is shown: never the customer's name or the sheet.
  */
 
 type State =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "found"; cargo: CargoTrack; checkedAt: number }
+  | { kind: "found"; cargo: CargoTrack }
   | { kind: "missing"; ref: string }
   | { kind: "error"; message: string };
 
@@ -40,7 +41,6 @@ export function CargoTracker() {
   const [ref, setRef] = useState("");
   const [state, setState] = useState<State>({ kind: "idle" });
   const asked = useRef<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   const look = useCallback(async (raw: string, quiet = false) => {
     const value = raw.trim();
@@ -54,7 +54,7 @@ export function CargoTracker() {
       const res = await fetch(`/api/track/?ref=${encodeURIComponent(value)}`, { cache: "no-store" });
       const json = await res.json().catch(() => ({}));
       if (asked.current !== value) return; // a newer search has taken over
-      if (res.ok) setState({ kind: "found", cargo: json.cargo as CargoTrack, checkedAt: Date.now() });
+      if (res.ok) setState({ kind: "found", cargo: json.cargo as CargoTrack });
       else if (res.status === 404) setState({ kind: "missing", ref: value });
       else if (!quiet) setState({ kind: "error", message: typeof json.error === "string" ? json.error : "We couldn't look that up just now. Please try again." });
     } catch {
@@ -71,7 +71,7 @@ export function CargoTracker() {
     }
   }, [look]);
 
-  // Live: every minute while a result is open and the tab is in front.
+  // Every minute while a result is open and the tab is in front.
   useEffect(() => {
     if (state.kind !== "found") return;
     const id = window.setInterval(() => {
@@ -94,132 +94,131 @@ export function CargoTracker() {
   };
 
   return (
-    <section id="track" aria-labelledby="track-heading" className="scroll-mt-24 py-20 lg:py-28">
-      <div className="mx-auto grid max-w-[1500px] gap-12 px-6 md:px-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-20 lg:px-16">
-        <div>
-          <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.25em] text-[#176579]">
-            <span className="relative flex h-2 w-2" aria-hidden="true">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#176579] opacity-60 motion-reduce:animate-none" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-[#176579]" />
-            </span>
-            Live track &amp; trace
-          </span>
-          <h2 id="track-heading" className="mt-4 text-[10vw] font-medium leading-[0.95] tracking-[-0.04em] sm:text-[7vw] lg:text-[4.2vw]">
-            Keep track of your cargo
-          </h2>
-          <p className="mt-6 max-w-md text-[16px] leading-[1.6] text-[#5a6e77] sm:text-[17px]">
-            Enter the console, FCL or LCL number from your booking. You see every update as our team posts it: the date,
-            what happened, and where your cargo stands.
-          </p>
-        </div>
+    <section id="track" aria-labelledby="track-heading" className="scroll-mt-24 py-16 lg:py-24">
+      <div className="mx-auto max-w-4xl px-6 md:px-10">
+        <h2 id="track-heading" className="text-[28px] font-bold tracking-tight text-[#08222e] sm:text-[34px]">
+          Track your cargo
+        </h2>
+        <p className="mt-2 text-[15px] text-[#5a6e77]">Enter the console, FCL or LCL number from your booking confirmation.</p>
 
-        <div className="min-w-0">
-          <form onSubmit={submit} className="flex flex-col gap-3 sm:flex-row sm:items-end" role="search" aria-label="Track your cargo">
-            <label className="min-w-0 flex-1">
-              <span className="mb-2 block text-[11px] font-bold uppercase tracking-[0.2em] text-[#08222e]/60">Cargo #</span>
-              <input
-                ref={inputRef}
-                value={ref}
-                onChange={(e) => setRef(e.target.value)}
-                placeholder="e.g. CO-26-000002"
-                autoComplete="off"
-                autoCapitalize="characters"
-                spellCheck={false}
-                maxLength={40}
-                className="h-14 w-full rounded-2xl border border-[#08222e]/15 bg-white px-5 text-[17px] font-semibold uppercase tracking-wide text-[#08222e] shadow-sm outline-none transition-shadow placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-[#08222e]/35 focus:border-[#176579] focus:ring-4 focus:ring-[#176579]/15"
-              />
-            </label>
-            <button
-              type="submit"
-              disabled={state.kind === "loading"}
-              className="group flex h-14 shrink-0 cursor-pointer items-center justify-between gap-3 rounded-full bg-[#08222e] py-1.5 pl-7 pr-1.5 text-[#FAFAF7] transition-all duration-300 hover:bg-[#176579] hover:shadow-lg hover:shadow-[#176579]/20 disabled:opacity-70"
-            >
-              <span className="text-base font-medium">Track</span>
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#FAFAF7] text-[#08222e] transition-transform duration-300 group-hover:translate-x-0.5">
-                {state.kind === "loading" ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowRight className="h-5 w-5" />}
-              </span>
-            </button>
-          </form>
-          <p className="mt-3 text-[13px] text-[#5a6e77]">
-            The number is on your booking confirmation. No number yet? <Link href="/contact/" className="font-semibold text-[#176579] underline-offset-2 hover:underline">Ask our team</Link>.
-          </p>
+        <form onSubmit={submit} role="search" aria-label="Track your cargo" className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Cargo number</span>
+            <input
+              value={ref}
+              onChange={(e) => setRef(e.target.value)}
+              placeholder="Cargo number, e.g. CO-26-000002"
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              maxLength={40}
+              className="h-14 w-full rounded-xl border border-[#08222e]/15 bg-white px-5 text-[17px] font-semibold uppercase tracking-wide text-[#08222e] outline-none transition-shadow placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-[#08222e]/40 focus:border-[#176579] focus:ring-4 focus:ring-[#176579]/15"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={state.kind === "loading"}
+            className="flex h-14 shrink-0 items-center justify-center gap-2 rounded-xl bg-[#08222e] px-9 text-[16px] font-semibold text-white transition-colors hover:bg-[#176579] disabled:opacity-70"
+          >
+            {state.kind === "loading" && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}
+            Track
+          </button>
+        </form>
 
-          <div aria-live="polite" className="mt-8">
-            {state.kind === "found" && <Result cargo={state.cargo} checkedAt={state.checkedAt} />}
-            {state.kind === "missing" && (
-              <div className="rounded-3xl border border-[#08222e]/10 bg-white p-6 sm:p-8">
-                <p className="text-lg font-semibold">We couldn&apos;t find cargo {state.ref.toUpperCase()}.</p>
-                <p className="mt-2 text-[15px] leading-relaxed text-[#5a6e77]">
-                  Check the number on your booking confirmation: it looks like CO-26-000002 or FCL-26-000004. If it still
-                  does not show, <Link href="/contact/" className="font-semibold text-[#176579] hover:underline">contact us</Link> and we will look it up.
-                </p>
-              </div>
-            )}
-            {state.kind === "error" && (
-              <p role="alert" className="rounded-2xl bg-red-500/10 px-5 py-4 text-[14px] font-medium text-red-700">
-                {state.message}
+        <div aria-live="polite" className="mt-8">
+          {state.kind === "found" && <Result cargo={state.cargo} />}
+          {state.kind === "missing" && (
+            <div className="rounded-2xl border border-[#08222e]/10 bg-white p-6 sm:p-8">
+              <p className="text-[17px] font-semibold text-[#08222e]">We couldn&apos;t find cargo {state.ref.toUpperCase()}.</p>
+              <p className="mt-2 text-[15px] leading-relaxed text-[#5a6e77]">
+                Check the number on your booking confirmation: it looks like CO-26-000002 or FCL-26-000004. If it still does not
+                show, <Link href="/contact/" className="font-semibold text-[#176579] hover:underline">contact us</Link> and we will look it up.
               </p>
-            )}
-            {state.kind === "loading" && (
-              <div className="animate-pulse rounded-3xl border border-[#08222e]/10 bg-white p-8" aria-hidden="true">
-                <div className="h-5 w-48 rounded bg-[#08222e]/10" />
-                <div className="mt-8 h-2 w-full rounded bg-[#08222e]/10" />
-                <div className="mt-8 space-y-3">
-                  <div className="h-4 w-full rounded bg-[#08222e]/[0.07]" />
-                  <div className="h-4 w-5/6 rounded bg-[#08222e]/[0.07]" />
-                </div>
+            </div>
+          )}
+          {state.kind === "error" && (
+            <p role="alert" className="rounded-xl bg-red-500/10 px-5 py-4 text-[14px] font-medium text-red-700">
+              {state.message}
+            </p>
+          )}
+          {state.kind === "loading" && (
+            <div className="animate-pulse rounded-2xl border border-[#08222e]/10 bg-white p-8" aria-hidden="true">
+              <div className="h-6 w-48 rounded bg-[#08222e]/10" />
+              <div className="mt-6 grid grid-cols-3 gap-6">
+                <div className="h-10 rounded bg-[#08222e]/[0.07]" />
+                <div className="h-10 rounded bg-[#08222e]/[0.07]" />
+                <div className="h-10 rounded bg-[#08222e]/[0.07]" />
               </div>
-            )}
-          </div>
+              <div className="mt-8 space-y-3">
+                <div className="h-4 w-full rounded bg-[#08222e]/[0.07]" />
+                <div className="h-4 w-5/6 rounded bg-[#08222e]/[0.07]" />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function Result({ cargo, checkedAt }: { cargo: CargoTrack; checkedAt: number }) {
+function Result({ cargo }: { cargo: CargoTrack }) {
   const current = Math.max(0, CARGO_STATUSES.indexOf(cargo.status));
   const stages = CARGO_STATUSES.length;
-  const NowIcon = STAGE_ICON[CARGO_STATUSES[current]];
+  const now = CARGO_STATUSES[current];
+  const NowIcon = STAGE_ICON[now];
   const next = current < stages - 1 ? CARGO_STATUSES[current + 1] : null;
-  const latest = cargo.events[cargo.events.length - 1];
+  const fact = "text-[16px] font-semibold text-[#08222e]";
+  const factLabel = "text-[13px] text-[#5a6e77]";
   return (
-    <article id="cargo-result" aria-label={`Cargo ${cargo.reference}`} className="overflow-hidden rounded-3xl border border-[#08222e]/10 bg-white shadow-sm">
+    <article id="cargo-result" aria-label={`Cargo ${cargo.reference}`} className="overflow-hidden rounded-2xl border border-[#08222e]/10 bg-white">
       {/* Printing shows the result alone. */}
-      <style>{`@media print { body * { visibility: hidden !important; } #cargo-result, #cargo-result * { visibility: visible !important; } #cargo-result { position: absolute; left: 0; top: 0; width: 100%; border: 0; box-shadow: none; } .cargo-noprint { display: none !important; } }`}</style>
-      <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[#08222e]/10 px-6 py-5 sm:px-8">
+      <style>{`@media print { body * { visibility: hidden !important; } #cargo-result, #cargo-result * { visibility: visible !important; } #cargo-result { position: absolute; left: 0; top: 0; width: 100%; border: 0; } .cargo-noprint { display: none !important; } }`}</style>
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#08222e]/10 px-6 py-5 sm:px-8">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#08222e]/50">Cargo #</p>
-          <p className="mt-1 break-all text-2xl font-bold tracking-tight">{cargo.reference}</p>
+          <p className={factLabel}>Cargo number</p>
+          <p className="break-all text-[24px] font-bold tracking-tight text-[#08222e]">{cargo.reference}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="cargo-noprint inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-[12px] font-semibold text-emerald-700" title={`Checked ${new Date(checkedAt).toLocaleTimeString("en-GB", { hour: "numeric", minute: "2-digit" })}`}>
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500 motion-reduce:animate-none" aria-hidden="true" /> Live
-          </span>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="cargo-noprint inline-flex items-center gap-1.5 rounded-full border border-[#08222e]/15 px-3 py-1.5 text-[12.5px] font-semibold transition-colors hover:bg-[#08222e]/[0.04]"
-          >
-            <Printer className="h-3.5 w-3.5" /> Print
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={() => window.print()}
+          className="cargo-noprint inline-flex items-center gap-1.5 rounded-lg border border-[#08222e]/15 px-3 py-2 text-[13px] font-semibold text-[#08222e] transition-colors hover:bg-[#08222e]/[0.04]"
+        >
+          <Printer className="h-4 w-4" aria-hidden="true" /> Print
+        </button>
       </header>
 
-      {/* The journey: the six stages, the cargo's own one lit, the ones behind it done. A phone has no room for six
-          names in a row: there, where the cargo stands, as a step of six, over a bar of six, and what comes next. */}
-      <div className="px-6 pb-2 pt-7 sm:px-8">
+      {/* Where it stands and when, as a carrier's tracker opens with them (the owner, 2026-10-26: ETD and ETA shown). */}
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-b border-[#08222e]/10 px-6 py-5 sm:grid-cols-3 sm:px-8">
+        <div className="col-span-2 sm:col-span-1">
+          <dt className={factLabel}>Status</dt>
+          <dd className={`mt-0.5 flex items-center gap-2 ${fact}`}>
+            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${CARGO_STATUS_META[now].dot}`} aria-hidden="true" />
+            {CARGO_STATUS_META[now].label}
+          </dd>
+        </div>
+        <div>
+          <dt className={factLabel}>ETD</dt>
+          <dd className={`mt-0.5 tabular-nums ${fact}`}>{fmtTrackDay(cargo.etd) || "To be confirmed"}</dd>
+        </div>
+        <div>
+          <dt className={factLabel}>ETA</dt>
+          <dd className={`mt-0.5 tabular-nums ${fact}`}>{fmtTrackDay(cargo.eta) || "To be confirmed"}</dd>
+        </div>
+      </dl>
+
+      {/* The six stages, the cargo's own one marked, the ones behind it done. A phone has no room for six names in a
+          row: there, the stage as a step of six, over a bar of six, and the one after it. */}
+      <div className="border-b border-[#08222e]/10 px-6 py-6 sm:px-8">
         <div className="sm:hidden">
-          <div className="flex items-center gap-3.5">
-            <span className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[#08222e] ${CARGO_STATUS_META[CARGO_STATUSES[current]].dot}`}>
-              <span className={`absolute inset-0 animate-ping rounded-full opacity-30 motion-reduce:animate-none ${CARGO_STATUS_META[CARGO_STATUSES[current]].dot}`} aria-hidden="true" />
-              <NowIcon className="relative h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
+          <div className="flex items-center gap-3">
+            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#08222e] ${CARGO_STATUS_META[now].dot}`}>
+              <NowIcon className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
             </span>
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#08222e]/50">
+              <p className="text-[13px] text-[#5a6e77]">
                 Step {current + 1} of {stages}
               </p>
-              <p className="text-[19px] font-bold leading-tight text-[#08222e]">{CARGO_STATUS_META[CARGO_STATUSES[current]].label}</p>
+              <p className="text-[17px] font-bold leading-tight text-[#08222e]">{CARGO_STATUS_META[now].label}</p>
             </div>
           </div>
           <div className="mt-4 grid grid-cols-6 gap-1.5" aria-hidden="true">
@@ -229,86 +228,66 @@ function Result({ cargo, checkedAt }: { cargo: CargoTrack; checkedAt: number }) 
           </div>
           {next && (
             <p className="mt-2.5 text-[13px] text-[#5a6e77]">
-              Next: <span className="font-semibold text-[#08222e]/80">{CARGO_STATUS_META[next].label}</span>
+              Next: <span className="font-semibold text-[#08222e]">{CARGO_STATUS_META[next].label}</span>
             </p>
           )}
         </div>
         <ol className="relative hidden grid-cols-6 sm:grid" aria-label="Where your cargo stands">
           {/* The line runs from the first stage's centre to the last's: a twelfth in from each side. */}
-          <span className="absolute left-[8.333%] right-[8.333%] top-5 h-[3px] rounded-full bg-[#08222e]/10" aria-hidden="true" />
+          <span className="absolute left-[8.333%] right-[8.333%] top-[18px] h-[3px] rounded-full bg-[#08222e]/10" aria-hidden="true" />
           <span
-            className="absolute left-[8.333%] top-5 h-[3px] rounded-full bg-[#176579] transition-[width] duration-700 ease-out motion-reduce:transition-none"
+            className="absolute left-[8.333%] top-[18px] h-[3px] rounded-full bg-[#176579] transition-[width] duration-700 ease-out motion-reduce:transition-none"
             style={{ width: `${(current / (stages - 1)) * 83.333}%` }}
             aria-hidden="true"
           />
           {CARGO_STATUSES.map((s, i) => {
             const Icon = STAGE_ICON[s];
-            const state = i < current ? "done" : i === current ? "now" : "next";
+            const step = i < current ? "done" : i === current ? "now" : "next";
             return (
-              <li key={s} className="relative flex flex-col items-center text-center" aria-current={state === "now" ? "step" : undefined}>
+              <li key={s} className="relative flex flex-col items-center text-center" aria-current={step === "now" ? "step" : undefined}>
                 <span
-                  className={`relative z-10 flex h-10 w-10 items-center justify-center rounded-full ring-4 ring-white transition-colors ${
-                    state === "now" ? `${CARGO_STATUS_META[s].dot} text-[#08222e]` : state === "done" ? "bg-[#176579] text-white" : "bg-[#eef1f2] text-[#08222e]/35"
+                  className={`relative z-10 flex h-9 w-9 items-center justify-center rounded-full ring-4 ring-white ${
+                    step === "now" ? `${CARGO_STATUS_META[s].dot} text-[#08222e]` : step === "done" ? "bg-[#176579] text-white" : "bg-[#eef1f2] text-[#08222e]/35"
                   }`}
                 >
-                  {state === "now" && <span className={`absolute inset-0 animate-ping rounded-full opacity-30 motion-reduce:animate-none ${CARGO_STATUS_META[s].dot}`} aria-hidden="true" />}
-                  <Icon className="relative h-[18px] w-[18px]" strokeWidth={2.2} />
+                  <Icon className="h-[17px] w-[17px]" strokeWidth={2.2} aria-hidden="true" />
                 </span>
-                <span className={`mt-2.5 px-1 text-[12px] leading-tight lg:text-[12.5px] ${state === "now" ? "font-bold text-[#08222e]" : state === "done" ? "font-semibold text-[#08222e]/70" : "text-[#08222e]/40"}`}>
+                <span className={`mt-2.5 px-1 text-[12.5px] leading-tight ${step === "now" ? "font-bold text-[#08222e]" : step === "done" ? "font-medium text-[#08222e]/75" : "text-[#08222e]/40"}`}>
                   {CARGO_STATUS_META[s].label}
                 </span>
-                {state === "now" && <span className="sr-only">(current)</span>}
+                {step === "now" && <span className="sr-only">(current)</span>}
               </li>
             );
           })}
         </ol>
-        {latest && (
-          <p className="mt-6 text-[14px] text-[#5a6e77]">
-            Latest: <span className="font-semibold text-[#08222e]">{latest.name}</span> · {fmtDay(latest.date)}
-            <span className="text-[#08222e]/40"> · updated {timeAgo(new Date(cargo.updatedAt))}</span>
-          </p>
-        )}
       </div>
 
-      {/* Every update, oldest first, as a carrier's tracker reads: the date, what happened, the status. */}
-      <div className="px-2 pb-4 pt-3 sm:px-4">
-        <table className="w-full text-left text-[14px]">
-          <thead className="text-[11px] font-bold uppercase tracking-[0.15em] text-[#08222e]/50">
-            <tr>
-              <th className="px-4 py-3 font-bold">Event date</th>
-              <th className="px-4 py-3 font-bold">Event</th>
-              {/* A phone has no room for a third column now the stages have longer names ("In customs clearance"):
-                  there the status sits under the event (2026-10-26: the chips were cut off at the card's edge). */}
-              <th className="hidden px-4 py-3 font-bold sm:table-cell">Status</th>
+      {/* Every update, oldest first, as a carrier's tracker lists them (the owner's reference, 2026-10-26): plain
+          columns, plain text. A phone has room for two: there the status sits under the event. */}
+      <div className="overflow-x-auto px-2 sm:px-4">
+        <table className="w-full text-left text-[14px] text-[#08222e]">
+          <thead>
+            <tr className="border-b border-[#08222e]/10 text-[13px] text-[#5a6e77]">
+              <th className="px-4 py-3 font-medium">Event Date</th>
+              <th className="px-4 py-3 font-medium">Event Name</th>
+              <th className="hidden px-4 py-3 font-medium sm:table-cell">Status</th>
             </tr>
           </thead>
           <tbody>
-            {cargo.events.map((e, i) => {
-              const last = i === cargo.events.length - 1;
-              return (
-                <tr key={`${e.date}-${i}`} className={`border-t border-[#08222e]/[0.07] ${last ? "bg-[#176579]/[0.05]" : ""}`}>
-                  <td className="whitespace-nowrap px-4 py-3.5 align-top tabular-nums text-[#08222e]/70">{fmtDay(e.date)}</td>
-                  <td className="px-4 py-3.5 align-top font-semibold">
-                    {e.name}
-                    {last && <span className="ml-2 rounded-full bg-[#176579] px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-white">Latest</span>}
-                    <span className={`mt-2 block w-fit whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide sm:hidden ${CARGO_STATUS_META[e.status].chip}`}>
-                      {CARGO_STATUS_META[e.status].label}
-                    </span>
-                  </td>
-                  <td className="hidden px-4 py-3.5 align-top sm:table-cell">
-                    <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${CARGO_STATUS_META[e.status].chip}`}>
-                      {CARGO_STATUS_META[e.status].label}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+            {cargo.events.map((e, i) => (
+              <tr key={`${e.date}-${i}`} className="border-b border-[#08222e]/[0.06] last:border-b-0">
+                <td className="whitespace-nowrap px-4 py-3.5 align-top tabular-nums">{fmtTrackDay(e.date)}</td>
+                <td className="px-4 py-3.5 align-top">
+                  {e.name}
+                  <span className="mt-1 block text-[13px] text-[#5a6e77] sm:hidden">{CARGO_STATUS_META[e.status].label}</span>
+                </td>
+                <td className="hidden px-4 py-3.5 align-top sm:table-cell">{CARGO_STATUS_META[e.status].label}</td>
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-      <p className="border-t border-[#08222e]/10 px-6 py-4 text-[12px] text-[#08222e]/45 sm:px-8">
-        Updates are posted by our shipping team as your cargo moves. Dates may change with the vessel&apos;s schedule.
-      </p>
+      <p className="border-t border-[#08222e]/10 px-6 py-4 text-[12.5px] text-[#5a6e77] sm:px-8">ETD and ETA can change with the vessel&apos;s schedule.</p>
     </article>
   );
 }
