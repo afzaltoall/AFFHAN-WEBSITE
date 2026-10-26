@@ -143,6 +143,9 @@ export function SupplierCatalogue({
   const railList = useRef<HTMLElement>(null);
   const railItems = useRef<HTMLDivElement>(null);
   const [railFade, setRailFade] = useState({ top: false, bottom: false });
+  // The family picked in the list whose categories the supplier has closed again: open follows the pick
+  // otherwise, and once picked it could not be closed (the owner, 2026-10-26).
+  const [closedFamily, setClosedFamily] = useState<string | null>(null);
 
   // On a phone the search is the whole screen while it is in use.
   const phoneSearch = focused && isPhone;
@@ -212,6 +215,7 @@ export function SupplierCatalogue({
         next = { ...next, familyId: (up && places.get(up.id)?.familyId) ?? null };
       }
       setScope(next);
+      setClosedFamily(null);
       setTyped("");
       setQuery("");
       setExact(false);
@@ -363,6 +367,7 @@ export function SupplierCatalogue({
 
   const choose = (next: Scope | null) => {
     setScope(next);
+    setClosedFamily(null);
     if (!next || query) setSort("best");
   };
 
@@ -538,12 +543,18 @@ export function SupplierCatalogue({
                   All products
                 </button>
                 {families.map((f) => {
-                  const openFamily = scope?.familyId === f.id;
+                  const openFamily = scope?.familyId === f.id && closedFamily !== scope.id;
                   return (
                     <div key={f.id}>
                       <button
                         type="button"
-                        onClick={() => choose({ id: f.id, name: f.name, familyId: f.id })}
+                        onClick={() => {
+                          // The picked family's own row closes its categories, and opens them again; the products
+                          // stay the family's. Any other row picks, as does this one while one of its categories is
+                          // picked: up to the whole family, still open.
+                          if (scope?.id === f.id) setClosedFamily((c) => (c === f.id ? null : f.id));
+                          else choose({ id: f.id, name: f.name, familyId: f.id });
+                        }}
                         aria-pressed={scope?.id === f.id}
                         aria-expanded={openFamily}
                         className={railButton(scope?.id === f.id)}
