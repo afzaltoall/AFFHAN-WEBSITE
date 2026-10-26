@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
@@ -11,62 +10,16 @@ const HEADING = "Freight forwarding and NVOCC services, from the factory floor t
 const WORDS = HEADING.split(" ");
 
 export function ShippingHero({ officeCount }: { officeCount: number }) {
-  // --- Interactive Effects ---
-  const [mouseGradientStyle, setMouseGradientStyle] = useState({
-    left: '0px',
-    top: '0px',
-    opacity: 0,
-  });
-  const [ripples, setRipples] = useState<{ id: number; x: number; y: number }[]>([]);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setMouseGradientStyle({
-        left: `${e.clientX}px`,
-        top: `${e.clientY}px`,
-        opacity: 1,
-      });
-    };
-    const handleMouseLeave = () => {
-      setMouseGradientStyle(prev => ({ ...prev, opacity: 0 }));
-    };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseleave', handleMouseLeave);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      const newRipple = { id: Date.now(), x: e.clientX, y: e.clientY };
-      setRipples(prev => [...prev, newRipple]);
-      setTimeout(() => setRipples(prev => prev.filter(r => r.id !== newRipple.id)), 1000);
-    };
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, []);
-
+  // No glow trailing the pointer and no ripple where it clicks: both were fixed to the screen, so they followed the
+  // pointer over the whole page, the cargo tracker included (the owner, 2026-10-26: "remove this dot feature
+  // animation").
   const pageStyles = `
-    #mouse-gradient-hero {
-      position: fixed;
-      pointer-events: none;
-      border-radius: 9999px;
-      background-image: radial-gradient(circle, rgba(23, 101, 121, 0.08), rgba(23, 101, 121, 0.02), transparent 70%);
-      transform: translate(-50%, -50%);
-      will-change: left, top, opacity;
-      transition: left 70ms linear, top 70ms linear, opacity 300ms ease-out;
-      z-index: 10;
-    }
     @keyframes grid-draw { 0% { stroke-dashoffset: 1000; opacity: 0; } 50% { opacity: 0.3; } 100% { stroke-dashoffset: 0; opacity: 0.15; } }
     @keyframes pulse-glow { 0%, 100% { opacity: 0.2; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); } }
     .grid-line { stroke: #176579; stroke-width: 0.5; opacity: 0; stroke-dasharray: 5 5; stroke-dashoffset: 1000; animation: grid-draw 2s ease-out forwards; }
     .detail-dot { fill: #176579; opacity: 0; animation: pulse-glow 3s ease-in-out infinite; }
     .floating-element-animate { position: absolute; width: 2px; height: 2px; background: #176579; border-radius: 50%; opacity: 0; animation: float 4s ease-in-out infinite; animation-play-state: running; }
     @keyframes float { 0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; } 25% { transform: translateY(-10px) translateX(5px); opacity: 0.7; } 50% { transform: translateY(-5px) translateX(-3px); opacity: 0.5; } 75% { transform: translateY(-15px) translateX(7px); opacity: 0.9; } }
-    .ripple-effect { position: fixed; width: 4px; height: 4px; background: rgba(23, 101, 121, 0.6); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; animation: pulse-glow-ripple 1s ease-out forwards; z-index: 9999; }
-    @keyframes pulse-glow-ripple { 0% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); box-shadow: 0 0 0 0 rgba(23, 101, 121, 0.4); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(20); box-shadow: 0 0 0 20px rgba(23, 101, 121, 0); } }
   `;
 
   // Framer Motion Variants
@@ -110,25 +63,6 @@ export function ShippingHero({ officeCount }: { officeCount: number }) {
   return (
     <>
       <style>{pageStyles}</style>
-
-      {/* Mouse Gradient & Ripples */}
-      <div
-        id="mouse-gradient-hero"
-        className="w-60 h-60 blur-xl sm:w-80 sm:h-80 sm:blur-2xl md:w-96 md:h-96 md:blur-3xl"
-        style={{
-          left: mouseGradientStyle.left,
-          top: mouseGradientStyle.top,
-          opacity: mouseGradientStyle.opacity,
-        }}
-      ></div>
-
-      {ripples.map(ripple => (
-        <div
-          key={ripple.id}
-          className="ripple-effect"
-          style={{ left: `${ripple.x}px`, top: `${ripple.y}px` }}
-        ></div>
-      ))}
 
       <section
         className="relative min-h-screen bg-[#FAFAF7] overflow-hidden flex items-center pt-24 pb-16"
