@@ -4,6 +4,7 @@ import { currentSupplier } from "@/lib/supplier-session";
 import { OPEN_STATUSES } from "@/lib/supplier-offer";
 import { OFFICES } from "@/lib/brand";
 import { PHONE_TABS_HEIGHT } from "@/lib/phoneChrome";
+import { roboto } from "@/components/mobile/roboto";
 import { SupplierTopBar } from "@/components/supplier/SupplierTopBar";
 
 export const dynamic = "force-dynamic";
@@ -28,8 +29,10 @@ export default async function SupplierPortalLayout({ children }: { children: Rea
     .catch(() => null);
 
   const whatsapp = OFFICES.dubai.whatsapp;
+  // Alibaba's type, as My AFFHAN has it (components/mobile/roboto.ts), for every page of the Centre and what opens
+  // over them (2026-10-26: "alibaba style ... fonts").
   return (
-    <div className="flex min-h-screen flex-col bg-[#f2f5f6] text-[#10262e]">
+    <div className={`${roboto.className} flex min-h-screen flex-col bg-[#f2f5f6] text-[#10262e]`}>
       <SupplierTopBar companyName={supplier.companyName} name={supplier.name} openCount={openCount} />
       <div className="flex-1">{children}</div>
       <footer className="border-t border-[#dde5e8] bg-white">

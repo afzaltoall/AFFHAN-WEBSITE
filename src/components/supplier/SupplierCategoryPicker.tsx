@@ -144,7 +144,7 @@ function FamilyTab({ id, label, on, onClick }: { id: string; label: string; on: 
 // ---- round pictures ------------------------------------------------------------------------------------------
 
 /** A category as a round picture with its name under it; `on` ringed. `big`: Select category's, three across. */
-function Tile({ category, on, big, eager, onClick }: { category: SupplierCategory; on: boolean; big?: boolean; eager?: boolean; onClick: () => void }) {
+export function Tile({ category, on, big, eager, onClick }: { category: SupplierCategory; on: boolean; big?: boolean; eager?: boolean; onClick: () => void }) {
   const [broken, setBroken] = useState(false);
   const src = broken ? null : getCdnUrl(category.thumbnailUrl, 160);
   return (
@@ -176,7 +176,7 @@ function Tile({ category, on, big, eager, onClick }: { category: SupplierCategor
 }
 
 /** A round tile with the grid mark: View all (a category's own products) or All categories (Select category). */
-function GridTile({ label, ariaLabel, on, big, onClick }: { label: string; ariaLabel?: string; on?: boolean; big?: boolean; onClick: () => void }) {
+export function GridTile({ label, ariaLabel, on, big, onClick }: { label: string; ariaLabel?: string; on?: boolean; big?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"

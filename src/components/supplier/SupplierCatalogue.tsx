@@ -12,7 +12,7 @@ import { overlayEntryIsCurrent, useBackDismiss } from "@/lib/useBackDismiss";
 import { SearchAssistPanel, usePanelFit, useSearchAssist, type AssistProduct } from "@/components/search/SearchAssist";
 import type { SearchKit } from "@/components/search/searchKit";
 import { ApplySheet, type ApplyTarget, type CatalogueProduct, type SentOffer } from "@/components/supplier/ApplySheet";
-import { CategorySheet, CircleRow, FamilyTabs, Trail, largestKinds, placesOf } from "@/components/supplier/SupplierCategoryPicker";
+import { CategorySheet, CircleRow, FamilyTabs, GridTile, Tile, Trail, largestKinds, placesOf } from "@/components/supplier/SupplierCategoryPicker";
 
 /** Products per request: what the site's own catalogue asks for at a time. */
 const PAGE = 40;
@@ -47,6 +47,43 @@ interface Chip {
   best: boolean;
 }
 
+/** One page of the list as /api/products answered it. */
+interface PageData {
+  rows: CatalogueProduct[];
+  total: number;
+  capped: boolean;
+  pages: number;
+  search: SearchInfo | null;
+  facets: Chip[];
+}
+
+/**
+ * One picture width for every card, whatever the screen (2026-10-26). The image resizer makes a product's picture
+ * the first time it is asked for, which took 2-3 s, and the catalogue's million are mostly never asked for; at one
+ * width it is made once for every supplier, and the warm-up below fetches exactly what the card will show. 400px
+ * fills a 250px card at 1.5x and a phone's half-width card at 2x.
+ */
+const TILE_WIDTH = 400;
+const tileSrc = (imageUrl: string | null) => getCdnUrl(imageUrl, TILE_WIDTH);
+
+/** Pictures fetched at once ahead of their cards: forty at once, the resizer failed a third after ten seconds. */
+const WARM_AT_ONCE = 4;
+
+/** A page's pictures, fetched before its cards are drawn (at low priority), so the cards find them in the cache. */
+function warmPictures(rows: CatalogueProduct[]) {
+  const urls = rows.map((r) => tileSrc(r.imageUrl)).filter((u): u is string => Boolean(u));
+  let next = 0;
+  const one = () => {
+    const url = urls[next++];
+    if (!url) return;
+    const img = new Image();
+    img.fetchPriority = "low";
+    img.onload = img.onerror = one;
+    img.src = url;
+  };
+  for (let i = 0; i < WARM_AT_ONCE; i++) one();
+}
+
 /**
  * Runs `work` on the page's own history entry: at once, or, while an overlay's entry is current (Select
  * category, the phone's search: useBackDismiss), once closing it has popped that entry and the browser has
@@ -74,8 +111,9 @@ function onPageEntry(work: () => void): () => void {
  * ones a supplier makes and press "I have this".
  *
  * The whole width, as a marketplace's catalogue uses it ("everything feels centre", the owner): the families
- * down the left, the open one showing its categories, sticky while the products scroll; the search across the
- * top of the products; the grid filling what is left, as many columns as fit.
+ * down the left, the open one showing its categories, going up with the page as an Alibaba listing's do; the
+ * search across the top of the products; the grid filling what is left, as many columns as fit. Its type is
+ * Alibaba's (Roboto, set by the portal's layout), near-black and bold where it leads (2026-10-26).
  *
  * Below 1024px, Alibaba's app ("make like alibaba style perfection select category", the owner, of the phone):
  * the search and the families' row held at the top as the page scrolls, the families' categories as round
@@ -138,14 +176,9 @@ export function SupplierCatalogue({
   const productsFromAssist = useRef<AssistProduct[]>([]);
   // Where the dropdown brings the box up to: under this portal's bar.
   const [barBottom, setBarBottom] = useState(76);
-  // The category list down the left from 1024px, and its families inside it: the list scrolls on its own, and fades
-  // at an edge where more of it goes on.
-  const railList = useRef<HTMLElement>(null);
-  const railItems = useRef<HTMLDivElement>(null);
-  const [railFade, setRailFade] = useState({ top: false, bottom: false });
-  // The family picked in the list whose categories the supplier has closed again: open follows the pick
-  // otherwise, and once picked it could not be closed (the owner, 2026-10-26).
-  const [closedFamily, setClosedFamily] = useState<string | null>(null);
+  // The family whose categories are open beside the list from 1024px, and the box holding the list and them.
+  const [panelFor, setPanelFor] = useState<string | null>(null);
+  const railBox = useRef<HTMLDivElement>(null);
 
   // On a phone the search is the whole screen while it is in use.
   const phoneSearch = focused && isPhone;
@@ -215,7 +248,7 @@ export function SupplierCatalogue({
         next = { ...next, familyId: (up && places.get(up.id)?.familyId) ?? null };
       }
       setScope(next);
-      setClosedFamily(null);
+      setPanelFor(null);
       setTyped("");
       setQuery("");
       setExact(false);
@@ -264,14 +297,23 @@ export function SupplierCatalogue({
   }, [focused]);
 
   // ---- the results -------------------------------------------------------------------------------------------
-  const load = useCallback(
-    async (pageNo: number, reset: boolean) => {
-      const mine = reset ? ++generation.current : generation.current;
-      setStatus("loading");
-      if (reset) {
-        setProducts([]);
-        setFound(null);
+  // Each page is read once and kept while the list is the same one (its search, category and order), and the page
+  // after the one shown is read as soon as that is shown, its pictures fetched with it, so scrolling down meets
+  // products and pictures already there (2026-10-26, "products loading late and sometimes not showing": a page took
+  // 0.4-1 s to read, and a picture the resizer had not made before 2-3 s).
+  const listKey = JSON.stringify([query, exact, scope?.id ?? "", sort]);
+  const pages = useRef({ key: "", pending: new Map<number, Promise<PageData>>(), ready: new Map<number, PageData>() });
+
+  const read = useCallback(
+    (pageNo: number): Promise<PageData> => {
+      const store = pages.current;
+      if (store.key !== listKey) {
+        store.key = listKey;
+        store.pending = new Map();
+        store.ready = new Map();
       }
+      const known = store.pending.get(pageNo);
+      if (known) return known;
       const params = new URLSearchParams({ page: String(pageNo), limit: String(PAGE) });
       if (query) {
         params.set("q", query);
@@ -280,10 +322,11 @@ export function SupplierCatalogue({
       }
       if (scope) params.set("categoryId", scope.id);
       if (sort !== "best") params.set("sortBy", sort);
-      try {
+      // This list's own maps: an answer that comes after the list has changed lands in them, not in the next list's.
+      const { pending, ready } = store;
+      const work = (async () => {
         const res = await fetch(`/api/products/?${params}`);
         const data = await res.json();
-        if (mine !== generation.current) return;
         if (!res.ok || !data?.success) throw new Error("products");
         const rows: CatalogueProduct[] = (data.data as Array<{
           id: number;
@@ -292,35 +335,66 @@ export function SupplierCatalogue({
           category: string | null;
           categoryRef: { name: string | null } | null;
         }>).map((p) => ({ id: p.id, name: p.name, imageUrl: p.imageUrl, category: p.categoryRef?.name ?? p.category ?? null }));
+        const page: PageData = {
+          rows,
+          total: data.pagination?.total ?? rows.length,
+          capped: Boolean(data.pagination?.totalCapped),
+          pages: Number(data.pagination?.totalPages ?? 1),
+          search: data.search ? (data.search as SearchInfo) : null,
+          facets: (data.facets ?? []).map((f: { id: string; name: string; label?: string; count: number }) => ({
+            id: f.id,
+            name: f.label ?? f.name,
+            count: Number(f.count) || 0,
+            best: false,
+          })),
+        };
+        ready.set(pageNo, page);
+        return page;
+      })();
+      // A page that could not be read is asked for again the next time.
+      work.catch(() => pending.delete(pageNo));
+      pending.set(pageNo, work);
+      return work;
+    },
+    [listKey, query, scope, sort, exact],
+  );
+
+  const load = useCallback(
+    async (pageNo: number, reset: boolean) => {
+      const mine = reset ? ++generation.current : generation.current;
+      if (reset) {
+        setProducts([]);
+        setFound(null);
+      }
+      // A page read ahead goes straight on; only one still on its way shows the loading cards.
+      const ahead = pages.current.key === listKey ? pages.current.ready.get(pageNo) : undefined;
+      if (!ahead) setStatus("loading");
+      try {
+        const data = ahead ?? (await read(pageNo));
+        if (mine !== generation.current) return;
         setProducts((before) => {
           const base = reset ? [] : before;
           const seen = new Set(base.map((p) => p.id));
-          return [...base, ...rows.filter((r) => !seen.has(r.id) && Boolean(seen.add(r.id)))];
+          return [...base, ...data.rows.filter((r) => !seen.has(r.id) && Boolean(seen.add(r.id)))];
         });
         setPage(pageNo);
         if (pageNo === 1) {
-          setFound({ total: data.pagination?.total ?? rows.length, capped: Boolean(data.pagination?.totalCapped) });
-          setInfo(data.search ? (data.search as SearchInfo) : null);
-          setFacets(
-            (data.facets ?? []).map((f: { id: string; name: string; label?: string; count: number }) => ({
-              id: f.id,
-              name: f.label ?? f.name,
-              count: Number(f.count) || 0,
-              best: false,
-            })),
-          );
+          setFound({ total: data.total, capped: data.capped });
+          setInfo(data.search);
+          setFacets(data.facets);
         }
-        const pages = Number(data.pagination?.totalPages ?? 1);
         // With no search and no category, page 1 is the homepage's shuffled showcase (the daily refresh's stored
         // pool, which can be short, or missing before a refresh) and page 2 on is the whole catalogue in order;
         // so page 1 never ends the list, and an empty one simply moves on to page 2.
         const showcase = !query && !scope && pageNo === 1;
-        setStatus(!showcase && (rows.length < PAGE || pageNo >= pages) ? "end" : "idle");
+        const more = showcase || (data.rows.length >= PAGE && pageNo < data.pages);
+        setStatus(more ? "idle" : "end");
+        if (more) void read(pageNo + 1).then((next) => warmPictures(next.rows)).catch(() => {});
       } catch {
         if (mine === generation.current) setStatus("error");
       }
     },
-    [query, scope, sort, exact],
+    [listKey, read, query, scope],
   );
 
   // A new search, category or order starts the list again, from the top of the products.
@@ -328,13 +402,14 @@ export function SupplierCatalogue({
     void load(1, true);
   }, [load]);
 
-  // The next page when the end of the list comes near; again at once if the screen is still not full.
+  // The next page when the end of the list comes near (two screens ahead); again at once if the screen is still
+  // not full.
   useEffect(() => {
     const el = sentinel.current;
     if (!el || status !== "idle") return;
     const io = new IntersectionObserver((entries) => {
       if (entries[0]?.isIntersecting) void load(page + 1, false);
-    }, { rootMargin: "900px 0px" });
+    }, { rootMargin: "1600px 0px" });
     io.observe(el);
     return () => io.disconnect();
   }, [status, page, load]);
@@ -367,49 +442,42 @@ export function SupplierCatalogue({
 
   const choose = (next: Scope | null) => {
     setScope(next);
-    setClosedFamily(null);
+    setPanelFor(null);
     if (!next || query) setSort("best");
   };
 
-  // ---- the category list from 1024px -----------------------------------------------------------------------
-  // On a laptop the families are taller than the screen. The list scrolls inside the rail with "Not in the
-  // catalogue?" held under it (2026-10-26: the card had been the list's last item, cut off at the screen's foot,
-  // and Edge drew a scrollbar with arrow buttons down the families). Its bar is a faint thumb (.rail-scroll),
-  // and a fade at an edge says where more of the list goes on.
-  const measureRail = useCallback(() => {
-    const el = railList.current;
-    if (!el) return;
-    const top = el.scrollTop > 2;
-    const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 2;
-    setRailFade((f) => (f.top === top && f.bottom === bottom ? f : { top, bottom }));
-  }, []);
+  // ---- the category list from 1024px ------------------------------------------------------------------------
+  // Held beside the products as they scroll (the owner, 2026-10-26: "while scrolling side bar have to be in fixed"),
+  // so it has to fit the screen: the families alone, in rows of 32px. A family's categories open beside the list
+  // as round pictures, as Alibaba's do, rather than inside it, where up to fifteen made it taller than the screen:
+  // it scrolled inside itself ("because sidebar scroll"), and at the products' end it was pushed up under the bar.
+  // The family's row opens them and closes them again; it also shows the family's products.
+  const openFamily = (f: SupplierFamily) => {
+    if (panelFor === f.id) {
+      setPanelFor(null);
+      return;
+    }
+    if (scope?.id !== f.id) choose({ id: f.id, name: f.name, familyId: f.id });
+    setPanelFor(f.children.length > 0 ? f.id : null);
+  };
+  // The panel closes on a press anywhere but the list and itself, and on Escape.
   useEffect(() => {
-    const el = railList.current;
-    const items = railItems.current;
-    if (!el || !items) return;
-    measureRail();
-    // The window's height sizes the list; a family opening sizes what is in it.
-    const ro = new ResizeObserver(measureRail);
-    ro.observe(el);
-    ro.observe(items);
-    return () => ro.disconnect();
-  }, [measureRail]);
-  // A category picked from elsewhere (a search's chips, its suggestions, the address) is brought into the list's
-  // view, clear of the fades; the window itself never moves for it.
-  useEffect(() => {
-    const el = railList.current;
-    const picked = el?.querySelector<HTMLElement>('[aria-pressed="true"]');
-    if (!el || !picked || el.scrollHeight <= el.clientHeight) return;
-    const clear = 28;
-    const r = picked.getBoundingClientRect();
-    const box = el.getBoundingClientRect();
-    if (r.top < box.top + clear) el.scrollTop -= box.top + clear - r.top;
-    else if (r.bottom > box.bottom - clear) el.scrollTop += r.bottom - (box.bottom - clear);
-  }, [scope?.id]);
-  const railMask =
-    railFade.top || railFade.bottom
-      ? `linear-gradient(to bottom, ${railFade.top ? "transparent 0, #000 22px" : "#000 0"}, ${railFade.bottom ? "#000 calc(100% - 30px), transparent 100%" : "#000 100%"})`
-      : undefined;
+    if (!panelFor) return;
+    const away = (e: PointerEvent) => {
+      if (!railBox.current?.contains(e.target as Node)) setPanelFor(null);
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPanelFor(null);
+    };
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [panelFor]);
+  const panelFamily = panelFor ? families.find((f) => f.id === panelFor) : undefined;
+
 
   // A category picked below 1024px (the families' row, the pictures, Select category, the trail): its list,
   // from the top.
@@ -452,27 +520,18 @@ export function SupplierCatalogue({
   const heading = query ? (
     <>
       Results for <span className="text-brand-dark">“{shownWords}”</span>
-      {scope ? <span className="text-[#5b6f76]"> in {scope.name}</span> : null}
+      {scope ? <span className="text-[#666]"> in {scope.name}</span> : null}
     </>
-  ) : scope ? (
-    scope.name
   ) : (
-    "Our catalogue"
+    scope?.name
   );
   const foundLine = found
     ? info?.loose
       ? "No product has every word. These come closest."
       : `${found.capped ? `${count(found.total)}+` : count(found.total)} ${found.total === 1 ? "product" : "products"}`
     : "";
-  const sub =
-    status === "loading" && !found
-      ? "Finding products…"
-      : query || scope
-        ? foundLine
-        : total
-          ? // Said here once, as the shop says a list's size; not again in the search box above (the owner's rule).
-            `${count(total)} products`
-          : "Search by name, or pick a category.";
+  // Under a search's or a category's heading (the whole catalogue's size is in the card at the top).
+  const sub = status === "loading" && !found ? "Finding products…" : foundLine;
   // Below 1024px a category's size is in its heading, as the shop's category page has it; so the line under says
   // only what a search found, or, before anything is picked, what to do.
   const scopeSize = place?.count ?? found?.total ?? null;
@@ -484,9 +543,10 @@ export function SupplierCatalogue({
       ? ""
       : "Tap “I have this” on anything your company makes or stocks.";
 
+  // Alibaba's category list: rows of 32px (28px inside a family) in near-black, the picked one bold on the bar's navy.
   const railButton = (active: boolean, nested = false) =>
-    `group flex w-full items-center gap-2 rounded-xl text-left transition-colors ${nested ? "px-2.5 py-1.5 text-[13px]" : "px-3 py-2 text-[14px]"} ${
-      active ? "bg-[#0b2230] font-semibold text-white" : `font-medium text-[#33494f] hover:bg-white hover:text-[#0b2230] ${nested ? "" : "hover:shadow-[0_1px_0_rgba(11,34,48,0.04)]"}`
+    `group flex w-full items-center gap-2 rounded-lg text-left leading-5 transition-colors ${nested ? "px-2.5 py-1 text-[13px]" : "px-3 py-1.5 text-[14px]"} ${
+      active ? "bg-[#0b2230] font-bold text-white" : `${nested ? "font-normal text-[#333]" : "font-medium text-[#222]"} hover:bg-white hover:text-[#0b2230]`
     }`;
   const ownProduct = () => setSheet({ kind: "own", name: query || undefined });
 
@@ -526,78 +586,78 @@ export function SupplierCatalogue({
   return (
     <main className="px-4 pb-16 sm:px-6 lg:px-8 lg:pt-7">
       <div className="lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-10">
-        {/* The families, down the left from lg: sticky under the bar while the products scroll. */}
+        {/* The families, down the left from lg, held under the bar while the products scroll (see openFamily). On a
+            screen too short for even the families, the list goes up with the page instead. */}
         <aside className="hidden lg:block" aria-label="Categories">
-          {/* No taller than the screen under the bar, 20px clear of its foot as it is of the bar: the families
-              scroll inside, and the card under them stays whole. */}
-          <div className="sticky top-[76px] flex max-h-[calc(100dvh-96px)] flex-col">
-            <p className="shrink-0 px-3 pb-2 text-[15px] font-extrabold tracking-tight text-[#0b2230]">Categories</p>
-            <nav
-              ref={railList}
-              onScroll={measureRail}
-              style={railMask ? { maskImage: railMask, WebkitMaskImage: railMask } : undefined}
-              className="rail-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]"
-            >
-              <div ref={railItems} className="space-y-0.5">
-                <button type="button" onClick={() => choose(null)} aria-pressed={!scope} className={railButton(!scope)}>
-                  All products
-                </button>
-                {families.map((f) => {
-                  const openFamily = scope?.familyId === f.id && closedFamily !== scope.id;
-                  return (
-                    <div key={f.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          // The picked family's own row closes its categories, and opens them again; the products
-                          // stay the family's. Any other row picks, as does this one while one of its categories is
-                          // picked: up to the whole family, still open.
-                          if (scope?.id === f.id) setClosedFamily((c) => (c === f.id ? null : f.id));
-                          else choose({ id: f.id, name: f.name, familyId: f.id });
-                        }}
-                        aria-pressed={scope?.id === f.id}
-                        aria-expanded={openFamily}
-                        className={railButton(scope?.id === f.id)}
-                      >
-                        <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                        {f.children.length > 0 && (
-                          <ChevronRight
-                            className={`h-4 w-4 shrink-0 transition-transform ${openFamily ? "rotate-90" : ""} ${scope?.id === f.id ? "text-white/70" : "text-[#9aabb0]"}`}
-                            aria-hidden="true"
-                          />
-                        )}
-                      </button>
-                      {openFamily && f.children.length > 0 && (
-                        <div className="my-1 ml-4 space-y-0.5 border-l border-[#d5e0e3] pl-2">
-                          {f.children.map((c) => (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => choose({ id: c.id, name: c.name, familyId: f.id })}
-                              aria-pressed={scope?.id === c.id}
-                              className={railButton(scope?.id === c.id, true)}
-                            >
-                              <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </nav>
-            {/* Its right edge on the families' own: the list's 4px and its 6px gutter, kept whether or not it scrolls. */}
-            <div className="mr-2.5 mt-3 shrink-0 rounded-2xl bg-white p-3.5 ring-1 ring-[#e1e8ea]">
-              <p className="flex items-center gap-2 text-[13.5px] font-bold text-[#0b2230]">
-                <PackagePlus className="h-[18px] w-[18px] shrink-0 text-brand-dark" aria-hidden="true" />
-                Not in the catalogue?
-              </p>
-              <p className="mt-1 text-[12.5px] leading-snug text-[#5b6f76]">Apply with a product of your own, and the team looks at it like any other.</p>
-              <button type="button" onClick={ownProduct} className="mt-2.5 w-full rounded-xl bg-[#0b2230] px-3 py-2 text-[12.5px] font-bold text-white hover:bg-[#143547]">
-                Apply with your own product
+          {/* Held, the list is a layer of its own, and its panel's z-index counts only inside it: under it, the product
+              cards (later in the page, their pictures positioned) and then the search box (z-30) were drawn over the
+              open panel. So the list is above both and under the bar (z-40); the search's suggestions never meet the
+              panel, which closes on a press outside the list. */}
+          <div ref={railBox} className="relative z-[35] lg:sticky lg:top-[76px] [@media(max-height:719px)]:static">
+            <p className="px-3 pb-1.5 text-[16px] font-bold text-[#111]">Categories</p>
+            <nav className="space-y-px">
+              <button type="button" onClick={() => choose(null)} aria-pressed={!scope} className={railButton(!scope)}>
+                All products
               </button>
-            </div>
+              {families.map((f) => {
+                const here = scope?.familyId === f.id;
+                const open = panelFor === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => openFamily(f)}
+                    aria-pressed={here}
+                    aria-expanded={f.children.length > 0 ? open : undefined}
+                    aria-controls={open ? "family-panel" : undefined}
+                    className={`${railButton(here)} ${open && !here ? "bg-white" : ""}`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                    {f.children.length > 0 && (
+                      <ChevronRight className={`h-4 w-4 shrink-0 ${here ? "text-white/70" : "text-[#999]"}`} aria-hidden="true" />
+                    )}
+                  </button>
+                );
+              })}
+            </nav>
+
+            {/* The open family's categories, beside the list and over the products, as round pictures (the phone's,
+                and Alibaba's): View all first (the family's own products), then each with its picture. */}
+            {panelFamily && (
+              <div
+                id="family-panel"
+                role="region"
+                aria-label={`Categories in ${panelFamily.name}`}
+                className="absolute left-full top-0 z-30 ml-3 w-[30rem] max-w-[calc(100vw-22rem)] rounded-2xl bg-white p-5 shadow-[0_18px_48px_rgba(0,0,0,0.16)] ring-1 ring-[#e6e6e6]"
+              >
+                <div className="mb-4 flex items-baseline justify-between gap-3">
+                  <p className="min-w-0 truncate text-[16px] font-bold text-[#111]">{panelFamily.name}</p>
+                  <p className="shrink-0 text-[12.5px] tabular-nums text-[#777]">{count(panelFamily.count)} products</p>
+                </div>
+                <ul className="grid grid-cols-4 gap-x-3 gap-y-4">
+                  <li>
+                    <GridTile
+                      label="View all"
+                      ariaLabel={`All of ${panelFamily.name}`}
+                      on={scope?.id === panelFamily.id}
+                      big
+                      onClick={() => choose({ id: panelFamily.id, name: panelFamily.name, familyId: panelFamily.id })}
+                    />
+                  </li>
+                  {panelFamily.children.map((g) => (
+                    <li key={g.id}>
+                      <Tile
+                        category={g}
+                        on={scope?.id === g.id}
+                        big
+                        eager
+                        onClick={() => choose({ id: g.id, name: g.name, familyId: panelFamily.id })}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </aside>
 
@@ -609,16 +669,33 @@ export function SupplierCatalogue({
               products. */}
           <div
             ref={strip}
-            className="sticky top-0 z-[45] -mx-4 border-b border-slate-200/70 bg-white sm:-mx-6 md:top-14 lg:static lg:z-auto lg:mx-0 lg:rounded-[22px] lg:border-0 lg:px-7 lg:py-6 lg:ring-1 lg:ring-[#e1e8ea]"
+            className="sticky top-0 z-[45] -mx-4 border-b border-slate-200/70 bg-white sm:-mx-6 md:top-14 lg:static lg:z-auto lg:mx-0 lg:rounded-2xl lg:border-0 lg:px-6 lg:py-5 lg:ring-1 lg:ring-[#e6e6e6]"
           >
-            <h1 className="hidden text-[26px] font-extrabold tracking-tight text-[#0b2230] lg:block">Which of these can you supply?</h1>
-            <p className="mt-1 hidden text-[14px] leading-relaxed text-[#4b6168] lg:block">
-              Press <span className="font-semibold text-[#0b2230]">I have this</span> on any product your company makes or stocks, and tell us
-              your minimum order. Our sourcing team reviews every application.
-            </p>
+            {/* One plain heading and one line, so the products start under the search (2026-10-26: they had been
+                "nudged" down the screen by a poster heading, a paragraph, and the list's own heading); and the way to
+                apply with a product not listed, which had been a card under the families, where they no longer fit. */}
+            <div className="hidden items-start justify-between gap-4 lg:flex">
+              <div className="min-w-0">
+                <h1 className="text-[22px] font-bold leading-tight text-[#111]">Which of these can you supply?</h1>
+                <p className="mt-1 text-[14px] text-[#555]">
+                  {/* The catalogue's size, said once. */}
+                  {total ? <span className="font-medium tabular-nums text-[#222]">{`${count(total)} products. `}</span> : null}
+                  Press <span className="font-bold text-[#222]">I have this</span> on anything your company makes or stocks, and tell us
+                  your minimum order.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={ownProduct}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[13px] font-bold text-brand-dark ring-1 ring-[#cfdcdf] transition-colors hover:bg-[#f2f8f9]"
+              >
+                <PackagePlus className="h-4 w-4" aria-hidden="true" />
+                Not listed? Apply with your own product
+              </button>
+            </div>
 
             {/* Keeps the strip's height while, on a phone, the search is the whole screen. */}
-            <div className="h-14 px-4 py-2 sm:px-6 lg:mt-4 lg:h-auto lg:p-0">
+            <div className="h-14 px-4 py-2 sm:px-6 lg:mt-3.5 lg:h-auto lg:p-0">
               <div ref={searchBox} className={phoneSearch ? "pc-sheet fixed inset-0 z-[150] flex flex-col bg-white" : "relative z-30"}>
                 <form
                   role="search"
@@ -782,24 +859,34 @@ export function SupplierCatalogue({
             )}
           </div>
 
-          <div className="mt-6 hidden flex-wrap items-end justify-between gap-x-4 gap-y-3 lg:flex">
-            <div className="min-w-0">
-              <h2 className="text-[18px] font-bold tracking-tight text-[#0b2230]">{heading}</h2>
-              <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-[#5b6f76]">
-                <span className="tabular-nums">{sub}</span>
-                {scope && (
-                  <button
-                    type="button"
-                    onClick={() => choose(null)}
-                    className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[12px] font-semibold text-[#33494f] ring-1 ring-[#dbe4e7] hover:ring-brand/60"
-                  >
-                    {query ? "Search every category" : "All products"} <X className="h-3 w-3" aria-hidden="true" />
-                  </button>
+          {/* A search's or a category's own heading, its size and its order; the whole catalogue needs none, the card
+              above says what it is. */}
+          {(query || scope) && (
+            <div className="mt-5 hidden flex-wrap items-end justify-between gap-x-4 gap-y-3 lg:flex">
+              <div className="min-w-0">
+                {/* Where a category sits, and the way back up: the list beside shows only the families. */}
+                {scope && !query && (
+                  <div className="mb-1">
+                    <Trail path={place?.path ?? [{ id: scope.id, name: scope.name }]} onPick={pick} />
+                  </div>
                 )}
-              </p>
+                <h2 className="text-[18px] font-bold text-[#111]">{heading}</h2>
+                <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-[#666]">
+                  <span className="tabular-nums">{sub}</span>
+                  {scope && query && (
+                    <button
+                      type="button"
+                      onClick={() => choose(null)}
+                      className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-0.5 text-[12px] font-medium text-[#333] ring-1 ring-[#e0e0e0] hover:ring-brand/60"
+                    >
+                      Search every category <X className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                  )}
+                </p>
+              </div>
+              {sortSelect(false)}
             </div>
-            {(query || scope) && sortSelect(false)}
-          </div>
+          )}
 
           {query && info?.corrected && (
             <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-[#5b6f76]">
@@ -941,27 +1028,33 @@ function ProductTile({
   offerId: string | undefined;
   onApply: () => void;
 }) {
-  const [broken, setBroken] = useState(false);
-  const src = getCdnUrl(product.imageUrl, 400);
+  const resized = tileSrc(product.imageUrl);
+  const original = getCdnUrl(product.imageUrl);
+  // The resized picture; the original if the resizer fails it (some failed after ten seconds); then none.
+  const [src, setSrc] = useState(resized);
+  // A shimmer until the picture is in, not an empty grey square that reads as "not showing".
+  const [shown, setShown] = useState(false);
   return (
-    <article className="group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-[#e1e8ea] transition-shadow hover:shadow-[0_10px_28px_rgba(11,34,48,0.10)] hover:ring-[#c9dade]">
-      <button type="button" onClick={onApply} className="relative block aspect-square overflow-hidden bg-[#f4f7f8]" aria-label={`Apply to supply ${product.name}`}>
-        {src && !broken ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={src}
-            srcSet={[200, 260, 340, 400].map((w) => `${getCdnUrl(product.imageUrl, w)} ${w}w`).join(", ")}
-            sizes="(max-width: 639px) 46vw, 240px"
-            alt=""
-            width={400}
-            height={400}
-            loading={eager ? "eager" : "lazy"}
-            decoding="async"
-            onError={() => setBroken(true)}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-          />
+    <article className="group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-[#ececec] transition-shadow hover:shadow-[0_10px_28px_rgba(0,0,0,0.08)] hover:ring-[#dcdcdc]">
+      <button type="button" onClick={onApply} className="relative block aspect-square overflow-hidden bg-[#f5f5f5]" aria-label={`Apply to supply ${product.name}`}>
+        {src ? (
+          <>
+            {!shown && <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-[#eceff0]" />}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={src}
+              alt=""
+              width={TILE_WIDTH}
+              height={TILE_WIDTH}
+              loading={eager ? "eager" : "lazy"}
+              decoding="async"
+              onLoad={() => setShown(true)}
+              onError={() => setSrc((s) => (s === resized && original && original !== resized ? original : null))}
+              className={`relative h-full w-full object-cover transition-[opacity,transform] duration-300 group-hover:scale-[1.04] ${shown ? "opacity-100" : "opacity-0"}`}
+            />
+          </>
         ) : (
-          <span className="flex h-full items-center justify-center text-[12px] text-[#9aabb0]">No picture</span>
+          <span className="flex h-full items-center justify-center text-[12px] text-[#999]">No picture</span>
         )}
         {offerId && (
           <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-0.5 text-[11px] font-bold text-white shadow-sm">
@@ -970,12 +1063,12 @@ function ProductTile({
         )}
       </button>
       <div className="flex flex-1 flex-col p-3">
-        {product.category && <p className="truncate text-[11.5px] font-medium text-[#6d8288]">{product.category}</p>}
-        <h3 className="mt-0.5 line-clamp-2 min-h-[2.6em] text-[13px] font-semibold leading-[1.3] text-[#10262e]">{product.name}</h3>
+        {product.category && <p className="truncate text-[12px] text-[#777]">{product.category}</p>}
+        <h3 className="mt-0.5 line-clamp-2 min-h-[2.7em] text-[14px] font-medium leading-[1.35] text-[#222]">{product.name}</h3>
         {offerId ? (
           <Link
             href={`/supplier/applications/#${offerId}`}
-            className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center text-[12.5px] font-bold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-100"
+            className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-center text-[13px] font-bold text-emerald-800 ring-1 ring-emerald-200 hover:bg-emerald-100"
           >
             View application
           </Link>
@@ -983,7 +1076,7 @@ function ProductTile({
           <button
             type="button"
             onClick={onApply}
-            className="mt-3 rounded-xl bg-white px-3 py-2 text-[12.5px] font-bold text-brand-dark ring-1 ring-[#bcd3d9] transition-colors group-hover:bg-brand-dark group-hover:text-white group-hover:ring-brand-dark"
+            className="mt-3 rounded-xl bg-white px-3 py-2 text-[13px] font-bold text-brand-dark ring-1 ring-[#bcd3d9] transition-colors group-hover:bg-brand-dark group-hover:text-white group-hover:ring-brand-dark"
           >
             I have this
           </button>
