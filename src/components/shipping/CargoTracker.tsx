@@ -173,11 +173,11 @@ function Result({ cargo }: { cargo: CargoTrack }) {
     <article id="cargo-result" aria-label={`Cargo ${cargo.reference}`} className="overflow-hidden rounded-2xl border border-[#08222e]/10 bg-white">
       {/* Printing shows the result alone. */}
       <style>{`@media print { body * { visibility: hidden !important; } #cargo-result, #cargo-result * { visibility: visible !important; } #cargo-result { position: absolute; left: 0; top: 0; width: 100%; border: 0; } .cargo-noprint { display: none !important; } }`}</style>
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#08222e]/10 px-6 py-5 sm:px-8">
-        <div className="min-w-0">
-          <p className={factLabel}>Cargo number</p>
-          <p className="break-all text-[24px] font-bold tracking-tight text-[#08222e]">{cargo.reference}</p>
-        </div>
+      {/* One line, as the carrier's tracker heads its result ("Container # FFAU8299138", the owner's reference). */}
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#08222e]/10 px-6 py-4 sm:px-8">
+        <p className="min-w-0 break-all text-[17px] text-[#08222e]">
+          Cargo # <span className="font-bold">{cargo.reference}</span>
+        </p>
         <button
           type="button"
           onClick={() => window.print()}
