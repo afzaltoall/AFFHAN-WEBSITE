@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import { AlertCircle, CheckCircle2, ExternalLink, Loader2, PackagePlus, Pencil, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, ExternalLink, Loader2, Pencil, X } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { lockBodyScroll } from "@/lib/scrollLock";
 import { DETAILS_MAX, MOQ_UNITS, moqPhrase, readOffer, type SupplierContact } from "@/lib/supplier-offer";
@@ -51,13 +51,41 @@ export function ApplySheet({
   contact,
   onClose,
   onSent,
+  onPickCatalogue,
 }: {
   target: ApplyTarget;
   contact: ContactDraft;
   onClose: () => void;
   onSent: (offer: SentOffer) => void;
+  /** A product of the catalogue's chosen from "Similar products in our catalogue": its own application instead. */
+  onPickCatalogue?: (product: CatalogueProduct) => void;
 }) {
   const [productName, setProductName] = useState(target.kind === "own" ? target.name ?? "" : "");
+  // Adding a product not in the catalogue, the catalogue's own that are like what is typed, each with "I have this":
+  // a supplier never adds one we already list as their own (the owner, 2026-10-26: "user confuse aga koodadhu").
+  const [similar, setSimilar] = useState<CatalogueProduct[]>([]);
+  useEffect(() => {
+    if (target.kind !== "own") return;
+    const words = productName.trim();
+    if (words.length < 3) {
+      setSimilar([]);
+      return;
+    }
+    const stop = new AbortController();
+    const wait = window.setTimeout(() => {
+      fetch(`/api/products/?${new URLSearchParams({ q: words, page: "1", limit: "3" })}`, { signal: stop.signal })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          const rows = (data?.data ?? []) as Array<{ id: number; name: string; imageUrl: string | null; category: string | null; categoryRef: { name: string | null } | null }>;
+          setSimilar(rows.slice(0, 3).map((p) => ({ id: p.id, name: p.name, imageUrl: p.imageUrl, category: p.categoryRef?.name ?? p.category ?? null })));
+        })
+        .catch(() => {});
+    }, 450);
+    return () => {
+      window.clearTimeout(wait);
+      stop.abort();
+    };
+  }, [productName, target.kind]);
   const [moq, setMoq] = useState("");
   const [unit, setUnit] = useState<string>("pieces");
   const [details, setDetails] = useState("");
@@ -156,7 +184,7 @@ export function ApplySheet({
       >
         <div className="flex items-center gap-3 border-b border-[#e6ecee] px-5 py-3.5">
           <h2 id="apply-title" className="flex-1 text-[16px] font-bold tracking-tight">
-            {sent ? "Application sent" : target.kind === "own" ? "Apply with your own product" : "Apply to supply this product"}
+            {sent ? "Application sent" : target.kind === "own" ? "Add a product not in our catalogue" : "Apply to supply this product"}
           </h2>
           <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full text-[#5b6f76] hover:bg-[#eef3f4]">
             <X className="h-5 w-5" />
@@ -222,10 +250,8 @@ export function ApplySheet({
                 </div>
               ) : (
                 <div>
-                  <div className="mb-3 flex gap-3 rounded-2xl bg-[#f4f7f8] p-3 text-[12.5px] leading-snug text-[#33494f] ring-1 ring-[#e3eaec]">
-                    <PackagePlus className="mt-0.5 h-5 w-5 shrink-0 text-brand-dark" aria-hidden="true" />
-                    Not in our catalogue? Tell us what it is, and the team will look at it like any other application.
-                  </div>
+                  {/* No note over the form: its "Not in our catalogue? …" read as written by AI (the owner, 2026-10-26),
+                      and the sheet's own title says what this is. */}
                   <label htmlFor="apply-name" className={authLabel}>
                     Product name
                   </label>
@@ -237,6 +263,32 @@ export function ApplySheet({
                     className={authInput + ring("productName")}
                   />
                   {fieldError("productName")}
+                  {similar.length > 0 && onPickCatalogue && (
+                    <div className="mt-2 rounded-xl bg-[#f6f8f9] p-2.5 ring-1 ring-[#e6ecee]">
+                      <p className="px-1 pb-2 text-[12.5px] font-semibold text-[#444]">Similar products in our catalogue</p>
+                      <ul className="space-y-1.5">
+                        {similar.map((p) => {
+                          const thumb = getCdnUrl(p.imageUrl, 100);
+                          return (
+                            <li key={p.id} className="flex items-center gap-2.5 rounded-lg bg-white p-1.5 ring-1 ring-[#eef2f3]">
+                              <span className="size-10 shrink-0 overflow-hidden rounded-md bg-[#f2f2f2]">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                {thumb && <img src={thumb} alt="" width={40} height={40} className="h-full w-full object-cover" />}
+                              </span>
+                              <span className="min-w-0 flex-1 truncate text-[13px] text-[#222]">{p.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => onPickCatalogue(p)}
+                                className="shrink-0 rounded-lg px-2.5 py-1.5 text-[12px] font-bold text-brand-dark ring-1 ring-[#bcd3d9] transition-colors hover:bg-brand-dark hover:text-white"
+                              >
+                                I have this
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -291,8 +343,9 @@ export function ApplySheet({
               </div>
 
               <div>
+                {/* Not called optional (the owner, 2026-10-26: "dont mention photos optional"); none are still accepted. */}
                 <p className={authLabel}>
-                  Photos <span className="font-normal text-[#7b8d93]">(optional, up to 5)</span>
+                  Photos <span className="font-normal text-[#7b8d93]">(up to 5)</span>
                 </p>
                 <PhotoPicker onChange={setPhotos} onBusyChange={setUploading} />
                 {fieldError("photos")}

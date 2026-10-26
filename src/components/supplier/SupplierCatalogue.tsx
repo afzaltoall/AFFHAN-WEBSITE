@@ -533,15 +533,9 @@ export function SupplierCatalogue({
   // Under a search's or a category's heading (the whole catalogue's size is in the card at the top).
   const sub = status === "loading" && !found ? "Finding products…" : foundLine;
   // Below 1024px a category's size is in its heading, as the shop's category page has it; so the line under says
-  // only what a search found, or, before anything is picked, what to do.
+  // only what a search found.
   const scopeSize = place?.count ?? found?.total ?? null;
-  const phoneSub = query
-    ? status === "loading" && !found
-      ? "Finding products…"
-      : foundLine
-    : scope
-      ? ""
-      : "Tap “I have this” on anything your company makes or stocks.";
+  const phoneSub = query ? (status === "loading" && !found ? "Finding products…" : foundLine) : "";
 
   // Alibaba's category list: rows of 32px (28px inside a family) in near-black, the picked one bold on the bar's navy.
   const railButton = (active: boolean, nested = false) =>
@@ -573,10 +567,7 @@ export function SupplierCatalogue({
   const welcomeNote = (className: string) => (
     <div className={`items-start gap-3 rounded-2xl bg-emerald-50 px-4 py-3.5 ring-1 ring-emerald-200/70 ${className}`}>
       <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
-      <p className="flex-1 text-[13.5px] leading-relaxed text-emerald-900">
-        <span className="font-bold">Welcome, {firstName}. Your supplier account is ready.</span> Find a product your company makes or stocks,
-        and press <span className="font-semibold">I have this</span>.
-      </p>
+      <p className="flex-1 text-[13.5px] font-medium leading-relaxed text-emerald-900">Welcome, {firstName}. Your supplier account is ready.</p>
       <button type="button" onClick={() => setShowWelcome(false)} aria-label="Dismiss" className="rounded-full p-1 text-emerald-700 hover:bg-emerald-100">
         <X className="h-4 w-4" />
       </button>
@@ -671,26 +662,19 @@ export function SupplierCatalogue({
             ref={strip}
             className="sticky top-0 z-[45] -mx-4 border-b border-slate-200/70 bg-white sm:-mx-6 md:top-14 lg:static lg:z-auto lg:mx-0 lg:rounded-2xl lg:border-0 lg:px-6 lg:py-5 lg:ring-1 lg:ring-[#e6e6e6]"
           >
-            {/* One plain heading and one line, so the products start under the search (2026-10-26: they had been
-                "nudged" down the screen by a poster heading, a paragraph, and the list's own heading); and the way to
-                apply with a product not listed, which had been a card under the families, where they no longer fit. */}
-            <div className="hidden items-start justify-between gap-4 lg:flex">
-              <div className="min-w-0">
-                <h1 className="text-[22px] font-bold leading-tight text-[#111]">Which of these can you supply?</h1>
-                <p className="mt-1 text-[14px] text-[#555]">
-                  {/* The catalogue's size, said once. */}
-                  {total ? <span className="font-medium tabular-nums text-[#222]">{`${count(total)} products. `}</span> : null}
-                  Press <span className="font-bold text-[#222]">I have this</span> on anything your company makes or stocks, and tell us
-                  your minimum order.
-                </p>
-              </div>
+            {/* The page's name and the way to add a product the catalogue does not list, as a marketplace labels them
+                (2026-10-26: "some contents are feels like ai": the question for a heading, the sentence of
+                instructions with words in bold, "Not listed?" before the button). The products start under the
+                search; the catalogue's size is in the box. */}
+            <div className="hidden items-center justify-between gap-4 lg:flex">
+              <h1 className="text-[22px] font-bold leading-tight text-[#111]">Find products</h1>
               <button
                 type="button"
                 onClick={ownProduct}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white px-3.5 py-2 text-[13px] font-bold text-brand-dark ring-1 ring-[#cfdcdf] transition-colors hover:bg-[#f2f8f9]"
               >
                 <PackagePlus className="h-4 w-4" aria-hidden="true" />
-                Not listed? Apply with your own product
+                Add a product not in our catalogue
               </button>
             </div>
 
@@ -732,9 +716,9 @@ export function SupplierCatalogue({
                         setFocused(true);
                       }}
                       onFocus={() => setFocused(true)}
-                      // The catalogue's size is said once, under the search. A phone's box holds two words: the
-                      // examples were cut mid-word there ("like “bluet"), and its search lists them when opened.
-                      placeholder={isPhone ? "Search products" : "Search products, like “bluetooth earbuds” or “cotton t-shirt”"}
+                      // The catalogue's size, said here once, as a shop's box says it. No examples in it: they read as
+                      // written for the page, and were cut mid-word on a phone; the search lists some when opened.
+                      placeholder={total ? `Search ${count(total)} products` : "Search products"}
                       aria-label="Search the catalogue"
                       className="h-full min-w-0 flex-1 bg-transparent pl-1 text-[15px] text-[#10262e] outline-none placeholder:text-slate-500 lg:py-2 lg:pl-0 lg:placeholder:text-[#8a9ba0]"
                     />
@@ -796,7 +780,7 @@ export function SupplierCatalogue({
                           className="inline-flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-[12.5px] font-semibold text-brand-dark hover:bg-brand/5"
                         >
                           <PackagePlus size={14} aria-hidden="true" />
-                          Not listed? Apply with your own product
+                          Add a product not in our catalogue
                           <ChevronRight size={14} aria-hidden="true" />
                         </button>
                       }
@@ -842,7 +826,7 @@ export function SupplierCatalogue({
                   {scopeSize !== null && <span className="whitespace-nowrap text-[14px] font-semibold tabular-nums text-slate-500">({count(scopeSize)})</span>}
                 </h2>
               ) : (
-                <h1 className="min-w-0 text-[19px] font-bold leading-tight text-slate-900">Which of these can you supply?</h1>
+                <h1 className="min-w-0 text-[19px] font-bold leading-tight text-slate-900">All products</h1>
               )}
               {(query || scope) && sortSelect(true)}
             </div>
@@ -854,7 +838,7 @@ export function SupplierCatalogue({
                 className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-brand-dark ring-1 ring-[#cfdcdf] active:bg-[#f2f8f9]"
               >
                 <PackagePlus className="h-4 w-4" aria-hidden="true" />
-                Not listed? Apply with your own product
+                Add a product not in our catalogue
               </button>
             )}
           </div>
@@ -864,11 +848,23 @@ export function SupplierCatalogue({
           {(query || scope) && (
             <div className="mt-5 hidden flex-wrap items-end justify-between gap-x-4 gap-y-3 lg:flex">
               <div className="min-w-0">
-                {/* Where a category sits, and the way back up: the list beside shows only the families. */}
-                {scope && !query && (
-                  <div className="mb-1">
-                    <Trail path={place?.path ?? [{ id: scope.id, name: scope.name }]} onPick={pick} />
-                  </div>
+                {/* Inside a family, where the category sits and the way back up: the levels above it only, so the
+                    trail never says again what the heading says (it did, cut short: "Home Impro…"). A family needs
+                    none; the list beside shows it picked. */}
+                {scope && !query && place && place.path.length > 1 && (
+                  <nav aria-label="Breadcrumb" className="mb-1 flex flex-wrap items-center gap-1 text-[13px] text-[#777]">
+                    <button type="button" onClick={() => pick(null)} className="hover:text-[#111] hover:underline">
+                      All products
+                    </button>
+                    {place.path.slice(0, -1).map((a) => (
+                      <span key={a.id} className="flex items-center gap-1">
+                        <ChevronRight className="h-3.5 w-3.5 text-[#bbb]" aria-hidden="true" />
+                        <button type="button" onClick={() => pick(a.id)} className="hover:text-[#111] hover:underline">
+                          {a.name}
+                        </button>
+                      </span>
+                    ))}
+                  </nav>
                 )}
                 <h2 className="text-[18px] font-bold text-[#111]">{heading}</h2>
                 <p className="mt-0.5 flex flex-wrap items-center gap-2 text-[13px] text-[#666]">
@@ -973,7 +969,7 @@ export function SupplierCatalogue({
                   onClick={ownProduct}
                   className="inline-flex items-center gap-2 rounded-full bg-brand-dark px-4 py-2 text-[13px] font-bold text-white hover:bg-brand-deep"
                 >
-                  <PackagePlus className="h-4 w-4" aria-hidden="true" /> Apply with your own product
+                  <PackagePlus className="h-4 w-4" aria-hidden="true" /> Add a product not in our catalogue
                 </button>
               </div>
             </div>
@@ -986,19 +982,26 @@ export function SupplierCatalogue({
             </p>
           )}
           {status === "end" && products.length > 0 && (
-            <p className="mt-8 text-center text-[13px] text-[#5b6f76]">
-              {query || scope ? "That's every product here. " : ""}
-              Can&apos;t see yours?{" "}
+            <p className="mt-8 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[13px] text-[#666]">
+              {query || scope ? <span>That&apos;s every product here.</span> : null}
               <button type="button" onClick={ownProduct} className="font-semibold text-brand-dark hover:underline">
-                Apply with your own product
+                Add a product not in our catalogue
               </button>
-              .
             </p>
           )}
         </section>
       </div>
 
-      {sheet && <ApplySheet target={sheet} contact={contact} onClose={closeSheet} onSent={onSent} />}
+      {sheet && (
+        <ApplySheet
+          key={sheet.kind === "catalogue" ? `product-${sheet.product.id}` : "own"}
+          target={sheet}
+          contact={contact}
+          onClose={closeSheet}
+          onSent={onSent}
+          onPickCatalogue={(product) => setSheet({ kind: "catalogue", product })}
+        />
+      )}
       {picking && (
         <CategorySheet
           families={families}
