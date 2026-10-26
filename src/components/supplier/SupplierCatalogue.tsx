@@ -138,6 +138,11 @@ export function SupplierCatalogue({
   const productsFromAssist = useRef<AssistProduct[]>([]);
   // Where the dropdown brings the box up to: under this portal's bar.
   const [barBottom, setBarBottom] = useState(76);
+  // The category list down the left from 1024px, and its families inside it: the list scrolls on its own, and fades
+  // at an edge where more of it goes on.
+  const railList = useRef<HTMLElement>(null);
+  const railItems = useRef<HTMLDivElement>(null);
+  const [railFade, setRailFade] = useState({ top: false, bottom: false });
 
   // On a phone the search is the whole screen while it is in use.
   const phoneSearch = focused && isPhone;
@@ -361,6 +366,46 @@ export function SupplierCatalogue({
     if (!next || query) setSort("best");
   };
 
+  // ---- the category list from 1024px -----------------------------------------------------------------------
+  // On a laptop the families are taller than the screen. The list scrolls inside the rail with "Not in the
+  // catalogue?" held under it (2026-10-26: the card had been the list's last item, cut off at the screen's foot,
+  // and Edge drew a scrollbar with arrow buttons down the families). Its bar is a faint thumb (.rail-scroll),
+  // and a fade at an edge says where more of the list goes on.
+  const measureRail = useCallback(() => {
+    const el = railList.current;
+    if (!el) return;
+    const top = el.scrollTop > 2;
+    const bottom = el.scrollTop + el.clientHeight < el.scrollHeight - 2;
+    setRailFade((f) => (f.top === top && f.bottom === bottom ? f : { top, bottom }));
+  }, []);
+  useEffect(() => {
+    const el = railList.current;
+    const items = railItems.current;
+    if (!el || !items) return;
+    measureRail();
+    // The window's height sizes the list; a family opening sizes what is in it.
+    const ro = new ResizeObserver(measureRail);
+    ro.observe(el);
+    ro.observe(items);
+    return () => ro.disconnect();
+  }, [measureRail]);
+  // A category picked from elsewhere (a search's chips, its suggestions, the address) is brought into the list's
+  // view, clear of the fades; the window itself never moves for it.
+  useEffect(() => {
+    const el = railList.current;
+    const picked = el?.querySelector<HTMLElement>('[aria-pressed="true"]');
+    if (!el || !picked || el.scrollHeight <= el.clientHeight) return;
+    const clear = 28;
+    const r = picked.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    if (r.top < box.top + clear) el.scrollTop -= box.top + clear - r.top;
+    else if (r.bottom > box.bottom - clear) el.scrollTop += r.bottom - (box.bottom - clear);
+  }, [scope?.id]);
+  const railMask =
+    railFade.top || railFade.bottom
+      ? `linear-gradient(to bottom, ${railFade.top ? "transparent 0, #000 22px" : "#000 0"}, ${railFade.bottom ? "#000 calc(100% - 30px), transparent 100%" : "#000 100%"})`
+      : undefined;
+
   // A category picked below 1024px (the families' row, the pictures, Select category, the trail): its list,
   // from the top.
   const pick = (id: string | null) => {
@@ -420,7 +465,8 @@ export function SupplierCatalogue({
       : query || scope
         ? foundLine
         : total
-          ? `${count(total)} products. Search by name, or pick a category.`
+          ? // Said here once, as the shop says a list's size; not again in the search box above (the owner's rule).
+            `${count(total)} products`
           : "Search by name, or pick a category.";
   // Below 1024px a category's size is in its heading, as the shop's category page has it; so the line under says
   // only what a search found, or, before anything is picked, what to do.
@@ -477,55 +523,67 @@ export function SupplierCatalogue({
       <div className="lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-10">
         {/* The families, down the left from lg: sticky under the bar while the products scroll. */}
         <aside className="hidden lg:block" aria-label="Categories">
-          <div className="sticky top-[76px] max-h-[calc(100dvh-92px)] overflow-y-auto pb-6 pr-1 [scrollbar-width:thin]">
-            <p className="px-3 pb-2 text-[15px] font-extrabold tracking-tight text-[#0b2230]">Categories</p>
-            <nav className="space-y-0.5">
-              <button type="button" onClick={() => choose(null)} aria-pressed={!scope} className={railButton(!scope)}>
-                All products
-              </button>
-              {families.map((f) => {
-                const openFamily = scope?.familyId === f.id;
-                return (
-                  <div key={f.id}>
-                    <button
-                      type="button"
-                      onClick={() => choose({ id: f.id, name: f.name, familyId: f.id })}
-                      aria-pressed={scope?.id === f.id}
-                      aria-expanded={openFamily}
-                      className={railButton(scope?.id === f.id)}
-                    >
-                      <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                      {f.children.length > 0 && (
-                        <ChevronRight
-                          className={`h-4 w-4 shrink-0 transition-transform ${openFamily ? "rotate-90" : ""} ${scope?.id === f.id ? "text-white/70" : "text-[#9aabb0]"}`}
-                          aria-hidden="true"
-                        />
+          {/* No taller than the screen under the bar, 20px clear of its foot as it is of the bar: the families
+              scroll inside, and the card under them stays whole. */}
+          <div className="sticky top-[76px] flex max-h-[calc(100dvh-96px)] flex-col">
+            <p className="shrink-0 px-3 pb-2 text-[15px] font-extrabold tracking-tight text-[#0b2230]">Categories</p>
+            <nav
+              ref={railList}
+              onScroll={measureRail}
+              style={railMask ? { maskImage: railMask, WebkitMaskImage: railMask } : undefined}
+              className="rail-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 [scrollbar-gutter:stable]"
+            >
+              <div ref={railItems} className="space-y-0.5">
+                <button type="button" onClick={() => choose(null)} aria-pressed={!scope} className={railButton(!scope)}>
+                  All products
+                </button>
+                {families.map((f) => {
+                  const openFamily = scope?.familyId === f.id;
+                  return (
+                    <div key={f.id}>
+                      <button
+                        type="button"
+                        onClick={() => choose({ id: f.id, name: f.name, familyId: f.id })}
+                        aria-pressed={scope?.id === f.id}
+                        aria-expanded={openFamily}
+                        className={railButton(scope?.id === f.id)}
+                      >
+                        <span className="min-w-0 flex-1 truncate">{f.name}</span>
+                        {f.children.length > 0 && (
+                          <ChevronRight
+                            className={`h-4 w-4 shrink-0 transition-transform ${openFamily ? "rotate-90" : ""} ${scope?.id === f.id ? "text-white/70" : "text-[#9aabb0]"}`}
+                            aria-hidden="true"
+                          />
+                        )}
+                      </button>
+                      {openFamily && f.children.length > 0 && (
+                        <div className="my-1 ml-4 space-y-0.5 border-l border-[#d5e0e3] pl-2">
+                          {f.children.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => choose({ id: c.id, name: c.name, familyId: f.id })}
+                              aria-pressed={scope?.id === c.id}
+                              className={railButton(scope?.id === c.id, true)}
+                            >
+                              <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                            </button>
+                          ))}
+                        </div>
                       )}
-                    </button>
-                    {openFamily && f.children.length > 0 && (
-                      <div className="my-1 ml-4 space-y-0.5 border-l border-[#d5e0e3] pl-2">
-                        {f.children.map((c) => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => choose({ id: c.id, name: c.name, familyId: f.id })}
-                            aria-pressed={scope?.id === c.id}
-                            className={railButton(scope?.id === c.id, true)}
-                          >
-                            <span className="min-w-0 flex-1 truncate">{c.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                    </div>
+                  );
+                })}
+              </div>
             </nav>
-            <div className="mt-5 rounded-2xl bg-white p-4 ring-1 ring-[#e1e8ea]">
-              <PackagePlus className="h-5 w-5 text-brand-dark" aria-hidden="true" />
-              <p className="mt-2 text-[13.5px] font-bold text-[#0b2230]">Not in the catalogue?</p>
-              <p className="mt-0.5 text-[12.5px] leading-snug text-[#5b6f76]">Apply with a product of your own, and the team looks at it like any other.</p>
-              <button type="button" onClick={ownProduct} className="mt-3 w-full rounded-xl bg-[#0b2230] px-3 py-2 text-[12.5px] font-bold text-white hover:bg-[#143547]">
+            {/* Its right edge on the families' own: the list's 4px and its 6px gutter, kept whether or not it scrolls. */}
+            <div className="mr-2.5 mt-3 shrink-0 rounded-2xl bg-white p-3.5 ring-1 ring-[#e1e8ea]">
+              <p className="flex items-center gap-2 text-[13.5px] font-bold text-[#0b2230]">
+                <PackagePlus className="h-[18px] w-[18px] shrink-0 text-brand-dark" aria-hidden="true" />
+                Not in the catalogue?
+              </p>
+              <p className="mt-1 text-[12.5px] leading-snug text-[#5b6f76]">Apply with a product of your own, and the team looks at it like any other.</p>
+              <button type="button" onClick={ownProduct} className="mt-2.5 w-full rounded-xl bg-[#0b2230] px-3 py-2 text-[12.5px] font-bold text-white hover:bg-[#143547]">
                 Apply with your own product
               </button>
             </div>
@@ -586,7 +644,9 @@ export function SupplierCatalogue({
                         setFocused(true);
                       }}
                       onFocus={() => setFocused(true)}
-                      placeholder={total ? `Search ${count(total)} products, like “bluetooth earbuds” or “cotton t-shirt”` : "Search products, like “bluetooth earbuds”"}
+                      // The catalogue's size is said once, under the search. A phone's box holds two words: the
+                      // examples were cut mid-word there ("like “bluet"), and its search lists them when opened.
+                      placeholder={isPhone ? "Search products" : "Search products, like “bluetooth earbuds” or “cotton t-shirt”"}
                       aria-label="Search the catalogue"
                       className="h-full min-w-0 flex-1 bg-transparent pl-1 text-[15px] text-[#10262e] outline-none placeholder:text-slate-500 lg:py-2 lg:pl-0 lg:placeholder:text-[#8a9ba0]"
                     />

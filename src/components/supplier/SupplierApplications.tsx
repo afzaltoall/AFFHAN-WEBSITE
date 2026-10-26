@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ExternalLink, Loader2, MessageSquareText, Package, Search } from "lucide-react";
@@ -48,6 +48,29 @@ const STATUS_STYLE: Record<OfferStatus, string> = {
 
 const isOpen = (s: OfferStatus) => (OPEN_STATUSES as readonly string[]).includes(s);
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+/**
+ * An application's picture, or the box when it has none or it will not load (2026-10-26: a catalogue picture
+ * whose host had dropped it showed the browser's broken-image mark). The list is drawn on the server, so a
+ * picture can fail before the page comes alive, when nothing hears its error: it is looked at once it has.
+ */
+function Thumb({ src }: { src: string | null }) {
+  const [broken, setBroken] = useState(false);
+  const img = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const el = img.current;
+    if (el?.complete && el.naturalWidth === 0) setBroken(true);
+  }, []);
+  if (!src || broken) {
+    return (
+      <span className="flex h-full items-center justify-center">
+        <Package className="h-6 w-6 text-[#9aabb0]" aria-hidden="true" />
+      </span>
+    );
+  }
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img ref={img} src={src} alt="" onError={() => setBroken(true)} className="h-full w-full object-cover" />;
+}
 
 /**
  * What the supplier has applied for (the owner, 2026-10-21), newest first: each product with its MOQ, where it
@@ -194,14 +217,7 @@ export function SupplierApplications({ offers: initial }: { offers: MyOffer[] })
                   className="flex w-full items-center gap-3.5 p-3.5 text-left sm:p-4"
                 >
                   <span className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[#f2f6f7]">
-                    {picture ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={picture} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="flex h-full items-center justify-center">
-                        <Package className="h-6 w-6 text-[#9aabb0]" aria-hidden="true" />
-                      </span>
-                    )}
+                    <Thumb key={picture ?? "none"} src={picture} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="line-clamp-2 text-[14px] font-semibold leading-snug text-[#10262e]">{o.productName}</span>
@@ -242,9 +258,8 @@ export function SupplierApplications({ offers: initial }: { offers: MyOffer[] })
                         <p className="text-[12px] font-semibold text-[#7b8d93]">Your photos</p>
                         <div className="mt-1.5 flex flex-wrap gap-2">
                           {o.photos.map((p) => (
-                            <a key={p} href={p} target="_blank" rel="noopener noreferrer" className="block h-20 w-20 overflow-hidden rounded-xl ring-1 ring-[#e1e8ea]">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={p} alt="" className="h-full w-full object-cover" />
+                            <a key={p} href={p} target="_blank" rel="noopener noreferrer" className="block h-20 w-20 overflow-hidden rounded-xl bg-[#f2f6f7] ring-1 ring-[#e1e8ea]">
+                              <Thumb src={p} />
                             </a>
                           ))}
                         </div>
