@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import type { Theme } from "@/components/admin/console-theme";
 import type { CargoChangeRow, CargoDetail, CargoRow } from "@/lib/cargo";
-import { CARGO_STATUSES, CARGO_STATUS_META, fmtDay, officeToday, type CargoStatus } from "@/lib/cargo-shared";
+import { CARGO_STATUSES, CARGO_STATUS_META, CARGO_TYPES, fmtDay, officeToday, type CargoStatus } from "@/lib/cargo-shared";
 import { formatDateTime } from "@/lib/datetime";
 
 /**
@@ -97,7 +97,7 @@ export function CargoBoard({ t, dark = false, admin = false }: { t: Theme; dark?
   }, []);
 
   const counts = useMemo(() => {
-    const c: Record<Filter, number> = { all: rows.length, IN_POL_PORT: 0, IN_SAILING: 0, IN_CUSTOMS: 0 };
+    const c = Object.fromEntries([["all", rows.length], ...CARGO_STATUSES.map((s) => [s, 0])]) as Record<Filter, number>;
     for (const r of rows) c[r.status]++;
     return c;
   }, [rows]);
@@ -327,7 +327,7 @@ function CargoPanel({
   const [busy, setBusy] = useState<string | null>(null);
   const [update, setUpdate] = useState({ date: officeToday(), name: "", status: "" as CargoStatus | "" });
   const [editing, setEditing] = useState<string | null>(null);
-  const [edit, setEdit] = useState({ date: "", name: "", status: "IN_POL_PORT" as CargoStatus });
+  const [edit, setEdit] = useState({ date: "", name: "", status: CARGO_STATUSES[0] as CargoStatus });
   const [copied, setCopied] = useState(false);
   /** Why an update just posted left the status where it was: a later update is still the newest. */
   const [note, setNote] = useState<string | null>(null);
@@ -582,7 +582,16 @@ function CargoPanel({
                   <input value={form.customer ?? ""} onChange={(e) => setForm((f) => ({ ...f, customer: e.target.value }))} className={input} required maxLength={120} />
                 </Field>
                 <Field t={t} name="Type">
-                  <input value={form.type ?? ""} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} placeholder="40HQ, SEA / LCL, EXWS…" className={input} maxLength={40} />
+                  <select value={form.type ?? ""} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} className={input}>
+                    <option value="">Choose the type</option>
+                    {CARGO_TYPES.map((ty) => (
+                      <option key={ty} value={ty}>
+                        {ty}
+                      </option>
+                    ))}
+                    {/* A type written before the list (2026-10-26) stays as it is until changed. */}
+                    {form.type && !(CARGO_TYPES as readonly string[]).includes(form.type) && <option value={form.type}>{form.type}</option>}
+                  </select>
                 </Field>
                 <div className="grid grid-cols-2 gap-3">
                   <Field t={t} name="POL">
@@ -643,7 +652,7 @@ function CargoPanel({
 // ---- a new consignment ------------------------------------------------------------------------------------------------
 
 function NewConsignment({ t, onClose, onCreated }: { t: Theme; onClose: () => void; onCreated: (s: CargoDetail) => void }) {
-  const [form, setForm] = useState({ reference: "", customer: "", type: "", pol: "", pod: "", etd: "", eta: "", status: "IN_POL_PORT" as CargoStatus, event: "", date: officeToday() });
+  const [form, setForm] = useState({ reference: "", customer: "", type: "", pol: "", pod: "", etd: "", eta: "", status: CARGO_STATUSES[0] as CargoStatus, event: "", date: officeToday() });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const input = `h-10 w-full rounded-xl px-3 text-[13px] outline-none transition-shadow focus:ring-2 focus:ring-brand/30 ${t.input}`;
@@ -696,7 +705,14 @@ function NewConsignment({ t, onClose, onCreated }: { t: Theme; onClose: () => vo
             <input value={form.customer} onChange={set("customer")} placeholder="AM HYDRAULICS" className={input} required maxLength={120} />
           </Field>
           <Field t={t} name="Type">
-            <input value={form.type} onChange={set("type")} placeholder="40HQ, SEA / LCL, EXWS…" className={input} maxLength={40} />
+            <select value={form.type} onChange={set("type")} className={input}>
+              <option value="">Choose the type</option>
+              {CARGO_TYPES.map((ty) => (
+                <option key={ty} value={ty}>
+                  {ty}
+                </option>
+              ))}
+            </select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field t={t} name="POL">

@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtDay, officeToday } from "../../src/lib/cargo-shared.ts";
+import { CARGO_STATUSES, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, officeToday } from "../../src/lib/cargo-shared.ts";
 
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
@@ -94,6 +94,14 @@ test("an update is never dated after today; the sheet's dropdown posts only as t
   for (const input of updateDates) assert.match(input, /max=\{(today|officeToday\(\))\}/);
 });
 
+test("a type from the sheet's list, or the one a consignment already had", () => {
+  const lib = read("src/lib/cargo.ts");
+  const start = (fn) => lib.indexOf(`export async function ${fn}(`);
+  assert.match(lib.slice(start("createCargo"), start("updateCargo")), /const type = cargoType\(body\.type\) \?\? null;/);
+  assert.match(lib.slice(start("updateCargo"), start("deleteCargo")), /key === "type" \? cargoType\(body\.type, was\.type\)/);
+  assert.match(lib, /function cargoType\(raw: unknown, kept: string \| null = null\)[\s\S]{0,260}if \(kept !== null && v === kept\) return v;[\s\S]{0,120}if \(isCargoType\(listed\)\) return listed;\s+throw new CargoError\(400,/);
+});
+
 test("the change log is the admin's alone", () => {
   const route = read("src/app/api/cargo/changes/route.ts");
   const gate = route.indexOf('if (!admin || admin.role !== "admin")');
@@ -145,8 +153,22 @@ test("the migration only adds: a column with a default and three new tables", ()
 test("matching, stages and days", () => {
   assert.equal(cargoKey("co 26-000002"), "CO26000002");
   assert.equal(cargoKey("CO-26-000002"), cargoKey("co26000002"));
-  assert.deepEqual([...CARGO_STATUSES], ["IN_POL_PORT", "IN_SAILING", "IN_CUSTOMS"]);
-  assert.deepEqual(CARGO_STATUSES.map((s) => CARGO_STATUS_META[s].label), ["In POL port", "In sailing", "In customs"]);
+  // The owner's six stages (2026-10-26), in the order cargo meets them.
+  assert.deepEqual([...CARGO_STATUSES], ["CARGO_LOADED", "VESSEL_LOADING", "VESSEL_SAILING", "VESSEL_DISCHARGED", "IN_CUSTOMS", "IN_WAREHOUSE"]);
+  assert.deepEqual(
+    CARGO_STATUSES.map((s) => CARGO_STATUS_META[s].label),
+    ["Cargo loaded", "Vessel loading", "Vessel sailing", "Vessel discharged", "In customs clearance", "In warehouse"],
+  );
+  // Rows written in the first three codes read as the stages they became; nothing new is written in them.
+  assert.equal(cargoStatusOf("IN_POL_PORT"), "CARGO_LOADED");
+  assert.equal(cargoStatusOf("IN_SAILING"), "VESSEL_SAILING");
+  assert.equal(cargoStatusOf("IN_CUSTOMS"), "IN_CUSTOMS");
+  assert.equal(cargoStatusOf("VESSEL_DISCHARGED"), "VESSEL_DISCHARGED");
+  assert.equal(isCargoStatus("IN_POL_PORT"), false);
+  // The types, as the sheet writes them.
+  assert.deepEqual([...CARGO_TYPES], ["20GP", "40GP", "40HQ", "AIR", "LCL"]);
+  assert.equal(isCargoType("40HQ"), true);
+  assert.equal(isCargoType("EXWS"), false);
   assert.equal(fmtDay("2026-10-17"), "17 Oct 2026");
   assert.equal(fmtDay("2026-10-17", false), "17 Oct");
   // The office's day: 23:00 UTC on the 23rd is already the 24th in Chennai.

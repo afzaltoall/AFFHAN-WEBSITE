@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isSalesJob, readWorkspaceAuth } from "@/lib/employee-session";
 import {
-  CARGO_LIMITS, CARGO_STATUS_META, cargoKey, fmtDay, isCargoStatus, isoDay, officeToday,
+  CARGO_LIMITS, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, isoDay, officeToday,
   type CargoStatus, type CargoTrack,
 } from "@/lib/cargo-shared";
 
@@ -82,7 +82,8 @@ export interface CargoDetail extends CargoRow {
   changes: CargoChangeRow[];
 }
 
-const statusOf = (s: string): CargoStatus => (isCargoStatus(s) ? s : "IN_POL_PORT");
+// A row's stage as today's six name it, the first three codes included (cargo-shared's cargoStatusOf).
+const statusOf = (s: string): CargoStatus => cargoStatusOf(s);
 const labelOf = (s: string) => CARGO_STATUS_META[statusOf(s)].label;
 const dayOrNull = (d: Date | null) => (d ? isoDay(d) : null);
 const asDate = (day: string) => new Date(`${day}T00:00:00Z`);
@@ -156,9 +157,25 @@ function reference(raw: unknown): { reference: string; referenceKey: string } {
   return { reference: v.toUpperCase(), referenceKey: key };
 }
 
+/** A stage for a new or corrected update: one of today's six only (rows written before keep theirs until corrected). */
 function stage(raw: unknown): CargoStatus {
-  if (!isCargoStatus(raw)) throw new CargoError(400, "Choose the status: In POL port, In sailing or In customs.");
+  if (!isCargoStatus(raw)) {
+    throw new CargoError(400, "Choose the status: Cargo loaded, Vessel loading, Vessel sailing, Vessel discharged, In customs clearance or In warehouse.");
+  }
   return raw;
+}
+
+/**
+ * The type: one of the sheet's list (20GP, 40GP, 40HQ, AIR, LCL), or none. A consignment written before the list
+ * (2026-10-26; "EXWS" on the live sheet) keeps its own type through other corrections, until it is changed.
+ */
+function cargoType(raw: unknown, kept: string | null = null): string | null | undefined {
+  const v = text(raw, CARGO_LIMITS.type, "The type");
+  if (v === undefined || v === null) return v;
+  if (kept !== null && v === kept) return v;
+  const listed = v.toUpperCase();
+  if (isCargoType(listed)) return listed;
+  throw new CargoError(400, `Choose the type: ${CARGO_TYPES.join(", ")}.`);
 }
 
 const fmtOr = (d: string | null) => (d ? fmtDay(d) : "none");
@@ -218,7 +235,7 @@ export async function createCargo(body: Record<string, unknown>, actor: CargoAct
   const ref = reference(body.reference);
   const customer = text(body.customer, CARGO_LIMITS.customer, "The customer");
   if (!customer) throw new CargoError(400, "Enter who the cargo is for.");
-  const type = text(body.type, CARGO_LIMITS.type, "The type") ?? null;
+  const type = cargoType(body.type) ?? null;
   const pol = text(body.pol, CARGO_LIMITS.port, "The port of loading") ?? null;
   const pod = text(body.pod, CARGO_LIMITS.port, "The port of discharge") ?? null;
   const etd = day(body.etd, "ETD") ?? null;
@@ -271,7 +288,7 @@ export async function updateCargo(id: string, body: Record<string, unknown>, act
     ["pod", "POD", CARGO_LIMITS.port],
   ];
   for (const [key, label, max] of fields) {
-    const v = text(body[key], max, label);
+    const v = key === "type" ? cargoType(body.type, was.type) : text(body[key], max, label);
     if (v === undefined) continue;
     if (key === "customer" && !v) throw new CargoError(400, "Enter who the cargo is for.");
     if ((v ?? null) !== (was[key] ?? null)) {

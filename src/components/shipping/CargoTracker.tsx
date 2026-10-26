@@ -2,15 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Anchor, ArrowRight, Loader2, Printer, Ship, Stamp } from "lucide-react";
+import { Anchor, ArrowRight, Container, Loader2, PackageCheck, Printer, Ship, Stamp, Warehouse } from "lucide-react";
 import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtDay, type CargoStatus, type CargoTrack } from "@/lib/cargo-shared";
 import { timeAgo } from "@/lib/relative-time";
 
 /**
  * Live track & trace, on /shipping/ under the hero (the owner, 2026-10-24): a customer types the console, FCL or LCL
  * number we gave them and sees where their cargo stands. Not the carrier's tracker, with its modules, vessels and
- * voyages: our own, in our own three stages, the stage shown as a journey (port of loading, at sea, customs), and
- * under it every update our assigners post, one row each: the date, what happened, the status.
+ * voyages: our own, in our own six stages (the owner's, 2026-10-26: loaded, vessel loading, sailing, discharged,
+ * customs, warehouse) shown as a journey, and under it every update our assigners post, one row each: the date,
+ * what happened, the status.
  *
  * Live: while a result is open and the tab is in front, it reads itself again every minute, so an update the
  * assigner posts appears without a reload. A number travels in the address (?track=…#track), so the link we send a
@@ -26,7 +27,14 @@ type State =
   | { kind: "missing"; ref: string }
   | { kind: "error"; message: string };
 
-const STAGE_ICON: Record<CargoStatus, typeof Anchor> = { IN_POL_PORT: Anchor, IN_SAILING: Ship, IN_CUSTOMS: Stamp };
+const STAGE_ICON: Record<CargoStatus, typeof Anchor> = {
+  CARGO_LOADED: PackageCheck,
+  VESSEL_LOADING: Container,
+  VESSEL_SAILING: Ship,
+  VESSEL_DISCHARGED: Anchor,
+  IN_CUSTOMS: Stamp,
+  IN_WAREHOUSE: Warehouse,
+};
 
 export function CargoTracker() {
   const [ref, setRef] = useState("");
@@ -170,7 +178,10 @@ export function CargoTracker() {
 }
 
 function Result({ cargo, checkedAt }: { cargo: CargoTrack; checkedAt: number }) {
-  const current = CARGO_STATUSES.indexOf(cargo.status);
+  const current = Math.max(0, CARGO_STATUSES.indexOf(cargo.status));
+  const stages = CARGO_STATUSES.length;
+  const NowIcon = STAGE_ICON[CARGO_STATUSES[current]];
+  const next = current < stages - 1 ? CARGO_STATUSES[current + 1] : null;
   const latest = cargo.events[cargo.events.length - 1];
   return (
     <article id="cargo-result" aria-label={`Cargo ${cargo.reference}`} className="overflow-hidden rounded-3xl border border-[#08222e]/10 bg-white shadow-sm">
@@ -195,13 +206,39 @@ function Result({ cargo, checkedAt }: { cargo: CargoTrack; checkedAt: number }) 
         </div>
       </header>
 
-      {/* The journey: the three stages, the cargo's own one lit, the ones behind it done. */}
+      {/* The journey: the six stages, the cargo's own one lit, the ones behind it done. A phone has no room for six
+          names in a row: there, where the cargo stands, as a step of six, over a bar of six, and what comes next. */}
       <div className="px-6 pb-2 pt-7 sm:px-8">
-        <ol className="relative grid grid-cols-3" aria-label="Where your cargo stands">
-          <span className="absolute left-[16.66%] right-[16.66%] top-5 h-[3px] rounded-full bg-[#08222e]/10" aria-hidden="true" />
+        <div className="sm:hidden">
+          <div className="flex items-center gap-3.5">
+            <span className={`relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-[#08222e] ${CARGO_STATUS_META[CARGO_STATUSES[current]].dot}`}>
+              <span className={`absolute inset-0 animate-ping rounded-full opacity-30 motion-reduce:animate-none ${CARGO_STATUS_META[CARGO_STATUSES[current]].dot}`} aria-hidden="true" />
+              <NowIcon className="relative h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#08222e]/50">
+                Step {current + 1} of {stages}
+              </p>
+              <p className="text-[19px] font-bold leading-tight text-[#08222e]">{CARGO_STATUS_META[CARGO_STATUSES[current]].label}</p>
+            </div>
+          </div>
+          <div className="mt-4 grid grid-cols-6 gap-1.5" aria-hidden="true">
+            {CARGO_STATUSES.map((s, i) => (
+              <span key={s} className={`h-1.5 rounded-full ${i < current ? "bg-[#176579]" : i === current ? CARGO_STATUS_META[s].dot : "bg-[#08222e]/10"}`} />
+            ))}
+          </div>
+          {next && (
+            <p className="mt-2.5 text-[13px] text-[#5a6e77]">
+              Next: <span className="font-semibold text-[#08222e]/80">{CARGO_STATUS_META[next].label}</span>
+            </p>
+          )}
+        </div>
+        <ol className="relative hidden grid-cols-6 sm:grid" aria-label="Where your cargo stands">
+          {/* The line runs from the first stage's centre to the last's: a twelfth in from each side. */}
+          <span className="absolute left-[8.333%] right-[8.333%] top-5 h-[3px] rounded-full bg-[#08222e]/10" aria-hidden="true" />
           <span
-            className="absolute left-[16.66%] top-5 h-[3px] rounded-full bg-[#176579] transition-[width] duration-700 ease-out motion-reduce:transition-none"
-            style={{ width: `${(current / (CARGO_STATUSES.length - 1)) * 66.68}%` }}
+            className="absolute left-[8.333%] top-5 h-[3px] rounded-full bg-[#176579] transition-[width] duration-700 ease-out motion-reduce:transition-none"
+            style={{ width: `${(current / (stages - 1)) * 83.333}%` }}
             aria-hidden="true"
           />
           {CARGO_STATUSES.map((s, i) => {
@@ -217,7 +254,7 @@ function Result({ cargo, checkedAt }: { cargo: CargoTrack; checkedAt: number }) 
                   {state === "now" && <span className={`absolute inset-0 animate-ping rounded-full opacity-30 motion-reduce:animate-none ${CARGO_STATUS_META[s].dot}`} aria-hidden="true" />}
                   <Icon className="relative h-[18px] w-[18px]" strokeWidth={2.2} />
                 </span>
-                <span className={`mt-2.5 text-[12px] leading-tight sm:text-[13.5px] ${state === "now" ? "font-bold text-[#08222e]" : state === "done" ? "font-semibold text-[#08222e]/70" : "text-[#08222e]/40"}`}>
+                <span className={`mt-2.5 px-1 text-[12px] leading-tight lg:text-[12.5px] ${state === "now" ? "font-bold text-[#08222e]" : state === "done" ? "font-semibold text-[#08222e]/70" : "text-[#08222e]/40"}`}>
                   {CARGO_STATUS_META[s].label}
                 </span>
                 {state === "now" && <span className="sr-only">(current)</span>}
@@ -240,7 +277,9 @@ function Result({ cargo, checkedAt }: { cargo: CargoTrack; checkedAt: number }) 
             <tr>
               <th className="px-4 py-3 font-bold">Event date</th>
               <th className="px-4 py-3 font-bold">Event</th>
-              <th className="px-4 py-3 text-right font-bold sm:text-left">Status</th>
+              {/* A phone has no room for a third column now the stages have longer names ("In customs clearance"):
+                  there the status sits under the event (2026-10-26: the chips were cut off at the card's edge). */}
+              <th className="hidden px-4 py-3 font-bold sm:table-cell">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -252,8 +291,11 @@ function Result({ cargo, checkedAt }: { cargo: CargoTrack; checkedAt: number }) 
                   <td className="px-4 py-3.5 align-top font-semibold">
                     {e.name}
                     {last && <span className="ml-2 rounded-full bg-[#176579] px-2 py-0.5 align-middle text-[10px] font-bold uppercase tracking-wider text-white">Latest</span>}
+                    <span className={`mt-2 block w-fit whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide sm:hidden ${CARGO_STATUS_META[e.status].chip}`}>
+                      {CARGO_STATUS_META[e.status].label}
+                    </span>
                   </td>
-                  <td className="px-4 py-3.5 text-right align-top sm:text-left">
+                  <td className="hidden px-4 py-3.5 align-top sm:table-cell">
                     <span className={`inline-block whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${CARGO_STATUS_META[e.status].chip}`}>
                       {CARGO_STATUS_META[e.status].label}
                     </span>
