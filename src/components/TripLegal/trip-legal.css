@@ -1859,6 +1859,66 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
   color: var(--cx-white);
 }
 
+/* ---- Phones: the sheet's words at a phone's size ------------------------------
+   The owner (2026-10-28), as the sheet came back in front of the application on a
+   phone: "text romba perusaa eruka kodadhu" (the text must not be too big). The
+   computer's sizes were carried into the sheet: a 28px title, documents read at
+   15px with 24px clause numbers. Here every word steps down to a phone's reading
+   size, the rows and the boxes tighten, and more of the agreement fits on one
+   screen (on a 360 x 740 phone the facts at a glance showed two of seven). */
+@media (max-width: 639.98px) {
+  .tg-head { padding: 16px 64px 12px 18px; }
+  .tg-head::after { left: 18px; right: 18px; }
+  .tg-eyebrow { font-size: 10px; letter-spacing: 0.28em; }
+  .tg-title { margin-top: 6px; font-size: 22px; }
+  .tg-root[data-view="agree"] .tg-line { margin-top: 6px; font-size: 12.5px; line-height: 1.5; }
+  .tg-close { top: 12px; right: 12px; width: 40px; height: 40px; }
+  .tg-root[data-view="agree"] .tg-summary { padding: 0 18px 14px; }
+  .tg-sum-title { margin: 13px 0 8px; font-size: 10px; letter-spacing: 0.26em; }
+  .tg-docrows { gap: 8px; }
+  .tg-docrow { min-height: 54px; gap: 12px; padding: 9px 12px 9px 14px; border-radius: 14px; }
+  .tg-docrow-name { font-size: 14px; }
+  .tg-docrow-meta { font-size: 11.5px; }
+  .tg-facts button { gap: 12px; padding: 9px 2px; }
+  .tg-fact-label { font-size: 9.5px; letter-spacing: 0.12em; }
+  .tg-fact-value { font-size: 13px; }
+  .tg-foot { gap: 8px; padding: 10px 18px calc(12px + env(safe-area-inset-bottom)); }
+  .tg-consents { gap: 8px; }
+  .tg-tick-label { gap: 10px; font-size: 12.5px; line-height: 1.45; }
+  .tg-tick-box { width: 20px; height: 20px; margin-top: 0; border-radius: 6px; }
+  .tg-missing { font-size: 12px; }
+  .tg-agree { min-height: 48px; gap: 12px; padding: 5px 5px 5px 20px; font-size: 14px; }
+  .tg-agree-port { width: 36px; height: 36px; }
+
+  /* The reader: a document at a phone's reading size. */
+  .tg-root[data-view="read"] .tg-tabbar { min-height: 52px; padding: 5px 8px; }
+  .tg-reader-title { font-size: 15px; }
+  .tg-pane { padding: 14px 18px 36px; }
+  .tg-root[data-view="read"] .tg-pane { padding-top: 14px; }
+  .tg-doc-eyebrow { font-size: 10px; letter-spacing: 0.24em; }
+  .tg-doc-title { font-size: 21px; }
+  .tg-doc-intro { margin: 10px 0 4px; gap: 8px; }
+  .tg-doc-intro p { font-size: 13.5px; line-height: 1.65; }
+  .tg-pane .tl-section { padding-top: 18px; }
+  .tg-pane .tl-section-title { gap: 10px; font-size: 15px; }
+  .tg-pane .tl-num { width: 30px; font-size: 19px; }
+  .tg-pane .tl-body { gap: 9px; margin-top: 8px; }
+  .tg-pane .tl-p { font-size: 13.5px; line-height: 1.65; }
+  .tg-pane .tl-list li { padding-left: 18px; font-size: 13px; line-height: 1.55; }
+  .tg-pane .tl-notice { padding: 11px 14px 11px 18px; font-size: 12px; }
+  .tg-pane .tl-date { padding: 7px 14px 7px 10px; }
+  .tg-pane .tl-date-text { font-size: 16px; }
+  .tg-pane .tl-sub { font-size: 10.5px; }
+  .tg-pane .tl-address { padding: 12px 16px; font-size: 13.5px; }
+  .tg-pane .tl-email { font-size: 13.5px; }
+  .tg-pane .tl-fact { padding: 10px 14px; }
+  .tg-pane .tl-fact dt { font-size: 10px; }
+  .tg-pane .tl-fact dd { font-size: 13.5px; }
+  .tg-doc-end { margin-top: 24px; font-size: 10px; }
+  .tg-reader-foot { padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); }
+  .tg-done { min-height: 46px; font-size: 14px; }
+}
+
 /* ---- Wide screens: the stub beside the pass ------------------------------------ */
 @media (min-width: 1024px) and (min-height: 600px) {
   .tg-panel {

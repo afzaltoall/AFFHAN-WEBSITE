@@ -21,19 +21,20 @@ export type SubmitResult =
   | { ok: false; reason: "invalid"; message: string; fields: FieldErrors }
   /** Too many applications from this connection. */
   | { ok: false; reason: "limited"; message: string }
-  /** One application per person: there is already one from this email or mobile. */
+  /** One application per person: there is already one from this account or mobile. */
   | { ok: false; reason: "duplicate"; message: string }
   /** Outside the application window, by the server's clock. */
   | { ok: false; reason: "closed"; message: string }
-  /** Nobody signed in any more: the application needs the account. */
-  | { ok: false; reason: "signin"; message: string }
+  /** Cloudflare's check did not pass (asked of someone not signed in). */
+  | { ok: false; reason: "human"; message: string }
   /** The request never arrived, or the server couldn't record it. */
   | { ok: false; reason: "network" | "server"; message: string };
 
 const ENDPOINT = "/api/trip-applications/";
 const MOCK = process.env.NEXT_PUBLIC_TRIP_APPLICATION_MOCK === "on";
 
-export async function submitApplication(payload: TripApplicationPayload): Promise<SubmitResult> {
+/** `turnstileToken`: Cloudflare's token, for someone not signed in (the API asks for it then, and only then). */
+export async function submitApplication(payload: TripApplicationPayload, turnstileToken: string | null = null): Promise<SubmitResult> {
   if (MOCK) return mockSubmit();
 
   let res: Response;
@@ -42,7 +43,7 @@ export async function submitApplication(payload: TripApplicationPayload): Promis
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(turnstileToken ? { ...payload, turnstileToken } : payload),
     });
   } catch {
     return { ok: false, reason: "network", message: "" };
@@ -67,7 +68,7 @@ export async function submitApplication(payload: TripApplicationPayload): Promis
     return { ok: false, reason: "invalid", message, fields: data.fields as FieldErrors };
   }
   if (res.status === 429) return { ok: false, reason: "limited", message };
-  if (res.status === 401) return { ok: false, reason: "signin", message };
+  if (data.reason === "human") return { ok: false, reason: "human", message };
   if (res.status === 409 && data.reason === "duplicate") return { ok: false, reason: "duplicate", message };
   if (res.status === 403 && data.reason === "closed") return { ok: false, reason: "closed", message };
   return { ok: false, reason: "server", message };

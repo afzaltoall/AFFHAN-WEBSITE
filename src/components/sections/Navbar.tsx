@@ -267,7 +267,7 @@ export function Navbar() {
   // combination caused visible jitter there, so the bar stays fixed on /rankings.
   // We also keep it fixed on the chennai landing page.
   const normalizedPath = pathname.replace(/\/$/, "");
-  // On the trip's own pages (the film, the application, the participants board, its terms, and the door's
+  // On the trip's own pages (the film, the application, the boarding pass, its terms, and the door's
   // "Opening soon"), the bar does not offer the way to where the visitor already is (the owner, 2026-10-12).
   const inTrip = normalizedPath === "/free-china-trip" || normalizedPath.startsWith("/free-china-trip/");
   // The admin area is a different product with its own header and sidebar. The

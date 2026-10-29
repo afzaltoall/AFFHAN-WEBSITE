@@ -3,7 +3,8 @@ import { CountryField, Field, YesNo } from "./fields";
 import type { ApplicationApi, ApplicationState } from "./useApplication";
 
 /**
- * Step 04, Travel profile: three questions and nothing more. Visa status,
+ * Step 03, Travel profile: two questions and nothing more ("Have you travelled
+ * to China before?" was taken out by the owner, 2026-10-29). Visa status,
  * passport number, expiry and document upload are switched off in
  * TRAVEL_DOCUMENTS (lib/trip-application.ts): passport and visa documents
  * are asked for later, from selected applicants only, and the note under
@@ -22,7 +23,6 @@ export function StepTravel({ app }: { app: ApplicationApi }) {
         </Field>
       </div>
       <YesNo id="ax-hasPassport" label={LABELS.hasPassport} value={t.hasPassport} onChange={(v) => set({ hasPassport: v })} error={e.hasPassport} note={NOTES.passport} />
-      <YesNo id="ax-travelledToChina" label={LABELS.travelledToChina} value={t.travelledToChina} onChange={(v) => set({ travelledToChina: v })} error={e.travelledToChina} />
     </div>
   );
 }

@@ -78,11 +78,10 @@ const TRIP_CALL_INSIDE =
  * fireworks climb out of the button into the picture (data-fireworks-host,
  * FireworksCard), and the gap between them is the call's own padding, so the
  * pointer never falls out of the pair on its way from one to the other.
- * Either opens the trip (useOpenTrip): the sign-in popup first if nobody is
- * signed in (the trip opens the moment they are), then the trip's page, or
- * the participants board for someone registered already. Ctrl, ⌘, Shift or
- * middle click still open a new tab, as links do, and the trip's own gate
- * asks there. A keyboard and a screen reader have the button alone, which
+ * Either opens the trip (useOpenTrip), with no sign-in (2026-10-28): the
+ * trip's page, the application itself on a phone, or the boarding pass for
+ * someone registered already. Ctrl, ⌘, Shift or middle click still open a
+ * new tab, as links do. A keyboard and a screen reader have the button alone, which
  * says where it goes: the picture is the same link again, for a mouse or a
  * finger, so it is kept out of the tab order and hidden from them.
  *

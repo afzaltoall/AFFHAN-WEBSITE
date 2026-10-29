@@ -1,7 +1,7 @@
 import { TRIP_APPLY_HREF, TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS_HREF } from "@/lib/trip-legal";
 
 /**
- * Every word on /free-china-trip/registered/, the participants board, in plain
+ * Every word on /free-china-trip/registered/, the applicant's own page, in plain
  * words: short sentences anyone can follow (the owner, 2026-10-07, found the
  * earlier ones hard to understand). The dates and the number of places are
  * the Terms' own (TRIP_FACTS), and so are the steps after applying (Terms,
@@ -10,10 +10,9 @@ import { TRIP_APPLY_HREF, TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS_HREF } from 
  */
 export const REGISTERED = {
   eyebrow: "AFFHAN International · Free China Business Trip",
-  title: { registered: "You're registered", visitor: "The applicants" },
+  title: { registered: "You're registered", visitor: `The draw for ${TRIP_FACTS.winners} places` },
   welcome: (firstName: string) => `Welcome, ${firstName}. We have received your application. This is your boarding pass, with your Trip ID.`,
   draw: `All eligible applications go into a random draw for ${TRIP_FACTS.winners} places. The winners are announced on ${TRIP_FACTS.winnersAnnounced}.`,
-  visitor: "Everyone who has applied for the trip, updated live.",
   pass: {
     brand: "AFFHAN International",
     kind: "Boarding pass",
@@ -29,44 +28,22 @@ export const REGISTERED = {
     /** The entry seal on the stub: around its rim, top and bottom; the date is in its middle. */
     seal: { top: "Registered", bottom: "Free China Trip" },
   },
-  live: {
-    label: "Applicants",
-    places: `people have applied for ${TRIP_FACTS.winners} places`,
-    /** For screen readers, in place of the drums. */
-    total: (n: number) => `${n.toLocaleString("en-IN")} people have applied for ${TRIP_FACTS.winners} places`,
-    arrived: (n: number) => `+${n} just now`,
-    today: (n: number) => `${n.toLocaleString("en-IN")} applied today`,
-    lastHour: (n: number) => `${n.toLocaleString("en-IN")} in the last hour`,
-    from: "Applicants by country",
-    moreCountries: (n: number) => `and ${n} more ${n === 1 ? "country" : "countries"}`,
-    /**
-     * An application arriving while the page is open, or, on arriving, one of the day's last few
-     * told as it was, with its real time ("4 min ago", DepartureBoard's `ago`). Anonymous, as the
-     * board (Privacy Policy, sections 5 and 12).
-     */
-    toast: {
-      title: "New application",
-      earlier: (when: string) => `Applied ${when}`,
-      line: (ref: string, country: string) => `${ref} from ${country}`,
-      mineTitle: "You're in the draw",
-      mine: (ref: string) => `Your ticket ${ref} is in the draw globe.`,
-    },
-    /** The board's own clock, India time, as an airport board shows the time (BoardClock). */
-    clock: {
-      zone: "IST",
-      updated: "Updated just now",
-      ago: (s: number) => `Updated ${s} s ago`,
-      title: "This list updates by itself every few seconds. Times are India time (IST).",
-    },
+  /** Their own ticket going into the globe, said as it lands. */
+  toast: {
+    mineTitle: "You're in the draw",
+    mine: (ref: string) => `Your ticket ${ref} is in the draw globe.`,
   },
-  /** The draw globe: one ticket in it for each application (DrawGlobe). */
+  /**
+   * The draw globe: a drum of tickets, theirs among them (DrawGlobe); never the number of applications. So
+   * the title says the rule, not what the globe holds ("One ticket for every applicant" read as a count once
+   * the drum was fixed, 2026-10-28).
+   */
   globe: {
     eyebrow: "The draw globe",
-    title: "One ticket for every applicant",
+    title: "Every application gets one ticket",
     mine: "Yours glows, marked YOU.",
     line: `${TRIP_FACTS.winners} winners are picked at random and announced on ${TRIP_FACTS.winnersAnnounced}.`,
-    label: (n: number, mine: boolean) =>
-      `A glass globe holding one ticket for each of the ${n.toLocaleString("en-IN")} applicants${mine ? ", yours among them" : ""}.`,
+    label: (mine: boolean) => `A glass globe of tickets for the draw${mine ? ", yours among them" : ""}.`,
     shake: "Click to mix the tickets",
   },
   pool: {
@@ -108,17 +85,6 @@ export const REGISTERED = {
       { title: "Winners announced", line: `On ${TRIP_FACTS.winnersAnnounced}. The winners are contacted to confirm their details.` },
       { title: "Trip date shared", line: "The trip date and plan are sent to the winners." },
     ],
-  },
-  board: {
-    title: "Latest applications",
-    cols: ["Trip ID", "Country", "Applied"],
-    you: "You",
-    empty: "No applications yet. Be the first!",
-    error: "We could not update the list just now. We will try again in a moment.",
-    privacy: "For privacy, only the Trip ID, country and time are shown. Names and contact details are never shown.",
-    /** The board holds the newest few dozen (lib/trip-participants.ts): "all" only when that is all there are. */
-    more: (n: number, total: number) => (total > n ? `Show the ${n} newest` : `Show all ${n}`),
-    fewer: "Show fewer",
   },
   apply: {
     line: "You have not applied yet. It only takes a few minutes.",

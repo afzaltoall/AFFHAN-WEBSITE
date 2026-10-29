@@ -33,9 +33,8 @@ export const INTRO = {
 export const STEPS = [
   { key: "personal", number: "01", title: "About you", lede: "The basics, so our team knows who to contact." },
   { key: "business", number: "02", title: "Your business journey", lede: "Tell us where you are in your business journey." },
-  { key: "profile", number: "03", title: "Business profile", lede: "What you would like to explore in China." },
-  { key: "travel", number: "04", title: "Travel profile", lede: "Three quick questions about travelling." },
-  { key: "review", number: "05", title: "Review & submit", lede: "Check your answers, then send your application." },
+  { key: "travel", number: "03", title: "Travel profile", lede: "Two quick questions about travelling." },
+  { key: "review", number: "04", title: "Review & submit", lede: "Check your answers, then send your application." },
 ] as const;
 
 export const NAV = {
@@ -47,50 +46,25 @@ export const NAV = {
 
 export const LABELS = {
   fullName: "Full name",
-  email: "Email",
   phone: "Mobile number",
   country: "Country",
   city: "City",
-  profileUrl: "Website or LinkedIn",
-  // 02: the first question, then each option's own (lib/trip-application.ts, BUSINESS_FIELDS).
+  // 02: the first question, then what running a business asks (lib/trip-application.ts, BUSINESS_FIELDS).
   businessStatus: "What best describes you?",
   companyName: "Company name",
-  brandName: "Business / brand name",
   role: "Your role",
   businessCategory: "Business category",
-  businessArea: "Business category / area",
-  companyWebsite: "Company website",
-  yearsInBusiness: "Years in business",
-  businessDescription: "About your business",
-  businessPlan: "What are you planning to build?",
-  areaOfInterest: "Area of interest",
-  exploreGoal: "What would you like to explore in China?",
-  /** Step 01's website or LinkedIn, asked again for someone without a business. */
-  websiteOrLinkedIn: "Website / LinkedIn",
-  interests: "What are you interested in?",
-  productsOfInterest: "Products or categories of interest",
-  exploreNotes: "What are you hoping to explore in China?",
   nationality: "Nationality",
   hasPassport: "Do you have a valid passport?",
-  travelledToChina: "Have you travelled to China before?",
 } as const;
 
 export const PLACEHOLDERS = {
   fullName: "Your full name",
-  email: "you@company.com",
   phone: "9876543210",
   city: "e.g. Chennai",
-  profileUrl: "yourcompany.com or linkedin.com/in/…",
   companyName: "Company name",
-  brandName: "If you have one already",
   role: "e.g. Founder, Purchasing manager",
   businessCategory: "Search categories",
-  companyWebsite: "yourcompany.com",
-  businessDescription: "What you sell or make, who you sell to, and where.",
-  businessPlan: "What you plan to make or sell, and who for.",
-  exploreGoal: "The kind of business or opportunities you would like to find.",
-  productsOfInterest: "e.g. LED lighting, cotton t-shirts, packaging boxes",
-  exploreNotes: "Factories, markets, suppliers, anything you would like to see.",
 } as const;
 
 /** Lines that sit under a question, always shown. */
@@ -99,11 +73,11 @@ export const NOTES = {
 } as const;
 
 export const REVIEW = {
-  groups: { personal: "About you", business: "Your business journey", profile: "Business profile", travel: "Travel profile" },
+  groups: { personal: "About you", business: "Your business journey", travel: "Travel profile" },
   edit: "Edit",
   notGiven: "Not given",
   /** Short forms for the review's lines (the questions are long). */
-  brief: { passport: "Valid passport", travelled: "Travelled to China", inBusiness: "in business", area: "Area of interest" },
+  brief: { passport: "Valid passport" },
   // The three consents are the trip's own words: TRIP_CONSENTS in lib/trip-legal.ts.
 } as const;
 
@@ -120,9 +94,15 @@ export const SUBMIT = {
           ? "Consent to the Privacy Policy above to submit."
           : "Agree to the Terms & Conditions above to submit.",
   needsAnswers: (steps: string) => `Some answers need another look before you can submit: ${steps}.`,
+  /** Cloudflare's check, for someone not signed in, is still running (out of sight). */
+  checking: "One moment: a quick security check is finishing.",
+  /** Cloudflare wants the visitor to do something: its box is under the buttons. */
+  checkShowing: "Complete the security check below to submit.",
+  /** Cloudflare's check could not run (blocked, or offline). It keeps trying by itself. */
+  checkFailed: "The security check couldn't load. Check your connection, or reload the page.",
 } as const;
 
-/** The moment after the server confirms: then on to the participants board. */
+/** The moment after the server confirms: then on to their boarding pass. */
 export const SUCCESS = {
   eyebrow: "AFFHAN International",
   title: "Application submitted",
@@ -130,8 +110,8 @@ export const SUCCESS = {
   reference: "Your Trip ID",
   /** Before the moment the database recorded it (India time). */
   recorded: "Recorded at",
-  next: "Taking you to the participants",
-  go: "See the participants",
+  next: "Taking you to your boarding pass",
+  go: "See your boarding pass",
 } as const;
 
 export const FAILURE = {
@@ -140,15 +120,14 @@ export const FAILURE = {
   line: "Please check your connection and try again.",
   /** It arrived, and the server could not record it. */
   server: "We couldn't record your application just now. Please try again in a moment.",
-  /** The sign-in ended while the form was open (the API needs the account). */
-  signin: "Your sign-in has ended. Sign in again to send your application.",
-  signInAgain: "Sign in",
+  /** Cloudflare's check did not pass (someone not signed in). */
+  human: "The security check didn't go through. Please try again.",
   /** When the server says too many applications came from this connection. */
   limited: "Too many applications from this connection. Please try again later.",
   /** The window closed (or had not opened) on the server's clock: the server says which. */
   closed: `Applications closed on ${TRIP_FACTS.applicationsClose}.`,
-  /** One application per person: the server found one from this email or mobile. */
-  duplicate: "We have already received an application from this account, email address or mobile number. To change anything in it, write to info@affhan.com.",
+  /** One application per person: the server found one from this account or mobile. */
+  duplicate: "We have already received an application from this account or mobile number. To change anything in it, write to info@affhan.com.",
   retry: "Try again",
   review: "Review your answers",
   kept: "Everything you entered is still here.",

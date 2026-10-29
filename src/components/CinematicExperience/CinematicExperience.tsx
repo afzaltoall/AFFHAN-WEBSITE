@@ -190,12 +190,14 @@ export function CinematicExperience() {
   /**
    * Every "Apply for the Trip" (hero, film readout, final call, countdown)
    * asks first, every time it is pressed: the trip's Terms & Conditions and
-   * Privacy Policy, in the consent popup, held open by the button that was
-   * pressed. Agreed, the trip takes off from that button. Someone who has
-   * registered already has nothing to agree to: the trip takes off straight
-   * to the participants board, where their Trip ID is. Ctrl, ⌘, Shift or
-   * middle click still open a new tab, as links do, and the application asks
-   * there instead.
+   * Privacy Policy, in the consent popup (a sheet on a phone), held open by
+   * the button that was pressed. Agreed, the trip takes off from that button,
+   * and the application opens past its intro on a phone, on its first
+   * question (the owner, 2026-10-28: "terms and conditions aduthu dha step
+   * 1"). Someone who has registered already has nothing to agree to: the trip
+   * takes off straight to their boarding pass, where their Trip ID is. Ctrl,
+   * ⌘, Shift or middle click still open a new tab, as links do, and the
+   * application asks there instead.
    */
   const [askedFrom, setAskedFrom] = useState<HTMLElement | null>(null);
   const { registration } = useTripStatus();

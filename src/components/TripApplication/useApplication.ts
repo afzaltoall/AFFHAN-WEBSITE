@@ -7,6 +7,7 @@ import { isValidMobile, splitE164 } from "@/lib/phone";
 import {
   BUSINESS_FIELDS,
   BUSINESS_FIELD_KEYS,
+  isBusinessStatus,
   relevantBusiness,
   validateStep,
   type BusinessStatus,
@@ -16,68 +17,54 @@ import {
 } from "@/lib/trip-application";
 
 /**
- * The application's one state object: { personal, business, profile, travel,
- * consent }, plus the dial code the mobile field needs.
+ * The application's one state object: { personal, business, travel, consent },
+ * plus the dial code the mobile field needs.
  *
  * - Back never erases anything; forward runs that step's rules first.
  * - Step 02's first answer decides which of its questions apply
- *   (BUSINESS_FIELDS). Changing it clears only the answers the new choice
- *   does not ask, and keeps the ones it shares; what is sent is only what
- *   the choice asks (toPayload), so nothing stale ever leaves the browser.
- * - Steps 01–03 (nothing sensitive) are kept as a draft in sessionStorage, so
- *   an accidental refresh does not lose them. Step 04 (travel) and the consent
+ *   (BUSINESS_FIELDS). Changing it keeps what was typed, out of sight (a tap
+ *   on "planning" turns the page at once, so a slip must cost nothing: back
+ *   on "I currently run a business", the company's answers are still there),
+ *   but only what the choice asks is checked, reviewed and sent (toPayload),
+ *   so nothing hidden ever leaves the browser.
+ * - Steps 01–02 (nothing sensitive) are kept as a draft in sessionStorage, so
+ *   an accidental refresh does not lose them. Step 03 (travel) and the consent
  *   ticks are NEVER stored anywhere in the browser: they live in memory only.
  *   The Privacy Policy and Terms boxes are ticked by the agreement given in
- *   the popup before the application starts (ApplyExperience); the accuracy
- *   box starts unticked.
- * - Someone signed in has their name, email and mobile filled in, into fields
+ *   the popup before the application starts (ApplyExperience; on a phone, the
+ *   sheet before the first question). The accuracy box starts unticked.
+ * - Someone signed in has their name and mobile filled in, into fields
  *   that are still empty.
  */
 
 export interface ApplicationState {
-  personal: { fullName: string; email: string; phoneIso: string; phoneCode: string; phone: string; country: string; city: string; profileUrl: string };
+  personal: { fullName: string; phoneIso: string; phoneCode: string; phone: string; country: string; city: string };
   business: TripApplicationPayload["business"];
-  profile: TripApplicationPayload["profile"];
   travel: TripApplicationPayload["travel"];
   consent: TripApplicationPayload["consent"];
 }
 
 const EMPTY: ApplicationState = {
-  personal: { fullName: "", email: "", phoneIso: "in", phoneCode: "+91", phone: "", country: "", city: "", profileUrl: "" },
-  business: {
-    businessStatus: "",
-    companyName: "",
-    role: "",
-    businessCategory: "",
-    companyWebsite: "",
-    yearsInBusiness: "",
-    businessDescription: "",
-    businessPlan: "",
-    areaOfInterest: "",
-    exploreGoal: "",
-  },
-  profile: { interests: [], productsOfInterest: "", exploreNotes: "" },
-  travel: { nationality: "", hasPassport: null, travelledToChina: null },
+  personal: { fullName: "", phoneIso: "in", phoneCode: "+91", phone: "", country: "", city: "" },
+  business: { businessStatus: "", companyName: "", role: "", businessCategory: "" },
+  travel: { nationality: "", hasPassport: null },
   consent: { privacy: false, accuracy: false, terms: false },
 };
 
-/** Session-only draft of steps 01–03. Never step 04, never consent. */
+/** Session-only draft of steps 01–02. Never step 03, never consent. */
 const DRAFT_KEY = "affhan:trip-apply-draft";
 
 export function toPayload(s: ApplicationState): TripApplicationPayload {
   return {
     personal: {
       fullName: s.personal.fullName.trim(),
-      email: s.personal.email.trim(),
       // No number, no phone: the dial code alone ("+91") is not an answer, and must not pass as one.
       phone: s.personal.phone ? `${s.personal.phoneCode} ${s.personal.phone}` : "",
       country: s.personal.country,
       city: s.personal.city.trim(),
-      profileUrl: s.personal.profileUrl.trim(),
     },
     // Only what the chosen option asks: the rest is blank, whatever was typed before a change of mind.
     business: relevantBusiness(s.business),
-    profile: { ...s.profile },
     travel: { ...s.travel },
     consent: { ...s.consent },
   };
@@ -89,17 +76,29 @@ export function useApplication() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const restored = useRef(false);
 
-  // Bring back a draft of steps 01–03 from this session.
+  // Bring back a draft of steps 01–02 from this session: only the answers this form asks. A draft from an
+  // earlier form may carry more (the business profile, "About your business", a website, years in business,
+  // a plan), all left behind; an option no longer offered is left for the applicant to choose again.
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(DRAFT_KEY);
       if (raw) {
-        const d = JSON.parse(raw) as Partial<Pick<ApplicationState, "personal" | "business" | "profile">>;
+        const d = JSON.parse(raw) as Partial<Pick<ApplicationState, "personal" | "business">>;
+        // An email or a website from a draft of the form before 2026-10-29 is left behind too.
+        const personal = { ...(d.personal ?? {}) } as Record<string, unknown>;
+        delete personal.email;
+        delete personal.profileUrl;
+        const was = (d.business ?? {}) as Record<string, unknown>;
+        const business: Partial<ApplicationState["business"]> = {};
+        if (isBusinessStatus(was.businessStatus)) business.businessStatus = was.businessStatus;
+        for (const k of BUSINESS_FIELD_KEYS) {
+          const v = was[k];
+          if (typeof v === "string") business[k] = v;
+        }
         setState((s) => ({
           ...s,
-          personal: { ...s.personal, ...(d.personal ?? {}) },
-          business: { ...s.business, ...(d.business ?? {}) },
-          profile: { ...s.profile, ...(d.profile ?? {}), interests: Array.isArray(d.profile?.interests) ? d.profile.interests : s.profile.interests },
+          personal: { ...s.personal, ...personal },
+          business: { ...s.business, ...business },
         }));
       }
     } catch {
@@ -118,24 +117,23 @@ export function useApplication() {
       personal: {
         ...s.personal,
         fullName: s.personal.fullName || user.name || "",
-        email: s.personal.email || user.email || "",
         ...(known && !s.personal.phone ? { phoneIso: known.iso, phoneCode: known.dial, phone: known.national } : {}),
       },
     }));
   }, [user]);
 
-  // Save the draft (01–03 only), a moment after typing stops.
+  // Save the draft (01–02 only), a moment after typing stops.
   useEffect(() => {
     if (!restored.current) return;
     const id = window.setTimeout(() => {
       try {
-        sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ personal: state.personal, business: state.business, profile: state.profile }));
+        sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ personal: state.personal, business: state.business }));
       } catch {
         /* storage full or blocked: the draft is a convenience */
       }
     }, 400);
     return () => window.clearTimeout(id);
-  }, [state.personal, state.business, state.profile]);
+  }, [state.personal, state.business]);
 
   /** Update one section; clears the complaints of the fields that changed. */
   const update = useCallback(<K extends keyof ApplicationState>(section: K, patch: Partial<ApplicationState[K]>) => {
@@ -148,18 +146,12 @@ export function useApplication() {
   }, []);
 
   /**
-   * Step 02's first answer. The answers the new choice does not ask are
-   * cleared (and their complaints with them); the ones it shares with the old
-   * choice (a company or brand name, a category, a website) are kept.
+   * Step 02's first answer. What was typed for the other choice stays, out of
+   * sight (choosing it again brings it back); its complaints go.
    */
   const chooseStatus = useCallback((next: BusinessStatus) => {
     const keep: readonly string[] = BUSINESS_FIELDS[next];
-    setState((s) => {
-      if (s.business.businessStatus === next) return s;
-      const business = { ...s.business, businessStatus: next };
-      for (const k of BUSINESS_FIELD_KEYS) if (!keep.includes(k)) business[k] = "";
-      return { ...s, business };
-    });
+    setState((s) => (s.business.businessStatus === next ? s : { ...s, business: { ...s.business, businessStatus: next } }));
     setErrors((e) => {
       const n = { ...e };
       delete n.businessStatus;

@@ -19,7 +19,7 @@ const OWN_HOST = /^(?:(?:www\.)?affhan\.com|localhost|127\.0\.0\.1)$/i;
  * trip is closed here, before any page is served:
  *
  *  - every page under /free-china-trip/ (the film, the application, the
- *    participants board, the trip's terms and privacy, any address under
+ *    boarding pass, the trip's terms and privacy, any address under
  *    it) shows "Opening soon" instead (LOCKED), however it is asked for:
  *    typed, linked, prefetched, or a client-side navigation's RSC request.
  *    It is a rewrite, not a redirect, so the address stays as it was typed,

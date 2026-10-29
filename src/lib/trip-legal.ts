@@ -18,7 +18,7 @@
 export const TRIP_TERMS_HREF = "/free-china-trip/terms/";
 export const TRIP_PRIVACY_HREF = "/free-china-trip/privacy/";
 export const TRIP_APPLY_HREF = "/free-china-trip/apply/";
-/** The participants board: where a registered applicant lands, and returns to. */
+/** The boarding pass: where a registered applicant lands, and returns to. */
 export const TRIP_REGISTERED_HREF = "/free-china-trip/registered/";
 
 /** One piece of a section, in reading order. */

@@ -15,6 +15,9 @@ const ROUTES = [
   "src/app/api/supplier/auth/login/route.ts", // supplier portal, sign in (2026-10-21)
   "src/app/api/supplier/auth/register/route.ts", // supplier portal, new account
   "src/app/api/supplier/auth/forgot-password/route.ts", // supplier portal, Send code
+  // Free China Trip, sent without signing in (2026-10-28). Only the session lookup comes first (someone signed in,
+  // and the app, are not asked); it is the one every page's /me makes.
+  "src/app/api/trip-applications/route.ts",
 ];
 const LATER = [/\bcheck\w*RateLimit\(/, /\bbeginLoginAttempt\(/, /\bwindowLockRemainingMs\(/, /\bprisma\.\w+\.\w+\(/, /\bcanDeliverTo\(/];
 

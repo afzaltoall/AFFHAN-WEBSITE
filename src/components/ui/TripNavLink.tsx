@@ -22,9 +22,9 @@ import { MENU_TILE, MenuGlyph } from "@/components/ui/MenuIcons";
  * While the trip is locked a gold lock sits on the icon, and the press goes to
  * /free-china-trip/, where the door shows "Opening soon" (the banner under its
  * lock, larger, which opens live as an admin unlocks it). Open, the press opens
- * the trip as the banner does (useOpenTrip): the sign-in popup first if nobody
- * is signed in, then the trip, or the participants board for someone
- * registered already.
+ * the trip as the banner does (useOpenTrip), with no sign-in (2026-10-28): the
+ * trip's page, the application itself on a phone, or the boarding pass for
+ * someone registered already.
  */
 const ICON = { src: "/china-trip-icon-64.webp", srcSet: "/china-trip-icon-64.webp 64w, /china-trip-icon-128.webp 128w" };
 

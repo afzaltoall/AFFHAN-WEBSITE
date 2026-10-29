@@ -1,8 +1,8 @@
-/* /free-china-trip/registered/ (RegisteredExperience): the participants board.
+/* /free-china-trip/registered/ (RegisteredExperience): the applicant's own page.
    Tokens come from the film's .cx block (cinematic.css): the same black, gold
    and crimson as the landing page and the application. The heading with the
-   pass under it and the globe beside both; the draw; then one live panel for
-   everyone. */
+   pass under it and the globe beside both; the draw; then what happens next
+   (no counts of anyone else since 2026-10-28). */
 
 .tr {
   background: #050406;
@@ -131,72 +131,6 @@
   letter-spacing: 0.28em;
   text-transform: uppercase;
   color: var(--cx-gold);
-}
-/* The board's clock (BoardClock): India time in the departure board's split-flap tiles, each figure
-   that changes turning over, and under it when the list was last read. In place of a "Live"
-   badge (the owner, 2026-10-07: it looked like a badge). */
-.tr-clock {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.3rem;
-}
-.tr-clock-time {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-.tr-clock-tile {
-  position: relative;
-  display: inline-grid;
-  width: 1.1em;
-  height: 1.55em;
-  place-items: center;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #231d26 0%, #1b161d 49.5%, #110d13 50.5%, #18131a 100%);
-  box-shadow: inset 0 0 0 1px rgb(255 248 230 / 0.07), 0 1px 1px rgb(0 0 0 / 0.6);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-  color: #f6e6c2;
-  font-variant-numeric: tabular-nums;
-}
-/* The split across its middle. */
-.tr-clock-tile::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 50%;
-  height: 1px;
-  background: rgb(0 0 0 / 0.55);
-}
-.tr-clock-sep {
-  padding: 0 1px;
-  font-size: 13px;
-  font-weight: 700;
-  color: rgb(246 230 194 / 0.55);
-}
-.tr-clock-zone {
-  margin-left: 0.45rem;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.2em;
-  color: var(--cx-gold);
-}
-.tr-clock-note {
-  min-height: 1em;
-  font-size: 11px;
-  color: var(--cx-mute);
-  font-variant-numeric: tabular-nums;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .tr-clock-tile { animation: tr-clock-turn 0.42s cubic-bezier(0.3, 0.8, 0.3, 1) both; }
-}
-@keyframes tr-clock-turn {
-  0% { transform: perspective(160px) rotateX(-90deg); filter: brightness(1.8); }
-  60% { transform: perspective(160px) rotateX(12deg); }
-  100% { transform: perspective(160px) rotateX(0deg); filter: none; }
 }
 
 /* ---- The top: the heading, the pass under it, the globe beside both ------------------------ */
@@ -591,369 +525,6 @@
 .tr-cal-menu button:hover { background: rgb(244 239 230 / 0.07); }
 .tr-cal-menu a:focus-visible,
 .tr-cal-menu button:focus-visible { outline: 2px solid var(--cx-gold-hi); outline-offset: -2px; }
-
-/* ---- Everyone, live: the count and where from, beside the board ------------------------- */
-.tr-live-grid {
-  display: grid;
-  gap: 1.5rem;
-}
-.tr-summary {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-}
-@media (min-width: 1024px) {
-  .tr-live-grid { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 0; }
-  /* Kept in view beside a long board ("Show all"), under the navbar. */
-  .tr-summary { position: sticky; top: 5.5rem; align-self: start; padding-right: 2.25rem; }
-  .tr-board { padding-left: 2.25rem; border-left: 1px solid rgb(244 239 230 / 0.08); }
-}
-@media (max-width: 1023px) {
-  .tr-board { padding-top: 1.4rem; border-top: 1px solid rgb(244 239 230 / 0.08); }
-}
-.tr-total {
-  position: relative;
-  margin-top: 0.5rem;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 0.75rem;
-  font-family: var(--font-cx-display), Georgia, serif;
-  font-variation-settings: "opsz" 11;
-  font-size: clamp(64px, 16vw, 104px);
-  line-height: 1;
-  color: var(--cx-white);
-}
-.tr-total-wait { color: rgb(244 239 230 / 0.25); }
-/* A registration arriving while the page is open: said for a moment, then gone. */
-.tr-arrived {
-  border-radius: 999px;
-  background: rgb(91 227 155 / 0.12);
-  box-shadow: inset 0 0 0 1px rgb(120 220 160 / 0.3);
-  padding: 0.35em 0.75em;
-  font-family: var(--font-sans);
-  font-variation-settings: normal;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  color: #9ef0c2;
-  white-space: nowrap;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .tr-arrived { animation: tr-pop 0.6s cubic-bezier(0.2, 0.7, 0.2, 1.4) both; }
-}
-@keyframes tr-pop { from { opacity: 0; transform: translateY(10px) scale(0.6); } }
-.tr-places {
-  margin-top: 0.45rem;
-  font-size: 14px;
-  color: var(--cx-mute);
-}
-.tr-pace {
-  margin-top: 0.85rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 13px;
-  color: rgb(244 239 230 / 0.86);
-  font-variant-numeric: tabular-nums;
-}
-.tr-pace-dot {
-  width: 6px;
-  height: 6px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: #5be39b;
-}
-/* The drums. */
-.tr-odo {
-  display: inline-flex;
-  font-variant-numeric: tabular-nums;
-}
-.tr-odo-window {
-  display: inline-block;
-  height: 1em;
-  overflow: hidden;
-}
-.tr-odo-strip {
-  display: flex;
-  flex-direction: column;
-  transition: transform 1.3s cubic-bezier(0.22, 1, 0.36, 1);
-}
-/* Each figure lit like a dial: ivory at the top, gold at the foot. */
-.tr-odo-strip > span {
-  height: 1em;
-  line-height: 1;
-  background: linear-gradient(180deg, #fffaf0 8%, #f4e6c8 52%, #d6a84e 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-/* Where from: one country by name, several as a short ranking of bars. */
-.tr-from { margin-top: 1.6rem; }
-.tr-from-title { font-size: 10.5px; color: rgb(214 168 78 / 0.85); }
-.tr-from-one {
-  margin-top: 0.65rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--cx-white);
-}
-.tr-from-list {
-  margin-top: 0.75rem;
-  display: grid;
-  gap: 0.55rem;
-}
-.tr-from-list li {
-  display: grid;
-  grid-template-columns: 20px minmax(0, 9.5rem) minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.65rem;
-  font-size: 13px;
-  color: rgb(244 239 230 / 0.88);
-}
-.tr-from-bar {
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgb(244 239 230 / 0.08);
-}
-.tr-from-bar > span {
-  display: block;
-  height: 100%;
-  width: calc(var(--p) * 100%);
-  border-radius: inherit;
-  background: linear-gradient(90deg, #b88a3a, #f2d38e);
-}
-.tr-from-n {
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--cx-gold-hi);
-}
-.tr-from-more {
-  margin-top: 0.55rem;
-  font-size: 12px;
-  color: var(--cx-mute);
-}
-.tr-flag {
-  width: 20px;
-  height: 14px;
-  flex-shrink: 0;
-  border-radius: 2px;
-  object-fit: cover;
-  box-shadow: 0 0 0 1px rgb(244 239 230 / 0.15);
-}
-.tr-flag-none { display: inline-block; background: rgb(244 239 230 / 0.1); }
-
-/* ---- The departures board ---------------------------------------------------------------- */
-.tr-board { min-width: 0; }
-.tr-board-cols,
-.tr-row {
-  display: grid;
-  /* Where from beside the Trip ID however wide the board, and when at the end. */
-  grid-template-columns: minmax(0, 17.5rem) minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 0.75rem;
-}
-.tr-board-cols {
-  margin-top: 1rem;
-  padding: 0 0.7rem 0.55rem;
-  border-bottom: 1px solid rgb(244 239 230 / 0.1);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgb(244 239 230 / 0.5);
-}
-.tr-board-cols span:last-child { text-align: right; }
-.tr-board-rows {
-  display: grid;
-  perspective: 900px;
-}
-.tr-row {
-  min-height: 3.15rem;
-  padding: 0.45rem 0.7rem;
-  border-bottom: 1px solid rgb(244 239 230 / 0.06);
-  font-size: 13.5px;
-  color: rgb(244 239 230 / 0.88);
-  transform-origin: 50% 0;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .tr-row:not(.tr-row-new):not(.tr-row-skeleton):not(.tr-row-more) { animation: tr-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) calc(0.45s + var(--i, 0) * 0.06s) both; }
-  /* The lines "Show all" opens: in at once, a ripple down them, no wait and no blur (they used to
-     wait their turn behind the page's own entrance, unseen, while the panel had already grown). */
-  .tr-row-more { animation: tr-row-open 0.26s cubic-bezier(0.22, 1, 0.36, 1) calc(var(--k, 0) * 0.018s) both; }
-  /* A line that arrives while the page is open flips down into place, lit. */
-  .tr-row-new { animation: tr-flip 0.9s cubic-bezier(0.22, 1, 0.36, 1) both, tr-lit 2.4s ease-out both; }
-}
-@keyframes tr-flip { from { opacity: 0; transform: rotateX(-88deg); } }
-@keyframes tr-row-open { from { opacity: 0; transform: translateY(6px); } }
-@keyframes tr-lit {
-  0% { background: rgb(214 168 78 / 0.3); box-shadow: 0 0 30px -6px rgb(242 211 142 / 0.6); }
-  100% { background: transparent; box-shadow: none; }
-}
-.tr-row-id {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.6rem;
-  white-space: nowrap;
-}
-/* The split-flap tiles: one character to a tile, the split across its middle. */
-.tr-flap {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-}
-.tr-flap-tile {
-  position: relative;
-  display: inline-grid;
-  width: 1.12em;
-  height: 1.62em;
-  place-items: center;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #231d26 0%, #1b161d 49.5%, #110d13 50.5%, #18131a 100%);
-  box-shadow: inset 0 0 0 1px rgb(255 248 230 / 0.07), 0 1px 1px rgb(0 0 0 / 0.6);
-  font-size: 12.5px;
-  font-weight: 700;
-  line-height: 1;
-  color: #f6e6c2;
-  font-variant-numeric: tabular-nums;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .tr-flap-tile.is-turning {
-    animation: tr-flutter 84ms linear infinite;
-    background: linear-gradient(180deg, #2e2731 0%, #241e27 49.5%, #18131b 50.5%, #1f1922 100%);
-    color: #fff6dc;
-  }
-}
-@keyframes tr-flutter { 50% { transform: scaleY(0.72); } }
-.tr-flap-tile::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(50% - 0.5px);
-  height: 1px;
-  background: rgb(0 0 0 / 0.7);
-}
-.tr-flap-dash {
-  width: 0.45em;
-  height: 2px;
-  margin: 0 1px;
-  border-radius: 1px;
-  background: rgb(246 230 194 / 0.5);
-}
-.tr-row-from {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.55rem;
-  font-size: 13px;
-}
-.tr-row-when {
-  justify-self: end;
-  font-size: 12.5px;
-  color: var(--cx-mute);
-  white-space: nowrap;
-}
-/* The visitor's own line. */
-.tr-row-you {
-  border-radius: 10px;
-  border-bottom-color: transparent;
-  background: linear-gradient(90deg, rgb(214 168 78 / 0.18), rgb(214 168 78 / 0.04));
-  box-shadow: inset 0 0 0 1px rgb(214 168 78 / 0.42);
-  color: var(--cx-white);
-}
-.tr-row-you .tr-flap-tile {
-  color: #ffe2a0;
-  box-shadow: inset 0 0 0 1px rgb(242 211 142 / 0.3), 0 1px 1px rgb(0 0 0 / 0.6);
-}
-.tr-row-you-tag {
-  border-radius: 999px;
-  background: var(--cx-gold);
-  padding: 0.12rem 0.45rem;
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #1b1307;
-}
-/* Between the newest and the visitor's own line, further down. */
-.tr-row-gap {
-  display: flex;
-  justify-content: center;
-  gap: 5px;
-  padding: 0.55rem 0;
-}
-.tr-row-gap span {
-  width: 4px;
-  height: 4px;
-  border-radius: 999px;
-  background: rgb(244 239 230 / 0.28);
-}
-.tr-row-skeleton span {
-  height: 0.7rem;
-  border-radius: 999px;
-  background: linear-gradient(90deg, rgb(244 239 230 / 0.06), rgb(244 239 230 / 0.12), rgb(244 239 230 / 0.06));
-  background-size: 200% 100%;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .tr-row-skeleton span { animation: tr-shimmer 1.4s linear infinite; }
-}
-@keyframes tr-shimmer { to { background-position: -200% 0; } }
-.tr-board-empty {
-  padding: 1.4rem 0.7rem;
-  font-size: 14px;
-  color: var(--cx-mute);
-}
-.tr-board-more {
-  display: inline-flex;
-  min-height: 40px;
-  margin-top: 0.9rem;
-  align-items: center;
-  border-radius: 999px;
-  border: 1px solid rgb(244 239 230 / 0.16);
-  padding: 0 1rem;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgb(244 239 230 / 0.85);
-  transition: border-color 0.2s ease, color 0.2s ease;
-}
-.tr-board-more:hover { border-color: rgb(242 211 142 / 0.55); color: var(--cx-gold-hi); }
-.tr-board-more:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 3px; }
-.tr-board-error {
-  margin-top: 0.8rem;
-  font-size: 12.5px;
-  color: var(--cx-error);
-}
-.tr-board-privacy {
-  margin-top: 1.3rem;
-  border-top: 1px solid rgb(244 239 230 / 0.07);
-  padding-top: 0.95rem;
-  font-size: 11.5px;
-  line-height: 1.5;
-  color: rgb(244 239 230 / 0.45);
-}
-/* Phones: two lines to a row. */
-@media (max-width: 520px) {
-  .tr-board-cols { display: none; }
-  .tr-row {
-    grid-template-columns: minmax(0, 1fr) auto;
-    /* The Trip ID (and "You") alone on top; where from and when under it. */
-    grid-template-areas: "id id" "from when";
-    row-gap: 0.35rem;
-    padding: 0.6rem 0.55rem;
-  }
-  .tr-row-id { grid-area: id; }
-  .tr-row-from { grid-area: from; }
-  .tr-row-when { grid-area: when; }
-  .tr-flap-tile { font-size: 11.5px; }
-}
 
 /* ---- Not registered yet ---------------------------------------------------------------- */
 .tr-apply {
@@ -1370,12 +941,8 @@
   color: rgb(244 239 230 / 0.36);
 }
 
-/* ---- What happens next (NextSteps): a route of stops down the left side of the live panel -- */
-.tr-next {
-  margin-top: 1.6rem;
-  border-top: 1px solid rgb(244 239 230 / 0.08);
-  padding-top: 1.3rem;
-}
+/* ---- What happens next (NextSteps): a route of stops, on a panel of its own ------------------ */
+.tr-next { max-width: 40rem; }
 .tr-next-steps {
   margin-top: 0.95rem;
   display: grid;
@@ -1477,8 +1044,27 @@
   0%, 100% { box-shadow: inset 0 0 0 1.5px #f2d38e, 0 0 0 4px rgb(242 211 142 / 0.12); }
   50% { box-shadow: inset 0 0 0 1.5px #f2d38e, 0 0 0 8px rgb(242 211 142 / 0.04); }
 }
+/* A wide screen: the route across the panel, which is the route's alone since the list of applications
+   left it (2026-10-28; down its left side, it left the rest of the panel bare). The same stops, legs, plane
+   and words, the legs drawn left to right and the plane flying along them. A phone and a tablet keep the
+   route down the page, above. */
+@media (min-width: 1280px) {
+  .tr-next { max-width: none; }
+  .tr-next-steps { margin-top: 1.35rem; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 1.5rem; }
+  .tr-next-step { flex-direction: column; gap: 0.8rem; min-height: 0; }
+  .tr-next-step:not(:last-child)::before { left: 28px; right: calc(-1.5rem + 4px); top: 11px; bottom: auto; width: auto; height: 2px; transform-origin: 0 50%; }
+  .tr-next-step.is-done::before { background: linear-gradient(90deg, #f2d38e, #d6a84e); }
+  .tr-next-plane { top: 12px; left: calc(100% + 1.5rem - 19px); }
+  .tr-next-plane svg { transform: rotate(45deg); }
+}
+@media (min-width: 1280px) and (prefers-reduced-motion: no-preference) {
+  .tr-next-step.is-done::before { transform: scaleX(0); }
+  .tr-next-steps.is-shown .tr-next-step.is-done::before { transform: scaleX(1); }
+  .tr-next-plane { top: 12px; left: 28px; transition: left 1.1s cubic-bezier(0.45, 0, 0.25, 1) 0.25s, opacity 0.3s ease 0.25s; }
+  .tr-next-steps.is-shown .tr-next-plane { top: 12px; left: calc(100% + 1.5rem - 19px); }
+}
 
-/* ---- Registrations arriving: their messages at the foot of the screen --------------------- */
+/* ---- Their own ticket going into the draw: its message at the foot of the screen ----------- */
 .tr-toasts {
   position: fixed;
   left: 1rem;
@@ -1600,13 +1186,12 @@
 @media (prefers-reduced-motion: reduce) {
   .tr-wash, .tr-arrive { animation: none; }
   .tr-arrive { display: none; }
-  .tr-odo-strip { transition: none; }
   .tr-pass { transform: none; transition: none; }
 }
 
 /* ---- A phone (CinematicExperience/lite.ts; keep the query the same) ----------------------
    No blur on anything that moves or sits over something moving: the drifting washes, the
-   panels' frosted glass and the rows' rise were blurred again by the GPU on every frame, and
+   panels' frosted glass and the board's rows were blurred again by the GPU on every frame, and
    the board stuck under the finger (the owner's moto g45, 2026-10-13). The washes hold still,
    the glass is a deeper tint, and things rise in without the blur. */
 @media (hover: none) and (pointer: coarse) and (max-width: 767.98px), (hover: none) and (pointer: coarse) and (max-height: 540px) {
@@ -1619,8 +1204,7 @@
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  .tr-in,
-  .tr-row:not(.tr-row-new):not(.tr-row-skeleton):not(.tr-row-more) { animation-name: tr-rise-lite; }
+  .tr-in { animation-name: tr-rise-lite; }
   @keyframes tr-rise-lite {
     from { opacity: 0; transform: translateY(18px); }
   }

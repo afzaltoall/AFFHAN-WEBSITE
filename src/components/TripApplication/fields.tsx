@@ -70,28 +70,6 @@ export function TextInput({ id, value, onChange, error, placeholder, maxLength, 
   );
 }
 
-export function TextArea({ id, value, onChange, error, placeholder, maxLength, required = true }: InputProps) {
-  return (
-    <div className="relative">
-      <textarea
-        id={id}
-        rows={2}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        aria-required={required || undefined}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${id}-error` : undefined}
-        className={`${LINE} max-h-48 min-h-[4.75rem] resize-y py-2.5 leading-relaxed ${lineState(!!error)}`}
-      />
-      <span aria-hidden className="pointer-events-none absolute bottom-2 right-0 text-[11px] tabular-nums text-(--cx-mute)">
-        {value.length}/{maxLength}
-      </span>
-    </div>
-  );
-}
-
 /**
  * Where a field's list opens, so it is always whole on the screen. The page
  * is one fixed screen whose questions scroll inside it (StepScroll), so a
@@ -515,10 +493,16 @@ export function Pills({
  * you?"): the pills' boxes as a column of cards, two across on wider
  * screens, each with a radio ring that fills when it is chosen (radio group:
  * arrows move between them).
+ *
+ * `onPick`: an option clicked or tapped, chosen already or not. Moving through
+ * the options with the arrow keys, or Space, is onChange alone, so the
+ * keyboard is never moved on while still choosing.
  */
 export function Choices({
-  id, value, options, onChange, error, label,
-}: { id: string; value: string; options: readonly { value: string; label: string }[]; onChange: (v: string) => void; error?: string; label: string }) {
+  id, value, options, onChange, onPick, error, label,
+}: { id: string; value: string; options: readonly { value: string; label: string }[]; onChange: (v: string) => void; onPick?: (v: string) => void; error?: string; label: string }) {
+  /** The option a mouse, finger or pen went down on: its click is a pick. */
+  const pressed = useRef<string | null>(null);
   return (
     <fieldset aria-describedby={error ? `${id}-error` : undefined} className="grid gap-3">
       <legend className={LABEL}>
@@ -529,7 +513,7 @@ export function Choices({
         {options.map((o, i) => {
           const on = value === o.value;
           return (
-            <label key={o.value} className="group relative flex cursor-pointer">
+            <label key={o.value} className="group relative flex cursor-pointer" onPointerDown={() => void (pressed.current = o.value)}>
               <input
                 id={i === 0 ? id : undefined}
                 type="radio"
@@ -537,6 +521,11 @@ export function Choices({
                 value={o.value}
                 checked={on}
                 onChange={() => onChange(o.value)}
+                onClick={() => {
+                  if (pressed.current === o.value) onPick?.(o.value);
+                  pressed.current = null;
+                }}
+                onKeyDown={() => void (pressed.current = null)}
                 className="peer sr-only"
               />
               <span className="ax-choice flex min-h-14 w-full items-center gap-3.5 border border-(--cx-white)/22 px-4 py-3 text-left text-[15px] leading-snug text-(--cx-white) transition-colors duration-300 group-hover:border-(--cx-white)/45 peer-checked:border-(--cx-gold) peer-checked:bg-(--cx-gold) peer-checked:text-(--cx-ink) peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-(--cx-white)">
@@ -555,47 +544,6 @@ export function Choices({
         </p>
       )}
     </fieldset>
-  );
-}
-
-/** Several choices: toggles (aria-pressed), not checkboxes in a card. */
-export function Chips({
-  id, values, options, onChange, error, label,
-}: { id: string; values: string[]; options: readonly string[]; onChange: (v: string[]) => void; error?: string; label: string }) {
-  const toggle = (o: string) => onChange(values.includes(o) ? values.filter((v) => v !== o) : [...values, o]);
-  return (
-    <div role="group" aria-labelledby={`${id}-label`} aria-describedby={error ? `${id}-error` : undefined} className="grid gap-3">
-      <p id={`${id}-label`} className={LABEL}>
-        {label}
-        <span aria-hidden className="text-(--cx-gold)"> *</span>
-        <span className="normal-case tracking-normal"> (choose any)</span>
-      </p>
-      <div className="flex flex-wrap gap-2.5">
-        {options.map((o, i) => {
-          const on = values.includes(o);
-          return (
-            <button
-              key={o}
-              id={i === 0 ? id : undefined}
-              type="button"
-              aria-pressed={on}
-              onClick={() => toggle(o)}
-              className={`inline-flex min-h-11 items-center gap-2 border px-4 text-[14px] transition-colors duration-300 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--cx-white) ${
-                on ? "border-(--cx-gold) bg-(--cx-gold) text-(--cx-ink)" : "border-(--cx-white)/22 text-(--cx-white) hover:border-(--cx-white)/45"
-              }`}
-            >
-              {on && <Check size={14} aria-hidden />}
-              {o}
-            </button>
-          );
-        })}
-      </div>
-      {error && (
-        <p id={`${id}-error`} className="text-[13px] font-medium text-(--cx-error)">
-          {error}
-        </p>
-      )}
-    </div>
   );
 }
 

@@ -4,17 +4,19 @@ import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
 import { verifyMobileSession } from "@/lib/mobile-auth";
 import { isValidMobileE164 } from "@/lib/phone";
-import { checkTripApplicationRateLimit, limitReached } from "@/lib/rate-limit";
+import { checkTripApplicationRateLimit, getClientIp, limitReached } from "@/lib/rate-limit";
+import { checkTurnstile } from "@/lib/turnstile";
+import { rememberTripApplicant } from "@/lib/trip-applicant";
 import { TRIP_FACTS } from "@/lib/trip-legal";
 import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
 import {
   BUSINESS_CATEGORIES,
   BUSINESS_FIELD_KEYS,
-  INTERESTS,
+  BUSINESS_STATUSES,
   LIMITS,
-  YEARS_IN_BUSINESS,
   applicationWindow,
   isBusinessStatus,
+  isRetiredBusinessStatus,
   relevantBusiness,
   validateAll,
   type BusinessFieldKey,
@@ -24,21 +26,32 @@ import {
 /**
  * Applications for the free China business trip, from /free-china-trip/apply/.
  *
- * Signed-in only: every application belongs to an account (the website's
- * cookie or the app's Bearer token, verifyMobileSession), so the team can see
- * who registered by their account and their Trip ID. Every rule the form
- * applies is applied again here (lib/trip-application.ts is shared), because
- * the form is only a convenience and anyone can post to this URL:
+ * No account needed (the owner, 2026-10-28: "remove the login to enter for the
+ * china free trip page"). Sent while signed in (the website's cookie or the
+ * app's Bearer token, verifyMobileSession), the application is the account's
+ * as well, as before, and nothing more is asked. Sent by someone who is not
+ * signed in, from the website, Cloudflare's check comes first (lib/turnstile.ts),
+ * as the contact form has it. The app always sends its session, so it is never
+ * asked: it cannot show the widget (tests/security/app-no-turnstile.test.mjs
+ * reads this file for that). Recorded, the application's id is remembered on
+ * the browser that sent it (lib/trip-applicant.ts), so that browser is shown its
+ * own registration without an account.
+ *
+ * Every rule the form applies is applied again here (lib/trip-application.ts is
+ * shared), because the form is only a convenience and anyone can post to this
+ * URL:
  *
  *  - never while the trip is locked (lib/trip-lock.ts), except from an admin
  *    signed in to the console, checking it;
  *  - only from 12 October to 25 November 2026 (Terms, clause 1; a production
  *    build keeps the window, a development server is always open);
  *  - one application per person (Terms, clause 2): none is taken from an
- *    account, an email address or a mobile number that already has one
- *    (unless the team deleted it);
+ *    account or a mobile number that already has one (unless the team
+ *    deleted it). No email is asked since 2026-10-29, so none is compared;
  *  - only the business answers the chosen business journey asks are kept
- *    (relevantBusiness); anything else sent is dropped, never stored;
+ *    (relevantBusiness); anything else sent is dropped, never stored, and a
+ *    journey no longer offered (taken out on 2026-10-28, still on a page
+ *    opened before) is asked again;
  *  - the three consents are required and recorded one by one.
  *
  * Nothing here scores, ranks or orders an application. Each is stored as
@@ -59,17 +72,14 @@ const BUSINESS_MAX: Record<BusinessFieldKey, number> = {
   companyName: LIMITS.company,
   role: LIMITS.role,
   businessCategory: LIMITS.category,
-  companyWebsite: LIMITS.url,
-  yearsInBusiness: 40,
-  businessDescription: LIMITS.description,
-  businessPlan: LIMITS.description,
-  areaOfInterest: LIMITS.category,
-  exploreGoal: LIMITS.explore,
 };
 
 function read(body: Record<string, unknown>): TripApplicationPayload {
   const o = (k: string) => (body[k] && typeof body[k] === "object" ? (body[k] as Record<string, unknown>) : {});
-  const p = o("personal"), b = o("business"), f = o("profile"), t = o("travel"), c = o("consent");
+  // The business profile (interests, products, what to explore), "About your business", a company's website and
+  // years in business, and what the journeys taken out asked are no longer asked (2026-10-28): anything an older
+  // form still sends of them is dropped here, never stored.
+  const p = o("personal"), b = o("business"), t = o("travel"), c = o("consent");
   const answers = Object.fromEntries(BUSINESS_FIELD_KEYS.map((k) => [k, str(b[k], BUSINESS_MAX[k])])) as Record<BusinessFieldKey, string>;
   // The mobile app's older form asks only the company questions, all of them
   // required, and sends no businessStatus: it is read as running a business.
@@ -77,25 +87,15 @@ function read(body: Record<string, unknown>): TripApplicationPayload {
   return {
     personal: {
       fullName: str(p.fullName, LIMITS.name),
-      email: str(p.email, LIMITS.email),
       phone: str(p.phone, LIMITS.phone),
       country: str(p.country, LIMITS.country),
       city: str(p.city, LIMITS.city),
-      profileUrl: str(p.profileUrl, LIMITS.url),
     },
     // Only what the chosen journey asks; the rest is dropped here.
     business: relevantBusiness({ businessStatus: status, ...answers }),
-    profile: {
-      interests: Array.isArray(f.interests)
-        ? Array.from(new Set(f.interests.filter((x): x is string => typeof x === "string"))).slice(0, INTERESTS.length)
-        : [],
-      productsOfInterest: str(f.productsOfInterest, LIMITS.products),
-      exploreNotes: str(f.exploreNotes, LIMITS.explore),
-    },
     travel: {
       nationality: str(t.nationality, LIMITS.country),
       hasPassport: bool(t.hasPassport),
-      travelledToChina: bool(t.travelledToChina),
     },
     consent: {
       // The website asks for the Privacy Policy in a box of its own. The
@@ -109,6 +109,22 @@ function read(body: Record<string, unknown>): TripApplicationPayload {
 }
 
 export async function POST(req: NextRequest) {
+  let body: Record<string, unknown>;
+  try {
+    body = (await req.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "That request could not be read." }, { status: 400 });
+  }
+
+  // Signed in: the application is the account's too, and nothing more is asked. Not signed in: Cloudflare's check
+  // first, before the request costs a rate-limit command (lib/turnstile.ts). Only here, never with a session: the app
+  // always sends one, and cannot show the widget.
+  const user = await verifyMobileSession(req).catch(() => null);
+  if (!user) {
+    const human = await checkTurnstile(body.turnstileToken, getClientIp(req));
+    if (!human.ok) return NextResponse.json({ error: human.error, reason: "human" }, { status: human.status });
+  }
+
   const limited = await checkTripApplicationRateLimit(req);
   if (!limited.success) return limitReached("Several applications have come from this connection in the last hour.", limited);
 
@@ -123,18 +139,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error, reason: "closed" }, { status: 403 });
   }
 
-  // Signed in, always: the application belongs to the account.
-  const user = await verifyMobileSession(req).catch(() => null);
-  if (!user) {
-    return NextResponse.json({ error: "Please sign in to send your application.", reason: "signin" }, { status: 401 });
-  }
-
-  let body: Record<string, unknown>;
-  try {
-    body = (await req.json()) as Record<string, unknown>;
-  } catch {
-    return NextResponse.json({ error: "That request could not be read." }, { status: 400 });
-  }
   const a = read(body);
   const b = a.business;
 
@@ -143,27 +147,29 @@ export async function POST(req: NextRequest) {
   const errors = validateAll(a, isValidMobileE164(a.personal.phone.replace(/\s+/g, "")));
   const inList = (list: readonly string[], v: string) => list.includes(v);
   if (b.businessCategory && !inList(BUSINESS_CATEGORIES, b.businessCategory)) errors.businessCategory = "Please choose a category.";
-  if (b.yearsInBusiness && !inList(YEARS_IN_BUSINESS, b.yearsInBusiness)) errors.yearsInBusiness = "Please choose one.";
-  if (b.areaOfInterest && !inList(BUSINESS_CATEGORIES, b.areaOfInterest)) errors.areaOfInterest = "Please choose an area of interest.";
-  if (a.profile.interests.some((i) => !inList(INTERESTS, i))) errors.interests = "Please choose from the list.";
+  // A page opened before 2026-10-28 still offers the two journeys taken out: it shows this under them.
+  const sent = body.business && typeof body.business === "object" ? (body.business as Record<string, unknown>).businessStatus : undefined;
+  if (isRetiredBusinessStatus(sent)) errors.businessStatus = `Please choose ${BUSINESS_STATUSES.map((s) => `“${s.label}”`).join(" or ")}.`;
   if (Object.keys(errors).length) {
     return NextResponse.json({ error: "Some answers need another look.", fields: errors }, { status: 400 });
   }
 
-  const customerKey = customerKeyOf({ phone: a.personal.phone, email: a.personal.email });
+  const customerKey = customerKeyOf({ phone: a.personal.phone });
   const phoneKey = customerKeyOf({ phone: a.personal.phone });
+  const userId = user?.id ?? null;
 
   try {
-    // One application per person: this account, the same email (in any case)
-    // or the same mobile number already has one the team has not deleted.
+    // One application per person: the signed-in account or the same mobile
+    // number already has one the team has not deleted. (Not the email: none is
+    // asked since 2026-10-29, and every new row holds "".)
     const existing = await prisma.$queryRaw<{ id: string }[]>`
       SELECT id FROM "TripApplication"
       WHERE status <> 'deleted'
-        AND ("userId" = ${user.id} OR lower(email) = lower(${a.personal.email}) OR (${phoneKey}::text IS NOT NULL AND "customerKey" = ${phoneKey}))
+        AND ((${userId}::text IS NOT NULL AND "userId" = ${userId}) OR (${phoneKey}::text IS NOT NULL AND "customerKey" = ${phoneKey}))
       LIMIT 1`;
     if (existing.length) {
       return NextResponse.json(
-        { error: "We have already received an application from this account, email address or mobile number. To change anything in it, write to info@affhan.com.", reason: "duplicate" },
+        { error: "We have already received an application from this account or mobile number. To change anything in it, write to info@affhan.com.", reason: "duplicate" },
         { status: 409 },
       );
     }
@@ -178,33 +184,30 @@ export async function POST(req: NextRequest) {
     const saved = await prisma.tripApplication.create({
       data: {
         fullName: a.personal.fullName,
-        email: a.personal.email,
+        // No longer asked (2026-10-29; an older page's is dropped): the column may not be null.
+        email: "",
         phone: a.personal.phone,
         country: a.personal.country,
         city: a.personal.city,
-        profileUrl: orNull(a.personal.profileUrl),
+        // A website or LinkedIn is no longer asked either (2026-10-29): left null, an older page's dropped.
         businessStatus: b.businessStatus as string,
         companyName: orNull(b.companyName),
         role: orNull(b.role),
         businessCategory: orNull(b.businessCategory),
-        companyWebsite: orNull(b.companyWebsite),
-        yearsInBusiness: orNull(b.yearsInBusiness),
-        businessDescription: orNull(b.businessDescription),
-        businessPlan: orNull(b.businessPlan),
-        areaOfInterest: orNull(b.areaOfInterest),
-        exploreGoal: orNull(b.exploreGoal),
-        interests: a.profile.interests,
-        productsOfInterest: a.profile.productsOfInterest,
-        exploreNotes: orNull(a.profile.exploreNotes),
+        // No longer asked (2026-10-28): left empty, as the columns allow ("" for the one that may not be null; the
+        // website, years in business, plan, area of interest and what to explore default to null).
+        interests: [],
+        productsOfInterest: "",
         nationality: a.travel.nationality,
         hasPassport: a.travel.hasPassport === true,
-        travelledToChina: a.travel.travelledToChina === true,
+        // No longer asked (2026-10-29); the column may not be null, so false, which the console never shows.
+        travelledToChina: false,
         // All three are required above; recorded as given.
         consentPrivacy: a.consent.privacy,
         consentAccuracy: a.consent.accuracy,
         consentTerms: a.consent.terms,
         customerKey,
-        userId: user.id,
+        userId,
       },
       select: { id: true, referenceNo: true, createdAt: true },
     });
@@ -212,12 +215,20 @@ export async function POST(req: NextRequest) {
     // The customer number every other lead gets. Never fatal: the
     // application is saved either way.
     try {
-      await ensureCustomerCode({ phone: a.personal.phone, email: a.personal.email }, saved.createdAt, "TRIP");
+      await ensureCustomerCode({ phone: a.personal.phone }, saved.createdAt, "TRIP");
     } catch (e) {
       console.error("trip application customer code:", e instanceof Error ? e.message : e);
     }
 
-    return NextResponse.json({ referenceNo: saved.referenceNo, createdAt: saved.createdAt.toISOString() }, { status: 201 });
+    const res = NextResponse.json({ referenceNo: saved.referenceNo, createdAt: saved.createdAt.toISOString() }, { status: 201 });
+    // This browser is shown its own registration from now on. Never fatal either: without AUTH_SECRET the
+    // application stands, and only the remembering is missing.
+    try {
+      rememberTripApplicant(res, saved.id);
+    } catch (e) {
+      console.error("trip application cookie:", e instanceof Error ? e.message : e);
+    }
+    return res;
   } catch (e) {
     console.error("trip application save failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "We couldn't record your application." }, { status: 500 });

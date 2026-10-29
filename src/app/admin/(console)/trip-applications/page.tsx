@@ -17,8 +17,9 @@ export const metadata: Metadata = {
  * dashboard's Shipping view does, so this page adds nothing to the console's
  * own load.
  *
- * The filters ride in the address (?tab=, ?journey=, ?country=, one each),
- * so a reload keeps them and a link hands a colleague the same list. Read
+ * The filters ride in the address (?tab=, ?journey=, ?country=, one each,
+ * and ?view=again for Registered again), so a reload keeps them and a link
+ * hands a colleague the same list. Read
  * here and handed down as the board's first state, as the suppliers page
  * does, rather than through useSearchParams.
  */
@@ -32,5 +33,5 @@ export default async function TripApplicationsPage({
   if (admin.role !== "admin") redirect("/");
   const params = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || "";
-  return <TripApplicationsBoard initial={{ tab: one(params.tab), journey: one(params.journey), country: one(params.country) }} />;
+  return <TripApplicationsBoard initial={{ tab: one(params.tab), journey: one(params.journey), country: one(params.country), view: one(params.view) }} />;
 }

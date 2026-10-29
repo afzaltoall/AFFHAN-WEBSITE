@@ -39,7 +39,7 @@ function daysLeft(now: number) {
  * so the server never sends a figure the visitor's own clock disagrees
  * with. Before the window the button says "see the trip" and the line when
  * it opens; after it, when it closed. Someone already registered is not
- * asked to apply again: theirs opens the participants board, and says so.
+ * asked to apply again: theirs opens their boarding pass, and says so.
  *
  * While the banner is locked (`lock`, TripLockOverlay: the owner's request
  * of 2026-10-05) it is a dark, gold-lettered button that opens nothing: a
@@ -64,7 +64,7 @@ export function TripCall({
   className?: string;
   /** applicationWindow() as the server saw it, so the first paint is right. */
   initialWindow: WindowState;
-  /** The signed-in visitor has registered already. */
+  /** The visitor has registered already (by their account, or on this browser). */
   registered?: boolean;
   /** The banner's lock: locked, opening now, or just opened in front of the visitor. */
   lock?: "locked" | "unlocking" | "fresh";
@@ -154,7 +154,7 @@ export function TripCall({
   let status: ReactNode;
   let live = false;
   if (registered) {
-    label = "View participants";
+    label = "Your boarding pass";
     status = "You're registered";
   } else if (win === "open") {
     label = <>{verb} to apply free</>;

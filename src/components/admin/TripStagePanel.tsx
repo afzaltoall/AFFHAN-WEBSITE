@@ -27,8 +27,8 @@ const fmt = (iso: string) =>
 /**
  * The Free China Business Trip's stage, from the console (lib/trip-stage.ts;
  * the owner's choice of 2026-10-07): the team moves it as each step after the
- * applications starts, and every applicant's "What happens next" on the
- * participants page follows within seconds. The five steps in a row, the
+ * applications starts, and every applicant's "What happens next" on their
+ * boarding pass page follows within seconds. The five steps in a row, the
  * current one filled; choosing another asks first, in words, so a slip of the
  * mouse never moves it. Read again every 30 seconds, so a move made by
  * another admin shows here. In the console's palette (`t`, `dark`).

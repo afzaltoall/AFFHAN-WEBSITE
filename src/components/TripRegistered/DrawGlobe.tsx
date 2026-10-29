@@ -65,7 +65,7 @@ interface Sim {
   blow: (power: number) => void;
 }
 
-/** Tickets drawn at most; the caption beside the globe says how many there are. */
+/** Tickets drawn at most. */
 const MAX = 150;
 /** Gold foil, light to dark: four shades; the visitor's, brighter; one catching the light; the backs. */
 const FOILS = [
@@ -101,10 +101,12 @@ const ease = (x: number) => {
 };
 
 /**
- * The draw, as a golden glass globe on a stand: one golden ticket in it for
- * each registration (`count`, the real figure), the visitor's own (`mine`)
- * glowing and marked "You". The owner's idea of 2026-10-07: every
- * registration goes into one globe, and five are drawn from it.
+ * The draw, as a golden glass globe on a stand: `count` golden tickets in it,
+ * the visitor's own (`mine`) glowing and marked "You". The owner's idea of
+ * 2026-10-07: every registration goes into one globe, and five are drawn from
+ * it. Until 2026-10-28 `count` was the number of registrations; since the
+ * owner took every count off the trip's pages, the registered page fills it
+ * with a fixed drum (GLOBE_TICKETS), a picture of the draw, never a figure.
  *
  * The lid at the top opens for tickets and shuts after them. The first time
  * the globe is seen the tickets pour in, one after another, and float down

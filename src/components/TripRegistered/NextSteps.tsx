@@ -15,14 +15,14 @@ const AT: Record<TripStageName, number> = { open: 0, checking: 1, drawing: 2, an
  * is not); then the eligibility check, the random draw, the winners
  * announced, the trip date shared.
  *
- * It follows the stage the team sets in the console (`stage`, read with the
- * board every few seconds): the steps before it done, the one it is at
- * "Now", the rest still to come; at the last stage, all of it done. While
- * applications are open, the step after them is "Next". The legs flown are
- * drawn in gold, and a small plane waits on the last of them, by the step
- * the trip is heading to. When the route first comes into view, its legs
- * draw themselves and the plane flies them. In place under reduced motion
- * (registered.css).
+ * It follows the stage the team sets in the console (`stage`, read every few
+ * seconds): the steps before it done, the one it is at "Now", the rest still
+ * to come; at the last stage, all of it done. While applications are open,
+ * the step after them is "Next". The legs flown are drawn in gold, and a
+ * small plane waits on the last of them, by the step the trip is heading to.
+ * When the route first comes into view, its legs draw themselves and the
+ * plane flies them. In place under reduced motion (registered.css). Down the
+ * page on a phone or a tablet; across its panel on a wide screen.
  */
 export function NextSteps({ appliedOn, stage }: { appliedOn: string | null; stage: TripStageName }) {
   const ref = useRef<HTMLOListElement>(null);

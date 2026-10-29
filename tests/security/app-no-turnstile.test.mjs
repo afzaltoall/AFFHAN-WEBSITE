@@ -37,7 +37,6 @@ const SHARED = [
   "search/image/route.ts",
   "search/suggestions/route.ts",
   "shipping-inquiry/route.ts",
-  "trip-applications/route.ts",
   "videos/route.ts",
   "videos/[id]/route.ts",
 ];
@@ -47,6 +46,14 @@ for (const route of SHARED) {
     assert.doesNotMatch(source, /checkTurnstile|lib\/turnstile/);
   });
 }
+
+// The trip application, which the app calls too, needs no account since 2026-10-28, so someone not signed in on the
+// website passes Cloudflare's check. Only then: the app always sends its session, so it is never asked.
+test("/api/trip-applications/route.ts asks for Turnstile only when no session came", () => {
+  const source = fs.readFileSync(fileURLToPath(new URL("../../src/app/api/trip-applications/route.ts", import.meta.url)), "utf8");
+  assert.equal(source.match(/checkTurnstile\(/g)?.length ?? 0, 1, "one call");
+  assert.match(source, /const user = await verifyMobileSession\(req\)[^;]*;\s*if \(!user\) \{\s*const human = await checkTurnstile\(/);
+});
 
 for (const lib of ["google-account.ts", "google-linking.ts", "password.ts", "mobile-auth.ts", "rate-limit.ts"]) {
   test(`no Turnstile in lib/${lib}, which the app's sign-in shares`, () => {

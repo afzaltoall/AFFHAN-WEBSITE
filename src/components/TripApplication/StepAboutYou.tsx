@@ -3,7 +3,7 @@ import { LABELS, PLACEHOLDERS } from "./content";
 import { CountryField, Field, PhoneField, TextInput } from "./fields";
 import type { ApplicationApi, ApplicationState } from "./useApplication";
 
-/** Step 01, About you: who to call. Field ids are "ax-" + the answer's key. */
+/** Step 01, About you: who to call. No email and no website or LinkedIn (the owner, 2026-10-29: "we dont need email"). Field ids are "ax-" + the answer's key. */
 export function StepAboutYou({ app }: { app: ApplicationApi }) {
   const p = app.state.personal;
   const e = app.errors;
@@ -13,11 +13,6 @@ export function StepAboutYou({ app }: { app: ApplicationApi }) {
       <div className="sm:col-span-2">
         <Field id="ax-fullName" label={LABELS.fullName} error={e.fullName}>
           <TextInput id="ax-fullName" value={p.fullName} onChange={(v) => set({ fullName: v })} error={e.fullName} placeholder={PLACEHOLDERS.fullName} maxLength={LIMITS.name} autoComplete="name" />
-        </Field>
-      </div>
-      <div className="sm:col-span-2">
-        <Field id="ax-email" label={LABELS.email} error={e.email}>
-          <TextInput id="ax-email" type="email" inputMode="email" value={p.email} onChange={(v) => set({ email: v })} error={e.email} placeholder={PLACEHOLDERS.email} maxLength={LIMITS.email} autoComplete="email" />
         </Field>
       </div>
       <div className="sm:col-span-2">
@@ -44,11 +39,6 @@ export function StepAboutYou({ app }: { app: ApplicationApi }) {
       <Field id="ax-city" label={LABELS.city} error={e.city}>
         <TextInput id="ax-city" value={p.city} onChange={(v) => set({ city: v })} error={e.city} placeholder={PLACEHOLDERS.city} maxLength={LIMITS.city} autoComplete="address-level2" />
       </Field>
-      <div className="sm:col-span-2">
-        <Field id="ax-profileUrl" label={LABELS.profileUrl} optional error={e.profileUrl}>
-          <TextInput id="ax-profileUrl" inputMode="url" value={p.profileUrl} onChange={(v) => set({ profileUrl: v })} error={e.profileUrl} placeholder={PLACEHOLDERS.profileUrl} maxLength={LIMITS.url} autoComplete="url" required={false} />
-        </Field>
-      </div>
     </div>
   );
 }

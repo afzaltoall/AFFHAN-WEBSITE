@@ -76,7 +76,7 @@ function ClockTime({ run }: { run: boolean }) {
  *     into a line of light that rises to become the horizon APPLICATION
  *     SUBMITTED rises from: the Trip ID the database wrote, the moment it was
  *     recorded, and a thin line filling while the page carries the applicant
- *     on to the participants board (or at once, from the button).
+ *     on to their boarding pass (or at once, from the button).
  *  3. Failed: the reason, and the way on. The form stays mounted underneath
  *     with every answer intact.
  */
@@ -91,7 +91,6 @@ export function SubmitStage({
   canRetry = true,
   onRetry,
   onReview,
-  onSignIn,
   onContinue,
 }: {
   active: boolean;
@@ -109,9 +108,7 @@ export function SubmitStage({
   canRetry?: boolean;
   onRetry: () => void;
   onReview: () => void;
-  /** Offered in place of Try again when the sign-in has ended. */
-  onSignIn?: () => void;
-  /** On to the participants board, now. */
+  /** On to the boarding pass, now. */
   onContinue: () => void;
 }) {
   return (
@@ -217,16 +214,10 @@ export function SubmitStage({
           <p className="mt-4 max-w-[36rem] text-[16px] leading-relaxed text-(--cx-mute)">{failure || FAILURE.line}</p>
           <p className="mt-1 text-[14px] text-(--cx-mute)">{FAILURE.kept}</p>
           <div className="mt-8 flex w-full flex-col items-center gap-5 sm:w-auto sm:flex-row">
-            {onSignIn ? (
-              <GoldButton type="button" onClick={onSignIn} data-ax-retry className="w-full sm:w-auto">
-                {FAILURE.signInAgain}
+            {canRetry && (
+              <GoldButton type="button" onClick={onRetry} data-ax-retry className="w-full sm:w-auto">
+                {FAILURE.retry}
               </GoldButton>
-            ) : (
-              canRetry && (
-                <GoldButton type="button" onClick={onRetry} data-ax-retry className="w-full sm:w-auto">
-                  {FAILURE.retry}
-                </GoldButton>
-              )
             )}
             <button type="button" onClick={onReview} className={TEXT_BUTTON}>
               {FAILURE.review}

@@ -3,8 +3,9 @@ import { prisma } from "@/lib/prisma";
 /**
  * How far the Free China Business Trip has got, as the team sets it in the
  * console (the owner's choice of 2026-10-07: the team moves it, so it is
- * never ahead of what has happened). The participants page's "What happens
- * next" follows it (NextSteps), read with the board every few seconds.
+ * never ahead of what has happened). The registered page's "What happens
+ * next" follows it (NextSteps), read every few seconds from
+ * /api/trip-applications/stage/.
  *
  * The stages are the Terms' own steps after applying (sections 1, 3 and 4):
  * applications open, then the eligibility check, the random draw, the

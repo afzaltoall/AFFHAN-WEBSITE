@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test:security": "node --test \"tests/security/*.test.mjs\"",
     "test:supplier-match": "node --import ./tests/helpers/server-modules.mjs --test \"tests/supplier-match/*.test.mjs\"",
+    "test:trip-repeats": "node --import ./tests/helpers/server-modules.mjs --test \"tests/trip-repeats/*.test.mjs\"",
     "test:lead-pool": "node --import ./tests/helpers/server-modules.mjs --test \"tests/lead-pool/*.test.mjs\""
   },
   "dependencies": {
