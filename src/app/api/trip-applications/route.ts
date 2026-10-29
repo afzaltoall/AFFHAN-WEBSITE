@@ -9,7 +9,7 @@ import { checkTurnstile } from "@/lib/turnstile";
 import { rememberTripApplicant } from "@/lib/trip-applicant";
 import { TRIP_FACTS } from "@/lib/trip-legal";
 import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
-import { LIMITS, applicationWindow, isBusinessStatus, isRetiredBusinessStatus, validateAll, type TripApplicationPayload } from "@/lib/trip-application";
+import { LIMITS, SOURCE_NOT_VERIFIED, applicationWindow, isBusinessStatus, isRetiredBusinessStatus, validateAll, type TripApplicationPayload } from "@/lib/trip-application";
 
 /**
  * Applications for the free China business trip, from /free-china-trip/apply/.
@@ -92,12 +92,15 @@ export async function POST(req: NextRequest) {
   }
 
   // Signed in: the application is the account's too, and nothing more is asked. Not signed in: Cloudflare's check
-  // first, before the request costs a rate-limit command (lib/turnstile.ts). Only here, never with a session: the app
-  // always sends one, and cannot show the widget.
+  // first (lib/turnstile.ts), never with a session: the app always sends one, and cannot show the widget. It does not
+  // refuse (2026-10-29): the page never shows its "Verify you are human" box (the owner: "showing sometimes dont show
+  // that"), so an application it did not confirm is taken all the same and marked not verified for the team
+  // (SOURCE_NOT_VERIFIED); the rate limit and one application per number still hold for everyone.
+  let notVerified = false;
   const user = await verifyMobileSession(req).catch(() => null);
   if (!user) {
     const human = await checkTurnstile(body.turnstileToken, getClientIp(req));
-    if (!human.ok) return NextResponse.json({ error: human.error, reason: "human" }, { status: human.status });
+    notVerified = !human.ok;
   }
 
   const limited = await checkTripApplicationRateLimit(req);
@@ -172,6 +175,7 @@ export async function POST(req: NextRequest) {
         consentPrivacy: a.consent.privacy,
         consentAccuracy: a.consent.accuracy,
         consentTerms: a.consent.terms,
+        ...(notVerified ? { source: SOURCE_NOT_VERIFIED } : {}),
         customerKey,
         userId,
       },

@@ -11,11 +11,15 @@ phone:                      [agree] ──▶ 01 ⇄ 02 ⇄ 03 ⇄ 04 ──Subm
 
 **No account is needed** (the owner, 2026-10-28: "remove the login to enter for
 the china free trip page"). Someone signed in has their details filled in, and
-the application is their account's too. Someone who is not passes Cloudflare's
-check (Turnstile, interaction-only: out of sight unless Cloudflare wants them to
-do something, then under the buttons), and Submit waits for it. The API asks for
-it only when no session came with the application, so the app, which always
-sends its session, is never asked. Recorded, the application's id is kept in a
+the application is their account's too. Someone who is not goes through
+Cloudflare's check (Turnstile) silently: its "Verify you are human" box is never
+shown and never holds Submit (the owner, 2026-10-29: "showing sometimes dont
+show that"). When Cloudflare does not confirm a person (it would have wanted a
+click, or could not run), the application is taken all the same and marked not
+verified (`SOURCE_NOT_VERIFIED`), which the console shows; the rate limit and
+one application per number hold for everyone. The API asks for the check only
+when no session came with the application, so the app, which always sends its
+session, is never asked. Recorded, the application's id is kept in a
 signed cookie on the browser that sent it (`affhan_trip`,
 `lib/trip-applicant.ts`), so that browser is shown its own boarding pass from
 then on (`/api/trip-applications/me/` reads the account or the cookie).
@@ -143,10 +147,9 @@ before the change that sends a journey taken out to choose again.
   `privacy`; for it, the API reads its terms box (which names both documents)
   as both.
 - **Submit** checks every answer when pressed and says under each question
-  what is missing; it is disabled only while Cloudflare's check (someone not
-  signed in) wants something done or could not load, with the reason over it,
-  and while the application is being sent; a second press can never send it
-  twice.
+  what is missing; it is disabled only while the application is being sent (a
+  second press can never send it twice), never by Cloudflare's check, whose
+  token, when one is coming, is waited for (up to 4 s) as the plane takes off.
 - **The application window** (Terms, clause 1): on a production build,
   applications are taken from 12 October to 25 November 2026, India time, by the
   browser (the intro says when they open, or that they closed) and by the API.

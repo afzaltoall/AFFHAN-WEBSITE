@@ -49,6 +49,8 @@ export const LIST_SELECT = {
   businessCategory: true,
   areaOfInterest: true,
   customerKey: true,
+  /** "Not verified" (SOURCE_NOT_VERIFIED in lib/trip-application.ts) on the row. */
+  source: true,
   user: { select: { name: true, email: true } },
 } satisfies Prisma.TripApplicationSelect;
 

@@ -16,7 +16,8 @@ const ROUTES = [
   "src/app/api/supplier/auth/register/route.ts", // supplier portal, new account
   "src/app/api/supplier/auth/forgot-password/route.ts", // supplier portal, Send code
   // Free China Trip, sent without signing in (2026-10-28). Only the session lookup comes first (someone signed in,
-  // and the app, are not asked); it is the one every page's /me makes.
+  // and the app, are not asked); it is the one every page's /me makes. Since 2026-10-29 it marks an application
+  // Cloudflare did not confirm rather than refusing it (the page never shows the box), but still checks first.
   "src/app/api/trip-applications/route.ts",
 ];
 const LATER = [/\bcheck\w*RateLimit\(/, /\bbeginLoginAttempt\(/, /\bwindowLockRemainingMs\(/, /\bprisma\.\w+\.\w+\(/, /\bcanDeliverTo\(/];

@@ -62,12 +62,6 @@ export const PLACEHOLDERS = {
 export const SUBMIT = {
   /** Under the AFFHAN emblem while the application is sent and recorded. */
   processing: "Processing your application",
-  /** Cloudflare's check, for someone not signed in, is still running (out of sight). */
-  checking: "One moment: a quick security check is finishing.",
-  /** Cloudflare wants the visitor to do something: its box is under the buttons. */
-  checkShowing: "Complete the security check below to submit.",
-  /** Cloudflare's check could not run (blocked, or offline). It keeps trying by itself. */
-  checkFailed: "The security check couldn't load. Check your connection, or reload the page.",
 } as const;
 
 /** The moment after the server confirms: then on to their boarding pass. */

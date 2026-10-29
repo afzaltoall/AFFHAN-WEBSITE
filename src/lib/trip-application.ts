@@ -114,6 +114,13 @@ export interface TripApplicationPayload {
   };
 }
 
+/**
+ * An application sent without signing in that Cloudflare's silent check did not confirm (it would have wanted a
+ * click, could not run, or no token came): taken all the same, never refused for it, and marked so in its `source`
+ * for the team (the console shows "Not verified"). Everything else keeps the column's default.
+ */
+export const SOURCE_NOT_VERIFIED = "Free China Trip Application (not verified)";
+
 /** Field lengths, shared by the inputs' maxLength and the server's check. */
 export const LIMITS = {
   name: 100,

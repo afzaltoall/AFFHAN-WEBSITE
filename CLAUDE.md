@@ -85,7 +85,7 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - Customers sign in with **email and password** or **Google**, on the website and in the app. There is no phone sign-in and no text-message code.
 - **The phone number is a contact number only:** saved as typed, checked by libphonenumber, `phoneVerified` false, never a way in, and at most one account per number (`MobileUser.phone` is unique). After a Google sign-in on an account with none, the website asks for it (`PhonePromptProvider`, prefilled from the quote form when there is one), and the app saves it with `POST /api/mobile/account/phone/`. Account lets customers change it. Limit: 10 saves an hour per account.
 - Password reset sends a 6-digit code by email (Brevo).
-- Cloudflare Turnstile guards the website's three sign-ins (customer, staff, console), both password resets, the contact form, and a Free China Trip application sent without signing in; nothing the app calls asks for it.
+- Cloudflare Turnstile guards the website's three sign-ins (customer, staff, console), both password resets and the contact form. A Free China Trip application sent without signing in is checked too, but silently: its "Verify you are human" box is never shown (the owner, 2026-10-29), and one Cloudflare does not confirm is taken and marked `source` "Free China Trip Application (not verified)" (`SOURCE_NOT_VERIFIED`; the console shows "Not verified"), never refused; nothing the app calls asks for it.
 
 ## Supplier portal (2026-10-21)
 

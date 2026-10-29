@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Download, Mail, MessageCircle, Phone, RefreshCw, Search, Users, X } from "lucide-react";
-import { EVERY_BUSINESS_STATUS, businessStatusBrief, isKnownBusinessStatus } from "@/lib/trip-application";
+import { EVERY_BUSINESS_STATUS, SOURCE_NOT_VERIFIED, businessStatusBrief, isKnownBusinessStatus } from "@/lib/trip-application";
 import { countryFlagUrl } from "@/lib/countryFlag";
 import { TripLockPanel } from "./TripLockPanel";
 import { TripStagePanel } from "./TripStagePanel";
@@ -107,8 +107,19 @@ interface Application {
  */
 type ListApplication = Pick<
   Application,
-  "id" | "referenceNo" | "createdAt" | "status" | "fullName" | "email" | "phone" | "country" | "city" | "businessStatus" | "companyName" | "businessCategory" | "areaOfInterest" | "customerCode"
+  "id" | "referenceNo" | "createdAt" | "status" | "fullName" | "email" | "phone" | "country" | "city" | "businessStatus" | "companyName" | "businessCategory" | "areaOfInterest" | "customerCode" | "source"
 > & { user: Pick<Account, "name" | "email"> | null };
+
+/**
+ * Sent without signing in, and Cloudflare's silent check did not confirm a person sent it (it would have wanted a
+ * click, which the page never shows, or could not run): taken all the same, marked "Not verified" (2026-10-29).
+ */
+const notVerified = (r: { source: string }) => r.source === SOURCE_NOT_VERIFIED;
+
+/** The "Not verified" mark: plain words in a hairline, never a colour of its own. */
+function NotVerified() {
+  return <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium text-[#48484a] ring-1 ring-black/15">Not verified</span>;
+}
 
 /** The first rows drawn, and how many more each time the end of the list comes near. */
 const FIRST_ROWS = 60;
@@ -394,7 +405,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       new Map(
         (rows ?? []).map((r) => [
           r.id,
-          [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory, r.areaOfInterest, businessStatusBrief(r.businessStatus), r.customerCode, r.user?.email, r.user?.name]
+          [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory, r.areaOfInterest, businessStatusBrief(r.businessStatus), r.customerCode, r.user?.email, r.user?.name, notVerified(r) ? "not verified" : ""]
             .filter(Boolean)
             .join(" ")
             .toLowerCase(),
@@ -808,6 +819,7 @@ function ApplicationRow({
         <span className="min-w-0 lg:hidden">
           <span className="flex items-baseline gap-3">
             <span className="min-w-0 flex-1 truncate text-[15px] font-semibold">{r.fullName}</span>
+            {notVerified(r) && <NotVerified />}
             <span className="shrink-0 font-mono text-[11.5px] font-semibold text-[#0058b0]">{r.referenceNo}</span>
           </span>
           <span className="mt-0.5 block truncate text-[13px] text-[#48484a]">
@@ -827,7 +839,10 @@ function ApplicationRow({
           <span className="block truncate text-[12px] text-[#86868b]">{r.customerCode ?? (r.user ? "Account linked" : "No account")}</span>
         </span>
         <span className="min-w-0 max-lg:hidden">
-          <span className="block truncate text-[14px] font-semibold">{r.fullName}</span>
+          <span className="flex items-center gap-2">
+            <span className="min-w-0 truncate text-[14px] font-semibold">{r.fullName}</span>
+            {notVerified(r) && <NotVerified />}
+          </span>
           <span className={`block truncate text-[12px] ${compare ? "text-[#48484a]" : "text-[#86868b]"}`}>{contact}</span>
         </span>
         <span className="min-w-0 max-lg:hidden">
@@ -1214,6 +1229,7 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
 
         <p className="px-1 text-[12px] text-[#6e6e73]">
           {missing.length ? `Not agreed: ${missing.join(", ")}.` : "Agreed to the Terms & Conditions and the Privacy Policy."}
+          {notVerified(a) && " Not verified: Cloudflare could not confirm a person sent it."}
         </p>
       </div>
     </Panel>

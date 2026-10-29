@@ -113,21 +113,21 @@ export function ApplyExperience() {
   const router = useRouter();
   const { registration } = useTripStatus();
   const { user, loading: authLoading } = useAuth();
-  /** Not signed in: Cloudflare's check goes with the application (the API asks for it then, and only then). */
+  /**
+   * Not signed in: Cloudflare's check goes with the application, silently. Its "Verify you are human" box is never
+   * shown and never holds Submit (the owner, 2026-10-29: "showing sometimes dont show that"); when Cloudflare would
+   * have wanted it, or could not run, the application goes without a token and the API marks it not verified for
+   * the team, rather than turning a person away.
+   */
   const needsHuman = !!TURNSTILE_SITE_KEY && !authLoading && !user;
-  const [humanToken, setHumanToken] = useState<string | null>(null);
-  /** Cloudflare wants the visitor to do something: the widget shows, under the buttons. */
-  const [humanShowing, setHumanShowing] = useState(false);
-  /** Cloudflare's check could not run: Submit says so instead of "one moment" (the widget keeps retrying). */
-  const [humanFailed, setHumanFailed] = useState(false);
   const humanRef = useRef<TurnstileInstance>(null);
   /** The token as it is now, for a send that waits for it (a retry, just after the widget was reset). */
   const humanTokenRef = useRef<string | null>(null);
-  /** A token given or taken back: into the ref at once (a send may be waiting on it), and the state, for Submit. */
+  /** Cloudflare wanted a click, or could not run: no token is coming, so a send does not wait for one. */
+  const humanStuck = useRef(false);
   const takeHumanToken = useCallback((token: string | null) => {
     humanTokenRef.current = token;
-    setHumanToken(token);
-    if (token) setHumanFailed(false);
+    if (token) humanStuck.current = false;
   }, []);
   const root = useRef<HTMLDivElement>(null);
   const liveRef = useRef<HTMLParagraphElement>(null);
@@ -600,7 +600,8 @@ export function ApplyExperience() {
     setPhase("sending");
 
     // Not signed in: Cloudflare's token goes with it, the moment there is one (it is usually ready long before
-    // Submit; a retry, just after the last one was spent, waits a moment for the next), while the plane takes off.
+    // Submit; a retry, just after the last one was spent, waits a moment for the next), while the plane takes off;
+    // none coming, it goes without one.
     const request = (needsHuman ? humanWhenReady() : Promise.resolve(null)).then(async (token) => ({ token, result: await submitApplication(payload, token) }));
     // One frame for the pinned frame to be in place before anything is measured.
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -650,9 +651,9 @@ export function ApplyExperience() {
     setPhase("failed");
   };
 
-  /** Cloudflare's token now, or the next one it gives (up to 8 seconds; then none, and the server says so). */
+  /** Cloudflare's token now, or the next one it gives: up to 4 seconds, and not at all when none is coming. */
   const humanWhenReady = async () => {
-    for (let waited = 0; !humanTokenRef.current && waited < 8000; waited += 200) await sleep(200);
+    for (let waited = 0; !humanTokenRef.current && !humanStuck.current && waited < 4000; waited += 200) await sleep(200);
     return humanTokenRef.current;
   };
 
@@ -803,11 +804,6 @@ export function ApplyExperience() {
 
   const covered = phase === "sending" || phase === "failed";
 
-  // Submit waits only on Cloudflare (someone not signed in), and only when it has something to say: it wants the
-  // visitor to do something (its box is under the button), or it could not load. Still finishing out of sight, Submit
-  // goes and the send waits for the token as the plane takes off (send). Missing answers are said on Submit.
-  let submitHint = "";
-  if (phase === "form" && needsHuman && !humanToken && (humanFailed || humanShowing)) submitHint = humanFailed ? SUBMIT.checkFailed : SUBMIT.checkShowing;
 
   return (
     <div ref={root} className="ax relative isolate h-[calc(100dvh-var(--nav-h))] overflow-clip">
@@ -848,17 +844,17 @@ export function ApplyExperience() {
                   <StepScroll>
                     <ApplicationForm app={app} />
                   </StepScroll>
-                  <StepNav disabled={!!submitHint || phase !== "form"} hint={submitHint} />
+                  <StepNav disabled={phase !== "form"} />
                 </form>
               </div>
             </div>
           )}
 
-          {/* Cloudflare's check, for someone not signed in: out of sight and out of the layout unless Cloudflare
-              wants them to do something, then under Submit. Mounted with the questions, so it is usually done
-              before they are answered. A token is good for one application (send resets it). */}
+          {/* Cloudflare's check, for someone not signed in: always out of sight and out of the layout, even when
+              Cloudflare would want a click (needsHuman, above). Mounted with the questions, so its token is usually
+              ready before they are answered. A token is good for one application (send resets it). */}
           {needsHuman && phase !== "intro" && TURNSTILE_SITE_KEY && (
-            <div className={humanShowing ? "relative z-10 flex justify-center pb-3 [&_iframe]:!w-full" : "absolute h-0 w-0 overflow-hidden"} aria-hidden={!humanShowing}>
+            <div className="absolute h-0 w-0 overflow-hidden" aria-hidden>
               <Turnstile
                 ref={humanRef}
                 siteKey={TURNSTILE_SITE_KEY}
@@ -866,10 +862,9 @@ export function ApplyExperience() {
                 onExpire={() => takeHumanToken(null)}
                 onError={() => {
                   takeHumanToken(null);
-                  setHumanFailed(true);
+                  humanStuck.current = true;
                 }}
-                onBeforeInteractive={() => setHumanShowing(true)}
-                onAfterInteractive={() => setHumanShowing(false)}
+                onBeforeInteractive={() => void (humanStuck.current = true)}
                 options={{ theme: "dark", size: "flexible", appearance: "interaction-only" }}
               />
             </div>
