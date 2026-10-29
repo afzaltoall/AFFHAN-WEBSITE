@@ -923,9 +923,10 @@ function ActiveFilter({ label, flag, onRemove }: { label: string; flag?: string;
 }
 
 /**
- * Step 02's answers, as the applicant's business journey asked them (BUSINESS_FIELDS in lib/trip-application.ts).
- * Since 2026-10-28 running a business asks a company's name, role and category, and planning to start one asks
- * nothing more; what was asked before then is shown only where an application answered it.
+ * The business answer, then whatever an application of its time was asked about the business. Since 2026-10-29 the
+ * page asks only "Do you run a business?" (Yes "Runs a business", No "No business yet"); the company, its role,
+ * category, website and years, a plan, an area of interest and what to explore were asked before then, and are shown
+ * only where an application answered them.
  */
 function businessRows(a: Application): Array<[string, React.ReactNode]> {
   const site = (url: string | null) =>
@@ -936,14 +937,18 @@ function businessRows(a: Application): Array<[string, React.ReactNode]> {
     return [journey, ...answered([["Business / brand name", a.companyName], ["Category / area", a.businessCategory], ["Company website", site(a.companyWebsite)], ["Planning to build", a.businessPlan]])];
   }
   if (a.businessStatus === "no_business_yet") {
-    return [journey, ["Area of interest", a.areaOfInterest], ["Would like to explore in China", a.exploreGoal]];
+    return [journey, ...answered([["Area of interest", a.areaOfInterest], ["Would like to explore in China", a.exploreGoal]])];
   }
   return [
     journey,
-    ["Company", a.companyName],
-    ["Role", a.role],
-    ["Category", a.businessCategory],
-    ...answered([["Years in business", a.yearsInBusiness], ["Company website", site(a.companyWebsite)], ["About the business", a.businessDescription]]),
+    ...answered([
+      ["Company", a.companyName],
+      ["Role", a.role],
+      ["Category", a.businessCategory],
+      ["Years in business", a.yearsInBusiness],
+      ["Company website", site(a.companyWebsite)],
+      ["About the business", a.businessDescription],
+    ]),
   ];
 }
 
@@ -1062,7 +1067,8 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
               ["Hoping to explore in China", a.exploreNotes],
             ])}
           {section("Travel profile", [
-            ["Nationality", a.nationality],
+            // Earlier applications only: not asked since 2026-10-29 (new rows hold "").
+            ...(a.nationality ? [["Nationality", a.nationality] as [string, string]] : []),
             ["Holds a valid passport", a.hasPassport ? "Yes" : "No"],
             // No longer asked since 2026-10-29 (new rows hold false): shown only where an earlier application said yes.
             ...(a.travelledToChina ? [["Been to China before", "Yes"] as [string, string]] : []),

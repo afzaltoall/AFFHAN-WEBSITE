@@ -4,56 +4,43 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile, splitE164 } from "@/lib/phone";
-import {
-  BUSINESS_FIELDS,
-  BUSINESS_FIELD_KEYS,
-  isBusinessStatus,
-  relevantBusiness,
-  validateStep,
-  type BusinessStatus,
-  type FieldErrors,
-  type StepKey,
-  type TripApplicationPayload,
-} from "@/lib/trip-application";
+import { isBusinessStatus, type FieldErrors, type TripApplicationPayload } from "@/lib/trip-application";
 
 /**
  * The application's one state object: { personal, business, travel, consent },
- * plus the dial code the mobile field needs.
+ * plus the dial code the mobile field needs. One page, six answers (2026-10-29).
  *
- * - Back never erases anything; forward runs that step's rules first.
- * - Step 02's first answer decides which of its questions apply
- *   (BUSINESS_FIELDS). Changing it keeps what was typed, out of sight (a tap
- *   on "planning" turns the page at once, so a slip must cost nothing: back
- *   on "I currently run a business", the company's answers are still there),
- *   but only what the choice asks is checked, reviewed and sent (toPayload),
- *   so nothing hidden ever leaves the browser.
- * - Steps 01–02 (nothing sensitive) are kept as a draft in sessionStorage, so
- *   an accidental refresh does not lose them. Step 03 (travel) and the consent
- *   ticks are NEVER stored anywhere in the browser: they live in memory only.
- *   The Privacy Policy and Terms boxes are ticked by the agreement given in
- *   the popup before the application starts (ApplyExperience; on a phone, the
- *   sheet before the first question). The accuracy box starts unticked.
- * - Someone signed in has their name and mobile filled in, into fields
- *   that are still empty.
+ * - The name, mobile, country, city and the business answer (nothing
+ *   sensitive) are kept as a draft in sessionStorage, so an accidental refresh
+ *   does not lose them. The passport answer and the consents are NEVER stored
+ *   anywhere in the browser: they live in memory only. The Privacy Policy and
+ *   the Terms are agreed in the popup before the questions (ApplyExperience;
+ *   on a phone, the sheet first), and nothing is asked again: the third
+ *   consent, accurate information, is the Terms' own (clause 2), so it is sent
+ *   as their agreement (toPayload).
+ * - Someone signed in has their name and mobile filled in, into fields that
+ *   are still empty.
  */
 
 export interface ApplicationState {
   personal: { fullName: string; phoneIso: string; phoneCode: string; phone: string; country: string; city: string };
   business: TripApplicationPayload["business"];
   travel: TripApplicationPayload["travel"];
-  consent: TripApplicationPayload["consent"];
+  /** The popup's agreement, before the questions. */
+  consent: { privacy: boolean; terms: boolean };
 }
 
 const EMPTY: ApplicationState = {
   personal: { fullName: "", phoneIso: "in", phoneCode: "+91", phone: "", country: "", city: "" },
-  business: { businessStatus: "", companyName: "", role: "", businessCategory: "" },
-  travel: { nationality: "", hasPassport: null },
-  consent: { privacy: false, accuracy: false, terms: false },
+  business: { businessStatus: "" },
+  travel: { hasPassport: null },
+  consent: { privacy: false, terms: false },
 };
 
-/** Session-only draft of steps 01–02. Never step 03, never consent. */
+/** Session-only draft of the name, mobile, country, city and business answer. Never the passport, never consent. */
 const DRAFT_KEY = "affhan:trip-apply-draft";
 
+/** What is sent. */
 export function toPayload(s: ApplicationState): TripApplicationPayload {
   return {
     personal: {
@@ -63,10 +50,10 @@ export function toPayload(s: ApplicationState): TripApplicationPayload {
       country: s.personal.country,
       city: s.personal.city.trim(),
     },
-    // Only what the chosen option asks: the rest is blank, whatever was typed before a change of mind.
-    business: relevantBusiness(s.business),
-    travel: { ...s.travel },
-    consent: { ...s.consent },
+    business: { businessStatus: s.business.businessStatus },
+    travel: { hasPassport: s.travel.hasPassport },
+    // The Terms require accurate, complete information (clause 2): agreeing to them is agreeing to that.
+    consent: { privacy: s.consent.privacy, accuracy: s.consent.terms, terms: s.consent.terms },
   };
 }
 
@@ -76,29 +63,24 @@ export function useApplication() {
   const [errors, setErrors] = useState<FieldErrors>({});
   const restored = useRef(false);
 
-  // Bring back a draft of steps 01–02 from this session: only the answers this form asks. A draft from an
-  // earlier form may carry more (the business profile, "About your business", a website, years in business,
-  // a plan), all left behind; an option no longer offered is left for the applicant to choose again.
+  // Bring back this session's draft: only the answers this page asks. A draft from an earlier form may carry more
+  // (an email, a website, a company, a step-02 answer no longer offered), all left behind.
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem(DRAFT_KEY);
       if (raw) {
-        const d = JSON.parse(raw) as Partial<Pick<ApplicationState, "personal" | "business">>;
-        // An email or a website from a draft of the form before 2026-10-29 is left behind too.
-        const personal = { ...(d.personal ?? {}) } as Record<string, unknown>;
-        delete personal.email;
-        delete personal.profileUrl;
-        const was = (d.business ?? {}) as Record<string, unknown>;
-        const business: Partial<ApplicationState["business"]> = {};
-        if (isBusinessStatus(was.businessStatus)) business.businessStatus = was.businessStatus;
-        for (const k of BUSINESS_FIELD_KEYS) {
+        const d = JSON.parse(raw) as { personal?: Record<string, unknown>; business?: Record<string, unknown> };
+        const was = d.personal ?? {};
+        const personal: Partial<ApplicationState["personal"]> = {};
+        for (const k of ["fullName", "phoneIso", "phoneCode", "phone", "country", "city"] as const) {
           const v = was[k];
-          if (typeof v === "string") business[k] = v;
+          if (typeof v === "string") personal[k] = v;
         }
+        const status = d.business?.businessStatus;
         setState((s) => ({
           ...s,
           personal: { ...s.personal, ...personal },
-          business: { ...s.business, ...business },
+          business: isBusinessStatus(status) ? { businessStatus: status } : s.business,
         }));
       }
     } catch {
@@ -122,7 +104,7 @@ export function useApplication() {
     }));
   }, [user]);
 
-  // Save the draft (01–02 only), a moment after typing stops.
+  // Save the draft, a moment after typing stops.
   useEffect(() => {
     if (!restored.current) return;
     const id = window.setTimeout(() => {
@@ -145,34 +127,9 @@ export function useApplication() {
     });
   }, []);
 
-  /**
-   * Step 02's first answer. What was typed for the other choice stays, out of
-   * sight (choosing it again brings it back); its complaints go.
-   */
-  const chooseStatus = useCallback((next: BusinessStatus) => {
-    const keep: readonly string[] = BUSINESS_FIELDS[next];
-    setState((s) => (s.business.businessStatus === next ? s : { ...s, business: { ...s.business, businessStatus: next } }));
-    setErrors((e) => {
-      const n = { ...e };
-      delete n.businessStatus;
-      for (const k of BUSINESS_FIELD_KEYS) if (!keep.includes(k)) delete n[k];
-      return n;
-    });
-  }, []);
-
   const phoneOk = useMemo(
     () => (state.personal.phone ? isValidMobile(state.personal.phone, state.personal.phoneIso) : undefined),
     [state.personal.phone, state.personal.phoneIso],
-  );
-
-  /** Check one step; show its errors; true when it may be left forwards. */
-  const check = useCallback(
-    (step: StepKey) => {
-      const e = validateStep(step, toPayload(state), phoneOk);
-      setErrors((prev) => ({ ...prev, ...e }));
-      return { ok: Object.keys(e).length === 0, errors: e };
-    },
-    [state, phoneOk],
   );
 
   const clearDraft = useCallback(() => {
@@ -183,7 +140,7 @@ export function useApplication() {
     }
   }, []);
 
-  return { state, update, chooseStatus, errors, setErrors, check, phoneOk, clearDraft };
+  return { state, update, errors, setErrors, phoneOk, clearDraft };
 }
 
 export type ApplicationApi = ReturnType<typeof useApplication>;

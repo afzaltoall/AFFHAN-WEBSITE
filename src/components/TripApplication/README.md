@@ -56,25 +56,35 @@ number draws from a Postgres sequence that Prisma does not create:
 `node scripts/create_trip_ref_seq.mjs` once, before the `prisma db push` that
 creates the table.
 
-## The four steps
+## One page (since 2026-10-29)
 
-1. **About you** — full name, mobile (with its dial code), country and city
-   (email and website or LinkedIn taken out on 2026-10-29).
-2. **Your business journey** — "What best describes you?" first, then only the
-   questions that answer asks (`BUSINESS_FIELDS` in `lib/trip-application.ts`):
-   - *I currently run a business*: company name, role, category;
-   - *I am planning to start a business*: nothing more. A click or a tap on it
-     turns the page to step 03 (back to the review, when editing), as Next
-     does. The arrow keys only choose: the keyboard goes on with Next.
+The owner's list, in their order, and nothing else (`ApplicationForm`):
 
-   Nobody needs a business to apply, and a hidden question is never required.
-   Changing the answer keeps what was typed for the other one, out of sight (a
-   slip onto "planning" turns the page, so it must cost nothing), but only the
-   chosen answer's questions are reviewed, sent and stored (`relevantBusiness`),
-   as `businessStatus`: `existing_business` or `planning_business`.
-3. **Travel profile** — nationality, a valid passport (yes / no), and the note that passport and visa documents may be
-   requested from selected applicants later.
-4. **Review & submit** — three blocks with Edit, then the three consents.
+1. **Full name**
+2. **Mobile number** (with its dial code)
+3. **Country**
+4. **City**
+5. **Do you run a business?** Yes / No, stored as `businessStatus`
+   `existing_business` or `no_business_yet`
+6. **Do you have a valid passport?** Yes / No
+
+Then **Submit**. No steps, no review, and nothing asked again over Submit: the
+Terms & Conditions and the Privacy Policy are agreed in the popup before the
+questions (on a phone, the sheet first), and that agreement is the
+application's three consents (the third, accurate information, is the Terms'
+own clause 2). A missing answer is said under its question when Submit is
+pressed, and the first takes focus. Nobody needs a business to apply.
+
+Before 2026-10-29 the application was four steps (about you, the business
+journey, travel, review & submit), and it asked more along the way: an email,
+a website or LinkedIn, a company's name, role and category, nationality and
+travel to China before, with a review of every answer and three consent boxes.
+The journey options "I am planning to start a business" and "I am looking to
+expand an existing business" are no longer offered
+(`RETIRED_BUSINESS_STATUSES`); the console still names and filters them for
+the applications that gave them, and shows every earlier answer where it was
+given. The API drops anything an older page sends beyond the six answers, and
+asks a page that sends a retired journey to reload and apply again.
 
 Until 2026-10-28 there were five: a **Business profile** step (interests,
 products of interest, what they hoped to explore) came third, and the business
@@ -110,31 +120,33 @@ before the change that sends a journey taken out to choose again.
 
 ## Rules this page keeps
 
-- **One fixed screen.** The page never scrolls: the progress and the step's
-  heading stay at the top, Back and Next at the bottom, and only the questions
-  between them scroll (`StepScroll`), on a pane of frosted glass that keeps the
-  form legible over the sky.
+- **One fixed screen.** The page never scrolls: the heading stays at the top,
+  Submit at the bottom, and only the questions between them scroll when they
+  are taller than the screen (`StepScroll`), on a pane of frosted glass that
+  keeps the form legible over the sky.
 - On a computer the intro always plays first, whether the visitor came through
   the landing page's transition or opened this address directly. On a phone the
-  first question does, out of the take-off's light when the visitor came
-  through it.
-- Back never erases; Next validates only the questions shown; Edit on the
-  review returns to the step and "Save & return to review" brings the
-  applicant back.
-- Only steps 01–02 are kept as a draft, in `sessionStorage` (this tab, this
-  session). Step 03 and the consents live in memory only, and so does the
-  popup's agreement (`TripLegal/approval.ts`): a reload asks again. Nothing
-  goes to `localStorage` or into a URL. Nothing is logged.
-- **Privacy & Consent** is the trip's three boxes, in the owner's words and
-  order (`TRIP_CONSENTS` in `lib/trip-legal.ts`), linking to the trip's own
-  `/free-china-trip/privacy/` and `/free-china-trip/terms/`, never the main
-  site's. All three are required, by the form and by the API, and each is
-  recorded on its own (`consentPrivacy`, `consentAccuracy`, `consentTerms`).
-  The mobile app's older form sends no `privacy`; for it, the API reads its
-  terms box (which names both documents) as both.
-- **Submit** stays disabled, with the reason beside it, until every answer, the
-  three boxes and (for someone not signed in) Cloudflare's check are in, and
-  while the application is being sent; a second press can never send it twice.
+  Terms sheet does, then the questions, out of the take-off's light when the
+  visitor came through it.
+- The name, mobile, country, city and business answer are kept as a draft, in
+  `sessionStorage` (this tab, this session). The passport answer and the
+  consents live in memory only, and so does the popup's agreement
+  (`TripLegal/approval.ts`): a reload asks again. Nothing goes to
+  `localStorage` or into a URL. Nothing is logged.
+- **The consents** are the popup's agreement before the questions, in the
+  owner's words (`TRIP_CONSENTS` in `lib/trip-legal.ts`), linking to the trip's
+  own `/free-china-trip/privacy/` and `/free-china-trip/terms/`. It is sent as
+  all three (Privacy Policy, Terms, and accurate information, which the Terms
+  require), each recorded on its own (`consentPrivacy`, `consentAccuracy`,
+  `consentTerms`); the API requires all three. Nothing is asked again over
+  Submit (the owner, 2026-10-29). The mobile app's older form sends no
+  `privacy`; for it, the API reads its terms box (which names both documents)
+  as both.
+- **Submit** checks every answer when pressed and says under each question
+  what is missing; it is disabled only while Cloudflare's check (someone not
+  signed in) wants something done or could not load, with the reason over it,
+  and while the application is being sent; a second press can never send it
+  twice.
 - **The application window** (Terms, clause 1): on a production build,
   applications are taken from 12 October to 25 November 2026, India time, by the
   browser (the intro says when they open, or that they closed) and by the API.
@@ -148,7 +160,7 @@ before the change that sends a journey taken out to choose again.
 - Success is shown only after the server confirms it. If it is slow, the clock
   keeps turning with "Processing your application".
 - A failed submission keeps every answer; **Try again** resends (not offered
-  when sending again could only be refused again), **Review your answers**
+  when sending again could only be refused again), **Back to your answers**
   lifts the overlay.
 - Reduced motion keeps every screen and function, with fades for movement.
 

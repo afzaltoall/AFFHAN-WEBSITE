@@ -30,31 +30,25 @@ export const INTRO = {
   closedNext: `The five winners will be announced on ${TRIP_FACTS.winnersAnnounced}.`,
 } as const;
 
+/**
+ * One page since 2026-10-29 (the owner: "nama china page single page ... indha contents"): six questions and Submit,
+ * no steps and no review. Kept as a list of one so the page's heading reads from it as it always has.
+ */
 export const STEPS = [
-  { key: "personal", number: "01", title: "About you", lede: "The basics, so our team knows who to contact." },
-  { key: "business", number: "02", title: "Your business journey", lede: "Tell us where you are in your business journey." },
-  { key: "travel", number: "03", title: "Travel profile", lede: "Two quick questions about travelling." },
-  { key: "review", number: "04", title: "Review & submit", lede: "Check your answers, then send your application." },
+  { key: "application", number: "01", title: "Apply for the trip", lede: "A few quick details, so our team knows who to contact." },
 ] as const;
 
 export const NAV = {
-  back: "Back",
-  next: "Next",
-  toReview: "Save & return to review",
   submit: "Submit application",
 } as const;
 
+/** The owner's six, in their order (2026-10-29): name, mobile, country, city, doing business or not, valid passport. */
 export const LABELS = {
   fullName: "Full name",
   phone: "Mobile number",
   country: "Country",
   city: "City",
-  // 02: the first question, then what running a business asks (lib/trip-application.ts, BUSINESS_FIELDS).
-  businessStatus: "What best describes you?",
-  companyName: "Company name",
-  role: "Your role",
-  businessCategory: "Business category",
-  nationality: "Nationality",
+  runsBusiness: "Do you run a business?",
   hasPassport: "Do you have a valid passport?",
 } as const;
 
@@ -62,38 +56,12 @@ export const PLACEHOLDERS = {
   fullName: "Your full name",
   phone: "9876543210",
   city: "e.g. Chennai",
-  companyName: "Company name",
-  role: "e.g. Founder, Purchasing manager",
-  businessCategory: "Search categories",
 } as const;
 
-/** Lines that sit under a question, always shown. */
-export const NOTES = {
-  passport: "Passport and visa documents may be requested from selected applicants during verification and travel processing.",
-} as const;
-
-export const REVIEW = {
-  groups: { personal: "About you", business: "Your business journey", travel: "Travel profile" },
-  edit: "Edit",
-  notGiven: "Not given",
-  /** Short forms for the review's lines (the questions are long). */
-  brief: { passport: "Valid passport" },
-  // The three consents are the trip's own words: TRIP_CONSENTS in lib/trip-legal.ts.
-} as const;
 
 export const SUBMIT = {
   /** Under the AFFHAN emblem while the application is sent and recorded. */
   processing: "Processing your application",
-  /** Beside Submit while it cannot be pressed (StepNav): the box, or boxes, still to tick. */
-  needsConsent: (missing: readonly ("privacy" | "accuracy" | "terms")[]) =>
-    missing.length > 1
-      ? "Tick the boxes above to submit your application."
-      : missing[0] === "accuracy"
-        ? "Confirm that your information is accurate and complete to submit."
-        : missing[0] === "privacy"
-          ? "Consent to the Privacy Policy above to submit."
-          : "Agree to the Terms & Conditions above to submit.",
-  needsAnswers: (steps: string) => `Some answers need another look before you can submit: ${steps}.`,
   /** Cloudflare's check, for someone not signed in, is still running (out of sight). */
   checking: "One moment: a quick security check is finishing.",
   /** Cloudflare wants the visitor to do something: its box is under the buttons. */
@@ -129,6 +97,6 @@ export const FAILURE = {
   /** One application per person: the server found one from this account or mobile. */
   duplicate: "We have already received an application from this account or mobile number. To change anything in it, write to info@affhan.com.",
   retry: "Try again",
-  review: "Review your answers",
+  review: "Back to your answers",
   kept: "Everything you entered is still here.",
 } as const;

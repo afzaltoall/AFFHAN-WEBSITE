@@ -9,19 +9,7 @@ import { checkTurnstile } from "@/lib/turnstile";
 import { rememberTripApplicant } from "@/lib/trip-applicant";
 import { TRIP_FACTS } from "@/lib/trip-legal";
 import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
-import {
-  BUSINESS_CATEGORIES,
-  BUSINESS_FIELD_KEYS,
-  BUSINESS_STATUSES,
-  LIMITS,
-  applicationWindow,
-  isBusinessStatus,
-  isRetiredBusinessStatus,
-  relevantBusiness,
-  validateAll,
-  type BusinessFieldKey,
-  type TripApplicationPayload,
-} from "@/lib/trip-application";
+import { LIMITS, applicationWindow, isBusinessStatus, isRetiredBusinessStatus, validateAll, type TripApplicationPayload } from "@/lib/trip-application";
 
 /**
  * Applications for the free China business trip, from /free-china-trip/apply/.
@@ -48,10 +36,11 @@ import {
  *  - one application per person (Terms, clause 2): none is taken from an
  *    account or a mobile number that already has one (unless the team
  *    deleted it). No email is asked since 2026-10-29, so none is compared;
- *  - only the business answers the chosen business journey asks are kept
- *    (relevantBusiness); anything else sent is dropped, never stored, and a
- *    journey no longer offered (taken out on 2026-10-28, still on a page
- *    opened before) is asked again;
+ *  - only the six answers the page asks are kept (one page since 2026-10-29:
+ *    name, mobile, country, city, doing business or not, valid passport);
+ *    anything else an older page sends is dropped, never stored, and a
+ *    business answer no longer offered (still on a page opened before) is
+ *    refused with the words to reload and apply again;
  *  - the three consents are required and recorded one by one.
  *
  * Nothing here scores, ranks or orders an application. Each is stored as
@@ -67,23 +56,13 @@ import {
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const bool = (v: unknown) => (typeof v === "boolean" ? v : null);
 
-/** The longest each business answer may be. */
-const BUSINESS_MAX: Record<BusinessFieldKey, number> = {
-  companyName: LIMITS.company,
-  role: LIMITS.role,
-  businessCategory: LIMITS.category,
-};
-
 function read(body: Record<string, unknown>): TripApplicationPayload {
   const o = (k: string) => (body[k] && typeof body[k] === "object" ? (body[k] as Record<string, unknown>) : {});
-  // The business profile (interests, products, what to explore), "About your business", a company's website and
-  // years in business, and what the journeys taken out asked are no longer asked (2026-10-28): anything an older
-  // form still sends of them is dropped here, never stored.
+  // Only the six answers (2026-10-29). An email, a website, nationality, travel to China, a company, a business
+  // profile or anything else an older page or app sends is dropped here, never stored.
   const p = o("personal"), b = o("business"), t = o("travel"), c = o("consent");
-  const answers = Object.fromEntries(BUSINESS_FIELD_KEYS.map((k) => [k, str(b[k], BUSINESS_MAX[k])])) as Record<BusinessFieldKey, string>;
-  // The mobile app's older form asks only the company questions, all of them
-  // required, and sends no businessStatus: it is read as running a business.
-  const status = isBusinessStatus(b.businessStatus) ? b.businessStatus : b.businessStatus === undefined && answers.companyName ? "existing_business" : "";
+  // The mobile app's older form asks the company questions and sends no businessStatus: it runs a business.
+  const status = isBusinessStatus(b.businessStatus) ? b.businessStatus : b.businessStatus === undefined && typeof b.companyName === "string" && b.companyName.trim() ? "existing_business" : "";
   return {
     personal: {
       fullName: str(p.fullName, LIMITS.name),
@@ -91,16 +70,12 @@ function read(body: Record<string, unknown>): TripApplicationPayload {
       country: str(p.country, LIMITS.country),
       city: str(p.city, LIMITS.city),
     },
-    // Only what the chosen journey asks; the rest is dropped here.
-    business: relevantBusiness({ businessStatus: status, ...answers }),
-    travel: {
-      nationality: str(t.nationality, LIMITS.country),
-      hasPassport: bool(t.hasPassport),
-    },
+    business: { businessStatus: status },
+    travel: { hasPassport: bool(t.hasPassport) },
     consent: {
-      // The website asks for the Privacy Policy in a box of its own. The
-      // mobile app's form asks for it inside its terms box and sends no
-      // `privacy`, so for that form the terms box carries both.
+      // The website sends all three (Privacy Policy and Terms from the popup, accuracy from Submit). The
+      // mobile app's form asks for the Privacy Policy inside its terms box and sends no `privacy`, so for that
+      // form the terms box carries both.
       privacy: c.privacy === undefined ? c.terms === true : c.privacy === true,
       accuracy: c.accuracy === true,
       terms: c.terms === true,
@@ -140,16 +115,13 @@ export async function POST(req: NextRequest) {
   }
 
   const a = read(body);
-  const b = a.business;
 
-  // The same rules as the form, plus the lists: a value the form cannot offer
-  // is refused rather than stored.
+  // The same rules as the form.
   const errors = validateAll(a, isValidMobileE164(a.personal.phone.replace(/\s+/g, "")));
-  const inList = (list: readonly string[], v: string) => list.includes(v);
-  if (b.businessCategory && !inList(BUSINESS_CATEGORIES, b.businessCategory)) errors.businessCategory = "Please choose a category.";
-  // A page opened before 2026-10-28 still offers the two journeys taken out: it shows this under them.
+  // A page opened before the change still offers business answers taken out ("I am planning to start a
+  // business"): its questions are no longer these, so it is asked to start again, under the one it gave.
   const sent = body.business && typeof body.business === "object" ? (body.business as Record<string, unknown>).businessStatus : undefined;
-  if (isRetiredBusinessStatus(sent)) errors.businessStatus = `Please choose ${BUSINESS_STATUSES.map((s) => `“${s.label}”`).join(" or ")}.`;
+  if (isRetiredBusinessStatus(sent)) errors.businessStatus = "This application has changed. Please reload the page and apply again.";
   if (Object.keys(errors).length) {
     return NextResponse.json({ error: "Some answers need another look.", fields: errors }, { status: 400 });
   }
@@ -178,8 +150,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "We couldn't record your application." }, { status: 500 });
   }
 
-  const orNull = (v: string) => v || null;
-
   try {
     const saved = await prisma.tripApplication.create({
       data: {
@@ -189,16 +159,12 @@ export async function POST(req: NextRequest) {
         phone: a.personal.phone,
         country: a.personal.country,
         city: a.personal.city,
-        // A website or LinkedIn is no longer asked either (2026-10-29): left null, an older page's dropped.
-        businessStatus: b.businessStatus as string,
-        companyName: orNull(b.companyName),
-        role: orNull(b.role),
-        businessCategory: orNull(b.businessCategory),
-        // No longer asked (2026-10-28): left empty, as the columns allow ("" for the one that may not be null; the
-        // website, years in business, plan, area of interest and what to explore default to null).
+        businessStatus: a.business.businessStatus as string,
+        // No longer asked: left empty, as the columns allow ("" or an empty list where the column may not be null; a
+        // website, a company, its role, category, website and years, a plan, an area and what to explore are null).
         interests: [],
         productsOfInterest: "",
-        nationality: a.travel.nationality,
+        nationality: "",
         hasPassport: a.travel.hasPassport === true,
         // No longer asked (2026-10-29); the column may not be null, so false, which the console never shows.
         travelledToChina: false,

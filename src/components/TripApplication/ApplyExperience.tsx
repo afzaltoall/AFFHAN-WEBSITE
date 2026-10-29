@@ -20,15 +20,11 @@ import "@/components/CinematicExperience/cinematic.css";
 import "./apply.css";
 import { ApplicationIntro } from "./ApplicationIntro";
 import { Atmosphere, Host, type Mood } from "./Atmosphere";
-import { FAILURE, PAGE_TITLE, STEPS, SUBMIT, SUCCESS } from "./content";
-import { StepAboutYou } from "./StepAboutYou";
-import { StepBusiness } from "./StepBusiness";
+import { ApplicationForm } from "./ApplicationForm";
+import { FAILURE, PAGE_TITLE, SUBMIT, SUCCESS } from "./content";
 import { StepHeader } from "./StepHeader";
-import { StepIndicator } from "./StepIndicator";
 import { StepNav } from "./StepNav";
-import { StepReview } from "./StepReview";
 import { StepScroll } from "./StepScroll";
-import { StepTravel } from "./StepTravel";
 import { SubmitStage } from "./SubmitStage";
 import { submitApplication } from "./submitApplication";
 import { toPayload, useApplication } from "./useApplication";
@@ -36,31 +32,31 @@ import { toPayload, useApplication } from "./useApplication";
 /**
  * /free-china-trip/apply/: the application as the next chapter of the film.
  *
- *   intro ──Start──▶ [agree] ──▶ 01 ⇄ 02 ⇄ 03 ⇄ 04 ──Submit──▶ sending ──▶ received
- *                                                              └──▶ failed ──▶ (try again | review)
+ *   intro ──Start──▶ [agree] ──▶ the questions ──Submit──▶ sending ──▶ received
+ *                                                    └──▶ failed ──▶ (try again | back to the answers)
  *
- * Four steps: about you, the business journey, travel, and the review (the
- * owner, 2026-10-28, took the business profile step and "About your business"
- * out: "we don't need those details"). On the business journey, "I am
- * planning to start a business" asks nothing more: a click or a tap on it
- * turns the page as Next does (StepBusiness, through this form's submit).
+ * One page (the owner, 2026-10-29, with their list: "single page edhu matu
+ * use panalam indha contents"): name, mobile, country, city, doing business
+ * or not, valid passport (ApplicationForm), and Submit. No steps, no review.
  *
  * On a computer the intro plays first, whether the visitor came through the
  * landing page's transition or opened this address directly. Start asks for
  * the trip's Terms & Conditions and Privacy Policy (TripLegal/ConsentGate)
- * unless they were agreed on the landing page a moment ago. That agreement
- * ticks the review's Privacy Policy and Terms & Conditions boxes; the third
- * (the information is accurate) is ticked there, at the end. Outside the
- * application window (12 October to 25 November 2026, on a production build)
- * the intro says when applications open, or that they have closed, in place of
- * Start.
+ * unless they were agreed on the landing page a moment ago. That agreement is
+ * all the application asks: its Privacy Policy and Terms consents, and the
+ * third, accurate information, which the Terms themselves require (clause 2).
+ * Nothing is asked again at Submit (the owner, 2026-10-29: "in start of
+ * opening we asked terms and conditions and privacy policy soo dont need in
+ * here").
+ * Outside the application window (12 October to 25 November 2026, on a
+ * production build) the intro says when applications open, or that they have
+ * closed, in place of Start.
  *
  * On a phone there is no intro (the owner, 2026-10-28: "dont show start
  * application"): the Terms & Conditions and the Privacy Policy come first, in
- * the popup's phone sheet, over the page, and agreeing opens the first
- * question ("terms and conditions aduthu dha step 1", the same day); agreed a
- * moment ago (the landing page asks before its take-off), the first question
- * opens at once, out of the take-off's light. Closing the sheet leaves the
+ * the popup's phone sheet, over the page, and agreeing opens the questions;
+ * agreed a moment ago (the landing page asks before its take-off), they open
+ * at once, out of the take-off's light. Closing the sheet leaves the
  * application: back where the visitor came from in the site, or to the trip's
  * page. Outside the window the intro still says so.
  *
@@ -68,17 +64,14 @@ import { toPayload, useApplication } from "./useApplication";
  * in; someone who is not passes Cloudflare's check (out of sight unless
  * Cloudflare wants them to do something), and Submit waits for it.
  *
- * One screen, fixed: the progress and the step's heading at the top, Back
- * and Next (or Submit) at the bottom, and only the questions between them
- * scroll, when a step is taller than the screen (StepScroll). The page
- * itself never scrolls.
+ * One screen, fixed: the heading at the top, Submit at the bottom, and only
+ * the questions between them scroll, when they are taller than the screen
+ * (StepScroll). The page itself never scrolls.
  *
- * All state lives in useApplication; Back never erases, forward validates,
- * Edit on the review returns to a step and back. Submit is disabled until
- * every answer and the three boxes are in (StepNav says what is missing),
- * and while sending. The request starts the moment Submit is pressed and the
- * animation runs alongside it; success is shown only when the server has
- * confirmed it.
+ * All state lives in useApplication. Submit checks every answer: one missing
+ * is said under its question, and the first takes focus. The request starts
+ * the moment it passes and the animation runs alongside it; success is shown
+ * only when the server has confirmed it.
  *
  * Motion is GSAP on transform, opacity and a little filter, all of it here,
  * so the choreography reads in one place. Reduced motion keeps every screen
@@ -100,43 +93,18 @@ function arrivedInSite() {
   }
 }
 
-/** Which step asks for each answer, in the order the form asks them. */
-const STEP_OF = {
-  fullName: 0, phone: 0, country: 0, city: 0,
-  businessStatus: 1, companyName: 1, role: 1, businessCategory: 1,
-  nationality: 2, hasPassport: 2,
-  privacy: 3, accuracy: 3, terms: 3,
-} as const;
-const FIELD_ORDER = Object.keys(STEP_OF) as Array<keyof typeof STEP_OF>;
-const STEP_KEYS = ["personal", "business", "travel", "consent"] as const;
-const LAST = STEPS.length - 1;
-/** The travel step: its own motif (the travel picture) comes and goes with it. */
-const TRAVEL = 2;
-/**
- * Each step's chapter: its host pose and its sky (Atmosphere's moods). The
- * chapters keep the looks they had in the five-step form: travel the fourth's,
- * the review the fifth's (the third, the business profile's, is no longer used).
- */
-const CHAPTER = ["0", "1", "3", "4"] as const;
+/** The answers in the order the page asks them: the first one missing takes focus. */
+const FIELD_ORDER = ["fullName", "phone", "country", "city", "businessStatus", "hasPassport"] as const;
 
 /**
  * Where the host stands, on a desktop: large in the intro, then one steady
- * place beside the form for every step, whole, sharp and bright. (He used
- * to change size, blur and dim at every step, which read as the picture
- * reloading each time.) At each page turn he leans towards the page and light
- * passes across him (go, below); gone while sending; back beside it after.
+ * place beside the questions, whole, sharp and bright; gone while sending;
+ * back beside them after. The questions' sky is Atmosphere's first mood.
  */
-const STEADY: gsap.TweenVars = { xPercent: 4, yPercent: 0, scale: 0.8, autoAlpha: 1, filter: "blur(0px) brightness(1)" };
-const HOST: Record<string, gsap.TweenVars> = {
-  "0": STEADY,
-  "1": STEADY,
-  "2": STEADY,
-  "3": STEADY,
-  "4": STEADY,
+const HOST: Record<"form" | "done", gsap.TweenVars> = {
+  form: { xPercent: 4, yPercent: 0, scale: 0.8, autoAlpha: 1, filter: "blur(0px) brightness(1)" },
   done: { xPercent: 8, yPercent: 0, scale: 0.74, autoAlpha: 0.75, filter: "blur(0px) brightness(1)" },
 };
-/** Perspective for the page turn: deep enough that a page edge-on is a line, not a smear. */
-const TURN_PERSPECTIVE = 1400;
 
 const sleep = (ms: number) => new Promise<null>((resolve) => window.setTimeout(() => resolve(null), ms));
 
@@ -164,11 +132,6 @@ export function ApplyExperience() {
   const root = useRef<HTMLDivElement>(null);
   const liveRef = useRef<HTMLParagraphElement>(null);
   const [phase, setPhase] = useState<Phase>("intro");
-  const [step, setStep] = useState(0);
-  /** The heading and progress change at once; the fields follow the light. */
-  const [headerStep, setHeaderStep] = useState(0);
-  const [headerDir, setHeaderDir] = useState(1);
-  const [editing, setEditing] = useState(false);
   const [reference, setReference] = useState<string | null>(null);
   /** When the database recorded it (ISO), for the submitted moment. */
   const [registeredAt, setRegisteredAt] = useState<string | null>(null);
@@ -182,19 +145,16 @@ export function ApplyExperience() {
 
   /** A transition is playing: further clicks wait for it. */
   const busy = useRef(true);
-  /** Direction of the last step change, for the entering step (1 or -1). */
-  const dir = useRef(1);
   const reduce = useRef(false);
-  const indicatorShown = useRef(false);
+  /** The heading has come in (with the questions, the first time only). */
+  const headShown = useRef(false);
   const introTl = useRef<gsap.core.Timeline | null>(null);
   /** Opened through the landing page's take-off: decided once (the flag is
    *  read and cleared), kept here so a development re-run of the intro
    *  effect opens the same way. */
   const fromLightRef = useRef<boolean | null>(null);
-  /** The step being printed, so a quick Continue can finish it at once. */
+  /** The questions being printed, so a quick Submit can finish it at once. */
   const enterTl = useRef<gsap.core.Timeline | null>(null);
-  /** A page has just turned away (1 forward, -1 back): the next one settles in on the same spine. */
-  const turnIn = useRef(0);
   const running = useRef(new Set<gsap.core.Animation>());
 
   const track = <T extends gsap.core.Animation>(a: T) => {
@@ -217,17 +177,6 @@ export function ApplyExperience() {
     for (const el of $$("mood")) tl.to(el, { autoAlpha: el.dataset.mood === mood ? 1 : 0, duration, ease: "power1.inOut" }, at);
   };
 
-  /** Red silk across the screen: only ever during a transition. */
-  const silk = (tl: gsap.core.Timeline, at: number, kind: "subtle" | "partial" | "brief") => {
-    const el = $("silk");
-    if (!el) return;
-    const k = { subtle: { peak: 0.55, from: -65, to: 35, d: 1.4 }, partial: { peak: 0.72, from: -95, to: -30, d: 1.2 }, brief: { peak: 0.62, from: -45, to: 55, d: 0.9 } }[kind];
-    tl.set(el, { xPercent: k.from, rotation: -3, autoAlpha: 0 }, at);
-    tl.to(el, { xPercent: k.to, rotation: 2, duration: k.d, ease: "power2.inOut" }, at);
-    tl.to(el, { autoAlpha: k.peak, duration: k.d * 0.4, ease: "power1.out" }, at);
-    tl.to(el, { autoAlpha: 0, duration: k.d * 0.5, ease: "power1.in" }, at + k.d * 0.5);
-  };
-
   /** The gold light trail, as a moving transition (never left on screen). */
   const trail = (tl: gsap.core.Timeline, at: number, tilt: number) => {
     const el = $("trail");
@@ -236,14 +185,6 @@ export function ApplyExperience() {
     tl.to(el, { xPercent: 25, scaleX: 1.1, rotation: tilt, duration: 1.15, ease: "power2.inOut" }, at);
     tl.to(el, { autoAlpha: 0.9, duration: 0.35, ease: "power1.out" }, at);
     tl.to(el, { autoAlpha: 0, duration: 0.5, ease: "power1.in" }, at + 0.65);
-  };
-
-  /** Back to the top of the chapter, if the visitor had scrolled down it. */
-  const toTop = (instant: boolean) => {
-    const el = root.current;
-    if (!el) return;
-    const top = el.getBoundingClientRect().top + window.scrollY - 64;
-    if (window.scrollY > top + 4) window.scrollTo({ top, behavior: instant ? "instant" : "smooth" });
   };
 
   const focusFirst = (errors: FieldErrors) => {
@@ -268,21 +209,19 @@ export function ApplyExperience() {
       }
     }
     const fromLight = fromLightRef.current;
-    // A phone, while applications are being taken: no intro. The sky and the host as the first step has them;
-    // the Terms & Conditions first, unless agreed a moment ago, then the step prints itself in (the effect below).
+    // A phone, while applications are being taken: no intro. The sky and the host as the questions have them;
+    // the Terms & Conditions first, unless agreed a moment ago, then the questions print themselves in (below).
     if (window.matchMedia(PHONE_QUERY).matches && applicationWindow() === "open") {
-      gsap.set($("host"), { ...HOST[CHAPTER[0]], x: 0 });
+      gsap.set($("host"), { ...HOST.form, x: 0 });
       gsap.set($("dust"), { autoAlpha: 0.45 });
-      for (const el of $$("mood")) gsap.set(el, { autoAlpha: el.dataset.mood === CHAPTER[0] ? 1 : 0 });
+      for (const el of $$("mood")) gsap.set(el, { autoAlpha: el.dataset.mood === "0" ? 1 : 0 });
       if (fromLight) {
-        // The take-off's light opens out over the first question, as it does over the intro.
+        // The take-off's light opens out over the questions, as it does over the intro.
         const arrive = $("arrive");
         gsap.set(arrive, { autoAlpha: 1 });
         track(gsap.to(arrive, { autoAlpha: 0, duration: 1.1, delay: 0.14, ease: "power1.inOut" }));
         track(gsap.fromTo(arrive?.firstElementChild ?? null, { scale: 1 }, { scale: 1.3, duration: 1.1, delay: 0.14, ease: "power1.inOut" }));
       }
-      dir.current = 1;
-      setStep(0);
       if (hasAgreedToTripTerms()) {
         app.update("consent", { privacy: true, terms: true });
         setPhase("form");
@@ -374,19 +313,27 @@ export function ApplyExperience() {
     }
     setAsking({ from: root.current?.querySelector<HTMLElement>("[data-ax-start]") ?? null });
   };
-  // Accepted in the popup: the review's Privacy Policy and Terms boxes arrive ticked.
+  // Accepted in the popup: the application's Privacy Policy and Terms consents.
   const agreed = () => {
     agreeToTripTerms();
     app.update("consent", { privacy: true, terms: true });
     setAsking(null);
     void start();
   };
-  // A phone's way in: agreed, the first question prints itself in as the sheet goes (the step's own effect).
+  // A phone's way in: agreed, the questions print themselves in as the sheet goes (their own effect, below).
   const agreedFirst = () => {
     agreeToTripTerms();
     app.update("consent", { privacy: true, terms: true });
     setAsking(null);
     setPhase("form");
+  };
+  // Asked again from Submit (the agreement was missing): agreed, the application goes.
+  const agreedToSend = () => {
+    agreeToTripTerms();
+    app.update("consent", { privacy: true, terms: true });
+    const from = asking?.from ?? null;
+    setAsking(null);
+    void send(from, true);
   };
   // Closed without agreeing, on a phone: there is no application without the agreement, so the visitor goes
   // back where they came from in the site, or, having opened the application here, to the trip's page.
@@ -409,7 +356,7 @@ export function ApplyExperience() {
     if (registration && (phase === "intro" || phase === "consent" || phase === "form")) router.replace(TRIP_REGISTERED_HREF);
   }, [registration, phase, router]);
 
-  /** The application starts: the button glows, a gold trail passes, the intro leaves, 01 arrives. */
+  /** The application starts: the button glows, a gold trail passes, the intro leaves, the questions arrive. */
   const start = async () => {
     if (busy.current) return;
     busy.current = true;
@@ -421,8 +368,8 @@ export function ApplyExperience() {
     if (reduce.current) {
       tl.to([...leaving, $("rule")], { autoAlpha: 0, duration: 0.3 }, 0);
       tl.to($("host"), { autoAlpha: 0, duration: 0.25 }, 0);
-      tl.set($("host"), { ...HOST["0"], autoAlpha: 0 }, 0.25);
-      tl.to($("host"), { autoAlpha: HOST["0"].autoAlpha, duration: 0.35 }, 0.3);
+      tl.set($("host"), { ...HOST.form, autoAlpha: 0 }, 0.25);
+      tl.to($("host"), { autoAlpha: HOST.form.autoAlpha, duration: 0.35 }, 0.3);
       toMood(tl, "0", 0, 0.5);
       tl.to($("dust"), { autoAlpha: 0.45, duration: 0.5 }, 0);
     } else {
@@ -432,35 +379,31 @@ export function ApplyExperience() {
       trail(tl, 0.12, -2);
       tl.to(leaving, { autoAlpha: 0, y: -24, filter: "blur(6px)", duration: 0.5, stagger: 0.035, ease: "power2.in" }, 0.28);
       tl.to($("rule"), { autoAlpha: 0, duration: 0.6 }, 0.3);
-      tl.to($("host"), { ...HOST["0"], x: 0, duration: 1.05, ease: "power3.inOut" }, 0.3);
+      tl.to($("host"), { ...HOST.form, x: 0, duration: 1.05, ease: "power3.inOut" }, 0.3);
       toMood(tl, "0", 0.35);
       tl.to($("dust"), { autoAlpha: 0.45, duration: 1.2 }, 0.4);
     }
     await new Promise<void>((resolve) => tl.call(resolve, [], reduce.current ? 0.3 : 0.85));
-    dir.current = 1;
-    setStep(0);
     setPhase("form");
   };
 
-  /** The step's lines, top to bottom: its fields (or review sections), then its buttons. */
-  const stepRows = (view: HTMLElement) => {
+  /** The questions' lines, top to bottom, then Submit. */
+  const formRows = (view: HTMLElement) => {
     const body = view.querySelector<HTMLElement>("[data-ax-body]")?.firstElementChild as HTMLElement | null;
     const nav = view.querySelector<HTMLElement>("[data-ax='nav']");
     const rows = body ? (Array.from(body.children) as HTMLElement[]) : [];
     if (nav) rows.push(nav);
     return rows;
   };
-  /** How far down the step each line sits, 0 (top) to 1 (bottom). */
+  /** How far down the page each line sits, 0 (top) to 1 (bottom). */
   const depthOf = (view: HTMLElement, rows: HTMLElement[]) => {
     const r = view.getBoundingClientRect();
     return rows.map((row) => Math.min(1, Math.max(0, (row.getBoundingClientRect().top - r.top) / Math.max(1, r.height))));
   };
 
-  // ---- A step arrives ---------------------------------------------------------------
-  // After a page turn (go), the next page settles in on the same spine. The
-  // first step, arriving from the intro, is printed by a line of light, one
-  // line at a time. The heading has already rolled (StepHeader); the progress
-  // comet is already travelling.
+  // ---- The questions arrive ----------------------------------------------------------
+  // Printed by a line of light, one line at a time, top to bottom (out of the intro, the phone's sheet, or back
+  // from a failed send); the heading fades in with them the first time.
   useIsoLayoutEffect(() => {
     if (phase !== "form") return;
     const view = root.current?.querySelector<HTMLElement>("[data-ax-view='step']");
@@ -468,137 +411,41 @@ export function ApplyExperience() {
     const tl = track(gsap.timeline());
     enterTl.current = tl;
     if (reduce.current) {
-      turnIn.current = 0;
       tl.fromTo(view, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.3 });
       tl.call(() => void (busy.current = false), [], 0.15);
-    } else if (turnIn.current) {
-      // THE NEXT PAGE settles in on the spine the last one turned on: from a
-      // little way round, flat into place, and the light catches it as it lands.
-      const fwd = turnIn.current > 0;
-      turnIn.current = 0;
-      tl.fromTo(
-        view,
-        { transformPerspective: TURN_PERSPECTIVE, transformOrigin: fwd ? "0% 50%" : "100% 50%", rotationY: fwd ? 30 : -30, x: fwd ? 28 : -28, autoAlpha: 0 },
-        { rotationY: 0, x: 0, autoAlpha: 1, duration: 0.66, ease: "power3.out", clearProps: "transform,transformPerspective,transformOrigin" },
-        0,
-      );
-      const gleam = $("gleam");
-      tl.fromTo(gleam, { xPercent: fwd ? -130 : 330, autoAlpha: 0 }, { xPercent: fwd ? 330 : -130, duration: 0.8, ease: "power2.inOut" }, 0.06);
-      tl.to(gleam, { autoAlpha: 1, duration: 0.18 }, 0.06);
-      tl.to(gleam, { autoAlpha: 0, duration: 0.24 }, 0.62);
-      tl.call(() => void (busy.current = false), [], 0.32);
     } else {
-      const fwd = dir.current > 0;
-      const rows = stepRows(view);
+      const rows = formRows(view);
       const depth = depthOf(view, rows);
       const H = view.offsetHeight;
-      // A longer step takes a little longer to print.
+      // A taller page takes a little longer to print.
       const PRINT = Math.min(0.95, 0.5 + H / 2400);
       gsap.set(view, { autoAlpha: 1 });
       gsap.set(rows, { autoAlpha: 0 });
       const scan = $("scan");
-      tl.fromTo(scan, { y: fwd ? 0 : H, autoAlpha: 0 }, { y: fwd ? H : 0, duration: PRINT, ease: "power1.inOut" }, 0);
+      tl.fromTo(scan, { y: 0, autoAlpha: 0 }, { y: H, duration: PRINT, ease: "power1.inOut" }, 0);
       tl.to(scan, { autoAlpha: 1, duration: 0.1 }, 0);
       tl.to(scan, { autoAlpha: 0, duration: 0.25 }, PRINT - 0.12);
       rows.forEach((row, i) => {
-        const t = fwd ? depth[i] : 1 - depth[i];
-        tl.fromTo(row, { autoAlpha: 0, y: fwd ? 18 : -18, filter: "blur(6px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 0.6, ease: "expo.out", clearProps: "transform,filter" }, 0.03 + t * PRINT * 0.9);
+        tl.fromTo(row, { autoAlpha: 0, y: 18, filter: "blur(6px)" }, { autoAlpha: 1, y: 0, filter: "blur(0px)", duration: 0.6, ease: "expo.out", clearProps: "transform,filter" }, 0.03 + depth[i] * PRINT * 0.9);
       });
-      // Ready for the next click once the first lines are down; a Continue
-      // pressed during the print finishes it at once (go, below).
+      // Ready once the first lines are down; a Submit pressed during the print finishes it at once (send, below).
       tl.call(() => void (busy.current = false), [], Math.min(0.5, PRINT * 0.55));
     }
-    if (!indicatorShown.current) {
-      indicatorShown.current = true;
-      tl.fromTo([$("indicator"), $("step-head")], { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.08, ease: "power2.out" }, 0);
+    if (!headShown.current) {
+      headShown.current = true;
+      tl.fromTo($("step-head"), { autoAlpha: 0, y: -8 }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0);
     }
-    // The new step's title takes focus, once it can be seen (hidden things
-    // can't take focus; on the first step the heading is still fading in).
+    // The title takes focus once it can be seen (hidden things can't take focus; the first time it is still fading in).
     tl.call(() => document.getElementById("ax-step-title")?.focus({ preventScroll: true }), [], 0.3);
     return () => void tl.kill();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, step]);
+  }, [phase]);
 
-  /**
-   * Leave this step. The heading rolls to the next at once; a line of light
-   * reads down the page (up it, going back) and lifts each line away as it
-   * passes; light crosses the host as he takes his place for the next step;
-   * the ground changes colour, and at the chapter's own moments silk or the
-   * gold trail crosses. Then the next step is printed (the effect above).
-   */
-  const go = async (to: number, editingNext = false) => {
-    if (busy.current || to === step) return;
-    busy.current = true;
-    // A step still being printed is finished at once (no callbacks fire).
-    enterTl.current?.progress(1).kill();
-    const from = step;
-    const fwd = to > from;
-    dir.current = fwd ? 1 : -1;
-    setHeaderDir(dir.current);
-    setHeaderStep(to);
-    const view = root.current?.querySelector<HTMLElement>("[data-ax-view='step']") ?? null;
-    const tl = track(gsap.timeline());
-    const key = CHAPTER[to];
-    let lifted = 0.2;
-    if (reduce.current) {
-      tl.to(view, { autoAlpha: 0, duration: 0.2 }, 0);
-      tl.to($("host"), { autoAlpha: 0, duration: 0.2 }, 0);
-      tl.set($("host"), { ...HOST[key], autoAlpha: 0 }, 0.2);
-      tl.to($("host"), { autoAlpha: HOST[key].autoAlpha, duration: 0.3 }, 0.25);
-      toMood(tl, key as Mood, 0, 0.4);
-      tl.to($("travel"), { autoAlpha: to === TRAVEL ? 0.35 : 0, duration: 0.4 }, 0);
-    } else {
-      // The button that asked glows as it is pressed.
-      const pressed = fwd ? view?.querySelector<HTMLElement>("button[type=submit] [data-ax-glow]") : null;
-      if (pressed) tl.fromTo(pressed, { autoAlpha: 0, scale: 0.85 }, { autoAlpha: 1, scale: 1.12, duration: 0.3, ease: "power2.out" }, 0);
-      // THE PAGE TURNS: it swings away on its spine (the left edge going
-      // forward, the right going back), its free edge going into the screen,
-      // until it is edge-on. Away, never towards you: towards you, perspective
-      // magnified the page mid-turn. Only then does the next page come in (the
-      // effect above), so the two never overlap and nothing is redrawn in view.
-      if (view) {
-        tl.set(view, { transformPerspective: TURN_PERSPECTIVE, transformOrigin: fwd ? "0% 50%" : "100% 50%" }, 0);
-        tl.to(view, { rotationY: fwd ? 90 : -90, duration: 0.46, ease: "power2.in" }, 0.04);
-        tl.to(view, { autoAlpha: 0, duration: 0.14, ease: "power1.in" }, 0.36);
-      }
-      lifted = 0.5;
-      // The host leans towards the turning page and back, keeping his place
-      // and size, and light passes across him (left to right going forward).
-      tl.to($("host"), { x: fwd ? -18 : 18, rotation: fwd ? -0.8 : 0.8, transformOrigin: "50% 100%", duration: 0.4, ease: "power2.out" }, 0.02);
-      tl.to($("host"), { ...HOST[key], x: 0, rotation: 0, duration: 0.8, ease: "power2.inOut" }, 0.42);
-      tl.set($("host-sheen"), { autoAlpha: 1 }, 0.1);
-      tl.fromTo($("host-band"), { xPercent: fwd ? 222 : -100 }, { xPercent: fwd ? -100 : 222, duration: 1.0, ease: "power2.inOut" }, 0.1);
-      tl.to($("host-sheen"), { autoAlpha: 0, duration: 0.25 }, 0.95);
-      toMood(tl, key as Mood, 0.1);
-      if (to === TRAVEL) tl.fromTo($("travel"), { autoAlpha: 0, xPercent: 8, scale: 0.94 }, { autoAlpha: 0.42, xPercent: 0, scale: 1, duration: 1.2, ease: "power2.out" }, 0.2);
-      else if (from === TRAVEL) tl.to($("travel"), { autoAlpha: 0, duration: 0.6 }, 0);
-      // The motifs cross only going forward, at the chapter's own moments: silk into the business journey, the
-      // gold trail into travel, a brief silk into the review.
-      if (from === 0 && to === 1) silk(tl, 0.05, "subtle");
-      if (from === 1 && to === TRAVEL) trail(tl, 0.05, -6);
-      if (from === TRAVEL && to === LAST) silk(tl, 0.05, "brief");
-    }
-    await new Promise<void>((resolve) => tl.call(resolve, [], lifted));
-    toTop(reduce.current);
-    if (!reduce.current) turnIn.current = fwd ? 1 : -1;
-    setEditing(editingNext);
-    setStep(to);
-  };
-
-  /** Continue: this step's rules first. On the review, it sends. */
-  const onStepSubmit = (e: FormEvent<HTMLFormElement>) => {
+  /** Submit: every answer checked first (send). */
+  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (busy.current) return;
-    if (step === LAST) {
-      void send((e.nativeEvent as SubmitEvent).submitter as HTMLElement | null);
-      return;
-    }
-    const { ok, errors } = app.check(STEP_KEYS[step]);
-    if (!ok) {
-      focusFirst(errors);
-      return;
-    }
-    void go(editing ? LAST : step + 1);
+    void send((e.nativeEvent as SubmitEvent).submitter as HTMLElement | null);
   };
 
   // ---- Sending --------------------------------------------------------------------
@@ -727,36 +574,40 @@ export function ApplyExperience() {
     restoreSubmit();
   };
 
-  const send = async (fromButton: HTMLElement | null) => {
+  /**
+   * Submit. `agreedNow`: the Terms and the Privacy Policy were agreed this moment, in the popup Submit opened.
+   */
+  const send = async (fromButton: HTMLElement | null, agreedNow = false) => {
     if (busy.current) return;
-    const consent = app.check("consent");
-    if (!consent.ok) {
-      focusFirst(consent.errors);
+    // The Terms and the Privacy Policy are agreed in the popup before the questions; should they be missing, they
+    // are asked now, and agreeing sends (agreedToSend).
+    const agreement = agreedNow ? { privacy: true, terms: true } : app.state.consent;
+    if (!agreement.privacy || !agreement.terms) {
+      setAsking({ from: fromButton });
       return;
     }
-    // Every step again: a draft restored from this session never skipped a rule.
-    const all = validateAll(toPayload(app.state), app.phoneOk);
-    const firstBad = FIELD_ORDER.find((k) => all[k]);
-    if (firstBad) {
+    const payload = toPayload({ ...app.state, consent: agreement });
+    const all = validateAll(payload, app.phoneOk);
+    if (FIELD_ORDER.some((k) => all[k])) {
       app.setErrors(all);
-      void go(STEP_OF[firstBad], true);
+      focusFirst(all);
       return;
     }
     busy.current = true;
+    enterTl.current?.progress(1).kill();
     setFailure("");
     setFailureFinal(false);
     setPhase("sending");
 
-    // Not signed in: Cloudflare's token goes with it. Submit waited for one; a retry, just after the last
-    // one was spent, waits a moment for the next.
-    const token = needsHuman ? await humanWhenReady() : null;
-    const request = submitApplication(toPayload(app.state), token);
+    // Not signed in: Cloudflare's token goes with it, the moment there is one (it is usually ready long before
+    // Submit; a retry, just after the last one was spent, waits a moment for the next), while the plane takes off.
+    const request = (needsHuman ? humanWhenReady() : Promise.resolve(null)).then(async (token) => ({ token, result: await submitApplication(payload, token) }));
     // One frame for the pinned frame to be in place before anything is measured.
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await playSending(fromButton ?? root.current?.querySelector<HTMLElement>("[data-ax-submit]") ?? null);
     announce(`${SUBMIT.processing}…`);
     // The light sweeps a moment at least, so the processing reads as a moment, not a flicker.
-    const [result] = await Promise.all([request, sleep(reduce.current ? 300 : 1100)]);
+    const [{ token, result }] = await Promise.all([request, sleep(reduce.current ? 300 : 1100)]);
     if (token) {
       // A token is good for one application: a fresh one for another attempt.
       takeHumanToken(null);
@@ -771,18 +622,14 @@ export function ApplyExperience() {
       return;
     }
     if (result.reason === "invalid") {
-      // The server questioned an answer: lift the overlay, go to that step.
+      // The server questioned an answer: lift the overlay, the questions again with its complaint under it, the
+      // first one taking focus once they are back.
       const fields = result.fields;
-      const first = FIELD_ORDER.find((k) => fields[k]);
       const tl = track(gsap.timeline());
       lift(tl);
       app.setErrors(fields);
-      dir.current = -1;
-      setEditing(true);
-      setHeaderDir(-1);
-      setHeaderStep(first ? STEP_OF[first] : LAST);
-      setStep(first ? STEP_OF[first] : LAST);
       setPhase("form");
+      tl.call(() => focusFirst(fields), [], reduce.current ? 0.4 : 0.9);
       return;
     }
     // A duplicate, or the window closed: sending again would only be refused again.
@@ -946,34 +793,21 @@ export function ApplyExperience() {
     void send(root.current?.querySelector<HTMLElement>("[data-ax-retry]") ?? null);
   };
 
-  const backToReview = () => {
+  const backToForm = () => {
     if (busy.current) return;
     busy.current = true;
     const tl = track(gsap.timeline());
     lift(tl);
-    tl.call(() => {
-      dir.current = -1;
-      setPhase("form");
-    }, [], reduce.current ? 0.2 : 0.45);
+    tl.call(() => setPhase("form"), [], reduce.current ? 0.2 : 0.45);
   };
 
-  const Step = [StepAboutYou, StepBusiness, StepTravel][step];
   const covered = phase === "sending" || phase === "failed";
 
-  // Submit waits for every answer the application needs, the three boxes and,
-  // for someone not signed in, Cloudflare's check; until then StepNav says
-  // what is missing. (Every step was checked on its way forward, so this is
-  // mostly the boxes; a draft brought back from the session is checked here
-  // all the same.)
+  // Submit waits only on Cloudflare (someone not signed in), and only when it has something to say: it wants the
+  // visitor to do something (its box is under the button), or it could not load. Still finishing out of sight, Submit
+  // goes and the send waits for the token as the plane takes off (send). Missing answers are said on Submit.
   let submitHint = "";
-  if (step === LAST && phase === "form") {
-    const all = validateAll(toPayload(app.state), app.phoneOk);
-    const unfinished = STEPS.slice(0, LAST).filter((_, i) => FIELD_ORDER.some((k) => all[k] && STEP_OF[k] === i));
-    const boxes = (["privacy", "accuracy", "terms"] as const).filter((k) => all[k]);
-    if (unfinished.length) submitHint = SUBMIT.needsAnswers(unfinished.map((s) => `${s.number} ${s.title}`).join(", "));
-    else if (boxes.length) submitHint = SUBMIT.needsConsent(boxes);
-    else if (needsHuman && !humanToken) submitHint = humanFailed ? SUBMIT.checkFailed : humanShowing ? SUBMIT.checkShowing : SUBMIT.checking;
-  }
+  if (phase === "form" && needsHuman && !humanToken && (humanFailed || humanShowing)) submitHint = humanFailed ? SUBMIT.checkFailed : SUBMIT.checkShowing;
 
   return (
     <div ref={root} className="ax relative isolate h-[calc(100dvh-var(--nav-h))] overflow-clip">
@@ -1004,35 +838,25 @@ export function ApplyExperience() {
 
           {phase !== "intro" && phase !== "consent" && phase !== "received" && (
             <div inert={covered} className="flex min-h-0 flex-1 flex-col pb-4 pt-5 md:pb-6 md:pt-7">
-              <StepIndicator step={headerStep} />
               <div data-ax="step-head" data-ax-hide>
-                <StepHeader step={headerStep} dir={headerDir} />
+                <StepHeader />
               </div>
               <div className="ax-stage relative mt-5 flex min-h-0 flex-1 flex-col md:mt-6">
-                {/* The line of light that lifts one step away and prints the next. */}
+                {/* The line of light that prints the questions in. */}
                 <span data-ax="scan" aria-hidden className="ax-scan pointer-events-none absolute -inset-x-4 top-0 z-10 block h-px opacity-0 md:-inset-x-8" />
-                {/* The light that catches each new page as it lands; clipped to the page. */}
-                <span aria-hidden className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
-                  <span data-ax="gleam" className="ax-gleam absolute inset-y-0 left-0 block w-[34%] opacity-0" />
-                </span>
-                <form key={step} data-ax-view="step" noValidate onSubmit={onStepSubmit} aria-labelledby="ax-step-title" className="flex min-h-0 flex-1 flex-col">
-                  <StepScroll>{step === LAST ? <StepReview app={app} onEdit={(i) => void go(i, true)} /> : <Step app={app} />}</StepScroll>
-                  <StepNav
-                    step={step}
-                    last={LAST}
-                    editing={editing}
-                    onBack={() => void go(step - 1)}
-                    disabled={step === LAST && (!!submitHint || phase !== "form")}
-                    hint={submitHint}
-                  />
+                <form data-ax-view="step" noValidate onSubmit={onSubmit} aria-labelledby="ax-step-title" className="flex min-h-0 flex-1 flex-col">
+                  <StepScroll>
+                    <ApplicationForm app={app} />
+                  </StepScroll>
+                  <StepNav disabled={!!submitHint || phase !== "form"} hint={submitHint} />
                 </form>
               </div>
             </div>
           )}
 
           {/* Cloudflare's check, for someone not signed in: out of sight and out of the layout unless Cloudflare
-              wants them to do something, then under the buttons. Mounted from the first question, so it is
-              usually done by the review. A token is good for one application (send resets it). */}
+              wants them to do something, then under Submit. Mounted with the questions, so it is usually done
+              before they are answered. A token is good for one application (send resets it). */}
           {needsHuman && phase !== "intro" && TURNSTILE_SITE_KEY && (
             <div className={humanShowing ? "relative z-10 flex justify-center pb-3 [&_iframe]:!w-full" : "absolute h-0 w-0 overflow-hidden"} aria-hidden={!humanShowing}>
               <Turnstile
@@ -1063,7 +887,7 @@ export function ApplyExperience() {
         failure={failure}
         canRetry={!failureFinal}
         onRetry={retry}
-        onReview={backToReview}
+        onReview={backToForm}
         onContinue={toBoard}
       />
       {/* The plane Submit launches (takeoff.ts), above the stage. */}
@@ -1072,7 +896,7 @@ export function ApplyExperience() {
       <ConsentGate
         open={asking !== null}
         onClose={phase === "consent" ? leaveFirst : () => setAsking(null)}
-        onAgree={phase === "consent" ? agreedFirst : agreed}
+        onAgree={phase === "consent" ? agreedFirst : phase === "intro" ? agreed : agreedToSend}
         returnFocus={asking?.from}
       />
     </div>

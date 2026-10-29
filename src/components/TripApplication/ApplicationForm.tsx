@@ -1,11 +1,17 @@
 import { LIMITS } from "@/lib/trip-application";
 import { LABELS, PLACEHOLDERS } from "./content";
-import { CountryField, Field, PhoneField, TextInput } from "./fields";
+import { CountryField, Field, PhoneField, TextInput, YesNo } from "./fields";
 import type { ApplicationApi, ApplicationState } from "./useApplication";
 
-/** Step 01, About you: who to call. No email and no website or LinkedIn (the owner, 2026-10-29: "we dont need email"). Field ids are "ax-" + the answer's key. */
-export function StepAboutYou({ app }: { app: ApplicationApi }) {
+/**
+ * The application, one page (the owner, 2026-10-29, with their list): name, mobile, country, city, doing business
+ * or not, valid passport, in that order, and nothing else. Field ids are "ax-" + the answer's key, so a complaint
+ * from the server finds its field. The business answer is stored as the application's journey (lib/trip-application.ts,
+ * BUSINESS_STATUSES): Yes "existing_business", No "no_business_yet".
+ */
+export function ApplicationForm({ app }: { app: ApplicationApi }) {
   const p = app.state.personal;
+  const s = app.state.business.businessStatus;
   const e = app.errors;
   const set = (patch: Partial<ApplicationState["personal"]>) => app.update("personal", patch);
   return (
@@ -39,6 +45,14 @@ export function StepAboutYou({ app }: { app: ApplicationApi }) {
       <Field id="ax-city" label={LABELS.city} error={e.city}>
         <TextInput id="ax-city" value={p.city} onChange={(v) => set({ city: v })} error={e.city} placeholder={PLACEHOLDERS.city} maxLength={LIMITS.city} autoComplete="address-level2" />
       </Field>
+      <YesNo
+        id="ax-businessStatus"
+        label={LABELS.runsBusiness}
+        value={s === "" ? null : s === "existing_business"}
+        onChange={(v) => app.update("business", { businessStatus: v ? "existing_business" : "no_business_yet" })}
+        error={e.businessStatus}
+      />
+      <YesNo id="ax-hasPassport" label={LABELS.hasPassport} value={app.state.travel.hasPassport} onChange={(v) => app.update("travel", { hasPassport: v })} error={e.hasPassport} />
     </div>
   );
 }
