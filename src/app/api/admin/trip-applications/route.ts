@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { prisma, withDbRetry } from "@/lib/prisma";
-import { ADMIN_APPLICATION_INCLUDE, forConsole } from "@/lib/server/trip-admin-rows";
+import { ADMIN_APPLICATION_INCLUDE, LIST_SELECT, codesFor, forConsole, forList, tripCustomerCodes } from "@/lib/server/trip-admin-rows";
 import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
@@ -18,26 +18,33 @@ const TAKE = 2000;
  * Trip page. Admins only; deleted ones are left out here and counted
  * separately.
  *
- * Each application comes with the account that sent it, when it was sent
- * signed in, and that customer's number (AFFHAN-0001, CustomerCode), so the
- * team can see exactly who registered: Trip ID, account and every answer
- * (lib/server/trip-admin-rows.ts). Never the password hash or the Google id.
+ *   (none)        the list: what its rows, search, filters and figures use, and the customer's number
+ *                 (AFFHAN-0001, CustomerCode), read alongside rather than after (lib/server/trip-admin-rows.ts)
+ *   ?since=<ISO>  only the applications after that moment: the page asks every 20 s, so a new one shows
+ *                 without Refresh (the owner, 2026-10-29: "admin shows it late")
+ *   ?full=1       every answer and the account that sent it, for the Excel export
+ *
+ * One application in full, for its panel, is /api/admin/trip-applications/<id>/.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   if (!(await requireAdmin())) return new NextResponse("Unauthorized", { status: 401 });
+  const params = req.nextUrl.searchParams;
+  const sinceRaw = params.get("since");
+  const since = sinceRaw ? new Date(sinceRaw) : null;
+  if (since && Number.isNaN(since.getTime())) return NextResponse.json({ error: "since is not a date." }, { status: 400 });
+  const where = { status: { not: "deleted" }, ...(since ? { createdAt: { gt: since } } : {}) };
   try {
-    const [rows, total] = await withDbRetry(() =>
-      Promise.all([
-        prisma.tripApplication.findMany({
-          where: { status: { not: "deleted" } },
-          orderBy: { createdAt: "desc" },
-          take: TAKE,
-          include: ADMIN_APPLICATION_INCLUDE,
-        }),
-        prisma.tripApplication.count({ where: { status: { not: "deleted" } } }),
-      ]),
-    );
-    return NextResponse.json({ total, applications: await forConsole(rows) });
+    if (params.get("full") === "1") {
+      const rows = await withDbRetry(() => prisma.tripApplication.findMany({ where, orderBy: { createdAt: "desc" }, take: TAKE, include: ADMIN_APPLICATION_INCLUDE }));
+      return NextResponse.json({ applications: await forConsole(rows) });
+    }
+    const [rows, total, codes] = await Promise.all([
+      withDbRetry(() => prisma.tripApplication.findMany({ where, orderBy: { createdAt: "desc" }, take: TAKE, select: LIST_SELECT })),
+      withDbRetry(() => prisma.tripApplication.count({ where: { status: { not: "deleted" } } })),
+      // The whole list: every number at once, alongside it. A few new ones: just theirs, after.
+      since ? null : tripCustomerCodes(),
+    ]);
+    return NextResponse.json({ total, applications: forList(rows, codes ?? (await codesFor(rows.map((r) => r.customerKey)))) });
   } catch (e) {
     console.error("admin trip applications:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Could not load applications." }, { status: 500 });

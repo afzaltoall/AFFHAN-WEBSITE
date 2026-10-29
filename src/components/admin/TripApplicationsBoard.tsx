@@ -101,6 +101,21 @@ interface Application {
   user: Account | null;
 }
 
+/**
+ * What the list carries of each application (/api/admin/trip-applications/): what its rows, search, filters and
+ * figures use. Every answer is read when one is opened (/api/admin/trip-applications/<id>/), or for the export.
+ */
+type ListApplication = Pick<
+  Application,
+  "id" | "referenceNo" | "createdAt" | "status" | "fullName" | "email" | "phone" | "country" | "city" | "businessStatus" | "companyName" | "businessCategory" | "areaOfInterest" | "customerCode"
+> & { user: Pick<Account, "name" | "email"> | null };
+
+/** The first rows drawn, and how many more each time the end of the list comes near. */
+const FIRST_ROWS = 60;
+const MORE_ROWS = 120;
+/** How often the page asks for applications sent since it last looked (while the tab is in front). */
+const POLL_MS = 20_000;
+
 interface Account {
   id: string;
   name: string;
@@ -212,7 +227,7 @@ const digits = (phone: string) => phone.replace(/[^\d]/g, "");
 const href = (url: string) => (/^https?:\/\//i.test(url) ? url : `https://${url}`);
 
 export function TripApplicationsBoard({ initial }: { initial?: InitialFilters }) {
-  const [rows, setRows] = useState<Application[] | null>(null);
+  const [rows, setRows] = useState<ListApplication[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<TabKey>(() => TABS.find((t) => t.key === initial?.tab)?.key ?? "new");
   const [q, setQ] = useState("");
@@ -250,12 +265,12 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   const [now, setNow] = useState(() => Date.now());
 
   /** The list from the server, or null when it could not be read (the error says why). */
-  const load = useCallback(async (): Promise<Application[] | null> => {
+  const load = useCallback(async (): Promise<ListApplication[] | null> => {
     setError(null);
     try {
       const res = await fetch("/api/admin/trip-applications/", { cache: "no-store" });
       if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : "Could not load applications.");
-      const body = (await res.json()) as { applications: Application[] };
+      const body = (await res.json()) as { applications: ListApplication[] };
       setRows(body.applications);
       return body.applications;
     } catch (e) {
@@ -317,6 +332,47 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     return () => window.clearTimeout(t);
   }, [lit]);
 
+  // New applications, every 20 s while this tab is in front and the moment it comes back to it: added at the top and
+  // lit for a moment, so nobody has to press Refresh to see who just applied (the owner, 2026-10-29: "admin shows it
+  // late"). Only what came after the newest already here is asked for.
+  const rowsRef = useRef<ListApplication[] | null>(null);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+  useEffect(() => {
+    let stopped = false;
+    const poll = async () => {
+      const newest = rowsRef.current?.[0]?.createdAt;
+      if (!newest || document.visibilityState !== "visible") return;
+      try {
+        const res = await fetch(`/api/admin/trip-applications/?since=${encodeURIComponent(newest)}`, { cache: "no-store" });
+        if (!res.ok || stopped) return;
+        const { applications } = (await res.json()) as { applications: ListApplication[] };
+        if (!applications.length || stopped) return;
+        setRows((r) => {
+          const known = new Set((r ?? []).map((x) => x.id));
+          const fresh = applications.filter((x) => !known.has(x.id));
+          return fresh.length ? [...fresh, ...(r ?? [])] : r;
+        });
+        setLit(new Set(applications.map((x) => x.id)));
+        setNow(Date.now());
+        void loadRepeats();
+      } catch {
+        /* the next one tries again */
+      }
+    };
+    const id = window.setInterval(() => void poll(), POLL_MS);
+    const onShow = () => {
+      if (document.visibilityState === "visible") void poll();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    return () => {
+      stopped = true;
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onShow);
+    };
+  }, [loadRepeats]);
+
   const newCount = useMemo(() => (rows ?? []).filter((r) => r.status === "new").length, [rows]);
 
   /** The figures over the list: registrations (not spam), today and this week in India's time, and countries. */
@@ -357,7 +413,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     const tabs: Record<TabKey, number> = { new: 0, handled: 0, spam: 0, all: 0 };
     const byJourney = new Map<string, number>();
     const byCountry = new Map<string, number>();
-    const list: Application[] = [];
+    const list: ListApplication[] = [];
     let inTab = 0;
     for (const r of rows ?? []) {
       const t = tab === "all" || r.status === tab;
@@ -377,6 +433,26 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   }, [rows, words, tab, needle, journey, country]);
   const list = view.list;
 
+  // The rows drawn: the first 60, and 120 more each time the end of the list comes near; the first 60 again when
+  // the list changes. All 1,500 at once made the page slow to open (the owner, 2026-10-29).
+  const listKey = `${tab}|${journey ?? ""}|${country ?? ""}|${needle}`;
+  const [drawn, setDrawn] = useState({ key: listKey, n: FIRST_ROWS });
+  const shown = drawn.key === listKey ? drawn.n : FIRST_ROWS;
+  const more = shown < list.length;
+  const moreRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    const el = moreRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setDrawn((d) => ({ key: listKey, n: (d.key === listKey ? d.n : FIRST_ROWS) + MORE_ROWS }));
+      },
+      { rootMargin: "1200px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [listKey, more, shown]);
+
   /** Every country anyone applied from, most applications first: an order the filters never reshuffle. */
   const countryOptions = useMemo(() => {
     const total = new Map<string, number>();
@@ -385,14 +461,35 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     return [...total.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([c]) => c);
   }, [rows, country]);
 
-  // A group's application may be older than the list's newest 2,000: then it is found in the groups.
-  const open = rows?.find((r) => r.id === openId) ?? repeats?.groups.flatMap((g) => g.applications).find((r) => r.id === openId) ?? null;
+  /** Every answer of the applications opened so far (the list carries only what its rows show). */
+  const [details, setDetails] = useState<Record<string, Application>>({});
+  const [detailFailed, setDetailFailed] = useState<string | null>(null);
+  // The one opened, in full: Registered again's groups already carry every answer; otherwise it is read now.
+  const openFull = openId ? details[openId] ?? repeats?.groups.flatMap((g) => g.applications).find((r) => r.id === openId) ?? null : null;
+  const openRow = openId ? rows?.find((r) => r.id === openId) ?? null : null;
+  useEffect(() => {
+    if (!openId || openFull) return;
+    let gone = false;
+    fetch(`/api/admin/trip-applications/${openId}/`, { cache: "no-store" })
+      .then((res) => (res.ok ? (res.json() as Promise<Application>) : Promise.reject(new Error(String(res.status)))))
+      .then((a) => {
+        if (!gone) setDetails((d) => ({ ...d, [a.id]: a }));
+      })
+      .catch(() => {
+        if (!gone) setDetailFailed(openId);
+      });
+    return () => {
+      gone = true;
+    };
+  }, [openId, openFull]);
 
   const setStatus = async (id: string, status: Status) => {
     if (!rows) return;
     if (status === "deleted" && !window.confirm("Delete this application? It will be hidden from this list.")) return;
     const before = rows;
     const repeatsBefore = repeats;
+    const detailsBefore = details;
+    setDetails((d) => (d[id] ? { ...d, [id]: { ...d[id], status } } : d));
     setRows(status === "deleted" ? rows.filter((r) => r.id !== id) : rows.map((r) => (r.id === id ? { ...r, status } : r)));
     if (repeats) setRepeats(withStatus(repeats, id, status));
     if (status === "deleted") setOpenId(null);
@@ -409,6 +506,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     } catch {
       setRows(before);
       setRepeats(repeatsBefore);
+      setDetails(detailsBefore);
       setError("That change did not save. Try again.");
     } finally {
       setBusy(false);
@@ -424,9 +522,29 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     return groups.filter((g) => g.applications.some(has));
   }, [repeats, needle]);
   /** What the page shows, as rows: the list, or every application in the groups shown, group by group. */
-  const shownRows = showRepeats ? shownGroups.flatMap((g) => g.applications) : list;
+  const shownRows: ListApplication[] = showRepeats ? shownGroups.flatMap((g) => g.applications) : list;
 
+  const [exporting, setExporting] = useState(false);
   const exportExcel = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      await writeExcel();
+    } catch {
+      setError("The export could not be made. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
+  const writeExcel = async () => {
+    // Every answer of the applications shown, read now (the list carries only what its rows show).
+    const res = await fetch("/api/admin/trip-applications/?full=1", { cache: "no-store" });
+    if (!res.ok) throw new Error(String(res.status));
+    const full = new Map(((await res.json()) as { applications: Application[] }).applications.map((a) => [a.id, a]));
+    const items = shownRows.flatMap((r) => {
+      const a = full.get(r.id) ?? ("consentTerms" in r ? (r as Application) : null);
+      return a ? [a] : [];
+    });
     const XLSX = await import("xlsx");
     // Registered again: each row says which number's group it is in.
     const groupOf = new Map<string, string>();
@@ -441,7 +559,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       "Privacy Policy", "Accurate & complete", "Terms & Conditions",
     ];
     const yes = (v: boolean) => (v ? "Yes" : "No");
-    const data = shownRows.map((r) => [
+    const data = items.map((r) => [
       ...(showRepeats ? [groupOf.get(r.id) ?? ""] : []),
       r.referenceNo, fmtDate(r.createdAt), r.status, r.customerCode ?? "", r.user?.id ?? "", r.user?.email ?? "", r.user ? signInOf(r.user.authProvider) : "", r.user ? fmtDate(r.user.createdAt) : "",
       r.fullName, r.email, r.phone, r.country, r.city, r.profileUrl ?? "",
@@ -518,11 +636,12 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
             <button
               type="button"
               onClick={() => void exportExcel()}
-              disabled={!shownRows.length}
+              disabled={!shownRows.length || exporting}
+              aria-busy={exporting}
               title={`Export the ${shownRows.length} ${shownRows.length === 1 ? "application" : "applications"} shown`}
               className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:opacity-50"
             >
-              <Download size={14} /> Export
+              <Download size={14} /> {exporting ? "Exporting…" : "Export"}
             </button>
           </div>
         </div>
@@ -646,15 +765,22 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
         ) : (
           <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.06]">
             <ul className="divide-y divide-black/[0.06]">
-              {list.map((r) => (
+              {list.slice(0, shown).map((r) => (
                 <ApplicationRow key={r.id} r={r} now={now} lit={lit.has(r.id)} showStatus={tab === "all"} onOpen={setOpenId} />
               ))}
+              {/* Where the next rows are drawn, as it comes near (above). */}
+              {more && <li ref={moreRef} aria-hidden className="h-px" />}
             </ul>
           </div>
         )}
       </div>
 
-      {open && <Detail a={open} busy={busy} onClose={() => setOpenId(null)} onStatus={(s) => void setStatus(open.id, s)} />}
+      {openId &&
+        (openFull ? (
+          <Detail a={openFull} busy={busy} onClose={() => setOpenId(null)} onStatus={(s) => void setStatus(openFull.id, s)} />
+        ) : (
+          <DetailWaiting row={openRow} failed={detailFailed === openId} onClose={() => setOpenId(null)} />
+        ))}
     </div>
   );
 }
@@ -666,7 +792,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
  */
 function ApplicationRow({
   r, now, lit = false, showStatus, compare = false, onOpen,
-}: { r: Application; now: number; lit?: boolean; showStatus: boolean; compare?: boolean; onOpen: (id: string) => void }) {
+}: { r: ListApplication; now: number; lit?: boolean; showStatus: boolean; compare?: boolean; onOpen: (id: string) => void }) {
   const contact = compare ? [r.phone, r.email].filter(Boolean).join(" · ") : r.email || r.phone;
   return (
     // Lit for a moment when the last refresh brought it in, fading back as the light goes.
@@ -922,57 +1048,35 @@ function ActiveFilter({ label, flag, onRemove }: { label: string; flag?: string;
   );
 }
 
-/**
- * The business answer, then whatever an application of its time was asked about the business. Since 2026-10-29 the
- * page asks only "Do you run a business?" (Yes "Runs a business", No "No business yet"); the company, its role,
- * category, website and years, a plan, an area of interest and what to explore were asked before then, and are shown
- * only where an application answered them.
- */
-function businessRows(a: Application): Array<[string, React.ReactNode]> {
-  const site = (url: string | null) =>
-    url ? <a className="text-[#0058b0] underline" href={href(url)} target="_blank" rel="noopener noreferrer">{url}</a> : null;
-  const answered = (rows: Array<[string, React.ReactNode]>) => rows.filter(([, v]) => v);
-  const journey: [string, React.ReactNode] = ["Business journey", businessStatusBrief(a.businessStatus) || a.businessStatus];
-  if (a.businessStatus === "planning_business") {
-    return [journey, ...answered([["Business / brand name", a.companyName], ["Category / area", a.businessCategory], ["Company website", site(a.companyWebsite)], ["Planning to build", a.businessPlan]])];
-  }
-  if (a.businessStatus === "no_business_yet") {
-    return [journey, ...answered([["Area of interest", a.areaOfInterest], ["Would like to explore in China", a.exploreGoal]])];
-  }
-  return [
-    journey,
-    ...answered([
-      ["Company", a.companyName],
-      ["Role", a.role],
-      ["Category", a.businessCategory],
-      ["Years in business", a.yearsInBusiness],
-      ["Company website", site(a.companyWebsite)],
-      ["About the business", a.businessDescription],
-    ]),
-  ];
+/** "Do you run a business?", answered, whichever form the application came from. */
+const RUNS_A_BUSINESS: Record<string, string> = {
+  existing_business: "Yes",
+  no_business_yet: "No",
+  planning_business: "No, planning to start one",
+  expanding_business: "Yes, looking to expand",
+};
+
+/** A short list: a label and its answer on each line. */
+function Answers({ rows }: { rows: Array<[string, React.ReactNode]> }) {
+  return (
+    <dl className="divide-y divide-black/[0.06] rounded-xl bg-white px-4 shadow-sm ring-1 ring-black/[0.06]">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex gap-4 py-2.5">
+          <dt className="w-32 shrink-0 text-[13px] text-[#6e6e73]">{k}</dt>
+          <dd className="min-w-0 flex-1 whitespace-pre-wrap break-words text-[13px] font-medium text-[#1d1d1f]">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }
 
-function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean; onClose: () => void; onStatus: (s: Status) => void }) {
+/** The panel's frame: the page dimmed behind, the panel on the right, closed by Escape or a click outside it. */
+function Panel({ onClose, children }: { onClose: () => void; children: React.ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-
-  const section = (title: string, rows: Array<[string, React.ReactNode]>) => (
-    <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/[0.06]">
-      <h3 className="text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">{title}</h3>
-      <dl className="mt-3 grid gap-x-6 gap-y-3 sm:grid-cols-2">
-        {rows.map(([k, v]) => (
-          <div key={k} className="min-w-0">
-            <dt className="text-[12px] text-[#86868b]">{k}</dt>
-            <dd className="mt-0.5 whitespace-pre-wrap break-words text-[14px]">{v || "—"}</dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-
   return (
     <div className="fixed inset-0 z-[120] flex justify-end bg-black/30" onClick={onClose}>
       <aside
@@ -980,106 +1084,138 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
         aria-modal="true"
         aria-labelledby="trip-app-title"
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full w-full max-w-2xl flex-col overflow-y-auto bg-[#f5f5f7] shadow-2xl"
+        className="flex h-full w-full max-w-md flex-col overflow-y-auto bg-[#f5f5f7] shadow-2xl"
       >
-        <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-black/[0.06] bg-[#f5f5f7]/95 px-6 py-4 backdrop-blur">
-          <div className="min-w-0 flex-1">
-            <p className="text-[12px] text-[#86868b]">
-              <span className="font-mono font-semibold text-[#0058b0]">{a.referenceNo}</span> · Registered {fmtDate(a.createdAt)}
-            </p>
-            <h2 id="trip-app-title" className="mt-0.5 truncate text-xl font-semibold tracking-tight">{a.fullName}</h2>
-            <p className="truncate text-[13px] text-[#86868b]">{[a.role, a.companyName].filter(Boolean).join(", ") || businessStatusBrief(a.businessStatus)}</p>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06]">
-            <X size={16} />
+        {children}
+      </aside>
+    </div>
+  );
+}
+
+function PanelHead({ name, line, onClose }: { name: string; line: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="sticky top-0 z-10 flex items-start gap-3 border-b border-black/[0.06] bg-[#f5f5f7]/95 px-5 py-3.5 backdrop-blur">
+      <div className="min-w-0 flex-1">
+        <h2 id="trip-app-title" className="truncate text-[17px] font-semibold tracking-tight">{name}</h2>
+        <p className="mt-0.5 text-[12px] text-[#6e6e73]">{line}</p>
+      </div>
+      <button type="button" onClick={onClose} aria-label="Close" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1 ring-black/[0.06]">
+        <X size={15} />
+      </button>
+    </div>
+  );
+}
+
+/** The panel while the application's answers are read (a moment), or when they could not be. */
+function DetailWaiting({ row, failed, onClose }: { row: ListApplication | null; failed: boolean; onClose: () => void }) {
+  return (
+    <Panel onClose={onClose}>
+      <PanelHead name={row?.fullName ?? "Application"} line={row ? <span className="font-mono font-semibold text-[#0058b0]">{row.referenceNo}</span> : null} onClose={onClose} />
+      <p className="px-5 py-8 text-center text-[13px] text-[#6e6e73]">{failed ? "This application could not be read. Close it and open it again." : "Loading…"}</p>
+    </Panel>
+  );
+}
+
+/**
+ * One application, simply (the owner, 2026-10-29: "complex ... text romba perusaa ... user puriyura maari"): who it
+ * is and how to reach them, its status, then the answers as one short list, a label and its answer on each line.
+ * The page's six first (the name is the heading); what an earlier application was also asked (an email, a website,
+ * the company, nationality and the rest) in a second list, only where it was given; the account only when it was
+ * sent signed in; the consents as one line.
+ */
+function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean; onClose: () => void; onStatus: (s: Status) => void }) {
+  const site = (url: string | null) =>
+    url ? <a className="text-[#0058b0] underline" href={href(url)} target="_blank" rel="noopener noreferrer">{url}</a> : null;
+  const answers: Array<[string, React.ReactNode]> = [
+    ["Mobile", a.phone],
+    ["Country", a.country],
+    ["City", a.city],
+    ["Runs a business", RUNS_A_BUSINESS[a.businessStatus] ?? (businessStatusBrief(a.businessStatus) || a.businessStatus)],
+    ["Valid passport", a.hasPassport ? "Yes" : "No"],
+  ];
+  if (a.user) answers.push(["Account", [a.user.name, a.user.email, `signs in with ${signInOf(a.user.authProvider)}`].filter(Boolean).join(" · ")]);
+  // Asked before 2026-10-29: only where an earlier application gave it.
+  const earlier = (
+    [
+      ["Email", a.email],
+      ["Website / LinkedIn", site(a.profileUrl)],
+      ["Company", a.companyName],
+      ["Role", a.role],
+      ["Category", a.businessCategory],
+      ["Years in business", a.yearsInBusiness],
+      ["Company website", site(a.companyWebsite)],
+      ["About the business", a.businessDescription],
+      ["Planning to build", a.businessPlan],
+      ["Area of interest", a.areaOfInterest],
+      ["Would like to explore", a.exploreGoal],
+      ["Interested in", a.interests.join(", ")],
+      ["Products of interest", a.productsOfInterest],
+      ["Hoping to explore", a.exploreNotes],
+      ["Nationality", a.nationality],
+      ["Been to China before", a.travelledToChina ? "Yes" : ""],
+    ] as Array<[string, React.ReactNode]>
+  ).filter(([, v]) => v);
+  const missing = [!a.consentPrivacy && "Privacy Policy", !a.consentTerms && "Terms & Conditions", !a.consentAccuracy && "accurate information"].filter(Boolean);
+  const pill = "inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-medium";
+
+  return (
+    <Panel onClose={onClose}>
+      <PanelHead
+        name={a.fullName}
+        line={
+          <>
+            <span className="font-mono font-semibold text-[#0058b0]">{a.referenceNo}</span>
+            {a.customerCode ? ` · ${a.customerCode}` : ""} · {fmtDate(a.createdAt)}
+          </>
+        }
+        onClose={onClose}
+      />
+      <div className="grid gap-3.5 px-5 py-4">
+        <div className="flex flex-wrap gap-2">
+          <a href={`tel:${a.phone.replace(/\s+/g, "")}`} className={`${pill} bg-[#1d1d1f] text-white`}>
+            <Phone size={13} /> Call
+          </a>
+          <a href={`https://wa.me/${digits(a.phone)}`} target="_blank" rel="noopener noreferrer" className={`${pill} bg-white shadow-sm ring-1 ring-black/[0.06]`}>
+            <MessageCircle size={13} /> WhatsApp
+          </a>
+          {/* Earlier applications only: no email is asked since 2026-10-29. */}
+          {a.email && (
+            <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Your Free China Business Trip application (${a.referenceNo})`)}`} className={`${pill} bg-white shadow-sm ring-1 ring-black/[0.06]`}>
+              <Mail size={13} /> Email
+            </a>
+          )}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
+          {(["new", "handled", "spam"] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={busy || a.status === s}
+              onClick={() => onStatus(s)}
+              className={`rounded-full px-3 py-1 font-medium ring-1 ring-black/[0.06] ${a.status === s ? statusPill[s] : "bg-white hover:bg-black/[0.03]"} disabled:cursor-default`}
+            >
+              {s === "handled" ? "Handled" : s === "spam" ? "Spam" : "New"}
+            </button>
+          ))}
+          <button type="button" disabled={busy} onClick={() => onStatus("deleted")} className="ml-auto rounded-full px-3 py-1 font-medium text-red-600 hover:bg-red-500/10">
+            Delete
           </button>
         </div>
 
-        <div className="grid gap-4 px-6 py-5">
-          {/* A phone: Call across the top, WhatsApp and Email side by side under it (they had wrapped into a
-              ragged two and one); WhatsApp across alone when there is no email (none is asked since
-              2026-10-29). From a tablet up, one row as before. */}
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <a href={`tel:${a.phone.replace(/\s+/g, "")}`} className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[#1d1d1f] px-4 text-[13px] font-medium text-white sm:h-9">
-              <Phone size={14} /> Call {a.phone}
-            </a>
-            <a href={`https://wa.me/${digits(a.phone)}`} target="_blank" rel="noopener noreferrer" className={`inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] sm:h-9 ${a.email ? "" : "col-span-2"}`}>
-              <MessageCircle size={14} /> WhatsApp
-            </a>
-            {a.email && (
-            <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Your Free China Business Trip application (${a.referenceNo})`)}`} className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] sm:h-9">
-              <Mail size={14} /> Email
-            </a>
-            )}
-          </div>
+        <Answers rows={answers} />
 
-          <div className="flex flex-wrap items-center gap-2 text-[13px]">
-            <span className="text-[#86868b]">Status:</span>
-            {(["new", "handled", "spam"] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                disabled={busy || a.status === s}
-                onClick={() => onStatus(s)}
-                className={`rounded-full px-3 py-1.5 font-medium capitalize ring-1 ring-black/[0.06] ${a.status === s ? statusPill[s] : "bg-white hover:bg-black/[0.03]"} disabled:cursor-default`}
-              >
-                {s === "handled" ? "Handled" : s === "spam" ? "Spam" : "New"}
-              </button>
-            ))}
-            <button type="button" disabled={busy} onClick={() => onStatus("deleted")} className="ml-auto rounded-full px-3 py-1.5 font-medium text-red-600 hover:bg-red-500/10">
-              Delete
-            </button>
-          </div>
+        {earlier.length > 0 && (
+          <section className="grid gap-1.5">
+            <h3 className="px-1 text-[12px] font-medium text-[#6e6e73]">From the earlier form</h3>
+            <Answers rows={earlier} />
+          </section>
+        )}
 
-          {section("About the applicant", [
-            // Earlier applications only: none is asked since 2026-10-29.
-            ...(a.email ? [["Email", a.email] as [string, string]] : []),
-            ["Mobile", a.phone],
-            ["City", a.city],
-            ["Country", a.country],
-            // Earlier applications only: not asked since 2026-10-29.
-            ...(a.profileUrl ? [["Website / LinkedIn", <a key="site" className="text-[#0058b0] underline" href={href(a.profileUrl)} target="_blank" rel="noopener noreferrer">{a.profileUrl}</a>] as [string, React.ReactNode]] : []),
-          ])}
-          {section("Account", a.user
-            ? [
-                ["Trip ID", <span key="t" className="font-mono font-semibold">{a.referenceNo}</span>],
-                ["Customer no.", a.customerCode],
-                ["Account name", a.user.name],
-                ["Account email", a.user.email ? `${a.user.email}${a.user.emailVerified ? " (verified)" : ""}` : null],
-                ["Account mobile", a.user.phone ? `${a.user.phone}${a.user.phoneVerified ? " (verified)" : ""}` : null],
-                ["Signs in with", signInOf(a.user.authProvider)],
-                ["Account created", fmtDate(a.user.createdAt)],
-                ["Last signed in", a.user.lastLoginAt ? `${fmtDate(a.user.lastLoginAt)} (${a.user.loginCount} sign-ins)` : null],
-                ["Account status", a.user.accountStatus === "ACTIVE" ? "Active" : a.user.accountStatus],
-                ["Account ID", <span key="i" className="font-mono text-[12px]">{a.user.id}</span>],
-              ]
-            : [
-                ["Trip ID", <span key="t" className="font-mono font-semibold">{a.referenceNo}</span>],
-                ["Customer no.", a.customerCode],
-                ["Account", "None: sent without signing in"],
-              ])}
-          {section("Business journey", businessRows(a))}
-          {/* The business profile step, no longer asked since 2026-10-28: only where it was answered. */}
-          {(a.interests.length > 0 || a.productsOfInterest || a.exploreNotes) &&
-            section("Business profile", [
-              ["Interested in", a.interests.join(", ")],
-              ["Products or categories", a.productsOfInterest],
-              ["Hoping to explore in China", a.exploreNotes],
-            ])}
-          {section("Travel profile", [
-            // Earlier applications only: not asked since 2026-10-29 (new rows hold "").
-            ...(a.nationality ? [["Nationality", a.nationality] as [string, string]] : []),
-            ["Holds a valid passport", a.hasPassport ? "Yes" : "No"],
-            // No longer asked since 2026-10-29 (new rows hold false): shown only where an earlier application said yes.
-            ...(a.travelledToChina ? [["Been to China before", "Yes"] as [string, string]] : []),
-          ])}
-          {section("Consent", [
-            ["Privacy Policy", a.consentPrivacy ? "Consented" : "Not given"],
-            ["Information is accurate", a.consentAccuracy ? "Confirmed" : "Not given"],
-            ["Terms & Conditions", a.consentTerms ? "Agreed" : "Not given"],
-          ])}
-        </div>
-      </aside>
-    </div>
+        <p className="px-1 text-[12px] text-[#6e6e73]">
+          {missing.length ? `Not agreed: ${missing.join(", ")}.` : "Agreed to the Terms & Conditions and the Privacy Policy."}
+        </p>
+      </div>
+    </Panel>
   );
 }
