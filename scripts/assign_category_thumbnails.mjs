@@ -41,6 +41,11 @@
 //   * Moderation-blocked categories are skipped entirely, and are never used as
 //     a source of imagery. A thumbnail renders in the grid even when the
 //     products behind it do not.
+//   * So are products hidden by name (Product.isBlockedName), for the same
+//     reason, and they do not count towards a category's size. Swimming holds
+//     338 of them ("…Bikini Swimsuit…"): once its visible swimwear went to
+//     ModerationLog (2026-10-30), the lowest id left was one of those, and the
+//     tile would have shown it.
 // ---------------------------------------------------------------------------
 import 'dotenv/config';
 import pg from 'pg';
@@ -74,7 +79,7 @@ for (const c of cats) {
 }
 
 const directCount = Object.fromEntries(
-  (await q(`SELECT "categoryId" id, count(*)::int c FROM "Product" WHERE "categoryId" IS NOT NULL GROUP BY 1`))
+  (await q(`SELECT "categoryId" id, count(*)::int c FROM "Product" WHERE "categoryId" IS NOT NULL AND NOT "isBlockedName" GROUP BY 1`))
     .map((r) => [r.id, r.c])
 );
 
@@ -98,6 +103,7 @@ for (const row of await q(
             ROW_NUMBER() OVER (PARTITION BY "categoryId" ORDER BY id ASC) rn
      FROM "Product"
      WHERE "categoryId" IS NOT NULL AND "imageUrl" IS NOT NULL AND "imageUrl" <> ''
+       AND NOT "isBlockedName"
    ) t WHERE rn <= ${CANDIDATES_PER_CATEGORY}`
 )) {
   if (!candidates.has(row.categoryId)) candidates.set(row.categoryId, []);
