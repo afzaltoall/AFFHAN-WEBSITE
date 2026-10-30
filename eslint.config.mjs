@@ -43,6 +43,8 @@ const eslintConfig = defineConfig([
     "generate_subcategories.mjs",
     "fetch_cj.js",
     "scripts/**",
+    // The owner's local one-off scripts and data exports, moved out of the root (2026-10-30). Git-ignored, never deployed.
+    "_local/**",
   ]),
   {
     rules: {
