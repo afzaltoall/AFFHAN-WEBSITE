@@ -1,9 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Anchor, Container, Loader2, PackageCheck, Printer, Ship, Stamp, Warehouse } from "lucide-react";
+import { SITE_URL } from "@/lib/brand";
 import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtTrackDay, trackDays, type CargoStatus, type CargoTrack } from "@/lib/cargo-shared";
+import { isNativeApp } from "@/lib/nativeCamera";
 
 /**
  * Track your cargo, on /shipping/ under the hero (the owner, 2026-10-24): a customer types the console, FCL or LCL
@@ -162,7 +165,63 @@ export function CargoTracker() {
   );
 }
 
-function Result({ cargo }: { cargo: CargoTrack }) {
+/** The printout's clock: "30-Oct-2026, 4:05 PM", the tracker's own date style. */
+function printedAt(): string {
+  const d = new Date();
+  const month = d.toLocaleDateString("en-GB", { month: "short" });
+  const time = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return `${String(d.getDate()).padStart(2, "0")}-${month}-${d.getFullYear()}, ${time}`;
+}
+
+/**
+ * What Print puts on paper (the owner, 2026-10-30: "print vela seiyala"). Printing the page itself had hidden all
+ * but the result with `visibility`, which keeps every hidden thing's room: one card, then fourteen blank pages of an
+ * invisible /shipping/; and the stage circles are backgrounds, which a browser leaves off paper by default, so their
+ * white icons vanished. This sheet is a child of <body> of its own (a portal), the only thing shown in print, so a
+ * printout is the cargo alone on one page whatever surrounds the tracker; the company and the time head it, the link
+ * back ends it, and its colours print as they show.
+ */
+function PrintSheet({ cargo }: { cargo: CargoTrack }) {
+  const sheet = useRef<HTMLDivElement>(null);
+  const stamp = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    // The tracker's own typeface, which its section sets and the sheet, outside it, would not inherit.
+    const track = document.getElementById("track");
+    if (sheet.current && track) sheet.current.style.fontFamily = getComputedStyle(track).fontFamily;
+    // The time of printing, not of the lookup.
+    const tick = () => {
+      if (stamp.current) stamp.current.textContent = printedAt();
+    };
+    tick();
+    window.addEventListener("beforeprint", tick);
+    return () => window.removeEventListener("beforeprint", tick);
+  }, []);
+  const link = `${SITE_URL.replace(/^https?:\/\//, "")}/shipping/?track=${encodeURIComponent(cargo.reference)}`;
+  return (
+    <div ref={sheet} className="cargo-paper bg-white text-[#08222e]">
+      <style>{`.cargo-paper { display: none; } @media print { @page { margin: 12mm; } html, body { background: #fff !important; height: auto !important; min-height: 0 !important; overflow: visible !important; } body > :not(.cargo-paper) { display: none !important; } body > .cargo-paper { display: block !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`}</style>
+      <div className="mb-5 flex items-center justify-between gap-6 border-b border-[#08222e]/15 pb-4">
+        <div className="flex items-center gap-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- eager on purpose: it must be loaded before Print is pressed */}
+          <img src="/logo.png" alt="" width={44} height={44} className="h-11 w-11 object-contain" />
+          <div>
+            <p className="text-[16px] font-bold leading-tight">AFFHAN International Pvt Ltd</p>
+            <p className="mt-0.5 text-[13px] text-[#5a6e77]">Cargo tracking</p>
+          </div>
+        </div>
+        <p className="text-right text-[12.5px] text-[#5a6e77]">
+          Printed <span ref={stamp} className="tabular-nums" />
+        </p>
+      </div>
+      <Result cargo={cargo} onPaper />
+      <p className="mt-4 text-[12.5px] text-[#5a6e77]">
+        Track online: <span className="font-medium text-[#08222e]">{link}</span>
+      </p>
+    </div>
+  );
+}
+
+function Result({ cargo, onPaper = false }: { cargo: CargoTrack; onPaper?: boolean }) {
   const current = Math.max(0, CARGO_STATUSES.indexOf(cargo.status));
   const stages = CARGO_STATUSES.length;
   const now = CARGO_STATUSES[current];
@@ -170,23 +229,31 @@ function Result({ cargo }: { cargo: CargoTrack }) {
   const next = current < stages - 1 ? CARGO_STATUSES[current + 1] : null;
   const fact = "text-[16px] font-semibold text-[#08222e]";
   const factLabel = "text-[13px] text-[#5a6e77]";
+  // Print, wherever a browser can print: the app's Android shell ignores window.print(), so it has no button there.
+  // Read while rendering, which is safe because a result is only ever drawn in the browser, after the lookup.
+  const canPrint = !onPaper && !isNativeApp();
   return (
-    <article id="cargo-result" aria-label={`Cargo ${cargo.reference}`} className="overflow-hidden rounded-2xl border border-[#08222e]/10 bg-white">
-      {/* Printing shows the result alone. */}
-      <style>{`@media print { body * { visibility: hidden !important; } #cargo-result, #cargo-result * { visibility: visible !important; } #cargo-result { position: absolute; left: 0; top: 0; width: 100%; border: 0; } .cargo-noprint { display: none !important; } }`}</style>
+    <article
+      id={onPaper ? undefined : "cargo-result"}
+      aria-label={`Cargo ${cargo.reference}`}
+      className="overflow-hidden rounded-2xl border border-[#08222e]/10 bg-white"
+    >
       {/* One line, as the carrier's tracker heads its result ("Container # FFAU8299138", the owner's reference). */}
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-[#08222e]/10 px-6 py-4 sm:px-8">
         <p className="min-w-0 break-all text-[17px] text-[#08222e]">
           Cargo # <span className="font-bold">{cargo.reference}</span>
         </p>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="cargo-noprint inline-flex items-center gap-1.5 rounded-lg border border-[#08222e]/15 px-3 py-2 text-[13px] font-semibold text-[#08222e] transition-colors hover:bg-[#08222e]/[0.04]"
-        >
-          <Printer className="h-4 w-4" aria-hidden="true" /> Print
-        </button>
+        {canPrint && (
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-[#08222e]/15 px-3 py-2 text-[13px] font-semibold text-[#08222e] transition-colors hover:bg-[#08222e]/[0.04]"
+          >
+            <Printer className="h-4 w-4" aria-hidden="true" /> Print
+          </button>
+        )}
       </header>
+      {canPrint && createPortal(<PrintSheet cargo={cargo} />, document.body)}
 
       {/* Where it stands and when, as a carrier's tracker opens with them (the owner, 2026-10-26: ETD and ETA shown). */}
       <dl className="grid grid-cols-2 gap-x-6 gap-y-4 border-b border-[#08222e]/10 px-6 py-5 sm:grid-cols-3 sm:px-8">
@@ -276,7 +343,7 @@ function Result({ cargo }: { cargo: CargoTrack }) {
           </thead>
           <tbody>
             {trackDays(cargo.events).map((day) => (
-              <tr key={day.date} className="border-b border-[#08222e]/[0.06] last:border-b-0">
+              <tr key={day.date} className="break-inside-avoid border-b border-[#08222e]/[0.06] last:border-b-0">
                 <td className="whitespace-nowrap px-4 py-3.5 align-top tabular-nums">{fmtTrackDay(day.date)}</td>
                 <td className="px-4 py-3.5 align-top">
                   <div className="space-y-1.5">
