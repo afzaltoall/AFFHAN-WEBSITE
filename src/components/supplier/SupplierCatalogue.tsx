@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, ChevronRight, Loader2, PackagePlus, RotateCcw, Search, SpellCheck, X } from "lucide-react";
+import { CheckCircle2, ChevronRight, Layers, LayoutGrid, Loader2, PackagePlus, RotateCcw, Search, SpellCheck, X } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
-import type { SupplierFamily } from "@/lib/supplier-catalogue";
+import type { RailEntry, SupplierFamily } from "@/lib/supplier-catalogue";
 import type { SupplierContact } from "@/lib/supplier-offer";
 import { useIsPhone } from "@/lib/useIsPhone";
 import { overlayEntryIsCurrent, useBackDismiss } from "@/lib/useBackDismiss";
@@ -20,6 +20,10 @@ const PAGE = 40;
 const EAGER = 12;
 /** The empty search box's examples: things a factory makes, said the way it would search (no budgets, no quantities). */
 const EXAMPLES = ["bluetooth earbuds", "cotton t-shirt", "led bulbs", "stainless steel water bottle", "phone case", "kids toys"] as const;
+/** How long the pointer rests on a category before its list is read ahead: one passing over on its way reads nothing. */
+const REST_MS = 100;
+/** Lists whose pages are kept: the one shown, and the last few read ahead or shown before. */
+const KEPT_LISTS = 12;
 
 interface Scope {
   id: string;
@@ -57,6 +61,21 @@ interface PageData {
   facets: Chip[];
 }
 
+/** What makes a list: its search (read exactly, or not), its category and its order. */
+interface ListSpec {
+  q: string;
+  exact: boolean;
+  scopeId: string;
+  sort: Sort;
+}
+const keyOf = (list: ListSpec) => JSON.stringify([list.q, list.exact, list.scopeId, list.sort]);
+
+/** A list's pages: those on their way, and those read. */
+interface ListPages {
+  pending: Map<number, Promise<PageData>>;
+  ready: Map<number, PageData>;
+}
+
 /**
  * One picture width for every card, whatever the screen (2026-10-26). The image resizer makes a product's picture
  * the first time it is asked for, which took 2-3 s, and the catalogue's million are mostly never asked for; at one
@@ -68,20 +87,25 @@ const tileSrc = (imageUrl: string | null) => getCdnUrl(imageUrl, TILE_WIDTH);
 
 /** Pictures fetched at once ahead of their cards: forty at once, the resizer failed a third after ten seconds. */
 const WARM_AT_ONCE = 4;
+/** For a list about to be picked: the first row's worth at once, as the press may come any moment. */
+const WARM_AHEAD_AT_ONCE = 6;
 
-/** A page's pictures, fetched before its cards are drawn (at low priority), so the cards find them in the cache. */
-function warmPictures(rows: CatalogueProduct[]) {
+/**
+ * A page's pictures, fetched before its cards are drawn (at low priority), so the cards find them in the cache;
+ * `atOnce` at a time, each next one only while `still()` holds.
+ */
+function warmPictures(rows: CatalogueProduct[], still: () => boolean = () => true, atOnce = WARM_AT_ONCE) {
   const urls = rows.map((r) => tileSrc(r.imageUrl)).filter((u): u is string => Boolean(u));
   let next = 0;
   const one = () => {
     const url = urls[next++];
-    if (!url) return;
+    if (!url || !still()) return;
     const img = new Image();
     img.fetchPriority = "low";
     img.onload = img.onerror = one;
     img.src = url;
   };
-  for (let i = 0; i < WARM_AT_ONCE; i++) one();
+  for (let i = 0; i < atOnce; i++) one();
 }
 
 /**
@@ -128,6 +152,7 @@ function onPageEntry(work: () => void): () => void {
  */
 export function SupplierCatalogue({
   families,
+  rail,
   total,
   applied: appliedFromServer,
   contact,
@@ -136,6 +161,8 @@ export function SupplierCatalogue({
   firstName,
 }: {
   families: SupplierFamily[];
+  /** The list down the left from 1024px: the shop's All Categories (supplierRail). */
+  rail: RailEntry[];
   /** Products in the catalogue, or null when the figure could not be read. */
   total: number | null;
   /** Open applications: product id to application id. */
@@ -176,9 +203,6 @@ export function SupplierCatalogue({
   const productsFromAssist = useRef<AssistProduct[]>([]);
   // Where the dropdown brings the box up to: under this portal's bar.
   const [barBottom, setBarBottom] = useState(76);
-  // The family whose categories are open beside the list from 1024px, and the box holding the list and them.
-  const [panelFor, setPanelFor] = useState<string | null>(null);
-  const railBox = useRef<HTMLDivElement>(null);
 
   // On a phone the search is the whole screen while it is in use.
   const phoneSearch = focused && isPhone;
@@ -248,7 +272,6 @@ export function SupplierCatalogue({
         next = { ...next, familyId: (up && places.get(up.id)?.familyId) ?? null };
       }
       setScope(next);
-      setPanelFor(null);
       setTyped("");
       setQuery("");
       setExact(false);
@@ -297,67 +320,75 @@ export function SupplierCatalogue({
   }, [focused]);
 
   // ---- the results -------------------------------------------------------------------------------------------
-  // Each page is read once and kept while the list is the same one (its search, category and order), and the page
-  // after the one shown is read as soon as that is shown, its pictures fetched with it, so scrolling down meets
-  // products and pictures already there (2026-10-26, "products loading late and sometimes not showing": a page took
-  // 0.4-1 s to read, and a picture the resizer had not made before 2-3 s).
-  const listKey = JSON.stringify([query, exact, scope?.id ?? "", sort]);
-  const pages = useRef({ key: "", pending: new Map<number, Promise<PageData>>(), ready: new Map<number, PageData>() });
+  // Each page is read once and kept with its list (its search, category and order), and the page after the one
+  // shown is read as soon as that is shown, its pictures fetched with it, so scrolling down meets products and
+  // pictures already there (2026-10-26, "products loading late and sometimes not showing": a page took 0.4-1 s to
+  // read, and a picture the resizer had not made before 2-3 s). The last few lists are kept, not only the one shown,
+  // so a list read ahead from the categories (lookAhead, below) is there when it is picked, and one shown before is
+  // there again at once.
+  const spec = useMemo<ListSpec>(() => ({ q: query, exact, scopeId: scope?.id ?? "", sort }), [query, exact, scope?.id, sort]);
+  const listKey = keyOf(spec);
+  const lists = useRef(new Map<string, ListPages>());
+  // The list shown, which making room for others never lets go, and the one last read ahead (lookAhead).
+  const shownKey = useRef("");
+  const aheadKey = useRef("");
 
-  const read = useCallback(
-    (pageNo: number): Promise<PageData> => {
-      const store = pages.current;
-      if (store.key !== listKey) {
-        store.key = listKey;
-        store.pending = new Map();
-        store.ready = new Map();
-      }
-      const known = store.pending.get(pageNo);
-      if (known) return known;
-      const params = new URLSearchParams({ page: String(pageNo), limit: String(PAGE) });
-      if (query) {
-        params.set("q", query);
-        params.set("getChips", "1");
-        if (exact) params.set("exact", "1");
-      }
-      if (scope) params.set("categoryId", scope.id);
-      if (sort !== "best") params.set("sortBy", sort);
-      // This list's own maps: an answer that comes after the list has changed lands in them, not in the next list's.
-      const { pending, ready } = store;
-      const work = (async () => {
-        const res = await fetch(`/api/products/?${params}`);
-        const data = await res.json();
-        if (!res.ok || !data?.success) throw new Error("products");
-        const rows: CatalogueProduct[] = (data.data as Array<{
-          id: number;
-          name: string;
-          imageUrl: string | null;
-          category: string | null;
-          categoryRef: { name: string | null } | null;
-        }>).map((p) => ({ id: p.id, name: p.name, imageUrl: p.imageUrl, category: p.categoryRef?.name ?? p.category ?? null }));
-        const page: PageData = {
-          rows,
-          total: data.pagination?.total ?? rows.length,
-          capped: Boolean(data.pagination?.totalCapped),
-          pages: Number(data.pagination?.totalPages ?? 1),
-          search: data.search ? (data.search as SearchInfo) : null,
-          facets: (data.facets ?? []).map((f: { id: string; name: string; label?: string; count: number }) => ({
-            id: f.id,
-            name: f.label ?? f.name,
-            count: Number(f.count) || 0,
-            best: false,
-          })),
-        };
-        ready.set(pageNo, page);
-        return page;
-      })();
-      // A page that could not be read is asked for again the next time.
-      work.catch(() => pending.delete(pageNo));
-      pending.set(pageNo, work);
-      return work;
-    },
-    [listKey, query, scope, sort, exact],
-  );
+  const readPage = useCallback((list: ListSpec, pageNo: number): Promise<PageData> => {
+    const key = keyOf(list);
+    const kept = lists.current;
+    const pagesOf: ListPages = kept.get(key) ?? { pending: new Map(), ready: new Map() };
+    // The list used last goes to the end; beyond the few kept, those used longest ago make room.
+    kept.delete(key);
+    kept.set(key, pagesOf);
+    for (const old of kept.keys()) {
+      if (kept.size <= KEPT_LISTS) break;
+      if (old !== key && old !== shownKey.current) kept.delete(old);
+    }
+    const known = pagesOf.pending.get(pageNo);
+    if (known) return known;
+    const params = new URLSearchParams({ page: String(pageNo), limit: String(PAGE) });
+    if (list.q) {
+      params.set("q", list.q);
+      params.set("getChips", "1");
+      if (list.exact) params.set("exact", "1");
+    }
+    if (list.scopeId) params.set("categoryId", list.scopeId);
+    if (list.sort !== "best") params.set("sortBy", list.sort);
+    // This list's own maps: an answer that comes after another list is shown lands in them, not in that one's.
+    const { pending, ready } = pagesOf;
+    const work = (async () => {
+      const res = await fetch(`/api/products/?${params}`);
+      const data = await res.json();
+      if (!res.ok || !data?.success) throw new Error("products");
+      const rows: CatalogueProduct[] = (data.data as Array<{
+        id: number;
+        name: string;
+        imageUrl: string | null;
+        category: string | null;
+        categoryRef: { name: string | null } | null;
+      }>).map((p) => ({ id: p.id, name: p.name, imageUrl: p.imageUrl, category: p.categoryRef?.name ?? p.category ?? null }));
+      const page: PageData = {
+        rows,
+        total: data.pagination?.total ?? rows.length,
+        capped: Boolean(data.pagination?.totalCapped),
+        pages: Number(data.pagination?.totalPages ?? 1),
+        search: data.search ? (data.search as SearchInfo) : null,
+        facets: (data.facets ?? []).map((f: { id: string; name: string; label?: string; count: number }) => ({
+          id: f.id,
+          name: f.label ?? f.name,
+          count: Number(f.count) || 0,
+          best: false,
+        })),
+      };
+      ready.set(pageNo, page);
+      return page;
+    })();
+    // A page that could not be read is asked for again the next time.
+    work.catch(() => pending.delete(pageNo));
+    pending.set(pageNo, work);
+    return work;
+  }, []);
+  const read = useCallback((pageNo: number) => readPage(spec, pageNo), [readPage, spec]);
 
   const load = useCallback(
     async (pageNo: number, reset: boolean) => {
@@ -367,7 +398,7 @@ export function SupplierCatalogue({
         setFound(null);
       }
       // A page read ahead goes straight on; only one still on its way shows the loading cards.
-      const ahead = pages.current.key === listKey ? pages.current.ready.get(pageNo) : undefined;
+      const ahead = lists.current.get(listKey)?.ready.get(pageNo);
       if (!ahead) setStatus("loading");
       try {
         const data = ahead ?? (await read(pageNo));
@@ -386,7 +417,7 @@ export function SupplierCatalogue({
         // With no search and no category, page 1 is the homepage's shuffled showcase (the daily refresh's stored
         // pool, which can be short, or missing before a refresh) and page 2 on is the whole catalogue in order;
         // so page 1 never ends the list, and an empty one simply moves on to page 2.
-        const showcase = !query && !scope && pageNo === 1;
+        const showcase = !spec.q && !spec.scopeId && pageNo === 1;
         const more = showcase || (data.rows.length >= PAGE && pageNo < data.pages);
         setStatus(more ? "idle" : "end");
         if (more) void read(pageNo + 1).then((next) => warmPictures(next.rows)).catch(() => {});
@@ -394,13 +425,17 @@ export function SupplierCatalogue({
         if (mine === generation.current) setStatus("error");
       }
     },
-    [listKey, read, query, scope],
+    [listKey, read, spec],
   );
 
-  // A new search, category or order starts the list again, from the top of the products.
-  useEffect(() => {
+  // A new search, category or order starts the list again, from the top of the products: before the screen is
+  // drawn, so the list's name and its products change in the same frame (and a list read ahead is in it whole).
+  useLayoutEffect(() => {
+    shownKey.current = listKey;
+    // Its cards fetch their own pictures now; any list may be read ahead again, one shown before as well.
+    aheadKey.current = "";
     void load(1, true);
-  }, [load]);
+  }, [listKey, load]);
 
   // The next page when the end of the list comes near (two screens ahead); again at once if the screen is still
   // not full.
@@ -440,44 +475,106 @@ export function SupplierCatalogue({
     }
   }, [welcome]);
 
+  /** The list becomes `next`'s products (a search stays, narrowed to it). False when that is the list shown. */
   const choose = (next: Scope | null) => {
+    if ((next?.id ?? null) === (scope?.id ?? null)) return false;
     setScope(next);
-    setPanelFor(null);
     if (!next || query) setSort("best");
+    return true;
   };
 
-  // ---- the category list from 1024px ------------------------------------------------------------------------
-  // Held beside the products as they scroll (the owner, 2026-10-26: "while scrolling side bar have to be in fixed"),
-  // so it has to fit the screen: the families alone, in rows of 32px. A family's categories open beside the list
-  // as round pictures, as Alibaba's do, rather than inside it, where up to fifteen made it taller than the screen:
-  // it scrolled inside itself ("because sidebar scroll"), and at the products' end it was pushed up under the bar.
-  // The family's row opens them and closes them again; it also shows the family's products.
-  const openFamily = (f: SupplierFamily) => {
-    if (panelFor === f.id) {
-      setPanelFor(null);
-      return;
-    }
-    if (scope?.id !== f.id) choose({ id: f.id, name: f.name, familyId: f.id });
-    setPanelFor(f.children.length > 0 ? f.id : null);
+  // ---- the categories from 1024px ---------------------------------------------------------------------------
+  // Down the left, the shop's own All Categories as the navbar's panel lists it (the owner, 2026-10-29: "from this
+  // all catgeories from navbar this full set ... have to show in ... supplier catgroies"): the families and the
+  // categories the site lifts beside them (supplierRail), with the navbar's icons, rows and scroll. The list is held
+  // in place as the products scroll (2026-10-26: "while scrolling side bar have to be in fixed") and covers the left
+  // side from the top to the bottom (2026-10-29: "left side contents fulla left side cover panra maari"), scrolling
+  // inside itself for the fifty, as the navbar's does. A row shows its products, and what is under it shows at the
+  // top of them as round pictures, in the page: no panel over the products (the same day, of the panel beside the
+  // list: "side popup maari kaata vendam ... right side la mela katanum", as Alibaba's category pages have it). That
+  // panel had made the products behind it change as one family after another was looked through ("the background
+  // products are changing"); now the products are always those the pictures above them belong to.
+  //
+  // A list picked here starts at the top of the page, as a new page opens; the one shown, picked again, stays
+  // where it is.
+  const chooseFromRail = (next: Scope | null) => {
+    if (choose(next) && window.scrollY > 0) window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
   };
-  // The panel closes on a press anywhere but the list and itself, and on Escape.
+
+  // The row marked in the list: the one the supplier came in by, while what is shown is inside it; otherwise the
+  // deepest row what is shown is inside (Earrings rather than Jewelry & Watches); All products for everything.
+  const [railFrom, setRailFrom] = useState<string | null>(null);
+  const railIds = useMemo(() => new Set(rail.map((e) => e.id)), [rail]);
+  const railOn = (() => {
+    if (!scope) return "";
+    const path = place?.path.map((p) => p.id) ?? [scope.id];
+    if (railFrom && path.includes(railFrom)) return railFrom;
+    return [...path].reverse().find((id) => railIds.has(id)) ?? scope.familyId ?? "";
+  })();
+  // The marked row brought into the list's view when it is out of it (picked from the pictures, a search or a
+  // link): the list scrolls, never the page; at once as the page opens, smoothly after.
+  const railNav = useRef<HTMLElement>(null);
+  const railSeen = useRef(false);
   useEffect(() => {
-    if (!panelFor) return;
-    const away = (e: PointerEvent) => {
-      if (!railBox.current?.contains(e.target as Node)) setPanelFor(null);
-    };
-    const escape = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPanelFor(null);
-    };
-    document.addEventListener("pointerdown", away);
-    document.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("pointerdown", away);
-      document.removeEventListener("keydown", escape);
-    };
-  }, [panelFor]);
-  const panelFamily = panelFor ? families.find((f) => f.id === panelFor) : undefined;
+    const nav = railNav.current;
+    const row = nav?.querySelector<HTMLElement>(`[data-rail="${CSS.escape(railOn)}"]`);
+    const first = !railSeen.current;
+    railSeen.current = true;
+    if (!nav || !row) return;
+    const top = row.offsetTop;
+    if (top >= nav.scrollTop && top + row.offsetHeight <= nav.scrollTop + nav.clientHeight) return;
+    nav.scrollTo({ top: Math.max(0, top - (nav.clientHeight - row.offsetHeight) / 2), behavior: (first ? "instant" : "smooth") as ScrollBehavior });
+  }, [railOn]);
 
+  // The round pictures over the products: what is under the category shown (a family's categories, a category's
+  // kinds), or for a kind, the kinds beside it; View all first, for the category they are all under. None for every
+  // product, the families being down the left, nor for a search, whose own categories come with its results.
+  const row = (() => {
+    if (query || !place) return null;
+    const parent = place.below.length > 0 ? place : place.path.length > 1 ? places.get(place.path[place.path.length - 2].id) : undefined;
+    return parent && parent.below.length > 0 ? parent : null;
+  })();
+
+  // What a pick from the categories would show, read while the pointer rests on it (or while it is pressed, or the
+  // keyboard is on it), the first row's pictures with it, so the press finds the list ready ("very slow", the same
+  // day: the products were only asked for on the press, and every picture after them); and the round pictures it
+  // will show over them. The pictures of a list looked at before it stop when the pointer moves on to another. What
+  // each one picks is on it: data-ahead, a category's id ("" for every product).
+  const resting = useRef(0);
+  const roundPictures = useRef(new Set<string>());
+  useEffect(() => () => window.clearTimeout(resting.current), []);
+  const lookAhead = (id: string | null) => {
+    const next: ListSpec = { q: query, exact, scopeId: id ?? "", sort: !id || query ? "best" : sort };
+    const key = keyOf(next);
+    if (key === listKey || key === aheadKey.current) return;
+    aheadKey.current = key;
+    void readPage(next, 1)
+      .then((p) => warmPictures(p.rows.slice(0, EAGER), () => aheadKey.current === key, WARM_AHEAD_AT_ONCE))
+      .catch(() => {});
+  };
+  const prepare = (el: HTMLElement) => {
+    const id = el.dataset.ahead;
+    if (id === undefined) return;
+    lookAhead(id || null);
+    for (const k of (id && places.get(id)?.below) || []) {
+      const url = getCdnUrl(k.thumbnailUrl, 160);
+      if (!url || roundPictures.current.has(url)) continue;
+      roundPictures.current.add(url);
+      new Image().src = url;
+    }
+  };
+  const prepareNow = (e: { currentTarget: HTMLElement }) => prepare(e.currentTarget);
+  const rest = {
+    onPointerEnter: (e: { pointerType: string; currentTarget: HTMLElement }) => {
+      if (e.pointerType !== "mouse") return;
+      const el = e.currentTarget;
+      window.clearTimeout(resting.current);
+      resting.current = window.setTimeout(() => prepare(el), REST_MS);
+    },
+    onPointerLeave: () => window.clearTimeout(resting.current),
+    onPointerDown: prepareNow,
+    onFocus: prepareNow,
+  };
 
   // A category picked below 1024px (the families' row, the pictures, Select category, the trail): its list,
   // from the top.
@@ -537,10 +634,13 @@ export function SupplierCatalogue({
   const scopeSize = place?.count ?? found?.total ?? null;
   const phoneSub = query ? (status === "loading" && !found ? "Finding products…" : foundLine) : "";
 
-  // Alibaba's category list: rows of 32px (28px inside a family) in near-black, the picked one bold on the bar's navy.
-  const railButton = (active: boolean, nested = false) =>
-    `group flex w-full items-center gap-2 rounded-lg text-left leading-5 transition-colors ${nested ? "px-2.5 py-1 text-[13px]" : "px-3 py-1.5 text-[14px]"} ${
-      active ? "bg-[#0b2230] font-bold text-white" : `${nested ? "font-normal text-[#333]" : "font-medium text-[#222]"} hover:bg-white hover:text-[#0b2230]`
+  // The navbar's All Categories rows (CategoryMegaPanel) on a pale rail, the marked one white with the brand's bar
+  // down its left edge; each with its category's own photo, small and round, where the navbar draws a line glyph (the
+  // owner, the same day: "icons elame ai maari eruku edhuvumae realistic ila ... alibaba perfection", as Alibaba
+  // shows a category by a real product's picture). 500 where the shop sets 600: the Centre's Roboto has 400, 500, 700.
+  const railRow = (on: boolean) =>
+    `flex w-full items-center gap-3 border-l-4 py-1 pl-3.5 pr-3 text-left text-[14px] font-medium leading-5 transition-colors ${
+      on ? "border-brand bg-white text-brand-dark" : "border-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900"
     }`;
   const ownProduct = () => setSheet({ kind: "own", name: query || undefined });
 
@@ -575,84 +675,58 @@ export function SupplierCatalogue({
   );
 
   return (
-    <main className="px-4 pb-16 sm:px-6 lg:px-8 lg:pt-7">
-      <div className="lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[280px_minmax(0,1fr)] xl:gap-10">
-        {/* The families, down the left from lg, held under the bar while the products scroll (see openFamily). On a
-            screen too short for even the families, the list goes up with the page instead. */}
+    <main className="px-4 pb-16 sm:px-6 lg:px-8 lg:pb-0 lg:pt-7">
+      <div className="lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8 xl:gap-10">
+        {/* The list, down the left from lg (see chooseFromRail), never moving while the products scroll: held at the
+            place it starts, 84px down (the bar's 56 and the page's 28), as tall as the screen less the footer's room
+            (62px) and a gap, so at the very end of a list it is never pushed up under the bar nor drawn over the
+            footer; the products' bottom space is the section's own, so its column runs down to the footer. 300px: the
+            longest name, "Women's Outerwear & Jackets", whole on one line beside its picture and the scrollbar. */}
         <aside className="hidden lg:block" aria-label="Categories">
-          {/* Held, the list is a layer of its own, and its panel's z-index counts only inside it: under it, the product
-              cards (later in the page, their pictures positioned) and then the search box (z-30) were drawn over the
-              open panel. So the list is above both and under the bar (z-40); the search's suggestions never meet the
-              panel, which closes on a press outside the list. */}
-          <div ref={railBox} className="relative z-[35] lg:sticky lg:top-[76px] [@media(max-height:719px)]:static">
-            <p className="px-3 pb-1.5 text-[16px] font-bold text-[#111]">Categories</p>
-            <nav className="space-y-px">
-              <button type="button" onClick={() => choose(null)} aria-pressed={!scope} className={railButton(!scope)}>
-                All products
-              </button>
-              {families.map((f) => {
-                const here = scope?.familyId === f.id;
-                const open = panelFor === f.id;
-                return (
-                  <button
-                    key={f.id}
-                    type="button"
-                    onClick={() => openFamily(f)}
-                    aria-pressed={here}
-                    aria-expanded={f.children.length > 0 ? open : undefined}
-                    aria-controls={open ? "family-panel" : undefined}
-                    className={`${railButton(here)} ${open && !here ? "bg-white" : ""}`}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{f.name}</span>
-                    {f.children.length > 0 && (
-                      <ChevronRight className={`h-4 w-4 shrink-0 ${here ? "text-white/70" : "text-[#999]"}`} aria-hidden="true" />
-                    )}
-                  </button>
-                );
-              })}
-            </nav>
-
-            {/* The open family's categories, beside the list and over the products, as round pictures (the phone's,
-                and Alibaba's): View all first (the family's own products), then each with its picture. */}
-            {panelFamily && (
-              <div
-                id="family-panel"
-                role="region"
-                aria-label={`Categories in ${panelFamily.name}`}
-                className="absolute left-full top-0 z-30 ml-3 w-[30rem] max-w-[calc(100vw-22rem)] rounded-2xl bg-white p-5 shadow-[0_18px_48px_rgba(0,0,0,0.16)] ring-1 ring-[#e6e6e6]"
+          <div className="sticky top-[84px] flex h-[max(15rem,calc(100dvh-154px))] flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-slate-50">
+            <p className="shrink-0 px-5 pb-2 pt-4 text-[16px] font-bold text-[#111]">Categories</p>
+            <nav ref={railNav} className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setRailFrom(null);
+                  chooseFromRail(null);
+                }}
+                data-ahead=""
+                data-rail=""
+                {...rest}
+                aria-current={!scope ? "true" : undefined}
+                className={railRow(!scope)}
               >
-                <div className="mb-4 flex items-baseline justify-between gap-3">
-                  <p className="min-w-0 truncate text-[16px] font-bold text-[#111]">{panelFamily.name}</p>
-                  <p className="shrink-0 text-[12.5px] tabular-nums text-[#777]">{count(panelFamily.count)} products</p>
-                </div>
-                <ul className="grid grid-cols-4 gap-x-3 gap-y-4">
-                  <li>
-                    <GridTile
-                      label="View all"
-                      ariaLabel={`All of ${panelFamily.name}`}
-                      on={scope?.id === panelFamily.id}
-                      big
-                      onClick={() => choose({ id: panelFamily.id, name: panelFamily.name, familyId: panelFamily.id })}
-                    />
-                  </li>
-                  {panelFamily.children.map((g) => (
-                    <li key={g.id}>
-                      <Tile
-                        category={g}
-                        on={scope?.id === g.id}
-                        big
-                        eager
-                        onClick={() => choose({ id: g.id, name: g.name, familyId: panelFamily.id })}
-                      />
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+                {/* Everything: the round grid mark the View all over the products has. */}
+                <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500 ring-1 ring-slate-200">
+                  <LayoutGrid size={16} strokeWidth={1.6} />
+                </span>
+                <span className="min-w-0 flex-1 truncate">All products</span>
+              </button>
+              {rail.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => {
+                    setRailFrom(e.id);
+                    chooseFromRail(scopeOf(e.id, e.name));
+                  }}
+                  data-ahead={e.id}
+                  data-rail={e.id}
+                  {...rest}
+                  aria-current={railOn === e.id ? "true" : undefined}
+                  className={railRow(railOn === e.id)}
+                >
+                  <RailPicture url={e.thumbnailUrl} on={railOn === e.id} />
+                  <span className="min-w-0 flex-1 truncate">{e.name}</span>
+                </button>
+              ))}
+            </nav>
           </div>
         </aside>
 
-        <section className="min-w-0">
+        <section className="min-w-0 lg:pb-16">
           {showWelcome && welcomeNote("mb-5 hidden lg:flex")}
 
           {/* The search. Below 1024px the top of the page, held there as the page scrolls (under the bar from 768px,
@@ -884,6 +958,24 @@ export function SupplierCatalogue({
             </div>
           )}
 
+          {/* From 1024px, what is under the category shown, as round pictures over its products (see `row`): all of
+              them, wrapping onto a second line for the largest families rather than hidden behind arrows. Each one's
+              list is read ahead while the pointer rests on it. */}
+          {row && (
+            <div className="mt-4 hidden rounded-2xl bg-white px-4 pb-3.5 pt-4 ring-1 ring-[#e6e6e6] lg:block">
+              <ul aria-label={`Categories in ${row.name}`} className="grid grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))] gap-x-2 gap-y-4">
+                <li data-ahead={row.id} {...rest}>
+                  <GridTile label="View all" ariaLabel={`All of ${row.name}`} on={scope?.id === row.id} big onClick={() => chooseFromRail(scopeOf(row.id))} />
+                </li>
+                {row.below.map((k) => (
+                  <li key={k.id} data-ahead={k.id} {...rest}>
+                    <Tile category={k} on={scope?.id === k.id} big eager onClick={() => chooseFromRail(scopeOf(k.id, k.name))} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {query && info?.corrected && (
             <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[13px] text-[#5b6f76]">
               <SpellCheck className="h-4 w-4 text-brand" aria-hidden="true" />
@@ -1020,6 +1112,40 @@ export function SupplierCatalogue({
   );
 }
 
+/**
+ * A row's picture in the list down the left: its category's photo, small and round (the pictures over the products,
+ * in little), ringed in the brand's colour on the marked row; the original if the resizer fails it, as a product
+ * card's does, then a grey round mark. Every row's is asked for at once, at low priority, so the rows further down
+ * have theirs when the list is scrolled.
+ */
+function RailPicture({ url, on }: { url: string | null; on: boolean }) {
+  const resized = getCdnUrl(url, 64);
+  const original = getCdnUrl(url);
+  const [src, setSrc] = useState(resized);
+  return (
+    <span
+      aria-hidden="true"
+      className={`grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-white ${on ? "ring-2 ring-brand" : "ring-1 ring-slate-200"}`}
+    >
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          alt=""
+          width={32}
+          height={32}
+          decoding="async"
+          fetchPriority="low"
+          onError={() => setSrc((s) => (s === resized && original && original !== resized ? original : null))}
+          className="size-full object-cover"
+        />
+      ) : (
+        <Layers size={15} className="text-slate-400" />
+      )}
+    </span>
+  );
+}
+
 function ProductTile({
   product,
   eager,
@@ -1035,25 +1161,34 @@ function ProductTile({
   const original = getCdnUrl(product.imageUrl);
   // The resized picture; the original if the resizer fails it (some failed after ten seconds); then none.
   const [src, setSrc] = useState(resized);
-  // A shimmer until the picture is in, not an empty grey square that reads as "not showing".
-  const [shown, setShown] = useState(false);
+  // A shimmer until the picture is in, not an empty grey square that reads as "not showing", and the picture fading
+  // in over it; one the browser has already (read ahead, or shown before) is there from the first frame instead.
+  const [shown, setShown] = useState<"no" | "fade" | "at-once">("no");
+  const picture = useRef<HTMLImageElement>(null);
+  useLayoutEffect(() => {
+    const img = picture.current;
+    if (img?.complete && img.naturalWidth > 0) setShown("at-once");
+  }, [src]);
   return (
     <article className="group flex flex-col overflow-hidden rounded-2xl bg-white ring-1 ring-[#ececec] transition-shadow hover:shadow-[0_10px_28px_rgba(0,0,0,0.08)] hover:ring-[#dcdcdc]">
       <button type="button" onClick={onApply} className="relative block aspect-square overflow-hidden bg-[#f5f5f5]" aria-label={`Apply to supply ${product.name}`}>
         {src ? (
           <>
-            {!shown && <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-[#eceff0]" />}
+            {shown === "no" && <span aria-hidden="true" className="absolute inset-0 animate-pulse bg-[#eceff0]" />}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              ref={picture}
               src={src}
               alt=""
               width={TILE_WIDTH}
               height={TILE_WIDTH}
               loading={eager ? "eager" : "lazy"}
               decoding="async"
-              onLoad={() => setShown(true)}
+              onLoad={() => setShown((s) => (s === "no" ? "fade" : s))}
               onError={() => setSrc((s) => (s === resized && original && original !== resized ? original : null))}
-              className={`relative h-full w-full object-cover transition-[opacity,transform] duration-300 group-hover:scale-[1.04] ${shown ? "opacity-100" : "opacity-0"}`}
+              className={`relative h-full w-full object-cover duration-300 group-hover:scale-[1.04] ${
+                shown === "at-once" ? "transition-transform" : "transition-[opacity,transform]"
+              } ${shown === "no" ? "opacity-0" : "opacity-100"}`}
             />
           </>
         ) : (

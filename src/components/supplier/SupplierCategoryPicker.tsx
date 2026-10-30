@@ -143,7 +143,11 @@ function FamilyTab({ id, label, on, onClick }: { id: string; label: string; on: 
 
 // ---- round pictures ------------------------------------------------------------------------------------------
 
-/** A category as a round picture with its name under it; `on` ringed. `big`: Select category's, three across. */
+/**
+ * A category as a round picture with its name under it; `on` ringed. `big`: Select category's, three across, and the
+ * computer's row over the products (SupplierCatalogue), the only place it shows from 1024px, where a long name
+ * ("Welding & Soldering Supplies") may take three lines rather than be cut short.
+ */
 export function Tile({ category, on, big, eager, onClick }: { category: SupplierCategory; on: boolean; big?: boolean; eager?: boolean; onClick: () => void }) {
   const [broken, setBroken] = useState(false);
   const src = broken ? null : getCdnUrl(category.thumbnailUrl, 160);
@@ -170,7 +174,9 @@ export function Tile({ category, on, big, eager, onClick }: { category: Supplier
           <Layers size={18} className="absolute inset-0 m-auto text-slate-400" aria-hidden />
         )}
       </span>
-      <span className={`line-clamp-2 leading-tight ${big ? "text-[12px]" : "text-[11.5px]"} ${on ? "font-semibold text-slate-900" : "text-slate-700"}`}>{category.name}</span>
+      <span className={`line-clamp-2 leading-tight lg:line-clamp-3 ${big ? "text-[12px]" : "text-[11.5px]"} ${on ? "font-semibold text-slate-900" : "text-slate-700"}`}>
+        {category.name}
+      </span>
     </button>
   );
 }

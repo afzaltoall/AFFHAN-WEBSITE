@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { currentSupplier } from "@/lib/supplier-session";
-import { catalogueCount, supplierFamilies } from "@/lib/supplier-catalogue";
+import { catalogueCount, supplierFamilies, supplierRail } from "@/lib/supplier-catalogue";
 import { OPEN_STATUSES } from "@/lib/supplier-offer";
 import { getCachedAllCategories } from "@/lib/products";
 import { blockedCategoryIdSet } from "@/lib/moderation";
@@ -30,8 +30,9 @@ export default async function SupplierCataloguePage({
   const params = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) || "";
 
-  const [families, total, open, all] = await Promise.all([
+  const [families, rail, total, open, all] = await Promise.all([
     supplierFamilies().catch(() => []),
+    supplierRail().catch(() => []),
     catalogueCount(),
     prisma.supplierOffer
       .findMany({
@@ -53,6 +54,8 @@ export default async function SupplierCataloguePage({
   return (
     <SupplierCatalogue
       families={families}
+      // The computer's list: the shop's All Categories; the families alone if it could not be read.
+      rail={rail.length ? rail : families.map((f) => ({ id: f.id, name: f.name, count: f.count, thumbnailUrl: f.thumbnailUrl }))}
       total={total}
       applied={Object.fromEntries(open.map((o) => [String(o.productId), o.id]))}
       contact={{
