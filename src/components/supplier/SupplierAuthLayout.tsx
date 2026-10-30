@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo } from "react";
 import Image from "next/image";
-import Link from "next/link";
 import { motion, useAnimationControls, useReducedMotion } from "framer-motion";
 import { LoginBackground } from "@/components/ui/LoginBackground";
 import { TiltCard, TravellingEdgeLight } from "@/components/ui/TiltCard";
@@ -18,7 +17,8 @@ import { SignupMascot, type MascotFocus } from "@/components/ui/SignupMascot";
  * and the owner's delivery picture at the head of the card (public/images/supplier-mark.webp, a 4 KB copy of their
  * public/supplier.png at twice the size it is drawn). No shop navbar and no logo
  * over the panel: suppliers are a separate phase from customers (the owner), and the shop's bar, logo and
- * customer Login had sat over this page's corner. The way back to the shop is a line under the card.
+ * customer Login had sat over this page's corner. Nothing under the card either: the "Buying from AFFHAN? Customer
+ * sign in · affhan.com" line is gone (the owner, 2026-10-30: "dont show buying from affhan affhan domain").
  */
 
 function supplierQuotes(count: number | null): Quote[] {
@@ -105,22 +105,6 @@ export function SupplierAuthLayout({
             </motion.div>
           </motion.div>
         </TiltCard>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.6 }}
-          className="relative mt-6 text-center text-[13px] text-white/80"
-        >
-          Buying from AFFHAN?{" "}
-          <Link href="/login/" className="font-semibold text-white underline-offset-4 hover:underline">
-            Customer sign in
-          </Link>
-          <span className="mx-2 text-white/40">·</span>
-          <Link href="/" className="font-semibold text-white underline-offset-4 hover:underline">
-            affhan.com
-          </Link>
-        </motion.p>
       </div>
     </main>
   );
