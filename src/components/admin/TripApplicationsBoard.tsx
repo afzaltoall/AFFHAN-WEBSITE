@@ -48,8 +48,8 @@ import { TripStagePanel } from "./TripStagePanel";
  * tabs that shows, in place of the list, the applications sent with the same
  * mobile number, one group a number. By the number only, never the name
  * ("name vachu pakadha mobile number same haa matu paru": a name like Mohamed
- * is many people's). Worked out over every application, not the list's
- * newest 2,000 (/api/admin/trip-applications/repeats/, lib/trip-repeats.ts);
+ * is many people's). Worked out on the server over every application
+ * (/api/admin/trip-applications/repeats/, lib/trip-repeats.ts);
  * spam and deleted ones never count, so marking the extra ones spam settles a
  * group.
  *
@@ -275,16 +275,41 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   // What "Today" and "This week" count from: the last read, so after midnight a refresh moves them on.
   const [now, setNow] = useState(() => Date.now());
 
-  /** The list from the server, or null when it could not be read (the error says why). */
-  const load = useCallback(async (): Promise<ListApplication[] | null> => {
+  /** While the older pages are still being read: how many applications are in so far, of how many. */
+  const [reading, setReading] = useState<null | { have: number; total: number }>(null);
+  const loadSeq = useRef(0);
+
+  /**
+   * Every application from the server, newest first, page after page until there is no more; null when it could not
+   * be read (the error says why). The server sends 2,000 at a time: it used to send only those, so with 2,655 on
+   * file the figures stood at 2,000 and the oldest 655 could be neither found nor exported (the owner, 2026-11-01).
+   * `progressive` (the first read) shows each page as it comes; a refresh keeps the list it has until the new one
+   * is whole.
+   */
+  const load = useCallback(async (progressive = false): Promise<ListApplication[] | null> => {
+    const seq = ++loadSeq.current;
     setError(null);
     try {
-      const res = await fetch("/api/admin/trip-applications/", { cache: "no-store" });
-      if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : "Could not load applications.");
-      const body = (await res.json()) as { applications: ListApplication[] };
-      setRows(body.applications);
-      return body.applications;
+      let all: ListApplication[] = [];
+      let next: string | null = null;
+      do {
+        const res = await fetch(`/api/admin/trip-applications/${next ? `?before=${encodeURIComponent(next)}` : ""}`, { cache: "no-store" });
+        if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : "Could not load applications.");
+        const body = (await res.json()) as { total: number; applications: ListApplication[]; next: string | null };
+        if (seq !== loadSeq.current) return null; // a newer read has taken over
+        all = all.concat(body.applications);
+        next = body.next;
+        if (progressive) {
+          setRows(all);
+          setReading(next ? { have: all.length, total: body.total } : null);
+        }
+      } while (next);
+      setRows(all);
+      setReading(null);
+      return all;
     } catch (e) {
+      if (seq !== loadSeq.current) return null;
+      setReading(null);
       setError(e instanceof Error ? e.message : "Could not load applications.");
       setRows((r) => r ?? []);
       return null;
@@ -292,10 +317,10 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   }, []);
 
   useEffect(() => {
-    void load();
+    void load(true);
   }, [load]);
 
-  /** Registered again, over every application (not only the list's newest 2,000). Unread, the button has no count. */
+  /** Registered again, over every application, worked out on the server. Unread, the button has no count. */
   const loadRepeats = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/trip-applications/repeats/", { cache: "no-store" });
@@ -358,8 +383,14 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       try {
         const res = await fetch(`/api/admin/trip-applications/?since=${encodeURIComponent(newest)}`, { cache: "no-store" });
         if (!res.ok || stopped) return;
-        const { applications } = (await res.json()) as { applications: ListApplication[] };
-        if (!applications.length || stopped) return;
+        const { applications, next } = (await res.json()) as { applications: ListApplication[]; next: string | null };
+        if (stopped) return;
+        // More than a page came in while the tab was away: read the whole list again rather than leave a gap.
+        if (next) {
+          void load();
+          return;
+        }
+        if (!applications.length) return;
         setRows((r) => {
           const known = new Set((r ?? []).map((x) => x.id));
           const fresh = applications.filter((x) => !known.has(x.id));
@@ -382,7 +413,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       window.clearInterval(id);
       document.removeEventListener("visibilitychange", onShow);
     };
-  }, [loadRepeats]);
+  }, [loadRepeats, load]);
 
   const newCount = useMemo(() => (rows ?? []).filter((r) => r.status === "new").length, [rows]);
 
@@ -548,10 +579,17 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     }
   };
   const writeExcel = async () => {
-    // Every answer of the applications shown, read now (the list carries only what its rows show).
-    const res = await fetch("/api/admin/trip-applications/?full=1", { cache: "no-store" });
-    if (!res.ok) throw new Error(String(res.status));
-    const full = new Map(((await res.json()) as { applications: Application[] }).applications.map((a) => [a.id, a]));
+    // Every answer of the applications shown, read now (the list carries only what its rows show), a page at a time
+    // until there is no more: one answer for everyone would pass the server's response limit.
+    const full = new Map<string, Application>();
+    let next: string | null = null;
+    do {
+      const res = await fetch(`/api/admin/trip-applications/?full=1${next ? `&before=${encodeURIComponent(next)}` : ""}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(String(res.status));
+      const body = (await res.json()) as { applications: Application[]; next: string | null };
+      for (const a of body.applications) full.set(a.id, a);
+      next = body.next;
+    } while (next);
     const items = shownRows.flatMap((r) => {
       const a = full.get(r.id) ?? ("consentTerms" in r ? (r as Application) : null);
       return a ? [a] : [];
@@ -680,6 +718,13 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
               </div>
             ))}
           </dl>
+        )}
+        {/* The figures count what is in; while the older pages come, they say so rather than pass for the total. */}
+        {reading && (
+          <p aria-live="polite" className="-mt-3 mb-4 text-[12px] text-[#86868b]">
+            Loading older applications… <span className="tabular-nums">{reading.have.toLocaleString("en-IN")}</span> of{" "}
+            <span className="tabular-nums">{reading.total.toLocaleString("en-IN")}</span>
+          </p>
         )}
 
         {/* The journey and country filters narrow the list; Registered again looks at everyone, so not there. */}
