@@ -171,6 +171,13 @@ async function adminWrite(url: string, body: unknown, method: "POST" | "PATCH" =
 const asCustomerStatus = (s: string): CustomerStatus =>
   (CUSTOMER_STATUSES as readonly string[]).includes(s) ? (s as CustomerStatus) : "PENDING";
 
+/**
+ * The server's rule, seen at once (lib/inquiry-checked.ts): a signed-in customer's request marked Handled while it
+ * still says Pending is told Checked. Nothing else moves.
+ */
+const checkedWhenHandled = (x: { userId: string | null; customerStatus: string }, status: string) =>
+  status === "handled" && x.userId && x.customerStatus === "PENDING" ? { customerStatus: "CHECKED", statusUpdatedAt: new Date().toISOString() } : {};
+
 interface ContactMessage {
   id: string; createdAt: string; fullName: string; companyName: string | null;
   email: string; country: string; phone: string; message: string; status: string;
@@ -615,13 +622,13 @@ export function AdminConsole({ data }: Props) {
     } else if (action === "purge") {
       setDeletedItems(deletedItems.filter((x) => !idset.has(x.id)));
     } else if (action === "status" && newStatus) {
-      setItems(items.map((x) => (idset.has(x.id) ? { ...x, status: newStatus } : x)));
+      setItems(items.map((x) => (idset.has(x.id) ? { ...x, status: newStatus, ...checkedWhenHandled(x, newStatus) } : x)));
     }
     setSelected(new Set());
     setActiveInquiry((cur) =>
       cur && idset.has(cur.id)
         ? action === "status" && newStatus
-          ? { ...cur, status: newStatus }
+          ? { ...cur, status: newStatus, ...checkedWhenHandled(cur, newStatus) }
           : action === "delete" || action === "purge"
           ? null
           : cur
@@ -641,7 +648,7 @@ export function AdminConsole({ data }: Props) {
       // The open inquiry too, which the optimistic change above re-marked.
       setActiveInquiry((cur) => {
         const was = cur && prevA.find((x) => x.id === cur.id);
-        return cur && was ? { ...cur, status: was.status } : cur;
+        return cur && was ? { ...cur, status: was.status, customerStatus: was.customerStatus, statusUpdatedAt: was.statusUpdatedAt } : cur;
       });
       window.alert(e instanceof Error ? e.message : "Action failed.");
     } finally {

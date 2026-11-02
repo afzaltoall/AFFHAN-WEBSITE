@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { customerCodesFor, ensureCodeForKey, issueMissingCodes } from "@/lib/customerCode";
+import { checkHandledInquiries } from "@/lib/inquiry-checked";
 import { isOfficeOpen, officeMinutesBetween } from "@/lib/office-hours";
 import { formatDateTime } from "@/lib/datetime";
 import { sendEmail } from "@/lib/email";
@@ -540,10 +541,14 @@ export async function closeOpenRequests(opts: { leads: LeadRef[]; employee: Pers
   });
   const data = { status: "handled" };
   return prisma.$transaction(async (tx) => {
+    // Which quote requests these are, read before they are marked: their signed-in customers are then told Checked
+    // rather than Pending, as any request marked Handled (lib/inquiry-checked.ts).
+    const inquiryIds = (await tx.inquiry.findMany({ where: where("inquiry"), select: { id: true } })).map((r) => r.id);
     const marked =
       (await tx.inquiry.updateMany({ where: where("inquiry"), data })).count +
       (await tx.contactMessage.updateMany({ where: where("contact"), data })).count +
       (await tx.shipmentInquiry.updateMany({ where: where("shipment"), data })).count;
+    await checkHandledInquiries(inquiryIds, { id: opts.employee.id, name: opts.employee.name }, tx);
     const entry = marked > 0 && key ? await tx.leadQueueEntry.findUnique({ where: { customerKey: key }, select: { id: true } }) : null;
     if (entry) await logEvent(tx, entry.id, POOL_EVENT.REQUESTS_CLOSED, { from: opts.employee, note: closedByNote(opts.employee.name, marked) });
     return marked;

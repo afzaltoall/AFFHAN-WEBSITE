@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { applyConsoleTriage, customerKeysOf, heldAmong } from "@/lib/lead-pool";
 import { heldByMessage } from "@/lib/handling";
+import { checkHandledInquiries } from "@/lib/inquiry-checked";
 import { describeStatus, isMobileInquiryStatus } from "@/lib/inquiry-status";
 
 export const dynamic = "force-dynamic";
@@ -110,8 +111,10 @@ export async function PATCH(
       if (held.length) return NextResponse.json({ error: heldByMessage(held.map((h) => h.holder ?? ""), held.length) }, { status: 409 });
     }
     const updated = await prisma.inquiry.update({ where: { id }, data: { status } });
+    // Handled: a signed-in customer no longer told "Pending" about it (lib/inquiry-checked.ts).
+    const checked = status === "handled" ? await checkHandledInquiries([id], { id: admin.id, name: admin.name || admin.email }) : [];
     await applyConsoleTriage(keys, admin.name || admin.email);
-    return NextResponse.json({ id: updated.id, status: updated.status });
+    return NextResponse.json({ id: updated.id, status: updated.status, ...(checked.length ? { customerStatus: "CHECKED" } : {}) });
   } catch {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
