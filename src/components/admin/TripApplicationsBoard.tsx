@@ -151,13 +151,19 @@ const SIGN_IN: Record<string, string> = {
 };
 const signInOf = (p: string) => SIGN_IN[p] ?? p;
 
-type TabKey = "new" | "handled" | "spam" | "all";
+type TabKey = "new" | "handled" | "spam" | "all" | "deleted";
 
+/**
+ * Deleted is shown only while there are some: All and Deleted together are every Trip ID ever given, so the newest
+ * number running past the count explains itself (the owner, 2026-11-02: "china trip users count mismatch": TRIP-26-03044
+ * against 3,034, the 10 deleted between them).
+ */
 const TABS: { key: TabKey; label: string }[] = [
   { key: "new", label: "New" },
   { key: "handled", label: "Handled" },
   { key: "spam", label: "Spam" },
   { key: "all", label: "All" },
+  { key: "deleted", label: "Deleted" },
 ];
 
 /** What the address asked for (page.tsx), before it is checked. */
@@ -219,6 +225,10 @@ const shortDate = (iso: string, now: number) => {
 /** The country as filtered and counted: the name the form stored, trimmed. */
 const countryOf = (r: { country: string }) => r.country.trim();
 
+/** The server's order (newest first, ties by id), for an application moved into a list. */
+const newestFirst = (a: { createdAt: string; id: string }, b: { createdAt: string; id: string }) =>
+  a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : a.id < b.id ? 1 : a.id > b.id ? -1 : 0;
+
 /** A small real flag (flagcdn SVG; Windows has no flag emoji), or nothing for a name the list does not know. */
 function Flag({ country, className = "" }: { country: string; className?: string }) {
   const src = countryFlagUrl(country);
@@ -275,36 +285,43 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   // What "Today" and "This week" count from: the last read, so after midnight a refresh moves them on.
   const [now, setNow] = useState(() => Date.now());
 
-  /** While the older pages are still being read: how many applications are in so far, of how many. */
+  /** While a list longer than a page is still being read: how many applications are in so far, of how many. */
   const [reading, setReading] = useState<null | { have: number; total: number }>(null);
+  /** The deleted applications, for the Deleted tab, read alongside the list; their Trip IDs are the numbers the count skips. */
+  const [deletedRows, setDeletedRows] = useState<ListApplication[]>([]);
   const loadSeq = useRef(0);
 
   /**
-   * Every application from the server, newest first, page after page until there is no more; null when it could not
-   * be read (the error says why). The server sends 2,000 at a time: it used to send only those, so with 2,655 on
-   * file the figures stood at 2,000 and the oldest 655 could be neither found nor exported (the owner, 2026-11-01).
-   * `progressive` (the first read) shows each page as it comes; a refresh keeps the list it has until the new one
-   * is whole.
+   * Every application from the server, newest first, page after page until there is no more (5,000 a page: the whole
+   * list in one answer on 2026-11-02), and the deleted ones beside them; null when they could not be read (the error
+   * says why). Nothing is shown until the whole list is in, because the figures, tabs and filters are counted from it:
+   * shown a page at a time, they read 2,000 first and then the real number (the owner, 2026-11-02: "whenever i open
+   * this shows 2000 ... and it changes"). While a list longer than a page comes, the loading line says how far it has
+   * got. A refresh keeps the list on screen until the new one is whole.
    */
-  const load = useCallback(async (progressive = false): Promise<ListApplication[] | null> => {
+  const load = useCallback(async (): Promise<ListApplication[] | null> => {
     const seq = ++loadSeq.current;
     setError(null);
-    try {
+    const readAll = async (deleted: boolean): Promise<ListApplication[] | null> => {
       let all: ListApplication[] = [];
       let next: string | null = null;
       do {
-        const res = await fetch(`/api/admin/trip-applications/${next ? `?before=${encodeURIComponent(next)}` : ""}`, { cache: "no-store" });
+        const query = [deleted ? "deleted=1" : "", next ? `before=${encodeURIComponent(next)}` : ""].filter(Boolean).join("&");
+        const res = await fetch(`/api/admin/trip-applications/${query ? `?${query}` : ""}`, { cache: "no-store" });
         if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : "Could not load applications.");
         const body = (await res.json()) as { total: number; applications: ListApplication[]; next: string | null };
         if (seq !== loadSeq.current) return null; // a newer read has taken over
         all = all.concat(body.applications);
         next = body.next;
-        if (progressive) {
-          setRows(all);
-          setReading(next ? { have: all.length, total: body.total } : null);
-        }
+        if (!deleted && next) setReading({ have: all.length, total: body.total });
       } while (next);
+      return all;
+    };
+    try {
+      const [all, gone] = await Promise.all([readAll(false), readAll(true)]);
+      if (seq !== loadSeq.current || !all || !gone) return null;
       setRows(all);
+      setDeletedRows(gone);
       setReading(null);
       return all;
     } catch (e) {
@@ -317,7 +334,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   }, []);
 
   useEffect(() => {
-    void load(true);
+    void load();
   }, [load]);
 
   /** Registered again, over every application, worked out on the server. Unread, the button has no count. */
@@ -430,11 +447,11 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     };
   }, [rows, now]);
 
-  /** Every row's searchable words, once per load rather than once per keystroke. */
+  /** Every row's searchable words, the deleted ones' too, once per load rather than once per keystroke. */
   const words = useMemo(
     () =>
       new Map(
-        (rows ?? []).map((r) => [
+        [...(rows ?? []), ...deletedRows].map((r) => [
           r.id,
           [r.referenceNo, r.fullName, r.email, r.phone, r.companyName, r.city, r.country, r.businessCategory, r.areaOfInterest, businessStatusBrief(r.businessStatus), r.customerCode, r.user?.email, r.user?.name, notVerified(r) ? "not verified" : ""]
             .filter(Boolean)
@@ -442,7 +459,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
             .toLowerCase(),
         ]),
       ),
-    [rows],
+    [rows, deletedRows],
   );
 
   const needle = q.trim().toLowerCase();
@@ -450,29 +467,35 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
 
   // One pass for the list and every count beside a filter. Each count leaves out its own filter and keeps the
   // others: the tabs count across the journey, the country and the search; a journey's count is the list as it
-  // would be with that journey picked instead; a country's likewise.
+  // would be with that journey picked instead; a country's likewise. The deleted ones count only in their own tab,
+  // never in All or the figures.
   const view = useMemo(() => {
-    const tabs: Record<TabKey, number> = { new: 0, handled: 0, spam: 0, all: 0 };
+    const tabs: Record<TabKey, number> = { new: 0, handled: 0, spam: 0, all: 0, deleted: 0 };
     const byJourney = new Map<string, number>();
     const byCountry = new Map<string, number>();
     const list: ListApplication[] = [];
     let inTab = 0;
-    for (const r of rows ?? []) {
-      const t = tab === "all" || r.status === tab;
+    const pass = (r: ListApplication, deleted: boolean) => {
+      const t = deleted ? tab === "deleted" : tab === "all" || r.status === tab;
       const s = !needle || (words.get(r.id) ?? "").includes(needle);
       const j = !journey || r.businessStatus === journey;
       const c = !country || countryOf(r) === country;
       if (s && j && c) {
-        tabs.all++;
-        if (r.status === "new" || r.status === "handled" || r.status === "spam") tabs[r.status]++;
+        if (deleted) tabs.deleted++;
+        else {
+          tabs.all++;
+          if (r.status === "new" || r.status === "handled" || r.status === "spam") tabs[r.status]++;
+        }
       }
       if (t) inTab++;
       if (t && s && c) byJourney.set(r.businessStatus, (byJourney.get(r.businessStatus) ?? 0) + 1);
       if (t && s && j) byCountry.set(countryOf(r), (byCountry.get(countryOf(r)) ?? 0) + 1);
       if (t && s && j && c) list.push(r);
-    }
+    };
+    for (const r of rows ?? []) pass(r, false);
+    for (const r of deletedRows) pass(r, true);
     return { tabs, byJourney, byCountry, list, inTab };
-  }, [rows, words, tab, needle, journey, country]);
+  }, [rows, deletedRows, words, tab, needle, journey, country]);
   const list = view.list;
 
   // The rows drawn: the first 60, and 120 more each time the end of the list comes near; the first 60 again when
@@ -508,7 +531,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   const [detailFailed, setDetailFailed] = useState<string | null>(null);
   // The one opened, in full: Registered again's groups already carry every answer; otherwise it is read now.
   const openFull = openId ? details[openId] ?? repeats?.groups.flatMap((g) => g.applications).find((r) => r.id === openId) ?? null : null;
-  const openRow = openId ? rows?.find((r) => r.id === openId) ?? null : null;
+  const openRow = openId ? rows?.find((r) => r.id === openId) ?? deletedRows.find((r) => r.id === openId) ?? null : null;
   useEffect(() => {
     if (!openId || openFull) return;
     let gone = false;
@@ -527,12 +550,26 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
 
   const setStatus = async (id: string, status: Status) => {
     if (!rows) return;
-    if (status === "deleted" && !window.confirm("Delete this application? It will be hidden from this list.")) return;
+    const current = rows.find((r) => r.id === id) ?? deletedRows.find((r) => r.id === id);
+    if (!current) return;
+    if (status === "deleted" && !window.confirm("Delete this application? It moves to Deleted, where it can be restored.")) return;
     const before = rows;
+    const deletedBefore = deletedRows;
     const repeatsBefore = repeats;
     const detailsBefore = details;
+    const moved = { ...current, status };
     setDetails((d) => (d[id] ? { ...d, [id]: { ...d[id], status } } : d));
-    setRows(status === "deleted" ? rows.filter((r) => r.id !== id) : rows.map((r) => (r.id === id ? { ...r, status } : r)));
+    // Deleted: into the Deleted tab. Restored (New, Handled or Spam on a deleted one): back into the list in its
+    // place. Otherwise only its status changes.
+    if (status === "deleted") {
+      setRows(rows.filter((r) => r.id !== id));
+      setDeletedRows([moved, ...deletedRows.filter((r) => r.id !== id)].sort(newestFirst));
+    } else if (current.status === "deleted") {
+      setDeletedRows(deletedRows.filter((r) => r.id !== id));
+      setRows([moved, ...rows].sort(newestFirst));
+    } else {
+      setRows(rows.map((r) => (r.id === id ? moved : r)));
+    }
     if (repeats) setRepeats(withStatus(repeats, id, status));
     if (status === "deleted") setOpenId(null);
     setBusy(true);
@@ -547,6 +584,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       void loadRepeats();
     } catch {
       setRows(before);
+      setDeletedRows(deletedBefore);
       setRepeats(repeatsBefore);
       setDetails(detailsBefore);
       setError("That change did not save. Try again.");
@@ -582,9 +620,10 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     // Every answer of the applications shown, read now (the list carries only what its rows show), a page at a time
     // until there is no more: one answer for everyone would pass the server's response limit.
     const full = new Map<string, Application>();
+    const scope = tab === "deleted" && !showRepeats ? "&deleted=1" : "";
     let next: string | null = null;
     do {
-      const res = await fetch(`/api/admin/trip-applications/?full=1${next ? `&before=${encodeURIComponent(next)}` : ""}`, { cache: "no-store" });
+      const res = await fetch(`/api/admin/trip-applications/?full=1${scope}${next ? `&before=${encodeURIComponent(next)}` : ""}`, { cache: "no-store" });
       if (!res.ok) throw new Error(String(res.status));
       const body = (await res.json()) as { applications: Application[]; next: string | null };
       for (const a of body.applications) full.set(a.id, a);
@@ -631,7 +670,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     XLSX.utils.book_append_sheet(wb, ws, "Free China Trip");
     // A filtered list says so in its name ("…-sri-lanka.xlsx"), so a file found later is not taken for everyone.
     const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const parts = (showRepeats ? ["registered again"] : [country ?? "", journey ? businessStatusBrief(journey) : ""]).map(slug).filter(Boolean);
+    const parts = (showRepeats ? ["registered again"] : [tab === "deleted" ? "deleted" : "", country ?? "", journey ? businessStatusBrief(journey) : ""]).map(slug).filter(Boolean);
     const suffix = parts.length ? `-${parts.join("-")}` : "";
     XLSX.writeFile(wb, `free-china-trip-${new Date().toISOString().slice(0, 10)}${suffix}.xlsx`);
   };
@@ -719,13 +758,6 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
             ))}
           </dl>
         )}
-        {/* The figures count what is in; while the older pages come, they say so rather than pass for the total. */}
-        {reading && (
-          <p aria-live="polite" className="-mt-3 mb-4 text-[12px] text-[#86868b]">
-            Loading older applications… <span className="tabular-nums">{reading.have.toLocaleString("en-IN")}</span> of{" "}
-            <span className="tabular-nums">{reading.total.toLocaleString("en-IN")}</span>
-          </p>
-        )}
 
         {/* The journey and country filters narrow the list; Registered again looks at everyone, so not there. */}
         {rows && rows.length > 0 && !showRepeats && (
@@ -744,7 +776,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div role="tablist" aria-label="Filter by status" className="flex rounded-full bg-white p-1 shadow-sm ring-1 ring-black/[0.06]">
-            {TABS.map((t) => (
+            {TABS.filter((t) => t.key !== "deleted" || deletedRows.length > 0 || tab === "deleted").map((t) => (
               <button
                 key={t.key}
                 role="tab"
@@ -756,7 +788,8 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
                 }}
                 className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors ${tab === t.key && !showRepeats ? "bg-[#1d1d1f] text-white" : "text-[#1d1d1f] hover:bg-black/[0.04]"}`}
               >
-                {t.label} <span className={tab === t.key && !showRepeats ? "text-white/70" : "text-[#86868b]"}>{view.tabs[t.key]}</span>
+                {/* No count until the whole list is in: a count that reads 0 and then 3,034 is the jump this replaced. */}
+                {t.label} {rows && <span className={tab === t.key && !showRepeats ? "text-white/70" : "text-[#86868b]"}>{view.tabs[t.key]}</span>}
               </button>
             ))}
           </div>
@@ -801,7 +834,16 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
         {showRepeats ? (
           <RepeatsView repeats={repeats} failed={repeatsFailed} groups={shownGroups} query={q.trim()} now={now} onOpen={setOpenId} onClearSearch={() => setQ("")} />
         ) : rows === null ? (
-          <p className="py-16 text-center text-[13px] text-[#86868b]">Loading…</p>
+          <p aria-live="polite" className="py-16 text-center text-[13px] text-[#86868b]">
+            {reading ? (
+              <>
+                Loading applications… <span className="tabular-nums">{reading.have.toLocaleString("en-IN")}</span> of{" "}
+                <span className="tabular-nums">{reading.total.toLocaleString("en-IN")}</span>
+              </>
+            ) : (
+              "Loading…"
+            )}
+          </p>
         ) : list.length === 0 ? (
           <div className="rounded-2xl bg-white px-6 py-16 text-center shadow-sm ring-1 ring-black/[0.06]">
             {narrowed ? (
@@ -811,6 +853,8 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
                   Clear all filters
                 </button>
               </>
+            ) : tab === "deleted" ? (
+              <p className="text-[15px] font-medium">No deleted applications.</p>
             ) : (
               <>
                 <p className="text-[15px] font-medium">No applications {tab === "all" ? "yet" : `marked ${tab}`}.</p>
@@ -1258,9 +1302,14 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
               {s === "handled" ? "Handled" : s === "spam" ? "Spam" : "New"}
             </button>
           ))}
-          <button type="button" disabled={busy} onClick={() => onStatus("deleted")} className="ml-auto rounded-full px-3 py-1 font-medium text-red-600 hover:bg-red-500/10">
-            Delete
-          </button>
+          {/* A deleted one says so here; New, Handled or Spam restores it. */}
+          {a.status === "deleted" ? (
+            <span className={`ml-auto rounded-full px-3 py-1 font-medium ${statusPill.deleted}`}>Deleted</span>
+          ) : (
+            <button type="button" disabled={busy} onClick={() => onStatus("deleted")} className="ml-auto rounded-full px-3 py-1 font-medium text-red-600 hover:bg-red-500/10">
+              Delete
+            </button>
+          )}
         </div>
 
         <Answers rows={answers} />

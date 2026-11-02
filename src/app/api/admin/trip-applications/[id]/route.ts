@@ -5,13 +5,16 @@ import { getCurrentUser } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-/** One application in full, for the console's panel (the list carries only what its rows show). Admins only. */
+/**
+ * One application in full, for the console's panel (the list carries only what its rows show). Admins only. A deleted
+ * one too: the board's Deleted tab opens them, and choosing New, Handled or Spam there restores one (PATCH below).
+ */
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
   const admin = await getCurrentUser();
   if (!admin || admin.role !== "admin") return new NextResponse("Unauthorized", { status: 401 });
   const { id } = await ctx.params;
   try {
-    const row = await withDbRetry(() => prisma.tripApplication.findFirst({ where: { id, status: { not: "deleted" } }, include: ADMIN_APPLICATION_INCLUDE }));
+    const row = await withDbRetry(() => prisma.tripApplication.findFirst({ where: { id }, include: ADMIN_APPLICATION_INCLUDE }));
     if (!row) return NextResponse.json({ error: "Application not found." }, { status: 404 });
     const [a] = await forConsole([row]);
     return NextResponse.json(a);

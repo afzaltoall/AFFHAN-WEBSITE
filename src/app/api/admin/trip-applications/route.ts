@@ -14,9 +14,11 @@ async function requireAdmin() {
 /**
  * A page of the list. The console reads page after page until `next` is null, so every application is in it: this
  * was a cap of the newest 2,000, and with 2,655 on file the console's figures stood at 2,000 while the oldest 655
- * could not be searched or exported (the owner, 2026-11-01: "2000 romba neram eruku").
+ * could not be searched or exported (the owner, 2026-11-01: "2000 romba neram eruku"). A row is about 470 bytes
+ * (3,034 rows were 1.38 MB on 2026-11-02), so 5,000 is about 2.3 MB, half of Vercel's 4.5 MB response limit, and the
+ * whole list came in one answer that day.
  */
-const PAGE = 2000;
+const PAGE = 5000;
 /** A page of the Excel export's full rows, about 1.4 KB each: well under Vercel's 4.5 MB response limit. */
 const FULL_PAGE = 1000;
 
@@ -33,8 +35,8 @@ const NEWEST_FIRST: Prisma.TripApplicationOrderByWithRelationInput[] = [{ create
 
 /**
  * The Free China Business Trip's participants, for the console's Free China
- * Trip page. Admins only; deleted ones are left out here and counted
- * separately.
+ * Trip page. Admins only; deleted ones are left out here and asked for on
+ * their own (?deleted=1).
  *
  *   (none)        the list's first page: what its rows, search, filters and figures use, and the customer's
  *                 number (AFFHAN-0001, CustomerCode), read alongside rather than after (lib/server/trip-admin-rows.ts)
@@ -42,6 +44,9 @@ const NEWEST_FIRST: Prisma.TripApplicationOrderByWithRelationInput[] = [{ create
  *   ?since=<ISO>  only the applications after that moment: the page asks every 20 s, so a new one shows
  *                 without Refresh (the owner, 2026-10-29: "admin shows it late")
  *   ?full=1       every answer and the account that sent it, for the Excel export
+ *   ?deleted=1    the deleted ones instead, for the board's Deleted tab: their Trip IDs are why the newest number
+ *                 runs past the count (the owner, 2026-11-02: "china trip users count mismatch"; 10 deleted then);
+ *                 with ?full=1 too
  *
  * One application in full, for its panel, is /api/admin/trip-applications/<id>/.
  */
@@ -54,7 +59,9 @@ export async function GET(req: NextRequest) {
   const beforeRaw = params.get("before");
   const before = beforeRaw ? olderThan(beforeRaw) : null;
   if (beforeRaw && !before) return NextResponse.json({ error: "before is not a cursor." }, { status: 400 });
-  const base: Prisma.TripApplicationWhereInput = { status: { not: "deleted" }, ...(since ? { createdAt: { gt: since } } : {}) };
+  const deleted = params.get("deleted") === "1";
+  const which: Prisma.TripApplicationWhereInput = deleted ? { status: "deleted" } : { status: { not: "deleted" } };
+  const base: Prisma.TripApplicationWhereInput = { ...which, ...(since ? { createdAt: { gt: since } } : {}) };
   const where = before ? { AND: [base, before] } : base;
   try {
     if (params.get("full") === "1") {
@@ -63,9 +70,9 @@ export async function GET(req: NextRequest) {
     }
     const [rows, total, codes] = await Promise.all([
       withDbRetry(() => prisma.tripApplication.findMany({ where, orderBy: NEWEST_FIRST, take: PAGE, select: LIST_SELECT })),
-      withDbRetry(() => prisma.tripApplication.count({ where: { status: { not: "deleted" } } })),
-      // The first page: every number at once, alongside it. A later page or a few new ones: just theirs, after.
-      since || before ? null : tripCustomerCodes(),
+      withDbRetry(() => prisma.tripApplication.count({ where: which })),
+      // The first page: every number at once, alongside it. A later page, a few new ones or the deleted: just theirs, after.
+      since || before || deleted ? null : tripCustomerCodes(),
     ]);
     return NextResponse.json({
       total,
