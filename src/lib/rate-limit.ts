@@ -220,3 +220,9 @@ export const checkCargoTrackRateLimit = (req: HasHeaders) => checkLimit("cargoTr
 
 /** A supplier's photo uploads, per account. Fails closed. */
 export const checkSupplierUploadRateLimit = (supplierId: string) => checkLimit("supplierUpload", supplierId);
+
+/** Whether an employee's trip link is live (2026-11-02), per connection. Fails open. */
+export const checkTripReferralCheckRateLimit = (req: HasHeaders) => checkLimit("tripReferralCheck", getClientIp(req));
+
+/** The ID proof uploads of a trip applicant who came through an employee's link (2026-11-02), per connection. Fails open. */
+export const checkTripDocumentUploadRateLimit = (req: HasHeaders) => checkLimit("tripDocumentUpload", getClientIp(req));

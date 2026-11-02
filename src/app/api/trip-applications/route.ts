@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { ensureCustomerCode } from "@/lib/customerCode";
@@ -10,6 +11,8 @@ import { rememberTripApplicant } from "@/lib/trip-applicant";
 import { TRIP_FACTS } from "@/lib/trip-legal";
 import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
 import { referralForApplication } from "@/lib/server/trip-referrals";
+import { checkDocuments } from "@/lib/server/trip-documents";
+import { ID_DOCUMENTS_MAX, ID_DOCUMENT_NEEDED, idDocumentTypeOfKey, isIdDocumentKey } from "@/lib/trip-referral-shared";
 import { LIMITS, SOURCE_NOT_VERIFIED, applicationWindow, isBusinessStatus, isRetiredBusinessStatus, validateAll, type TripApplicationPayload } from "@/lib/trip-application";
 
 /**
@@ -45,7 +48,10 @@ import { LIMITS, SOURCE_NOT_VERIFIED, applicationWindow, isBusinessStatus, isRet
  *  - the three consents are required and recorded one by one;
  *  - the code of the employee whose link brought the browser may come with it (`referralCode`, 2026-11-02): never
  *    shown to the applicant, it credits an active employee and is otherwise ignored, never refused
- *    (lib/server/trip-referrals.ts).
+ *    (lib/server/trip-referrals.ts);
+ *  - an application that credits an employee must bring ID proof (`documents`, the keys of its uploads to the private
+ *    bucket, 1 to 3; the owner, 2026-11-02), each checked with S3 and kept with it (lib/server/trip-documents.ts).
+ *    Nobody else is asked for any.
  *
  * Nothing here scores, ranks or orders an application. Each is stored as
  * "new" for the team; the five winners are drawn at random, later, from the
@@ -144,6 +150,17 @@ export async function POST(req: NextRequest) {
     return null;
   });
 
+  // Its ID proof: required when the link credits an employee, and every upload sent is checked and kept. Only keys this
+  // server made can name a file (isIdDocumentKey), and one S3 does not have is an upload that never finished.
+  const documentKeys = [...new Set(Array.isArray(body.documents) ? body.documents.filter(isIdDocumentKey) : [])].slice(0, ID_DOCUMENTS_MAX);
+  if (referral && !documentKeys.length) {
+    return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: ID_DOCUMENT_NEEDED } }, { status: 400 });
+  }
+  const documents = documentKeys.length ? await checkDocuments(documentKeys) : [];
+  if (documents.some((d) => d.state === "missing")) {
+    return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Your ID didn't finish uploading. Please add it again." } }, { status: 400 });
+  }
+
   try {
     // One application per person: the signed-in account or the same mobile
     // number already has one the team has not deleted. (Not the email: none is
@@ -189,6 +206,17 @@ export async function POST(req: NextRequest) {
         ...(notVerified ? { source: SOURCE_NOT_VERIFIED } : {}),
         // The link's code, its employee and its points, fixed now; nothing without one.
         ...(referral ?? {}),
+        ...(documents.length
+          ? {
+              documents: {
+                create: documents.map((d) => ({
+                  key: d.key,
+                  contentType: d.state === "ok" ? d.contentType : (idDocumentTypeOfKey(d.key) ?? "application/octet-stream"),
+                  size: d.state === "ok" ? d.size : null,
+                })),
+              },
+            }
+          : {}),
         customerKey,
         userId,
       },
@@ -213,6 +241,10 @@ export async function POST(req: NextRequest) {
     }
     return res;
   } catch (e) {
+    // An upload already with another application (sent twice): this one adds its own.
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && String(e.meta?.target ?? "").includes("key")) {
+      return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Please add your ID again." } }, { status: 400 });
+    }
     console.error("trip application save failed:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "We couldn't record your application." }, { status: 500 });
   }

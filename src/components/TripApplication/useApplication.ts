@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile, splitE164 } from "@/lib/phone";
 import { isBusinessStatus, type FieldErrors, type TripApplicationPayload } from "@/lib/trip-application";
-import { REFERRAL_CODE_MAX, REFERRAL_STORAGE_DAYS, REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/lib/trip-referral-shared";
+import { REFERRAL_CODE_MAX, REFERRAL_EVENT, REFERRAL_STORAGE_DAYS, REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/lib/trip-referral-shared";
 
 /**
  * The application's one state object: { personal, business, travel, consent },
@@ -34,6 +34,18 @@ export interface ApplicationState {
    * or asked: it only goes with the application, so the employee is credited.
    */
   referral: { code: string };
+  /**
+   * With a code, the ID proof the applicant must add (the owner, 2026-11-02): the files uploaded so far, and how many
+   * are still on their way. Memory only, never the draft.
+   */
+  documents: { files: UploadedDocument[]; uploading: number };
+}
+
+/** One ID file in the private bucket: its key, and what the form shows of it (`preview`, an object URL for a photo). */
+export interface UploadedDocument {
+  key: string;
+  kind: "image" | "pdf";
+  preview: string | null;
 }
 
 const EMPTY: ApplicationState = {
@@ -42,6 +54,7 @@ const EMPTY: ApplicationState = {
   travel: { hasPassport: null },
   consent: { privacy: false, terms: false },
   referral: { code: "" },
+  documents: { files: [], uploading: 0 },
 };
 
 /** The code an employee's link left in this browser, while it is fresh (REFERRAL_STORAGE_DAYS); "" when none. */
@@ -73,6 +86,7 @@ export function toPayload(s: ApplicationState): TripApplicationPayload {
     // The Terms require accurate, complete information (clause 2): agreeing to them is agreeing to that.
     consent: { privacy: s.consent.privacy, accuracy: s.consent.terms, terms: s.consent.terms },
     referralCode: normalizeReferralCode(s.referral.code),
+    documents: s.documents.files.map((f) => f.key),
   };
 }
 
@@ -109,6 +123,17 @@ export function useApplication() {
     const linked = codeFromLink();
     if (linked) setState((s) => ({ ...s, referral: { code: linked } }));
     restored.current = true;
+  }, []);
+
+  // A link opened on this very page (?ref= on the application itself) is kept once the server has said it is live,
+  // after the restore above has run: take it then.
+  useEffect(() => {
+    const kept = (e: Event) => {
+      const code = normalizeReferralCode((e as CustomEvent<unknown>).detail) || codeFromLink();
+      if (code) setState((s) => (s.referral.code === code ? s : { ...s, referral: { code } }));
+    };
+    window.addEventListener(REFERRAL_EVENT, kept);
+    return () => window.removeEventListener(REFERRAL_EVENT, kept);
   }, []);
 
   // What the account already knows, into empty fields.
@@ -165,7 +190,36 @@ export function useApplication() {
     }
   }, []);
 
-  return { state, update, errors, setErrors, phoneOk, clearDraft };
+  /**
+   * The link no longer credits anyone (its employee left after it was kept): forget it, and its ID files with it, so
+   * the applicant goes on like anyone else, asked for nothing more.
+   */
+  const dropReferral = useCallback(() => {
+    try {
+      localStorage.removeItem(REFERRAL_STORAGE_KEY);
+    } catch {
+      /* nothing to forget */
+    }
+    setState((s) => ({ ...s, referral: { code: "" }, documents: { files: [], uploading: 0 } }));
+    setErrors((e) => ({ ...e, idDocument: undefined }));
+  }, []);
+
+  /** ID files: one more on its way, one arrived (or failed: null), one removed. */
+  const documentStarted = useCallback(() => {
+    setState((s) => ({ ...s, documents: { ...s.documents, uploading: s.documents.uploading + 1 } }));
+  }, []);
+  const documentSettled = useCallback((file: UploadedDocument | null) => {
+    setState((s) => ({
+      ...s,
+      documents: { files: file ? [...s.documents.files, file] : s.documents.files, uploading: Math.max(0, s.documents.uploading - 1) },
+    }));
+    if (file) setErrors((e) => ({ ...e, idDocument: undefined }));
+  }, []);
+  const removeDocument = useCallback((key: string) => {
+    setState((s) => ({ ...s, documents: { ...s.documents, files: s.documents.files.filter((f) => f.key !== key) } }));
+  }, []);
+
+  return { state, update, errors, setErrors, phoneOk, clearDraft, dropReferral, documentStarted, documentSettled, removeDocument };
 }
 
 export type ApplicationApi = ReturnType<typeof useApplication>;

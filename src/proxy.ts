@@ -43,6 +43,14 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // The matcher lets through anything that merely starts with the name.
   if (pathname !== TRIP && !pathname.startsWith(`${TRIP}/`) && !pathname.startsWith(`${TRIP}.`)) return NextResponse.next();
+  // An employee's link (?ref=, the referral task, the owner 2026-11-02) opens the application, its Terms first, never
+  // the film: links shared for the trip's page before then still arrive there (lib/trip-referral-shared.ts,
+  // referralLink). Before the lock, which then covers the application as it covers everything else.
+  if ((pathname === TRIP || pathname === `${TRIP}/`) && request.nextUrl.searchParams.has("ref")) {
+    const url = request.nextUrl.clone();
+    url.pathname = `${TRIP}/apply/`;
+    return NextResponse.redirect(url, 307);
+  }
   if (isAdmin(request)) return NextResponse.next();
 
   if (!(await isLocked(request))) {

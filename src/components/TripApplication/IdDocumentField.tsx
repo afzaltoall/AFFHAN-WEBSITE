@@ -1,0 +1,185 @@
+"use client";
+
+import { useEffect, useRef } from "react";
+import { FileText, Plus, X } from "lucide-react";
+import { ID_DOCUMENTS_MAX, ID_DOCUMENT_MAX_BYTES, idDocumentExtension, isIdDocumentType, type IdDocumentType } from "@/lib/trip-referral-shared";
+import { LABEL } from "./fields";
+import type { ApplicationApi } from "./useApplication";
+
+const TOO_BIG = "That file is over 10 MB. Please add a smaller photo or PDF.";
+const NOT_A_DOCUMENT = "Please add a photo or a PDF of your ID.";
+const NOT_SENT = "That file didn't upload. Please check your connection and add it again.";
+
+/**
+ * A file made ready to send. A photo is turned upright, brought to at most 2000 px on its longer side and saved as
+ * JPEG, which keeps an ID readable, sends in seconds on a phone, and drops what the camera wrote into it (where it
+ * was taken). A PDF goes as it is. A photo this browser cannot draw goes as it is too, when S3 will take its type.
+ */
+async function prepare(file: File): Promise<{ blob: Blob; type: IdDocumentType; kind: "image" | "pdf" } | { error: string }> {
+  if (file.type === "application/pdf") return file.size <= ID_DOCUMENT_MAX_BYTES ? { blob: file, type: "application/pdf", kind: "pdf" } : { error: TOO_BIG };
+  if (!file.type.startsWith("image/")) return { error: NOT_A_DOCUMENT };
+  try {
+    const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      // A PNG's transparent parts, white rather than JPEG's black.
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      bitmap.close();
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.85));
+      if (blob && blob.size <= ID_DOCUMENT_MAX_BYTES) return { blob, type: "image/jpeg", kind: "image" };
+    }
+  } catch {
+    /* a format this browser cannot draw */
+  }
+  if (isIdDocumentType(file.type) && file.size <= ID_DOCUMENT_MAX_BYTES) return { blob: file, type: file.type, kind: "image" };
+  return { error: file.size > ID_DOCUMENT_MAX_BYTES ? TOO_BIG : NOT_A_DOCUMENT };
+}
+
+/** One file, straight to the private bucket: a ticket from our server, then the file to S3. Its key, or why not. */
+async function send(code: string, blob: Blob, type: IdDocumentType): Promise<{ key: string } | { error: string; notLive?: boolean }> {
+  try {
+    const res = await fetch("/api/trip-applications/document-url/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, contentType: type }),
+    });
+    const t = (await res.json().catch(() => ({}))) as { uploadUrl?: string; uploadFields?: Record<string, string>; key?: string; error?: string; reason?: string };
+    if (!res.ok || !t.uploadUrl || !t.uploadFields || !t.key) return { error: t.error || NOT_SENT, notLive: t.reason === "not_live" };
+    const form = new FormData();
+    for (const [k, v] of Object.entries(t.uploadFields)) form.append(k, v);
+    // The file last: S3 reads the policy's fields before it.
+    form.append("file", blob, `id.${idDocumentExtension(type)}`);
+    const up = await fetch(t.uploadUrl, { method: "POST", body: form });
+    return up.ok ? { key: t.key } : { error: NOT_SENT };
+  } catch {
+    return { error: NOT_SENT };
+  }
+}
+
+/**
+ * ID proof, asked only of someone who came through an employee's link (the owner, 2026-11-02: compulsory for them,
+ * never shown to anyone applying on their own). Aadhaar, passport or any government ID: photos or PDFs, up to three
+ * (both sides of an Aadhaar), each sent the moment it is chosen, shown as a tile that can be taken off again. Its
+ * complaint, the form's or the server's, sits under it like any field's; Submit waits for files still on their way.
+ */
+export function IdDocumentField({ app }: { app: ApplicationApi }) {
+  const input = useRef<HTMLInputElement>(null);
+  const { files, uploading } = app.state.documents;
+  const room = ID_DOCUMENTS_MAX - files.length - uploading;
+  const error = app.errors.idDocument;
+
+  // The previews' object URLs, let go when the form goes.
+  const previews = useRef<string[]>([]);
+  useEffect(() => {
+    previews.current = files.map((f) => f.preview).filter((p): p is string => !!p);
+  }, [files]);
+  useEffect(() => () => previews.current.forEach((p) => URL.revokeObjectURL(p)), []);
+
+  const pick = (list: FileList | null) => {
+    const chosen = Array.from(list ?? []).slice(0, Math.max(0, room));
+    if (input.current) input.current.value = "";
+    const code = app.state.referral.code;
+    for (const file of chosen) {
+      app.documentStarted();
+      void (async () => {
+        const ready = await prepare(file);
+        if ("error" in ready) {
+          app.documentSettled(null);
+          app.setErrors((e) => ({ ...e, idDocument: ready.error }));
+          return;
+        }
+        const sent = await send(code, ready.blob, ready.type);
+        if ("error" in sent) {
+          app.documentSettled(null);
+          // The link stopped crediting anyone since it was kept: nothing more is asked.
+          if (sent.notLive) app.dropReferral();
+          else app.setErrors((e) => ({ ...e, idDocument: sent.error }));
+          return;
+        }
+        app.documentSettled({ key: sent.key, kind: ready.kind, preview: ready.kind === "image" ? URL.createObjectURL(ready.blob) : null });
+      })();
+    }
+  };
+
+  const remove = (key: string, preview: string | null) => {
+    if (preview) URL.revokeObjectURL(preview);
+    app.removeDocument(key);
+  };
+
+  const tile = "relative grid size-24 shrink-0 place-items-center overflow-hidden border border-(--cx-white)/22 sm:size-28";
+  return (
+    <fieldset
+      id="ax-idDocument"
+      tabIndex={-1}
+      aria-describedby={["ax-idDocument-note", error ? "ax-idDocument-error" : ""].filter(Boolean).join(" ")}
+      className="grid gap-3 outline-none sm:col-span-2"
+    >
+      <legend className={LABEL}>
+        ID proof
+        <span aria-hidden className="text-(--cx-gold)"> *</span>
+      </legend>
+      <p id="ax-idDocument-note" className="mt-1 max-w-[34rem] text-[13px] leading-relaxed text-(--cx-mute)">
+        Aadhaar, passport or any government photo ID, as a photo or a PDF. Add both sides of an Aadhaar; a masked Aadhaar is fine.
+      </p>
+      <div className="flex flex-wrap items-center gap-3">
+        {files.map((f, i) => (
+          <div key={f.key} className={tile}>
+            {f.preview ? (
+              // eslint-disable-next-line @next/next/no-img-element -- a local object URL, nothing to optimise
+              <img src={f.preview} alt={`ID file ${i + 1}`} className="size-full object-cover" />
+            ) : (
+              <span className="grid justify-items-center gap-1 text-[12px] font-semibold tracking-[0.12em] text-(--cx-white)">
+                <FileText size={22} aria-hidden />
+                PDF
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => remove(f.key, f.preview)}
+              aria-label={`Remove ID file ${i + 1}`}
+              className="absolute right-1 top-1 grid size-7 place-items-center bg-(--cx-ink)/80 text-(--cx-white) transition-colors hover:bg-(--cx-ink) focus-visible:outline-2 focus-visible:outline-(--cx-gold)"
+            >
+              <X size={14} aria-hidden />
+            </button>
+          </div>
+        ))}
+        {Array.from({ length: uploading }, (_, i) => (
+          <div key={`up-${i}`} className={`${tile} border-dashed`} role="status">
+            <span className="text-[12px] text-(--cx-mute)">Uploading…</span>
+          </div>
+        ))}
+        {room > 0 && (
+          <button
+            type="button"
+            onClick={() => input.current?.click()}
+            className="inline-flex min-h-11 items-center gap-2 border border-(--cx-white)/22 px-4 text-[14px] text-(--cx-white) transition-colors duration-300 hover:border-(--cx-white)/45 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--cx-white)"
+          >
+            <Plus size={16} aria-hidden />
+            {files.length || uploading ? "Add another" : "Add a photo or PDF"}
+          </button>
+        )}
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*,application/pdf"
+        multiple
+        tabIndex={-1}
+        aria-hidden
+        className="sr-only"
+        onChange={(e) => pick(e.target.files)}
+      />
+      {error && (
+        <p id="ax-idDocument-error" className="text-[13px] font-medium text-(--cx-error)">
+          {error}
+        </p>
+      )}
+    </fieldset>
+  );
+}

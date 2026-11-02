@@ -102,6 +102,43 @@ interface Application {
   /** The employee's referral code it came with, and the team's decision on it (Employee tasks, 2026-11-02); null without one. */
   referralCode?: string | null;
   referralState?: string | null;
+  /** Its ID proof, when it came through an employee's link (2026-11-02): only the panel's own read carries it. */
+  documents?: TripDocumentView[];
+}
+
+/** One ID file as the console knows it: opened through /api/admin/trip-documents/[id], never by its key. */
+export interface TripDocumentView {
+  id: string;
+  contentType: string;
+  size: number | null;
+}
+
+/**
+ * An application's ID proof, as tiles that open the file in a new tab: a photo shown small, a PDF by name. The panel
+ * and Employee tasks both show it, so whoever decides on a referral sees who it is.
+ */
+export function TripDocuments({ documents, compact = false }: { documents: TripDocumentView[]; compact?: boolean }) {
+  return (
+    <span className="flex flex-wrap gap-2">
+      {documents.map((d, i) => (
+        <a
+          key={d.id}
+          href={`/api/admin/trip-documents/${d.id}/`}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={`Open ID file ${i + 1} in a new tab`}
+          className={`grid place-items-center overflow-hidden rounded-md border border-black/10 bg-[#f5f5f7] font-semibold text-[#0058b0] hover:border-[#0058b0] ${compact ? "h-10 w-14 text-[11px]" : "h-16 w-24 text-[12px]"}`}
+        >
+          {d.contentType === "application/pdf" ? (
+            `PDF ${i + 1}`
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element -- a private file through a five-minute link, never the image optimiser
+            <img src={`/api/admin/trip-documents/${d.id}/`} alt={`ID file ${i + 1}`} loading="lazy" className="size-full object-cover" />
+          )}
+        </a>
+      ))}
+    </span>
+  );
 }
 
 /**
@@ -1250,6 +1287,7 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
       </Link>,
     ]);
   }
+  if (a.documents?.length) answers.push(["ID proof", <TripDocuments key="docs" documents={a.documents} />]);
   // Asked before 2026-10-29: only where an earlier application gave it.
   const earlier = (
     [

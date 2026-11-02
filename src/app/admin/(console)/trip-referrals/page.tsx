@@ -24,6 +24,8 @@ export default async function TripReferralsPage({ searchParams }: { searchParams
   const wanted = Array.isArray(params.employee) ? params.employee[0] : params.employee;
   const { settings, rows } = await referralBoard();
   const pick = wanted ? rows.find((r) => r.employeeId === wanted) ?? null : null;
-  const detail = pick ? { employeeId: pick.employeeId, name: pick.name, isActive: pick.isActive, ...(await employeeReferrals({ id: pick.employeeId, name: pick.name })) } : null;
+  const detail = pick
+    ? { employeeId: pick.employeeId, name: pick.name, isActive: pick.isActive, ...(await employeeReferrals({ id: pick.employeeId, name: pick.name }, { withDocuments: true })) }
+    : null;
   return <TripReferralsBoard settings={settings} rows={rows} detail={detail} />;
 }

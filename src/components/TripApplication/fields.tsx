@@ -12,7 +12,7 @@ import { COUNTRIES, flagUrl, type Country } from "@/lib/countries";
  * aria-describedby. Nothing here ever uses alert().
  */
 
-const LABEL = "text-[11px] font-semibold uppercase tracking-[0.22em] text-(--cx-mute)";
+export const LABEL = "text-[11px] font-semibold uppercase tracking-[0.22em] text-(--cx-mute)";
 const LINE =
   "ax-line block w-full rounded-none border-0 border-b bg-transparent px-0 text-[18px] text-(--cx-white) caret-(--cx-gold) placeholder:text-(--cx-white)/25 transition-[border-color,box-shadow] duration-300 focus:outline-none md:text-[19px]";
 const lineState = (bad: boolean) =>

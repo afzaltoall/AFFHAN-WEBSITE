@@ -1385,11 +1385,32 @@ model TripApplication {
   referralPayoutId  String?
   referralPayout    TripReferralPayout? @relation(fields: [referralPayoutId], references: [id], onDelete: SetNull)
 
+  /// The ID proof an applicant who came through an employee's link must add (the owner, 2026-11-02); none otherwise.
+  documents TripApplicationDocument[]
+
   @@index([status])
   @@index([createdAt])
   @@index([customerKey])
   @@index([userId])
   @@index([referrerId])
+}
+
+/// A photo or scan of an applicant's ID (Aadhaar, passport or any government ID), required of everyone who applies
+/// through an employee's link and asked of nobody else (the owner, 2026-11-02). The file is in the private documents
+/// bucket, never the public product one; only the console opens it, through a short-lived link
+/// (lib/server/trip-documents.ts).
+model TripApplicationDocument {
+  id            String          @id @default(uuid())
+  applicationId String
+  application   TripApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  /// The object's key in the documents bucket ("docs/<uuid>.jpg"), made by the server, never chosen by the browser.
+  key           String          @unique
+  contentType   String
+  /// Bytes, as S3 reported it when the application was sent; null when it could not be asked.
+  size          Int?
+  createdAt     DateTime        @default(now())
+
+  @@index([applicationId])
 }
 
 /// The Free China Trip's employee referral task (the owner, 2026-11-02): one row, id "trip". An application sent with

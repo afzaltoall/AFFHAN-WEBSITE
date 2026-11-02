@@ -17,13 +17,15 @@ import {
  *
  *  - Every employee has one code, made from their first name and a number (RAHIM7), never two alike, made the first
  *    time anyone needs it: their own My referrals page, or the console's Employee tasks. It travels only in their
- *    link (affhan.com/free-china-trip/?ref=RAHIM7): customers are never shown a code or asked for one (the owner,
+ *    link (affhan.com/free-china-trip/apply/?ref=RAHIM7): customers are never shown a code or asked for one (the owner,
  *    2026-11-02: only somebody who came through the employee's link is theirs).
  *  - An application from a browser that came through a link records the code, the employee and the points, fixed
- *    then, as "waiting". A link that is no employee's, or a former employee's, credits nobody and stops nothing.
- *    While the task is off, or outside its dates, the code is kept but earns nothing ("not_counted").
- *  - The team counts or declines each one in the console. Spam and deleted applications never count (referralCounts),
- *    and one application per mobile number already holds, so nobody is counted twice.
+ *    then, and counts at once ("counted"; the owner, 2026-11-02: the link is shared, they apply, it counts). Its
+ *    applicant adds ID proof (lib/server/trip-documents.ts). A link that is no employee's, or a former employee's,
+ *    credits nobody and stops nothing. While the task is off, or outside its dates, the code is kept but earns
+ *    nothing ("not_counted").
+ *  - The team can take one out in the console (Not counted) and put it back. Spam and deleted applications never
+ *    count (referralCounts), and one application per mobile number already holds, so nobody is counted twice.
  *  - "Mark paid" pays an employee for everything counted and not yet paid, in rupees at the day's rate, and records it.
  */
 
@@ -124,13 +126,26 @@ export interface ReferralFields {
  * application: a link that no longer credits anyone is simply not counted.
  */
 export async function referralForApplication(raw: unknown): Promise<ReferralFields | null> {
+  const live = await liveReferralCode(raw);
+  if (!live) return null;
+  const { code, employeeId } = live;
+  const settings = await referralSettings();
+  // Counted as it arrives (the owner, 2026-11-02: it counts for the employee as it counts for the trip); the team can
+  // still take it out in Employee tasks before it is paid.
+  if (taskRunning(settings)) return { referralCode: code, referrerId: employeeId, referralPoints: settings.pointsPerReferral, referralState: "counted" };
+  return { referralCode: code, referrerId: employeeId, referralPoints: 0, referralState: "not_counted", referralDecidedAt: new Date(), referralDecidedBy: "Task not running" };
+}
+
+/**
+ * The code, as stored, and its employee, when it is an active employee's; null for anything else. A link that credits
+ * somebody is also the one whose applicant is asked for ID proof (the owner, 2026-11-02), so the form, the upload and
+ * the application all ask this one question.
+ */
+export async function liveReferralCode(raw: unknown): Promise<{ code: string; employeeId: string } | null> {
   const code = normalizeReferralCode(raw);
   if (!code) return null;
   const row = await prisma.tripReferralCode.findUnique({ where: { code }, select: { employeeId: true, employee: { select: { isActive: true } } } });
-  if (!row || !row.employee.isActive) return null;
-  const settings = await referralSettings();
-  if (taskRunning(settings)) return { referralCode: code, referrerId: row.employeeId, referralPoints: settings.pointsPerReferral, referralState: "waiting" };
-  return { referralCode: code, referrerId: row.employeeId, referralPoints: 0, referralState: "not_counted", referralDecidedAt: new Date(), referralDecidedBy: "Task not running" };
+  return row && row.employee.isActive ? { code, employeeId: row.employeeId } : null;
 }
 
 // ---- reading ----------------------------------------------------------------------------------------------------------
@@ -236,6 +251,8 @@ export interface ReferredApplication {
   paid: boolean;
   decidedBy: string | null;
   decidedAt: string | null;
+  /** Its ID proof (2026-11-02), for the console only: the employee's own page never reads it. */
+  documents?: { id: string; contentType: string; size: number | null }[];
 }
 
 export interface ReferralPayoutView {
@@ -248,8 +265,11 @@ export interface ReferralPayoutView {
   paidAt: string;
 }
 
-/** Everything about one employee's referrals: their code, their applications newest first, and their payments. */
-export async function employeeReferrals(employee: { id: string; name: string }) {
+/**
+ * Everything about one employee's referrals: their code, their applications newest first, and their payments. With
+ * `withDocuments` (the console's, never the employee's own page), each application's ID proof too.
+ */
+export async function employeeReferrals(employee: { id: string; name: string }, { withDocuments = false } = {}) {
   const code = await ensureReferralCode(employee);
   const [settings, apps, payouts] = await Promise.all([
     referralSettings(),
@@ -264,6 +284,15 @@ export async function employeeReferrals(employee: { id: string; name: string }) 
     prisma.tripReferralPayout.findMany({ where: { employeeId: employee.id }, orderBy: { paidAt: "desc" } }),
   ]);
   const totals = { ...tally(apps, settings.rupeesPerPoint), paidRupees: payouts.reduce((s, p) => s + p.amount, 0) };
+  const documents = new Map<string, NonNullable<ReferredApplication["documents"]>>();
+  if (withDocuments && apps.length) {
+    const rows = await prisma.tripApplicationDocument.findMany({
+      where: { applicationId: { in: apps.map((a) => a.id) } },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      select: { id: true, applicationId: true, contentType: true, size: true },
+    });
+    for (const d of rows) documents.set(d.applicationId, [...(documents.get(d.applicationId) ?? []), { id: d.id, contentType: d.contentType, size: d.size }]);
+  }
   return {
     code,
     settings,
@@ -284,6 +313,7 @@ export async function employeeReferrals(employee: { id: string; name: string }) 
         paid: !!a.referralPayoutId,
         decidedBy: a.referralDecidedBy,
         decidedAt: a.referralDecidedAt?.toISOString() ?? null,
+        ...(withDocuments ? { documents: documents.get(a.id) ?? [] } : {}),
       }),
     ),
     payouts: payouts.map((p): ReferralPayoutView => ({ id: p.id, referrals: p.referrals, points: p.points, amount: p.amount, note: p.note, paidBy: p.paidBy, paidAt: p.paidAt.toISOString() })),

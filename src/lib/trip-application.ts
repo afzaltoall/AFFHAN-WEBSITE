@@ -28,6 +28,8 @@
  * is not a condition of applying.
  */
 
+import { ID_DOCUMENT_NEEDED } from "@/lib/trip-referral-shared";
+
 /**
  * "Doing business or not": the two answers, stored as the application's
  * `businessStatus`. `label` is the answer in full (the console's tooltip),
@@ -117,6 +119,11 @@ export interface TripApplicationPayload {
    * server credits an active employee's and ignores any other (lib/server/trip-referrals.ts).
    */
   referralCode?: string;
+  /**
+   * With a code: the keys of the applicant's ID proof uploads (Aadhaar, passport or any ID; the owner, 2026-11-02),
+   * required when the code credits an employee and asked of nobody else (lib/server/trip-documents.ts).
+   */
+  documents?: string[];
 }
 
 /**
@@ -182,6 +189,9 @@ export function validateAll(a: TripApplicationPayload, phoneOk?: boolean): Field
   if (!need(p.city)) e.city = "Please enter your city.";
   if (!isBusinessStatus(a.business.businessStatus)) e.businessStatus = "Please choose one.";
   if (a.travel.hasPassport === null) e.hasPassport = "Please choose one.";
+  // Only the form sends a code (the server reads none here, and asks for the proof once it knows the code credits an
+  // employee): an applicant who came through an employee's link adds their ID.
+  if (a.referralCode && !a.documents?.length) e.idDocument = ID_DOCUMENT_NEEDED;
   const c = a.consent;
   if (!c.privacy) e.privacy = "Please consent to the Privacy Policy.";
   if (!c.accuracy) e.accuracy = "Please confirm the information is accurate and complete.";

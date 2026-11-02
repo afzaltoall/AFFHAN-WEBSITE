@@ -14,10 +14,17 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
   if (!admin || admin.role !== "admin") return new NextResponse("Unauthorized", { status: 401 });
   const { id } = await ctx.params;
   try {
-    const row = await withDbRetry(() => prisma.tripApplication.findFirst({ where: { id }, include: ADMIN_APPLICATION_INCLUDE }));
+    const row = await withDbRetry(() =>
+      prisma.tripApplication.findFirst({
+        where: { id },
+        // Its ID proof, when it came through an employee's link (2026-11-02): what each file is, opened through
+        // /api/admin/trip-documents/[id], never its key.
+        include: { ...ADMIN_APPLICATION_INCLUDE, documents: { select: { id: true, contentType: true, size: true }, orderBy: [{ createdAt: "asc" }, { id: "asc" }] } },
+      }),
+    );
     if (!row) return NextResponse.json({ error: "Application not found." }, { status: 404 });
     const [a] = await forConsole([row]);
-    return NextResponse.json(a);
+    return NextResponse.json({ ...a, documents: row.documents });
   } catch (e) {
     console.error("admin trip application:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Could not load the application." }, { status: 500 });

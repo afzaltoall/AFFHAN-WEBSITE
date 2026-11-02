@@ -1,6 +1,7 @@
 import { LIMITS } from "@/lib/trip-application";
 import { LABELS, PLACEHOLDERS } from "./content";
 import { CountryField, Field, PhoneField, TextInput, YesNo } from "./fields";
+import { IdDocumentField } from "./IdDocumentField";
 import type { ApplicationApi, ApplicationState } from "./useApplication";
 
 /**
@@ -8,6 +9,8 @@ import type { ApplicationApi, ApplicationState } from "./useApplication";
  * or not, valid passport, in that order, and nothing else. Field ids are "ax-" + the answer's key, so a complaint
  * from the server finds its field. The business answer is stored as the application's journey (lib/trip-application.ts,
  * BUSINESS_STATUSES): Yes "existing_business", No "no_business_yet".
+ *
+ * Someone who came through an employee's link also adds ID proof, last (the owner, 2026-11-02); nobody else sees it.
  */
 export function ApplicationForm({ app }: { app: ApplicationApi }) {
   const p = app.state.personal;
@@ -53,6 +56,7 @@ export function ApplicationForm({ app }: { app: ApplicationApi }) {
         error={e.businessStatus}
       />
       <YesNo id="ax-hasPassport" label={LABELS.hasPassport} value={app.state.travel.hasPassport} onChange={(v) => app.update("travel", { hasPassport: v })} error={e.hasPassport} />
+      {app.state.referral.code && <IdDocumentField app={app} />}
     </div>
   );
 }

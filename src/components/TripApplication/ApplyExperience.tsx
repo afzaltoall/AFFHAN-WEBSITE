@@ -13,6 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { TRIP_REGISTERED_HREF } from "@/lib/trip-legal";
 import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 import { PHONE_QUERY } from "@/lib/useIsPhone";
+import { normalizeReferralCode } from "@/lib/trip-referral-shared";
 import { revertTextFx, textIn } from "@/components/CinematicExperience/textfx";
 import { agreeToTripTerms, hasAgreedToTripTerms } from "@/components/TripLegal/approval";
 import { ConsentGate } from "@/components/TripLegal/ConsentGate";
@@ -93,8 +94,8 @@ function arrivedInSite() {
   }
 }
 
-/** The answers in the order the page asks them: the first one missing takes focus. */
-const FIELD_ORDER = ["fullName", "phone", "country", "city", "businessStatus", "hasPassport"] as const;
+/** The answers in the order the page asks them: the first one missing takes focus. ID proof only through a link. */
+const FIELD_ORDER = ["fullName", "phone", "country", "city", "businessStatus", "hasPassport", "idDocument"] as const;
 
 /**
  * Where the host stands, on a desktop: large in the intro, then one steady
@@ -211,7 +212,10 @@ export function ApplyExperience() {
     const fromLight = fromLightRef.current;
     // A phone, while applications are being taken: no intro. The sky and the host as the questions have them;
     // the Terms & Conditions first, unless agreed a moment ago, then the questions print themselves in (below).
-    if (window.matchMedia(PHONE_QUERY).matches && applicationWindow() === "open") {
+    // An employee's link (?ref=) opens the same way on a computer too (the owner, 2026-11-02: the link asks the
+    // Terms and Privacy Policy at once, then the application).
+    const viaLink = normalizeReferralCode(new URLSearchParams(window.location.search).get("ref")).length >= 3;
+    if ((window.matchMedia(PHONE_QUERY).matches || viaLink) && applicationWindow() === "open") {
       gsap.set($("host"), { ...HOST.form, x: 0 });
       gsap.set($("dust"), { autoAlpha: 0.45 });
       for (const el of $$("mood")) gsap.set(el, { autoAlpha: el.dataset.mood === "0" ? 1 : 0 });
@@ -588,6 +592,8 @@ export function ApplyExperience() {
     }
     const payload = toPayload({ ...app.state, consent: agreement });
     const all = validateAll(payload, app.phoneOk);
+    // ID proof still on its way: it goes with the application, so Submit waits for it.
+    if (app.state.documents.uploading > 0) all.idDocument = "Your ID is still uploading. Please wait a moment, then submit.";
     if (FIELD_ORDER.some((k) => all[k])) {
       app.setErrors(all);
       focusFirst(all);

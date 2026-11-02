@@ -420,9 +420,14 @@ export function ConsentGate({
                   onClick={() => showTab(t)}
                   className="tg-tab"
                 >
-                  <ReadRing p={read[t]} />
                   <span>{DOCS[t].label}</span>
-                  {read[t] >= 1 && <span className="sr-only"> (read to the end)</span>}
+                  {/* Read to the end: a check after the name (2026-11-02: an empty ring before it read as a radio button). */}
+                  {read[t] >= 1 && (
+                    <>
+                      <Check aria-hidden size={14} strokeWidth={2.75} className="tg-tab-done" />
+                      <span className="sr-only"> (read to the end)</span>
+                    </>
+                  )}
                 </button>
               ))}
               <span ref={inkRef} aria-hidden className="tg-ink" />
@@ -449,26 +454,37 @@ export function ConsentGate({
           </div>
 
           {/* A phone's agreement (CSS below 640px): the two documents, each a
-              row with its reading ring that opens it in the reader, and the
-              facts at a glance, each opening the clause that states them. */}
+              row that opens it in the reader, with a Read button that looks
+              like one (2026-11-02: the reading ring before the name read as a
+              radio button) and a gold line along its foot as far as it has
+              been read; and the facts at a glance, each opening the clause
+              that states them. */}
           <div className="tg-summary">
             <p className="tg-sum-title">The documents</p>
             <ul className="tg-docrows">
               {(["terms", "privacy"] as const).map((t) => (
                 <li key={t}>
-                  <button type="button" id={`${uid}-row-${t}`} onClick={() => readDoc(t)} className="tg-docrow">
-                    <ReadRing p={read[t]} />
+                  <button type="button" id={`${uid}-row-${t}`} onClick={() => readDoc(t)} className={`tg-docrow${read[t] >= 1 ? " is-read" : ""}`}>
                     <span className="tg-docrow-text">
                       <span className="tg-docrow-name">{DOCS[t].label}</span>
                       <span className="tg-docrow-meta">
-                        {read[t] >= 1
-                          ? "Read to the end"
-                          : read[t] > 0.02
-                            ? `${Math.round(read[t] * 100)}% read`
-                            : `${DOCS[t].doc.sections.length} ${t === "terms" ? "clauses" : "sections"} · tap to read`}
+                        {read[t] >= 1 ? (
+                          <>
+                            <Check aria-hidden size={13} strokeWidth={3} />
+                            Read to the end
+                          </>
+                        ) : read[t] > 0.02 ? (
+                          `${Math.round(read[t] * 100)}% read`
+                        ) : (
+                          `${DOCS[t].doc.sections.length} ${t === "terms" ? "clauses" : "sections"}`
+                        )}
                       </span>
                     </span>
-                    <ChevronRight aria-hidden size={18} strokeWidth={2} className="tg-docrow-go" />
+                    <span aria-hidden className="tg-docrow-read">
+                      {read[t] > 0.02 && read[t] < 1 ? "Continue" : "Read"}
+                      <ChevronRight size={16} strokeWidth={2.25} />
+                    </span>
+                    {read[t] > 0.02 && <span aria-hidden className="tg-docrow-bar" style={{ transform: `scaleX(${Math.min(1, read[t])})` }} />}
                   </button>
                 </li>
               ))}
@@ -567,21 +583,6 @@ function flash(el: HTMLElement) {
   void el.offsetWidth;
   el.setAttribute("data-flash", "");
   window.setTimeout(() => el.removeAttribute("data-flash"), 1600);
-}
-
-/** A tab's reading: a ring that fills as the document is read, a check at its end. */
-function ReadRing({ p }: { p: number }) {
-  const r = 7;
-  const c = 2 * Math.PI * r;
-  return (
-    <span aria-hidden className={`tg-ring${p >= 1 ? " is-done" : ""}`}>
-      <svg viewBox="0 0 18 18" width="18" height="18">
-        <circle cx="9" cy="9" r={r} className="tg-ring-track" />
-        <circle cx="9" cy="9" r={r} className="tg-ring-fill" strokeDasharray={c} strokeDashoffset={c * (1 - p)} />
-      </svg>
-      <Check size={10} strokeWidth={3} className="tg-ring-check" />
-    </span>
-  );
 }
 
 /** A consent box: a gold check that draws itself. Its label holds a document's name as a link; pressing that shows the document and does not tick the box. */

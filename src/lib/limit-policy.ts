@@ -76,6 +76,13 @@ export const LIMITS = {
   /** /api/track: Live track & trace on /shipping/. Room for a customer checking their cargo all day; not for walking
    *  every number in turn. Fails open: a customer looking for their cargo is never turned away for Upstash's sake. */
   cargoTrack: { per: "IP", count: 60, window: "10 m", whenDown: "open", feature: "Cargo tracking" },
+  /** /api/trip-applications/referral: whether an employee's link is live, asked once a visit through one. Open: a
+   *  visitor is never kept from the trip for Upstash's sake. */
+  tripReferralCheck: { per: "IP", count: 120, window: "10 m", whenDown: "open", feature: "The trip" },
+  /** /api/trip-applications/document-url: the ID proof of an applicant who came through an employee's link (2026-11-02),
+   *  up to three files an application, offered only to a live employee's link. Open: the proof is compulsory for those
+   *  applicants, so a refusal would cost the application itself. */
+  tripDocumentUpload: { per: "IP", count: 60, window: "1 h", whenDown: "open", feature: "ID upload" },
 } as const satisfies Record<string, LimitSpec>;
 
 export type LimitName = keyof typeof LIMITS;

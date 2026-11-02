@@ -1243,31 +1243,18 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
 .tg-full:hover .tg-full-text { text-decoration: underline; text-underline-offset: 3px; }
 .tg-full:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; border-radius: 6px; }
 
-.tg-ring {
-  position: relative;
-  display: grid;
-  place-items: center;
+/* A tab read to the end: a gold check after its name (2026-11-02; a ring before it read as a radio button). */
+.tg-tab-done {
   flex: none;
-  width: 18px;
-  height: 18px;
+  color: var(--cx-gold);
+  animation: tg-done-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.tg-ring svg { transform: rotate(-90deg); }
-.tg-ring circle { fill: none; stroke-width: 2; }
-.tg-ring-track { stroke: rgb(244 239 230 / 0.16); }
-.tg-ring-fill {
-  stroke: var(--cx-gold);
-  stroke-linecap: round;
-  transition: stroke-dashoffset 0.25s ease, fill 0.3s ease;
+@keyframes tg-done-in {
+  from { opacity: 0; transform: scale(0.4); }
 }
-.tg-ring-check {
-  position: absolute;
-  color: var(--cx-ink);
-  opacity: 0;
-  transform: scale(0.4);
-  transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+@media (prefers-reduced-motion: reduce) {
+  .tg-tab-done { animation: none; }
 }
-.tg-ring.is-done .tg-ring-fill { fill: var(--cx-gold); }
-.tg-ring.is-done .tg-ring-check { opacity: 1; transform: none; }
 
 .tg-pane-wrap {
   position: relative;
@@ -1799,18 +1786,22 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
   gap: 10px;
 }
 .tg-docrow {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
   width: 100%;
   min-height: 66px;
-  padding: 12px 14px 12px 16px;
+  padding: 12px 12px 12px 18px;
   border-radius: 16px;
   border: 1px solid rgb(214 168 78 / 0.26);
   background: rgb(244 239 230 / 0.035);
   text-align: left;
+  overflow: hidden;
+  cursor: pointer;
   transition: border-color 0.2s, background 0.2s;
 }
+.tg-docrow:hover { border-color: rgb(214 168 78 / 0.45); }
 .tg-docrow:active { background: rgb(214 168 78 / 0.1); }
 .tg-docrow:focus-visible { outline: 2px solid var(--cx-white); outline-offset: 2px; }
 .tg-docrow-text {
@@ -1825,12 +1816,41 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
   color: var(--cx-white);
 }
 .tg-docrow-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12.5px;
   color: var(--cx-mute);
 }
-.tg-docrow-go {
+.tg-docrow.is-read .tg-docrow-meta { color: var(--cx-gold); font-weight: 600; }
+/* What the row does, as a button looks (2026-11-02: "look like clickable button"): Read, or Continue part-way. */
+.tg-docrow-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   flex: none;
-  color: var(--cx-gold);
+  min-height: 36px;
+  padding: 0 10px 0 15px;
+  border-radius: 999px;
+  border: 1px solid rgb(214 168 78 / 0.6);
+  background: rgb(214 168 78 / 0.1);
+  color: var(--cx-gold-hi);
+  font-size: 13.5px;
+  font-weight: 650;
+  transition: background 0.2s, border-color 0.2s;
+}
+.tg-docrow:hover .tg-docrow-read,
+.tg-docrow:active .tg-docrow-read { background: rgb(214 168 78 / 0.2); border-color: var(--cx-gold); }
+/* How far it has been read, along the row's foot. */
+.tg-docrow-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  height: 2px;
+  transform-origin: left;
+  background: linear-gradient(90deg, var(--cx-gold), var(--cx-gold-hi));
+  transition: transform 0.3s ease;
 }
 .tg-facts { border-top: 1px solid var(--cx-faint); }
 .tg-facts li { border-bottom: 1px solid var(--cx-faint); }
@@ -1876,9 +1896,10 @@ html[data-tl-js] .tl-page .tl-section[data-tl-seen] .tl-num { color: var(--cx-go
   .tg-root[data-view="agree"] .tg-summary { padding: 0 18px 14px; }
   .tg-sum-title { margin: 13px 0 8px; font-size: 10px; letter-spacing: 0.26em; }
   .tg-docrows { gap: 8px; }
-  .tg-docrow { min-height: 54px; gap: 12px; padding: 9px 12px 9px 14px; border-radius: 14px; }
+  .tg-docrow { min-height: 54px; gap: 12px; padding: 9px 9px 9px 14px; border-radius: 14px; }
   .tg-docrow-name { font-size: 14px; }
   .tg-docrow-meta { font-size: 11.5px; }
+  .tg-docrow-read { min-height: 32px; padding: 0 8px 0 13px; font-size: 13px; }
   .tg-facts button { gap: 12px; padding: 9px 2px; }
   .tg-fact-label { font-size: 9.5px; letter-spacing: 0.12em; }
   .tg-fact-value { font-size: 13px; }

@@ -32,6 +32,15 @@ test("cargo tracking (2026-10-24): per IP, open when Upstash is down, and too fe
   assert.ok(LIMITS.cargoTrack.count <= 100, `${LIMITS.cargoTrack.count}`);
 });
 
+test("the trip's employee links and ID uploads (2026-11-02): per IP, open when Upstash is down", () => {
+  for (const name of ["tripReferralCheck", "tripDocumentUpload"]) {
+    assert.equal(LIMITS[name].per, "IP", name);
+    assert.equal(LIMITS[name].whenDown, "open", name);
+  }
+  // Up to three files an application: room for an office of applicants on one connection.
+  assert.ok(LIMITS.tripDocumentUpload.count >= 3 * 10, `${LIMITS.tripDocumentUpload.count}`);
+});
+
 test("photo search: at least 30 an hour for each user, counted by account when signed in", () => {
   assert.equal(LIMITS.photoSearch.per, "account or IP");
   assert.equal(LIMITS.photoSearch.window, "1 h");

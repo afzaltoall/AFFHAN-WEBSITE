@@ -3,8 +3,8 @@
  * an application from somebody who came through it earns them `pointsPerReferral` points (100) once the team counts
  * it, a point being `rupeesPerPoint` rupees (1), towards a target of `target` applications (100). Customers are never
  * shown a code or asked for one. What both sides need: how a code is read, the states, what counts and what it is
- * worth. No imports, so the form and the console can use it in the browser. The server's half is
- * lib/server/trip-referrals.ts.
+ * worth, and the ID proof such an applicant adds. No imports, so the form and the console can use it in the browser.
+ * The server's half is lib/server/trip-referrals.ts (and lib/server/trip-documents.ts for the files).
  */
 
 /** As a code is stored and compared: upper-case letters and digits, so "rahim7" in a link is RAHIM7. */
@@ -14,8 +14,9 @@ export function normalizeReferralCode(value: unknown): string {
 export const REFERRAL_CODE_MAX = 20;
 
 /**
- * Where an application's code stands. "waiting" until the team decides; "counted" earns its points; "not_counted"
- * never does (the team said no, or it came while the task was off).
+ * Where an application's code stands. "counted" earns its points, and is where it starts (2026-11-02: it counts as it
+ * arrives); "not_counted" never does (the team took it out, or it came while the task was off). "waiting" is an older
+ * application's, still to be decided.
  */
 export const REFERRAL_STATES = ["waiting", "counted", "not_counted"] as const;
 export type ReferralState = (typeof REFERRAL_STATES)[number];
@@ -38,12 +39,37 @@ export function referralWaiting(a: { referralState: string | null; status: strin
   return a.referralState === "waiting" && a.status !== "spam" && a.status !== "deleted";
 }
 
-/** What the employee shares: the trip's page with their code, which the application then fills in by itself. */
-export const referralLink = (code: string) => `https://affhan.com/free-china-trip/?ref=${encodeURIComponent(code)}`;
+/**
+ * What the employee shares: the application itself with their code (the owner, 2026-11-02: the link asks the Terms
+ * and Privacy Policy first, then the application). Links made for the trip's page before then are sent on to it
+ * (proxy.ts).
+ */
+export const referralLink = (code: string) => `https://affhan.com/free-china-trip/apply/?ref=${encodeURIComponent(code)}`;
 
 /** Where a code from a link waits in the browser until the application is filled in, and for how long. */
 export const REFERRAL_STORAGE_KEY = "affhan:trip-ref";
 export const REFERRAL_STORAGE_DAYS = 30;
+/** Sent on window when a link's code has just been kept, so an application already open picks it up. */
+export const REFERRAL_EVENT = "affhan:trip-ref-kept";
+
+/**
+ * The ID proof an applicant who came through an employee's link must add (the owner, 2026-11-02: Aadhaar, passport or
+ * whatever ID they have; asked of nobody else). A photo or a PDF, up to three files (an Aadhaar's two sides), each up
+ * to 10 MB. The form sends the keys the server made for its uploads (lib/server/trip-documents.ts).
+ */
+export const ID_DOCUMENT_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
+export type IdDocumentType = (typeof ID_DOCUMENT_TYPES)[number];
+export const isIdDocumentType = (v: unknown): v is IdDocumentType => typeof v === "string" && (ID_DOCUMENT_TYPES as readonly string[]).includes(v);
+export const ID_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
+export const ID_DOCUMENTS_MAX = 3;
+export const idDocumentExtension = (type: IdDocumentType) => ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" })[type];
+/** A key the server made for an upload: docs/<uuid>.<extension>. */
+export const isIdDocumentKey = (v: unknown): v is string =>
+  typeof v === "string" && /^docs\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|pdf)$/.test(v);
+/** The type a key's extension stands for. */
+export const idDocumentTypeOfKey = (key: string): IdDocumentType | null => ID_DOCUMENT_TYPES.find((t) => key.endsWith(`.${idDocumentExtension(t)}`)) ?? null;
+/** The form's words, and the server's, when the proof is missing. */
+export const ID_DOCUMENT_NEEDED = "Please add a photo or scan of your ID: Aadhaar, passport or any government ID.";
 
 /** India's calendar date of an instant, as a date field holds it (YYYY-MM-DD). */
 export const istDate = (iso: string) => new Date(Date.parse(iso) + 5.5 * 3600 * 1000).toISOString().slice(0, 10);

@@ -19,8 +19,9 @@ const fmtDayOf = (day: string) => fmtDay(`${day}T12:00:00+05:30`);
 /**
  * The employee's Free China Trip referral task (the owner, 2026-11-02): their link to hand out, how far they are
  * towards the target, what they have earned and been paid, and everyone who applied after coming through their link.
- * Customers are never asked for a code: the link carries it. Every employee has one, sales and assigners alike, made
- * the first time they open this page. An administrator has none: the console's Employee tasks holds everyone's.
+ * Customers are never asked for a code: the link carries it, and an application through it counts at once (the team
+ * can take one out). Every employee has one, sales and assigners alike, made the first time they open this page. An
+ * administrator has none: the console's Employee tasks holds everyone's. Applicants' ID proof is never shown here.
  */
 export default async function MyReferralsPage() {
   const auth = await readWorkspaceAuth();
@@ -58,7 +59,7 @@ export default async function MyReferralsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">My referrals</h1>
         <p className={`mt-1 text-[13px] ${wt.mid}`}>
-          Free China Trip · {rupees(perReferral)} for every applicant counted{dates ? ` · ${dates}` : ""}
+          Free China Trip · {rupees(perReferral)} for every applicant through your link{dates ? ` · ${dates}` : ""}
           {!running && <span className="font-semibold text-red-600"> · Closed: new applications through your link are not counted</span>}
         </p>
       </div>
@@ -82,10 +83,9 @@ export default async function MyReferralsPage() {
         <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={settings.target} aria-valuenow={done} aria-label="Counted towards the target">
           <div className="h-full rounded-full bg-[#176579]" style={{ width: `${(done / settings.target) * 100}%` }} />
         </div>
-        <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
             ["Applied through your link", String(totals.referred)],
-            ["Waiting for the team", String(totals.waiting)],
             ["Points", totals.points.toLocaleString("en-IN")],
             ["Earned", rupees(totals.paidRupees + totals.unpaidRupees)],
             ["Paid", rupees(totals.paidRupees)],

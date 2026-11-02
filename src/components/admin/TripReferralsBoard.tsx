@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, X } from "lucide-react";
 import { CargoDatePicker } from "@/components/cargo/CargoDatePicker";
+import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
 import type { ReferralBoardRow, ReferralPayoutView, ReferralSettings, ReferralTotals, ReferredApplication } from "@/lib/server/trip-referrals";
 import { istDate, istLastDay, referralLink, referralWaiting, rupees } from "@/lib/trip-referral-shared";
 
@@ -69,8 +70,8 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const all = useMemo(
     () =>
       rows.reduce(
-        (t, r) => ({ referred: t.referred + r.referred, waiting: t.waiting + r.waiting, counted: t.counted + r.counted, paid: t.paid + r.paidRupees, toPay: t.toPay + r.unpaidRupees }),
-        { referred: 0, waiting: 0, counted: 0, paid: 0, toPay: 0 },
+        (t, r) => ({ referred: t.referred + r.referred, counted: t.counted + r.counted, paid: t.paid + r.paidRupees, toPay: t.toPay + r.unpaidRupees }),
+        { referred: 0, counted: 0, paid: 0, toPay: 0 },
       ),
     [rows],
   );
@@ -92,8 +93,8 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
       const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
       const people = [
-        ["Employee", "Email", "Code", "Applied through the link", "Waiting", "Counted", "Not counted", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
-        ...rows.map((r) => [r.name, r.email, r.code ?? "", r.referred, r.waiting, r.counted, r.notCounted, settings.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No"]),
+        ["Employee", "Email", "Code", "Applied through the link", "Counted", "Not counted", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
+        ...rows.map((r) => [r.name, r.email, r.code ?? "", r.referred, r.counted, r.notCounted, settings.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No"]),
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(people), "Employees");
       const head = ["Trip ID", "Applied", "Name", "Mobile", "Country", "City", "Code", "Employee", "Office status", "Not verified", "Referral", "Points", "Paid", "Decided by"];
@@ -156,10 +157,9 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
 
         <SettingsCard settings={settings} busy={busy} onSave={(s) => run(() => send("/api/admin/trip-referrals/settings/", s))} />
 
-        <dl className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-5 sm:gap-3">
+        <dl className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
           {[
             ["Applied through a link", String(all.referred)],
-            ["Waiting for you", String(all.waiting)],
             ["Counted", String(all.counted)],
             ["Paid", rupees(all.paid)],
             ["To pay", rupees(all.toPay)],
@@ -183,7 +183,6 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                     <th className="px-5 py-2.5 font-medium">Employee</th>
                     <th className="px-3 py-2.5 font-medium">Code</th>
                     <th className="px-3 py-2.5 text-right font-medium">Applied</th>
-                    <th className="px-3 py-2.5 text-right font-medium">Waiting</th>
                     <th className="px-3 py-2.5 text-right font-medium">Counted</th>
                     <th className="px-3 py-2.5 font-medium">Towards {settings.target}</th>
                     <th className="px-3 py-2.5 text-right font-medium">Points</th>
@@ -207,7 +206,6 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                         </td>
                         <td className="px-3 py-3 font-mono text-[12.5px]">{r.code ?? ""}</td>
                         <td className="px-3 py-3 text-right tabular-nums">{r.referred}</td>
-                        <td className={`px-3 py-3 text-right tabular-nums ${r.waiting ? "font-semibold text-amber-700" : ""}`}>{r.waiting}</td>
                         <td className="px-3 py-3 text-right font-semibold tabular-nums">{r.counted}</td>
                         <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
@@ -375,7 +373,7 @@ function EmployeeDetail({
           </h2>
           <p className="break-all text-[12.5px] text-[#86868b]">{referralLink(detail.code)}</p>
           <p className="mt-1.5 text-[13px] text-[#48484a]">
-            <b className="text-[#1d1d1f]">{t.counted}</b> counted of {detail.settings.target} · {t.waiting} waiting · {t.points.toLocaleString("en-IN")} points · {rupees(t.paidRupees)} paid ·{" "}
+            <b className="text-[#1d1d1f]">{t.counted}</b> counted of {detail.settings.target} · {t.points.toLocaleString("en-IN")} points · {rupees(t.paidRupees)} paid ·{" "}
             {rupees(t.unpaidRupees)} to pay
           </p>
         </div>
@@ -400,7 +398,7 @@ function EmployeeDetail({
         <p className="px-5 py-10 text-center text-[13px] text-[#86868b]">Nobody has applied through this link yet.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-[13px]">
+          <table className="w-full min-w-[980px] text-left text-[13px]">
             <thead>
               <tr className="border-b border-black/[0.06] text-[12px] text-[#86868b]">
                 <th className="px-5 py-2.5 font-medium">Trip ID</th>
@@ -408,6 +406,7 @@ function EmployeeDetail({
                 <th className="px-3 py-2.5 font-medium">Mobile</th>
                 <th className="px-3 py-2.5 font-medium">From</th>
                 <th className="px-3 py-2.5 font-medium">Applied</th>
+                <th className="px-3 py-2.5 font-medium">ID proof</th>
                 <th className="px-3 py-2.5 font-medium">Application</th>
                 <th className="px-5 py-2.5 font-medium">Referral</th>
               </tr>
@@ -420,6 +419,7 @@ function EmployeeDetail({
                   <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">{a.phone}</td>
                   <td className="px-3 py-2.5">{[a.city, a.country].filter(Boolean).join(", ")}</td>
                   <td className="whitespace-nowrap px-3 py-2.5">{fmtDay(a.createdAt)}</td>
+                  <td className="px-3 py-2">{a.documents?.length ? <TripDocuments documents={a.documents} compact /> : <span className="text-[#86868b]">None</span>}</td>
                   <td className="whitespace-nowrap px-3 py-2.5">
                     {a.status === "spam" ? "Spam" : a.status === "handled" ? "Handled" : "New"}
                     {a.notVerified && <span className="ml-1.5 rounded-full px-2 py-0.5 text-[11px] text-[#6e6e73] ring-1 ring-black/10">Not verified</span>}
@@ -456,7 +456,11 @@ function EmployeeDetail({
   );
 }
 
-/** A referred application's decision: Count or Not counted while waiting; what was decided, and Undo, after; Paid stays. */
+/**
+ * A referred application's standing. It counts the moment it arrives (the owner, 2026-11-02: an application through
+ * the link counts for the employee as it counts for the trip), so the team's one action is to take it out, Not
+ * counted, and Count puts it back. Paid stays. Waiting is only an older application's, decided here.
+ */
 function ReferralActions({ a, busy, onDecide }: { a: ReferredApplication; busy: boolean; onDecide: (ids: string[], state: "waiting" | "counted" | "not_counted") => Promise<boolean> }) {
   if (a.paid) return <span className="font-medium text-emerald-700">Paid</span>;
   if (a.status === "spam") return <span className="text-[#86868b]">Not counted (spam)</span>;
@@ -473,11 +477,17 @@ function ReferralActions({ a, busy, onDecide }: { a: ReferredApplication; busy: 
       </div>
     );
   }
+  const counted = a.referralState === "counted";
   return (
     <div className="flex items-center gap-2" title={who}>
-      <span className={a.referralState === "counted" ? "font-medium text-emerald-700" : "text-[#6e6e73]"}>{a.referralState === "counted" ? `Counted · ${a.referralPoints ?? 0} points` : "Not counted"}</span>
-      <button type="button" disabled={busy} onClick={() => void onDecide([a.id], "waiting")} className="text-[12px] font-medium text-[#0058b0] hover:underline disabled:opacity-50">
-        Undo
+      <span className={counted ? "font-medium text-emerald-700" : "text-[#6e6e73]"}>{counted ? `Counted · ${a.referralPoints ?? 0} points` : "Not counted"}</span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void onDecide([a.id], counted ? "not_counted" : "counted")}
+        className="text-[12px] font-medium text-[#0058b0] hover:underline disabled:opacity-50"
+      >
+        {counted ? "Not counted" : "Count"}
       </button>
     </div>
   );
