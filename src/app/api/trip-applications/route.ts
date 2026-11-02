@@ -9,6 +9,7 @@ import { checkTurnstile } from "@/lib/turnstile";
 import { rememberTripApplicant } from "@/lib/trip-applicant";
 import { TRIP_FACTS } from "@/lib/trip-legal";
 import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
+import { referralForApplication } from "@/lib/server/trip-referrals";
 import { LIMITS, SOURCE_NOT_VERIFIED, applicationWindow, isBusinessStatus, isRetiredBusinessStatus, validateAll, type TripApplicationPayload } from "@/lib/trip-application";
 
 /**
@@ -41,7 +42,10 @@ import { LIMITS, SOURCE_NOT_VERIFIED, applicationWindow, isBusinessStatus, isRet
  *    anything else an older page sends is dropped, never stored, and a
  *    business answer no longer offered (still on a page opened before) is
  *    refused with the words to reload and apply again;
- *  - the three consents are required and recorded one by one.
+ *  - the three consents are required and recorded one by one;
+ *  - the code of the employee whose link brought the browser may come with it (`referralCode`, 2026-11-02): never
+ *    shown to the applicant, it credits an active employee and is otherwise ignored, never refused
+ *    (lib/server/trip-referrals.ts).
  *
  * Nothing here scores, ranks or orders an application. Each is stored as
  * "new" for the team; the five winners are drawn at random, later, from the
@@ -133,6 +137,13 @@ export async function POST(req: NextRequest) {
   const phoneKey = customerKeyOf({ phone: a.personal.phone });
   const userId = user?.id ?? null;
 
+  // The employee whose link brought this browser here (lib/server/trip-referrals.ts): never shown, never asked, so it
+  // can never stop an application. A link that credits nobody, or a lookup that fails, is simply no referral.
+  const referral = await referralForApplication(body.referralCode).catch((e) => {
+    console.error("trip application referral lookup failed:", e instanceof Error ? e.message : e);
+    return null;
+  });
+
   try {
     // One application per person: the signed-in account or the same mobile
     // number already has one the team has not deleted. (Not the email: none is
@@ -176,6 +187,8 @@ export async function POST(req: NextRequest) {
         consentAccuracy: a.consent.accuracy,
         consentTerms: a.consent.terms,
         ...(notVerified ? { source: SOURCE_NOT_VERIFIED } : {}),
+        // The link's code, its employee and its points, fixed now; nothing without one.
+        ...(referral ?? {}),
         customerKey,
         userId,
       },

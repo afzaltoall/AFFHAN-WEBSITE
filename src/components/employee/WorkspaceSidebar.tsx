@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutList, Ship, UserRound } from "lucide-react";
+import { Gift, LayoutList, Ship, UserRound } from "lucide-react";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { sideRow, wt } from "@/components/employee/workspace-ui";
 
@@ -38,6 +38,7 @@ export function WorkspaceSidebar({
   const onDashboard = pathname?.startsWith("/employee/dashboard") ?? false;
   const onProfile = pathname?.startsWith("/employee/profile") ?? false;
   const onCargo = pathname?.startsWith("/employee/cargo") ?? false;
+  const onReferrals = pathname?.startsWith("/employee/referrals") ?? false;
 
   const label = `overflow-hidden whitespace-nowrap text-left transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${
     open ? "ml-2.5 max-w-[190px] opacity-100" : "ml-0 max-w-0 opacity-0"
@@ -97,6 +98,18 @@ export function WorkspaceSidebar({
               <span className={`flex-1 ${label}`}>Cargo tracking</span>
             </Link>
           )}
+          {/* The Free China Trip referral task (2026-11-02): every employee's, whatever their job. */}
+          <Link
+            href="/employee/referrals/"
+            title="My referrals"
+            aria-current={onReferrals ? "page" : undefined}
+            className={`${sideRow} gap-0 px-1.5 ${onReferrals ? wt.navActive : wt.navIdle}`}
+          >
+            <span className={iconCol}>
+              <Gift size={17} className={onReferrals ? "text-brand" : wt.soft} />
+            </span>
+            <span className={`flex-1 ${label}`}>My referrals</span>
+          </Link>
           <Link
             href="/employee/profile/"
             title="Profile"

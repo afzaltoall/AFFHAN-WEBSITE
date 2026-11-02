@@ -99,6 +99,9 @@ interface Application {
   customerCode: string | null;
   /** The account that sent it; null when it was sent without signing in (allowed since 2026-10-28, and before sign-in was first required). */
   user: Account | null;
+  /** The employee's referral code it came with, and the team's decision on it (Employee tasks, 2026-11-02); null without one. */
+  referralCode?: string | null;
+  referralState?: string | null;
 }
 
 /**
@@ -644,7 +647,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       "Business journey", "Company / brand", "Role", "Business category / area", "Company website", "Years in business",
       "About the business", "Planning to build", "Area of interest", "Would like to explore",
       "Interested in", "Products of interest", "Hoping to explore", "Nationality", "Valid passport", "Been to China",
-      "Privacy Policy", "Accurate & complete", "Terms & Conditions",
+      "Privacy Policy", "Accurate & complete", "Terms & Conditions", "Referral code",
     ];
     const yes = (v: boolean) => (v ? "Yes" : "No");
     const data = items.map((r) => [
@@ -654,7 +657,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       businessStatusBrief(r.businessStatus), r.companyName ?? "", r.role ?? "", r.businessCategory ?? "", r.companyWebsite ?? "", r.yearsInBusiness ?? "",
       r.businessDescription ?? "", r.businessPlan ?? "", r.areaOfInterest ?? "", r.exploreGoal ?? "",
       r.interests.join(", "), r.productsOfInterest, r.exploreNotes ?? "", r.nationality, yes(r.hasPassport), r.travelledToChina ? "Yes" : "",
-      yes(r.consentPrivacy), yes(r.consentAccuracy), yes(r.consentTerms),
+      yes(r.consentPrivacy), yes(r.consentAccuracy), yes(r.consentTerms), r.referralCode ?? "",
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
     // Mobile numbers as text, or Excel shows 919876543210 as 9.19E+11.
@@ -1238,6 +1241,15 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
     ["Valid passport", a.hasPassport ? "Yes" : "No"],
   ];
   if (a.user) answers.push(["Account", [a.user.name, a.user.email, `signs in with ${signInOf(a.user.authProvider)}`].filter(Boolean).join(" · ")]);
+  // An employee's referral (Employee tasks, 2026-11-02): the code and where its decision stands.
+  if (a.referralCode) {
+    answers.push([
+      "Referral code",
+      <Link key="ref" href="/admin/trip-referrals/" className="text-[#0058b0] underline">
+        {a.referralCode} · {a.status === "spam" || a.status === "deleted" ? "not counted" : a.referralState === "counted" ? "counted" : a.referralState === "waiting" ? "waiting" : "not counted"}
+      </Link>,
+    ]);
+  }
   // Asked before 2026-10-29: only where an earlier application gave it.
   const earlier = (
     [

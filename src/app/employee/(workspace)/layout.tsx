@@ -96,6 +96,9 @@ export default async function EmployeeWorkspaceLayout({
                   Cargo tracking
                 </Link>
               )}
+              <Link href="/employee/referrals/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
+                My referrals
+              </Link>
               <Link href="/employee/profile/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
                 Profile
               </Link>

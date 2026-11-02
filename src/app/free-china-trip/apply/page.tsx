@@ -6,6 +6,7 @@ import { displayFont } from "@/components/CinematicExperience/fonts";
 import { ApplyExperience } from "@/components/TripApplication/ApplyExperience";
 import { NO_SCRIPT } from "@/components/TripApplication/content";
 import { TripPreviewNote } from "@/components/TripAccess/TripPreviewNote";
+import { TripRefCapture } from "@/components/TripApplication/TripRefCapture";
 
 /**
  * The application for the free China business trip: the chapter after the
@@ -50,6 +51,8 @@ export default function FreeChinaTripApplyPage() {
           </Link>
         </p>
       </noscript>
+      {/* An employee's link (?ref=CODE) keeps its code for the application; first, so the form finds it. */}
+      <TripRefCapture />
       <ApplyExperience />
       <TripPreviewNote />
     </main>

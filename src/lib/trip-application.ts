@@ -112,6 +112,11 @@ export interface TripApplicationPayload {
     accuracy: boolean;
     terms: boolean;
   };
+  /**
+   * The code of the employee whose link brought the browser (2026-11-02), "" when none. Never shown or asked; the
+   * server credits an active employee's and ignores any other (lib/server/trip-referrals.ts).
+   */
+  referralCode?: string;
 }
 
 /**

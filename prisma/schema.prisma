@@ -1037,6 +1037,10 @@ model Employee {
   assignedShipments ShipmentInquiry[]
   statusUpdates     StatusUpdate[]
   queueEntries      LeadQueueEntry[]
+  /// The Free China Trip referral task (2026-11-02): their code, the applications that gave it, their payments.
+  tripReferralCode    TripReferralCode?
+  tripReferrals       TripApplication[]    @relation("TripReferrals")
+  tripReferralPayouts TripReferralPayout[]
 
   @@index([isActive])
 }
@@ -1366,10 +1370,72 @@ model TripApplication {
   userId String?
   user   MobileUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
+  /// The employee referral task (the owner, 2026-11-02; lib/server/trip-referrals.ts): the code the applicant gave
+  /// (as stored codes are written), the employee it belongs to, the points it earns (fixed when sent: a later setting
+  /// never rewrites it), and the team's decision, "waiting" until "counted" or "not_counted". Paid once a payout
+  /// covers it. All null on an application sent without a code. Spam and deleted applications never count.
+  referralCode      String?
+  referrerId        String?
+  referrer          Employee?           @relation("TripReferrals", fields: [referrerId], references: [id], onDelete: SetNull)
+  referralPoints    Int?
+  referralState     String?
+  referralDecidedAt DateTime?
+  /// The admin who decided (their sign-in email).
+  referralDecidedBy String?
+  referralPayoutId  String?
+  referralPayout    TripReferralPayout? @relation(fields: [referralPayoutId], references: [id], onDelete: SetNull)
+
   @@index([status])
   @@index([createdAt])
   @@index([customerKey])
   @@index([userId])
+  @@index([referrerId])
+}
+
+/// The Free China Trip's employee referral task (the owner, 2026-11-02): one row, id "trip". An application sent with
+/// an employee's code earns them `pointsPerReferral` points once the team counts it, each point `rupeesPerPoint`
+/// rupees, towards a `target` of applications. Codes are taken while `enabled`, and inside [startsAt, endsAt) when
+/// those are set. The console's Free China Trip → Employee tasks sets it; until then the defaults stand.
+model TripReferralSettings {
+  id                String    @id
+  enabled           Boolean   @default(true)
+  pointsPerReferral Int       @default(100)
+  rupeesPerPoint    Int       @default(1)
+  target            Int       @default(100)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  /// The admin who last changed it (their sign-in email).
+  changedBy         String?
+  updatedAt         DateTime  @updatedAt
+}
+
+/// An employee's referral code for the Free China Trip: one each, made from their name (RAHIM7), upper-case letters
+/// and digits only, which is also how a typed code is read (lib/trip-referral-shared.ts).
+model TripReferralCode {
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  code       String   @unique
+  createdAt  DateTime @default(now())
+}
+
+/// A payment to an employee for referrals the team counted; the applications it covers point at it. Restrict: a
+/// payment record outlives anything else (employees are only ever deactivated, never deleted).
+model TripReferralPayout {
+  id           String            @id @default(uuid())
+  employeeId   String
+  employee     Employee          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  /// How many referrals, their points and the rupees paid, fixed when paid.
+  referrals    Int
+  points       Int
+  amount       Int
+  note         String?
+  /// The admin who marked it paid (their sign-in email).
+  paidBy       String
+  paidAt       DateTime          @default(now())
+  applications TripApplication[]
+
+  @@index([employeeId, paidAt(sort: Desc)])
 }
 
 /// One consignment on the cargo-tracking sheet (the owner, 2026-10-24): the office's own record, kept by an assigner

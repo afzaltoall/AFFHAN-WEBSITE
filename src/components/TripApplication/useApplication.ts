@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile, splitE164 } from "@/lib/phone";
 import { isBusinessStatus, type FieldErrors, type TripApplicationPayload } from "@/lib/trip-application";
+import { REFERRAL_CODE_MAX, REFERRAL_STORAGE_DAYS, REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/lib/trip-referral-shared";
 
 /**
  * The application's one state object: { personal, business, travel, consent },
@@ -28,6 +29,11 @@ export interface ApplicationState {
   travel: TripApplicationPayload["travel"];
   /** The popup's agreement, before the questions. */
   consent: { privacy: boolean; terms: boolean };
+  /**
+   * The code of the employee whose link brought this browser (TripRefCapture, 2026-11-02), "" when none. Never shown
+   * or asked: it only goes with the application, so the employee is credited.
+   */
+  referral: { code: string };
 }
 
 const EMPTY: ApplicationState = {
@@ -35,7 +41,19 @@ const EMPTY: ApplicationState = {
   business: { businessStatus: "" },
   travel: { hasPassport: null },
   consent: { privacy: false, terms: false },
+  referral: { code: "" },
 };
+
+/** The code an employee's link left in this browser, while it is fresh (REFERRAL_STORAGE_DAYS); "" when none. */
+function codeFromLink(): string {
+  try {
+    const saved = JSON.parse(localStorage.getItem(REFERRAL_STORAGE_KEY) ?? "null") as { code?: unknown; at?: unknown } | null;
+    if (!saved || typeof saved.at !== "number" || Date.now() - saved.at > REFERRAL_STORAGE_DAYS * 86_400_000) return "";
+    return normalizeReferralCode(saved.code).slice(0, REFERRAL_CODE_MAX);
+  } catch {
+    return "";
+  }
+}
 
 /** Session-only draft of the name, mobile, country, city and business answer. Never the passport, never consent. */
 const DRAFT_KEY = "affhan:trip-apply-draft";
@@ -54,6 +72,7 @@ export function toPayload(s: ApplicationState): TripApplicationPayload {
     travel: { hasPassport: s.travel.hasPassport },
     // The Terms require accurate, complete information (clause 2): agreeing to them is agreeing to that.
     consent: { privacy: s.consent.privacy, accuracy: s.consent.terms, terms: s.consent.terms },
+    referralCode: normalizeReferralCode(s.referral.code),
   };
 }
 
@@ -86,6 +105,9 @@ export function useApplication() {
     } catch {
       /* no draft, or storage blocked */
     }
+    // The employee's code their link brought, kept to go with the application; the applicant never sees it.
+    const linked = codeFromLink();
+    if (linked) setState((s) => ({ ...s, referral: { code: linked } }));
     restored.current = true;
   }, []);
 
@@ -132,9 +154,12 @@ export function useApplication() {
     [state.personal.phone, state.personal.phoneIso],
   );
 
+  // After an application is recorded: the draft, and the link's code too (it has credited its one applicant; the next
+  // person on this browser is only an employee's if they came through a link themselves).
   const clearDraft = useCallback(() => {
     try {
       sessionStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(REFERRAL_STORAGE_KEY);
     } catch {
       /* nothing to clear */
     }
