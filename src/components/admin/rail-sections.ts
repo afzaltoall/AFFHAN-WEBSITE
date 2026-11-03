@@ -184,10 +184,12 @@ export const fmtRailBadge = (n: number) =>
  * be worth writing down — the figures are read at a glance by people who will
  * not go and check what they mean:
  *
- *   inquiries  customers waiting in the open pool RIGHT NOW (state OPEN), for
- *              anybody on the team to take: the Queue row's figure, moved here
- *              when that page went (the owner, 2026-10-22). Customers, not
- *              quote requests, and NOT the untriaged count it used to be.
+ *   inquiries  quote requests the office has not handled yet — every status
+ *              that is not handled, spam or deleted, the console's "new" — the
+ *              same number the Inquiries page's own figures add up to (the
+ *              owner, 2026-11-03: the badge said 13 beside "17 Pending"). It
+ *              was the open pool's CUSTOMERS from 2026-10-22, which is a
+ *              different unit: one customer with four requests is one there.
  *   contacts   Contact Us messages nobody has triaged yet — every status that
  *              is not handled, spam or deleted, which is what the console's own
  *              asStatus() treats as "new".

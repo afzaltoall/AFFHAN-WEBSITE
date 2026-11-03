@@ -13,7 +13,7 @@ import { useAuth } from "@/context/AuthContext";
 import { TRIP_REGISTERED_HREF } from "@/lib/trip-legal";
 import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 import { PHONE_QUERY } from "@/lib/useIsPhone";
-import { normalizeReferralCode } from "@/lib/trip-referral-shared";
+import { REFERRAL_CODE_MIN, normalizeReferralCode } from "@/lib/trip-referral-shared";
 import { revertTextFx, textIn } from "@/components/CinematicExperience/textfx";
 import { agreeToTripTerms, hasAgreedToTripTerms } from "@/components/TripLegal/approval";
 import { ConsentGate } from "@/components/TripLegal/ConsentGate";
@@ -214,7 +214,7 @@ export function ApplyExperience() {
     // the Terms & Conditions first, unless agreed a moment ago, then the questions print themselves in (below).
     // An employee's link (?ref=) opens the same way on a computer too (the owner, 2026-11-02: the link asks the
     // Terms and Privacy Policy at once, then the application).
-    const viaLink = normalizeReferralCode(new URLSearchParams(window.location.search).get("ref")).length >= 3;
+    const viaLink = normalizeReferralCode(new URLSearchParams(window.location.search).get("ref")).length >= REFERRAL_CODE_MIN;
     if ((window.matchMedia(PHONE_QUERY).matches || viaLink) && applicationWindow() === "open") {
       gsap.set($("host"), { ...HOST.form, x: 0 });
       gsap.set($("dust"), { autoAlpha: 0.45 });

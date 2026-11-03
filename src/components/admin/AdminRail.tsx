@@ -56,11 +56,11 @@ const DARK = {
 
 /* Which rows carry a figure — the same six the dashboard badges, and read
    through rail-sections so the rails cannot drift apart again. Inquiries
-   carries the open pool's figure (rail-sections says why). */
+   carries the requests the office has not handled (rail-sections says why). */
 function railCountOf(counts: RailCounts | null): RailCountMap {
   return counts
     ? {
-        inquiries: counts.pool,
+        inquiries: counts.inquiries,
         contacts: counts.contacts,
         shipping: counts.shipping,
         trash: counts.trash,
@@ -175,7 +175,7 @@ export function AdminRail({
                   <Link
                     key={item.key}
                     href={item.href}
-                    title={item.key === "inquiries" && counts ? `Inquiries — ${fmtRailNum(counts.pool)} waiting in the open pool` : item.label}
+                    title={item.key === "inquiries" && counts ? `Inquiries — ${fmtRailNum(counts.inquiries)} not handled yet` : item.label}
                     aria-current={active ? "page" : undefined}
                     className={`${sideRow} ${active ? t.navActive : t.navIdle}`}
                   >

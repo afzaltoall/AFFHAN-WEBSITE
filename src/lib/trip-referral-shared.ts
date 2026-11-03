@@ -12,6 +12,8 @@ export function normalizeReferralCode(value: unknown): string {
   return typeof value === "string" ? value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, REFERRAL_CODE_MAX) : "";
 }
 export const REFERRAL_CODE_MAX = 20;
+/** The shortest code a link is read with, and the console will set (2026-11-03). */
+export const REFERRAL_CODE_MIN = 3;
 
 /**
  * Where an application's code stands. "counted" earns its points, and is where it starts (2026-11-02: it counts as it

@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Download, X } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, UserPlus, X } from "lucide-react";
 import { CargoDatePicker } from "@/components/cargo/CargoDatePicker";
 import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
 import type { ReferralBoardRow, ReferralPayoutView, ReferralSettings, ReferralTotals, ReferredApplication } from "@/lib/server/trip-referrals";
-import { istDate, istLastDay, referralLink, referralWaiting, rupees } from "@/lib/trip-referral-shared";
+import { REFERRAL_CODE_MAX, REFERRAL_CODE_MIN, istDate, istLastDay, normalizeReferralCode, referralLink, referralWaiting, rupees } from "@/lib/trip-referral-shared";
 
 /**
  * Free China Trip → Employee tasks (the owner, 2026-11-02: "how will admin see the employee's referrals, how many they
@@ -44,12 +44,56 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const [error, setError] = useState<string | null>(null);
   const [paying, setPaying] = useState<ReferralBoardRow | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [editingCode, setEditingCode] = useState<CodeTarget | null>(null);
+  const [adding, setAdding] = useState(false);
 
-  const send = async (url: string, body: unknown) => {
+  const send = async <T extends object = { error?: string }>(url: string, body: unknown): Promise<T> => {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
-    const json = (await res.json().catch(() => ({}))) as { error?: string };
+    const json = (await res.json().catch(() => ({}))) as T & { error?: string };
     if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : json.error || "That did not save. Try again.");
     return json;
+  };
+
+  /** An employee's code made or changed (2026-11-03); the reason it was not, said in the window. */
+  const saveCode = async (employeeId: string, code: string): Promise<string | null> => {
+    setBusy(true);
+    try {
+      await send("/api/admin/trip-referrals/code/", { employeeId, code });
+      setEditingCode(null);
+      router.refresh();
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "The code was not saved. Try again.";
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  /**
+   * A staff account added from here (2026-11-03: "give a option to add the employee"), through the Staff section's own
+   * route, then their code: the one typed, or one made from their name. The password comes back once, to hand over.
+   */
+  const addEmployee = async (v: NewEmployee): Promise<AddResult> => {
+    setBusy(true);
+    try {
+      let made: { employee: { id: string; name: string; email: string }; password: string; generated: boolean };
+      try {
+        made = await send("/api/admin/employees/", { name: v.name, email: v.email, job: v.job, password: v.password || undefined });
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : "The employee was not added." };
+      }
+      let code: string | null = null;
+      let codeError: string | null = null;
+      try {
+        code = (await send<{ code: string }>("/api/admin/trip-referrals/code/", { employeeId: made.employee.id, code: v.code })).code;
+      } catch (e) {
+        codeError = e instanceof Error ? e.message : "The code was not set.";
+      }
+      router.refresh();
+      return { ok: true, name: made.employee.name, email: made.employee.email, password: made.password, generated: made.generated, code, codeError };
+    } finally {
+      setBusy(false);
+    }
   };
   /** One write, then the page read again; the reason shown when it fails. Resolves true when it saved. */
   const run = async (work: () => Promise<unknown>) => {
@@ -172,9 +216,14 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
         </dl>
 
         <section className={`overflow-hidden ${card}`}>
-          <h2 className="border-b border-black/[0.06] px-5 py-3 text-[15px] font-semibold">Employees</h2>
+          <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] px-5 py-2.5">
+            <h2 className="text-[15px] font-semibold">Employees</h2>
+            <button type="button" onClick={() => setAdding(true)} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>
+              <UserPlus size={14} /> Add employee
+            </button>
+          </div>
           {rows.length === 0 ? (
-            <p className="px-5 py-10 text-center text-[13px] text-[#86868b]">No employees yet. Add them under Staff, and each gets a code here.</p>
+            <p className="px-5 py-10 text-center text-[13px] text-[#86868b]">No employees yet. Add one, and they get a code here.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[980px] text-left text-[13px]">
@@ -204,7 +253,17 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                           {!r.isActive && <span className="ml-1.5 rounded-full bg-black/[0.06] px-2 py-0.5 text-[11px] text-[#6e6e73]">Left</span>}
                           <div className="text-[12px] text-[#86868b]">{r.email}</div>
                         </td>
-                        <td className="px-3 py-3 font-mono text-[12.5px]">{r.code ?? ""}</td>
+                        <td className="px-3 py-3">
+                          <span className="font-mono text-[12.5px]">{r.code ?? ""}</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingCode({ employeeId: r.employeeId, name: r.name, code: r.code })}
+                            aria-label={`Change ${r.name}'s code`}
+                            className="ml-2 text-[12px] font-medium text-[#0058b0] hover:underline"
+                          >
+                            {r.code ? "Change" : "Make"}
+                          </button>
+                        </td>
                         <td className="px-3 py-3 text-right tabular-nums">{r.referred}</td>
                         <td className="px-3 py-3 text-right font-semibold tabular-nums">{r.counted}</td>
                         <td className="px-3 py-3">
@@ -241,9 +300,13 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
             busy={busy}
             onDecide={(ids, state) => run(() => send("/api/admin/trip-referrals/decide/", { ids, state }))}
             onPay={() => setPaying(rows.find((r) => r.employeeId === detail.employeeId) ?? null)}
+            onChangeCode={() => setEditingCode({ employeeId: detail.employeeId, name: detail.name, code: detail.code })}
           />
         )}
       </div>
+
+      {editingCode && <CodeWindow who={editingCode} busy={busy} onCancel={() => setEditingCode(null)} onSave={saveCode} />}
+      {adding && <AddEmployeeWindow busy={busy} onClose={() => setAdding(false)} onAdd={addEmployee} />}
 
       {paying && (
         <PayWindow
@@ -355,11 +418,13 @@ function EmployeeDetail({
   busy,
   onDecide,
   onPay,
+  onChangeCode,
 }: {
   detail: ReferralDetail;
   busy: boolean;
   onDecide: (ids: string[], state: "waiting" | "counted" | "not_counted") => Promise<boolean>;
   onPay: () => void;
+  onChangeCode: () => void;
 }) {
   const waitingIds = detail.applications.filter(referralWaiting).map((a) => a.id);
   const t = detail.totals;
@@ -378,6 +443,9 @@ function EmployeeDetail({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={busy} onClick={onChangeCode} className={`${pillButton} bg-white hover:bg-black/[0.03]`}>
+            Change code
+          </button>
           {waitingIds.length > 0 && (
             <button type="button" disabled={busy} onClick={() => void onDecide(waitingIds, "counted")} className={`${pillButton} bg-emerald-600 text-white hover:bg-emerald-700`}>
               Count all waiting ({waitingIds.length})
@@ -535,6 +603,263 @@ function PayWindow({ row, busy, onCancel, onConfirm }: { row: ReferralBoardRow; 
             {busy ? "Recording…" : "Mark paid"}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- making a code, adding an employee (2026-11-03) ------------------------------------------------------------------
+
+type CodeTarget = { employeeId: string; name: string; code: string | null };
+type NewEmployee = { name: string; email: string; job: "SALES" | "ASSIGNER"; password: string; code: string };
+type AddResult =
+  | { ok: false; error: string }
+  | { ok: true; name: string; email: string; password: string; generated: boolean; code: string | null; codeError: string | null };
+
+const field = "mt-1 h-10 w-full rounded-lg border border-black/15 px-3 text-[14px] outline-none focus:border-[#0071e3] focus:ring-2 focus:ring-[#0071e3]/20";
+
+/** Escape closes a window, unless it is saving. */
+function useEscape(onClose: () => void, busy: boolean) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      if (!busy) onClose();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose, busy]);
+}
+
+/** Copy a line, and say so for a moment. */
+function CopyText({ text, label }: { text: string; label: string }) {
+  const [done, setDone] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setDone(true);
+      window.setTimeout(() => setDone(false), 1600);
+    } catch {
+      window.prompt("Copy this:", text);
+    }
+  };
+  return (
+    <button type="button" onClick={() => void copy()} className={`${pillButton} shrink-0 bg-white hover:bg-black/[0.03]`}>
+      {done ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />} {done ? "Copied" : label}
+    </button>
+  );
+}
+
+/**
+ * Make or change an employee's code, in the console's own window: the code as it will be written (capitals, letters
+ * and digits) and the link it makes, as it is typed. Changing one says what happens to links already shared.
+ */
+function CodeWindow({ who, busy, onCancel, onSave }: { who: CodeTarget; busy: boolean; onCancel: () => void; onSave: (employeeId: string, code: string) => Promise<string | null> }) {
+  const [value, setValue] = useState(who.code ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    input.current?.select();
+  }, []);
+  useEscape(onCancel, busy);
+  const code = normalizeReferralCode(value);
+  const valid = code.length >= REFERRAL_CODE_MIN;
+  const changed = code !== (who.code ?? "");
+  const save = async () => {
+    if (!valid || !changed || busy) return;
+    setError(await onSave(who.employeeId, code));
+  };
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onCancel()}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="code-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/[0.06]"
+      >
+        <h2 id="code-title" className="text-[17px] font-semibold">
+          {who.code ? "Change" : "Make"} {who.name}&apos;s code
+        </h2>
+        <label className="mt-4 block text-[13px] font-medium">
+          Referral code
+          <input
+            ref={input}
+            name="code"
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value);
+              setError(null);
+            }}
+            maxLength={40}
+            autoComplete="off"
+            spellCheck={false}
+            className={`${field} font-mono uppercase`}
+          />
+        </label>
+        <p className="mt-2 text-[12.5px] text-[#6e6e73]">
+          {REFERRAL_CODE_MIN} to {REFERRAL_CODE_MAX} letters and numbers. Their link:{" "}
+          <span className="break-all font-mono text-[#1d1d1f]">{referralLink(code || "…")}</span>
+        </p>
+        {who.code && changed && valid && (
+          <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-[12.5px] text-amber-900">
+            Links already shared with {who.code} stop counting for {who.name}. Everyone who applied through them stays theirs.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-[12.5px] font-medium text-red-700">
+            {error}
+          </p>
+        )}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" disabled={busy} onClick={onCancel} className={`${pillButton} h-9 bg-white px-4 hover:bg-black/[0.03]`}>
+            Cancel
+          </button>
+          <button type="submit" disabled={busy || !valid || !changed} className={`${pillButton} h-9 bg-[#1d1d1f] px-4 text-white hover:bg-black`}>
+            {busy ? "Saving…" : "Save code"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * Add an employee without leaving Employee tasks: a staff account (name, email, Sales or Assigner, a password typed or
+ * made), with its referral code at once, typed or made from the name. Then what to hand over: where they sign in, the
+ * password (shown only now) and their link.
+ */
+function AddEmployeeWindow({ busy, onClose, onAdd }: { busy: boolean; onClose: () => void; onAdd: (v: NewEmployee) => Promise<AddResult> }) {
+  const [v, setV] = useState<NewEmployee>({ name: "", email: "", job: "SALES", password: "", code: "" });
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState<Extract<AddResult, { ok: true }> | null>(null);
+  const first = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    first.current?.focus();
+  }, []);
+  useEscape(onClose, busy);
+  const set = (patch: Partial<NewEmployee>) => {
+    setV((s) => ({ ...s, ...patch }));
+    setError(null);
+  };
+  const code = normalizeReferralCode(v.code);
+  const submit = async () => {
+    if (busy) return;
+    if (!v.name.trim()) return setError("Enter their name.");
+    if (!/^\S+@\S+\.\S+$/.test(v.email.trim())) return setError("Enter their email address: they sign in with it.");
+    if (v.code.trim() && code.length < REFERRAL_CODE_MIN) return setError(`A code is ${REFERRAL_CODE_MIN} to ${REFERRAL_CODE_MAX} letters and numbers, or leave it empty.`);
+    const r = await onAdd({ ...v, name: v.name.trim(), email: v.email.trim(), code });
+    if (r.ok) setDone(r);
+    else setError(r.error);
+  };
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onClose()}>
+      <div role="dialog" aria-modal="true" aria-labelledby="add-title" onClick={(e) => e.stopPropagation()} className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/[0.06]">
+        {done ? (
+          <div data-added>
+            <h2 id="add-title" className="text-[17px] font-semibold">
+              {done.name} is added
+            </h2>
+            <p className="mt-1 text-[13px] text-[#48484a]">
+              They sign in at <b>affhan.com/employee/login</b> with {done.email}.
+            </p>
+            <div className="mt-4 rounded-xl bg-[#f5f5f7] p-3.5">
+              <p className="text-[12px] text-[#86868b]">Password{done.generated ? " (made for them)" : ""}: shown only now</p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <span data-password className="break-all font-mono text-[15px] font-semibold">
+                  {done.password}
+                </span>
+                <CopyText text={done.password} label="Copy" />
+              </div>
+            </div>
+            <div className="mt-3 rounded-xl bg-[#f5f5f7] p-3.5">
+              <p className="text-[12px] text-[#86868b]">Their referral link</p>
+              {done.code ? (
+                <div className="mt-1 flex items-center justify-between gap-2">
+                  <span data-link className="break-all font-mono text-[13px] font-semibold">
+                    {referralLink(done.code)}
+                  </span>
+                  <CopyText text={referralLink(done.code)} label="Copy" />
+                </div>
+              ) : (
+                <p role="alert" className="mt-1 text-[12.5px] font-medium text-red-700">
+                  {done.codeError} Their code is made from their name when the list shows them; change it there.
+                </p>
+              )}
+            </div>
+            <div className="mt-5 flex justify-end">
+              <button type="button" onClick={onClose} className={`${pillButton} h-9 bg-[#1d1d1f] px-5 text-white hover:bg-black`}>
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void submit();
+            }}
+          >
+            <h2 id="add-title" className="text-[17px] font-semibold">
+              Add an employee
+            </h2>
+            <p className="mt-1 text-[13px] text-[#48484a]">A staff account, with their referral link from the start.</p>
+            <label className="mt-4 block text-[13px] font-medium">
+              Name
+              <input ref={first} name="name" value={v.name} onChange={(e) => set({ name: e.target.value })} maxLength={100} autoComplete="off" className={field} />
+            </label>
+            <label className="mt-3 block text-[13px] font-medium">
+              Email <span className="font-normal text-[#86868b]">(they sign in with it)</span>
+              <input name="email" type="email" value={v.email} onChange={(e) => set({ email: e.target.value })} maxLength={200} autoComplete="off" className={field} />
+            </label>
+            <fieldset className="mt-3">
+              <legend className="text-[13px] font-medium">Account</legend>
+              <div className="mt-1 grid grid-cols-2 gap-2">
+                {(
+                  [
+                    ["SALES", "Sales", "Takes customers from the open pool"],
+                    ["ASSIGNER", "Assigner", "Keeps the cargo sheet"],
+                  ] as const
+                ).map(([job, label, hint]) => (
+                  <label
+                    key={job}
+                    className={`cursor-pointer rounded-xl px-3 py-2.5 ring-1 transition-colors ${v.job === job ? "bg-[#1d1d1f] text-white ring-[#1d1d1f]" : "bg-white ring-black/15 hover:bg-black/[0.02]"}`}
+                  >
+                    <input type="radio" name="job" value={job} checked={v.job === job} onChange={() => set({ job })} className="sr-only" />
+                    <span className="block text-[13.5px] font-semibold">{label}</span>
+                    <span className={`block text-[11.5px] ${v.job === job ? "text-white/70" : "text-[#86868b]"}`}>{hint}</span>
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <label className="mt-3 block text-[13px] font-medium">
+              Referral code <span className="font-normal text-[#86868b]">(optional: made from the name)</span>
+              <input name="code" value={v.code} onChange={(e) => set({ code: e.target.value })} maxLength={40} autoComplete="off" spellCheck={false} className={`${field} font-mono uppercase`} />
+            </label>
+            {code && <p className="mt-1.5 break-all text-[12px] text-[#6e6e73]">Their link: {referralLink(code)}</p>}
+            <label className="mt-3 block text-[13px] font-medium">
+              Password <span className="font-normal text-[#86868b]">(optional: one is made)</span>
+              <input name="password" value={v.password} onChange={(e) => set({ password: e.target.value })} maxLength={128} autoComplete="new-password" className={field} />
+            </label>
+            {error && (
+              <p role="alert" className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-[12.5px] font-medium text-red-700">
+                {error}
+              </p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" disabled={busy} onClick={onClose} className={`${pillButton} h-9 bg-white px-4 hover:bg-black/[0.03]`}>
+                Cancel
+              </button>
+              <button type="submit" disabled={busy} className={`${pillButton} h-9 bg-[#1d1d1f] px-4 text-white hover:bg-black`}>
+                {busy ? "Adding…" : "Add employee"}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

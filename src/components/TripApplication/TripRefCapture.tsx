@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { REFERRAL_EVENT, REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/lib/trip-referral-shared";
+import { REFERRAL_CODE_MIN, REFERRAL_EVENT, REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/lib/trip-referral-shared";
 
 /**
  * An employee's link (affhan.com/free-china-trip/apply/?ref=RAHIM7, the owner's referral task, 2026-11-02) keeps its code in
@@ -18,7 +18,7 @@ import { REFERRAL_EVENT, REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/l
 export function TripRefCapture() {
   useEffect(() => {
     const code = normalizeReferralCode(new URLSearchParams(window.location.search).get("ref"));
-    if (code.length < 3) return;
+    if (code.length < REFERRAL_CODE_MIN) return;
     void (async () => {
       let live = true;
       try {

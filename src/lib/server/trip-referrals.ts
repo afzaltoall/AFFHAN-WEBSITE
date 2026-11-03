@@ -3,6 +3,8 @@ import { randomInt } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
+  REFERRAL_CODE_MAX,
+  REFERRAL_CODE_MIN,
   REFERRAL_DEFAULTS,
   normalizeReferralCode,
   referralCounts,
@@ -99,6 +101,32 @@ export async function ensureReferralCode(employee: { id: string; name: string })
     }
   }
   throw new Error("No free referral code could be made.");
+}
+
+/**
+ * Make or change an employee's code from the console (the owner, 2026-11-03: "give the access to admin to create the
+ * code for employee or change the referral code"). Written as codes are read, letters and digits in capitals, 3 to 20
+ * of them; never two alike. Empty: one made from their name, as everyone gets. Applications already recorded keep the
+ * code they came with and stay theirs (referrerId); links shared with the old code credit nobody from now on.
+ */
+export async function setReferralCode(
+  employeeId: string,
+  raw: unknown,
+): Promise<{ ok: true; code: string } | { ok: false; status: 400 | 404 | 409; error: string }> {
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: { id: true, name: true } });
+  if (!employee) return { ok: false, status: 404, error: "That employee was not found." };
+  if (typeof raw !== "string" || !raw.trim()) return { ok: true, code: await ensureReferralCode(employee) };
+  const code = normalizeReferralCode(raw);
+  if (code.length < REFERRAL_CODE_MIN) return { ok: false, status: 400, error: `A code is ${REFERRAL_CODE_MIN} to ${REFERRAL_CODE_MAX} letters and numbers.` };
+  const taken = await prisma.tripReferralCode.findUnique({ where: { code }, select: { employeeId: true, employee: { select: { name: true } } } });
+  if (taken && taken.employeeId !== employeeId) return { ok: false, status: 409, error: `${code} is already ${taken.employee.name}'s code.` };
+  try {
+    await prisma.tripReferralCode.upsert({ where: { employeeId }, create: { employeeId, code }, update: { code } });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") return { ok: false, status: 409, error: `${code} was taken a moment ago. Try another.` };
+    throw e;
+  }
+  return { ok: true, code };
 }
 
 /** A code for every active employee who has none, so the console lists everyone's. */

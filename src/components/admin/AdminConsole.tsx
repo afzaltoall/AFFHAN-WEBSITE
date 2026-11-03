@@ -1005,6 +1005,8 @@ export function AdminConsole({ data }: Props) {
   const toggleContactSelectAll = () =>
     setContactSelected(contactAllSelected ? new Set() : new Set(contactVisibleIds));
   const newContactCount = contactStatusCounts.new;
+  // Every loaded inquiry the office has not handled, whatever the filters (the rail's figure, not the list's).
+  const newInquiryCount = useMemo(() => items.filter((i) => asStatus(i.status) === "new").length, [items]);
 
 
   // Deduplicated customers (by phone) from the currently-filtered inquiries —
@@ -1197,9 +1199,9 @@ export function AdminConsole({ data }: Props) {
   /* The figure beside a row, where it has one. Keyed off rail-sections so the
      other rail can never be given a different set. */
   const railCount: Partial<Record<RailItem["key"], number>> = {
-    // Customers waiting in the open pool, from the server: the Queue row's
-    // figure, moved here when that page went (the owner, 2026-10-22).
-    inquiries: data.stats.pool,
+    // The requests the office has not handled, counted from the rows as they
+    // change here, as the contacts' are (rail-sections; 2026-11-03).
+    inquiries: newInquiryCount,
     contacts: newContactCount,
     // The whole table's untriaged count, from the server: unlike contacts,
     // these rows are not loaded on this page.
@@ -1231,7 +1233,7 @@ export function AdminConsole({ data }: Props) {
         {item.key === "trip-lock" && <TripLockRailPill open={sideOpen} dark={dark} />}
       </>
     );
-    const title = item.key === "inquiries" ? `Inquiries — ${fmtNum(data.stats.pool)} waiting in the open pool` : item.label;
+    const title = item.key === "inquiries" ? `Inquiries — ${fmtNum(newInquiryCount)} not handled yet` : item.label;
 
     // The rail's tooltip. Collapsed, the icon is all there is.
     return item.view ? (

@@ -38,8 +38,9 @@ export interface RailCounts {
   suppliers: number;
   videos: number;
   /**
-   * Customers waiting in the open pool right now: the figure on the Inquiries row since the Queue page went (the
-   * owner, 2026-10-22). The untriaged counts above still make the phone's Menu badge.
+   * Customers waiting in the open pool right now. It was the Inquiries row's figure from 2026-10-22 to 2026-11-03,
+   * when that row went back to the untriaged requests above (the owner: 13 customers beside "17 Pending" read as
+   * a wrong count); kept for whatever shows the pool itself. The untriaged counts make the phone's Menu badge.
    */
   pool: number;
   /**
