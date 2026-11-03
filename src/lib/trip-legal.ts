@@ -428,9 +428,10 @@ export const TRIP_PRIVACY: LegalDoc = {
       title: "Passport & Visa Information",
       blocks: [
         p("Passport, visa, identity, and other travel-document information will only be requested when reasonably necessary."),
-        // Added 2026-11-02: applicants who come through a link from the AFFHAN team add ID proof with the application.
+        // Added 2026-11-02: applicants who come through a link from the AFFHAN team add ID proof with the application; one of
+        // five IDs since 2026-11-03.
         p(
-          "If you apply through a link shared with you by a member of the AFFHAN team, we ask for a photo or scan of an identity document with your application, such as Aadhaar (a masked Aadhaar is accepted) or a passport, to confirm who you are. It is stored privately, seen only by the AFFHAN team that handles applications, and used only to verify your application.",
+          "If you apply through a link shared with you by a member of the AFFHAN team, we ask for a photo or scan of one identity document with your application, your Aadhaar (a masked Aadhaar is accepted), PAN card, Voter ID, driving licence or passport, to confirm who you are. It is stored privately, seen only by the AFFHAN team that handles applications, and used only to verify your application.",
         ),
         p("This information may be required for:"),
         list(

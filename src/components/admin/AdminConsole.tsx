@@ -15,7 +15,8 @@ import { TripLockPanel } from "@/components/admin/TripLockPanel";
 import { TripLockRailDot, TripLockRailPill } from "@/components/admin/TripLockRailStatus";
 import { CustomerCodeBadge } from "@/components/ui/CustomerCodeBadge";
 import type { EmployeeOption, Theme } from "@/components/admin/console-theme";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useAdminNav } from "@/components/admin/admin-nav";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -23,7 +24,7 @@ import {
   Inbox, Users, LogOut, RefreshCw, Download, Search, Phone, Mail,
   MapPin, MessageCircle, PhoneCall, Package, Layers, ChevronRight, Sun, Moon, X,
   Trash2, ZoomIn, Loader2, RotateCcw, AlertTriangle, Check, CheckSquare, Square, KeyRound,
-  MessageSquare, Calendar, FileSpreadsheet, FileText, ChevronDown, Menu, PlayCircle, SlidersHorizontal,
+  MessageSquare, Calendar, FileSpreadsheet, FileText, ChevronDown, Menu, SlidersHorizontal,
   Ship, Plane, Boxes, Smartphone, ExternalLink,
   type LucideIcon,
 } from "lucide-react";
@@ -74,11 +75,9 @@ const matchesSource = (i: { source: string }, s: Source) => s === "all" || (s ==
 
 /** Where an inquiry came from, in the Users section's own tags (CustomerList). */
 function SourceTag({ source, dark }: { source: "Web" | "App"; dark: boolean }) {
-  const tone =
-    source === "Web"
-      ? dark ? "bg-sky-500/15 text-sky-300" : "bg-sky-500/10 text-sky-700"
-      : dark ? "bg-violet-500/20 text-violet-300" : "bg-violet-500/10 text-violet-700";
-  return <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-none ${tone}`}>{source}</span>;
+  // The word tells them apart; a colour each (sky, violet) was one more tint on a row of them (2026-11-03).
+  const tone = dark ? "bg-white/[0.08] text-[#d1d1d6]" : "bg-black/[0.05] text-[#48484a]";
+  return <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-semibold leading-none ${tone}`}>{source}</span>;
 }
 
 /**
@@ -346,11 +345,33 @@ type ConfirmState = {
   onConfirm: () => void;
 } | null;
 
+/**
+ * The view an address opens: the one a deep link's row is in (a deleted inquiry's is Recently Deleted), else ?view=,
+ * else All. Read for the first paint: the arrival effect below used to set it after the page had drawn, so every move
+ * to Inquiries from another page showed All first and then switched.
+ */
+function arrivalView(params: { get(name: string): string | null } | null, data: Props["data"]): View {
+  const inquiryId = params?.get("inquiry");
+  const contactId = params?.get("contact");
+  if (inquiryId) {
+    const row = [...data.inquiries, ...data.deletedInquiries].find((i) => i.id === inquiryId);
+    if (row) return row.status === "deleted" ? "trash" : "inquiries";
+  } else if (contactId) {
+    if ([...data.contacts, ...data.deletedContacts].some((c) => c.id === contactId)) return "contacts";
+  } else if (params?.get("shipment")) {
+    return "shipping";
+  }
+  const view = params?.get("view");
+  return view === "inquiries" || view === "contacts" || view === "shipping" || view === "trash" ? view : "all";
+}
+
 export function AdminConsole({ data }: Props) {
   const router = useRouter();
+  const nav = useAdminNav();
+  const searchParams = useSearchParams();
   // "All" is the landing screen now: recent activity first, then the export
   // tools. It absorbed the old "Overview" tab, which held nothing else.
-  const [view, setView] = useState<View>("all");
+  const [view, setView] = useState<View>(() => arrivalView(searchParams, data));
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Status>("all");
   /**
@@ -408,7 +429,9 @@ export function AdminConsole({ data }: Props) {
   /** The handling filter a link asked the Shipping view to open with (?view=shipping&handling=…); it keeps its own. */
   const [shipmentHandling, setShipmentHandling] = useState<HandlingFilter>("all");
   /** Shipping's two halves: the freight quote requests from /shipping/, and the cargo-tracking sheet the assigners keep. */
-  const [shippingTab, setShippingTab] = useState<"requests" | "cargo">("requests");
+  const [shippingTab, setShippingTab] = useState<"requests" | "cargo">(() =>
+    searchParams?.get("view") === "shipping" && searchParams.get("tab") === "cargo" ? "cargo" : "requests",
+  );
   const clearShipmentLink = useCallback(() => setShipmentLink(null), []);
   useEffect(() => setItems(data.inquiries), [data.inquiries]);
   useEffect(() => setDeletedItems(data.deletedInquiries), [data.deletedInquiries]);
@@ -520,6 +543,23 @@ export function AdminConsole({ data }: Props) {
     // Once, on arrival: this is a deep link, not a subscription.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A move to one of these views while this page stays mounted: the frame's rail, pressed while a move away was on
+  // its way (admin-nav.tsx), changes only the query, so the page is drawn again with it rather than opened afresh.
+  // Its ?view= is followed then and taken off the address again, as on arrival, so the next such press is a move too.
+  const viewAsked = searchParams?.get("view") ?? null;
+  const arrived = useRef(false);
+  useEffect(() => {
+    if (!arrived.current) {
+      arrived.current = true;
+      return;
+    }
+    if (viewAsked !== "all" && viewAsked !== "inquiries" && viewAsked !== "contacts" && viewAsked !== "shipping" && viewAsked !== "trash") return;
+    setView(viewAsked);
+    if (viewAsked === "shipping") setShippingTab(searchParams?.get("tab") === "cargo" ? "cargo" : "requests");
+    window.history.replaceState(null, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewAsked]);
 
   // Bulk contact action — same optimistic-with-rollback shape as bulkAction.
   const contactBulkAction = async (
@@ -1163,23 +1203,24 @@ export function AdminConsole({ data }: Props) {
   // public site. Categories shows the browsable count, with the empty CJ tree
   // nodes noted rather than silently folded into the headline number.
   const emptyCategories = data.stats.categoriesTotal - data.stats.categories;
-  const statCards: { label: string; value: number; hint?: string; icon: LucideIcon; tint: string; bg: string }[] = [
-    { label: "Products", value: data.stats.products, icon: Package, tint: "text-sky-500", bg: dark ? "bg-sky-500/15" : "bg-sky-50" },
+  // The figures strip (2026-11-03, the owner: "feels like ai"): a word, its number and what it means, no pastel icon
+  // squares. `go` where a figure opens its list; Products and Categories open nothing, so they are not buttons.
+  const statCards: { label: string; value: number; hint?: string; go?: () => void }[] = [
+    { label: "Products", value: data.stats.products },
     {
       label: "Categories",
       value: data.stats.categories,
       hint: emptyCategories > 0 ? `${fmtNum(data.stats.categoriesTotal)} in tree · ${fmtNum(emptyCategories)} empty` : undefined,
-      icon: Layers, tint: "text-violet-500", bg: dark ? "bg-violet-500/15" : "bg-violet-50",
     },
     {
       label: "Inquiries",
       value: data.stats.inquiries,
       hint: `${fmtNum(data.stats.inquiries - data.stats.appInquiries)} website · ${fmtNum(data.stats.appInquiries)} app`,
-      icon: Inbox, tint: "text-amber-500", bg: dark ? "bg-amber-500/15" : "bg-amber-50",
+      go: () => setView("inquiries"),
     },
-    { label: "Messages", value: data.stats.contacts, icon: MessageSquare, tint: "text-emerald-500", bg: dark ? "bg-emerald-500/15" : "bg-emerald-50" },
-    { label: "Old Suppliers", value: data.stats.suppliers, hint: "From the WeChat book", icon: Users, tint: "text-teal-500", bg: dark ? "bg-teal-500/15" : "bg-teal-50" },
-    { label: "Videos", value: data.stats.videos, icon: PlayCircle, tint: "text-fuchsia-500", bg: dark ? "bg-fuchsia-500/15" : "bg-fuchsia-50" },
+    { label: "Messages", value: data.stats.contacts, go: () => setView("contacts") },
+    { label: "Old Suppliers", value: data.stats.suppliers, hint: "From the WeChat book", go: () => nav.go("/admin/suppliers/") },
+    { label: "Videos", value: data.stats.videos, go: () => nav.go("/admin/videos/") },
   ];
 
   /* Sidebar geometry, in one place because every row has to agree on it.
@@ -1254,7 +1295,7 @@ export function AdminConsole({ data }: Props) {
         {body}
       </button>
     ) : (
-      <Link key={item.key} href={item.href} aria-label={title} className={`${sideRow} ${t.navIdle}`}>
+      <Link key={item.key} href={item.href} onNavigate={() => nav.start(item.href)} aria-label={title} className={`${sideRow} ${t.navIdle}`}>
         {body}
       </Link>
     );
@@ -1357,7 +1398,14 @@ export function AdminConsole({ data }: Props) {
               <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
                 {view === "all" ? "All" : view === "inquiries" ? "Inquiries" : view === "contacts" ? "Contact Us" : view === "shipping" ? "Shipping" : "Recently Deleted"}
               </h1>
-              <p className={`mt-0.5 text-[13px] ${t.soft}`}>Welcome back, {data.adminName.split(" ")[0]}.</p>
+              {/* What the list holds, in figures; a greeting said nothing (the owner, 2026-11-03: "feels like ai"). */}
+              {(view === "inquiries" || view === "contacts") && (
+                <p className={`mt-0.5 text-[13px] tabular-nums ${t.mid}`}>
+                  {view === "inquiries"
+                    ? `${fmtNum(items.length)} ${items.length === 1 ? "request" : "requests"} · ${fmtNum(newInquiryCount)} not handled`
+                    : `${fmtNum(contactItems.length)} ${contactItems.length === 1 ? "message" : "messages"} · ${fmtNum(newContactCount)} not handled`}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end">
               {/* One button instead of seven wrapping pills. The pills were
@@ -1405,21 +1453,30 @@ export function AdminConsole({ data }: Props) {
               well as on the Free China Trip page. */}
           {view === "all" && <TripLockPanel t={t} dark={dark} />}
           {view === "all" && (
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-6">
-            {statCards.map((s) => (
-              <button
-                key={s.label}
-                onClick={() => { if (s.label === "Inquiries") setView("inquiries"); else if (s.label === "Messages") setView("contacts"); else if (s.label === "Old Suppliers") router.push("/admin/suppliers/"); else if (s.label === "Videos") router.push("/admin/videos/"); }}
-                className={`rounded-2xl p-5 text-left shadow-sm ring-1 transition-all hover:-translate-y-0.5 hover:shadow-md ${t.card}`}
-              >
-                <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${s.bg}`}>
-                  <s.icon className={`h-[18px] w-[18px] ${s.tint}`} />
+          // One card of six, a hairline between each (the gap shows the strip's own colour through), wrapping to three
+          // and two across on narrower screens.
+          <div className={`mb-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl shadow-sm ring-1 sm:grid-cols-3 lg:grid-cols-6 ${t.card} ${dark ? "bg-white/[0.08]" : "bg-black/[0.06]"}`}>
+            {statCards.map((s) => {
+              const body = (
+                <>
+                  <span className={`block text-[12.5px] font-medium ${t.soft}`}>{s.label}</span>
+                  <span className={`mt-1 block text-[26px] font-semibold leading-tight tracking-tight tabular-nums ${t.strong}`}>{fmtNum(s.value)}</span>
+                  {s.hint && <span className={`mt-0.5 block text-[11.5px] ${t.soft}`}>{s.hint}</span>}
+                </>
+              );
+              // A column from the top in every cell: a button centres what is in it, so the figures that open a list
+              // sat lower than the two that do not.
+              const cell = `flex min-w-0 flex-col items-start justify-start px-5 py-4 text-left ${dark ? "bg-[#151517]" : "bg-white"}`;
+              return s.go ? (
+                <button key={s.label} type="button" onClick={s.go} className={`${cell} transition-colors ${t.hover}`}>
+                  {body}
+                </button>
+              ) : (
+                <div key={s.label} className={cell}>
+                  {body}
                 </div>
-                <p className="mt-3 text-2xl font-semibold tracking-tight sm:text-3xl">{fmtNum(s.value)}</p>
-                <p className={`text-xs font-medium ${t.soft}`}>{s.label}</p>
-                {s.hint && <p className={`mt-0.5 text-[11px] ${t.soft}`}>{s.hint}</p>}
-              </button>
-            ))}
+              );
+            })}
           </div>
           )}
 
@@ -1441,7 +1498,7 @@ export function AdminConsole({ data }: Props) {
                   <button key={i.id} onClick={() => setActiveInquiry(i)} className="flex w-full items-center gap-3 py-3 text-left">
                     <Thumb t={t} src={i.productImage} alt={i.productName} />
                     <div className="min-w-0 flex-1">
-                      <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand-dark ${asStatus(i.status) !== "new" ? "line-through opacity-60" : ""}`}>{i.productName}</p>
+                      <p className={`line-clamp-1 text-[13px] font-semibold hover:text-brand-dark ${asStatus(i.status) !== "new" ? "opacity-60" : ""}`}>{i.productName}</p>
                       <p className={`flex flex-wrap items-center gap-x-1 text-[12px] font-medium ${t.mid}`}><SourceTag source={sourceOf(i)} dark={dark} /><span className="ml-0.5">{i.customerName}</span><SignInMark provider={i.signIn} /><span>· {i.country}</span></p>
                     </div>
                     <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_META[asStatus(i.status)].chip}`}>{STATUS_META[asStatus(i.status)].label}</span>
@@ -1468,10 +1525,7 @@ export function AdminConsole({ data }: Props) {
 
               <AllSection
                 t={t}
-                stats={{ inquiries: data.stats.inquiries, contacts: data.stats.contacts, customers: allCustomerGroups.length }}
                 groups={allCustomerGroups}
-                onGoInquiries={() => setView("inquiries")}
-                onGoContacts={() => setView("contacts")}
                 // Looked up live rather than passed down, so the drawer shows
                 // the current row and not a copy frozen when the group was built.
                 onOpenInquiry={(id) => {
@@ -1677,7 +1731,7 @@ export function AdminConsole({ data }: Props) {
                   {/* Server-side grouped export: one row per unique customer,
                       over the WHOLE database (not just the loaded page). */}
                   {view === "inquiries" && (
-                    <a href="/api/admin/export/all/?only=customers" className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-700">
+                    <a href="/api/admin/export/all/?only=customers" className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
                       <FileSpreadsheet size={15} /> Grouped .xlsx
                     </a>
                   )}
@@ -1715,15 +1769,11 @@ export function AdminConsole({ data }: Props) {
               )}
 
               {view === "inquiries" && customerStatusCounts.linked > 0 && (
-                /* Four counts on a flat line all weighed the same, so nothing
-                   led and the strip read as a caption. Each stage is now a
-                   chip carrying its own colour, the number is the largest
-                   thing in it, and a zero is dimmed so a busy stage is what
-                   the eye lands on. */
-                <div className={`flex flex-wrap items-center gap-x-2 gap-y-2 border-b px-4 py-3 ${t.border}`}>
-                  <span className={`mr-1 text-[11px] font-bold uppercase tracking-wider ${t.mid}`}>
-                    Signed-in customers
-                  </span>
+                /* What signed-in customers read on their requests, stage by stage: a word and its figure, the one
+                   being shown filled, a zero dimmed. It was capital letters over a chip of its own colour per stage,
+                   each with a dot (the owner, 2026-11-03: "feels like ai"). */
+                <div className={`flex flex-wrap items-center gap-x-1 gap-y-1.5 border-b px-4 py-2.5 ${t.border}`}>
+                  <span className={`mr-2 text-[13px] font-medium ${t.mid}`}>Customer status</span>
                   {CUSTOMER_STATUSES.map((s) => {
                     const n = customerStatusCounts[s];
                     const on = customerStageFilter === s;
@@ -1737,18 +1787,17 @@ export function AdminConsole({ data }: Props) {
                         onClick={() => setCustomerStageFilter(on ? null : s)}
                         disabled={n === 0}
                         title={n === 0 ? `No signed-in customer is at ${CUSTOMER_STATUS_META[s].label}` : `Show the ${n} at ${CUSTOMER_STATUS_META[s].label} — ${CUSTOMER_STATUS_META[s].hint}`}
-                        className={`inline-flex items-center gap-2 rounded-full py-1 pl-2.5 pr-3 text-[12.5px] ring-1 transition-all ${
+                        aria-pressed={on}
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] transition-colors ${
                           n === 0
-                            ? `${t.pill} cursor-not-allowed opacity-50`
+                            ? `cursor-default ${t.soft}`
                             : on
-                              ? `${CUSTOMER_STATUS_META[s].chip} ring-2 ring-brand cursor-pointer`
-                              : `${CUSTOMER_STATUS_META[s].chip} ring-transparent hover:brightness-95 cursor-pointer`
+                              ? `font-semibold ${t.navActive}`
+                              : `font-medium ${t.strong} ${t.hover}`
                         }`}
                       >
-                        <span className={`h-2 w-2 shrink-0 rounded-full ${n > 0 ? CUSTOMER_STATUS_META[s].dot : "bg-current opacity-40"}`} />
-                        <span className="text-[14px] font-bold tabular-nums leading-none">{n}</span>
-                        <span className="font-semibold">{CUSTOMER_STATUS_META[s].label}</span>
-                        {on && <Check className="h-3.5 w-3.5 shrink-0" />}
+                        {CUSTOMER_STATUS_META[s].label}
+                        <span className={`tabular-nums ${on ? "" : t.soft}`}>{fmtNum(n)}</span>
                       </button>
                     );
                   })}
@@ -1761,11 +1810,11 @@ export function AdminConsole({ data }: Props) {
                       Show everyone again
                     </button>
                   ) : (
-                    <span className={`ml-auto text-[12px] font-medium ${t.mid}`}>
+                    <span className={`ml-auto text-[12.5px] tabular-nums ${t.mid}`}>
                       {/* `total` is the country-scoped row count, not
                           items.length — while the list is narrowed to one
                           country this must not quote the whole table. */}
-                      <span className="font-bold">{customerStatusCounts.linked}</span> of {customerStatusCounts.total} can see a status
+                      {fmtNum(customerStatusCounts.linked)} of {fmtNum(customerStatusCounts.total)} can see a status
                     </span>
                   )}
                 </div>
@@ -1890,26 +1939,27 @@ export function AdminConsole({ data }: Props) {
                           <button onClick={() => setActiveInquiry(i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                             <Thumb t={t} src={i.productImage} alt={i.productName} big />
                             <div className="min-w-0 flex-1">
-                              <p className={`line-clamp-2 text-[14px] font-semibold leading-snug hover:text-brand-dark sm:text-[13.5px] ${st !== "new" ? `line-through ${t.soft}` : t.strong}`}>{i.productName}</p>
-                              {/* 12px at `mid`, with the icons left soft. The
-                                  icon is decoration and can stay quiet; the
-                                  name, number and address are what the row is
-                                  scanned for, so they carry the contrast. */}
-                              <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
+                              {/* A request still to handle in full black; a handled one quieter, never struck through:
+                                  a whole list of crossed-out titles read as cancelled (2026-11-03). */}
+                              <p className={`line-clamp-2 text-[14px] leading-snug hover:text-brand-dark sm:text-[13.5px] ${st !== "new" ? `font-medium ${t.mid}` : `font-semibold ${t.strong}`}`}>{i.productName}</p>
+                              {/* The name, the country, the number and the address, parted by space alone: an icon before
+                                  each read as generated (the owner, 2026-11-03: "feels like ai"). */}
+                              <div className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] ${t.mid}`}>
                                 <SourceTag source={sourceOf(i)} dark={dark} />
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Users className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-semibold">{i.customerName}</span><SignInMark provider={i.signIn} /></span>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{i.country}</span></span>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{i.phone}</span></span>
-                                {i.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{i.email}</span></span>}
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><span className={`truncate font-semibold ${t.strong}`}>{i.customerName}</span><SignInMark provider={i.signIn} /></span>
+                                <span className="min-w-0 max-w-full truncate">{i.country}</span>
+                                <span className="min-w-0 max-w-full truncate tabular-nums">{i.phone}</span>
+                                {i.email && <span className="min-w-0 max-w-full truncate">{i.email}</span>}
                               </div>
                             </div>
                           </button>
                         </div>
                         <div className="flex flex-wrap items-center gap-2.5 pl-[92px] @min-[62rem]:justify-end @min-[62rem]:pl-0">
-                          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {i.quantity}</span>
+                          <span className={`whitespace-nowrap text-[12.5px] font-medium tabular-nums ${t.mid}`}>Qty {i.quantity}</span>
                           {/* Where the customer stands in the pool, where the assign picker used to be: staff take
-                              customers now. The chip carries the newest outcome too. */}
-                          <HandlingChip h={hOf(i)} createdAt={i.createdAt} dark={dark} now={now} />
+                              customers now. The chip carries the newest outcome too; a handled request with nothing
+                              else going on has none, as Handled beside it already says so. */}
+                          <HandlingChip h={hOf(i)} createdAt={i.createdAt} dark={dark} now={now} quietWhenSettled />
                           <StatusControl t={t} value={st} onChange={(s) => setStatus(i.id, s)} heldBy={heldByOf(i.handling)} />
                           <button onClick={() => deleteInquiry(i.id)} aria-label="Delete inquiry" title="Delete inquiry" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                             <Trash2 className="h-4 w-4" />
@@ -1937,8 +1987,8 @@ export function AdminConsole({ data }: Props) {
                             <div className="min-w-0 flex-1">
                               <p className="line-clamp-2 text-[13px] font-semibold leading-snug opacity-70 hover:text-brand-dark">{i.productName}</p>
                               <div className={`mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] ${t.soft}`}>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Users className="h-3 w-3 shrink-0" /><span className="truncate">{i.customerName}</span><SignInMark provider={i.signIn} /></span>
-                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><Phone className="h-3 w-3 shrink-0" /><span className="truncate tabular-nums">{i.phone}</span></span>
+                                <span className="inline-flex min-w-0 max-w-full items-center gap-1"><span className="truncate">{i.customerName}</span><SignInMark provider={i.signIn} /></span>
+                                <span className="min-w-0 max-w-full truncate tabular-nums">{i.phone}</span>
                               </div>
                             </div>
                           </button>
@@ -2365,7 +2415,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
               <div className={`flex h-28 w-28 shrink-0 items-center justify-center rounded-2xl text-center text-[11px] sm:h-32 sm:w-32 ${t.thumb} ${t.soft}`}>No image</div>
             )}
             <div className="min-w-0 flex-1">
-              <h3 className={`text-lg font-semibold leading-snug ${asStatus(inquiry.status) !== "new" ? `line-through ${t.soft}` : t.strong}`}>{inquiry.productName}</h3>
+              <h3 className={`text-lg font-semibold leading-snug ${asStatus(inquiry.status) !== "new" ? t.mid : t.strong}`}>{inquiry.productName}</h3>
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <SourceTag source={sourceOf(inquiry)} dark={dark} />
                 <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${t.qty}`}>Quantity: {inquiry.quantity}</span>
@@ -3356,22 +3406,23 @@ function ContactsSection({
                       <MessageSquare className="h-[18px] w-[18px]" />
                     </span>
                     <div className="min-w-0 flex-1">
-                      {/* Struck through once it is off "new", exactly as the
-                          inquiry list does. Scanning an inbox of twenty, the
-                          only question is "which of these have I dealt with" —
-                          a small green chip on the far right answers it far
-                          more slowly than the line through the name does. */}
-                      <p className={`line-clamp-1 text-[15px] font-semibold leading-snug tracking-tight hover:text-brand-dark sm:text-[14.5px] ${
-                        st !== "new" ? `line-through ${t.soft}` : t.strong
+                      {/* Quieter once it is off "new", exactly as the inquiry
+                          list does. Scanning an inbox of twenty, the only
+                          question is "which of these have I dealt with", and
+                          the weight of the name answers it at a glance. It was
+                          struck through, and a list of handled messages read
+                          as a list of cancelled ones (2026-11-03). */}
+                      <p className={`line-clamp-1 text-[15px] leading-snug tracking-tight hover:text-brand-dark sm:text-[14.5px] ${
+                        st !== "new" ? `font-medium ${t.mid}` : `font-semibold ${t.strong}`
                       } ${tab === "trash" ? "opacity-70" : ""}`}>
                         {contactName(c)}{c.companyName ? <span className={`font-normal ${t.soft}`}> · {c.companyName}</span> : null}
                       </p>
-                      <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${st !== "new" ? `line-through ${t.soft}` : t.mid}`}>{c.message}</p>
-                      <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{c.email}</span></span>
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{c.phone}</span></span>
-                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{c.country}</span></span>
-                        <span className="inline-flex items-center gap-1.5"><Calendar className={`h-3 w-3 ${t.soft}`} /><span className="font-medium">{fmtDate(c.createdAt)}</span></span>
+                      <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${st !== "new" ? t.soft : t.mid}`}>{c.message}</p>
+                      <div className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] ${t.mid}`}>
+                        <span className="min-w-0 max-w-full truncate">{c.email}</span>
+                        <span className="min-w-0 max-w-full truncate tabular-nums">{c.phone}</span>
+                        <span className="min-w-0 max-w-full truncate">{c.country}</span>
+                        <span className="whitespace-nowrap">{fmtDate(c.createdAt)}</span>
                       </div>
                     </div>
                   </button>
@@ -3379,7 +3430,7 @@ function ContactsSection({
                 <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
                   {tab === "active" ? (
                     <>
-                      <HandlingChip h={hOf(c)} createdAt={c.createdAt} dark={dark} now={now} />
+                      <HandlingChip h={hOf(c)} createdAt={c.createdAt} dark={dark} now={now} quietWhenSettled />
                       <StatusControl t={t} value={st} onChange={(s) => onSetStatus(c.id, s)} heldBy={heldByOf(c.handling)} />
                       <button onClick={() => onDelete(c.id)} aria-label="Delete message" title="Delete message" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                         <Trash2 className="h-4 w-4" />
@@ -3916,26 +3967,25 @@ function ShipmentsSection({
                         <ModeIcon className="h-[18px] w-[18px]" />
                       </span>
                       <div className="min-w-0 flex-1">
-                        {/* The reference stays legible when the rest is struck
-                            through: it is what a customer quotes on the phone. */}
+                        {/* The reference first, in the brand's colour: it is what a customer quotes on the phone. */}
                         <p className={`line-clamp-1 text-[15px] font-semibold leading-snug tracking-tight sm:text-[14.5px] ${tab === "trash" ? "opacity-70" : ""}`}>
                           <span className="mr-2 tabular-nums text-brand-dark">{r.referenceNo}</span>
-                          <span className={st !== "new" ? `line-through ${t.soft}` : `${t.strong} hover:text-brand-dark`}>{r.customerName}</span>
+                          <span className={st !== "new" ? `font-medium ${t.mid}` : `${t.strong} hover:text-brand-dark`}>{r.customerName}</span>
                         </p>
-                        <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${st !== "new" ? `line-through ${t.soft}` : t.mid}`}>
+                        <p className={`mt-0.5 line-clamp-1 text-[12.5px] ${st !== "new" ? t.soft : t.mid}`}>
                           {routeSummary(r)} · {r.commodity}
                         </p>
-                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{r.phone}</span></span>
+                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] ${t.mid}`}>
+                          <span className="min-w-0 max-w-full truncate tabular-nums">{r.phone}</span>
                           <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-                            {flag ? (
+                            {flag && (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={flag} alt="" aria-hidden="true" width={16} height={12} className="h-3 w-4 shrink-0 rounded-[2px] object-cover ring-1 ring-black/10" />
-                            ) : <MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} />}
-                            <span className="truncate font-medium">{r.country}</span>
+                            )}
+                            <span className="truncate">{r.country}</span>
                           </span>
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Package className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{loadSummary(r)}</span></span>
-                          <span className="inline-flex items-center gap-1.5"><Calendar className={`h-3 w-3 ${t.soft}`} /><span className="font-medium">{fmtDate(r.createdAt)}</span></span>
+                          <span className="min-w-0 max-w-full truncate tabular-nums">{loadSummary(r)}</span>
+                          <span className="whitespace-nowrap">{fmtDate(r.createdAt)}</span>
                         </div>
                       </div>
                     </button>
@@ -3943,7 +3993,7 @@ function ShipmentsSection({
                   <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
                     {tab === "active" ? (
                       <>
-                        <HandlingChip h={hOf(r)} createdAt={r.createdAt} dark={dark} now={now} />
+                        <HandlingChip h={hOf(r)} createdAt={r.createdAt} dark={dark} now={now} quietWhenSettled />
                         <StatusControl t={t} value={st} onChange={(s) => void act([r.id], "status", s)} heldBy={heldByOf(r.handling)} />
                         <button onClick={() => confirmDelete([r.id])} aria-label={`Delete ${r.referenceNo}`} title="Delete request" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                           <Trash2 className="h-4 w-4" />
@@ -4542,11 +4592,11 @@ function CustomerGroupRow({
               {g.altNames.length > 0 && (
                 <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
               )}
-              <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{g.phone}</span></span>
-                {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.email}</span></span>}
-                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.country}</span></span>
-                <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Calendar className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">Last {fmtDate(g.lastInquiry)}</span></span>
+              <div className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] ${t.mid}`}>
+                <span className="min-w-0 max-w-full truncate tabular-nums">{g.phone}</span>
+                {g.email && <span className="min-w-0 max-w-full truncate">{g.email}</span>}
+                <span className="min-w-0 max-w-full truncate">{g.country}</span>
+                <span className="min-w-0 max-w-full truncate">Last {fmtDate(g.lastInquiry)}</span>
               </div>
             </div>
           </div>
@@ -4612,7 +4662,7 @@ function CustomerGroupRow({
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
                       <OutcomeChip value={p.lastStatus ?? null} />
-                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {p.quantity}</span>
+                      <span className={`whitespace-nowrap text-[12.5px] font-medium tabular-nums ${t.mid}`}>Qty {p.quantity}</span>
                     </span>
                   </Row>
                 </li>
@@ -4641,12 +4691,10 @@ function GroupFact({ t, label, value }: { t: Theme; label: string; value: string
 // (deduped by phone, all products shown) that can be ticked and exported to a
 // clean .xlsx — same header-band structure as the master workbook.
 function AllSection({
-  t, stats, groups, onGoInquiries, onGoContacts, onOpenInquiry,
+  t, groups, onOpenInquiry,
 }: {
   t: Theme;
-  stats: { inquiries: number; contacts: number; customers: number };
   groups: CustomerGroup[];
-  onGoInquiries: () => void; onGoContacts: () => void;
   /** Opens the drawer for one of a customer's products. */
   onOpenInquiry?: (inquiryId: string) => void;
 }) {
@@ -4701,45 +4749,21 @@ function AllSection({
     .filter((g) => selected.size === 0 || selected.has(g.key))
     .reduce((n, g) => n + g.products.length, 0);
 
-  const tiles = [
-    { label: "Inquiries", value: stats.inquiries, hint: "Product quote requests", icon: Inbox, go: onGoInquiries },
-    { label: "Contact Us", value: stats.contacts, hint: "Contact-form messages", icon: MessageSquare, go: onGoContacts },
-    { label: "Customers", value: stats.customers, hint: "Unique, deduped by phone", icon: Users, go: onGoInquiries },
-  ];
-
   return (
     <div className="space-y-5">
       {/* Master export card */}
       <div className={`overflow-hidden rounded-2xl shadow-sm ring-1 ${t.card}`}>
         <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
-            <FileSpreadsheet className="h-6 w-6" />
-          </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold tracking-tight">Master Excel export</h2>
             <p className={`mt-0.5 text-sm ${t.soft}`}>
               One workbook, three sheets: <span className="font-semibold">Customers</span> (deduped by phone, every product each customer asked for), <span className="font-semibold">Inquiries</span> and <span className="font-semibold">Contact Us</span> — over the whole database.
             </p>
           </div>
-          <a href="/api/admin/export/all/" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-emerald-700">
+          <a href="/api/admin/export/all/" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-black">
             <Download size={16} /> Download master .xlsx
           </a>
         </div>
-      </div>
-
-      {/* Per-source tiles */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {tiles.map((tile) => (
-          <button key={tile.label} onClick={tile.go} className={`rounded-2xl p-5 text-left shadow-sm ring-1 transition-all hover:-translate-y-0.5 hover:shadow-md ${t.card}`}>
-            <div className="flex items-center justify-between">
-              <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${t.thumb} ${t.soft}`}><tile.icon className="h-[18px] w-[18px]" /></span>
-              <ChevronRight className={`h-4 w-4 ${t.soft}`} />
-            </div>
-            <p className="mt-3 text-2xl font-semibold tracking-tight">{fmtNum(tile.value)}</p>
-            <p className="text-sm font-medium">{tile.label}</p>
-            <p className={`text-xs ${t.soft}`}>{tile.hint}</p>
-          </button>
-        ))}
       </div>
 
       {/* Customer checklist — tick customers, then export just those to .xlsx. */}
@@ -4762,7 +4786,7 @@ function AllSection({
             onClick={exportSelected}
             disabled={busy}
             title={selected.size > 0 ? `Export ${selected.size} selected customers` : "Export all shown customers"}
-            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-emerald-700 disabled:opacity-60"
+            className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#1d1d1f] px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-black disabled:opacity-60"
           >
             {busy ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
             Export {selected.size > 0 ? `(${selected.size})` : "all"} .xlsx
@@ -4803,10 +4827,10 @@ function AllSection({
                         {g.altNames.length > 0 && (
                           <p className={`truncate text-[11.5px] font-normal leading-snug ${t.soft}`}>aka {g.altNames.join(", ")}</p>
                         )}
-                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-3.5 gap-y-1 text-[12px] ${t.mid}`}>
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Phone className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium tabular-nums">{g.phone}</span></span>
-                          {g.email && <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><Mail className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.email}</span></span>}
-                          <span className="inline-flex min-w-0 max-w-full items-center gap-1.5"><MapPin className={`h-3 w-3 shrink-0 ${t.soft}`} /><span className="truncate font-medium">{g.country}</span></span>
+                        <div className={`mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px] ${t.mid}`}>
+                          <span className="min-w-0 max-w-full truncate tabular-nums">{g.phone}</span>
+                          {g.email && <span className="min-w-0 max-w-full truncate">{g.email}</span>}
+                          <span className="min-w-0 max-w-full truncate">{g.country}</span>
                         </div>
                       </div>
                     </button>
@@ -4842,7 +4866,7 @@ function AllSection({
                                 <span className={`line-clamp-2 font-medium ${t.strong}`}>{p.productName}</span>
                                 <span className={`text-xs ${t.soft}`}>{fmtDate(p.createdAt)}</span>
                               </span>
-                              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {p.quantity}</span>
+                              <span className={`shrink-0 whitespace-nowrap text-[12.5px] font-medium tabular-nums ${t.mid}`}>Qty {p.quantity}</span>
                             </Row>
                           </li>
                         );

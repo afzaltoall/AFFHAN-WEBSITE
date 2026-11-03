@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { GetObjectCommand, HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { ID_DOCUMENT_MAX_BYTES, idDocumentExtension, type IdDocumentType } from "@/lib/trip-referral-shared";
+import { ID_DOCUMENT_MAX_BYTES, idDocumentExtension, type IdDocumentType, type IdProof } from "@/lib/trip-referral-shared";
 
 /**
  * The ID proof of applicants who came through an employee's link (the owner, 2026-11-02): Aadhaar, passport or any
@@ -38,9 +38,10 @@ export function documentStorageProblem(): string | null {
   return missing.length ? `ID uploads are not set up: ${missing.join(", ")} missing.` : null;
 }
 
-/** Where the browser posts one file: the URL, the policy's fields to send with it, and the key it will have. */
-export async function documentUploadTarget(contentType: IdDocumentType) {
-  const key = `docs/${randomUUID()}.${idDocumentExtension(contentType)}`;
+/** Where the browser posts one file: the URL, the policy's fields to send with it, and the key it will have, which
+ *  names the ID it was added as (docs/<id>/<uuid>.<extension>). */
+export async function documentUploadTarget(contentType: IdDocumentType, proof: IdProof) {
+  const key = `docs/${proof}/${randomUUID()}.${idDocumentExtension(contentType)}`;
   const { url, fields } = await createPresignedPost(s3, {
     Bucket: DOCUMENTS_BUCKET,
     Key: key,

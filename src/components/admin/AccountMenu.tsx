@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ChevronDown, KeyRound, LogOut, Mail, Moon, Sun } from "lucide-react";
 import { Avatar } from "@/components/admin/AssigneePicker";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
+import { useAdminNav } from "@/components/admin/admin-nav";
 
 /**
  * The slice of the console palette this menu needs. Theme satisfies it, and
@@ -57,6 +58,7 @@ export function AccountMenu({
   onSignOut: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const nav = useAdminNav();
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ left: number; width: number; bottom: number; maxHeight: number } | null>(null);
@@ -155,7 +157,7 @@ export function AccountMenu({
               <span className="flex-1">Change email</span>
             </button>
           ) : (
-            <Link role="menuitem" href="/admin/?account=email" onClick={() => setOpen(false)} className={item}>
+            <Link role="menuitem" href="/admin/?account=email" onClick={() => setOpen(false)} onNavigate={() => nav.start("/admin/?account=email")} className={item}>
               <Mail size={15} className="shrink-0" />
               <span className="flex-1">Change email</span>
             </Link>
@@ -166,7 +168,7 @@ export function AccountMenu({
               <span className="flex-1">Change password</span>
             </button>
           ) : (
-            <Link role="menuitem" href="/admin/?account=password" onClick={() => setOpen(false)} className={item}>
+            <Link role="menuitem" href="/admin/?account=password" onClick={() => setOpen(false)} onNavigate={() => nav.start("/admin/?account=password")} className={item}>
               <KeyRound size={15} className="shrink-0" />
               <span className="flex-1">Change password</span>
             </Link>

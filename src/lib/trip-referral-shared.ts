@@ -55,8 +55,8 @@ export const REFERRAL_STORAGE_DAYS = 30;
 export const REFERRAL_EVENT = "affhan:trip-ref-kept";
 
 /**
- * The ID proof an applicant who came through an employee's link must add (the owner, 2026-11-02: Aadhaar, passport or
- * whatever ID they have; asked of nobody else). A photo or a PDF, up to three files (an Aadhaar's two sides), each up
+ * The ID proof an applicant who came through an employee's link must add (the owner, 2026-11-02; asked of nobody else),
+ * one of the five below (ID_PROOFS, 2026-11-03). A photo or a PDF, up to three files (an Aadhaar's two sides), each up
  * to 10 MB. The form sends the keys the server made for its uploads (lib/server/trip-documents.ts).
  */
 export const ID_DOCUMENT_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"] as const;
@@ -65,13 +65,39 @@ export const isIdDocumentType = (v: unknown): v is IdDocumentType => typeof v ==
 export const ID_DOCUMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const ID_DOCUMENTS_MAX = 3;
 export const idDocumentExtension = (type: IdDocumentType) => ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" })[type];
-/** A key the server made for an upload: docs/<uuid>.<extension>. */
-export const isIdDocumentKey = (v: unknown): v is string =>
-  typeof v === "string" && /^docs\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(jpg|png|webp|pdf)$/.test(v);
+/**
+ * The IDs a link applicant may add, and no other (the owner, 2026-11-03: "aadhar / pan / voter id / license / passport
+ * ... only these, nothing else"): they choose which, then add a photo or a PDF of it; `sides` when it has a back to
+ * add as well. The choice is written into the upload's key (docs/<id>/<uuid>.<extension>), as its type is in the
+ * extension, so the console can name every file without a column of its own.
+ */
+export const ID_PROOFS = [
+  { id: "aadhaar", label: "Aadhaar", sides: true },
+  { id: "pan", label: "PAN card", sides: false },
+  { id: "voter", label: "Voter ID", sides: true },
+  { id: "licence", label: "Driving licence", sides: true },
+  { id: "passport", label: "Passport", sides: false },
+] as const;
+export type IdProof = (typeof ID_PROOFS)[number]["id"];
+export const isIdProof = (v: unknown): v is IdProof => typeof v === "string" && ID_PROOFS.some((p) => p.id === v);
+export const idProofLabel = (id: IdProof) => ID_PROOFS.find((p) => p.id === id)?.label ?? id;
+const ID_DOCUMENT_KEY = new RegExp(
+  `^docs/(?:(${ID_PROOFS.map((p) => p.id).join("|")})/)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(jpg|png|webp|pdf)$`,
+);
+/** A key the server made for an upload: docs/<id>/<uuid>.<extension>, or docs/<uuid>.<extension> from before the
+ *  five (2026-11-02/03), which names no ID. */
+export const isIdDocumentKey = (v: unknown): v is string => typeof v === "string" && ID_DOCUMENT_KEY.test(v);
+/** The ID a key's upload was added as, or null for one from before the five. */
+export const idProofOfKey = (key: string): IdProof | null => {
+  const id = ID_DOCUMENT_KEY.exec(key)?.[1];
+  return isIdProof(id) ? id : null;
+};
 /** The type a key's extension stands for. */
 export const idDocumentTypeOfKey = (key: string): IdDocumentType | null => ID_DOCUMENT_TYPES.find((t) => key.endsWith(`.${idDocumentExtension(t)}`)) ?? null;
 /** The form's words, and the server's, when the proof is missing. */
-export const ID_DOCUMENT_NEEDED = "Please add a photo or scan of your ID: Aadhaar, passport or any government ID.";
+export const ID_DOCUMENT_NEEDED = "Please add your ID: Aadhaar, PAN card, Voter ID, driving licence or passport.";
+/** When a file is added before saying which of the five it is. */
+export const ID_PROOF_NEEDED = "Choose which ID you are adding.";
 
 /** India's calendar date of an instant, as a date field holds it (YYYY-MM-DD). */
 export const istDate = (iso: string) => new Date(Date.parse(iso) + 5.5 * 3600 * 1000).toISOString().slice(0, 10);

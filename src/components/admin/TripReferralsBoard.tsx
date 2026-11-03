@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, CheckSquare, Copy, Download, Square, Trash2, UserPlus, X } from "lucide-react";
@@ -51,6 +51,23 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const [removing, setRemoving] = useState<ReferralBoardRow[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const ticked = rows.filter((r) => selected.has(r.employeeId));
+
+  // The employee open in the panel on the right: open the moment a name is pressed, from the row already on screen,
+  // while ?employee= reads their applications. `asked` is what was last pressed (an id, or null for closed) until the
+  // address has caught up with it, so a slow read never reopens a panel just closed; Back and Forward move the panel
+  // through the address alone.
+  const [asked, setAsked] = useState<string | null | undefined>(undefined);
+  const [, startMove] = useTransition();
+  const shownId = asked !== undefined ? asked : (detail?.employeeId ?? null);
+  useEffect(() => {
+    if (asked !== undefined && (detail?.employeeId ?? null) === asked) setAsked(undefined);
+  }, [asked, detail?.employeeId]);
+  const openEmployee = (id: string | null) => {
+    setAsked(id);
+    startMove(() => router.push(id ? `/admin/trip-referrals/?employee=${id}` : "/admin/trip-referrals/", { scroll: false }));
+  };
+  const shownRow = shownId ? (rows.find((r) => r.employeeId === shownId) ?? null) : null;
+  const shownDetail = detail && detail.employeeId === shownId ? detail : null;
   const allTicked = rows.length > 0 && ticked.length === rows.length;
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -316,7 +333,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                     const share = Math.min(1, r.counted / settings.target);
                     const tick = selected.has(r.employeeId);
                     return (
-                      <tr key={r.employeeId} className={tick || detail?.employeeId === r.employeeId ? "bg-[#0071e3]/[0.05]" : ""}>
+                      <tr key={r.employeeId} className={tick || shownId === r.employeeId ? "bg-[#0071e3]/[0.05]" : ""}>
                         <td className="py-3 pl-5">
                           <button
                             type="button"
@@ -329,9 +346,18 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                           </button>
                         </td>
                         <td className="px-3 py-3">
-                          <Link href={`/admin/trip-referrals/?employee=${r.employeeId}#employee`} className="font-semibold text-[#0058b0] hover:underline">
+                          <a
+                            href={`/admin/trip-referrals/?employee=${r.employeeId}`}
+                            onClick={(e) => {
+                              // A new tab, as any link: only a plain press opens the panel here.
+                              if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                              e.preventDefault();
+                              openEmployee(r.employeeId);
+                            }}
+                            className="font-semibold text-[#0058b0] hover:underline"
+                          >
                             {r.name}
-                          </Link>
+                          </a>
                           {!r.isActive && <span className="ml-1.5 rounded-full bg-black/[0.06] px-2 py-0.5 text-[11px] text-[#6e6e73]">Left</span>}
                           <div className="text-[12px] text-[#86868b]">{r.email}</div>
                         </td>
@@ -388,16 +414,20 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
           )}
         </section>
 
-        {detail && (
-          <EmployeeDetail
-            detail={detail}
-            busy={busy}
-            onDecide={(ids, state) => run(() => send("/api/admin/trip-referrals/decide/", { ids, state }))}
-            onPay={() => setPaying(rows.find((r) => r.employeeId === detail.employeeId) ?? null)}
-            onChangeCode={() => setEditingCode({ employeeId: detail.employeeId, name: detail.name, code: detail.code })}
-          />
-        )}
       </div>
+
+      {shownRow && (
+        <EmployeePanel
+          row={shownRow}
+          detail={shownDetail}
+          target={settings.target}
+          busy={busy}
+          onClose={() => openEmployee(null)}
+          onDecide={(ids, state) => run(() => send("/api/admin/trip-referrals/decide/", { ids, state }))}
+          onPay={() => setPaying(shownRow)}
+          onChangeCode={() => setEditingCode({ employeeId: shownRow.employeeId, name: shownRow.name, code: shownDetail?.code ?? shownRow.code })}
+        />
+      )}
 
       {editingCode && <CodeWindow who={editingCode} busy={busy} onCancel={() => setEditingCode(null)} onSave={saveCode} />}
       {adding && <AddEmployeeWindow busy={busy} onClose={() => setAdding(false)} onAdd={addEmployee} />}
@@ -507,115 +537,167 @@ function SettingsCard({ settings, busy, onSave }: { settings: ReferralSettings; 
   );
 }
 
-/** One employee: their figures, their applications to count or decline, and their payments. */
-function EmployeeDetail({
+/**
+ * One employee, in a panel on the right over the list (the owner, 2026-11-03: it opened under the table, out of sight,
+ * "make sure show in the right side"). Their link and figures show at once, from the row; their applications, to count
+ * or take out, and their payments, once ?employee= has read them. Closes with the cross, Escape, or a press beside it.
+ */
+function EmployeePanel({
+  row,
   detail,
+  target,
   busy,
+  onClose,
   onDecide,
   onPay,
   onChangeCode,
 }: {
-  detail: ReferralDetail;
+  row: ReferralBoardRow;
+  /** Null while their applications are being read. */
+  detail: ReferralDetail | null;
+  target: number;
   busy: boolean;
+  onClose: () => void;
   onDecide: (ids: string[], state: "waiting" | "counted" | "not_counted") => Promise<boolean>;
   onPay: () => void;
   onChangeCode: () => void;
 }) {
-  const waitingIds = detail.applications.filter(referralWaiting).map((a) => a.id);
-  const t = detail.totals;
+  // Escape closes the panel, unless a window over it (Change code, Mark paid) takes the key first: theirs listen
+  // in the capture phase and stop it there (useEscape).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !busy) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose, busy]);
+
+  const code = detail?.code ?? row.code;
+  const waitingIds = detail ? detail.applications.filter(referralWaiting).map((a) => a.id) : [];
+  const figures: [string, string][] = [
+    ["Counted", `${row.counted} of ${target}`],
+    ["Points", row.points.toLocaleString("en-IN")],
+    ["Paid", rupees(row.paidRupees)],
+    ["To pay", rupees(row.unpaidRupees)],
+  ];
   return (
-    <section id="employee" className={`mt-5 scroll-mt-6 overflow-hidden ${card}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-black/[0.06] px-5 py-4">
-        <div className="min-w-0">
-          <h2 className="text-[17px] font-semibold">
-            {detail.name} <span className="ml-1 font-mono text-[15px] text-[#0058b0]">{detail.code}</span>
-            {!detail.isActive && <span className="ml-2 rounded-full bg-black/[0.06] px-2 py-0.5 text-[11px] font-normal text-[#6e6e73]">Left: their code no longer works</span>}
-          </h2>
-          <p className="break-all text-[12.5px] text-[#86868b]">{referralLink(detail.code)}</p>
-          <p className="mt-1.5 text-[13px] text-[#48484a]">
-            <b className="text-[#1d1d1f]">{t.counted}</b> counted of {detail.settings.target} · {t.points.toLocaleString("en-IN")} points · {rupees(t.paidRupees)} paid ·{" "}
-            {rupees(t.unpaidRupees)} to pay
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" disabled={busy} onClick={onChangeCode} className={`${pillButton} bg-white hover:bg-black/[0.03]`}>
-            Change code
-          </button>
-          {waitingIds.length > 0 && (
-            <button type="button" disabled={busy} onClick={() => void onDecide(waitingIds, "counted")} className={`${pillButton} bg-emerald-600 text-white hover:bg-emerald-700`}>
-              Count all waiting ({waitingIds.length})
+    <div className="fixed inset-0 z-[120]" role="dialog" aria-modal="true" aria-labelledby="employee-name">
+      <button type="button" tabIndex={-1} aria-label="Close" onClick={() => !busy && onClose()} className="absolute inset-0 cursor-default bg-black/25" />
+      <section id="employee" style={sfFont} className="absolute inset-y-0 right-0 flex w-full max-w-[720px] flex-col bg-[#f5f5f7] text-[#1d1d1f] shadow-2xl">
+        <header className="border-b border-black/[0.06] bg-white px-6 pb-5 pt-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <h2 id="employee-name" className="text-[19px] font-semibold tracking-tight">
+                {row.name}
+                {!row.isActive && <span className="ml-2 rounded-full bg-black/[0.06] px-2 py-0.5 align-middle text-[11px] font-normal text-[#6e6e73]">Left: their code no longer works</span>}
+              </h2>
+              <p className="mt-0.5 text-[13px] text-[#6e6e73]">{row.email}</p>
+            </div>
+            <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="-mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-black/[0.05]">
+              <X size={18} />
             </button>
-          )}
-          {t.unpaid > 0 && (
-            <button type="button" disabled={busy} onClick={onPay} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>
-              Mark paid
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+            {code ? <span className="font-mono text-[15px] font-semibold text-[#0058b0]">{code}</span> : <span className="text-[13px] text-[#6e6e73]">No code yet</span>}
+            <button type="button" disabled={busy} onClick={onChangeCode} className={`${pillButton} bg-white hover:bg-black/[0.03]`}>
+              {code ? "Change code" : "Make code"}
             </button>
-          )}
-          <Link href="/admin/trip-referrals/" scroll={false} aria-label="Close this employee" className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-black/[0.05]">
-            <X size={16} />
-          </Link>
-        </div>
-      </div>
+            {code && <CopyText text={referralLink(code)} label="Copy link" />}
+          </div>
+          {code && <p className="mt-1.5 break-all text-[12.5px] text-[#86868b]">{referralLink(code)}</p>}
 
-      {detail.applications.length === 0 ? (
-        <p className="px-5 py-10 text-center text-[13px] text-[#86868b]">Nobody has applied through this link yet.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[980px] text-left text-[13px]">
-            <thead>
-              <tr className="border-b border-black/[0.06] text-[12px] text-[#86868b]">
-                <th className="px-5 py-2.5 font-medium">Trip ID</th>
-                <th className="px-3 py-2.5 font-medium">Name</th>
-                <th className="px-3 py-2.5 font-medium">Mobile</th>
-                <th className="px-3 py-2.5 font-medium">From</th>
-                <th className="px-3 py-2.5 font-medium">Applied</th>
-                <th className="px-3 py-2.5 font-medium">ID proof</th>
-                <th className="px-3 py-2.5 font-medium">Application</th>
-                <th className="px-5 py-2.5 font-medium">Referral</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-black/[0.06]">
-              {detail.applications.map((a) => (
-                <tr key={a.id}>
-                  <td className="whitespace-nowrap px-5 py-2.5 font-mono text-[12.5px] text-[#0058b0]">{a.referenceNo}</td>
-                  <td className="px-3 py-2.5 font-medium">{a.fullName}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">{a.phone}</td>
-                  <td className="px-3 py-2.5">{[a.city, a.country].filter(Boolean).join(", ")}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5">{fmtDay(a.createdAt)}</td>
-                  <td className="px-3 py-2">{a.documents?.length ? <TripDocuments documents={a.documents} compact /> : <span className="text-[#86868b]">None</span>}</td>
-                  <td className="whitespace-nowrap px-3 py-2.5">
-                    {a.status === "spam" ? "Spam" : a.status === "handled" ? "Handled" : "New"}
-                    {a.notVerified && <span className="ml-1.5 rounded-full px-2 py-0.5 text-[11px] text-[#6e6e73] ring-1 ring-black/10">Not verified</span>}
-                  </td>
-                  <td className="px-5 py-2.5">
-                    <ReferralActions a={a} busy={busy} onDecide={onDecide} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {detail.payouts.length > 0 && (
-        <div className="border-t border-black/[0.06] px-5 py-4">
-          <h3 className="text-[13px] font-semibold">Payments</h3>
-          <ul className="mt-2 grid gap-1.5 text-[13px]">
-            {detail.payouts.map((p) => (
-              <li key={p.id} className="flex flex-wrap justify-between gap-2">
-                <span>
-                  <b>{rupees(p.amount)}</b> for {p.referrals} {p.referrals === 1 ? "referral" : "referrals"} ({p.points.toLocaleString("en-IN")} points)
-                  {p.note ? <span className="text-[#6e6e73]"> · {p.note}</span> : null}
-                </span>
-                <span className="text-[#86868b]">
-                  {fmtDate(p.paidAt)} · {p.paidBy}
-                </span>
-              </li>
+          <dl className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-black/[0.06] ring-1 ring-black/[0.06] sm:grid-cols-4">
+            {figures.map(([label, value]) => (
+              <div key={label} className="bg-white px-4 py-2.5">
+                <dt className="text-[12px] text-[#6e6e73]">{label}</dt>
+                <dd className="mt-0.5 text-[16px] font-semibold tabular-nums">{value}</dd>
+              </div>
             ))}
-          </ul>
+          </dl>
+
+          {(waitingIds.length > 0 || row.unpaid > 0) && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {waitingIds.length > 0 && (
+                <button type="button" disabled={busy} onClick={() => void onDecide(waitingIds, "counted")} className={`${pillButton} bg-emerald-600 text-white hover:bg-emerald-700`}>
+                  Count all waiting ({waitingIds.length})
+                </button>
+              )}
+              {row.unpaid > 0 && (
+                <button type="button" disabled={busy} onClick={onPay} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>
+                  Mark paid
+                </button>
+              )}
+            </div>
+          )}
+        </header>
+
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5">
+          <h3 className="text-[13px] font-semibold">
+            Applied through their link{detail ? <span className="ml-1.5 font-normal tabular-nums text-[#6e6e73]">{detail.applications.length}</span> : null}
+          </h3>
+          {!detail ? (
+            <ul className="mt-2.5 animate-pulse divide-y divide-black/[0.06] overflow-hidden rounded-2xl bg-white ring-1 ring-black/[0.06]" aria-busy="true">
+              {Array.from({ length: Math.min(4, Math.max(1, row.referred)) }, (_, i) => (
+                <li key={i} className="px-4 py-4">
+                  <span className="block h-[14px] w-2/5 rounded bg-black/[0.07]" />
+                  <span className="mt-2 block h-[12px] w-3/5 rounded bg-black/[0.07]" />
+                </li>
+              ))}
+            </ul>
+          ) : detail.applications.length === 0 ? (
+            <p className="mt-2.5 rounded-2xl bg-white px-5 py-10 text-center text-[13px] text-[#86868b] ring-1 ring-black/[0.06]">Nobody has applied through this link yet.</p>
+          ) : (
+            <ul className="mt-2.5 divide-y divide-black/[0.06] overflow-hidden rounded-2xl bg-white ring-1 ring-black/[0.06]">
+              {detail.applications.map((a) => (
+                <li key={a.id} className="px-4 py-3.5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold">
+                        {a.fullName}
+                        <span className="ml-2 font-mono text-[12.5px] font-normal text-[#0058b0]">{a.referenceNo}</span>
+                      </p>
+                      <p className="mt-0.5 text-[12.5px] text-[#48484a]">
+                        <span className="tabular-nums">{a.phone}</span>
+                        {[a.city, a.country].filter(Boolean).length > 0 && <span> · {[a.city, a.country].filter(Boolean).join(", ")}</span>}
+                        <span> · {fmtDay(a.createdAt)}</span>
+                      </p>
+                      <p className="mt-0.5 text-[12.5px] text-[#6e6e73]">
+                        Application {a.status === "spam" ? "spam" : a.status === "handled" ? "handled" : "new"}
+                        {a.notVerified && <span className="ml-1.5 rounded-full px-2 py-0.5 text-[11px] ring-1 ring-black/10">Not verified</span>}
+                      </p>
+                    </div>
+                    <ReferralActions a={a} busy={busy} onDecide={onDecide} />
+                  </div>
+                  <div className="mt-2.5">
+                    {a.documents?.length ? <TripDocuments documents={a.documents} compact /> : <span className="text-[12.5px] text-[#86868b]">No ID proof</span>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {detail && detail.payouts.length > 0 && (
+            <>
+              <h3 className="mt-6 text-[13px] font-semibold">Payments</h3>
+              <ul className="mt-2.5 divide-y divide-black/[0.06] overflow-hidden rounded-2xl bg-white text-[13px] ring-1 ring-black/[0.06]">
+                {detail.payouts.map((p) => (
+                  <li key={p.id} className="flex flex-wrap justify-between gap-2 px-4 py-3">
+                    <span>
+                      <b>{rupees(p.amount)}</b> for {p.referrals} {p.referrals === 1 ? "referral" : "referrals"} ({p.points.toLocaleString("en-IN")} points)
+                      {p.note ? <span className="text-[#6e6e73]"> · {p.note}</span> : null}
+                    </span>
+                    <span className="text-[#86868b]">
+                      {fmtDate(p.paidAt)} · {p.paidBy}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
-      )}
-    </section>
+      </section>
+    </div>
   );
 }
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Check, Download, Mail, MessageCircle, Phone, RefreshCw, Search, Users, X } from "lucide-react";
 import { EVERY_BUSINESS_STATUS, SOURCE_NOT_VERIFIED, businessStatusBrief, isKnownBusinessStatus } from "@/lib/trip-application";
 import { countryFlagUrl } from "@/lib/countryFlag";
+import { idProofLabel, type IdProof } from "@/lib/trip-referral-shared";
 import { TripLockPanel } from "./TripLockPanel";
 import { TripStagePanel } from "./TripStagePanel";
 
@@ -111,32 +112,43 @@ export interface TripDocumentView {
   id: string;
   contentType: string;
   size: number | null;
+  /** Which of the five IDs it was added as; null for a file from before the five (2026-11-03). */
+  proof?: IdProof | null;
 }
 
 /**
- * An application's ID proof, as tiles that open the file in a new tab: a photo shown small, a PDF by name. The panel
- * and Employee tasks both show it, so whoever decides on a referral sees who it is.
+ * An application's ID proof, as tiles that open the file in a new tab: a photo shown small, a PDF by name, and under
+ * each the ID it was added as (Aadhaar, PAN card...). The panel and Employee tasks both show it, so whoever decides on
+ * a referral sees who it is.
  */
 export function TripDocuments({ documents, compact = false }: { documents: TripDocumentView[]; compact?: boolean }) {
   return (
     <span className="flex flex-wrap gap-2">
-      {documents.map((d, i) => (
-        <a
-          key={d.id}
-          href={`/api/admin/trip-documents/${d.id}/`}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={`Open ID file ${i + 1} in a new tab`}
-          className={`grid place-items-center overflow-hidden rounded-md border border-black/10 bg-[#f5f5f7] font-semibold text-[#0058b0] hover:border-[#0058b0] ${compact ? "h-10 w-14 text-[11px]" : "h-16 w-24 text-[12px]"}`}
-        >
-          {d.contentType === "application/pdf" ? (
-            `PDF ${i + 1}`
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element -- a private file through a five-minute link, never the image optimiser
-            <img src={`/api/admin/trip-documents/${d.id}/`} alt={`ID file ${i + 1}`} loading="lazy" className="size-full object-cover" />
-          )}
-        </a>
-      ))}
+      {documents.map((d, i) => {
+        const name = d.proof ? idProofLabel(d.proof) : `ID file ${i + 1}`;
+        return (
+          <a
+            key={d.id}
+            href={`/api/admin/trip-documents/${d.id}/`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Open ${name} in a new tab`}
+            className={`group grid justify-items-start gap-1 ${compact ? "w-14" : "w-24"}`}
+          >
+            <span
+              className={`grid w-full place-items-center overflow-hidden rounded-md border border-black/10 bg-[#f5f5f7] font-semibold text-[#0058b0] group-hover:border-[#0058b0] ${compact ? "h-10 text-[11px]" : "h-16 text-[12px]"}`}
+            >
+              {d.contentType === "application/pdf" ? (
+                `PDF ${i + 1}`
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- a private file through a five-minute link, never the image optimiser
+                <img src={`/api/admin/trip-documents/${d.id}/`} alt={name} loading="lazy" className="size-full object-cover" />
+              )}
+            </span>
+            {d.proof && <span className="max-w-full truncate text-[11px] font-medium text-[#48484a]">{idProofLabel(d.proof)}</span>}
+          </a>
+        );
+      })}
     </span>
   );
 }

@@ -47,6 +47,22 @@ export interface RailItem {
 export const railRowIsCurrent = (item: RailItem, pathname: string) =>
   !item.view && [item.href, ...(item.also ?? [])].some((href) => pathname.startsWith(href));
 
+const DASHBOARD_VIEWS = new Set<string>(["all", "inquiries", "contacts", "shipping", "trash"] satisfies RailView[]);
+
+/**
+ * Whether a row is the place `at` names (a path and query, as admin-nav's addressOf writes them): a page's row by its
+ * path, and on the dashboard, the view its ?view= asks for (All when none). For the frame's rail while a move is on
+ * its way, and for the one the dashboard's loading screen draws, which mark the dashboard's views too.
+ */
+export function railRowIsAt(item: RailItem, at: string): boolean {
+  const [path, query = ""] = at.split("?");
+  if (path === "/admin" || path === "/admin/") {
+    const view = new URLSearchParams(query).get("view");
+    return item.view === (view && DASHBOARD_VIEWS.has(view) ? view : "all");
+  }
+  return railRowIsCurrent(item, path.endsWith("/") ? path : `${path}/`);
+}
+
 export interface RailGroup {
   /** null for the first group, which is one row and needs no heading. */
   label: string | null;

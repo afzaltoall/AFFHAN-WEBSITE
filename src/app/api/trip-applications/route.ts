@@ -12,7 +12,7 @@ import { TRIP_FACTS } from "@/lib/trip-legal";
 import { TRIP_LOCKED_ERROR, tripClosedHere } from "@/lib/trip-lock";
 import { referralForApplication } from "@/lib/server/trip-referrals";
 import { checkDocuments } from "@/lib/server/trip-documents";
-import { ID_DOCUMENTS_MAX, ID_DOCUMENT_NEEDED, idDocumentTypeOfKey, isIdDocumentKey } from "@/lib/trip-referral-shared";
+import { ID_DOCUMENTS_MAX, ID_DOCUMENT_NEEDED, idDocumentTypeOfKey, idProofOfKey, isIdDocumentKey } from "@/lib/trip-referral-shared";
 import { LIMITS, SOURCE_NOT_VERIFIED, applicationWindow, isBusinessStatus, isRetiredBusinessStatus, validateAll, type TripApplicationPayload } from "@/lib/trip-application";
 
 /**
@@ -153,7 +153,8 @@ export async function POST(req: NextRequest) {
   // Its ID proof: required when the link credits an employee, and every upload sent is checked and kept. Only keys this
   // server made can name a file (isIdDocumentKey), and one S3 does not have is an upload that never finished.
   const documentKeys = [...new Set(Array.isArray(body.documents) ? body.documents.filter(isIdDocumentKey) : [])].slice(0, ID_DOCUMENTS_MAX);
-  if (referral && !documentKeys.length) {
+  // One of the five IDs at least (ID_PROOFS): a key names the one it was added as; one from before the five names none.
+  if (referral && !documentKeys.some((k) => idProofOfKey(k))) {
     return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: ID_DOCUMENT_NEEDED } }, { status: 400 });
   }
   // An upload already kept with another application (the same files sent twice): this one adds its own. Asked first,

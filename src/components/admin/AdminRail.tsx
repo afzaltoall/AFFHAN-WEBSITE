@@ -10,9 +10,10 @@ import { useAdminDark } from "@/lib/useAdminDark";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { AdminRailList } from "@/components/admin/AdminMobileNav";
 import {
-  RAIL_GROUPS, fmtRailBadge, fmtRailNum, railFitStyle, railRowIsCurrent,
+  RAIL_GROUPS, fmtRailBadge, fmtRailNum, railFitStyle, railRowIsAt, railRowIsCurrent,
   type RailCountMap, type RailItem,
 } from "@/components/admin/rail-sections";
+import { useAdminNav } from "@/components/admin/admin-nav";
 import type { RailCounts } from "@/lib/admin-rail-counts";
 import { TripLockRailDot, TripLockRailPill } from "@/components/admin/TripLockRailStatus";
 
@@ -76,6 +77,7 @@ export function AdminRail({
   image,
   counts,
   supportsDark,
+  at,
 }: {
   name: string;
   image: string | null;
@@ -89,9 +91,12 @@ export function AdminRail({
   counts: RailCounts | null;
   /** Whether the page beside the rail has a dark theme of its own to match. */
   supportsDark: boolean;
+  /** Where the rail is (a path and query, admin-nav's addressOf): the page beside it, or the one a move is on its way
+   *  to, so the row pressed is marked at once. On the dashboard, its views are marked by ?view=. */
+  at: string;
 }) {
-  const pathname = usePathname() ?? "";
   const router = useRouter();
+  const nav = useAdminNav();
   const [open, setOpen] = useState(false);
   const [darkPref, setDark] = useAdminDark();
   const dark = supportsDark && darkPref;
@@ -141,7 +146,7 @@ export function AdminRail({
           open ? `w-[272px] shadow-2xl ${t.sidebarOpen}` : `w-[60px] ${t.sidebar}`
         }`}
       >
-        <Link href="/admin/" className="flex items-center px-3.5 py-3">
+        <Link href="/admin/" onNavigate={() => nav.start("/admin/")} className="flex items-center px-3.5 py-3">
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
             <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
           </span>
@@ -167,14 +172,13 @@ export function AdminRail({
             >
               {group.label && <p className={groupLabel}>{group.label}</p>}
               {group.items.map((item: RailItem) => {
-                // The dashboard's four are views on a page this is not, so
-                // none of them is ever the current one here.
-                const active = railRowIsCurrent(item, pathname);
+                const active = railRowIsAt(item, at);
                 const count = railCount[item.key];
                 return (
                   <Link
                     key={item.key}
                     href={item.href}
+                    onNavigate={() => nav.start(item.href)}
                     // No hover tooltip: the rail opens on hover, its words already showing, and a tooltip only covered
                     // the row beneath (2026-11-03). Screen readers read the same words.
                     aria-label={item.key === "inquiries" && counts ? `Inquiries — ${fmtRailNum(counts.inquiries)} not handled yet` : item.label}

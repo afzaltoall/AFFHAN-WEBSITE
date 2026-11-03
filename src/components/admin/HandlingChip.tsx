@@ -9,7 +9,23 @@ import type { Handling } from "@/lib/lead-pool";
  * (administrators no longer hand leads out; staff take them). The words are lib/handling.ts's: "Open · waiting 35m",
  * "Taken by Priya · auto-release in 1h 10m", "Lead by Priya · took 2h 10m", "Invalid · …".
  */
-export function HandlingChip({ h, createdAt, dark = false, now }: { h: Handling | null | undefined; createdAt: string; dark?: boolean; now: number }) {
+export function HandlingChip({
+  h,
+  createdAt,
+  dark = false,
+  now,
+  quietWhenSettled = false,
+}: {
+  h: Handling | null | undefined;
+  createdAt: string;
+  dark?: boolean;
+  now: number;
+  /** Nothing at all for a request that is handled with nothing else going on ("Done · already handled"): in a list
+   *  row the Handled beside it already says so, and the chip only repeated it (2026-11-03). Another request waiting,
+   *  or with somebody, still shows. */
+  quietWhenSettled?: boolean;
+}) {
+  if (quietWhenSettled && h?.state === "handled" && !h.another) return null;
   const key = handlingKey(h);
   const { text, title } = handlingText(h, createdAt, now);
   const lead = h?.state === "done" && h.outcome === "LEAD";

@@ -6,9 +6,11 @@ import {
   REFERRAL_CODE_MAX,
   REFERRAL_CODE_MIN,
   REFERRAL_DEFAULTS,
+  idProofOfKey,
   normalizeReferralCode,
   referralCounts,
   referralWaiting,
+  type IdProof,
   type ReferralState,
 } from "@/lib/trip-referral-shared";
 
@@ -280,7 +282,7 @@ export interface ReferredApplication {
   decidedBy: string | null;
   decidedAt: string | null;
   /** Its ID proof (2026-11-02), for the console only: the employee's own page never reads it. */
-  documents?: { id: string; contentType: string; size: number | null }[];
+  documents?: { id: string; contentType: string; size: number | null; proof: IdProof | null }[];
 }
 
 export interface ReferralPayoutView {
@@ -317,9 +319,11 @@ export async function employeeReferrals(employee: { id: string; name: string }, 
     const rows = await prisma.tripApplicationDocument.findMany({
       where: { applicationId: { in: apps.map((a) => a.id) } },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-      select: { id: true, applicationId: true, contentType: true, size: true },
+      select: { id: true, applicationId: true, key: true, contentType: true, size: true },
     });
-    for (const d of rows) documents.set(d.applicationId, [...(documents.get(d.applicationId) ?? []), { id: d.id, contentType: d.contentType, size: d.size }]);
+    for (const d of rows) {
+      documents.set(d.applicationId, [...(documents.get(d.applicationId) ?? []), { id: d.id, contentType: d.contentType, size: d.size, proof: idProofOfKey(d.key) }]);
+    }
   }
   return {
     code,

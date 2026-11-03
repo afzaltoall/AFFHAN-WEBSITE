@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 
-const { isIdDocumentKey, idDocumentTypeOfKey } = await import("../../src/lib/trip-referral-shared.ts");
+const { ID_PROOFS, idDocumentTypeOfKey, idProofOfKey, isIdDocumentKey, isIdProof } = await import("../../src/lib/trip-referral-shared.ts");
 /** A source file's code, its comments taken out (they name the public bucket to say why it is not used). */
 const read = (p) =>
   fs
@@ -15,8 +15,9 @@ const read = (p) =>
     .replace(/^\s*\/\/.*$/gm, "");
 const ID = "0b3c2f4e-8d1a-4c5b-9e7f-112233445566";
 
-test("only docs/<uuid>.<jpg|png|webp|pdf> is a document key", () => {
+test("only docs/<id>/<uuid>.<jpg|png|webp|pdf> (or an older docs/<uuid>.<ext>) is a document key", () => {
   for (const ext of ["jpg", "png", "webp", "pdf"]) assert.ok(isIdDocumentKey(`docs/${ID}.${ext}`), ext);
+  for (const p of ID_PROOFS) assert.ok(isIdDocumentKey(`docs/${p.id}/${ID}.jpg`), p.id);
   for (const key of [
     `suppliers/${ID}.jpg`,
     `products/a/b/${ID}.jpg`,
@@ -24,6 +25,9 @@ test("only docs/<uuid>.<jpg|png|webp|pdf> is a document key", () => {
     `docs/${ID}.gif`,
     `docs/${ID}.jpg/x`,
     `docs/not-a-uuid.jpg`,
+    `docs/ration/${ID}.jpg`,
+    `docs/aadhaar/aadhaar/${ID}.jpg`,
+    `docs/AADHAAR/${ID}.jpg`,
     `/docs/${ID}.jpg`,
     `https://affan-product-images.s3.ap-south-1.amazonaws.com/docs/${ID}.jpg`,
     "",
@@ -33,6 +37,22 @@ test("only docs/<uuid>.<jpg|png|webp|pdf> is a document key", () => {
     assert.equal(isIdDocumentKey(key), false, String(key));
   }
   assert.equal(idDocumentTypeOfKey(`docs/${ID}.pdf`), "application/pdf");
+  assert.equal(idDocumentTypeOfKey(`docs/pan/${ID}.pdf`), "application/pdf");
+});
+
+// The owner, 2026-11-03: "aadhar / pan / voter id / license / passport ... only these, nothing else".
+test("the five IDs, and no other, name an upload", () => {
+  assert.deepEqual(ID_PROOFS.map((p) => p.id), ["aadhaar", "pan", "voter", "licence", "passport"]);
+  for (const p of ID_PROOFS) assert.equal(idProofOfKey(`docs/${p.id}/${ID}.jpg`), p.id);
+  assert.equal(idProofOfKey(`docs/${ID}.jpg`), null, "a file from before the five names none");
+  for (const v of ["ration", "", "Aadhaar", null, 1]) assert.equal(isIdProof(v), false, String(v));
+  // A ticket is refused without one of the five, and the key it makes names it.
+  const route = read("src/app/api/trip-applications/document-url/route.ts");
+  assert.ok(route.includes("if (!isIdProof(body.proof)) return NextResponse.json({ error: ID_PROOF_NEEDED }, { status: 400 });"), "refused without one");
+  assert.ok(route.indexOf("isIdProof(body.proof)") < route.indexOf("documentUploadTarget("), "before a ticket");
+  assert.ok(read("src/lib/server/trip-documents.ts").includes("const key = `docs/${proof}/${randomUUID()}."), "the key names it");
+  // An application through a link needs a file added as one of them.
+  assert.ok(read("src/app/api/trip-applications/route.ts").includes("if (referral && !documentKeys.some((k) => idProofOfKey(k)))"), "an application needs one");
 });
 
 test("the files go to their own private bucket, never the public product one or its CDN", () => {
@@ -57,7 +77,7 @@ test("only a live employee's link gets an upload ticket", () => {
   const src = read("src/app/api/trip-applications/document-url/route.ts");
   const live = src.indexOf("liveReferralCode(body.code)");
   assert.ok(live > 0, "the link is checked");
-  assert.ok(live < src.indexOf("documentUploadTarget(body.contentType)"), "before a ticket");
+  assert.ok(live < src.indexOf("documentUploadTarget(body.contentType, body.proof)"), "before a ticket");
 });
 
 test("the employee's own page never reads anyone's ID proof", () => {

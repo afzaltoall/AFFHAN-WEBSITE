@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile, splitE164 } from "@/lib/phone";
 import { isBusinessStatus, type FieldErrors, type TripApplicationPayload } from "@/lib/trip-application";
-import { REFERRAL_CODE_MAX, REFERRAL_EVENT, REFERRAL_STORAGE_DAYS, REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/lib/trip-referral-shared";
+import { REFERRAL_CODE_MAX, REFERRAL_EVENT, REFERRAL_STORAGE_DAYS, REFERRAL_STORAGE_KEY, normalizeReferralCode, type IdProof } from "@/lib/trip-referral-shared";
 
 /**
  * The application's one state object: { personal, business, travel, consent },
@@ -41,9 +41,11 @@ export interface ApplicationState {
   documents: { files: UploadedDocument[]; uploading: number };
 }
 
-/** One ID file in the private bucket: its key, and what the form shows of it (`preview`, an object URL for a photo). */
+/** One ID file in the private bucket: its key, which of the five IDs it is (`proof`), and what the form shows of it
+ *  (`preview`, an object URL for a photo). */
 export interface UploadedDocument {
   key: string;
+  proof: IdProof;
   kind: "image" | "pdf";
   preview: string | null;
 }

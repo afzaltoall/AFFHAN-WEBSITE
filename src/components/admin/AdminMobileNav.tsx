@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { RAIL_GROUPS, fmtRailNum, type RailCountMap, type RailItem, type RailView } from "@/components/admin/rail-sections";
 import { TripLockRailPill } from "@/components/admin/TripLockRailStatus";
+import { useAdminNav } from "@/components/admin/admin-nav";
 
 /**
  * The console's navigation on a phone or a tablet (wherever neither rail is
@@ -42,6 +43,7 @@ export function AdminRailList({
   /** After any choice: the drawer closes. */
   onNavigate: () => void;
 }) {
+  const nav = useAdminNav();
   const row = (item: RailItem) => {
     const active = isActive(item);
     const count = counts[item.key];
@@ -68,7 +70,15 @@ export function AdminRailList({
         {body}
       </button>
     ) : (
-      <Link key={item.key} href={item.href} onClick={onNavigate} aria-current={active ? "page" : undefined} className={cls}>
+      <Link
+        key={item.key}
+        href={item.href}
+        onClick={onNavigate}
+        // Says where it goes, so the frame puts the loading screen up at once (admin-nav.tsx).
+        onNavigate={() => nav.start(item.href)}
+        aria-current={active ? "page" : undefined}
+        className={cls}
+      >
         {body}
       </Link>
     );

@@ -1,8 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, Plus, X } from "lucide-react";
-import { ID_DOCUMENTS_MAX, ID_DOCUMENT_MAX_BYTES, idDocumentExtension, isIdDocumentType, type IdDocumentType } from "@/lib/trip-referral-shared";
+import {
+  ID_DOCUMENTS_MAX,
+  ID_DOCUMENT_MAX_BYTES,
+  ID_PROOFS,
+  ID_PROOF_NEEDED,
+  idDocumentExtension,
+  idProofLabel,
+  isIdDocumentType,
+  type IdDocumentType,
+  type IdProof,
+} from "@/lib/trip-referral-shared";
 import { LABEL } from "./fields";
 import type { ApplicationApi } from "./useApplication";
 
@@ -41,13 +51,14 @@ async function prepare(file: File): Promise<{ blob: Blob; type: IdDocumentType; 
   return { error: file.size > ID_DOCUMENT_MAX_BYTES ? TOO_BIG : NOT_A_DOCUMENT };
 }
 
-/** One file, straight to the private bucket: a ticket from our server, then the file to S3. Its key, or why not. */
-async function send(code: string, blob: Blob, type: IdDocumentType): Promise<{ key: string } | { error: string; notLive?: boolean }> {
+/** One file, straight to the private bucket: a ticket from our server for the ID it is, then the file to S3. Its key,
+ *  or why not. */
+async function send(code: string, proof: IdProof, blob: Blob, type: IdDocumentType): Promise<{ key: string } | { error: string; notLive?: boolean }> {
   try {
     const res = await fetch("/api/trip-applications/document-url/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, contentType: type }),
+      body: JSON.stringify({ code, proof, contentType: type }),
     });
     const t = (await res.json().catch(() => ({}))) as { uploadUrl?: string; uploadFields?: Record<string, string>; key?: string; error?: string; reason?: string };
     if (!res.ok || !t.uploadUrl || !t.uploadFields || !t.key) return { error: t.error || NOT_SENT, notLive: t.reason === "not_live" };
@@ -62,17 +73,43 @@ async function send(code: string, blob: Blob, type: IdDocumentType): Promise<{ k
   }
 }
 
+/** What to add of each ID, under the choice. */
+const PROOF_NOTE: Record<IdProof, string> = {
+  aadhaar: "Add both sides. A masked Aadhaar is fine.",
+  pan: "Add the front of the card.",
+  voter: "Add both sides.",
+  licence: "Add both sides.",
+  passport: "Add the page with your photo.",
+};
+
 /**
  * ID proof, asked only of someone who came through an employee's link (the owner, 2026-11-02: compulsory for them,
- * never shown to anyone applying on their own). Aadhaar, passport or any government ID: photos or PDFs, up to three
- * (both sides of an Aadhaar), each sent the moment it is chosen, shown as a tile that can be taken off again. Its
- * complaint, the form's or the server's, sits under it like any field's; Submit waits for files still on their way.
+ * never shown to anyone applying on their own). One of five IDs and no other (2026-11-03: "aadhar / pan / voter id /
+ * license / passport ... only these"), chosen first as the form's other choices are; then photos or PDFs of it, up to
+ * three (both sides of an Aadhaar), each sent the moment it is chosen and shown as a tile named by its ID, which can
+ * be taken off again. Its complaint, the form's or the server's, sits under it like any field's; Submit waits for
+ * files still on their way.
  */
 export function IdDocumentField({ app }: { app: ApplicationApi }) {
   const input = useRef<HTMLInputElement>(null);
   const { files, uploading } = app.state.documents;
+  // Which ID the next file is: the last one added's, until another is chosen.
+  const [proof, setProof] = useState<IdProof | null>(() => files.at(-1)?.proof ?? null);
   const room = ID_DOCUMENTS_MAX - files.length - uploading;
   const error = app.errors.idDocument;
+
+  const choose = (next: IdProof) => {
+    setProof(next);
+    if (app.errors.idDocument === ID_PROOF_NEEDED) app.setErrors((e) => ({ ...e, idDocument: undefined }));
+  };
+  const add = () => {
+    if (!proof) {
+      app.setErrors((e) => ({ ...e, idDocument: ID_PROOF_NEEDED }));
+      document.getElementById("ax-idProof")?.focus();
+      return;
+    }
+    input.current?.click();
+  };
 
   // The previews' object URLs, let go when the form goes.
   const previews = useRef<string[]>([]);
@@ -85,6 +122,8 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
     const chosen = Array.from(list ?? []).slice(0, Math.max(0, room));
     if (input.current) input.current.value = "";
     const code = app.state.referral.code;
+    const as = proof;
+    if (!as) return;
     for (const file of chosen) {
       app.documentStarted();
       void (async () => {
@@ -94,7 +133,7 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
           app.setErrors((e) => ({ ...e, idDocument: ready.error }));
           return;
         }
-        const sent = await send(code, ready.blob, ready.type);
+        const sent = await send(code, as, ready.blob, ready.type);
         if ("error" in sent) {
           app.documentSettled(null);
           // The link stopped crediting anyone since it was kept: nothing more is asked.
@@ -102,7 +141,7 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
           else app.setErrors((e) => ({ ...e, idDocument: sent.error }));
           return;
         }
-        app.documentSettled({ key: sent.key, kind: ready.kind, preview: ready.kind === "image" ? URL.createObjectURL(ready.blob) : null });
+        app.documentSettled({ key: sent.key, proof: as, kind: ready.kind, preview: ready.kind === "image" ? URL.createObjectURL(ready.blob) : null });
       })();
     }
   };
@@ -124,25 +163,45 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
         ID proof
         <span aria-hidden className="text-(--cx-gold)"> *</span>
       </legend>
-      <p id="ax-idDocument-note" className="mt-1 max-w-[34rem] text-[13px] leading-relaxed text-(--cx-mute)">
-        Aadhaar, passport or any government photo ID, as a photo or a PDF. Add both sides of an Aadhaar; a masked Aadhaar is fine.
+      {/* The five, drawn as the form's other choices are (Pills), and nothing to type. */}
+      <div role="radiogroup" aria-label="Which ID" className="mt-1 flex flex-wrap gap-2.5">
+        {ID_PROOFS.map((p, i) => (
+          <label key={p.id} className="group relative cursor-pointer">
+            <input
+              id={i === 0 ? "ax-idProof" : undefined}
+              type="radio"
+              name="ax-idProof"
+              value={p.id}
+              checked={proof === p.id}
+              onChange={() => choose(p.id)}
+              className="peer sr-only"
+            />
+            <span className="inline-flex min-h-11 items-center border border-(--cx-white)/22 px-4 text-[14px] text-(--cx-white) transition-colors duration-300 group-hover:border-(--cx-white)/45 peer-checked:border-(--cx-gold) peer-checked:bg-(--cx-gold) peer-checked:text-(--cx-ink) peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3 peer-focus-visible:outline-(--cx-white)">
+              {p.label}
+            </span>
+          </label>
+        ))}
+      </div>
+      <p id="ax-idDocument-note" className="max-w-[34rem] text-[13px] leading-relaxed text-(--cx-mute)">
+        {proof ? `${PROOF_NOTE[proof]} A photo or a PDF.` : "Choose any one of these, then add a photo or a PDF of it."}
       </p>
       <div className="flex flex-wrap items-center gap-3">
         {files.map((f, i) => (
           <div key={f.key} className={tile}>
             {f.preview ? (
               // eslint-disable-next-line @next/next/no-img-element -- a local object URL, nothing to optimise
-              <img src={f.preview} alt={`ID file ${i + 1}`} className="size-full object-cover" />
+              <img src={f.preview} alt={`${idProofLabel(f.proof)}, file ${i + 1}`} className="size-full object-cover" />
             ) : (
               <span className="grid justify-items-center gap-1 text-[12px] font-semibold tracking-[0.12em] text-(--cx-white)">
                 <FileText size={22} aria-hidden />
                 PDF
               </span>
             )}
+            <span className="absolute inset-x-0 bottom-0 truncate bg-(--cx-ink)/80 px-1.5 py-1 text-center text-[11px] text-(--cx-white)">{idProofLabel(f.proof)}</span>
             <button
               type="button"
               onClick={() => remove(f.key, f.preview)}
-              aria-label={`Remove ID file ${i + 1}`}
+              aria-label={`Remove ${idProofLabel(f.proof)}, file ${i + 1}`}
               className="absolute right-1 top-1 grid size-7 place-items-center bg-(--cx-ink)/80 text-(--cx-white) transition-colors hover:bg-(--cx-ink) focus-visible:outline-2 focus-visible:outline-(--cx-gold)"
             >
               <X size={14} aria-hidden />
@@ -157,7 +216,7 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
         {room > 0 && (
           <button
             type="button"
-            onClick={() => input.current?.click()}
+            onClick={add}
             className="inline-flex min-h-11 items-center gap-2 border border-(--cx-white)/22 px-4 text-[14px] text-(--cx-white) transition-colors duration-300 hover:border-(--cx-white)/45 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--cx-white)"
           >
             <Plus size={16} aria-hidden />
