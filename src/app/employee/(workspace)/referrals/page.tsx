@@ -55,7 +55,9 @@ export default async function MyReferralsPage() {
           : null;
 
   return (
-    <div className="max-w-5xl space-y-5">
+    // The workspace's full width, as its other pages (the rail decides it; 2026-11-03: a 5xl column "feels lefted"):
+    // the link and the progress side by side on a wide screen, the applicants under them.
+    <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">My referrals</h1>
         <p className={`mt-1 text-[13px] ${wt.mid}`}>
@@ -64,39 +66,44 @@ export default async function MyReferralsPage() {
         </p>
       </div>
 
-      <section className={`rounded-2xl p-5 ${wt.card}`}>
-        <p className={`text-[12px] font-medium ${wt.soft}`}>Your link</p>
-        <p className="mt-1.5 break-all rounded-xl bg-[#f5f5f7] px-4 py-3 font-mono text-[15px] font-semibold">{link}</p>
-        <div className="mt-4">
-          <ReferralShare link={link} />
-        </div>
-      </section>
-
-      <section className={`rounded-2xl p-5 ${wt.card}`}>
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <p className="text-[15px] font-semibold">
-            <span className="text-[28px] font-bold tabular-nums">{totals.counted}</span>
-            <span className={wt.soft}> / {settings.target} counted</span>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <section className={`flex flex-col rounded-2xl p-5 ${wt.card}`}>
+          <p className={`text-[12px] font-medium ${wt.soft}`}>Your link</p>
+          <p className="mt-1.5 break-all rounded-xl bg-[#f5f5f7] px-4 py-3 font-mono text-[15px] font-semibold">{link}</p>
+          <p className={`mt-3 text-[13px] leading-relaxed ${wt.mid}`}>
+            Whoever opens it agrees to the trip&apos;s Terms, applies with a photo of their ID, and counts for you at once.
           </p>
-          {totals.counted >= settings.target && <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[12.5px] font-semibold text-emerald-700">Target reached</span>}
-        </div>
-        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={settings.target} aria-valuenow={done} aria-label="Counted towards the target">
-          <div className="h-full rounded-full bg-[#176579]" style={{ width: `${(done / settings.target) * 100}%` }} />
-        </div>
-        <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            ["Applied through your link", String(totals.referred)],
-            ["Points", totals.points.toLocaleString("en-IN")],
-            ["Earned", rupees(totals.paidRupees + totals.unpaidRupees)],
-            ["Paid", rupees(totals.paidRupees)],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-xl bg-[#f5f5f7] px-3.5 py-2.5">
-              <dt className={`text-[12px] ${wt.soft}`}>{label}</dt>
-              <dd className="mt-0.5 text-[19px] font-semibold tabular-nums">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
+          <div className="mt-auto pt-4">
+            <ReferralShare link={link} />
+          </div>
+        </section>
+
+        <section className={`rounded-2xl p-5 ${wt.card}`}>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <p className="text-[15px] font-semibold">
+              <span className="text-[28px] font-bold tabular-nums">{totals.counted}</span>
+              <span className={wt.soft}> / {settings.target} counted</span>
+            </p>
+            {totals.counted >= settings.target && <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[12.5px] font-semibold text-emerald-700">Target reached</span>}
+          </div>
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={settings.target} aria-valuenow={done} aria-label="Counted towards the target">
+            <div className="h-full rounded-full bg-[#176579]" style={{ width: `${(done / settings.target) * 100}%` }} />
+          </div>
+          <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              ["Applied through your link", String(totals.referred)],
+              ["Points", totals.points.toLocaleString("en-IN")],
+              ["Earned", rupees(totals.paidRupees + totals.unpaidRupees)],
+              ["Paid", rupees(totals.paidRupees)],
+            ].map(([label, value]) => (
+              <div key={label} className="rounded-xl bg-[#f5f5f7] px-3.5 py-2.5">
+                <dt className={`text-[12px] ${wt.soft}`}>{label}</dt>
+                <dd className="mt-0.5 text-[19px] font-semibold tabular-nums">{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </div>
 
       <section className={`overflow-hidden rounded-2xl ${wt.card}`}>
         <h2 className={`border-b px-5 py-3 text-[15px] font-semibold ${wt.border}`}>Applied through your link</h2>
