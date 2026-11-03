@@ -10,7 +10,7 @@ import { authLabel, authPrimaryButton, authResetButton } from "@/components/ui/a
 import { SessionNotice } from "./SessionNotice";
 import { TURNSTILE_SITE_KEY } from "@/lib/turnstile-site-key";
 
-export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
+export function EmployeeLoginForm() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -59,15 +59,11 @@ export function EmployeeLoginForm({ stats }: { stats?: React.ReactNode }) {
   };
 
   return (
-    <EmployeeAuthShell
-      stats={stats}
-      title="The sales desk."
-      blurb="The customers you take from the open pool, and the record of what happened to each one. Sign in with the address your administrator registered."
-    >
+    <EmployeeAuthShell>
       <h2 className="text-xl font-bold tracking-tight text-slate-900">Staff sign in</h2>
       {/* slate-600 on white is 7.0:1. The old white/80 on the brand gradient
           was under 4.5:1, which is what item 3 was about. */}
-      <p className="mt-1 text-[13px] text-slate-600">For the Affhan sales team.</p>
+      <p className="mt-1 text-[13px] text-slate-600">For the AFFHAN team.</p>
 
       {/* The ONLY thing that reads the query string, and therefore the only
           thing that has to sit behind a boundary. Everything around it —

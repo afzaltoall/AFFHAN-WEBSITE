@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { SalesDeskPreview } from "@/components/ui/SalesDeskPreview";
+import { StaffDesks } from "@/components/ui/StaffDesks";
 import { LoginBackground } from "@/components/ui/LoginBackground";
 
 /**
@@ -13,14 +13,14 @@ import { LoginBackground } from "@/components/ui/LoginBackground";
  * public /login/ uses: the ambient LoginBackground on the form side, a white
  * card on top of it, and the field tokens from authFieldStyles inside.
  *
- * The left panel is the part that was empty. It now carries the brand, the
- * headline, a drawing of the sales desk (see SalesDeskPreview — sample text,
- * nothing fetched) and the copyright line, on a restrained grid-and-gradient
- * ground rather than flat navy.
+ * The left panel carries the brand and the desks the staff sign in to, running (the owner, 2026-11-03: "this image
+ * perfection is ok ... left side animative quotes and leads ... live ai feel ilama", "feels empty ... innovative"):
+ * StaffDesks turns through the sales desk, the cargo desk and the trip desk, each headline with a drawing of that desk
+ * at work (sample text, nothing fetched). The catalogue figures that sat under it went ("products categories counter
+ * ... vendam"). On a restrained grid-and-gradient ground rather than flat navy.
  *
- * Below lg the left panel is replaced by a compact brand header above the
- * form, so a phone gets the logo and the heading without 50% of the viewport
- * spent on decoration, and nothing scrolls sideways.
+ * Below lg, the sign-in alone (the owner: "in mobile view only login have to show"), centred in the screen ("have to
+ * be in center"): the brand, the card, and the copyright line under it.
  *
  * THE LOGO. public/logo.png is a 225x225 transparent PNG, so on a dark ground
  * it needs a light plate behind it or it disappears. The first attempt used a
@@ -30,29 +30,14 @@ import { LoginBackground } from "@/components/ui/LoginBackground";
  * the mark, with the wordmark set beside it in white — a lockup rather than a
  * logo floating in a white rectangle.
  */
-export function EmployeeAuthShell({
-  title,
-  blurb,
-  stats,
-  children,
-}: {
-  /** The headline on the left panel, and the small heading on mobile. */
-  title: string;
-  blurb: string;
-  /**
-   * The figures under the preview. A slot rather than a fetch: the route
-   * counts them on the server and hands the element in, so this component
-   * stays presentational and the page adds no client request.
-   */
-  stats?: React.ReactNode;
-  children: React.ReactNode;
-}) {
+export function EmployeeAuthShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="employee-auth-shell grid min-h-screen lg:grid-cols-[1fr_1fr]">
       {/* ---------------------------------------------------------- left */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-[#0b2230] p-12 lg:flex">
+      {/* Set in from the edge on a wide screen (the owner, 2026-11-03: "slightly move right"). */}
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-[#0b2230] p-12 lg:flex xl:px-24">
         {/* Ground: one deep gradient plus a faint grid. Both are painted, not
-            animated — the only motion on this panel is the preview's. */}
+            animated — the motion on this panel is the headline's and the desk's. */}
         <div aria-hidden="true" className="pointer-events-none absolute inset-0">
           <div className="absolute inset-0 bg-[radial-gradient(120%_90%_at_10%_0%,#14465a_0%,#0b2230_55%,#07161f_100%)]" />
           <div
@@ -67,41 +52,13 @@ export function EmployeeAuthShell({
           />
         </div>
 
-        <Link
-          href="/"
-          aria-label="Affhan home"
-          className="group relative z-10 inline-flex items-center gap-3 rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/70"
-        >
-          {/* A square plate for a square mark, with even padding on all four
-              sides. The ring and the soft shadow stop it reading as a hole
-              punched in the panel. */}
-          <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] ring-1 ring-white/70 transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
-            <Image src="/logo.png" alt="" width={34} height={34} className="object-contain" />
-          </span>
-          <span className="leading-none">
-            <span className="block text-[15px] font-black tracking-[0.14em] text-white">AFFHAN</span>
-            <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">
-              Staff workspace
-            </span>
-          </span>
-        </Link>
+        <Lockup />
 
         <div className="relative z-10">
-          <h1 className="text-4xl font-black leading-tight text-white">{title}</h1>
-          <p className="mt-4 max-w-md text-[15px] leading-relaxed text-slate-300">{blurb}</p>
-          <div className="mt-9">
-            <SalesDeskPreview />
-          </div>
-          {stats ? (
-            <div className="mt-8 border-t border-white/10 pt-6">
-              {stats}
-            </div>
-          ) : null}
+          <StaffDesks />
         </div>
 
-        <p className="relative z-10 text-sm text-slate-400">
-          © {new Date().getFullYear()} AFFHAN International Pvt Ltd
-        </p>
+        <p className="relative z-10 text-sm text-slate-400">© {new Date().getFullYear()} AFFHAN International Pvt Ltd</p>
       </div>
 
       {/* --------------------------------------------------------- right */}
@@ -109,35 +66,45 @@ export function EmployeeAuthShell({
         <LoginBackground />
 
         <div className="relative z-10 w-full max-w-md">
-          {/* The mobile brand header the left panel collapses into. */}
-          <div className="mb-6 flex flex-col items-center text-center lg:hidden">
-            <Link
-              href="/"
-              aria-label="Affhan home"
-              className="inline-flex items-center gap-2.5 rounded-2xl transition-opacity hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/70"
-            >
-              <span className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-white p-2 shadow-[0_8px_24px_rgba(0,0,0,0.25)] ring-1 ring-white/70">
-                <Image src="/logo.png" alt="" width={30} height={30} className="object-contain" />
-              </span>
-              <span className="text-left leading-none">
-                <span className="block text-[14px] font-black tracking-[0.14em] text-white">AFFHAN</span>
-                <span className="mt-1 block text-[9.5px] font-semibold uppercase tracking-[0.18em] text-white/50">
-                  Staff workspace
-                </span>
-              </span>
-            </Link>
-            <h1 className="mt-4 text-2xl font-black text-white">{title}</h1>
+          {/* Below lg: the brand over the card, in place of the left panel. */}
+          <div className="mb-7 flex justify-center lg:hidden">
+            <Lockup />
           </div>
 
           {/* The card, as on /login/: white over the ambient background, which
               is what puts the form's text on a AA-contrast ground instead of
               white-on-teal. */}
-          <div className="rounded-2xl border border-white/60 bg-white/95 px-6 py-6 shadow-2xl backdrop-blur-xl">
-            {children}
-          </div>
+          <div className="rounded-2xl border border-white/60 bg-white/95 px-6 py-6 shadow-2xl backdrop-blur-xl">{children}</div>
+
+          <p className="mt-6 text-center text-[12.5px] text-white/60 lg:hidden">© {new Date().getFullYear()} AFFHAN International Pvt Ltd</p>
         </div>
       </div>
     </main>
+  );
+}
+
+/**
+ * The AFFHAN mark on its square plate, with the wordmark in white: a lockup rather than a logo floating in a white
+ * rectangle (see THE LOGO above).
+ */
+function Lockup() {
+  return (
+    <Link
+      href="/"
+      aria-label="Affhan home"
+      className="group relative z-10 inline-flex items-center gap-3 self-start rounded-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/70"
+    >
+      {/* A square plate for a square mark, with even padding on all four
+          sides. The ring and the soft shadow stop it reading as a hole
+          punched in the panel. */}
+      <span className="relative flex h-12 w-12 items-center justify-center rounded-2xl bg-white p-2 shadow-[0_8px_24px_rgba(0,0,0,0.35)] ring-1 ring-white/70 transition-transform duration-300 group-hover:scale-[1.03] motion-reduce:transition-none motion-reduce:group-hover:scale-100">
+        <Image src="/logo.png" alt="" width={34} height={34} className="object-contain" />
+      </span>
+      <span className="leading-none">
+        <span className="block text-[15px] font-black tracking-[0.14em] text-white">AFFHAN</span>
+        <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.18em] text-white/45">Staff workspace</span>
+      </span>
+    </Link>
   );
 }
 

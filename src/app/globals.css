@@ -933,6 +933,13 @@ html.scroll-behavior-auto {
   box-shadow: 0 0 0 3px rgba(29, 126, 147, 0.45);
 }
 
+/* Edge draws its own reveal eye inside a password box; the staff door has its own Show password button, so the two
+   sat side by side (2026-11-03). */
+.employee-auth-shell input::-ms-reveal,
+.employee-auth-shell input::-ms-clear {
+  display: none;
+}
+
 /* Premium Skeuomorphic Liquid Glass Card */
 .liquid-glass-card {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.55) 0%, rgba(240, 253, 250, 0.3) 100%) !important;

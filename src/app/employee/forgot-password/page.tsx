@@ -120,10 +120,7 @@ export default function EmployeeForgotPasswordPage() {
     "flex w-full items-center justify-center gap-2 rounded-xl bg-brand-dark py-3 font-bold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-70";
 
   return (
-    <EmployeeAuthShell
-      title="The sales desk."
-      blurb="The customers you take from the open pool, and the record of what happened to each one. Reset the password for the address your administrator registered."
-    >
+    <EmployeeAuthShell>
       <div>
         {step === "done" ? (
           <div className="py-6 text-center">
