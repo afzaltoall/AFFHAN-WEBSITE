@@ -103,6 +103,12 @@ export async function POST(request: Request) {
       if (!strength.ok) return NextResponse.json({ error: strength.error }, { status: 400 });
     }
 
+    // Asked first, so the answer never depends on how the database words a duplicate (2026-11-03: Employee tasks adds
+    // staff too); the P2002 below still covers two adds at once.
+    if (await prisma.employee.findUnique({ where: { email }, select: { id: true } })) {
+      return NextResponse.json({ error: "A staff account already uses that email." }, { status: 409 });
+    }
+
     const employee = await prisma.employee.create({
       data: { name, email, region, image, role: rank, job, passwordHash: await hashPassword(password) },
       select: LIST_SELECT,
