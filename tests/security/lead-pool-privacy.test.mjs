@@ -158,8 +158,10 @@ test("the old assign actions answer 410 Gone, with where the control went", () =
 });
 
 // 2026-10-22, the owner: the Queue page has gone. Its address redirects to the inquiries in the open pool; the rail's
-// Queue row and its figure have gone, the figure now on Inquiries; Release to pool is in the popup (above).
-test("the Queue page is gone: one redirect, no API, no rail row, the pool's figure on Inquiries", () => {
+// Queue row and its figure have gone; Release to pool is in the popup (above). The pool's figure sat on Inquiries until
+// 2026-11-03, when the owner read its 13 customers beside "17 Pending" as a wrong count: Inquiries counts the requests
+// not handled again, from the server on every page and from the rows on the dashboard.
+test("the Queue page is gone: one redirect, no API, no rail row; Inquiries counts the requests not handled", () => {
   const exists = (p) => fs.existsSync(new URL(p, ROOT));
   for (const gone of ["src/app/admin/(console)/queue", "src/app/api/admin/queue", "src/components/admin/QueueBoard.tsx"]) {
     assert.equal(exists(gone), false, `${gone} is still there`);
@@ -172,8 +174,11 @@ test("the Queue page is gone: one redirect, no API, no rail row, the pool's figu
   }
   const rail = read("src/components/admin/rail-sections.ts");
   assert.doesNotMatch(code(rail), /"queue"|Queue/);
-  assert.match(code(read("src/components/admin/AdminRail.tsx")), /inquiries: counts\.pool,/);
-  assert.match(code(read("src/components/admin/AdminConsole.tsx")), /inquiries: data\.stats\.pool,/);
+  assert.match(code(read("src/components/admin/AdminRail.tsx")), /inquiries: counts\.inquiries,/);
+  const consoleCode = code(read("src/components/admin/AdminConsole.tsx"));
+  assert.match(consoleCode, /inquiries: newInquiryCount,/);
+  assert.match(consoleCode, /const newInquiryCount = useMemo\(\(\) => items\.filter\(\(i\) => asStatus\(i\.status\) === "new"\)\.length, \[items\]\);/);
+  assert.match(read("src/lib/admin-rail-counts.ts"), /\(SELECT count\(\*\) FROM "Inquiry"\s+WHERE status NOT IN \('handled', 'spam', 'deleted'\)\) AS inquiries/);
   assert.match(read("src/lib/admin-rail-counts.ts"), /\(SELECT count\(\*\) FROM "LeadQueueEntry" WHERE state = 'OPEN'\)\s+AS pool/);
   // The console opens a list with the filter a link names, which is where the old address lands.
   assert.match(read("src/components/admin/AdminConsole.tsx"), /const handlingParam = params\.get\("handling"\);/);
