@@ -156,6 +156,12 @@ export async function POST(req: NextRequest) {
   if (referral && !documentKeys.length) {
     return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: ID_DOCUMENT_NEEDED } }, { status: 400 });
   }
+  // An upload already kept with another application (the same files sent twice): this one adds its own. Asked first,
+  // so it costs no call to S3.
+  if (documentKeys.length) {
+    const used = await prisma.tripApplicationDocument.findFirst({ where: { key: { in: documentKeys } }, select: { id: true } }).catch(() => null);
+    if (used) return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Please add your ID again." } }, { status: 400 });
+  }
   const documents = documentKeys.length ? await checkDocuments(documentKeys) : [];
   if (documents.some((d) => d.state === "missing")) {
     return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Your ID didn't finish uploading. Please add it again." } }, { status: 400 });
@@ -241,7 +247,7 @@ export async function POST(req: NextRequest) {
     }
     return res;
   } catch (e) {
-    // An upload already with another application (sent twice): this one adds its own.
+    // An upload kept with another application between the check above and this save: this one adds its own.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && String(e.meta?.target ?? "").includes("key")) {
       return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Please add your ID again." } }, { status: 400 });
     }

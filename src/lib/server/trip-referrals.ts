@@ -353,15 +353,25 @@ export async function allReferredApplications() {
 
 /**
  * Count, decline, or set back to waiting. Only applications that came with a code and are not yet paid: a payment
- * stands as recorded. Returns how many changed.
+ * stands as recorded. Returns how many changed. Counting one that earned nothing when it came (the task was off, or
+ * outside its dates) gives it today's points: the team has decided it counts.
  */
 export async function decideReferrals(ids: string[], state: ReferralState, by: string): Promise<number> {
   const waiting = state === "waiting";
-  const { count } = await prisma.tripApplication.updateMany({
-    where: { id: { in: ids }, referrerId: { not: null }, referralPayoutId: null },
-    data: { referralState: state, referralDecidedAt: waiting ? null : new Date(), referralDecidedBy: waiting ? null : by },
-  });
-  return count;
+  const open = { id: { in: ids }, referrerId: { not: null }, referralPayoutId: null };
+  const writes = [];
+  if (state === "counted") {
+    const { pointsPerReferral } = await referralSettings();
+    writes.push(prisma.tripApplication.updateMany({ where: { ...open, OR: [{ referralPoints: null }, { referralPoints: 0 }] }, data: { referralPoints: pointsPerReferral } }));
+  }
+  writes.push(
+    prisma.tripApplication.updateMany({
+      where: open,
+      data: { referralState: state, referralDecidedAt: waiting ? null : new Date(), referralDecidedBy: waiting ? null : by },
+    }),
+  );
+  const done = await prisma.$transaction(writes);
+  return done[done.length - 1].count;
 }
 
 /**
