@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { customerKeyOf } from "@/lib/customerGroups";
 import { customerCodesFor } from "@/lib/customerCode";
 import { redirect } from "next/navigation";
-import { EMPLOYEE_IDLE_MS, isSalesJob, readWorkspaceAuth } from "@/lib/employee-session";
+import { EMPLOYEE_IDLE_MS, isSalesJob, readWorkspaceAuth, workspaceHome } from "@/lib/employee-session";
 import { listPool } from "@/lib/lead-pool";
 import type { LeadCardData, LeadUpdate } from "@/components/employee/lead-types";
 import { EmployeeLeadBoard } from "@/components/employee/EmployeeLeadBoard";
@@ -40,8 +40,8 @@ export default async function EmployeeDashboardPage() {
   // The layout has already turned away anyone without a session; this narrows
   // the type, and covers the admin case, which has no Employee row behind it.
   if (!auth.ok) return null;
-  // An assigner keeps cargo tracking, not leads: their workspace is there (Employee.job, 2026-10-24).
-  if (auth.kind === "employee" && !isSalesJob(auth.employee)) redirect("/employee/cargo/");
+  // Only a salesperson has leads: an assigner keeps cargo tracking (2026-10-24), a referral account its link (2026-11-03).
+  if (auth.kind === "employee" && !isSalesJob(auth.employee)) redirect(workspaceHome(auth.employee));
 
   const employeeId = auth.kind === "employee" ? auth.employee.id : null;
 

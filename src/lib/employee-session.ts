@@ -60,11 +60,23 @@ export const staffCookieOptions = { ...cookieOptions, maxAge: Math.floor(EMPLOYE
 /** What /employee/login sends people back to when the timeout is what ended it. */
 export const EXPIRED_QUERY = "expired=1";
 
-/** Whether an account works the open pool (My leads); an ASSIGNER keeps cargo tracking instead (Employee.job). */
-export const isSalesJob = (employee: { job: string }) => employee.job !== "ASSIGNER";
+/**
+ * The kinds of staff account (Employee.job): SALES works the open pool (My leads), ASSIGNER keeps cargo tracking, and
+ * REFERRAL only hands out a Free China Trip link (My referrals; 2026-11-03, when the whole office got accounts for the
+ * referral task: an accountant or a driver with a link, never a customer's details). Every kind has My referrals.
+ */
+export const STAFF_JOBS = ["SALES", "ASSIGNER", "REFERRAL"] as const;
+export const isStaffJob = (v: unknown): v is (typeof STAFF_JOBS)[number] => typeof v === "string" && (STAFF_JOBS as readonly string[]).includes(v);
+
+/** Whether an account works the open pool (My leads). Only SALES does: an unknown job takes nothing. */
+export const isSalesJob = (employee: { job: string }) => employee.job === "SALES";
+
+/** Whether an account keeps the cargo sheet. */
+export const isCargoJob = (employee: { job: string }) => employee.job === "ASSIGNER";
 
 /** Where an account's workspace starts. */
-export const workspaceHome = (employee: { job: string }) => (isSalesJob(employee) ? "/employee/dashboard/" : "/employee/cargo/");
+export const workspaceHome = (employee: { job: string }) =>
+  isSalesJob(employee) ? "/employee/dashboard/" : isCargoJob(employee) ? "/employee/cargo/" : "/employee/referrals/";
 
 export interface EmployeeIdentity {
   id: string;
@@ -72,8 +84,8 @@ export interface EmployeeIdentity {
   name: string;
   /** ADMIN | EMPLOYEE — the employee's own rank, not the session role. */
   role: string;
-  /** SALES | ASSIGNER: the workspace the account opens (Employee.job). Sales routes refuse an assigner, and the cargo
-   *  routes a salesperson (isSalesJob, lib/cargo.ts). */
+  /** SALES | ASSIGNER | REFERRAL: the workspace the account opens (Employee.job). The sales routes refuse anyone not
+   *  SALES, and the cargo routes anyone not ASSIGNER (isSalesJob, isCargoJob, lib/cargo.ts). */
   job: string;
   region: string | null;
   image: string | null;

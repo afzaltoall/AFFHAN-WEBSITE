@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Copy, Download, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Check, CheckSquare, Copy, Download, Square, Trash2, UserPlus, X } from "lucide-react";
 import { CargoDatePicker } from "@/components/cargo/CargoDatePicker";
 import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
 import type { ReferralBoardRow, ReferralPayoutView, ReferralSettings, ReferralTotals, ReferredApplication } from "@/lib/server/trip-referrals";
@@ -46,6 +46,41 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const [exporting, setExporting] = useState(false);
   const [editingCode, setEditingCode] = useState<CodeTarget | null>(null);
   const [adding, setAdding] = useState(false);
+  // Ticked rows, the ones a Delete is asked about, and what the last Delete did (2026-11-03).
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [removing, setRemoving] = useState<ReferralBoardRow[] | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const ticked = rows.filter((r) => selected.has(r.employeeId));
+  const allTicked = rows.length > 0 && ticked.length === rows.length;
+  const toggle = (id: string) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  /** Delete, as the window asked: who was deleted and who was switched off instead, said at the top. */
+  const removeNow = async (who: ReferralBoardRow[]) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await send<{ deleted: string[]; switchedOff: string[] }>("/api/admin/trip-referrals/remove/", { ids: who.map((w) => w.employeeId) });
+      const parts = [
+        r.deleted.length ? `Deleted: ${r.deleted.join(", ")}.` : "",
+        r.switchedOff.length ? `Switched off, as they have history: ${r.switchedOff.join(", ")}. They can no longer sign in and their links stop counting.` : "",
+      ].filter(Boolean);
+      setNotice(parts.join(" ") || null);
+      setSelected(new Set());
+      setRemoving(null);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Nothing was deleted. Try again.");
+      setRemoving(null);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const send = async <T extends object = { error?: string }>(url: string, body: unknown): Promise<T> => {
     const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
@@ -198,6 +233,14 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
             {error}
           </p>
         )}
+        {notice && (
+          <div role="status" className="mb-4 flex items-start justify-between gap-3 rounded-xl bg-emerald-500/10 px-4 py-2.5 text-[13px] font-medium text-emerald-800">
+            <span>{notice}</span>
+            <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="shrink-0 text-emerald-800/70 hover:text-emerald-900">
+              <X size={15} />
+            </button>
+          </div>
+        )}
 
         <SettingsCard settings={settings} busy={busy} onSave={(s) => run(() => send("/api/admin/trip-referrals/settings/", s))} />
 
@@ -222,14 +265,41 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
               <UserPlus size={14} /> Add employee
             </button>
           </div>
+          {/* Ticks and their one action, as the Inquiries list has them (2026-11-03): Select all, how many, Delete. */}
+          {rows.length > 0 && (
+            <div className="flex flex-wrap items-center gap-3 border-b border-black/[0.06] px-5 py-2.5">
+              <button
+                type="button"
+                onClick={() => setSelected(allTicked ? new Set() : new Set(rows.map((r) => r.employeeId)))}
+                className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allTicked ? "text-brand-dark" : "text-[#86868b] hover:text-brand-deep"}`}
+              >
+                {allTicked ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
+                {allTicked ? "Clear selection" : "Select all"}
+              </button>
+              {ticked.length > 0 && (
+                <>
+                  <span className="text-[13px] font-semibold">{ticked.length} selected</span>
+                  <button
+                    type="button"
+                    onClick={() => setRemoving(ticked)}
+                    disabled={busy}
+                    className="ml-auto inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" /> Delete
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           {rows.length === 0 ? (
             <p className="px-5 py-10 text-center text-[13px] text-[#86868b]">No employees yet. Add one, and they get a code here.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[980px] text-left text-[13px]">
+              <table className="w-full min-w-[1020px] text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-black/[0.06] text-[12px] text-[#86868b]">
-                    <th className="px-5 py-2.5 font-medium">Employee</th>
+                    <th className="w-10 py-2.5 pl-5" aria-label="Select" />
+                    <th className="px-3 py-2.5 font-medium">Employee</th>
                     <th className="px-3 py-2.5 font-medium">Code</th>
                     <th className="px-3 py-2.5 text-right font-medium">Applied</th>
                     <th className="px-3 py-2.5 text-right font-medium">Counted</th>
@@ -244,9 +314,21 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                 <tbody className="divide-y divide-black/[0.06]">
                   {rows.map((r) => {
                     const share = Math.min(1, r.counted / settings.target);
+                    const tick = selected.has(r.employeeId);
                     return (
-                      <tr key={r.employeeId} className={detail?.employeeId === r.employeeId ? "bg-[#0071e3]/[0.05]" : ""}>
-                        <td className="px-5 py-3">
+                      <tr key={r.employeeId} className={tick || detail?.employeeId === r.employeeId ? "bg-[#0071e3]/[0.05]" : ""}>
+                        <td className="py-3 pl-5">
+                          <button
+                            type="button"
+                            onClick={() => toggle(r.employeeId)}
+                            aria-label={`Select ${r.name}`}
+                            aria-pressed={tick}
+                            className={`flex shrink-0 transition-colors ${tick ? "text-brand" : "text-[#86868b] hover:text-brand"}`}
+                          >
+                            {tick ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3">
                           <Link href={`/admin/trip-referrals/?employee=${r.employeeId}#employee`} className="font-semibold text-[#0058b0] hover:underline">
                             {r.name}
                           </Link>
@@ -278,12 +360,24 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                         <td className="px-3 py-3 text-right tabular-nums">{rupees(r.paidRupees + r.unpaidRupees)}</td>
                         <td className="px-3 py-3 text-right tabular-nums">{rupees(r.paidRupees)}</td>
                         <td className={`px-3 py-3 text-right tabular-nums ${r.unpaidRupees ? "font-semibold" : "text-[#86868b]"}`}>{rupees(r.unpaidRupees)}</td>
-                        <td className="px-5 py-3 text-right">
-                          {r.unpaid > 0 && (
-                            <button type="button" disabled={busy} onClick={() => setPaying(r)} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>
-                              Mark paid
+                        <td className="py-3 pl-3 pr-5">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {r.unpaid > 0 && (
+                              <button type="button" disabled={busy} onClick={() => setPaying(r)} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>
+                                Mark paid
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => setRemoving([r])}
+                              disabled={busy}
+                              aria-label={`Delete ${r.name}`}
+                              title="Delete employee"
+                              className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
                             </button>
-                          )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -307,6 +401,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
 
       {editingCode && <CodeWindow who={editingCode} busy={busy} onCancel={() => setEditingCode(null)} onSave={saveCode} />}
       {adding && <AddEmployeeWindow busy={busy} onClose={() => setAdding(false)} onAdd={addEmployee} />}
+      {removing && <DeleteWindow who={removing} busy={busy} onCancel={() => setRemoving(null)} onConfirm={() => void removeNow(removing)} />}
 
       {paying && (
         <PayWindow
@@ -611,7 +706,7 @@ function PayWindow({ row, busy, onCancel, onConfirm }: { row: ReferralBoardRow; 
 // ---- making a code, adding an employee (2026-11-03) ------------------------------------------------------------------
 
 type CodeTarget = { employeeId: string; name: string; code: string | null };
-type NewEmployee = { name: string; email: string; job: "SALES" | "ASSIGNER"; password: string; code: string };
+type NewEmployee = { name: string; email: string; job: "SALES" | "ASSIGNER" | "REFERRAL"; password: string; code: string };
 type AddResult =
   | { ok: false; error: string }
   | { ok: true; name: string; email: string; password: string; generated: boolean; code: string | null; codeError: string | null };
@@ -734,7 +829,8 @@ function CodeWindow({ who, busy, onCancel, onSave }: { who: CodeTarget; busy: bo
  * password (shown only now) and their link.
  */
 function AddEmployeeWindow({ busy, onClose, onAdd }: { busy: boolean; onClose: () => void; onAdd: (v: NewEmployee) => Promise<AddResult> }) {
-  const [v, setV] = useState<NewEmployee>({ name: "", email: "", job: "SALES", password: "", code: "" });
+  // Referral only unless chosen otherwise: the least an account can do, and what this page is for (2026-11-03).
+  const [v, setV] = useState<NewEmployee>({ name: "", email: "", job: "REFERRAL", password: "", code: "" });
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<Extract<AddResult, { ok: true }> | null>(null);
   const first = useRef<HTMLInputElement>(null);
@@ -818,10 +914,11 @@ function AddEmployeeWindow({ busy, onClose, onAdd }: { busy: boolean; onClose: (
             </label>
             <fieldset className="mt-3">
               <legend className="text-[13px] font-medium">Account</legend>
-              <div className="mt-1 grid grid-cols-2 gap-2">
+              <div className="mt-1 grid grid-cols-3 gap-2">
                 {(
                   [
-                    ["SALES", "Sales", "Takes customers from the open pool"],
+                    ["REFERRAL", "Referral only", "Shares their trip link"],
+                    ["SALES", "Sales", "Takes customers from the pool"],
                     ["ASSIGNER", "Assigner", "Keeps the cargo sheet"],
                   ] as const
                 ).map(([job, label, hint]) => (
@@ -860,6 +957,47 @@ function AddEmployeeWindow({ busy, onClose, onAdd }: { busy: boolean; onClose: (
             </div>
           </form>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Delete, asked in the console's own window (never the browser's): who, and what will happen. Somebody who has done
+ * nothing yet is deleted; anyone with history is switched off instead and kept on record (lib/server/staff-removal.ts).
+ */
+function DeleteWindow({ who, busy, onCancel, onConfirm }: { who: ReferralBoardRow[]; busy: boolean; onCancel: () => void; onConfirm: () => void }) {
+  const cancel = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    cancel.current?.focus();
+  }, []);
+  useEscape(onCancel, busy);
+  const one = who.length === 1 ? who[0] : null;
+  const shown = who.slice(0, 8);
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onCancel()}>
+      <div role="alertdialog" aria-modal="true" aria-labelledby="delete-title" aria-describedby="delete-what" onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/[0.06]">
+        <h2 id="delete-title" className="text-[17px] font-semibold">
+          {one ? `Delete ${one.name}?` : `Delete ${who.length} employees?`}
+        </h2>
+        {!one && (
+          <p className="mt-2 text-[13px] text-[#1d1d1f]">
+            {shown.map((w) => w.name).join(", ")}
+            {who.length > shown.length ? ` and ${who.length - shown.length} more` : ""}
+          </p>
+        )}
+        <p id="delete-what" className="mt-2 text-[13px] leading-relaxed text-[#48484a]">
+          {one ? "If they have not done anything yet, their staff account and referral code are deleted." : "Those who have not done anything yet are deleted, with their referral codes."}{" "}
+          {one ? "If they have signed in, worked a customer, referred an applicant or been paid, they are switched off instead: they can no longer sign in, their link stops counting, and their record stays." : "Anyone who has signed in, worked a customer, referred an applicant or been paid is switched off instead: they can no longer sign in, their link stops counting, and their record stays."}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button ref={cancel} type="button" disabled={busy} onClick={onCancel} className={`${pillButton} h-9 bg-white px-4 hover:bg-black/[0.03]`}>
+            Cancel
+          </button>
+          <button type="button" disabled={busy} onClick={onConfirm} className={`${pillButton} h-9 bg-red-500 px-4 text-white ring-red-500 hover:bg-red-600`}>
+            {busy ? "Deleting…" : "Delete"}
+          </button>
+        </div>
       </div>
     </div>
   );

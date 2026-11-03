@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { isStaffJob } from "@/lib/employee-session";
 import { checkPasswordStrength, hashPassword } from "@/lib/password";
 import { releaseDeactivated } from "@/lib/lead-pool";
 
@@ -105,8 +106,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       data.role = body.role;
     }
     if (body?.job !== undefined) {
-      if (body.job !== "SALES" && body.job !== "ASSIGNER") {
-        return NextResponse.json({ error: "Account must be SALES or ASSIGNER." }, { status: 400 });
+      if (!isStaffJob(body.job)) {
+        return NextResponse.json({ error: "Account must be SALES, ASSIGNER or REFERRAL." }, { status: 400 });
       }
       data.job = body.job;
     }
@@ -141,8 +142,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     // deactivated employee for exactly this reason; this closes the same gap
     // from the other end.
     let released = 0;
-    // Made an assigner: they can no longer open the pool, so what they held goes back to it, as on deactivation.
-    const leavesSales = body?.job === "ASSIGNER";
+    // Moved off sales (an assigner, or a referral account, 2026-11-03): they can no longer open the pool, so what they
+    // held goes back to it, as on deactivation.
+    const leavesSales = isStaffJob(body?.job) && body.job !== "SALES";
     if ((body?.isActive !== undefined && !Boolean(body.isActive)) || leavesSales) {
       const held = { assignedToId: id, status: { not: "deleted" } };
       const letGo = { assignedToId: null, assignedAt: null };
@@ -154,7 +156,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       released = inquiries.count + contacts.count + shipments.count;
       // Their customers go back to the open pool, each with a line on the
       // trail saying why, rather than sitting with a ghost.
-      await releaseDeactivated(id, admin.name || admin.email, new Date(), leavesSales && body?.isActive !== false ? "was moved to cargo tracking" : undefined);
+      await releaseDeactivated(id, admin.name || admin.email, new Date(), leavesSales && body?.isActive !== false ? (body.job === "ASSIGNER" ? "was moved to cargo tracking" : "was made a referral account") : undefined);
     }
 
     return NextResponse.json({ employee, passwordChanged: newPassword !== null, released });

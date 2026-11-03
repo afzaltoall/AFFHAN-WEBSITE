@@ -11,7 +11,7 @@ import {
 } from "../../src/lib/lead-pool-rules.ts";
 import { MAX_OPEN_LEADS, RELEASE_AFTER_OFFICE_MINUTES, STALE_IN_PROGRESS_OFFICE_DAYS } from "../../src/lib/lead-pool-config.ts";
 import {
-  handlingKey, handlingText, heldByMessage, heldByOf, heldRefusal, heldSince, matchesHandling, span, waitingRank,
+  handlingKey, handlingText, heldByMessage, heldByOf, heldRefusal, heldSince, matchesHandling, rowHandling, span, waitingRank,
 } from "../../src/lib/handling.ts";
 import { askedFor, capitalized, customerLabel, poolLabel } from "../../src/lib/customer-label.ts";
 
@@ -313,4 +313,33 @@ test("a member of staff on the trail is 'by' whoever did it, 'held by' whoever h
   }
   assert.equal(staffWord(POOL_EVENT.ADMIN_ASSIGNED), "to");
   assert.equal(staffWord("MANUAL_ASSIGN"), "to");
+});
+
+// The owner, 2026-11-03: a request marked Handled read "Open · waiting 7m" because its customer was back in the pool
+// for a new message. A request's own row reads its own place; its customer's other request is named, never its own.
+test("a handled request's row is done, even while its customer waits in the pool for another request", () => {
+  const now = new Date("2026-11-03T04:40:00Z").getTime();
+  const open = { state: "open", since: "2026-11-03T04:26:58Z", until: "2026-11-10T04:26:58Z" };
+  const held = { state: "held", by: { id: "e1", name: "Khaja" }, takenAt: "2026-11-03T04:30:00Z", status: null, releaseAt: null, clock: null };
+  const at = "2026-10-31T10:59:00Z";
+  // Handled, spam or deleted here, the customer open for something else: done, another request waiting.
+  for (const status of ["handled", "spam", "deleted"]) {
+    const h = rowHandling(open, status, at);
+    assert.equal(handlingKey(h), "done", status);
+    assert.equal(handlingText(h, at, now).text, "Done · another request waiting", status);
+    assert.equal(matchesHandling(h, "open"), false, status);
+    assert.equal(matchesHandling(h, "done"), true, status);
+  }
+  // Held by somebody for another request: done here, saying with whom.
+  assert.equal(handlingText(rowHandling(held, "handled", at), at, now).text, "Done · another request with Khaja");
+  // No place yet and handled: done, without inventing another request.
+  assert.equal(handlingText(rowHandling(null, "handled", at), at, now).text, "Done · already handled");
+  // A request still to handle shows its customer's place, as before.
+  assert.equal(rowHandling(open, "new", at), open);
+  assert.equal(handlingText(rowHandling(open, "new", at), at, now).text, "Open · waiting 13m");
+  // Decided, set aside or given up on: the customer's place stands on every row.
+  const done = { state: "done", outcome: "LEAD", by: { id: "e1", name: "Khaja" }, takenAt: null, doneAt: "2026-11-02T05:00:00Z" };
+  assert.equal(rowHandling(done, "handled", at), done);
+  // Sorting puts the done row after the waiting ones.
+  assert.equal(waitingRank(rowHandling(open, "handled", at), at)[0], 2);
 });

@@ -145,7 +145,7 @@ export function EmployeeDetail({
               </div>
               <div>
                 <dt className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Account</dt>
-                <dd className="font-medium">{row.job === "ASSIGNER" ? "Assigner · cargo tracking" : "Sales · the open pool"}</dd>
+                <dd className="font-medium">{row.job === "ASSIGNER" ? "Assigner · cargo tracking" : row.job === "REFERRAL" ? "Referral only · their trip link" : "Sales · the open pool"}</dd>
               </div>
               <div>
                 <dt className="text-[11px] font-bold uppercase tracking-wider text-[#86868b]">Status</dt>

@@ -18,9 +18,12 @@ import { sideRow, wt } from "@/components/employee/workspace-ui";
  * with more force, not less — this screen is a list of leads that wants the
  * width, and its navigation is read once a session.
  *
- * Two destinations: the person's work and their own profile. The work is their leads for a salesperson and cargo
- * tracking for an assigner (Employee.job, 2026-10-24); an admin looking in sees both.
+ * The destinations: the person's work, My referrals and their own profile. The work is their leads for a salesperson
+ * and cargo tracking for an assigner (Employee.job, 2026-10-24); a referral account has none but its link
+ * (2026-11-03); an admin looking in sees both works.
  */
+export type WorkspacePages = "sales" | "assigner" | "referral" | "both";
+
 export function WorkspaceSidebar({
   name,
   detail,
@@ -30,8 +33,8 @@ export function WorkspaceSidebar({
   name: string;
   detail: string;
   image: string | null;
-  /** Which work the account has: leads, cargo tracking, or both (an admin). */
-  pages?: "sales" | "assigner" | "both";
+  /** Which work the account has: leads, cargo tracking, only its referral link, or both works (an admin). */
+  pages?: WorkspacePages;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -61,7 +64,10 @@ export function WorkspaceSidebar({
           open ? "w-[272px] bg-white shadow-2xl" : "w-[60px] bg-white/80"
         }`}
       >
-        <Link href={pages === "assigner" ? "/employee/cargo/" : "/employee/dashboard/"} className="flex items-center px-3.5 py-5">
+        <Link
+          href={pages === "assigner" ? "/employee/cargo/" : pages === "referral" ? "/employee/referrals/" : "/employee/dashboard/"}
+          className="flex items-center px-3.5 py-5"
+        >
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${wt.thumb}`}>
             <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
           </span>
@@ -72,10 +78,10 @@ export function WorkspaceSidebar({
         </Link>
 
         <nav className="flex-1 space-y-1 px-2">
-          {pages !== "assigner" && (
+          {(pages === "sales" || pages === "both") && (
             <Link
               href="/employee/dashboard/"
-              title="My leads"
+              aria-label="My leads"
               aria-current={onDashboard ? "page" : undefined}
               className={`${sideRow} gap-0 px-1.5 ${onDashboard ? wt.navActive : wt.navIdle}`}
             >
@@ -85,10 +91,10 @@ export function WorkspaceSidebar({
               <span className={`flex-1 ${label}`}>My leads</span>
             </Link>
           )}
-          {pages !== "sales" && (
+          {(pages === "assigner" || pages === "both") && (
             <Link
               href="/employee/cargo/"
-              title="Cargo tracking"
+              aria-label="Cargo tracking"
               aria-current={onCargo ? "page" : undefined}
               className={`${sideRow} gap-0 px-1.5 ${onCargo ? wt.navActive : wt.navIdle}`}
             >
@@ -101,7 +107,7 @@ export function WorkspaceSidebar({
           {/* The Free China Trip referral task (2026-11-02): every employee's, whatever their job. */}
           <Link
             href="/employee/referrals/"
-            title="My referrals"
+            aria-label="My referrals"
             aria-current={onReferrals ? "page" : undefined}
             className={`${sideRow} gap-0 px-1.5 ${onReferrals ? wt.navActive : wt.navIdle}`}
           >
@@ -112,7 +118,7 @@ export function WorkspaceSidebar({
           </Link>
           <Link
             href="/employee/profile/"
-            title="Profile"
+            aria-label="Profile"
             aria-current={onProfile ? "page" : undefined}
             className={`${sideRow} gap-0 px-1.5 ${onProfile ? wt.navActive : wt.navIdle}`}
           >

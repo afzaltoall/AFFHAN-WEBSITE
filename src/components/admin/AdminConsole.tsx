@@ -6,7 +6,7 @@ import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
 import { Avatar } from "@/components/admin/AssigneePicker";
 import { CustomerGroupSummary } from "@/components/admin/CustomerGroupSummary";
 import { HandlingChip } from "@/components/admin/HandlingChip";
-import { HANDLING_FILTERS, handlingKey, heldByOf, heldRefusal, heldSince, matchesHandling, waitingRank, type HandlingFilter } from "@/lib/handling";
+import { HANDLING_FILTERS, handlingKey, heldByOf, heldRefusal, heldSince, matchesHandling, rowHandling, waitingRank, type HandlingFilter } from "@/lib/handling";
 import type { Handling } from "@/lib/lead-pool";
 import { AccountMenu } from "@/components/admin/AccountMenu";
 import { RAIL_GROUPS, railFitStyle, type RailItem } from "@/components/admin/rail-sections";
@@ -101,10 +101,17 @@ const HandlingHistory = dynamic(() => import("@/components/admin/HandlingHistory
 // Shipping › Cargo tracking: the assigners' sheet, loaded when the tab is first opened.
 const CargoBoard = dynamic(() => import("@/components/cargo/CargoBoard"), { ssr: false });
 
+/**
+ * A request row's own place in the pool (lib/handling.ts, rowHandling, 2026-11-03): one the office has handled reads
+ * done, even while its customer is back in the pool for something else. Chips, filters, counts and sorting read this;
+ * the customer's group and the held-customer refusal read the customer's place.
+ */
+const hOf = (r: { handling: Handling | null; status: string; createdAt: string }) => rowHandling(r.handling, r.status, r.createdAt);
+
 /** Rows per handling state, for the Filter panel's Handling pills. */
-const countHandling = (rows: { handling: Handling | null }[]) => {
+const countHandling = (rows: { handling: Handling | null; status: string; createdAt: string }[]) => {
   const c: Record<HandlingFilter, number> = { all: rows.length, open: 0, held: 0, done: 0, invalid: 0 };
-  for (const r of rows) c[handlingKey(r.handling)]++;
+  for (const r of rows) c[handlingKey(hOf(r))]++;
   return c;
 };
 
@@ -112,9 +119,9 @@ const countHandling = (rows: { handling: Handling | null }[]) => {
  * "Longest wait first": open rows by how long they have waited for somebody to take them, then held rows by how
  * long they have been held, then the decided and given-up ones, newest first. See waitingRank.
  */
-const byWaiting = <T extends { handling: Handling | null; createdAt: string }>(a: T, b: T) => {
-  const [ra, ta] = waitingRank(a.handling, a.createdAt);
-  const [rb, tb] = waitingRank(b.handling, b.createdAt);
+const byWaiting = <T extends { handling: Handling | null; status: string; createdAt: string }>(a: T, b: T) => {
+  const [ra, ta] = waitingRank(hOf(a), a.createdAt);
+  const [rb, tb] = waitingRank(hOf(b), b.createdAt);
   return ra - rb || ta - tb;
 };
 
@@ -277,7 +284,7 @@ interface Props {
     adminName: string; adminEmail: string; adminImage: string | null;
     stats: {
       products: number; categories: number; categoriesTotal: number; inquiries: number; contacts: number; suppliers: number; videos: number;
-      /** Customers waiting in the open pool: the Inquiries row's figure since the Queue page went. */
+      /** Customers waiting in the open pool (kept, no longer the Inquiries row's figure: 2026-11-03). */
       pool: number;
       /** Supplier-portal applications waiting (lib/admin-rail-counts.ts); null when they could not be counted. */
       newSuppliers: number | null;
@@ -816,7 +823,7 @@ export function AdminConsole({ data }: Props) {
           (Boolean(i.userId) && asCustomerStatus(i.customerStatus) === customerStageFilter)) &&
         matchesCountry(i.country, countryFilter) &&
         matchesAssignee(i.assignedToId, assigneeFilter) &&
-        matchesHandling(i.handling, handlingFilter) &&
+        matchesHandling(hOf(i), handlingFilter) &&
         (!q || searchMatches(`${i.customerName} ${i.productName} ${i.country} ${i.email ?? ""} ${i.phone}`, q, codeOf(i)))
       ),
     [items, q, statusFilter, customerStageFilter, countryFilter, assigneeFilter, handlingFilter, codeOf]
@@ -971,7 +978,7 @@ export function AdminConsole({ data }: Props) {
         matchesCompany(c.companyName, contactCompanyFilter) &&
         matchesCountry(c.country, contactCountryFilter) &&
         matchesAssignee(c.assignedToId, contactAssigneeFilter) &&
-        matchesHandling(c.handling, contactHandlingFilter) &&
+        matchesHandling(hOf(c), contactHandlingFilter) &&
         contactMatch(c, contactQ)
       );
       return contactSortWaiting ? shown.sort(byWaiting) : shown;
@@ -1235,18 +1242,19 @@ export function AdminConsole({ data }: Props) {
     );
     const title = item.key === "inquiries" ? `Inquiries — ${fmtNum(newInquiryCount)} not handled yet` : item.label;
 
-    // The rail's tooltip. Collapsed, the icon is all there is.
+    // No hover tooltip: the rail opens on hover with its words showing, and a tooltip only covered the row beneath
+    // (2026-11-03). Screen readers read the same words.
     return item.view ? (
       <button
         key={item.key}
         onClick={() => { setView(item.view as View); setQ(""); }}
-        title={title}
+        aria-label={title}
         className={`${sideRow} ${active ? t.navActive : t.navIdle}`}
       >
         {body}
       </button>
     ) : (
-      <Link key={item.key} href={item.href} title={title} className={`${sideRow} ${t.navIdle}`}>
+      <Link key={item.key} href={item.href} aria-label={title} className={`${sideRow} ${t.navIdle}`}>
         {body}
       </Link>
     );
@@ -1901,7 +1909,7 @@ export function AdminConsole({ data }: Props) {
                           <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${t.qty}`}>Qty {i.quantity}</span>
                           {/* Where the customer stands in the pool, where the assign picker used to be: staff take
                               customers now. The chip carries the newest outcome too. */}
-                          <HandlingChip h={i.handling} createdAt={i.createdAt} dark={dark} now={now} />
+                          <HandlingChip h={hOf(i)} createdAt={i.createdAt} dark={dark} now={now} />
                           <StatusControl t={t} value={st} onChange={(s) => setStatus(i.id, s)} heldBy={heldByOf(i.handling)} />
                           <button onClick={() => deleteInquiry(i.id)} aria-label="Delete inquiry" title="Delete inquiry" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                             <Trash2 className="h-4 w-4" />
@@ -2362,7 +2370,7 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
                 <SourceTag source={sourceOf(inquiry)} dark={dark} />
                 <span className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${t.qty}`}>Quantity: {inquiry.quantity}</span>
                 <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold ${STATUS_META[asStatus(inquiry.status)].chip}`}>{STATUS_META[asStatus(inquiry.status)].label}</span>
-                <HandlingChip h={inquiry.handling} createdAt={inquiry.createdAt} dark={dark} now={now} />
+                <HandlingChip h={hOf(inquiry)} createdAt={inquiry.createdAt} dark={dark} now={now} />
               </div>
               <HeldRelease h={inquiry.handling} lead={{ kind: "inquiry", id: inquiry.id }} customer={inquiry.customerName} t={t} dark={dark} now={now} onReleased={onReleased} />
             </div>
@@ -3371,7 +3379,7 @@ function ContactsSection({
                 <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
                   {tab === "active" ? (
                     <>
-                      <HandlingChip h={c.handling} createdAt={c.createdAt} dark={dark} now={now} />
+                      <HandlingChip h={hOf(c)} createdAt={c.createdAt} dark={dark} now={now} />
                       <StatusControl t={t} value={st} onChange={(s) => onSetStatus(c.id, s)} heldBy={heldByOf(c.handling)} />
                       <button onClick={() => onDelete(c.id)} aria-label="Delete message" title="Delete message" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                         <Trash2 className="h-4 w-4" />
@@ -3420,7 +3428,7 @@ function ContactModal({ contact, deleted, onClose, onDelete, onRestore, onSetSta
               <h3 className={`text-lg font-semibold leading-snug ${t.strong}`}>{contactName(contact)}</h3>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${STATUS_META[asStatus(contact.status)].chip}`}>{STATUS_META[asStatus(contact.status)].label}</span>
-                <HandlingChip h={contact.handling} createdAt={contact.createdAt} dark={dark} now={now} />
+                <HandlingChip h={hOf(contact)} createdAt={contact.createdAt} dark={dark} now={now} />
               </div>
               <HeldRelease h={contact.handling} lead={{ kind: "contact", id: contact.id }} customer={contactName(contact)} t={t} dark={dark} now={now} onReleased={onReleased} />
             </div>
@@ -3609,7 +3617,7 @@ function ShipmentsSection({
     () => {
       if (tab === "trash") return deleted.filter(inScope);
       const shown = live.filter((r) =>
-        (statusFilter === "all" || asStatus(r.status) === statusFilter) && matchesHandling(r.handling, handlingFilter) && inScope(r),
+        (statusFilter === "all" || asStatus(r.status) === statusFilter) && matchesHandling(hOf(r), handlingFilter) && inScope(r),
       );
       return sortWaiting ? shown.sort(byWaiting) : shown;
     },
@@ -3935,7 +3943,7 @@ function ShipmentsSection({
                   <div className="flex flex-wrap items-center gap-2.5 pl-[52px] @min-[60rem]:justify-end @min-[60rem]:pl-0">
                     {tab === "active" ? (
                       <>
-                        <HandlingChip h={r.handling} createdAt={r.createdAt} dark={dark} now={now} />
+                        <HandlingChip h={hOf(r)} createdAt={r.createdAt} dark={dark} now={now} />
                         <StatusControl t={t} value={st} onChange={(s) => void act([r.id], "status", s)} heldBy={heldByOf(r.handling)} />
                         <button onClick={() => confirmDelete([r.id])} aria-label={`Delete ${r.referenceNo}`} title="Delete request" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                           <Trash2 className="h-4 w-4" />
@@ -4050,7 +4058,7 @@ function ShipmentModal({
                   {deleted ? "Deleted" : STATUS_META[st].label}
                 </span>
                 {code && <CustomerCodeBadge code={code} chip={t.chip} size="sm" />}
-                <HandlingChip h={s.handling} createdAt={s.createdAt} dark={dark} now={now} />
+                <HandlingChip h={hOf(s)} createdAt={s.createdAt} dark={dark} now={now} />
               </div>
               <HeldRelease h={s.handling} lead={{ kind: "shipment", id: s.id }} customer={s.customerName} t={t} dark={dark} now={now} onReleased={onReleased} />
             </div>

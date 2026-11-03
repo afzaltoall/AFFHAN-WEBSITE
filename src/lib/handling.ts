@@ -33,6 +33,21 @@ export const HANDLING_FILTERS: { key: HandlingFilter; label: string; dot: string
 ];
 
 /**
+ * A request's own place, for its row (the owner, 2026-11-03: a request marked Handled still read "Open · waiting 7m").
+ * The pool holds customers, not requests, so a customer back in the pool for something new (a new message) made every
+ * row of theirs read open, the handled ones too. A request the office has handled or marked spam is done on its own
+ * row, saying that another of the customer's requests is waiting, or with whom; every other row shows the customer's
+ * place as before. The customer's own place (their group, the refusal of Handled while somebody holds them) is still
+ * the customer's.
+ */
+export function rowHandling(h: Handling | null | undefined, status: string, createdAt: string): Handling | null | undefined {
+  if (status !== "handled" && status !== "spam" && status !== "deleted") return h;
+  if (!h || h.state === "open") return { state: "handled", at: createdAt, another: h ? "waiting" : undefined };
+  if (h.state === "held") return { state: "handled", at: createdAt, another: { with: h.by.name } };
+  return h;
+}
+
+/**
  * A lead with no place in the pool yet (before the first sweep after the switch) counts as open; one set aside as
  * already handled counts as done, with the decided ones.
  */
@@ -124,6 +139,14 @@ export function handlingText(h: Handling | null | undefined, createdAt: string, 
     return { text: `${leadStatusLabel(h.outcome)} by ${h.by.name ?? "somebody"}${took}`, title: `Decided ${formatDateTime(h.doneAt)}` };
   }
   if (h.state === "handled") {
+    // A handled request of a customer who is back for something else (rowHandling): this one is done; say what is not.
+    if (h.another === "waiting") {
+      return { text: "Done · another request waiting", title: "This request is handled. The customer is in the open pool again for another request." };
+    }
+    if (h.another) {
+      const who = h.another.with;
+      return { text: `Done · another request with ${who}`, title: `This request is handled. ${who} has taken the customer for another request.` };
+    }
     return { text: "Done · already handled", title: `Out of the pool since ${formatDateTime(h.at)}: every request is marked Handled, Spam or deleted` };
   }
   return { text: `Invalid · ${h.reason}`, title: `Given up on ${formatDateTime(h.at)}` };

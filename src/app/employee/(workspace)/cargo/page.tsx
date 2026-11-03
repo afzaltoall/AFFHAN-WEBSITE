@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { isSalesJob, readWorkspaceAuth } from "@/lib/employee-session";
+import { isCargoJob, readWorkspaceAuth, workspaceHome } from "@/lib/employee-session";
 import { LIGHT_THEME } from "@/components/admin/console-theme";
 import { CargoBoard } from "@/components/cargo/CargoBoard";
 
@@ -20,6 +20,6 @@ export default async function CargoPage() {
   const auth = await readWorkspaceAuth();
   // The layout has already turned away anyone without a session.
   if (!auth.ok) return null;
-  if (auth.kind === "employee" && isSalesJob(auth.employee)) redirect("/employee/dashboard/");
+  if (auth.kind === "employee" && !isCargoJob(auth.employee)) redirect(workspaceHome(auth.employee));
   return <CargoBoard t={LIGHT_THEME} />;
 }

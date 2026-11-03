@@ -1240,7 +1240,9 @@ export type Handling =
       clock: "silent" | "stale" | null;
     }
   | { state: "done"; outcome: string; by: { id: string | null; name: string | null }; takenAt: string | null; doneAt: string }
-  | { state: "handled"; at: string }
+  /** `another`, on a request's own row only (lib/handling.ts, rowHandling): the customer's other request is waiting in
+   *  the pool, or taken by this person. */
+  | { state: "handled"; at: string; another?: "waiting" | { with: string } }
   | { state: "invalid"; reason: string; at: string };
 
 export async function handlingFor(keys: (string | null | undefined)[]): Promise<Record<string, Handling>> {

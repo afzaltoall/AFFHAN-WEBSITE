@@ -13,7 +13,7 @@ export interface EmployeeRow {
   image: string | null;
   /** ADMIN | EMPLOYEE — their rank, not their session role. */
   role: string;
-  /** SALES | ASSIGNER: their leads, or the cargo-tracking sheet (Employee.job). */
+  /** SALES | ASSIGNER | REFERRAL: their leads, the cargo-tracking sheet, or only their trip link (Employee.job). */
   job?: string;
   region: string | null;
   isActive: boolean;
@@ -218,10 +218,12 @@ export function EmployeeForm({
         {/* What the account does, which decides the page it opens at /employee/login (2026-10-24). */}
         <div className="sm:col-span-2">
           <span className={label}>Account</span>
-          <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Account">
+          <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Account">
             {([
               ["SALES", "Sales", "Takes customers from the open pool: My leads."],
               ["ASSIGNER", "Assigner", "Keeps the cargo-tracking sheet that customers follow on /shipping."],
+              // 2026-11-03: the whole office has accounts for the Free China Trip referral task.
+              ["REFERRAL", "Referral only", "Shares their Free China Trip link: My referrals. No customers, no cargo."],
             ] as const).map(([value, title, hint]) => (
               <label
                 key={value}
@@ -235,7 +237,7 @@ export function EmployeeForm({
               </label>
             ))}
           </div>
-          {mode === "edit" && initial?.job !== "ASSIGNER" && job === "ASSIGNER" && (
+          {mode === "edit" && (initial?.job ?? "SALES") === "SALES" && job !== "SALES" && (
             <p className="mt-1.5 text-[11.5px] font-medium text-amber-700">
               Any customers they hold go back to the open pool when you save.
             </p>

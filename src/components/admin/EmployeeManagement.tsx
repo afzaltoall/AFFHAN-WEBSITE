@@ -258,6 +258,11 @@ export function EmployeeManagement({ initial }: { initial: EmployeeRow[] }) {
                                   Assigner
                                 </span>
                               )}
+                              {r.job === "REFERRAL" && (
+                                <span className="ml-2 rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[11px] font-bold text-amber-700">
+                                  Referral only
+                                </span>
+                              )}
                               {r.role === "ADMIN" && (
                                 <span className="ml-2 rounded-md bg-violet-500/10 px-1.5 py-0.5 text-[11px] font-bold text-violet-700">
                                   Admin

@@ -24,8 +24,8 @@ const PRIVATE = { "Cache-Control": "private, no-store" };
 export async function POST(request: Request) {
   const auth = await readEmployeeAuth();
   if (!auth.ok) return NextResponse.json({ error: "Not signed in", reason: auth.reason }, { status: 401, headers: PRIVATE });
-  // An assigner keeps cargo tracking, not leads (Employee.job, 2026-10-24).
-  if (!isSalesJob(auth.employee)) return NextResponse.json({ error: "This account keeps cargo tracking, not leads.", reason: "not_sales" }, { status: 403, headers: PRIVATE });
+  // Only a salesperson takes leads: never an assigner (2026-10-24) or a referral account (2026-11-03; Employee.job).
+  if (!isSalesJob(auth.employee)) return NextResponse.json({ error: "This account does not take leads.", reason: "not_sales" }, { status: 403, headers: PRIVATE });
 
   const body = await request.json().catch(() => ({}));
   const entryId = typeof body?.entryId === "string" && /^[0-9a-f-]{8,64}$/i.test(body.entryId) ? body.entryId : null;

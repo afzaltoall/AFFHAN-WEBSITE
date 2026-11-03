@@ -100,8 +100,8 @@ export default async function AdminPage() {
       // The names for the Employee filter. Active only: deactivating somebody
       // puts everything they held back in the pool.
       prisma.employee.findMany({
-        // The sales team: an assigner takes no leads (Employee.job).
-        where: { isActive: true, job: { not: "ASSIGNER" } },
+        // The sales team: only SALES takes leads (Employee.job), never an assigner or a referral account.
+        where: { isActive: true, job: "SALES" },
         orderBy: [{ name: "asc" }],
         select: { id: true, name: true, region: true, image: true },
       }),

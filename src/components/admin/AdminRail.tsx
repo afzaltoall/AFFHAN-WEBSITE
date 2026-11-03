@@ -175,7 +175,9 @@ export function AdminRail({
                   <Link
                     key={item.key}
                     href={item.href}
-                    title={item.key === "inquiries" && counts ? `Inquiries — ${fmtRailNum(counts.inquiries)} not handled yet` : item.label}
+                    // No hover tooltip: the rail opens on hover, its words already showing, and a tooltip only covered
+                    // the row beneath (2026-11-03). Screen readers read the same words.
+                    aria-label={item.key === "inquiries" && counts ? `Inquiries — ${fmtRailNum(counts.inquiries)} not handled yet` : item.label}
                     aria-current={active ? "page" : undefined}
                     className={`${sideRow} ${active ? t.navActive : t.navIdle}`}
                   >

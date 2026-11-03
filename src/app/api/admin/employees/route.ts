@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
+import { isStaffJob } from "@/lib/employee-session";
 import { checkPasswordStrength, hashPassword } from "@/lib/password";
 
 export const dynamic = "force-dynamic";
@@ -90,8 +91,9 @@ export async function POST(request: Request) {
     const region = typeof body?.region === "string" && body.region.trim() ? body.region.trim() : null;
     const image = typeof body?.image === "string" && body.image.trim() ? body.image.trim() : null;
     const rank = body?.role === "ADMIN" ? "ADMIN" : "EMPLOYEE";
-    // Sales (the open pool) unless the admin made an assigner, who keeps cargo tracking (2026-10-24).
-    const job = body?.job === "ASSIGNER" ? "ASSIGNER" : "SALES";
+    // Sales (the open pool) unless the admin made an assigner, who keeps cargo tracking (2026-10-24), or a referral
+    // account, which only hands out its Free China Trip link (2026-11-03).
+    const job = isStaffJob(body?.job) ? body.job : "SALES";
     const wantsGenerated = body?.password === undefined || body?.password === null || body?.password === "";
 
     if (!name) return NextResponse.json({ error: "Name is required." }, { status: 400 });

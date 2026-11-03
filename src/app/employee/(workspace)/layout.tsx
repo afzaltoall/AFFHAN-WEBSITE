@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
-import { isSalesJob, loginRedirectFor, readWorkspaceAuth } from "@/lib/employee-session";
+import { isCargoJob, isSalesJob, loginRedirectFor, readWorkspaceAuth, workspaceHome } from "@/lib/employee-session";
 import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
-import { WorkspaceSidebar } from "@/components/employee/WorkspaceSidebar";
+import { WorkspaceSidebar, type WorkspacePages } from "@/components/employee/WorkspaceSidebar";
 import { sfFont, wt } from "@/components/employee/workspace-ui";
 
 export const metadata: Metadata = {
@@ -50,9 +50,11 @@ export default async function EmployeeWorkspaceLayout({
           image: auth.session.image ?? null,
         };
 
-  // Which pages this account has: a salesperson their leads, an assigner cargo tracking, an admin both.
-  const pages: "sales" | "assigner" | "both" = auth.kind === "admin" ? "both" : isSalesJob(auth.employee) ? "sales" : "assigner";
-  const home = pages === "assigner" ? "/employee/cargo/" : "/employee/dashboard/";
+  // Which pages this account has: a salesperson their leads, an assigner cargo tracking, a referral account only its
+  // link (2026-11-03), an admin both works. Everyone has My referrals and Profile.
+  const pages: WorkspacePages =
+    auth.kind === "admin" ? "both" : isSalesJob(auth.employee) ? "sales" : isCargoJob(auth.employee) ? "assigner" : "referral";
+  const home = auth.kind === "admin" ? "/employee/dashboard/" : workspaceHome(auth.employee);
 
   return (
     <div style={sfFont} className={`min-h-screen antialiased ${wt.page}`}>
@@ -86,12 +88,12 @@ export default async function EmployeeWorkspaceLayout({
             </div>
             {/* The rail's two destinations, for the screens the rail is not on. */}
             <nav className="flex gap-1 px-4 pb-2 sm:px-6">
-              {pages !== "assigner" && (
+              {(pages === "sales" || pages === "both") && (
                 <Link href="/employee/dashboard/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
                   My leads
                 </Link>
               )}
-              {pages !== "sales" && (
+              {(pages === "assigner" || pages === "both") && (
                 <Link href="/employee/cargo/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
                   Cargo tracking
                 </Link>

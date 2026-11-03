@@ -1,7 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { isSalesJob, readWorkspaceAuth } from "@/lib/employee-session";
+import { isCargoJob, readWorkspaceAuth } from "@/lib/employee-session";
 import {
   CARGO_LIMITS, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, isoDay, officeToday, sameWords,
   type CargoStatus, type CargoTrack,
@@ -30,7 +30,7 @@ export async function readCargoActor(): Promise<{ ok: true; actor: CargoActor } 
   if (auth.kind === "admin") {
     return { ok: true, actor: { id: null, name: auth.session.name || auth.session.email || "Administrator", kind: "admin" } };
   }
-  if (isSalesJob(auth.employee)) return { ok: false, status: 403, error: "Cargo tracking is kept by assigner accounts." };
+  if (!isCargoJob(auth.employee)) return { ok: false, status: 403, error: "Cargo tracking is kept by assigner accounts." };
   return { ok: true, actor: { id: auth.employee.id, name: auth.employee.name, kind: "assigner" } };
 }
 

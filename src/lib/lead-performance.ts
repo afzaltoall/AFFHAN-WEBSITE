@@ -141,8 +141,9 @@ export async function leadPerformance(opts: { employeeId?: string } = {}): Promi
   const one = opts.employeeId ?? null;
   // A fragment rather than string concatenation: the id still travels as a
   // bound parameter, which is what keeps a raw query safe.
-  // The sales team: an assigner keeps cargo tracking and takes no leads (Employee.job, 2026-10-24).
-  const scope = one ? Prisma.sql`e.id = ${one}` : Prisma.sql`e."isActive" = true AND e.job <> 'ASSIGNER'`;
+  // The sales team: only SALES takes leads; an assigner keeps cargo tracking (2026-10-24), a referral account only its
+  // link (2026-11-03).
+  const scope = one ? Prisma.sql`e.id = ${one}` : Prisma.sql`e."isActive" = true AND e.job = 'SALES'`;
 
   const [counts, recorded] = await Promise.all([
     prisma.$queryRaw<CountsRow[]>`

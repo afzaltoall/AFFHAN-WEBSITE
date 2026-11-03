@@ -43,8 +43,12 @@ test("who keeps the sheet: an assigner or an admin; a salesperson is refused", (
   const fn = lib.slice(lib.indexOf("export async function readCargoActor"), lib.indexOf("export class CargoError"));
   assert.match(fn, /const auth = await readWorkspaceAuth\(\);/);
   assert.match(fn, /if \(auth\.kind === "admin"\)/);
-  assert.match(fn, /if \(isSalesJob\(auth\.employee\)\) return \{ ok: false, status: 403/);
-  assert.match(read("src/lib/employee-session.ts"), /export const isSalesJob = \(employee: \{ job: string \}\) => employee\.job !== "ASSIGNER";/);
+  // Only an assigner keeps the sheet: a salesperson and a referral account (2026-11-03) are refused alike.
+  assert.match(fn, /if \(!isCargoJob\(auth\.employee\)\) return \{ ok: false, status: 403/);
+  const session = read("src/lib/employee-session.ts");
+  assert.match(session, /export const isSalesJob = \(employee: \{ job: string \}\) => employee\.job === "SALES";/);
+  assert.match(session, /export const isCargoJob = \(employee: \{ job: string \}\) => employee\.job === "ASSIGNER";/);
+  assert.match(session, /export const STAFF_JOBS = \["SALES", "ASSIGNER", "REFERRAL"\] as const;/);
 });
 
 test("every change is written with its author, in the same transaction as the change", () => {
@@ -175,7 +179,7 @@ test("the public lookup: the number, the stage and the timeline, nothing of the 
   assert.match(route, /"Cache-Control": "no-store"/);
 });
 
-test("the sales routes refuse an assigner; the workspace sends each account to its own page", () => {
+test("the sales routes refuse anyone not in sales; the workspace sends each account to its own page", () => {
   for (const rel of [
     "src/app/api/employee/pool/route.ts",
     "src/app/api/employee/pool/take/route.ts",
@@ -183,10 +187,14 @@ test("the sales routes refuse an assigner; the workspace sends each account to i
     "src/app/api/employee/leads/release/route.ts",
     "src/app/api/employee/inquiries/[id]/supplier-matches/route.ts",
   ]) {
-    assert.match(read(rel), /if \(!isSalesJob\(auth\.employee\)\) return NextResponse\.json\(\{ error: "This account keeps cargo tracking, not leads\.", reason: "not_sales" \}, \{ status: 403/, rel);
+    assert.match(read(rel), /if \(!isSalesJob\(auth\.employee\)\) return NextResponse\.json\(\{ error: "This account does not take leads\.", reason: "not_sales" \}, \{ status: 403/, rel);
   }
-  assert.match(read("src/app/employee/(workspace)/dashboard/page.tsx"), /if \(auth\.kind === "employee" && !isSalesJob\(auth\.employee\)\) redirect\("\/employee\/cargo\/"\);/);
-  assert.match(read("src/app/employee/(workspace)/cargo/page.tsx"), /if \(auth\.kind === "employee" && isSalesJob\(auth\.employee\)\) redirect\("\/employee\/dashboard\/"\);/);
+  assert.match(read("src/app/employee/(workspace)/dashboard/page.tsx"), /if \(auth\.kind === "employee" && !isSalesJob\(auth\.employee\)\) redirect\(workspaceHome\(auth\.employee\)\);/);
+  assert.match(read("src/app/employee/(workspace)/cargo/page.tsx"), /if \(auth\.kind === "employee" && !isCargoJob\(auth\.employee\)\) redirect\(workspaceHome\(auth\.employee\)\);/);
+  // A referral account opens at its link; the sales team and its figures are SALES only (2026-11-03).
+  assert.match(read("src/lib/employee-session.ts"), /isSalesJob\(employee\) \? "\/employee\/dashboard\/" : isCargoJob\(employee\) \? "\/employee\/cargo\/" : "\/employee\/referrals\/";/);
+  assert.match(read("src/lib/lead-performance.ts"), /e\.job = 'SALES'/);
+  assert.match(read("src/app/admin/(console)/page.tsx"), /where: \{ isActive: true, job: "SALES" \},/);
 });
 
 test("the migration only adds: a column with a default and three new tables", () => {
