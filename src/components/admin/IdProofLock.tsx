@@ -145,9 +145,10 @@ export function IdProofLockLine({ className = "" }: { className?: string }) {
 
 /**
  * The window that asks for the password: the console's own, never the browser's. Escape and a press beside it close
- * it (and only it); a wrong password says so and stays, the box emptied for another try.
+ * it (and only it); a wrong password says so and stays, the box emptied for another try. `inline`: the same form as a
+ * card of the page, with no window round it and nothing to close (the page a locked file link lands on, IdProofDoor).
  */
-export function OpenIdProofs({ onClose }: { onClose: () => void }) {
+export function OpenIdProofs({ onClose, inline = false }: { onClose?: () => void; inline?: boolean }) {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -158,14 +159,15 @@ export function OpenIdProofs({ onClose }: { onClose: () => void }) {
   }, []);
   // Escape answers this window only: caught on the way down, so the panel under it stays open.
   useEffect(() => {
+    if (inline) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       e.stopPropagation();
-      if (!busy) onClose();
+      if (!busy) onClose?.();
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [onClose, busy]);
+  }, [onClose, busy, inline]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -174,65 +176,85 @@ export function OpenIdProofs({ onClose }: { onClose: () => void }) {
     setProblem(null);
     const answer = await openWith(password);
     setBusy(false);
-    if (!answer) return onClose();
+    if (!answer) return onClose?.();
     setProblem(answer);
     setPassword("");
     input.current?.focus();
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onClose()}>
-      <form
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="id-proofs-title"
-        aria-describedby="id-proofs-body"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={(e) => void submit(e)}
-        className="w-full max-w-sm rounded-2xl bg-white p-6 text-[#1d1d1f] shadow-2xl ring-1 ring-black/[0.06]"
-      >
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f5f7]">
-          <Lock size={18} aria-hidden="true" />
-        </span>
-        <h2 id="id-proofs-title" className="mt-3 text-[16px] font-semibold tracking-tight">
-          Open ID proofs
-        </h2>
-        <p id="id-proofs-body" className="mt-1.5 text-[13.5px] leading-relaxed text-[#48484a]">
-          Applicants&apos; ID proofs stay locked. Type your admin password to see them for 10 minutes.
+  const form = (
+    <form
+      role={inline ? undefined : "dialog"}
+      aria-modal={inline ? undefined : true}
+      aria-labelledby="id-proofs-title"
+      aria-describedby="id-proofs-body"
+      onClick={(e) => e.stopPropagation()}
+      onSubmit={(e) => void submit(e)}
+      className={`w-full max-w-sm rounded-2xl bg-white p-6 text-[#1d1d1f] ring-1 ring-black/[0.06] ${inline ? "shadow-sm" : "shadow-2xl"}`}
+    >
+      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5f5f7]">
+        <Lock size={18} aria-hidden="true" />
+      </span>
+      <h2 id="id-proofs-title" className="mt-3 text-[16px] font-semibold tracking-tight">
+        Open ID proofs
+      </h2>
+      <p id="id-proofs-body" className="mt-1.5 text-[13.5px] leading-relaxed text-[#48484a]">
+        Applicants&apos; ID proofs stay locked. Type your admin password to see them for 10 minutes.
+      </p>
+      <label htmlFor="id-proofs-password" className="mt-4 block text-[13px] font-medium">
+        Password
+      </label>
+      <input
+        ref={input}
+        id="id-proofs-password"
+        type="password"
+        autoComplete="current-password"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+        maxLength={200}
+        className="mt-1.5 h-10 w-full rounded-lg bg-white px-3 text-[14px] outline-none ring-1 ring-black/[0.15] focus:ring-2 focus:ring-[#0071e3]/40"
+      />
+      {problem && (
+        <p role="alert" className="mt-2 text-[13px] text-red-600">
+          {problem}
         </p>
-        <label htmlFor="id-proofs-password" className="mt-4 block text-[13px] font-medium">
-          Password
-        </label>
-        <input
-          ref={input}
-          id="id-proofs-password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          maxLength={200}
-          className="mt-1.5 h-10 w-full rounded-lg bg-white px-3 text-[14px] outline-none ring-1 ring-black/[0.15] focus:ring-2 focus:ring-[#0071e3]/40"
-        />
-        {problem && (
-          <p role="alert" className="mt-2 text-[13px] text-red-600">
-            {problem}
-          </p>
-        )}
-        <div className="mt-5 flex justify-end gap-2">
+      )}
+      <div className="mt-5 flex justify-end gap-2">
+        {!inline && (
           <button type="button" onClick={onClose} disabled={busy} className="h-9 rounded-full px-4 text-[13px] font-medium ring-1 ring-black/[0.08] hover:bg-black/[0.03] disabled:opacity-50">
             Cancel
           </button>
-          <button
-            type="submit"
-            disabled={busy || !password}
-            className="inline-flex h-9 items-center gap-2 rounded-full bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white hover:bg-black disabled:opacity-50"
-          >
-            {busy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <LockOpen size={14} aria-hidden="true" />}
-            Open for 10 minutes
-          </button>
-        </div>
-      </form>
+        )}
+        <button
+          type="submit"
+          disabled={busy || !password}
+          className="inline-flex h-9 items-center gap-2 rounded-full bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white hover:bg-black disabled:opacity-50"
+        >
+          {busy ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <LockOpen size={14} aria-hidden="true" />}
+          Open for 10 minutes
+        </button>
+      </div>
+    </form>
+  );
+  if (inline) return form;
+  return createPortal(
+    <div className="fixed inset-0 z-[160] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onClose?.()}>
+      {form}
     </div>,
     document.body,
   );
+}
+
+/**
+ * The page a locked ID proof link lands on (admin/(console)/id-proof/[id]): the password form as a card of the page,
+ * and once ID proofs are open, here or in another tab, on to the file in this tab. The file's route sends a page here
+ * when they are locked, so the form shows while the lock is still being asked.
+ */
+export function IdProofDoor({ fileUrl }: { fileUrl: string }) {
+  const open = useIdProofLock().state === "open";
+  useEffect(() => {
+    if (open) window.location.replace(fileUrl);
+  }, [open, fileUrl]);
+  if (open) return <p className="text-[13.5px] text-[#48484a]">Opening the file…</p>;
+  return <OpenIdProofs inline />;
 }

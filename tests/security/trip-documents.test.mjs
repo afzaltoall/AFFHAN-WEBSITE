@@ -98,6 +98,33 @@ test("and only once they have opened ID proofs with their password, checked befo
   assert.match(read("src/app/api/auth/logout/route.ts"), /lockIdProofs\(res\)/);
 });
 
+// The owner, 2026-11-04 ("showing like this how can i see"): a console tab from before the lock linked to a file
+// directly, and the tab read a line of JSON. A tab that cannot have the file goes to the console's page for it.
+test("a tab that cannot have the file goes to the console's page for it; a picture is only refused", () => {
+  const src = read("src/app/api/admin/trip-documents/[id]/route.ts");
+  assert.match(src, /const dest = req\.headers\.get\("sec-fetch-dest"\);\s*return dest \? dest === "document" : /, "a page is a document");
+  assert.ok(src.includes("new URL(`/admin/id-proof/${encodeURIComponent(id)}/`, req.url), { status: 303"), "to the console's page, one path segment");
+  // Signed out or locked, before the database; the picture (and anything not a page) still 401 / 403.
+  assert.ok(src.includes('if (!admin || admin.role !== "admin") return opensAsPage(req) ? door() : new NextResponse("Unauthorized", { status: 401 });'));
+  const lock = src.indexOf("idProofsOpenUntil(admin)");
+  const lockedDoor = src.indexOf("if (opensAsPage(req)) return door();", lock);
+  assert.ok(lockedDoor > lock && lockedDoor < src.indexOf("tripApplicationDocument.findUnique"), "locked: the page before the database");
+  assert.match(src, /locked: true \},\s*\{ status: 403/);
+  // Never for the bucket's own error, which that page would only send back here.
+  assert.doesNotMatch(src.slice(src.indexOf("} catch (e)")), /door\(\)/);
+
+  // The page is the console's (its layout lets only an admin in), names the file and whose it is, never its key.
+  const page = read("src/app/admin/(console)/id-proof/[id]/page.tsx");
+  assert.ok(page.includes('if (admin.role !== "admin") redirect("/");'));
+  assert.ok(page.includes("<IdProofDoor fileUrl={`/api/admin/trip-documents/${doc.id}/`} />"));
+  assert.doesNotMatch(page, /\{doc\.key\}|key=\{|doc\.key\s*\}/);
+  // It goes on to the file only once ID proofs are open, with the console's own form until then.
+  const door = read("src/components/admin/IdProofLock.tsx");
+  assert.ok(door.includes('const open = useIdProofLock().state === "open";'));
+  assert.ok(door.includes("if (open) window.location.replace(fileUrl);"));
+  assert.ok(door.includes("return <OpenIdProofs inline />;"));
+});
+
 test("only a live employee's link gets an upload ticket", () => {
   const src = read("src/app/api/trip-applications/document-url/route.ts");
   const live = src.indexOf("liveReferralCode(body.code)");
