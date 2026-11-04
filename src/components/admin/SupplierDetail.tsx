@@ -3,10 +3,7 @@
 import Link from "next/link";
 import { useAdminDark } from "@/lib/useAdminDark";
 import Image from "next/image";
-import {
-  ArrowLeft, MapPin, Package, User, Building2, Hash, Sun, Moon,
-  ExternalLink, AlertTriangle, ChevronRight,
-} from "lucide-react";
+import { ArrowLeft, MapPin, Package, User, Building2, Hash, ExternalLink, AlertTriangle, ChevronRight } from "lucide-react";
 import type { SupplierRecord } from "@/lib/suppliers";
 import { supplierTitle } from "@/lib/suppliers";
 import { SupplierContacts } from "@/components/admin/SupplierContacts";
@@ -30,7 +27,7 @@ interface Props {
 
 export function SupplierDetail({ supplier: s, related, relatedTerm }: Props) {
   // Shared and remembered across the admin — see useAdminDark.
-  const [dark, setDark] = useAdminDark();
+  const [dark] = useAdminDark();
 
   const t = dark
     ? {
@@ -70,19 +67,10 @@ export function SupplierDetail({ supplier: s, related, relatedTerm }: Props) {
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">Old Suppliers</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
+          <span className="logo-plate flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <p className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-tight">{title}</p>
-          <button
-            type="button"
-            onClick={() => setDark((d) => !d)}
-            aria-pressed={dark}
-            aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
-            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
-          >
-            {dark ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />}
-          </button>
         </div>
       </header>
 

@@ -1339,7 +1339,7 @@ export function AdminConsole({ data }: Props) {
             className={`sticky top-0 z-40 flex h-screen flex-col overflow-hidden border-r backdrop-blur-xl transition-[width,box-shadow] duration-300 ease-out motion-reduce:transition-none ${sideOpen ? `w-[272px] shadow-2xl ${t.sidebarOpen}` : `w-[60px] ${t.sidebar}`}`}
           >
             <div className="flex items-center px-3.5 py-3">
-              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
+              <span className={`logo-plate flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
                 <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
               </span>
               <div className={`leading-tight ${sideLabel}`}>
@@ -1380,11 +1380,9 @@ export function AdminConsole({ data }: Props) {
                 t={t}
                 name={data.adminName}
                 image={data.adminImage}
-                dark={dark}
                 label={sideLabel}
                 onEmail={() => setShowEmail(true)}
                 onPassword={() => setShowPwd(true)}
-                onToggleDark={() => setDark((d) => !d)}
                 onSignOut={logout}
               />
             </div>
@@ -1425,11 +1423,8 @@ export function AdminConsole({ data }: Props) {
                   <span className="ml-0.5 rounded-full bg-brand-dark px-1.5 py-0.5 text-[10px] font-bold text-white">{fmtNum(newTotal)}</span>
                 )}
               </button>
-              {/* Dark toggle lives in the sidebar on desktop — only expose it in
-                  the top bar on mobile (where there is no sidebar). */}
-              <button onClick={() => setDark((d) => !d)} className={`inline-flex items-center gap-2 rounded-full px-3.5 py-2.5 text-[13px] font-semibold shadow-sm ring-1 transition-colors rail:hidden ${t.pill}`}>
-                {dark ? <Sun size={15} /> : <Moon size={15} />}<span className="hidden sm:inline">{dark ? "Light" : "Dark"}</span>
-              </button>
+              {/* No theme button here: the one switch is the account's (the account menu, and on a phone the
+                  Menu's account row), for the whole console (2026-11-04). */}
               <span className={`hidden text-[12px] md:inline ${t.soft}`} aria-live="polite">
                 {refreshing ? "Updating…" : `Updated ${timeAgo(new Date(updatedAt))}`}
               </span>
@@ -2064,7 +2059,7 @@ export function AdminConsole({ data }: Props) {
             className={`admin-drawer absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col border-r shadow-2xl ${t.card} ${t.strong}`}
           >
             <div className={`flex items-center gap-2.5 border-b px-4 py-4 ${t.border}`}>
-              <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.thumb}`}>
+              <span className={`logo-plate flex h-8 w-8 items-center justify-center rounded-lg ${t.thumb}`}>
                 <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
               </span>
               <div className="min-w-0 flex-1 leading-tight">
@@ -2104,7 +2099,7 @@ export function AdminConsole({ data }: Props) {
               </button>
               <div className="flex gap-2">
                 <button onClick={() => setDark((d) => !d)} className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}>
-                  {dark ? <Sun size={15} /> : <Moon size={15} />}{dark ? "Light" : "Dark"}
+                  {dark ? <Sun size={15} /> : <Moon size={15} />}{dark ? "Light mode" : "Dark mode"}
                 </button>
                 <button onClick={logout} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-500 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-red-600">
                   <LogOut size={15} /> Sign out

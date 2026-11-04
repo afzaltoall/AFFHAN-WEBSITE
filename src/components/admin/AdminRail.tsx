@@ -34,8 +34,9 @@ import { TripLockRailDot, TripLockRailPill } from "@/components/admin/TripLockRa
  * reflows. The dashboard's views are reached through ?view=, which the console
  * reads on arrival.
  *
- * Dark follows the shared preference (useAdminDark) on the pages that offer it,
- * so the rail never sits light beside a dark page, or the other way round.
+ * Dark follows the console's one theme (useAdminDark, switched in the account
+ * menu), as every page beside it does, so the rail never sits light beside a
+ * dark page, or the other way round.
  */
 
 const LIGHT = {
@@ -76,7 +77,6 @@ export function AdminRail({
   name,
   image,
   counts,
-  supportsDark,
   at,
 }: {
   name: string;
@@ -89,8 +89,6 @@ export function AdminRail({
    * "nothing waiting". See lib/admin-rail-counts.ts.
    */
   counts: RailCounts | null;
-  /** Whether the page beside the rail has a dark theme of its own to match. */
-  supportsDark: boolean;
   /** Where the rail is (a path and query, admin-nav's addressOf): the page beside it, or the one a move is on its way
    *  to, so the row pressed is marked at once. On the dashboard, its views are marked by ?view=. */
   at: string;
@@ -98,8 +96,8 @@ export function AdminRail({
   const router = useRouter();
   const nav = useAdminNav();
   const [open, setOpen] = useState(false);
-  const [darkPref, setDark] = useAdminDark();
-  const dark = supportsDark && darkPref;
+  // The console's one theme; the switch is the account menu's.
+  const [dark] = useAdminDark();
   const t = dark ? DARK : LIGHT;
 
   // One height for every row, the window's share (railFitStyle): the rail fits the window with nothing to scroll.
@@ -147,7 +145,7 @@ export function AdminRail({
         }`}
       >
         <Link href="/admin/" onNavigate={() => nav.start("/admin/")} className="flex items-center px-3.5 py-3">
-          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
+          <span className={`logo-plate flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
             <Image src="/logo.png" alt="Affhan" width={22} height={22} className="object-contain" />
           </span>
           <span className={`leading-tight ${label}`}>
@@ -209,9 +207,7 @@ export function AdminRail({
             t={t}
             name={name}
             image={image}
-            dark={dark}
             label={label}
-            onToggleDark={supportsDark ? () => setDark((d) => !d) : undefined}
             onSignOut={() => void signOut()}
           />
         </div>
@@ -234,17 +230,15 @@ export function AdminRail({
 export function AdminMobileBar({
   name,
   counts,
-  supportsDark,
 }: {
   name: string;
   counts: RailCounts | null;
-  supportsDark: boolean;
 }) {
   const pathname = usePathname() ?? "";
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [darkPref, setDark] = useAdminDark();
-  const dark = supportsDark && darkPref;
+  // The console's one theme; on a phone the switch is here, with the account's other actions.
+  const [dark, setDark] = useAdminDark();
   const t = dark ? DARK : LIGHT;
   const railCount = railCountOf(counts);
   // What the Menu button badges, as the dashboard's does: leads nobody has triaged yet.
@@ -273,7 +267,7 @@ export function AdminMobileBar({
   };
   const action = `flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`;
   const logo = (
-    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
+    <span className={`logo-plate flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.thumb}`}>
       <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
     </span>
   );
@@ -344,12 +338,10 @@ export function AdminMobileBar({
                 <KeyRound size={15} /> Change password
               </Link>
               <div className="flex gap-2">
-                {supportsDark && (
-                  <button type="button" onClick={() => setDark((d) => !d)} className={`flex-1 ${action}`}>
-                    {dark ? <Sun size={15} /> : <Moon size={15} />}
-                    {dark ? "Light" : "Dark"}
-                  </button>
-                )}
+                <button type="button" onClick={() => setDark((d) => !d)} className={`flex-1 ${action}`}>
+                  {dark ? <Sun size={15} /> : <Moon size={15} />}
+                  {dark ? "Light mode" : "Dark mode"}
+                </button>
                 <button
                   type="button"
                   onClick={() => void signOut()}

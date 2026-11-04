@@ -133,6 +133,10 @@ public/static/images/map*.png
 # enough for the category alone to match a supplier. A catalogue that has
 # changed a lot is this script run again; it only reads.
 !scripts/build_clean_categories.mjs
+# The console's dark theme (src/app/admin/(console)/admin-dark.css) is written
+# by this script from one table, and CLAUDE.md names it as the only way to
+# change that file: a colour a new screen needs is added here and run again.
+!scripts/build_admin_dark_css.mjs
 # The one-time reset that cleared what testing recorded against the live
 # database. Kept because it documents exactly what was removed and what was
 # deliberately left alone, and because its dry run is the safe way to ask the

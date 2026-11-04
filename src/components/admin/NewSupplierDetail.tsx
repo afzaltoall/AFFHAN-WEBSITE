@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft, Ban, Building2, CalendarDays, Check, CheckCircle2, ChevronRight, ExternalLink, LockOpen, LogIn, LogOut, MapPin, Moon,
-  Package, Sun, Trash2, User,
-} from "lucide-react";
+import { ArrowLeft, Ban, Building2, CalendarDays, Check, CheckCircle2, ChevronRight, ExternalLink, LockOpen, LogIn, LogOut, MapPin, Package, Trash2, User } from "lucide-react";
 import { useAdminDark } from "@/lib/useAdminDark";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { getCdnUrl } from "@/lib/cdn";
@@ -81,7 +78,7 @@ export function NewSupplierDetail({
   back: { href: string; label: string };
 }) {
   const router = useRouter();
-  const [dark, setDark] = useAdminDark();
+  const [dark] = useAdminDark();
   const [account, setAccount] = useState(initialAccount);
   const [offers, setOffers] = useState(initialOffers);
   const [pending, setPending] = useState<Pending | null>(null);
@@ -287,19 +284,10 @@ export function NewSupplierDetail({
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">{back.label}</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
+          <span className="logo-plate flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <p className="min-w-0 flex-1 truncate text-[14px] font-semibold tracking-tight">{title}</p>
-          <button
-            type="button"
-            onClick={() => setDark((d) => !d)}
-            aria-pressed={dark}
-            aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
-            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
-          >
-            {dark ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />}
-          </button>
         </div>
       </header>
 

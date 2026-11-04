@@ -23,7 +23,7 @@ export default function AdminLoading() {
   if (!isDashboardPath(pathname)) return <AdminLoadingScreen dashboard={false} />;
   return (
     <div className="flex">
-      <AdminRail name={rail.name} image={rail.image} counts={rail.counts} supportsDark={false} at={addressOf(pathname, search)} />
+      <AdminRail name={rail.name} image={rail.image} counts={rail.counts} at={addressOf(pathname, search)} />
       <div className="min-w-0 flex-1">
         <AdminLoadingScreen dashboard />
       </div>

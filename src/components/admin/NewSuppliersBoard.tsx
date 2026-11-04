@@ -4,10 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowLeft, Building2, Check, CheckCircle2, CheckSquare, ChevronRight, Clock, Download, Loader2,
-  Mail, MapPin, Moon, Package, RefreshCw, Search, SlidersHorizontal, Sun, Trash2, User, Users, X,
-} from "lucide-react";
+import { ArrowLeft, Building2, Check, CheckCircle2, CheckSquare, ChevronRight, Clock, Download, Loader2, Mail, MapPin, Package, RefreshCw, Search, SlidersHorizontal, Trash2, User, Users, X } from "lucide-react";
 import { useAdminDark } from "@/lib/useAdminDark";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { timeAgo } from "@/lib/relative-time";
@@ -127,7 +124,7 @@ export function NewSuppliersBoard({
   /** The suppliers the delete window is asking about. */
   const [pending, setPending] = useState<string[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [dark, setDark] = useAdminDark();
+  const [dark] = useAdminDark();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // Live, as the console's lists are (the owner, 2026-10-23: a supplier's application took too long to show here):
@@ -464,7 +461,7 @@ export function NewSuppliersBoard({
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">Dashboard</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
+          <span className="logo-plate flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <div className="min-w-0 leading-tight">
@@ -483,15 +480,6 @@ export function NewSuppliersBoard({
           >
             <RefreshCw size={15} aria-hidden="true" className={refreshing ? "animate-spin motion-reduce:animate-none" : ""} />
             <span className="hidden sm:inline">{refreshing ? "Refreshing…" : "Refresh"}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setDark((d) => !d)}
-            aria-pressed={dark}
-            className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
-          >
-            {dark ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />}
-            <span className="hidden sm:inline">{dark ? "Light" : "Dark"}</span>
           </button>
         </div>
       </header>

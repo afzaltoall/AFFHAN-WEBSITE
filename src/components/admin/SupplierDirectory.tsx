@@ -4,11 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAdminDark } from "@/lib/useAdminDark";
 import Image from "next/image";
-import {
-  Search, X, Download, Sun, Moon, ArrowLeft, MapPin, Package, Users,
-  AlertTriangle, ChevronRight, Phone, MessageCircle, SlidersHorizontal, CheckSquare,
-  Building2, User, Loader2,
-} from "lucide-react";
+import { Search, X, Download, ArrowLeft, MapPin, Package, Users, AlertTriangle, ChevronRight, Phone, MessageCircle, SlidersHorizontal, CheckSquare, Building2, User, Loader2 } from "lucide-react";
 import type { SupplierRecord } from "@/lib/suppliers";
 import { haystack, supplierTitle } from "@/lib/suppliers";
 import { SupplierContacts } from "@/components/admin/SupplierContacts";
@@ -95,7 +91,7 @@ export function SupplierDirectory({ suppliers, initialQuery = "", initialProduct
   const [sort, setSort] = useState<SortKey>("sheet");
   const [limit, setLimit] = useState(PAGE);
   // Shared and remembered across the admin — see useAdminDark.
-  const [dark, setDark] = useAdminDark();
+  const [dark] = useAdminDark();
   const searchRef = useRef<HTMLInputElement>(null);
 
   // "/" focuses the search box, the convention in every directory-shaped tool.
@@ -305,22 +301,13 @@ export function SupplierDirectory({ suppliers, initialQuery = "", initialProduct
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">Dashboard</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
+          <span className="logo-plate flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <div className="min-w-0 leading-tight">
             <h1 className="truncate text-[15px] font-semibold tracking-tight">Old Suppliers</h1>
             <p className={`text-[11px] ${t.soft}`}>{suppliers.length.toLocaleString("en-US")} in the book</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setDark((d) => !d)}
-            aria-pressed={dark}
-            className={`ml-auto inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand ${t.pill}`}
-          >
-            {dark ? <Sun size={15} aria-hidden="true" /> : <Moon size={15} aria-hidden="true" />}
-            <span className="hidden sm:inline">{dark ? "Light" : "Dark"}</span>
-          </button>
         </div>
       </header>
 

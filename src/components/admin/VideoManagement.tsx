@@ -5,10 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAdminDark } from "@/lib/useAdminDark";
 import Image from "next/image";
-import {
-  ArrowLeft, Plus, Trash2, Sun, Moon, PlayCircle, Loader2,
-  AlertTriangle, UploadCloud, X, Film, Image as ImageIcon,
-} from "lucide-react";
+import { ArrowLeft, Plus, Trash2, PlayCircle, Loader2, AlertTriangle, UploadCloud, X, Film, Image as ImageIcon } from "lucide-react";
 
 interface Category {
   id: string;
@@ -32,7 +29,7 @@ interface Props {
 export function VideoManagement({ categories }: Props) {
   const router = useRouter();
   // Shared and remembered across the admin — see useAdminDark.
-  const [dark, setDark] = useAdminDark();
+  const [dark] = useAdminDark();
   const [videos, setVideos] = useState<Video[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -273,7 +270,7 @@ export function VideoManagement({ categories }: Props) {
             <ArrowLeft size={15} aria-hidden="true" />
             <span className="hidden sm:inline">Dashboard</span>
           </Link>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
+          <span className="logo-plate flex h-8 w-8 shrink-0 items-center justify-center rounded-lg rail:hidden">
             <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
           </span>
           <div className="min-w-0 flex-1 leading-tight">
@@ -285,13 +282,6 @@ export function VideoManagement({ categories }: Props) {
             className="inline-flex items-center gap-2 rounded-xl bg-brand-dark px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-brand-deep focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
           >
             <Plus size={15} /> Upload Video
-          </button>
-          <button
-            type="button"
-            onClick={() => setDark((d) => !d)}
-            className={`ml-2 inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold ring-1 transition-colors ${t.pill}`}
-          >
-            {dark ? <Sun size={15} /> : <Moon size={15} />}
           </button>
         </div>
       </header>

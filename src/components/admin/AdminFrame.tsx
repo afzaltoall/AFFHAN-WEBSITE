@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AdminMobileBar, AdminRail } from "@/components/admin/AdminRail";
 import { AdminLoadingScreen } from "@/components/admin/AdminSkeleton";
 import { AdminNavContext, addressOf, isDashboardPath, type AdminNav } from "@/components/admin/admin-nav";
+import { readAdminDark, useAdminDark } from "@/lib/useAdminDark";
 import type { RailCounts } from "@/lib/admin-rail-counts";
 
 /**
@@ -62,11 +63,17 @@ export function AdminFrame({
     [start, router],
   );
 
+  // The console's one theme (admin-dark.css): html.admin-dark while the choice is dark, gone when the console is left.
+  // The stored choice is read directly, as the hook answers light until it has settled after the first render.
+  const [dark] = useAdminDark();
+  useEffect(() => {
+    document.documentElement.classList.toggle("admin-dark", readAdminDark());
+  }, [dark]);
+  useEffect(() => () => document.documentElement.classList.remove("admin-dark"), []);
+
   const moving = pending && pending !== here ? pending : null;
   const nav = useMemo<AdminNav>(() => ({ moving, start, go, rail: { name, image, counts } }), [moving, start, go, name, image, counts]);
 
-  // The pages that have a dark theme of their own for the rail to match.
-  const supportsDark = !moving && /^\/admin\/(suppliers|new-suppliers|videos)(\/|$)/.test(pathname);
   // This rail: beside every page but the dashboard, which draws its own (and whose loading screen draws this one in
   // its place), and beside any page while a move is on its way.
   const ownRail = !isDashboardPath(pathname) || moving !== null;
@@ -75,9 +82,9 @@ export function AdminFrame({
     <AdminNavContext.Provider value={nav}>
       {/* Where the rail is not drawn (a phone, a tablet, any touch screen): a bar with the console's Menu, the
           rail's rows in a drawer. */}
-      {ownRail && <AdminMobileBar name={name} counts={counts} supportsDark={supportsDark} />}
+      {ownRail && <AdminMobileBar name={name} counts={counts} />}
       <div className="flex">
-        {ownRail && <AdminRail name={name} image={image} counts={counts} supportsDark={supportsDark} at={moving ?? here} />}
+        {ownRail && <AdminRail name={name} image={image} counts={counts} at={moving ?? here} />}
         <div className="min-w-0 flex-1">
           {moving && <AdminLoadingScreen dashboard={isDashboardPath(moving.split("?")[0])} />}
           <div className={moving ? "hidden" : undefined}>{children}</div>

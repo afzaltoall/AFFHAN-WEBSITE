@@ -7,6 +7,7 @@ import Link from "next/link";
 import { ChevronDown, KeyRound, LogOut, Mail, Moon, Sun } from "lucide-react";
 import { Avatar } from "@/components/admin/AssigneePicker";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
+import { useAdminDark } from "@/lib/useAdminDark";
 import { useAdminNav } from "@/components/admin/admin-nav";
 
 /**
@@ -33,12 +34,11 @@ export interface AccountTheme {
  * because it is at the bottom of the screen.
  */
 export function AccountMenu({
-  t, name, image, dark, label, onEmail, onPassword, onToggleDark, onSignOut,
+  t, name, image, label, onEmail, onPassword, onSignOut,
 }: {
   t: AccountTheme;
   name: string;
   image: string | null;
-  dark: boolean;
   /** The rail's collapsing-label class, so the chip follows the rail. */
   label: string;
   /**
@@ -49,16 +49,12 @@ export function AccountMenu({
    */
   onEmail?: () => void;
   onPassword?: () => void;
-  /**
-   * Left out by the pages that have no dark theme of their own — most of the
-   * admin area. A switch that changes nothing you can see is worse than no
-   * switch, so those menus simply do not carry one.
-   */
-  onToggleDark?: () => void;
   onSignOut: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const nav = useAdminNav();
+  // The console's one theme, for every screen (admin-dark.css): the switch is here, on every page's menu.
+  const [darkTheme, setDarkTheme] = useAdminDark();
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const [pos, setPos] = useState<{ left: number; width: number; bottom: number; maxHeight: number } | null>(null);
@@ -120,7 +116,7 @@ export function AccountMenu({
           {image ? (
             <Avatar name={name} image={image} size={28} />
           ) : (
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-black/10">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-1 ring-black/10 keep-white">
               <Image src="/logo.png" alt="" width={22} height={22} className="object-contain" />
             </span>
           )}
@@ -173,15 +169,13 @@ export function AccountMenu({
               <span className="flex-1">Change password</span>
             </Link>
           )}
-          {/* The one that stays open: it changes the screen underneath, and
-              closing the menu to show that off would mean reopening it to
-              change your mind. */}
-          {onToggleDark && (
-            <button role="menuitemcheckbox" aria-checked={dark} onClick={onToggleDark} className={item}>
-              {dark ? <Sun size={15} className="shrink-0" /> : <Moon size={15} className="shrink-0" />}
-              <span className="flex-1">{dark ? "Light mode" : "Dark mode"}</span>
-            </button>
-          )}
+          {/* The console's one theme, for every screen at once (the owner, 2026-11-04: "just give overall for
+              everything one"). The one item that stays open: it changes the screen underneath, and closing the
+              menu to show that off would mean reopening it to change your mind. */}
+          <button role="menuitemcheckbox" aria-checked={darkTheme} onClick={() => setDarkTheme((d) => !d)} className={item}>
+            {darkTheme ? <Sun size={15} className="shrink-0" /> : <Moon size={15} className="shrink-0" />}
+            <span className="flex-1">{darkTheme ? "Light mode" : "Dark mode"}</span>
+          </button>
           <div className={`my-1 border-t ${t.border}`} />
           <button role="menuitem" onClick={() => { setOpen(false); onSignOut(); }} className={`${item} text-red-600`}>
             <LogOut size={15} className="shrink-0" />

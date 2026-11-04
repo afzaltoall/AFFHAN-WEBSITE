@@ -4,6 +4,10 @@ import { getCurrentUser } from "@/lib/session";
 import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { AdminFrame } from "@/components/admin/AdminFrame";
 import { railCounts } from "@/lib/admin-rail-counts";
+import "./admin-dark.css";
+
+/** The console's theme before anything is painted, from the choice useAdminDark keeps (admin-dark.css). */
+const THEME_FIRST_PAINT = `try{if(localStorage.getItem("affhan:admin-dark")==="1")document.documentElement.classList.add("admin-dark")}catch(e){}`;
 
 /**
  * The console's defaults, so a new admin route is noindex and named without
@@ -87,6 +91,7 @@ export default async function AdminConsoleLayout({ children }: { children: React
 
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: THEME_FIRST_PAINT }} />
       <SessionKeeper role="admin" />
       {/* The rail on every page but the dashboard, which has its own. */}
       <AdminFrame name={admin.name ?? "Admin"} image={admin.image ?? null} counts={counts}>

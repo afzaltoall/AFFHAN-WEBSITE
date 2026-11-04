@@ -21,6 +21,11 @@ const EVENT = "affhan:admin-dark";
 let storageWorks = true;
 let memory = false;
 
+/** The stored choice, read directly: for applying it before React's first render has settled. */
+export function readAdminDark(): boolean {
+  return read();
+}
+
 function read(): boolean {
   if (!storageWorks) return memory;
   try {

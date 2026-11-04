@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, CheckSquare, Copy, Download, Square, Trash2, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Check, CheckSquare, Copy, Download, RefreshCw, Square, Trash2, UserPlus, X } from "lucide-react";
+import { timeAgo } from "@/lib/relative-time";
 import { CargoDatePicker } from "@/components/cargo/CargoDatePicker";
 import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
 import type { ReferralBoardRow, ReferralPayoutView, ReferralSettings, ReferralTotals, ReferredApplication } from "@/lib/server/trip-referrals";
@@ -58,6 +59,17 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   // through the address alone.
   const [asked, setAsked] = useState<string | null | undefined>(undefined);
   const [, startMove] = useTransition();
+
+  // Refresh (the owner, 2026-11-04: "insert a refresh in this"): the page read again, and when it last was.
+  const [refreshing, startRefresh] = useTransition();
+  const [readAt, setReadAt] = useState(() => Date.now());
+  const [, setTick] = useState(0);
+  useEffect(() => setReadAt(Date.now()), [rows, settings, detail]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setTick((n) => n + 1), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const refresh = () => startRefresh(() => router.refresh());
   const shownId = asked !== undefined ? asked : (detail?.employeeId ?? null);
   useEffect(() => {
     if (asked !== undefined && (detail?.employeeId ?? null) === asked) setAsked(undefined);
@@ -235,11 +247,22 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
               Free China Trip referrals · {rupees(perReferral)} for every applicant counted · target {settings.target} each
             </p>
           </div>
+          <span className="ml-auto hidden text-[12px] text-[#86868b] sm:inline" aria-live="polite">
+            {refreshing ? "Updating…" : `Updated ${timeAgo(new Date(readAt))}`}
+          </span>
+          <button
+            type="button"
+            onClick={refresh}
+            disabled={refreshing}
+            className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 max-sm:ml-auto text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:opacity-50"
+          >
+            <RefreshCw size={14} className={refreshing ? "animate-spin" : ""} /> Refresh
+          </button>
           <button
             type="button"
             onClick={() => void exportExcel()}
             disabled={exporting}
-            className="ml-auto inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:opacity-50"
+            className="inline-flex h-9 items-center gap-2 rounded-full bg-white px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] hover:bg-black/[0.02] disabled:opacity-50"
           >
             <Download size={14} /> {exporting ? "Exporting…" : "Export"}
           </button>
