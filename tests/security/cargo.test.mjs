@@ -215,12 +215,20 @@ test("the migration only adds: a column with a default and three new tables", ()
 test("matching, stages and days", () => {
   assert.equal(cargoKey("co 26-000002"), "CO26000002");
   assert.equal(cargoKey("CO-26-000002"), cargoKey("co26000002"));
-  // The owner's six stages (2026-10-26), in the order cargo meets them.
-  assert.deepEqual([...CARGO_STATUSES], ["CARGO_LOADED", "VESSEL_LOADING", "VESSEL_SAILING", "VESSEL_DISCHARGED", "IN_CUSTOMS", "IN_WAREHOUSE"]);
+  // The owner's stages (2026-10-26), in the order cargo meets them, and Delivered after the warehouse (2026-11-04).
+  assert.deepEqual([...CARGO_STATUSES], ["CARGO_LOADED", "VESSEL_LOADING", "VESSEL_SAILING", "VESSEL_DISCHARGED", "IN_CUSTOMS", "IN_WAREHOUSE", "DELIVERED"]);
   assert.deepEqual(
     CARGO_STATUSES.map((s) => CARGO_STATUS_META[s].label),
-    ["Cargo loaded", "Vessel loading", "Vessel sailing", "Vessel discharged", "In customs clearance", "In warehouse"],
+    ["Cargo loaded", "Vessel loading", "Vessel sailing", "Vessel discharged", "In customs clearance", "In warehouse", "Delivered"],
   );
+  assert.ok(isCargoStatus("DELIVERED") && cargoStatusOf("DELIVERED") === "DELIVERED", "Delivered is a stage an update can be posted in");
+  // What draws them counts the list, never six (the tracker's journey and bar, the staff door's cargo desk).
+  const tracker = fs.readFileSync(new URL("../../src/components/shipping/CargoTracker.tsx", import.meta.url), "utf8");
+  const desks = fs.readFileSync(new URL("../../src/components/ui/StaffDesks.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(tracker, /grid-cols-6|8\.333|83\.333/, "the tracker draws a column a stage");
+  assert.match(tracker, /DELIVERED: Truck,/);
+  assert.doesNotMatch(desks, /grid-cols-6|of 6/, "the staff door's desk counts the stages");
+  assert.match(desks, /const STAGES = CARGO_STATUSES\.map\(\(s\) => CARGO_STATUS_META\[s\]\.label\);/);
   // Rows written in the first three codes read as the stages they became; nothing new is written in them.
   assert.equal(cargoStatusOf("IN_POL_PORT"), "CARGO_LOADED");
   assert.equal(cargoStatusOf("IN_SAILING"), "VESSEL_SAILING");

@@ -4,11 +4,12 @@
  * imports, so the browser, the server and the tests read the same.
  *
  * The stages are the owner's own list (2026-10-26, "Shipping Requirements"), in the order cargo meets them: loaded,
- * on the vessel, at sea, discharged at the port of discharge, through customs, in the warehouse. They carry no
- * colour: a stage is told by its name and its place among the six (the owner, 2026-10-26, of the dot each once had:
- * "colour dots feel like AI").
+ * on the vessel, at sea, discharged at the port of discharge, through customs, in the warehouse, and since 2026-11-04
+ * delivered (the owner: "below warehouse ... create a new delivered one"). They carry no colour: a stage is told by
+ * its name and its place among them (the owner, 2026-10-26, of the dot each once had: "colour dots feel like AI").
+ * Everything that draws them counts this list, so a stage added here reaches the tracker, the sheet and the staff door.
  */
-export const CARGO_STATUSES = ["CARGO_LOADED", "VESSEL_LOADING", "VESSEL_SAILING", "VESSEL_DISCHARGED", "IN_CUSTOMS", "IN_WAREHOUSE"] as const;
+export const CARGO_STATUSES = ["CARGO_LOADED", "VESSEL_LOADING", "VESSEL_SAILING", "VESSEL_DISCHARGED", "IN_CUSTOMS", "IN_WAREHOUSE", "DELIVERED"] as const;
 export type CargoStatus = (typeof CARGO_STATUSES)[number];
 export const isCargoStatus = (v: unknown): v is CargoStatus =>
   typeof v === "string" && (CARGO_STATUSES as readonly string[]).includes(v);
@@ -30,6 +31,7 @@ export const CARGO_STATUS_META: Record<CargoStatus, { label: string; event: stri
   VESSEL_DISCHARGED: { label: "Vessel discharged", event: "Discharged at the port of discharge" },
   IN_CUSTOMS: { label: "In customs clearance", event: "In customs clearance" },
   IN_WAREHOUSE: { label: "In warehouse", event: "In warehouse" },
+  DELIVERED: { label: "Delivered", event: "Delivered" },
 };
 
 /** The consignment's type, as the office's sheet writes it (the owner's list, 2026-10-26). */

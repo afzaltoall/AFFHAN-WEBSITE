@@ -67,8 +67,9 @@ export const ID_DOCUMENTS_MAX = 3;
 export const idDocumentExtension = (type: IdDocumentType) => ({ "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "application/pdf": "pdf" })[type];
 /**
  * The IDs a link applicant may add, and no other (the owner, 2026-11-03: "aadhar / pan / voter id / license / passport
- * ... only these, nothing else"): they choose which, then add a photo or a PDF of it; `sides` when it has a back to
- * add as well. The choice is written into the upload's key (docs/<id>/<uuid>.<extension>), as its type is in the
+ * ... only these, nothing else"; 2026-11-04: "create one more emirates id document", then "insert one more other id
+ * thats it": Other ID, any other photo ID, the file named only that): they choose which, then add a photo or a PDF of
+ * it; `sides` when it has a back to add as well. The choice is written into the upload's key (docs/<id>/<uuid>.<extension>), as its type is in the
  * extension, so the console can name every file without a column of its own.
  */
 export const ID_PROOFS = [
@@ -77,6 +78,8 @@ export const ID_PROOFS = [
   { id: "voter", label: "Voter ID", sides: true },
   { id: "licence", label: "Driving licence", sides: true },
   { id: "passport", label: "Passport", sides: false },
+  { id: "emirates", label: "Emirates ID", sides: true },
+  { id: "other", label: "Other ID", sides: true },
 ] as const;
 export type IdProof = (typeof ID_PROOFS)[number]["id"];
 export const isIdProof = (v: unknown): v is IdProof => typeof v === "string" && ID_PROOFS.some((p) => p.id === v);

@@ -80,12 +80,15 @@ const PROOF_NOTE: Record<IdProof, string> = {
   voter: "Add both sides.",
   licence: "Add both sides.",
   passport: "Add the page with your photo.",
+  emirates: "Add both sides.",
+  other: "Any other ID with your photo. Add both sides if it has two.",
 };
 
 /**
  * ID proof, asked only of someone who came through an employee's link (the owner, 2026-11-02: compulsory for them,
- * never shown to anyone applying on their own). One of five IDs and no other (2026-11-03: "aadhar / pan / voter id /
- * license / passport ... only these"), chosen first as the form's other choices are; then photos or PDFs of it, up to
+ * never shown to anyone applying on their own). One of the IDs in ID_PROOFS (2026-11-03: "aadhar / pan / voter id /
+ * license / passport ... only these"; Emirates ID and Other ID since 2026-11-04), chosen first as the form's other
+ * choices are; then photos or PDFs of it, up to
  * three (both sides of an Aadhaar), each sent the moment it is chosen and shown as a tile named by its ID, which can
  * be taken off again. Its complaint, the form's or the server's, sits under it like any field's; Submit waits for
  * files still on their way.
@@ -163,7 +166,7 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
         ID proof
         <span aria-hidden className="text-(--cx-gold)"> *</span>
       </legend>
-      {/* The five, drawn as the form's other choices are (Pills), and nothing to type. */}
+      {/* The IDs, drawn as the form's other choices are (Pills), and nothing to type. */}
       <div role="radiogroup" aria-label="Which ID" className="mt-1 flex flex-wrap gap-2.5">
         {ID_PROOFS.map((p, i) => (
           <label key={p.id} className="group relative cursor-pointer">

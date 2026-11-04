@@ -41,8 +41,10 @@ test("only docs/<id>/<uuid>.<jpg|png|webp|pdf> (or an older docs/<uuid>.<ext>) i
 });
 
 // The owner, 2026-11-03: "aadhar / pan / voter id / license / passport ... only these, nothing else".
-test("the five IDs, and no other, name an upload", () => {
-  assert.deepEqual(ID_PROOFS.map((p) => p.id), ["aadhaar", "pan", "voter", "licence", "passport"]);
+// 2026-11-04: "create one more emirates id document", then "insert one more other id thats it".
+test("the IDs, and no other, name an upload", () => {
+  assert.deepEqual(ID_PROOFS.map((p) => p.id), ["aadhaar", "pan", "voter", "licence", "passport", "emirates", "other"]);
+  assert.deepEqual(ID_PROOFS.map((p) => p.label), ["Aadhaar", "PAN card", "Voter ID", "Driving licence", "Passport", "Emirates ID", "Other ID"]);
   for (const p of ID_PROOFS) assert.equal(idProofOfKey(`docs/${p.id}/${ID}.jpg`), p.id);
   assert.equal(idProofOfKey(`docs/${ID}.jpg`), null, "a file from before the five names none");
   for (const v of ["ration", "", "Aadhaar", null, 1]) assert.equal(isIdProof(v), false, String(v));

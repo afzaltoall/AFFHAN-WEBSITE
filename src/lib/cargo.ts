@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { isCargoJob, readWorkspaceAuth } from "@/lib/employee-session";
 import {
-  CARGO_LIMITS, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, isoDay, officeToday, sameWords,
+  CARGO_LIMITS, CARGO_STATUSES, CARGO_STATUS_META, CARGO_TYPES, cargoKey, cargoStatusOf, fmtDay, isCargoStatus, isCargoType, isoDay, officeToday, sameWords,
   type CargoStatus, type CargoTrack,
 } from "@/lib/cargo-shared";
 
@@ -82,7 +82,7 @@ export interface CargoDetail extends CargoRow {
   changes: CargoChangeRow[];
 }
 
-// A row's stage as today's six name it, the first three codes included (cargo-shared's cargoStatusOf).
+// A row's stage as today's stages name it, the first three codes included (cargo-shared's cargoStatusOf).
 const statusOf = (s: string): CargoStatus => cargoStatusOf(s);
 const labelOf = (s: string) => CARGO_STATUS_META[statusOf(s)].label;
 const dayOrNull = (d: Date | null) => (d ? isoDay(d) : null);
@@ -157,10 +157,13 @@ function reference(raw: unknown): { reference: string; referenceKey: string } {
   return { reference: v.toUpperCase(), referenceKey: key };
 }
 
-/** A stage for a new or corrected update: one of today's six only (rows written before keep theirs until corrected). */
+/** Every stage's name, as the refusal below lists them: "Cargo loaded, …, In warehouse or Delivered". */
+const STAGE_NAMES = CARGO_STATUSES.map((s) => CARGO_STATUS_META[s].label);
+
+/** A stage for a new or corrected update: one of today's only (rows written before keep theirs until corrected). */
 function stage(raw: unknown): CargoStatus {
   if (!isCargoStatus(raw)) {
-    throw new CargoError(400, "Choose the status: Cargo loaded, Vessel loading, Vessel sailing, Vessel discharged, In customs clearance or In warehouse.");
+    throw new CargoError(400, `Choose the status: ${STAGE_NAMES.slice(0, -1).join(", ")} or ${STAGE_NAMES.at(-1)}.`);
   }
   return raw;
 }

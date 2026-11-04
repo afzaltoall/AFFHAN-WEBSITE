@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { Anchor, Container, Loader2, PackageCheck, Printer, Ship, Stamp, Warehouse } from "lucide-react";
+import { Anchor, Container, Loader2, PackageCheck, Printer, Ship, Stamp, Truck, Warehouse } from "lucide-react";
 import { SITE_URL } from "@/lib/brand";
 import { CARGO_STATUSES, CARGO_STATUS_META, cargoKey, fmtTrackDay, trackDays, type CargoStatus, type CargoTrack } from "@/lib/cargo-shared";
 import { isNativeApp } from "@/lib/nativeCamera";
@@ -11,12 +11,12 @@ import { isNativeApp } from "@/lib/nativeCamera";
 /**
  * Track your cargo, on /shipping/ under the hero (the owner, 2026-10-24): a customer types the console, FCL or LCL
  * number we gave them and sees where their cargo stands. Not the carrier's tracker, with its modules, vessels and
- * voyages: our own, in our own six stages (the owner's, 2026-10-26: loaded, vessel loading, sailing, discharged,
- * customs, warehouse), and every update our assigners post.
+ * voyages: our own, in our own stages (the owner's, 2026-10-26: loaded, vessel loading, sailing, discharged,
+ * customs, warehouse; delivered since 2026-11-04), and every update our assigners post.
  *
  * Laid out as a carrier's tracker reads (the owner, 2026-10-26: the first one "feels like AI", everything pushed to
  * the right under a poster heading): one column, a plain heading, the box, then the cargo: its number, its status,
- * ETD and ETA, the six stages, and the updates as a plain table (Event Date, Event Name, Status), each change once
+ * ETD and ETA, the stages, and the updates as a plain table (Event Date, Event Name, Status), each change once
  * (the server leaves repeats out), oldest first, a row a day: two updates on one date are one row, both names under
  * the date and the status the day ended on (trackDays). No "updated … ago" and no Live badge: not for the customer.
  *
@@ -39,6 +39,7 @@ const STAGE_ICON: Record<CargoStatus, typeof Anchor> = {
   VESSEL_DISCHARGED: Anchor,
   IN_CUSTOMS: Stamp,
   IN_WAREHOUSE: Warehouse,
+  DELIVERED: Truck,
 };
 
 export function CargoTracker() {
@@ -227,6 +228,10 @@ function Result({ cargo, onPaper = false }: { cargo: CargoTrack; onPaper?: boole
   const now = CARGO_STATUSES[current];
   const NowIcon = STAGE_ICON[now];
   const next = current < stages - 1 ? CARGO_STATUSES[current + 1] : null;
+  // A column a stage, however many there are (seven since 2026-11-04); the line runs from the first stage's centre to
+  // the last's, half a column in from each side.
+  const columns = { gridTemplateColumns: `repeat(${stages}, minmax(0, 1fr))` };
+  const edge = 50 / stages;
   const fact = "text-[16px] font-semibold text-[#08222e]";
   const factLabel = "text-[13px] text-[#5a6e77]";
   // Print, wherever a browser can print: the app's Android shell ignores window.print(), so it has no button there.
@@ -271,10 +276,10 @@ function Result({ cargo, onPaper = false }: { cargo: CargoTrack; onPaper?: boole
         </div>
       </dl>
 
-      {/* The six stages, the cargo's own one marked, the ones behind it done: in the brand's two colours, navy for
-          where it is and teal for where it has been, never a colour per stage (the owner, 2026-10-26: "colour dots
-          feel like AI"). A phone has no room for six names in a row: there, the stage as a step of six, over a bar of
-          six, and the one after it. */}
+      {/* The stages, the cargo's own one marked, the ones behind it done: in the brand's two colours, navy for where
+          it is and teal for where it has been, never a colour per stage (the owner, 2026-10-26: "colour dots feel like
+          AI"). A phone has no room for every name in a row: there, the stage as a step of them all, over a bar of
+          them, and the one after it. */}
       <div className="border-b border-[#08222e]/10 px-6 py-6 sm:px-8">
         <div className="sm:hidden">
           <div className="flex items-center gap-3">
@@ -288,7 +293,7 @@ function Result({ cargo, onPaper = false }: { cargo: CargoTrack; onPaper?: boole
               <p className="text-[17px] font-bold leading-tight text-[#08222e]">{CARGO_STATUS_META[now].label}</p>
             </div>
           </div>
-          <div className="mt-4 grid grid-cols-6 gap-1.5" aria-hidden="true">
+          <div className="mt-4 grid gap-1.5" style={columns} aria-hidden="true">
             {CARGO_STATUSES.map((s, i) => (
               <span key={s} className={`h-1.5 rounded-full ${i < current ? "bg-[#176579]" : i === current ? "bg-[#08222e]" : "bg-[#08222e]/10"}`} />
             ))}
@@ -299,12 +304,11 @@ function Result({ cargo, onPaper = false }: { cargo: CargoTrack; onPaper?: boole
             </p>
           )}
         </div>
-        <ol className="relative hidden grid-cols-6 sm:grid" aria-label="Where your cargo stands">
-          {/* The line runs from the first stage's centre to the last's: a twelfth in from each side. */}
-          <span className="absolute left-[8.333%] right-[8.333%] top-[18px] h-[3px] rounded-full bg-[#08222e]/10" aria-hidden="true" />
+        <ol className="relative hidden sm:grid" style={columns} aria-label="Where your cargo stands">
+          <span className="absolute top-[18px] h-[3px] rounded-full bg-[#08222e]/10" style={{ left: `${edge}%`, right: `${edge}%` }} aria-hidden="true" />
           <span
-            className="absolute left-[8.333%] top-[18px] h-[3px] rounded-full bg-[#176579] transition-[width] duration-700 ease-out motion-reduce:transition-none"
-            style={{ width: `${(current / (stages - 1)) * 83.333}%` }}
+            className="absolute top-[18px] h-[3px] rounded-full bg-[#176579] transition-[width] duration-700 ease-out motion-reduce:transition-none"
+            style={{ left: `${edge}%`, width: `${(current / (stages - 1)) * (100 - 2 * edge)}%` }}
             aria-hidden="true"
           />
           {CARGO_STATUSES.map((s, i) => {

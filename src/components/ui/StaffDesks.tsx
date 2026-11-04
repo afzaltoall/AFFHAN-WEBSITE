@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { CupSoda, Headphones, Lightbulb, ShoppingBag, Smartphone, Sun, UserRound, type LucideIcon } from "lucide-react";
 import { useIsomorphicLayoutEffect } from "@/lib/useIsomorphicLayoutEffect";
+import { CARGO_STATUSES, CARGO_STATUS_META } from "@/lib/cargo-shared";
 
 /**
  * The staff door's left panel, running (the owner, 2026-11-03: "left side animative quotes and leads ... live",
  * "feels empty ... innovative"): the desks the staff sign in to, one after another, each with its headline and a
  * drawing of it at work. The sales desk takes leads in, has them taken and decided; the cargo desk moves a
- * consignment through its six stages, an update for each; the trip desk counts applicants arriving through a link.
+ * consignment through the tracker's stages, an update for each; the trip desk counts applicants arriving through a link.
  * The headline and its drawing change together, so the panel tells one thing at a time.
  *
  * SAMPLE TEXT ONLY. Nothing here is fetched, nothing is real, and no name belongs to anyone: every one is "Sample …".
@@ -326,15 +327,16 @@ function SalesDesk({ still }: { still: boolean }) {
 
 // ------------------------------------------------------------------------------------------------ the cargo desk
 
-/** The cargo tracker's six stages (lib/cargo-shared.ts), in its words. */
-const STAGES = ["Cargo loaded", "Vessel loading", "Vessel sailing", "Vessel discharged", "In customs clearance", "In warehouse"];
-const WHEN = ["5 days ago", "4 days ago", "3 days ago", "2 days ago", "Yesterday", "Today"];
+/** The cargo tracker's stages, in its words: its own list (lib/cargo-shared.ts), so a stage added there shows here. */
+const STAGES = CARGO_STATUSES.map((s) => CARGO_STATUS_META[s].label);
+/** When each was posted, the first the longest ago: one a day, ending today. */
+const WHEN = STAGES.map((_, i, all) => (i === all.length - 1 ? "Today" : i === all.length - 2 ? "Yesterday" : `${all.length - 1 - i} days ago`));
 
 function CargoDesk({ still }: { still: boolean }) {
-  // Opens sailing; a stage more every two and a half seconds, to the warehouse.
+  // Opens sailing; a stage more every two seconds, to the last (delivered since 2026-11-04) before the desk turns.
   const [stage, setStage] = useState(2);
   useSeconds(still, (s) => {
-    if (s % 2 === 0 && s <= 6) setStage((n) => Math.min(STAGES.length - 1, n + 1));
+    if (s % 2 === 0) setStage((n) => Math.min(STAGES.length - 1, n + 1));
   });
   const updates = STAGES.slice(0, stage + 1)
     .map((name, i) => ({ id: i + 1 + (i >= 3 ? 1000 : 0), name, when: WHEN[i] }))
@@ -347,13 +349,13 @@ function CargoDesk({ still }: { still: boolean }) {
           <span className="shrink-0 text-[11px] text-white/45">Guangzhou → Chennai</span>
         </div>
         {/* Where it has been in teal, where it is in white, as the customer's tracker draws it; never a colour per stage. */}
-        <ol className="mt-3 grid grid-cols-6 gap-1">
+        <ol className="mt-3 grid gap-1" style={{ gridTemplateColumns: `repeat(${STAGES.length}, minmax(0, 1fr))` }}>
           {STAGES.map((s, i) => (
             <li key={s} className={`h-1.5 rounded-full transition-colors duration-500 ${i < stage ? "bg-brand/80" : i === stage ? "bg-white" : "bg-white/10"}`} />
           ))}
         </ol>
         <p className="mt-2 text-[11px] text-white/55">
-          Step {stage + 1} of 6 · <span className="font-semibold text-white/90">{STAGES[stage]}</span>
+          Step {stage + 1} of {STAGES.length} · <span className="font-semibold text-white/90">{STAGES[stage]}</span>
         </p>
       </div>
       <div className="mt-2">
