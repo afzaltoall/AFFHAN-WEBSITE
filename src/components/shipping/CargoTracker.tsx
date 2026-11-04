@@ -279,9 +279,10 @@ function Result({ cargo, onPaper = false }: { cargo: CargoTrack; onPaper?: boole
       {/* The stages, the cargo's own one marked, the ones behind it done: in the brand's two colours, navy for where
           it is and teal for where it has been, never a colour per stage (the owner, 2026-10-26: "colour dots feel like
           AI"). A phone has no room for every name in a row: there, the stage as a step of them all, over a bar of
-          them, and the one after it. */}
+          them, and the one after it. Below 768px, where the site is a phone's: at 640px seven names did not fit their
+          columns (2026-11-04). */}
       <div className="border-b border-[#08222e]/10 px-6 py-6 sm:px-8">
-        <div className="sm:hidden">
+        <div className="md:hidden">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#08222e] text-white">
               <NowIcon className="h-5 w-5" strokeWidth={2.2} aria-hidden="true" />
@@ -304,7 +305,7 @@ function Result({ cargo, onPaper = false }: { cargo: CargoTrack; onPaper?: boole
             </p>
           )}
         </div>
-        <ol className="relative hidden sm:grid" style={columns} aria-label="Where your cargo stands">
+        <ol className="relative hidden md:grid" style={columns} aria-label="Where your cargo stands">
           <span className="absolute top-[18px] h-[3px] rounded-full bg-[#08222e]/10" style={{ left: `${edge}%`, right: `${edge}%` }} aria-hidden="true" />
           <span
             className="absolute top-[18px] h-[3px] rounded-full bg-[#176579] transition-[width] duration-700 ease-out motion-reduce:transition-none"
