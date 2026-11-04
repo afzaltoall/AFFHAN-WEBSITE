@@ -8,6 +8,10 @@ import { flattenLeaves, getCategoryIcon, type CategoryTreeNode } from "@/lib/cat
 import { CategoryTile } from "@/components/ui/CategoryTile";
 import { CategoryLeafPreview } from "@/components/ui/CategoryLeafPreview";
 
+/** The time, for the scroll handlers below. Only ever read in an event handler, never during render, where the
+ *  React compiler's purity rule cannot tell the two apart. */
+const clockMs = () => Date.now();
+
 interface CategoryMegaPanelProps {
   tree: CategoryTreeNode[];
   onNavigate: (categoryId: string) => void;
@@ -18,6 +22,7 @@ interface CategoryMegaPanelProps {
 
 export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: CategoryMegaPanelProps) {
   const [activeId, setActiveId] = useState<string | null>(initialActiveId ?? tree[0]?.id ?? null);
+  const activeRef = useRef(activeId);
   const scrollRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   // The rail scrolls too. It carries every section — 177 of them on the live
@@ -60,6 +65,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
 
   const scrollToSection = (id: string, smooth = true) => {
     setActiveId(id);
+    activeRef.current = id;
     pinnedId.current = id;
     const el = sectionRefs.current.get(id);
     const container = scrollRef.current;
@@ -69,39 +75,45 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
       // scroll-spy starts reassigning activeId to whatever section is passing
       // — the highlight then races down the rail ahead of the scroll and
       // settles on the wrong row.
-      programmaticUntil.current = Date.now() + (smooth ? 1400 : 200);
+      programmaticUntil.current = clockMs() + (smooth ? 1400 : 200);
       container.scrollTo({ top: el.offsetTop - 12, behavior: smooth ? "smooth" : "auto" });
     }
 
-    // And bring the highlighted rail row into view, centred rather than
-    // scrolled-to-top: the row above and below give it context, and a row
-    // pinned to the very top of a long list looks like the list begins there.
-    const railEl = railRefs.current.get(id);
-    const rail = railRef.current;
-    if (railEl && rail) {
-      const centred = railEl.offsetTop - rail.clientHeight / 2 + railEl.clientHeight / 2;
-      rail.scrollTo({
-        top: Math.max(0, Math.min(centred, rail.scrollHeight - rail.clientHeight)),
-        behavior: smooth ? "smooth" : "auto",
-      });
-    }
+    // And the highlighted rail row into view when it is out of sight, centred
+    // so the rows around it show too (opened at a category further down). A
+    // row just pressed is in sight already, so the list stays still under the
+    // pointer rather than sliding the row away from it.
+    showOnRail(id);
   };
 
   const releasePin = () => { pinnedId.current = null; };
 
-  // Hovering a rail row previews its section on the right; clicking it opens
-  // the category. The delay is what makes that bearable — without it, crossing
-  // the rail on the way to a tile drags the panel through every section the
-  // pointer passes.
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const previewSection = (id: string) => {
-    if (hoverTimer.current) clearTimeout(hoverTimer.current);
-    hoverTimer.current = setTimeout(() => scrollToSection(id), 180);
+  /** The rail row of the section in view, brought into view itself when it is out of sight (centred, so the rows
+   *  around it show too); left where it is when it can already be seen. */
+  const showOnRail = (id: string) => {
+    const railEl = railRefs.current.get(id);
+    const rail = railRef.current;
+    if (!railEl || !rail) return;
+    const top = railEl.offsetTop;
+    const bottom = top + railEl.offsetHeight;
+    if (top >= rail.scrollTop && bottom <= rail.scrollTop + rail.clientHeight) return;
+    const centred = top - rail.clientHeight / 2 + railEl.offsetHeight / 2;
+    rail.scrollTo({ top: Math.max(0, Math.min(centred, rail.scrollHeight - rail.clientHeight)), behavior: "smooth" });
   };
-  const cancelPreview = () => {
-    if (hoverTimer.current) clearTimeout(hoverTimer.current);
+  /** The scroll-spy's move: the highlight to the section in view, and its row into view on the rail. */
+  const spy = (id: string) => {
+    if (activeRef.current === id) return;
+    activeRef.current = id;
+    setActiveId(id);
+    showOnRail(id);
   };
-  useEffect(() => () => { if (hoverTimer.current) clearTimeout(hoverTimer.current); }, []);
+
+  // Nothing moves under the pointer (the owner, 2026-11-04: "while placing cursor it was auto moving dont do that
+  // remove the auto move"). Resting on a rail row used to preview its section: after 180ms the right panel scrolled
+  // to it and the rail scrolled itself to centre the row, so the list slid away under the cursor. Now the panels move
+  // only for the reader: a row pressed scrolls the right side to its section, and scrolling the right side moves the
+  // rail's highlight with it, bringing that row into view when it is out of sight, the last one at the end ("while
+  // scrolling fully in right till end in the end have to scroll to the particular").
 
   /* Open at the top, then travel to the category.
    *
@@ -129,7 +141,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
   // Scroll-spy: keep the left rail highlight in sync with whichever section
   // is currently at the top of the right panel as the user scrolls.
   const handleScroll = () => {
-    if (Date.now() < programmaticUntil.current) return;
+    if (clockMs() < programmaticUntil.current) return;
     // A chosen category outranks whatever happens to be at the top. Released
     // by releasePin below, on the first scroll the reader makes themselves.
     if (pinnedId.current) return;
@@ -141,9 +153,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
     // If scrolled to the absolute bottom, force highlight the last section
     // because its top offset might never reach the top of the container
     if (Math.ceil(scrollTop + container.clientHeight) >= container.scrollHeight - 10) {
-      if (sections.length > 0) {
-        setActiveId(sections[sections.length - 1].id);
-      }
+      if (sections.length > 0) spy(sections[sections.length - 1].id);
       return;
     }
 
@@ -152,7 +162,7 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
       const el = sectionRefs.current.get(s.id);
       if (el && el.offsetTop - 40 <= scrollTop) current = s.id;
     }
-    if (current) setActiveId(current);
+    if (current) spy(current);
   };
 
   return (
@@ -166,20 +176,16 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
           A name longer than that would clip rather than wrap. Nothing in the
           taxonomy comes close, but if one is promoted later this is the number
           to raise. */}
-      <div ref={railRef} className="w-60 lg:w-72 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
+      <div ref={railRef} className="relative w-60 lg:w-72 shrink-0 bg-slate-50 border-r border-slate-100 py-3 overflow-y-auto custom-scrollbar">
         {sections.map(s => (
-          // A row in a list of categories opens that category — the same place
-          // its tiles and its "View all" go. It used to only scroll the right
-          // panel, which meant clicking the category you wanted, on the list
-          // that looks most like a menu, appeared to do nothing at all when
-          // that section was already in view. Reading the section without
-          // leaving is still possible: hovering the row brings it up.
+          // A row pressed shows its section on the right, scrolled to it (the
+          // owner, 2026-11-04: "while clicking anything on left it have to
+          // show on right perfectly scroll"); its tiles and its "View all"
+          // open the category. Hovering it moves nothing (see releasePin).
           <button
             key={s.id}
             ref={(el) => { if (el) railRefs.current.set(s.id, el); }}
-            onClick={() => onNavigate(s.id)}
-            onMouseEnter={() => previewSection(s.id)}
-            onMouseLeave={cancelPreview}
+            onClick={() => scrollToSection(s.id)}
             className={`w-full flex items-center gap-3 px-4 py-2.5 text-left text-sm font-semibold transition-colors border-l-4 ${
               activeId === s.id
                 ? "bg-white text-brand-dark border-brand"
