@@ -5,7 +5,16 @@ import { useAuth } from "@/context/AuthContext";
 import { COUNTRIES } from "@/lib/countries";
 import { isValidMobile, splitE164 } from "@/lib/phone";
 import { isBusinessStatus, type FieldErrors, type TripApplicationPayload } from "@/lib/trip-application";
-import { REFERRAL_CODE_MAX, REFERRAL_EVENT, REFERRAL_STORAGE_DAYS, REFERRAL_STORAGE_KEY, normalizeReferralCode, type IdProof } from "@/lib/trip-referral-shared";
+import {
+  REFERRAL_CODE_MAX,
+  REFERRAL_DROPPED_EVENT,
+  REFERRAL_EVENT,
+  REFERRAL_STORAGE_DAYS,
+  REFERRAL_STORAGE_KEY,
+  normalizeReferralCode,
+  referralFromSearch,
+  type IdProof,
+} from "@/lib/trip-referral-shared";
 
 /**
  * The application's one state object: { personal, business, travel, consent },
@@ -121,21 +130,36 @@ export function useApplication() {
     } catch {
       /* no draft, or storage blocked */
     }
-    // The employee's code their link brought, kept to go with the application; the applicant never sees it.
-    const linked = codeFromLink();
+    // The employee's code, to go with the application; the applicant never sees it. The address's own first (?ref=, on
+    // the link itself), so the ID proof shows with the first question whatever the server and the browser's storage
+    // do (2026-11-04: it waited for the server's answer, and some applied without it); else the one a link left here.
+    const linked = referralFromSearch(window.location.search) || codeFromLink();
     if (linked) setState((s) => ({ ...s, referral: { code: linked } }));
     restored.current = true;
   }, []);
 
-  // A link opened on this very page (?ref= on the application itself) is kept once the server has said it is live,
-  // after the restore above has run: take it then.
+  // A link kept while this page is open (TripRefCapture), and one the server has answered credits nobody: forgotten,
+  // or the live link this browser kept before it taken instead.
   useEffect(() => {
     const kept = (e: Event) => {
       const code = normalizeReferralCode((e as CustomEvent<unknown>).detail) || codeFromLink();
       if (code) setState((s) => (s.referral.code === code ? s : { ...s, referral: { code } }));
     };
+    const dropped = (e: Event) => {
+      const gone = normalizeReferralCode((e as CustomEvent<unknown>).detail);
+      const back = codeFromLink();
+      setState((s) => {
+        if (s.referral.code !== gone) return s;
+        return back && back !== gone ? { ...s, referral: { code: back } } : { ...s, referral: { code: "" }, documents: { files: [], uploading: 0 } };
+      });
+      setErrors((x) => ({ ...x, idDocument: undefined }));
+    };
     window.addEventListener(REFERRAL_EVENT, kept);
-    return () => window.removeEventListener(REFERRAL_EVENT, kept);
+    window.addEventListener(REFERRAL_DROPPED_EVENT, dropped);
+    return () => {
+      window.removeEventListener(REFERRAL_EVENT, kept);
+      window.removeEventListener(REFERRAL_DROPPED_EVENT, dropped);
+    };
   }, []);
 
   // What the account already knows, into empty fields.

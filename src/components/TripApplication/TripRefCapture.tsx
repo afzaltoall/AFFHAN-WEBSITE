@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import { REFERRAL_CODE_MIN, REFERRAL_EVENT, REFERRAL_STORAGE_KEY, normalizeReferralCode } from "@/lib/trip-referral-shared";
+import { REFERRAL_DROPPED_EVENT, REFERRAL_EVENT, REFERRAL_STORAGE_KEY, referralFromSearch } from "@/lib/trip-referral-shared";
+
+/** How long the server has to say whether a link is live; unanswered by then, the code stays and the application decides. */
+const CHECK_MS = 10_000;
 
 /**
  * An employee's link (affhan.com/free-china-trip/apply/?ref=RAHIM7, the owner's referral task, 2026-11-02) keeps its code in
@@ -10,31 +13,62 @@ import { REFERRAL_CODE_MIN, REFERRAL_EVENT, REFERRAL_STORAGE_KEY, normalizeRefer
  * On the trip's page and its application. Draws nothing, and the visitor is never shown a code or asked for one
  * (the owner: only somebody who came through the employee's link is theirs).
  *
- * Only a live link is kept, an active employee's (/api/trip-applications/referral): such a visitor is asked for ID
- * proof, and nobody else is (the owner, 2026-11-02), so a former employee's or a mistyped link is forgotten here.
- * When the check cannot be made (offline, a refusal), the code is kept, and the server decides with the application.
- * Never cancelled on leaving the page: the trip's page is often left for the application before the answer comes.
+ * Kept the moment the page opens, before the server has answered (2026-11-04, the owner: "sometimes the document part
+ * is not showing ... they apply but it doesn't count"): it was kept only once the server said the link was live, so
+ * an answer that came late (25 s on a slow phone), never came, or went unheard left the application without its ID
+ * proof and its employee. Now only a clear answer that the link credits nobody (a former employee's, a mistyped code;
+ * only an active employee's is live, /api/trip-applications/referral) takes it back, and puts back the live link this
+ * browser kept before it. The question is never cancelled on leaving the page, only given up after CHECK_MS.
  */
 export function TripRefCapture() {
   useEffect(() => {
-    const code = normalizeReferralCode(new URLSearchParams(window.location.search).get("ref"));
-    if (code.length < REFERRAL_CODE_MIN) return;
+    const code = referralFromSearch(window.location.search);
+    if (!code) return;
+    const before = read();
+    write(JSON.stringify({ code, at: Date.now() }));
+    window.dispatchEvent(new CustomEvent<string>(REFERRAL_EVENT, { detail: code }));
+    const ask = new AbortController();
+    const timer = window.setTimeout(() => ask.abort(), CHECK_MS);
     void (async () => {
-      let live = true;
+      let live: boolean | null = null;
       try {
-        const res = await fetch(`/api/trip-applications/referral/?code=${encodeURIComponent(code)}`, { cache: "no-store" });
+        const res = await fetch(`/api/trip-applications/referral/?code=${encodeURIComponent(code)}`, { cache: "no-store", signal: ask.signal });
         if (res.ok) live = ((await res.json()) as { live?: unknown }).live === true;
       } catch {
-        /* not answered: keep it, the application decides */
+        /* not answered, or not in time: kept, and the application decides */
+      } finally {
+        window.clearTimeout(timer);
       }
-      if (!live) return;
-      try {
-        localStorage.setItem(REFERRAL_STORAGE_KEY, JSON.stringify({ code, at: Date.now() }));
-      } catch {
-        /* storage blocked: an application open on this page still gets it, from the event */
-      }
-      window.dispatchEvent(new CustomEvent<string>(REFERRAL_EVENT, { detail: code }));
+      if (live !== false) return;
+      // Credits nobody: forgotten, with the live link kept before it back in its place (when it was another one).
+      if (keptCode(read()) === code) write(before && keptCode(before) !== code ? before : null);
+      window.dispatchEvent(new CustomEvent<string>(REFERRAL_DROPPED_EVENT, { detail: code }));
     })();
   }, []);
   return null;
+}
+
+function read(): string | null {
+  try {
+    return localStorage.getItem(REFERRAL_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function write(value: string | null) {
+  try {
+    if (value === null) localStorage.removeItem(REFERRAL_STORAGE_KEY);
+    else localStorage.setItem(REFERRAL_STORAGE_KEY, value);
+  } catch {
+    /* storage blocked: the application on this page takes the code from the address, and from the event */
+  }
+}
+
+function keptCode(raw: string | null): string {
+  try {
+    return String((JSON.parse(raw ?? "null") as { code?: unknown } | null)?.code ?? "");
+  } catch {
+    return "";
+  }
 }

@@ -53,6 +53,17 @@ export const REFERRAL_STORAGE_KEY = "affhan:trip-ref";
 export const REFERRAL_STORAGE_DAYS = 30;
 /** Sent on window when a link's code has just been kept, so an application already open picks it up. */
 export const REFERRAL_EVENT = "affhan:trip-ref-kept";
+/** Sent on window when the server has answered that a link credits nobody, so the application forgets it. */
+export const REFERRAL_DROPPED_EVENT = "affhan:trip-ref-dropped";
+
+/**
+ * The employee's code in an address's query (?ref=RAHIM7), as the application keeps it; "" when there is none. Read
+ * straight from the address by the form too (2026-11-04), so its ID proof never waits on the server or on storage.
+ */
+export function referralFromSearch(search: string): string {
+  const code = normalizeReferralCode(new URLSearchParams(search).get("ref"));
+  return code.length >= REFERRAL_CODE_MIN ? code.slice(0, REFERRAL_CODE_MAX) : "";
+}
 
 /**
  * The ID proof an applicant who came through an employee's link must add (the owner, 2026-11-02; asked of nobody else),
