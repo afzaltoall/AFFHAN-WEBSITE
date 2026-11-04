@@ -88,6 +88,30 @@ export function CategoryMegaPanel({ tree, onNavigate, initialActiveId }: Categor
 
   const releasePin = () => { pinnedId.current = null; };
 
+  /* The pressed section kept at the top while what is above it is still arriving.
+   *
+   * A promoted leaf's products load after the panel opens and push every section under them down. Measured live
+   * (2026-11-04): the panel grew 54px during the scroll, and a section pressed came to rest 81px down instead of at
+   * the top. So while a section is pinned, any section changing size sends the scroll on to where the pinned one is
+   * now, smoothly, from wherever it has got to; the reader's own scroll (releasePin) ends it.
+   */
+  const keepPinnedInPlace = () => {
+    const id = pinnedId.current;
+    const el = id ? sectionRefs.current.get(id) : null;
+    const container = scrollRef.current;
+    if (!el || !container) return;
+    const target = Math.min(el.offsetTop - 12, container.scrollHeight - container.clientHeight);
+    if (Math.abs(container.scrollTop - target) <= 2) return;
+    programmaticUntil.current = Math.max(programmaticUntil.current, clockMs() + 700);
+    container.scrollTo({ top: target, behavior: "smooth" });
+  };
+  useEffect(() => {
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => keepPinnedInPlace());
+    sectionRefs.current.forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [sections]);
+
   /** The rail row of the section in view, brought into view itself when it is out of sight (centred, so the rows
    *  around it show too); left where it is when it can already be seen. */
   const showOnRail = (id: string) => {
