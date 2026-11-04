@@ -1417,6 +1417,8 @@ model TripApplicationDocument {
 /// an employee's code earns them `pointsPerReferral` points once the team counts it, each point `rupeesPerPoint`
 /// rupees, towards a `target` of applications. Codes are taken while `enabled`, and inside [startsAt, endsAt) when
 /// those are set. The console's Free China Trip → Employee tasks sets it; until then the defaults stand.
+/// Beside it, an employee's own target (2026-11-04): a row with id "target:<employee id>", of which only `target` (and
+/// who set it, when) is read; no such row, the task's target (lib/server/trip-referrals.ts, setEmployeeTarget).
 model TripReferralSettings {
   id                String    @id
   enabled           Boolean   @default(true)

@@ -63,6 +63,42 @@ export async function referralSettings(): Promise<ReferralSettings> {
   };
 }
 
+/**
+ * An employee's own target (2026-11-04, the owner: "give an access option to increase a target for a particular
+ * employee"): a row of TripReferralSettings of its own, id "target:<employee id>", of which only `target` is read (and
+ * who set it, when). No row, the task's target. A target is a goal shown against what is counted; it never caps the
+ * points, the rupees or what can be paid.
+ */
+const TARGET_PREFIX = "target:";
+const targetRowId = (employeeId: string) => `${TARGET_PREFIX}${employeeId}`;
+
+/** Every employee's own target, by employee id (only those who have one). */
+export async function employeeTargets(): Promise<Map<string, number>> {
+  const rows = await prisma.tripReferralSettings.findMany({ where: { id: { startsWith: TARGET_PREFIX } }, select: { id: true, target: true } });
+  return new Map(rows.map((r) => [r.id.slice(TARGET_PREFIX.length), r.target]));
+}
+
+/** One employee's own target, or null when the task's stands for them. */
+export async function employeeTarget(employeeId: string): Promise<number | null> {
+  const row = await prisma.tripReferralSettings.findUnique({ where: { id: targetRowId(employeeId) }, select: { target: true } });
+  return row?.target ?? null;
+}
+
+/** Gives an employee a target of their own, or (null) puts them back on the task's. */
+export async function setEmployeeTarget(employeeId: string, target: number | null, by: string): Promise<void> {
+  const id = targetRowId(employeeId);
+  if (target === null) {
+    await prisma.tripReferralSettings.deleteMany({ where: { id } });
+    return;
+  }
+  await prisma.tripReferralSettings.upsert({ where: { id }, create: { id, target, changedBy: by }, update: { target, changedBy: by } });
+}
+
+/** An employee's target row goes with them when they are deleted (lib/server/staff-removal.ts). */
+export function forgetEmployeeTarget(employeeId: string) {
+  return prisma.tripReferralSettings.deleteMany({ where: { id: targetRowId(employeeId) } });
+}
+
 /** Whether a code earns points now: the task is on, and inside its dates where it has them. */
 export function taskRunning(s: Pick<ReferralSettings, "enabled" | "startsAt" | "endsAt">, now = Date.now()): boolean {
   return s.enabled && (!s.startsAt || now >= Date.parse(s.startsAt)) && (!s.endsAt || now < Date.parse(s.endsAt));
@@ -200,6 +236,9 @@ export interface ReferralBoardRow {
   unpaid: number;
   unpaidRupees: number;
   lastAt: string | null;
+  /** What they are counted towards: their own target where they have one (ownTarget), the task's otherwise. */
+  target: number;
+  ownTarget: number | null;
 }
 
 interface CountedRow {
@@ -237,7 +276,7 @@ export type ReferralTotals = ReturnType<typeof tally> & { paidRupees: number };
 /** The console's Employee tasks: the settings, and every active employee (and any former one with referrals), best first. */
 export async function referralBoard(): Promise<{ settings: ReferralSettings; rows: ReferralBoardRow[] }> {
   await ensureCodesForActive();
-  const [settings, employees, apps, paid] = await Promise.all([
+  const [settings, employees, apps, paid, targets] = await Promise.all([
     referralSettings(),
     prisma.employee.findMany({
       where: { OR: [{ isActive: true }, { tripReferrals: { some: {} } }] },
@@ -248,6 +287,7 @@ export async function referralBoard(): Promise<{ settings: ReferralSettings; row
       select: { referrerId: true, referralState: true, referralPoints: true, referralPayoutId: true, status: true, createdAt: true },
     }),
     prisma.tripReferralPayout.groupBy({ by: ["employeeId"], _sum: { amount: true } }),
+    employeeTargets(),
   ]);
   const byEmployee = new Map<string, CountedRow[]>();
   for (const a of apps) if (a.referrerId) byEmployee.set(a.referrerId, [...(byEmployee.get(a.referrerId) ?? []), a]);
@@ -260,6 +300,8 @@ export async function referralBoard(): Promise<{ settings: ReferralSettings; row
     code: e.tripReferralCode?.code ?? null,
     ...tally(byEmployee.get(e.id) ?? [], settings.rupeesPerPoint),
     paidRupees: paidOf.get(e.id) ?? 0,
+    target: targets.get(e.id) ?? settings.target,
+    ownTarget: targets.get(e.id) ?? null,
   }));
   rows.sort((a, b) => b.counted - a.counted || b.referred - a.referred || a.name.localeCompare(b.name));
   return { settings, rows };
@@ -301,7 +343,7 @@ export interface ReferralPayoutView {
  */
 export async function employeeReferrals(employee: { id: string; name: string }, { withDocuments = false } = {}) {
   const code = await ensureReferralCode(employee);
-  const [settings, apps, payouts] = await Promise.all([
+  const [settings, apps, payouts, ownTarget] = await Promise.all([
     referralSettings(),
     prisma.tripApplication.findMany({
       where: { referrerId: employee.id, status: { not: "deleted" } },
@@ -312,6 +354,7 @@ export async function employeeReferrals(employee: { id: string; name: string }, 
       },
     }),
     prisma.tripReferralPayout.findMany({ where: { employeeId: employee.id }, orderBy: { paidAt: "desc" } }),
+    employeeTarget(employee.id),
   ]);
   const totals = { ...tally(apps, settings.rupeesPerPoint), paidRupees: payouts.reduce((s, p) => s + p.amount, 0) };
   const documents = new Map<string, NonNullable<ReferredApplication["documents"]>>();
@@ -329,6 +372,9 @@ export async function employeeReferrals(employee: { id: string; name: string }, 
     code,
     settings,
     totals,
+    /** What they are counted towards: their own target where the console gave them one, the task's otherwise. */
+    target: ownTarget ?? settings.target,
+    ownTarget,
     applications: apps.map(
       (a): ReferredApplication => ({
         id: a.id,

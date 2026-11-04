@@ -160,6 +160,7 @@
   html.admin-dark .hover\:text-brand-deep:hover { color: #9ee3f1; }
   html.admin-dark .group:hover .group-hover\:text-\[\#1d1d1f\] { color: #ffffff; }
   html.admin-dark .group:hover .group-hover\:text-slate-900 { color: #ffffff; }
+  html.admin-dark .group:hover .group-hover\:text-\[\#0058b0\] { color: #9ee3f1; }
   html.admin-dark .border-black\/\[0\.04\] { border-color: rgb(255 255 255 / 0.07); }
   html.admin-dark .border-black\/\[0\.05\] { border-color: rgb(255 255 255 / 0.08); }
   html.admin-dark .border-black\/\[0\.06\] { border-color: rgb(255 255 255 / 0.08); }

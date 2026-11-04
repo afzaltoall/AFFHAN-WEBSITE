@@ -83,6 +83,10 @@ export const LIMITS = {
    *  up to three files an application, offered only to a live employee's link. Open: the proof is compulsory for those
    *  applicants, so a refusal would cost the application itself. */
   tripDocumentUpload: { per: "IP", count: 60, window: "1 h", whenDown: "open", feature: "ID upload" },
+  /** /api/admin/trip-documents/unlock: an admin's password, typed again to open applicants' ID proofs (2026-11-04).
+   *  Closed, as the console's sign-in: a guess here is a guess at the admin's password. The database lockout holds per
+   *  admin as well. */
+  idProofUnlock: { per: "account", count: 10, window: "15 m", whenDown: "closed", feature: "Opening ID proofs" },
 } as const satisfies Record<string, LimitSpec>;
 
 export type LimitName = keyof typeof LIMITS;

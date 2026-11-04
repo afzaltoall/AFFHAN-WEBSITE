@@ -220,7 +220,7 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
             className="inline-flex min-h-11 items-center gap-2 border border-(--cx-white)/22 px-4 text-[14px] text-(--cx-white) transition-colors duration-300 hover:border-(--cx-white)/45 focus-visible:outline-2 focus-visible:outline-offset-3 focus-visible:outline-(--cx-white)"
           >
             <Plus size={16} aria-hidden />
-            {files.length || uploading ? "Add another" : "Add a photo or PDF"}
+            {files.length || uploading ? "Add another document" : "Add document"}
           </button>
         )}
       </div>

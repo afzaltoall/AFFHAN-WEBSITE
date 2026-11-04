@@ -1,6 +1,7 @@
 import "server-only";
 import { prisma } from "@/lib/prisma";
 import { releaseDeactivated } from "@/lib/lead-pool";
+import { forgetEmployeeTarget } from "@/lib/server/trip-referrals";
 
 /**
  * Delete from Employee tasks (the owner, 2026-11-03: "delete option"). An account that has done nothing yet, added by
@@ -21,6 +22,8 @@ export async function removeEmployees(ids: string[], by: string): Promise<{ dele
     if (!e.lastLoginAt && !(await hasHistory(id))) {
       try {
         await prisma.employee.delete({ where: { id } });
+        // Their own target, if the console gave them one, goes with them (it is a settings row, not tied by a key).
+        await forgetEmployeeTarget(id).catch(() => {});
         out.deleted.push(e.name);
         continue;
       } catch (error) {

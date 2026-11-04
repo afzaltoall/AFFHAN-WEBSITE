@@ -79,7 +79,15 @@ export async function checkDocuments(keys: string[]): Promise<DocumentCheck[]> {
   );
 }
 
-/** A link to one file, good for five minutes, shown in the browser (never downloaded as an attachment). */
+/**
+ * A link to one file, good for a minute, shown in the browser (never downloaded as an attachment) and never kept in
+ * its cache (2026-11-04: it was five minutes, and cached): the browser follows it the moment the console asks, so a
+ * minute is all it needs, and a copied link is dead almost at once.
+ */
 export function documentViewUrl(key: string, contentType: string): Promise<string> {
-  return getSignedUrl(s3, new GetObjectCommand({ Bucket: DOCUMENTS_BUCKET, Key: key, ResponseContentType: contentType, ResponseContentDisposition: "inline" }), { expiresIn: 300 });
+  return getSignedUrl(
+    s3,
+    new GetObjectCommand({ Bucket: DOCUMENTS_BUCKET, Key: key, ResponseContentType: contentType, ResponseContentDisposition: "inline", ResponseCacheControl: "private, no-store" }),
+    { expiresIn: 60 },
+  );
 }

@@ -41,9 +41,11 @@ export default async function MyReferralsPage() {
 
   const r = await employeeReferrals({ id: auth.employee.id, name: auth.employee.name });
   const { settings, totals } = r;
+  // Their own target where the console gave them one, the task's otherwise (2026-11-04).
+  const target = r.target;
   const link = referralLink(r.code);
   const perReferral = settings.pointsPerReferral * settings.rupeesPerPoint;
-  const done = Math.min(totals.counted, settings.target);
+  const done = Math.min(totals.counted, target);
   const running = taskRunning(settings);
   const dates =
     settings.startsAt && settings.endsAt
@@ -82,12 +84,12 @@ export default async function MyReferralsPage() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <p className="text-[15px] font-semibold">
               <span className="text-[28px] font-bold tabular-nums">{totals.counted}</span>
-              <span className={wt.soft}> / {settings.target} counted</span>
+              <span className={wt.soft}> / {target} counted</span>
             </p>
-            {totals.counted >= settings.target && <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[12.5px] font-semibold text-emerald-700">Target reached</span>}
+            {totals.counted >= target && <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-[12.5px] font-semibold text-emerald-700">Target reached</span>}
           </div>
-          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={settings.target} aria-valuenow={done} aria-label="Counted towards the target">
-            <div className="h-full rounded-full bg-[#176579]" style={{ width: `${(done / settings.target) * 100}%` }} />
+          <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-black/[0.06]" role="progressbar" aria-valuemin={0} aria-valuemax={target} aria-valuenow={done} aria-label="Counted towards the target">
+            <div className="h-full rounded-full bg-[#176579]" style={{ width: `${(done / target) * 100}%` }} />
           </div>
           <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[

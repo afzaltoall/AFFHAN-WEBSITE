@@ -7,6 +7,7 @@ import { ArrowLeft, Check, CheckSquare, Copy, Download, RefreshCw, Search, Squar
 import { timeAgo } from "@/lib/relative-time";
 import { CargoDatePicker } from "@/components/cargo/CargoDatePicker";
 import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
+import { IdProofLockLine } from "@/components/admin/IdProofLock";
 import type { ReferralBoardRow, ReferralPayoutView, ReferralSettings, ReferralTotals, ReferredApplication } from "@/lib/server/trip-referrals";
 import { REFERRAL_CODE_MAX, REFERRAL_CODE_MIN, istDate, istLastDay, normalizeReferralCode, referralLink, referralWaiting, rupees } from "@/lib/trip-referral-shared";
 
@@ -46,6 +47,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const [paying, setPaying] = useState<ReferralBoardRow | null>(null);
   const [exporting, setExporting] = useState(false);
   const [editingCode, setEditingCode] = useState<CodeTarget | null>(null);
+  const [editingTarget, setEditingTarget] = useState<TargetFor | null>(null);
   const [adding, setAdding] = useState(false);
   // Ticked rows, the ones a Delete is asked about, and what the last Delete did (2026-11-03).
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -61,6 +63,8 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
     setSelected(new Set());
   };
   const ticked = shownRows.filter((r) => selected.has(r.employeeId));
+  /** How many have a target of their own (2026-11-04), said beside the task's. */
+  const ownTargets = rows.filter((r) => r.ownTarget !== null).length;
 
   // The employee open in the panel on the right: open the moment a name is pressed, from the row already on screen,
   // while ?employee= reads their applications. `asked` is what was last pressed (an id, or null for closed) until the
@@ -142,6 +146,22 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
     }
   };
 
+  /** An employee's own target saved, or (null) back to the task's (2026-11-04); the reason it was not, in the window. */
+  const saveTarget = async (employeeId: string, target: number | null): Promise<string | null> => {
+    setBusy(true);
+    try {
+      await send("/api/admin/trip-referrals/target/", { employeeId, target });
+      setEditingTarget(null);
+      router.refresh();
+      return null;
+    } catch (e) {
+      return e instanceof Error ? e.message : "The target was not saved. Try again.";
+    } finally {
+      setBusy(false);
+    }
+  };
+  const targetFor = (r: ReferralBoardRow): TargetFor => ({ employeeId: r.employeeId, name: r.name, ownTarget: r.ownTarget, counted: r.counted });
+
   /**
    * A staff account added from here (2026-11-03: "give a option to add the employee"), through the Staff section's own
    * route, then their code: the one typed, or one made from their name. The password comes back once, to hand over.
@@ -211,7 +231,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
       const wb = XLSX.utils.book_new();
       const people = [
         ["Employee", "Email", "Code", "Applied through the link", "Counted", "Not counted", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
-        ...rows.map((r) => [r.name, r.email, r.code ?? "", r.referred, r.counted, r.notCounted, settings.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No"]),
+        ...rows.map((r) => [r.name, r.email, r.code ?? "", r.referred, r.counted, r.notCounted, r.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No"]),
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(people), "Employees");
       const head = ["Trip ID", "Applied", "Name", "Mobile", "Country", "City", "Code", "Employee", "Office status", "Not verified", "Referral", "Points", "Paid", "Decided by"];
@@ -254,6 +274,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
             <h1 className="text-2xl font-semibold tracking-tight">Employee tasks</h1>
             <p className="text-[13px] text-[#86868b]">
               Free China Trip referrals · {rupees(perReferral)} for every applicant counted · target {settings.target} each
+              {ownTargets > 0 && ` · ${ownTargets} with their own`}
             </p>
           </div>
           <span className="ml-auto hidden text-[12px] text-[#86868b] sm:inline" aria-live="polite">
@@ -371,7 +392,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1020px] text-left text-[13px]">
+              <table className="w-full min-w-[1100px] text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-black/[0.06] text-[12px] text-[#86868b]">
                     <th className="w-10 py-2.5 pl-5" aria-label="Select" />
@@ -379,7 +400,8 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                     <th className="px-3 py-2.5 font-medium">Code</th>
                     <th className="px-3 py-2.5 text-right font-medium">Applied</th>
                     <th className="px-3 py-2.5 text-right font-medium">Counted</th>
-                    <th className="px-3 py-2.5 font-medium">Towards {settings.target}</th>
+                    <th className="px-3 py-2.5 font-medium">Target</th>
+                    <th className="px-3 py-2.5 font-medium">Progress</th>
                     <th className="px-3 py-2.5 text-right font-medium">Points</th>
                     <th className="px-3 py-2.5 text-right font-medium">Earned</th>
                     <th className="px-3 py-2.5 text-right font-medium">Paid</th>
@@ -389,7 +411,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                 </thead>
                 <tbody className="divide-y divide-black/[0.06]">
                   {shownRows.map((r) => {
-                    const share = Math.min(1, r.counted / settings.target);
+                    const share = Math.min(1, r.counted / r.target);
                     const tick = selected.has(r.employeeId);
                     return (
                       <tr key={r.employeeId} className={tick || shownId === r.employeeId ? "bg-[#0071e3]/[0.05]" : ""}>
@@ -434,8 +456,20 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                         <td className="px-3 py-3 text-right tabular-nums">{r.referred}</td>
                         <td className="px-3 py-3 text-right font-semibold tabular-nums">{r.counted}</td>
                         <td className="px-3 py-3">
+                          <span className="tabular-nums">{r.target.toLocaleString("en-IN")}</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditingTarget(targetFor(r))}
+                            aria-label={`Change ${r.name}'s target`}
+                            className="ml-2 text-[12px] font-medium text-[#0058b0] hover:underline"
+                          >
+                            Change
+                          </button>
+                          {r.ownTarget !== null && <div className="text-[11.5px] text-[#86868b]">Their own</div>}
+                        </td>
+                        <td className="px-3 py-3">
                           <div className="flex items-center gap-2">
-                            <div className="h-2 w-28 overflow-hidden rounded-full bg-black/[0.07]" role="progressbar" aria-valuemin={0} aria-valuemax={settings.target} aria-valuenow={Math.min(r.counted, settings.target)} aria-label={`${r.name}: counted towards the target`}>
+                            <div className="h-2 w-28 overflow-hidden rounded-full bg-black/[0.07]" role="progressbar" aria-valuemin={0} aria-valuemax={r.target} aria-valuenow={Math.min(r.counted, r.target)} aria-label={`${r.name}: counted towards their target`}>
                               <div className="h-full rounded-full bg-[#176579]" style={{ width: `${share * 100}%` }} />
                             </div>
                             <span className="text-[12px] tabular-nums text-[#6e6e73]">{Math.round(share * 100)}%</span>
@@ -479,16 +513,18 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
         <EmployeePanel
           row={shownRow}
           detail={shownDetail}
-          target={settings.target}
+          target={shownRow.target}
           busy={busy}
           onClose={() => openEmployee(null)}
           onDecide={(ids, state) => run(() => send("/api/admin/trip-referrals/decide/", { ids, state }))}
           onPay={() => setPaying(shownRow)}
           onChangeCode={() => setEditingCode({ employeeId: shownRow.employeeId, name: shownRow.name, code: shownDetail?.code ?? shownRow.code })}
+          onChangeTarget={() => setEditingTarget(targetFor(shownRow))}
         />
       )}
 
       {editingCode && <CodeWindow who={editingCode} busy={busy} onCancel={() => setEditingCode(null)} onSave={saveCode} />}
+      {editingTarget && <TargetWindow who={editingTarget} taskTarget={settings.target} busy={busy} onCancel={() => setEditingTarget(null)} onSave={saveTarget} />}
       {adding && <AddEmployeeWindow busy={busy} onClose={() => setAdding(false)} onAdd={addEmployee} />}
       {removing && <DeleteWindow who={removing} busy={busy} onCancel={() => setRemoving(null)} onConfirm={() => void removeNow(removing)} />}
 
@@ -610,16 +646,19 @@ function EmployeePanel({
   onDecide,
   onPay,
   onChangeCode,
+  onChangeTarget,
 }: {
   row: ReferralBoardRow;
   /** Null while their applications are being read. */
   detail: ReferralDetail | null;
+  /** Theirs: their own where the console gave them one, the task's otherwise. */
   target: number;
   busy: boolean;
   onClose: () => void;
   onDecide: (ids: string[], state: "waiting" | "counted" | "not_counted") => Promise<boolean>;
   onPay: () => void;
   onChangeCode: () => void;
+  onChangeTarget: () => void;
 }) {
   // Escape closes the panel, unless a window over it (Change code, Mark paid) takes the key first: theirs listen
   // in the capture phase and stop it there (useEscape).
@@ -634,7 +673,7 @@ function EmployeePanel({
   const code = detail?.code ?? row.code;
   const waitingIds = detail ? detail.applications.filter(referralWaiting).map((a) => a.id) : [];
   const figures: [string, string][] = [
-    ["Counted", `${row.counted} of ${target}`],
+    [row.ownTarget !== null ? "Counted, own target" : "Counted", `${row.counted} of ${target.toLocaleString("en-IN")}`],
     ["Points", row.points.toLocaleString("en-IN")],
     ["Paid", rupees(row.paidRupees)],
     ["To pay", rupees(row.unpaidRupees)],
@@ -663,6 +702,9 @@ function EmployeePanel({
               {code ? "Change code" : "Make code"}
             </button>
             {code && <CopyText text={referralLink(code)} label="Copy link" />}
+            <button type="button" disabled={busy} onClick={onChangeTarget} className={`${pillButton} bg-white hover:bg-black/[0.03]`}>
+              Change target
+            </button>
           </div>
           {code && <p className="mt-1.5 break-all text-[12.5px] text-[#86868b]">{referralLink(code)}</p>}
 
@@ -695,6 +737,8 @@ function EmployeePanel({
           <h3 className="text-[13px] font-semibold">
             Applied through their link{detail ? <span className="ml-1.5 font-normal tabular-nums text-[#6e6e73]">{detail.applications.length}</span> : null}
           </h3>
+          {/* The ID proof lock, once for the whole list (each applicant's tiles below follow it). */}
+          {detail?.applications.some((a) => a.documents?.length) && <IdProofLockLine className="mt-1.5" />}
           {!detail ? (
             <ul className="mt-2.5 animate-pulse divide-y divide-black/[0.06] overflow-hidden rounded-2xl bg-white ring-1 ring-black/[0.06]" aria-busy="true">
               {Array.from({ length: Math.min(4, Math.max(1, row.referred)) }, (_, i) => (
@@ -847,6 +891,8 @@ function PayWindow({ row, busy, onCancel, onConfirm }: { row: ReferralBoardRow; 
 // ---- making a code, adding an employee (2026-11-03) ------------------------------------------------------------------
 
 type CodeTarget = { employeeId: string; name: string; code: string | null };
+/** Whose target is being changed, the one of their own they have (null: the task's), and how many count so far. */
+type TargetFor = { employeeId: string; name: string; ownTarget: number | null; counted: number };
 type NewEmployee = { name: string; email: string; job: "SALES" | "ASSIGNER" | "REFERRAL"; password: string; code: string };
 type AddResult =
   | { ok: false; error: string }
@@ -957,6 +1003,108 @@ function CodeWindow({ who, busy, onCancel, onSave }: { who: CodeTarget; busy: bo
           </button>
           <button type="submit" disabled={busy || !valid || !changed} className={`${pillButton} h-9 bg-[#1d1d1f] px-4 text-white hover:bg-black`}>
             {busy ? "Saving…" : "Save code"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * One employee's own target (2026-11-04, the owner: "give an access option to increase a target for a particular
+ * employee"): a number of their own, or back to the task's. It is the goal their counted applications are shown
+ * against, here and on their My referrals page; it never changes their points or what they are paid. The task's own
+ * number typed in puts them back on the task's, so a later change to it reaches them too.
+ */
+function TargetWindow({
+  who,
+  taskTarget,
+  busy,
+  onCancel,
+  onSave,
+}: {
+  who: TargetFor;
+  taskTarget: number;
+  busy: boolean;
+  onCancel: () => void;
+  onSave: (employeeId: string, target: number | null) => Promise<string | null>;
+}) {
+  const current = who.ownTarget ?? taskTarget;
+  const [value, setValue] = useState(String(current));
+  const [error, setError] = useState<string | null>(null);
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    input.current?.select();
+  }, []);
+  useEscape(onCancel, busy);
+  const n = /^\d+$/.test(value) ? Number(value) : NaN;
+  const valid = Number.isInteger(n) && n >= 1 && n <= 100_000;
+  const changed = valid && n !== current;
+  const save = async () => {
+    if (!changed || busy) return;
+    setError(await onSave(who.employeeId, n === taskTarget ? null : n));
+  };
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onCancel()}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="target-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+        className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/[0.06]"
+      >
+        <h2 id="target-title" className="text-[17px] font-semibold">
+          {who.name}&apos;s target
+        </h2>
+        <label className="mt-4 block text-[13px] font-medium">
+          Target
+          <input
+            ref={input}
+            name="target"
+            inputMode="numeric"
+            value={value}
+            onChange={(e) => {
+              setValue(e.target.value.replace(/\D/g, "").slice(0, 6));
+              setError(null);
+            }}
+            autoComplete="off"
+            className={`${field} tabular-nums`}
+          />
+        </label>
+        <p className="mt-2 text-[12.5px] text-[#6e6e73]">
+          {who.counted.toLocaleString("en-IN")} counted so far. Everyone else&apos;s target is the task&apos;s, {taskTarget.toLocaleString("en-IN")}. The target is the
+          goal they are shown against; it never changes their points or pay.
+        </p>
+        {valid && n < who.counted && (
+          <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-[12.5px] text-amber-900">
+            That is below the {who.counted.toLocaleString("en-IN")} already counted: they show as past their target.
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-[12.5px] font-medium text-red-700">
+            {error}
+          </p>
+        )}
+        <div className="mt-5 flex flex-wrap items-center justify-end gap-2">
+          {who.ownTarget !== null && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void onSave(who.employeeId, null).then(setError)}
+              className="mr-auto text-[12.5px] font-medium text-[#0058b0] hover:underline disabled:opacity-50"
+            >
+              Use the task&apos;s ({taskTarget.toLocaleString("en-IN")})
+            </button>
+          )}
+          <button type="button" disabled={busy} onClick={onCancel} className={`${pillButton} h-9 bg-white px-4 hover:bg-black/[0.03]`}>
+            Cancel
+          </button>
+          <button type="submit" disabled={busy || !changed} className={`${pillButton} h-9 bg-[#1d1d1f] px-4 text-white hover:bg-black`}>
+            {busy ? "Saving…" : "Save target"}
           </button>
         </div>
       </form>

@@ -78,6 +78,7 @@ for (const [c, v] of Object.entries(text)) add(c, "color", v);
 for (const c of ["hover:text-[#1d1d1f]", "hover:text-black", "hover:text-slate-900", "hover:text-slate-800", "hover:text-slate-700", "hover:text-gray-900"]) add(c, "color", "#ffffff", "hover");
 for (const c of ["hover:text-[#0058b0]", "hover:text-brand-dark", "hover:text-brand-deep"]) add(c, "color", "#9ee3f1", "hover");
 for (const c of ["group-hover:text-[#1d1d1f]", "group-hover:text-slate-900"]) add(c, "color", "#ffffff", "group-hover");
+add("group-hover:text-[#0058b0]", "color", "#9ee3f1", "group-hover");
 
 // ---- hairlines ----
 const border = {

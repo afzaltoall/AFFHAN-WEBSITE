@@ -11,8 +11,16 @@ const named = (when) =>
     .map(([name]) => name)
     .sort();
 
-test("fails closed: the console's and the staff sign-in, photo search (its own count and its ceiling), supplier photo uploads", () => {
-  assert.deepEqual(named("closed"), ["consoleLogin", "photoSearch", "photoSearchPerIp", "staffLogin", "supplierUpload"]);
+test("fails closed: the console's and the staff sign-in, photo search (its own count and its ceiling), supplier photo uploads, opening ID proofs", () => {
+  assert.deepEqual(named("closed"), ["consoleLogin", "idProofUnlock", "photoSearch", "photoSearchPerIp", "staffLogin", "supplierUpload"]);
+});
+
+// The ID proof lock (2026-11-04): a guess there is a guess at an admin's password, so it is counted per admin and
+// refuses when Upstash cannot count it, as the console's sign-in does; the database lockout holds besides.
+test("opening ID proofs is counted per admin, a handful at a time", () => {
+  assert.equal(LIMITS.idProofUnlock.per, "account");
+  assert.equal(LIMITS.idProofUnlock.whenDown, "closed");
+  assert.ok(LIMITS.idProofUnlock.count <= 10, `${LIMITS.idProofUnlock.count}`);
 });
 
 test("the supplier portal (2026-10-21): sign-in, registration and applications fail open, each with its own hold", () => {

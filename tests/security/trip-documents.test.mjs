@@ -59,8 +59,10 @@ test("the files go to their own private bucket, never the public product one or 
   const src = read("src/lib/server/trip-documents.ts");
   assert.match(src, /process\.env\.TRIP_DOCUMENTS_BUCKET \|\| "affhan-trip-documents"/);
   assert.doesNotMatch(src, /S3_BUCKET_NAME|NEXT_PUBLIC_CDN_URL|affan-product-images|cloudfront/i);
-  // A link to view one lasts five minutes; uploads are held to their type and 10 MB by the policy.
-  assert.match(src, /expiresIn: 300/);
+  // A link to view one lasts a minute and is never cached (2026-11-04; it was five minutes); uploads are held to their
+  // type and 10 MB by the policy.
+  assert.match(src, /expiresIn: 60\b/);
+  assert.match(src, /ResponseCacheControl: "private, no-store"/);
   assert.match(src, /"content-length-range", 1, ID_DOCUMENT_MAX_BYTES/);
   assert.match(src, /"eq", "\$Content-Type", contentType/);
 });
@@ -71,6 +73,29 @@ test("only an administrator opens one, and the check comes first", () => {
   assert.ok(check > 0, "admin check");
   assert.ok(check < src.indexOf("tripApplicationDocument.findUnique"), "before the database");
   assert.ok(check < src.indexOf("documentViewUrl(doc"), "before any link is made");
+});
+
+// The owner, 2026-11-04: "keep it secure ... with a password, a strong lock, access only for admin".
+test("and only once they have opened ID proofs with their password, checked before the database or any link", () => {
+  const src = read("src/app/api/admin/trip-documents/[id]/route.ts");
+  const lock = src.indexOf("idProofsOpenUntil(admin)");
+  assert.ok(lock > src.indexOf('admin.role !== "admin"'), "after the admin check");
+  assert.ok(lock < src.indexOf("tripApplicationDocument.findUnique"), "before the database");
+  assert.ok(lock < src.indexOf("documentViewUrl(doc"), "before any link is made");
+  assert.match(src, /locked: true \},\s*\{ status: 403/);
+  // The unlock: the admin's own password, counted per admin, locked out after wrong ones, its cookie for these routes only.
+  const unlock = read("src/app/api/admin/trip-documents/unlock/route.ts");
+  for (const step of ['checkLimit("idProofUnlock", admin.id)', "beginLoginAttempt(key)", "verifyPasswordOrNothing(body.password, row?.passwordHash)", "clearLoginFailures(key)", "openIdProofs(res"]) {
+    assert.ok(unlock.includes(step), step);
+  }
+  assert.ok(unlock.indexOf("verifyPasswordOrNothing(") < unlock.indexOf("openIdProofs(res"), "the password before the unlock");
+  assert.ok(unlock.indexOf("beginLoginAttempt(key)") < unlock.indexOf("verifyPasswordOrNothing("), "the lockout before the password");
+  const lockSrc = read("src/lib/server/id-proof-lock.ts");
+  assert.match(lockSrc, /const COOKIE_PATH = "\/api\/admin\/trip-documents";/);
+  assert.match(lockSrc, /httpOnly: true,\s*sameSite: "strict"/);
+  assert.match(lockSrc, /claims\.adminId !== admin\.id \|\| claims\.tokenVersion !== admin\.tokenVersion/);
+  // Signing out locks them again.
+  assert.match(read("src/app/api/auth/logout/route.ts"), /lockIdProofs\(res\)/);
 });
 
 test("only a live employee's link gets an upload ticket", () => {
