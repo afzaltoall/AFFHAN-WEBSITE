@@ -222,6 +222,8 @@ export interface ReferralBoardRow {
   name: string;
   email: string;
   isActive: boolean;
+  /** What their account opens (2026-11-04: changed from Employee tasks too): SALES, REFERRAL or ASSIGNER. */
+  job: string;
   code: string | null;
   /** Applications that came with their code, not deleted. */
   referred: number;
@@ -280,7 +282,7 @@ export async function referralBoard(): Promise<{ settings: ReferralSettings; row
     referralSettings(),
     prisma.employee.findMany({
       where: { OR: [{ isActive: true }, { tripReferrals: { some: {} } }] },
-      select: { id: true, name: true, email: true, isActive: true, tripReferralCode: { select: { code: true } } },
+      select: { id: true, name: true, email: true, isActive: true, job: true, tripReferralCode: { select: { code: true } } },
     }),
     prisma.tripApplication.findMany({
       where: { referrerId: { not: null } },
@@ -297,6 +299,7 @@ export async function referralBoard(): Promise<{ settings: ReferralSettings; row
     name: e.name,
     email: e.email,
     isActive: e.isActive,
+    job: e.job,
     code: e.tripReferralCode?.code ?? null,
     ...tally(byEmployee.get(e.id) ?? [], settings.rupeesPerPoint),
     paidRupees: paidOf.get(e.id) ?? 0,

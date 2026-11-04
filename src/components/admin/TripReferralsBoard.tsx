@@ -38,6 +38,18 @@ export interface ReferralDetail {
 }
 
 const card = "rounded-2xl bg-white shadow-sm ring-1 ring-black/[0.06]";
+
+type AccountJob = "SALES" | "REFERRAL" | "ASSIGNER";
+/**
+ * What each account opens at /employee/login (2026-11-04, the owner: "give an option to change the person into sales
+ * and referral ... what can they see in their employee account"): their menu first, then what they do.
+ */
+const ACCOUNTS: readonly { job: AccountJob; label: string; sees: string }[] = [
+  { job: "SALES", label: "Sales", sees: "My leads, My referrals and Profile. Takes customers from the open pool." },
+  { job: "REFERRAL", label: "Referral only", sees: "My referrals and Profile. Shares their Free China Trip link; no customers, no cargo." },
+  { job: "ASSIGNER", label: "Assigner", sees: "Cargo tracking, My referrals and Profile. Keeps the cargo sheet customers follow." },
+];
+const accountLabel = (job: string) => ACCOUNTS.find((a) => a.job === job)?.label ?? job;
 const pillButton = "inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-medium ring-1 ring-black/[0.08] transition-colors disabled:opacity-50";
 
 export function TripReferralsBoard({ settings, rows, detail }: { settings: ReferralSettings; rows: ReferralBoardRow[]; detail: ReferralDetail | null }) {
@@ -48,6 +60,8 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const [exporting, setExporting] = useState(false);
   const [editingCode, setEditingCode] = useState<CodeTarget | null>(null);
   const [editingTarget, setEditingTarget] = useState<TargetFor | null>(null);
+  // Whose account is being changed: one row's Change, the panel's, or the ticked ones (2026-11-04).
+  const [changingAccount, setChangingAccount] = useState<ReferralBoardRow[] | null>(null);
   const [adding, setAdding] = useState(false);
   // Ticked rows, the ones a Delete is asked about, and what the last Delete did (2026-11-03).
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -124,8 +138,8 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
     }
   };
 
-  const send = async <T extends object = { error?: string }>(url: string, body: unknown): Promise<T> => {
-    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
+  const send = async <T extends object = { error?: string }>(url: string, body: unknown, method = "POST"): Promise<T> => {
+    const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), cache: "no-store" });
     const json = (await res.json().catch(() => ({}))) as T & { error?: string };
     if (!res.ok) throw new Error(res.status === 401 ? "Your admin session has ended. Sign in again." : json.error || "That did not save. Try again.");
     return json;
@@ -161,6 +175,43 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
     }
   };
   const targetFor = (r: ReferralBoardRow): TargetFor => ({ employeeId: r.employeeId, name: r.name, ownTarget: r.ownTarget, counted: r.counted });
+
+  /**
+   * Their accounts changed (2026-11-04), one at a time through the Staff section's own route, which lets go of what a
+   * person leaving Sales holds (their customers back to the open pool). Who changed, and how many customers went back,
+   * said at the top; one that fails stops the rest, and the reason is said in the window.
+   */
+  const saveAccount = async (who: ReferralBoardRow[], job: AccountJob): Promise<string | null> => {
+    setBusy(true);
+    setError(null);
+    const changed: string[] = [];
+    let released = 0;
+    let failure: string | null = null;
+    try {
+      for (const w of who) {
+        if (w.job === job) continue;
+        const r = await send<{ released?: number }>(`/api/admin/employees/${w.employeeId}/`, { job }, "PATCH");
+        changed.push(w.name);
+        released += r.released ?? 0;
+      }
+    } catch (e) {
+      failure = e instanceof Error ? e.message : "The account was not changed. Try again.";
+    } finally {
+      setBusy(false);
+    }
+    if (changed.length) {
+      const label = accountLabel(job);
+      const back = released ? ` ${released === 1 ? "1 request they held went" : `${released} requests they held went`} back to the open pool.` : "";
+      setNotice(`${changed.length === 1 ? `${changed[0]} is now ${label}` : `${changed.length} employees are now ${label}`}: they see ${ACCOUNTS.find((a) => a.job === job)?.sees.split(". ")[0]}.${back}`);
+      setSelected(new Set());
+      router.refresh();
+    }
+    if (failure) return changed.length ? `${failure} (${changed.join(", ")} changed before it stopped.)` : failure;
+    setChangingAccount(null);
+    return null;
+  };
+  /** Sales accounts still active: who can take customers from the open pool. */
+  const salesNow = rows.filter((r) => r.isActive && r.job === "SALES").length;
 
   /**
    * A staff account added from here (2026-11-03: "give a option to add the employee"), through the Staff section's own
@@ -230,8 +281,8 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
       const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
       const people = [
-        ["Employee", "Email", "Code", "Applied through the link", "Counted", "Not counted", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
-        ...rows.map((r) => [r.name, r.email, r.code ?? "", r.referred, r.counted, r.notCounted, r.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No"]),
+        ["Employee", "Email", "Account", "Code", "Applied through the link", "Counted", "Not counted", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
+        ...rows.map((r) => [r.name, r.email, accountLabel(r.job), r.code ?? "", r.referred, r.counted, r.notCounted, r.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No"]),
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(people), "Employees");
       const head = ["Trip ID", "Applied", "Name", "Mobile", "Country", "City", "Code", "Employee", "Office status", "Not verified", "Referral", "Points", "Paid", "Decided by"];
@@ -369,11 +420,14 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
               {ticked.length > 0 && (
                 <>
                   <span className="text-[13px] font-semibold">{ticked.length} selected</span>
+                  <button type="button" onClick={() => setChangingAccount(ticked)} disabled={busy} className={`${pillButton} ml-auto bg-white hover:bg-black/[0.03]`}>
+                    Change account
+                  </button>
                   <button
                     type="button"
                     onClick={() => setRemoving(ticked)}
                     disabled={busy}
-                    className="ml-auto inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-full bg-red-500 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60"
                   >
                     <Trash2 className="h-3.5 w-3.5" /> Delete
                   </button>
@@ -392,11 +446,12 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-left text-[13px]">
+              <table className="w-full min-w-[1240px] text-left text-[13px]">
                 <thead>
                   <tr className="border-b border-black/[0.06] text-[12px] text-[#86868b]">
                     <th className="w-10 py-2.5 pl-5" aria-label="Select" />
                     <th className="px-3 py-2.5 font-medium">Employee</th>
+                    <th className="px-3 py-2.5 font-medium">Account</th>
                     <th className="px-3 py-2.5 font-medium">Code</th>
                     <th className="px-3 py-2.5 text-right font-medium">Applied</th>
                     <th className="px-3 py-2.5 text-right font-medium">Counted</th>
@@ -441,6 +496,17 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                           </a>
                           {!r.isActive && <span className="ml-1.5 rounded-full bg-black/[0.06] px-2 py-0.5 text-[11px] text-[#6e6e73]">Left</span>}
                           <div className="text-[12px] text-[#86868b]">{r.email}</div>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3">
+                          <span>{accountLabel(r.job)}</span>
+                          <button
+                            type="button"
+                            onClick={() => setChangingAccount([r])}
+                            aria-label={`Change ${r.name}'s account`}
+                            className="ml-2 text-[12px] font-medium text-[#0058b0] hover:underline"
+                          >
+                            Change
+                          </button>
                         </td>
                         <td className="px-3 py-3">
                           <span className="font-mono text-[12.5px]">{r.code ?? ""}</span>
@@ -520,11 +586,13 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
           onPay={() => setPaying(shownRow)}
           onChangeCode={() => setEditingCode({ employeeId: shownRow.employeeId, name: shownRow.name, code: shownDetail?.code ?? shownRow.code })}
           onChangeTarget={() => setEditingTarget(targetFor(shownRow))}
+          onChangeAccount={() => setChangingAccount([shownRow])}
         />
       )}
 
       {editingCode && <CodeWindow who={editingCode} busy={busy} onCancel={() => setEditingCode(null)} onSave={saveCode} />}
       {editingTarget && <TargetWindow who={editingTarget} taskTarget={settings.target} busy={busy} onCancel={() => setEditingTarget(null)} onSave={saveTarget} />}
+      {changingAccount && <AccountWindow who={changingAccount} salesNow={salesNow} busy={busy} onCancel={() => setChangingAccount(null)} onSave={saveAccount} />}
       {adding && <AddEmployeeWindow busy={busy} onClose={() => setAdding(false)} onAdd={addEmployee} />}
       {removing && <DeleteWindow who={removing} busy={busy} onCancel={() => setRemoving(null)} onConfirm={() => void removeNow(removing)} />}
 
@@ -647,6 +715,7 @@ function EmployeePanel({
   onPay,
   onChangeCode,
   onChangeTarget,
+  onChangeAccount,
 }: {
   row: ReferralBoardRow;
   /** Null while their applications are being read. */
@@ -659,6 +728,7 @@ function EmployeePanel({
   onPay: () => void;
   onChangeCode: () => void;
   onChangeTarget: () => void;
+  onChangeAccount: () => void;
 }) {
   // Escape closes the panel, unless a window over it (Change code, Mark paid) takes the key first: theirs listen
   // in the capture phase and stop it there (useEscape).
@@ -689,7 +759,9 @@ function EmployeePanel({
                 {row.name}
                 {!row.isActive && <span className="ml-2 rounded-full bg-black/[0.06] px-2 py-0.5 align-middle text-[11px] font-normal text-[#6e6e73]">Left: their code no longer works</span>}
               </h2>
-              <p className="mt-0.5 text-[13px] text-[#6e6e73]">{row.email}</p>
+              <p className="mt-0.5 text-[13px] text-[#6e6e73]">
+                {row.email} · {accountLabel(row.job)}
+              </p>
             </div>
             <button type="button" onClick={onClose} disabled={busy} aria-label="Close" className="-mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors hover:bg-black/[0.05]">
               <X size={18} />
@@ -704,6 +776,9 @@ function EmployeePanel({
             {code && <CopyText text={referralLink(code)} label="Copy link" />}
             <button type="button" disabled={busy} onClick={onChangeTarget} className={`${pillButton} bg-white hover:bg-black/[0.03]`}>
               Change target
+            </button>
+            <button type="button" disabled={busy} onClick={onChangeAccount} className={`${pillButton} bg-white hover:bg-black/[0.03]`}>
+              Change account
             </button>
           </div>
           {code && <p className="mt-1.5 break-all text-[12.5px] text-[#86868b]">{referralLink(code)}</p>}
@@ -1105,6 +1180,110 @@ function TargetWindow({
           </button>
           <button type="submit" disabled={busy || !changed} className={`${pillButton} h-9 bg-[#1d1d1f] px-4 text-white hover:bg-black`}>
             {busy ? "Saving…" : "Save target"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+/**
+ * An account's kind, for one employee or the ticked ones (2026-11-04, the owner: "give an option to change the person
+ * into sales and referral ... what can they see in their employee account"): Sales, Referral only or Assigner, each
+ * with the pages it opens. Saved through the Staff section's route, which lets go of what a person leaving Sales
+ * holds; that is said before saving, and so is a change that would leave nobody in Sales to take customers.
+ */
+function AccountWindow({
+  who,
+  salesNow,
+  busy,
+  onCancel,
+  onSave,
+}: {
+  who: ReferralBoardRow[];
+  /** Active Sales accounts now, to say when a change leaves nobody to take customers. */
+  salesNow: number;
+  busy: boolean;
+  onCancel: () => void;
+  onSave: (who: ReferralBoardRow[], job: AccountJob) => Promise<string | null>;
+}) {
+  const one = who.length === 1 ? who[0] : null;
+  const current = ACCOUNTS.find((a) => who.every((w) => w.job === a.job))?.job ?? null;
+  const [job, setJob] = useState<AccountJob | null>(current);
+  const [error, setError] = useState<string | null>(null);
+  useEscape(onCancel, busy);
+  const moving = job ? who.filter((w) => w.job !== job) : [];
+  const leavingSales = job && job !== "SALES" ? moving.filter((w) => w.isActive && w.job === "SALES").length : 0;
+  const salesAfter = salesNow - leavingSales + (job === "SALES" ? moving.filter((w) => w.isActive).length : 0);
+  const shown = who.slice(0, 8);
+  const save = async () => {
+    if (!job || moving.length === 0 || busy) return;
+    setError(await onSave(who, job));
+  };
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onCancel()}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="account-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void save();
+        }}
+        className="max-h-[92vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl ring-1 ring-black/[0.06]"
+      >
+        <h2 id="account-title" className="text-[17px] font-semibold">
+          {one ? `${one.name}'s account` : `Account for ${who.length} employees`}
+        </h2>
+        <p className="mt-1 text-[13px] text-[#48484a]">
+          {one ? "What they see when they sign in." : `${shown.map((w) => w.name).join(", ")}${who.length > shown.length ? ` and ${who.length - shown.length} more` : ""}`}
+        </p>
+        <fieldset className="mt-4">
+          <legend className="sr-only">Account</legend>
+          <div className="grid gap-2">
+            {ACCOUNTS.map((a) => (
+              <label
+                key={a.job}
+                className={`flex cursor-pointer items-start justify-between gap-3 rounded-xl px-3.5 py-3 ring-1 transition-colors ${job === a.job ? "bg-[#1d1d1f] text-white ring-[#1d1d1f]" : "bg-white ring-black/15 hover:bg-black/[0.02]"}`}
+              >
+                <input
+                  type="radio"
+                  name="account"
+                  value={a.job}
+                  checked={job === a.job}
+                  onChange={() => {
+                    setJob(a.job);
+                    setError(null);
+                  }}
+                  className="sr-only"
+                />
+                <span>
+                  <span className="block text-[13.5px] font-semibold">{a.label}</span>
+                  <span className={`mt-0.5 block text-[12px] leading-snug ${job === a.job ? "text-white/70" : "text-[#6e6e73]"}`}>{a.sees}</span>
+                </span>
+                {current === a.job && <span className={`shrink-0 text-[11.5px] font-medium ${job === a.job ? "text-white/70" : "text-[#6e6e73]"}`}>Now</span>}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {leavingSales > 0 && (
+          <p className="mt-3 rounded-lg bg-amber-500/10 px-3 py-2 text-[12.5px] text-amber-900">
+            {salesAfter === 0 && "Nobody will be left in Sales, so no one can take customers from the open pool until someone is Sales again. "}
+            {one ? "Any customers they hold go back to the open pool." : "Any customers the Sales ones hold go back to the open pool."}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-[12.5px] font-medium text-red-700">
+            {error}
+          </p>
+        )}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" disabled={busy} onClick={onCancel} className={`${pillButton} h-9 bg-white px-4 hover:bg-black/[0.03]`}>
+            Cancel
+          </button>
+          <button type="submit" disabled={busy || !job || moving.length === 0} className={`${pillButton} h-9 bg-[#1d1d1f] px-4 text-white hover:bg-black`}>
+            {busy ? "Saving…" : "Save account"}
           </button>
         </div>
       </form>
