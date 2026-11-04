@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, CheckSquare, Copy, Download, RefreshCw, Square, Trash2, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Check, CheckSquare, Copy, Download, RefreshCw, Search, Square, Trash2, UserPlus, X } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
 import { CargoDatePicker } from "@/components/cargo/CargoDatePicker";
 import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
@@ -51,7 +51,16 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [removing, setRemoving] = useState<ReferralBoardRow[] | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const ticked = rows.filter((r) => selected.has(r.employeeId));
+  // The search (the owner, 2026-11-04: "insert a search box"): by name, email or code. Ticks only ever cover the rows
+  // it shows, and are cleared as it changes, so a Delete never reaches someone the search has hidden.
+  const [q, setQ] = useState("");
+  const needle = q.trim().toLowerCase();
+  const shownRows = needle ? rows.filter((r) => [r.name, r.email, r.code ?? ""].join(" ").toLowerCase().includes(needle)) : rows;
+  const search = (value: string) => {
+    setQ(value);
+    setSelected(new Set());
+  };
+  const ticked = shownRows.filter((r) => selected.has(r.employeeId));
 
   // The employee open in the panel on the right: open the moment a name is pressed, from the row already on screen,
   // while ?employee= reads their applications. `asked` is what was last pressed (an id, or null for closed) until the
@@ -80,7 +89,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   };
   const shownRow = shownId ? (rows.find((r) => r.employeeId === shownId) ?? null) : null;
   const shownDetail = detail && detail.employeeId === shownId ? detail : null;
-  const allTicked = rows.length > 0 && ticked.length === rows.length;
+  const allTicked = shownRows.length > 0 && ticked.length === shownRows.length;
   const toggle = (id: string) =>
     setSelected((s) => {
       const next = new Set(s);
@@ -299,23 +308,43 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
         </dl>
 
         <section className={`overflow-hidden ${card}`}>
-          <div className="flex items-center justify-between gap-3 border-b border-black/[0.06] px-5 py-2.5">
+          <div className="flex flex-wrap items-center gap-3 border-b border-black/[0.06] px-5 py-2.5">
             <h2 className="text-[15px] font-semibold">Employees</h2>
-            <button type="button" onClick={() => setAdding(true)} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>
+            {rows.length > 0 && (
+              <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
+                <span className="sr-only">Search employees</span>
+                <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#86868b]" />
+                <input
+                  value={q}
+                  onChange={(e) => search(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && q) search("");
+                  }}
+                  placeholder="Search name, email or code"
+                  className="h-8 w-full rounded-full bg-white pl-9 pr-4 text-[13px] outline-none ring-1 ring-black/[0.08] focus:ring-2 focus:ring-[#0071e3]/40"
+                />
+              </label>
+            )}
+            <button type="button" onClick={() => setAdding(true)} className={`${pillButton} ml-auto bg-[#1d1d1f] text-white hover:bg-black`}>
               <UserPlus size={14} /> Add employee
             </button>
           </div>
           {/* Ticks and their one action, as the Inquiries list has them (2026-11-03): Select all, how many, Delete. */}
-          {rows.length > 0 && (
+          {shownRows.length > 0 && (
             <div className="flex flex-wrap items-center gap-3 border-b border-black/[0.06] px-5 py-2.5">
               <button
                 type="button"
-                onClick={() => setSelected(allTicked ? new Set() : new Set(rows.map((r) => r.employeeId)))}
+                onClick={() => setSelected(allTicked ? new Set() : new Set(shownRows.map((r) => r.employeeId)))}
                 className={`inline-flex items-center gap-2 text-[13px] font-semibold transition-colors ${allTicked ? "text-brand-dark" : "text-[#86868b] hover:text-brand-deep"}`}
               >
                 {allTicked ? <CheckSquare className="h-4 w-4" /> : <Square className="h-4 w-4" />}
                 {allTicked ? "Clear selection" : "Select all"}
               </button>
+              {needle && (
+                <span aria-live="polite" className="text-[13px] text-[#86868b]">
+                  <span className="tabular-nums">{shownRows.length}</span> of <span className="tabular-nums">{rows.length}</span>
+                </span>
+              )}
               {ticked.length > 0 && (
                 <>
                   <span className="text-[13px] font-semibold">{ticked.length} selected</span>
@@ -333,6 +362,13 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
           )}
           {rows.length === 0 ? (
             <p className="px-5 py-10 text-center text-[13px] text-[#86868b]">No employees yet. Add one, and they get a code here.</p>
+          ) : shownRows.length === 0 ? (
+            <p aria-live="polite" className="px-5 py-10 text-center text-[13px] text-[#48484a]">
+              No employee matches “{q.trim()}”.{" "}
+              <button type="button" onClick={() => search("")} className="font-medium text-[#0058b0] hover:underline">
+                Clear search
+              </button>
+            </p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1020px] text-left text-[13px]">
@@ -352,7 +388,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/[0.06]">
-                  {rows.map((r) => {
+                  {shownRows.map((r) => {
                     const share = Math.min(1, r.counted / settings.target);
                     const tick = selected.has(r.employeeId);
                     return (
