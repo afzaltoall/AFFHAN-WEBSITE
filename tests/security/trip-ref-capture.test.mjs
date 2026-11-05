@@ -74,3 +74,11 @@ test("the form takes the code from the address first, and forgets only what the 
   assert.match(read("src/components/TripApplication/ApplicationForm.tsx"), /\{app\.state\.referral\.code && <IdDocumentField app=\{app\} \/>\}/);
   assert.match(read("src/lib/trip-application.ts"), /if \(a\.referralCode && !a\.documents\?\.length\) e\.idDocument = ID_DOCUMENT_NEEDED;/);
 });
+
+// 2026-11-05, the owner: "dont show the text of choose any of these ... remove the text contents". The ID proof has no
+// grey line of instructions under its choices; a missing choice or file is said by the field's own complaint.
+test("the ID proof field has no line of instructions under its choices", () => {
+  const field = read("src/components/TripApplication/IdDocumentField.tsx");
+  assert.doesNotMatch(field, /ax-idDocument-note|PROOF_NOTE|Choose any one of these/);
+  assert.match(field, /aria-describedby=\{error \? "ax-idDocument-error" : undefined\}/);
+});

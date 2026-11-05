@@ -73,17 +73,6 @@ async function send(code: string, proof: IdProof, blob: Blob, type: IdDocumentTy
   }
 }
 
-/** What to add of each ID, under the choice. */
-const PROOF_NOTE: Record<IdProof, string> = {
-  aadhaar: "Add both sides. A masked Aadhaar is fine.",
-  pan: "Add the front of the card.",
-  voter: "Add both sides.",
-  licence: "Add both sides.",
-  passport: "Add the page with your photo.",
-  emirates: "Add both sides.",
-  other: "Any other ID with your photo. Add both sides if it has two.",
-};
-
 /**
  * ID proof, asked only of someone who came through an employee's link (the owner, 2026-11-02: compulsory for them,
  * never shown to anyone applying on their own). One of the IDs in ID_PROOFS (2026-11-03: "aadhar / pan / voter id /
@@ -91,7 +80,8 @@ const PROOF_NOTE: Record<IdProof, string> = {
  * choices are; then photos or PDFs of it, up to
  * three (both sides of an Aadhaar), each sent the moment it is chosen and shown as a tile named by its ID, which can
  * be taken off again. Its complaint, the form's or the server's, sits under it like any field's; Submit waits for
- * files still on their way.
+ * files still on their way. No grey line of instructions under the choices (the owner, 2026-11-05: "dont show the
+ * text of choose any of these ... remove the text contents"): the IDs and Add document say it.
  */
 export function IdDocumentField({ app }: { app: ApplicationApi }) {
   const input = useRef<HTMLInputElement>(null);
@@ -159,7 +149,7 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
     <fieldset
       id="ax-idDocument"
       tabIndex={-1}
-      aria-describedby={["ax-idDocument-note", error ? "ax-idDocument-error" : ""].filter(Boolean).join(" ")}
+      aria-describedby={error ? "ax-idDocument-error" : undefined}
       className="grid gap-3 outline-none sm:col-span-2"
     >
       <legend className={LABEL}>
@@ -185,9 +175,6 @@ export function IdDocumentField({ app }: { app: ApplicationApi }) {
           </label>
         ))}
       </div>
-      <p id="ax-idDocument-note" className="max-w-[34rem] text-[13px] leading-relaxed text-(--cx-mute)">
-        {proof ? `${PROOF_NOTE[proof]} A photo or a PDF.` : "Choose any one of these, then add a photo or a PDF of it."}
-      </p>
       <div className="flex flex-wrap items-center gap-3">
         {files.map((f, i) => (
           <div key={f.key} className={tile}>
