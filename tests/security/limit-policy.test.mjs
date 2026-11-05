@@ -47,6 +47,10 @@ test("the trip's employee links and ID uploads (2026-11-02): per IP, open when U
   }
   // Up to three files an application: room for an office of applicants on one connection.
   assert.ok(LIMITS.tripDocumentUpload.count >= 3 * 10, `${LIMITS.tripDocumentUpload.count}`);
+  // 2026-11-05 (the owner: many could not apply): employees sign people up on one phone or Wi-Fi, so a connection
+  // gets room for 30 applications an hour, and the uploads keep pace with them (two sides, and a retry, each).
+  assert.ok(LIMITS.tripApplication.count >= 30, `${LIMITS.tripApplication.count}`);
+  assert.ok(LIMITS.tripDocumentUpload.count >= LIMITS.tripApplication.count * 5, `${LIMITS.tripDocumentUpload.count}`);
 });
 
 test("photo search: at least 30 an hour for each user, counted by account when signed in", () => {

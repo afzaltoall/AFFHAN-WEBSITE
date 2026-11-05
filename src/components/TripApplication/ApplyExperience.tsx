@@ -112,7 +112,7 @@ const sleep = (ms: number) => new Promise<null>((resolve) => window.setTimeout((
 export function ApplyExperience() {
   const app = useApplication();
   const router = useRouter();
-  const { registration } = useTripStatus();
+  const { registration, registeredByAccount } = useTripStatus();
   const { user, loading: authLoading } = useAuth();
   /**
    * Not signed in: Cloudflare's check goes with the application, silently. Its "Verify you are human" box is never
@@ -340,12 +340,34 @@ export function ApplyExperience() {
     void send(from, true);
   };
   // Closed without agreeing, on a phone: there is no application without the agreement, so the visitor goes
-  // back where they came from in the site, or, having opened the application here, to the trip's page.
+  // back where they came from in the site, or, having opened the application here, to the trip's page. Not someone who
+  // came through an employee's link (2026-11-05, the owner: "sometimes veliya vandhurudhu ... china trip romba hard"):
+  // a tap beside the sheet sent them off the application to the trip's film, without their link. They stay, on the
+  // application's own opening (reopened, below), whose Start application asks the Terms again.
+  const reopened = useRef(false);
   const leaveFirst = () => {
     setAsking(null);
+    if (app.state.referral.code) {
+      reopened.current = true;
+      setPhase("intro");
+      return;
+    }
     if (arrivedInSite()) router.back();
     else router.replace("/free-china-trip/");
   };
+
+  // The opening, after the Terms were closed on a link (leaveFirst): the host back in its place and the words in, at
+  // once, and Start ready.
+  useIsoLayoutEffect(() => {
+    if (phase !== "intro" || !reopened.current) return;
+    reopened.current = false;
+    gsap.set($("host"), { xPercent: 0, yPercent: 0, x: 0, scale: 1, autoAlpha: 1, filter: "blur(0px) brightness(1)" });
+    gsap.set($("dust"), { autoAlpha: 1 });
+    gsap.set($("rule"), { autoAlpha: 0.45, scaleX: 1 });
+    const parts = [$("intro-host-m"), $("intro-eyebrow"), ...$$("intro-line"), $("intro-support"), $("intro-body"), $("intro-cta")];
+    track(gsap.fromTo(parts, { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: reduce.current ? 0.2 : 0.45, stagger: reduce.current ? 0 : 0.04, ease: "power2.out" }));
+    busy.current = false;
+  }, [phase]);
 
   // Applications are taken from 12 October to 25 November 2026 (Terms, clause
   // 1). Read here, in the browser, so a page built before the date still
@@ -355,10 +377,17 @@ export function ApplyExperience() {
   }, []);
 
   // Registered already (one application per person): to their boarding pass,
-  // where their Trip ID is, instead of a second application.
+  // where their Trip ID is, instead of a second application. Not a visit
+  // through an employee's link when the application is only this browser's
+  // (2026-11-05, the owner: "sometimes ulla kooda pogamatengudhu"): a link
+  // brings a new applicant, and on a phone passed round, the next one was sent
+  // to the last one's boarding pass, even while typing. The server still takes
+  // one application a mobile number. The signed-in account's own application
+  // always sends it there: one an account.
   useEffect(() => {
-    if (registration && (phase === "intro" || phase === "consent" || phase === "form")) router.replace(TRIP_REGISTERED_HREF);
-  }, [registration, phase, router]);
+    if (!registration || (app.state.referral.code && !registeredByAccount)) return;
+    if (phase === "intro" || phase === "consent" || phase === "form") router.replace(TRIP_REGISTERED_HREF);
+  }, [registration, registeredByAccount, app.state.referral.code, phase, router]);
 
   /** The application starts: the button glows, a gold trail passes, the intro leaves, the questions arrive. */
   const start = async () => {

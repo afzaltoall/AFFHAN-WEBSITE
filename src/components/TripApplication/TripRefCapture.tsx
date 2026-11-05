@@ -7,21 +7,29 @@ import { REFERRAL_DROPPED_EVENT, REFERRAL_EVENT, REFERRAL_STORAGE_KEY, referralF
 const CHECK_MS = 10_000;
 
 /**
- * An employee's link (affhan.com/free-china-trip/apply/?ref=RAHIM7, the owner's referral task, 2026-11-02) keeps its code in
- * this browser, so the application goes with it (useApplication) and credits that employee, whether the visitor
- * applies now, after reading the trip's page, or days later (REFERRAL_STORAGE_DAYS). The latest live link wins.
- * On the trip's page and its application. Draws nothing, and the visitor is never shown a code or asked for one
- * (the owner: only somebody who came through the employee's link is theirs).
+ * An employee's link (affhan.com/free-china-trip/apply/?ref=RAHIM7, the owner's referral task, 2026-11-02) keeps its code for
+ * this visit, so the application goes with it (useApplication) and credits that employee, and asks for ID proof. On the
+ * trip's page and its application. Draws nothing, and the visitor is never shown a code or asked for one (the owner:
+ * only somebody who came through the employee's link is theirs).
+ *
+ * This visit only: the tab's sessionStorage (2026-11-05, the owner: only those who come through an employee's link are
+ * asked for documents, never someone who comes to the site and clicks the China Trip). It was kept 30 days, so a visit
+ * through the site weeks after a link was opened asked for ID proof; that old key is cleared here, link or not.
  *
  * Kept the moment the page opens, before the server has answered (2026-11-04, the owner: "sometimes the document part
- * is not showing ... they apply but it doesn't count"): it was kept only once the server said the link was live, so
- * an answer that came late (25 s on a slow phone), never came, or went unheard left the application without its ID
- * proof and its employee. Now only a clear answer that the link credits nobody (a former employee's, a mistyped code;
- * only an active employee's is live, /api/trip-applications/referral) takes it back, and puts back the live link this
- * browser kept before it. The question is never cancelled on leaving the page, only given up after CHECK_MS.
+ * is not showing ... they apply but it doesn't count"): an answer that came late (25 s on a slow phone), never came, or
+ * went unheard had left the application without its ID proof and its employee. Only a clear answer that the link
+ * credits nobody (a former employee's, a mistyped code; only an active employee's is live,
+ * /api/trip-applications/referral) takes it back, and puts back the link this visit kept before it. The question is
+ * never cancelled on leaving the page, only given up after CHECK_MS.
  */
 export function TripRefCapture() {
   useEffect(() => {
+    try {
+      localStorage.removeItem(REFERRAL_STORAGE_KEY);
+    } catch {
+      /* nothing kept, or storage blocked */
+    }
     const code = referralFromSearch(window.location.search);
     if (!code) return;
     const before = read();
@@ -50,7 +58,7 @@ export function TripRefCapture() {
 
 function read(): string | null {
   try {
-    return localStorage.getItem(REFERRAL_STORAGE_KEY);
+    return sessionStorage.getItem(REFERRAL_STORAGE_KEY);
   } catch {
     return null;
   }
@@ -58,8 +66,8 @@ function read(): string | null {
 
 function write(value: string | null) {
   try {
-    if (value === null) localStorage.removeItem(REFERRAL_STORAGE_KEY);
-    else localStorage.setItem(REFERRAL_STORAGE_KEY, value);
+    if (value === null) sessionStorage.removeItem(REFERRAL_STORAGE_KEY);
+    else sessionStorage.setItem(REFERRAL_STORAGE_KEY, value);
   } catch {
     /* storage blocked: the application on this page takes the code from the address, and from the event */
   }

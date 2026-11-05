@@ -9,7 +9,6 @@ import {
   REFERRAL_CODE_MAX,
   REFERRAL_DROPPED_EVENT,
   REFERRAL_EVENT,
-  REFERRAL_STORAGE_DAYS,
   REFERRAL_STORAGE_KEY,
   normalizeReferralCode,
   referralFromSearch,
@@ -68,14 +67,23 @@ const EMPTY: ApplicationState = {
   documents: { files: [], uploading: 0 },
 };
 
-/** The code an employee's link left in this browser, while it is fresh (REFERRAL_STORAGE_DAYS); "" when none. */
+/** The code an employee's link left in this visit's tab (TripRefCapture); "" when none. Never a later visit's. */
 function codeFromLink(): string {
   try {
-    const saved = JSON.parse(localStorage.getItem(REFERRAL_STORAGE_KEY) ?? "null") as { code?: unknown; at?: unknown } | null;
-    if (!saved || typeof saved.at !== "number" || Date.now() - saved.at > REFERRAL_STORAGE_DAYS * 86_400_000) return "";
-    return normalizeReferralCode(saved.code).slice(0, REFERRAL_CODE_MAX);
+    const saved = JSON.parse(sessionStorage.getItem(REFERRAL_STORAGE_KEY) ?? "null") as { code?: unknown } | null;
+    return saved ? normalizeReferralCode(saved.code).slice(0, REFERRAL_CODE_MAX) : "";
   } catch {
     return "";
+  }
+}
+
+/** The link's code forgotten: this visit's, and any kept 30 days by the trip's pages before 2026-11-05. */
+function forgetLinkCode() {
+  try {
+    sessionStorage.removeItem(REFERRAL_STORAGE_KEY);
+    localStorage.removeItem(REFERRAL_STORAGE_KEY);
+  } catch {
+    /* nothing kept, or storage blocked */
   }
 }
 
@@ -132,7 +140,8 @@ export function useApplication() {
     }
     // The employee's code, to go with the application; the applicant never sees it. The address's own first (?ref=, on
     // the link itself), so the ID proof shows with the first question whatever the server and the browser's storage
-    // do (2026-11-04: it waited for the server's answer, and some applied without it); else the one a link left here.
+    // do (2026-11-04: it waited for the server's answer, and some applied without it); else the one this visit's link
+    // left in the tab (a move in the site since). A visit through the site alone has none, and is asked for no ID.
     const linked = referralFromSearch(window.location.search) || codeFromLink();
     if (linked) setState((s) => ({ ...s, referral: { code: linked } }));
     restored.current = true;
@@ -210,10 +219,10 @@ export function useApplication() {
   const clearDraft = useCallback(() => {
     try {
       sessionStorage.removeItem(DRAFT_KEY);
-      localStorage.removeItem(REFERRAL_STORAGE_KEY);
     } catch {
       /* nothing to clear */
     }
+    forgetLinkCode();
   }, []);
 
   /**
@@ -221,11 +230,7 @@ export function useApplication() {
    * the applicant goes on like anyone else, asked for nothing more.
    */
   const dropReferral = useCallback(() => {
-    try {
-      localStorage.removeItem(REFERRAL_STORAGE_KEY);
-    } catch {
-      /* nothing to forget */
-    }
+    forgetLinkCode();
     setState((s) => ({ ...s, referral: { code: "" }, documents: { files: [], uploading: 0 } }));
     setErrors((e) => ({ ...e, idDocument: undefined }));
   }, []);

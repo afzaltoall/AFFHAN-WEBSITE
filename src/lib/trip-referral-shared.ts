@@ -48,9 +48,14 @@ export function referralWaiting(a: { referralState: string | null; status: strin
  */
 export const referralLink = (code: string) => `https://affhan.com/free-china-trip/apply/?ref=${encodeURIComponent(code)}`;
 
-/** Where a code from a link waits in the browser until the application is filled in, and for how long. */
+/**
+ * Where a code from a link waits until the application is sent: this visit's tab (sessionStorage), never a later visit
+ * (the owner, 2026-11-05: "employee link moolama varangaluku matu dha documents pathi kekanum ... normal web la vandhu
+ * china trip clik pani apply panranvangaluku document kekakoodadhu"). It was kept 30 days (localStorage), so someone who
+ * had once opened a link and came back through the site was asked for ID proof and credited to that link; that key is
+ * cleared wherever the trip's pages open.
+ */
 export const REFERRAL_STORAGE_KEY = "affhan:trip-ref";
-export const REFERRAL_STORAGE_DAYS = 30;
 /** Sent on window when a link's code has just been kept, so an application already open picks it up. */
 export const REFERRAL_EVENT = "affhan:trip-ref-kept";
 /** Sent on window when the server has answered that a link credits nobody, so the application forgets it. */

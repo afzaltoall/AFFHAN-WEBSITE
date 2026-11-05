@@ -30,11 +30,20 @@ export interface TripRegistration {
  * nothing rather than guessing.
  */
 export async function fetchTripRegistration(): Promise<TripRegistration | null | undefined> {
+  const status = await fetchTripStatus();
+  return status && status.registration;
+}
+
+/**
+ * The registration, and whether it is the signed-in account's own (`byAccount`) rather than only this browser's;
+ * undefined when it could not be told.
+ */
+async function fetchTripStatus(): Promise<{ registration: TripRegistration | null; byAccount: boolean } | undefined> {
   try {
     const res = await fetch("/api/trip-applications/me/", { cache: "no-store", credentials: "same-origin" });
     if (!res.ok) return undefined;
-    const json = (await res.json()) as { registration?: TripRegistration | null };
-    return json.registration ?? null;
+    const json = (await res.json()) as { registration?: TripRegistration | null; byAccount?: unknown };
+    return { registration: json.registration ?? null, byAccount: json.byAccount === true };
   } catch {
     return undefined;
   }
@@ -59,6 +68,7 @@ export async function tripEntryHref(): Promise<string> {
 export function useTripStatus() {
   const { user, loading } = useAuth();
   const [registration, setRegistration] = useState<TripRegistration | null>(null);
+  const [byAccount, setByAccount] = useState(false);
   /** The account the registration was read for (null: nobody signed in). */
   const [readFor, setReadFor] = useState<string | null | undefined>(undefined);
   const userId = user?.id ?? null;
@@ -66,9 +76,10 @@ export function useTripStatus() {
   useEffect(() => {
     if (loading) return;
     let live = true;
-    void fetchTripRegistration().then((r) => {
+    void fetchTripStatus().then((r) => {
       if (!live) return;
-      setRegistration(r ?? null);
+      setRegistration(r?.registration ?? null);
+      setByAccount(r?.byAccount ?? false);
       setReadFor(userId);
     });
     return () => {
@@ -81,5 +92,7 @@ export function useTripStatus() {
     signedIn: !!userId,
     user,
     registration: readFor === userId ? registration : null,
+    /** The registration is the signed-in account's own, not only this browser's (someone else may have applied on it). */
+    registeredByAccount: readFor === userId && byAccount,
   };
 }

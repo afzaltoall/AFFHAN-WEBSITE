@@ -55,8 +55,10 @@ export const LIMITS = {
   contactPhone: { per: "account", count: 10, window: "1 h", whenDown: "open", feature: "Saving a number" },
   /** /api/mobile/account/profile: the app saving the account's name, company and address (lib/account-profile.ts). */
   profile: { per: "account", count: 30, window: "1 h", whenDown: "open", feature: "Saving your details" },
-  /** /api/trip-applications (website and app). One application per account, email and number regardless. */
-  tripApplication: { per: "IP", count: 10, window: "1 h", whenDown: "open", feature: "Trip applications" },
+  /** /api/trip-applications (website and app). One application per account, email and number regardless. 30, not 10
+   *  (2026-11-05, the owner: many could not apply): employees sign people up on one phone or one office Wi-Fi, and a
+   *  carrier's shared address is many phones; the number rule, not this, keeps one application a person. */
+  tripApplication: { per: "IP", count: 30, window: "1 h", whenDown: "open", feature: "Trip applications" },
   /** /api/search/image (website and app): each signed-in account, or each connection when signed out. */
   photoSearch: { per: "account or IP", count: 40, window: "1 h", whenDown: "closed", feature: "Photo search" },
   /** /api/search/image as well: a ceiling per connection, for many accounts behind one address. */
@@ -81,8 +83,9 @@ export const LIMITS = {
   tripReferralCheck: { per: "IP", count: 120, window: "10 m", whenDown: "open", feature: "The trip" },
   /** /api/trip-applications/document-url: the ID proof of an applicant who came through an employee's link (2026-11-02),
    *  up to three files an application, offered only to a live employee's link. Open: the proof is compulsory for those
-   *  applicants, so a refusal would cost the application itself. */
-  tripDocumentUpload: { per: "IP", count: 60, window: "1 h", whenDown: "open", feature: "ID upload" },
+   *  applicants, so a refusal would cost the application itself. 150, not 60 (2026-11-05): room for the thirty
+   *  applications an hour one connection may now send, each with its sides and a retry. */
+  tripDocumentUpload: { per: "IP", count: 150, window: "1 h", whenDown: "open", feature: "ID upload" },
   /** /api/admin/trip-documents/unlock: an admin's password, typed again to open applicants' ID proofs (2026-11-04).
    *  Closed, as the console's sign-in: a guess here is a guess at the admin's password. The database lockout holds per
    *  admin as well. */

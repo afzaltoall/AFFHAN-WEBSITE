@@ -39,6 +39,32 @@ test("kept and told to the form before the server answers; given up after a time
   assert.match(capture, /window\.dispatchEvent\(new CustomEvent<string>\(REFERRAL_DROPPED_EVENT, \{ detail: code \}\)\);/);
 });
 
+// 2026-11-05, the owner: only those who come through an employee's link are asked for documents, never someone who
+// comes to the site and clicks the China Trip; "sometimes it throws them out"; "sometimes they can't even get in".
+test("the link's code is this visit's alone: kept in the tab, never 30 days; the old key cleared", () => {
+  const capture = read("src/components/TripApplication/TripRefCapture.tsx");
+  assert.match(capture, /localStorage\.removeItem\(REFERRAL_STORAGE_KEY\);/, "the 30-day key cleared on every trip page");
+  assert.ok(capture.indexOf("localStorage.removeItem(REFERRAL_STORAGE_KEY);") < capture.indexOf("if (!code) return;"), "even without a link");
+  assert.doesNotMatch(capture, /localStorage\.(getItem|setItem)/, "never kept there again");
+  assert.match(capture, /sessionStorage\.setItem\(REFERRAL_STORAGE_KEY, value\);/);
+  const form = read("src/components/TripApplication/useApplication.ts");
+  assert.match(form, /sessionStorage\.getItem\(REFERRAL_STORAGE_KEY\)/);
+  assert.doesNotMatch(form, /localStorage\.getItem|REFERRAL_STORAGE_DAYS/, "no visit reads a code an earlier one kept");
+  assert.doesNotMatch(read("src/lib/trip-referral-shared.ts"), /REFERRAL_STORAGE_DAYS/);
+});
+
+test("on a link, closing the Terms keeps the application; a link on a browser applied from before opens the form", () => {
+  const page = read("src/components/TripApplication/ApplyExperience.tsx");
+  const leave = page.slice(page.indexOf("const leaveFirst = () => {"), page.indexOf("const leaveFirst = () => {") + 400);
+  assert.ok(leave.indexOf('setPhase("intro");') > 0 && leave.indexOf('setPhase("intro");') < leave.indexOf("router.replace("), "a link stays, on the opening, before any move away");
+  assert.match(page, /if \(!registration \|\| \(app\.state\.referral\.code && !registeredByAccount\)\) return;/, "only an account's own application sends a link visit to a boarding pass");
+  // Whose it is, from the server: the signed-in account's own, or only this browser's.
+  const me = read("src/app/api/trip-applications/me/route.ts");
+  assert.match(me, /const own = user \? await registrationOf\(user\.id\) : null;/);
+  assert.match(me, /byAccount: !!own/);
+  assert.match(read("src/components/TripAccess/useTripStatus.ts"), /registeredByAccount: readFor === userId && byAccount,/);
+});
+
 test("the form takes the code from the address first, and forgets only what the server dropped", () => {
   const form = read("src/components/TripApplication/useApplication.ts");
   assert.match(form, /const linked = referralFromSearch\(window\.location\.search\) \|\| codeFromLink\(\);/);

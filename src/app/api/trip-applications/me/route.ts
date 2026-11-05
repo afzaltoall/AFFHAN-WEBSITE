@@ -14,13 +14,17 @@ export const dynamic = "force-dynamic";
  * boarding pass instead of a second application.
  *
  * 200 with registration: null for nobody (the same reasoning as
- * /api/web/auth/me: "nobody" is an answer, not an error).
+ * /api/web/auth/me: "nobody" is an answer, not an error). `byAccount`: the
+ * registration is the signed-in account's own, not only this browser's (a
+ * visit through an employee's link goes to a boarding pass only then,
+ * ApplyExperience, 2026-11-05).
  */
 export async function GET(request: Request) {
   try {
     const user = await verifyMobileSession(request).catch(() => null);
-    const registration = (user ? await registrationOf(user.id) : null) ?? (await registrationById(await tripApplicantId()));
-    return NextResponse.json({ signedIn: !!user, registration });
+    const own = user ? await registrationOf(user.id) : null;
+    const registration = own ?? (await registrationById(await tripApplicantId()));
+    return NextResponse.json({ signedIn: !!user, registration, byAccount: !!own });
   } catch (e) {
     console.error("trip registration lookup:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Could not check your registration." }, { status: 500 });
