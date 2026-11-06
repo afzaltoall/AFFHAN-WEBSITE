@@ -75,13 +75,11 @@ test("the form takes the code from the address first, and forgets only what the 
   assert.match(read("src/lib/trip-application.ts"), /if \(a\.referralCode && !a\.documents\?\.length\) e\.idDocument = ID_DOCUMENT_NEEDED;/);
 });
 
-// 2026-11-05, the owner pointed at "Choose any one of these, then add a photo or a PDF of it." under the ID proof's
-// choices: "indha text matu dha remove pana sona" (that text only). Nothing shows there until an ID is picked; then
-// what to add of that ID, as before.
-test("the ID proof says nothing under its choices until one is picked, then what to add of it", () => {
+// The owner took out the line under the ID proof's choices: "Choose any one of these, then add a photo or a PDF of it."
+// (2026-11-05), then the picked ID's tip as well ("Add both sides…"; 2026-11-06: "after slecting also dont show").
+// Nothing under the choices, before a pick or after; a missing choice or file is said by the field's own complaint.
+test("the ID proof has no line under its choices, before an ID is picked or after", () => {
   const field = read("src/components/TripApplication/IdDocumentField.tsx");
-  assert.doesNotMatch(field, /Choose any one of these/);
-  assert.match(field, /\{proof && \(\s*<p id="ax-idDocument-note"/);
-  assert.match(field, /\{`\$\{PROOF_NOTE\[proof\]\} A photo or a PDF\.`\}/);
-  assert.match(field, /aadhaar: "Add both sides\. A masked Aadhaar is fine\.",/);
+  assert.doesNotMatch(field, /ax-idDocument-note|PROOF_NOTE|Choose any one of these|Add both sides|A masked Aadhaar/);
+  assert.match(field, /aria-describedby=\{error \? "ax-idDocument-error" : undefined\}/);
 });
