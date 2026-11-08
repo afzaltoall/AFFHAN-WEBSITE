@@ -102,7 +102,8 @@ export default async function MyReferralsPage() {
             <span className="hidden sm:inline">https://</span>
             {linkPage.replace("https://", "")}
             <wbr />
-            <span className="font-semibold text-brand-dark sm:text-inherit">?{linkCode}</span>
+            {/* One piece: a browser would otherwise break after the question mark. */}
+            <span className="inline-block font-semibold text-brand-dark [overflow-wrap:anywhere] sm:inline sm:text-inherit">?{linkCode}</span>
           </p>
           <p className={`mt-3 text-[14px] leading-relaxed sm:text-[13px] ${wt.mid}`}>
             Whoever opens it agrees to the trip&apos;s Terms, applies with a photo of their ID, and counts for you at once.

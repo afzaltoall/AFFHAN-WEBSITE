@@ -26,11 +26,10 @@ export interface ReferralPerson {
 
 const toneOf = (state: ReferralPerson["state"]) => (state === "Paid" || state === "Counted" ? "text-emerald-700" : state === "Waiting" ? "text-amber-700" : wt.mid);
 
-/** A person's details, opened from their row. */
+/** A person's details, opened from their row, which already shows their name, status, mobile and day. */
 function Details({ person, wide }: { person: ReferralPerson; wide?: boolean }) {
   const rows: [string, string][] = [
     ["Trip ID", person.tripId],
-    ["Mobile", person.mobile],
     ["City", person.city || "Not given"],
     ["Country", person.country || "Not given"],
     ["Applied", person.at],
@@ -41,7 +40,7 @@ function Details({ person, wide }: { person: ReferralPerson; wide?: boolean }) {
       {rows.map(([label, value]) => (
         <div key={label} className={wide ? "" : "flex items-baseline justify-between gap-4 py-2"}>
           <dt className={`text-[12.5px] ${wt.mid}`}>{label}</dt>
-          <dd className={`min-w-0 text-right text-[13.5px] font-medium tabular-nums [overflow-wrap:anywhere] ${wide ? "text-left" : ""}`}>{value}</dd>
+          <dd className={`min-w-0 text-[13.5px] font-medium tabular-nums [overflow-wrap:anywhere] ${wide ? "" : "text-right"}`}>{value}</dd>
         </div>
       ))}
     </dl>
@@ -69,7 +68,8 @@ export function ReferralApplicants({ people }: { people: ReferralPerson[] }) {
               <button type="button" onClick={() => toggle(p.tripId)} aria-expanded={open} className="flex w-full items-center gap-3 px-5 py-3.5 text-left active:bg-black/[0.03]">
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-3">
-                    <span className="min-w-0 truncate text-[15px] font-semibold">{p.name}</span>
+                    {/* Cut short to keep the status in view; whole once opened. */}
+                    <span className={`min-w-0 text-[15px] font-semibold ${open ? "[overflow-wrap:anywhere]" : "truncate"}`}>{p.name}</span>
                     <span className={`shrink-0 text-[13px] font-semibold ${toneOf(p.state)}`}>{p.state}</span>
                   </span>
                   <span className={`mt-1 flex flex-wrap items-baseline justify-between gap-x-3 text-[13px] ${wt.mid}`}>
@@ -80,8 +80,7 @@ export function ReferralApplicants({ people }: { people: ReferralPerson[] }) {
                 <ChevronDown aria-hidden className={`size-[18px] shrink-0 transition-transform duration-200 motion-reduce:transition-none ${wt.mid} ${open ? "rotate-180" : ""}`} />
               </button>
               {open && (
-                <div className="mx-5 mb-3.5 rounded-xl bg-[#f5f5f7] px-4 py-1.5">
-                  <p className="pt-1.5 text-[14px] font-semibold [overflow-wrap:anywhere]">{p.name}</p>
+                <div className="mx-5 mb-3.5 rounded-xl bg-[#f5f5f7] px-4 py-1">
                   <Details person={p} />
                 </div>
               )}
