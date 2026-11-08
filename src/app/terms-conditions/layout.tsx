@@ -3,12 +3,12 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Terms & Conditions | AFFHAN",
   description:
-    "The terms governing your use of AFFHAN International's sourcing marketplace and quote-request services.",
+    "The terms for using affhan.com and the AFFHAN app: quote requests, accounts, photo search, cargo tracking and the Supplier Centre.",
   alternates: { canonical: "https://affhan.com/terms-conditions/" },
   openGraph: {
     title: "Terms & Conditions | AFFHAN",
     description:
-      "The terms governing your use of AFFHAN International's sourcing marketplace and quote-request services.",
+      "The terms for using affhan.com and the AFFHAN app: quote requests, accounts, photo search, cargo tracking and the Supplier Centre.",
     url: "https://affhan.com/terms-conditions/",
     type: "website",
     siteName: "AFFHAN",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Terms & Conditions | AFFHAN",
     description:
-      "The terms governing your use of AFFHAN International's sourcing marketplace and quote-request services.",
+      "The terms for using affhan.com and the AFFHAN app: quote requests, accounts, photo search, cargo tracking and the Supplier Centre.",
   },
 };
 

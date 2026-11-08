@@ -2,53 +2,222 @@
 
 import { FooterSection } from "@/components/sections/FooterSection";
 import { motion } from "framer-motion";
-import { FileText, ClipboardList, ShieldCheck, Scale, AlertOctagon, Shield, HelpCircle, ArrowUpRight } from "lucide-react";
+import { FileText, ClipboardList, Package, User, Camera, Ship, Factory, Ban, Copyright, ExternalLink, Scale, AlertOctagon, RefreshCw, Landmark, Shield, HelpCircle, ArrowUpRight } from "lucide-react";
 import { useState, useEffect } from "react";
+import type { LucideIcon } from "lucide-react";
 
-const sections = [
+/**
+ * The website's own Terms & Conditions (the Free China Business Trip has its own, lib/trip-legal.ts). Rewritten
+ * 2026-11-08 from a generic template ("the contact information provided in our store") to what affhan.com and the app
+ * really are (the owner: "update the terms and conditions and privacy policy perfectly what we do what we done"): an
+ * inquiry-only sourcing site with no prices, cart or payments; quote requests that are not orders; accounts; photo
+ * search; cargo tracking; the Supplier Centre. Indian law and Chennai's courts, as the trip's Terms say.
+ */
+const UPDATED = "8 November 2026";
+
+/** One piece of a section: a paragraph (optionally ending in a link), a list, or a small heading. */
+type Block = { p: string; link?: { text: string; href: string }; after?: string } | { list: string[] } | { h: string };
+
+const sections: { id: string; title: string; icon: LucideIcon; description: string; content: Block[] }[] = [
   {
     id: "acceptance",
-    title: "Acceptance of Terms",
+    title: "About These Terms",
     icon: ClipboardList,
-    description: "The legal binding agreement you enter into by accessing or using our services.",
-    content: "By accessing and using this website, you accept and agree to be bound by the terms and provision of this agreement. If you do not agree to abide by the above, please do not use this service.",
+    description: "Who we are, and what these terms cover.",
+    content: [
+      { p: "These terms apply to affhan.com and the AFFHAN app, run by AFFHAN INTERNATIONAL PVT LTD of Chennai, India (\"AFFHAN\", \"we\"). By using the website or the app, you agree to these terms. If you do not agree, please do not use them." },
+      { p: "The Free China Business Trip has its own ", link: { text: "Terms & Conditions", href: "/free-china-trip/terms/" }, after: "." },
+    ],
   },
   {
-    id: "license",
-    title: "Use License",
-    icon: ShieldCheck,
-    description: "Scope and limitations of the permitted usage of our website materials.",
-    content: "Permission is granted to temporarily download one copy of the materials on our website for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title.",
+    id: "what-we-do",
+    title: "What We Do",
+    icon: Package,
+    description: "A sourcing service, not a shop.",
+    content: [
+      { p: "AFFHAN sources products from China for businesses, and arranges their quality checks, shipping and customs clearance." },
+      { p: "The products on the website and in the app show what we can source. They are not our stock: their names, photos and descriptions come from suppliers and are for reference only. We do not show prices, and nothing is sold or paid for on the website or in the app." },
+    ],
+  },
+  {
+    id: "quotes",
+    title: "Quote Requests",
+    icon: FileText,
+    description: "A request is not an order.",
+    content: [
+      { p: "A quote request tells us what you need. It is not an order, and it does not commit you or us to anything." },
+      { p: "We reply with a quotation. An order exists only when you accept our written quotation, which sets out the product, specifications, quantity, price, delivery terms and timeline. That quotation, and any agreement made with it, governs the order." },
+      { p: "Please give accurate details, so that we can answer you properly." },
+    ],
+  },
+  {
+    id: "account",
+    title: "Your Account",
+    icon: User,
+    description: "Keeping your account accurate and secure.",
+    content: [
+      {
+        list: [
+          "Give accurate information and keep it up to date.",
+          "Keep your password private. You are responsible for what is done with your account.",
+          "A mobile number can belong to only one account.",
+          "We may suspend or close an account that is used to misuse the website or the app.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "photo-search",
+    title: "Photo Search",
+    icon: Camera,
+    description: "Finding products from a photo.",
+    content: [
+      { p: "Photo search suggests products that look like the one in your photo. Its results are suggestions, not a guaranteed match. Upload only photos you are allowed to use, and avoid photos of people or of personal documents." },
+    ],
+  },
+  {
+    id: "cargo",
+    title: "Cargo Tracking",
+    icon: Ship,
+    description: "What the tracking page shows, and what it doesn't promise.",
+    content: [
+      { p: "Our tracking page shows a consignment's progress by its number. Departure and arrival dates are estimates, and may change with carriers, ports and customs. Before relying on a date, please confirm it with our team." },
+      { p: "Anyone who has a consignment number can see its progress, so please keep your number private." },
+    ],
+  },
+  {
+    id: "suppliers",
+    title: "Supplier Centre",
+    icon: Factory,
+    description: "For suppliers who apply with their products.",
+    content: [
+      {
+        list: [
+          "Give accurate details about your company and your products.",
+          "Apply only with products you can supply, and with photos you own or are allowed to use.",
+          "An application does not create a contract, and does not guarantee that we will accept it or place an order. We decide on each application at our discretion.",
+          "We may contact you about your applications, and use them to find suppliers for our customers' requests.",
+          "You can withdraw an application while it is open.",
+          "Photos you add are stored with our product images and can be opened by anyone who has their link, so please add only product photos.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "acceptable-use",
+    title: "Acceptable Use",
+    icon: Ban,
+    description: "What you may not do on the website or in the app.",
+    content: [
+      { p: "Please do not:" },
+      {
+        list: [
+          "use the website or the app for anything unlawful;",
+          "send false or misleading requests or applications;",
+          "copy the catalogue, or collect information from the website with automated tools;",
+          "try to get around our security, sign-in limits or checks, or interfere with how the website works; or",
+          "pretend to be someone else.",
+        ],
+      },
+      { p: "We may limit or block access that breaks these rules." },
+    ],
+  },
+  {
+    id: "content",
+    title: "Content and Trademarks",
+    icon: Copyright,
+    description: "Who owns what you see on the website.",
+    content: [
+      { p: "The AFFHAN name and logo, and the website's design and text, belong to AFFHAN. Product names and images belong to their owners and are shown only to illustrate what can be sourced. Please do not copy our content for commercial use without our permission." },
+    ],
+  },
+  {
+    id: "other-services",
+    title: "Other Services",
+    icon: ExternalLink,
+    description: "Services from other companies that the website uses.",
+    content: [{ p: "Some features use other companies' services, such as Google sign-in. Their own terms apply when you use them." }],
   },
   {
     id: "disclaimer",
     title: "Disclaimer",
     icon: Scale,
-    description: "Exclusions and limitations of warranties regarding website materials.",
-    content: "The materials on our website are provided on an 'as is' basis. We make no warranties, expressed or implied, and hereby disclaim and negate all other warranties including, without limitation, implied warranties or conditions of merchantability.",
+    description: "The limits of what the website promises.",
+    content: [
+      { p: "We work to keep the website accurate, but its information is provided as it is. Product details come from suppliers and may change, and we do not guarantee that the website or the app will always be available or free of errors." },
+    ],
   },
   {
     id: "limitations",
-    title: "Limitations",
+    title: "Limitation of Liability",
     icon: AlertOctagon,
-    description: "Our liability restrictions regarding potential damages or loss of data.",
-    content: "In no event shall our company or its suppliers be liable for any damages arising out of the use or inability to use the materials on our website, even if we or our authorized representative has been notified orally or in writing of the possibility of such damage.",
+    description: "Our responsibility for the use of the website.",
+    content: [
+      { p: "To the extent the law allows, AFFHAN is not liable for any indirect or consequential loss arising from the use of the website or the app. Our responsibility for an order is set out in the quotation or agreement for that order." },
+    ],
+  },
+  {
+    id: "changes",
+    title: "Changes to These Terms",
+    icon: RefreshCw,
+    description: "How you will know when these terms change.",
+    content: [{ p: "We may update these terms. The date at the top of this page shows when they last changed. Using the website or the app after a change means you accept the new terms." }],
+  },
+  {
+    id: "law",
+    title: "Governing Law",
+    icon: Landmark,
+    description: "The law and courts that apply.",
+    content: [{ p: "These terms are governed by the laws of India. Disputes arising from them are subject to the jurisdiction of the courts in Chennai, Tamil Nadu." }],
   },
   {
     id: "privacy",
     title: "Privacy Policy",
     icon: Shield,
-    description: "Links to how we collect, store, and process your data.",
-    content: "Your privacy is important to us. Please review our Privacy Policy, which also governs your use of the website, to understand our practices.",
+    description: "How we collect and use your information.",
+    content: [{ p: "Our Privacy Policy explains what information we collect, why, who sees it and how long we keep it." }],
   },
   {
     id: "contact-info",
     title: "Contact Information",
     icon: HelpCircle,
-    description: "How to reach out to us regarding issues, feedback, or legal inquiries.",
-    content: "If you have any questions about these Terms and Conditions, please contact us through our website or the contact information provided in our store.",
+    description: "Questions about these terms.",
+    content: [
+      { p: "If you have any questions about these Terms & Conditions, email info@affhan.com, call +91 90920 09044, or write to AFFHAN INTERNATIONAL PVT LTD, Appavoo Tower West, 69/46, 3, S Madha Church Street, near Harbour Gate, Royapuram, Chennai, Tamil Nadu 600013, India." },
+    ],
   },
 ];
+
+/** A section's paragraphs, lists and small headings, in the cards' type. */
+function Blocks({ blocks }: { blocks: Block[] }) {
+  return (
+    <div className="space-y-4 text-slate-600 leading-relaxed text-sm md:text-base">
+      {blocks.map((b, i) =>
+        "h" in b ? (
+          <h3 key={i} className="pt-2 text-sm md:text-base font-semibold text-slate-900">
+            {b.h}
+          </h3>
+        ) : "list" in b ? (
+          <ul key={i} className="list-disc space-y-2 pl-5 marker:text-[#245B6D]">
+            {b.list.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p key={i}>
+            {b.p}
+            {b.link && (
+              <a href={b.link.href} className="font-semibold text-[#245B6D] hover:text-[#19414e] transition-colors">
+                {b.link.text}
+              </a>
+            )}
+            {b.after}
+          </p>
+        ),
+      )}
+    </div>
+  );
+}
 
 export default function TermsConditionsPage() {
   const [activeSection, setActiveSection] = useState(sections[0].id);
@@ -126,6 +295,7 @@ export default function TermsConditionsPage() {
           >
             Please read these terms and conditions carefully before using our service
           </motion.p>
+          <p className="mt-3 text-sm text-slate-400">Last updated {UPDATED}</p>
         </div>
       </section>
 
@@ -193,9 +363,7 @@ export default function TermsConditionsPage() {
                       </div>
                     </div>
 
-                    <p className="text-slate-600 leading-relaxed text-sm md:text-base whitespace-pre-line">
-                      {sect.content}
-                    </p>
+                    <Blocks blocks={sect.content} />
 
                     {sect.id === "privacy" && (
                       <div className="mt-8 pt-6 border-t border-slate-100 flex flex-wrap gap-4">

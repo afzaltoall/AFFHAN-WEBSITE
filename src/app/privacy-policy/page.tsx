@@ -2,53 +2,250 @@
 
 import { FooterSection } from "@/components/sections/FooterSection";
 import { motion } from "framer-motion";
-import { Shield, Database, Activity, MailCheck, Share2, Lock, Mail, ArrowUpRight } from "lucide-react";
+import { Shield, Building2, Database, Activity, Users, MailCheck, Cookie, Lock, Clock, UserCheck, ShieldCheck, RefreshCw, Mail, ArrowUpRight } from "lucide-react";
 import { useState, useEffect } from "react";
+import type { LucideIcon } from "lucide-react";
 
-const sections = [
+/**
+ * The website's own Privacy Policy (the Free China Business Trip has its own, lib/trip-legal.ts). Rewritten
+ * 2026-11-08 to what the site and the app really collect and do (the owner: "update the terms and conditions and
+ * privacy policy perfectly what we do what we done"; "nama ena vanguroma adha matu dhan podurom", only what we take):
+ * each form's own fields, the cookies and browser storage it uses (no analytics or advertising), who sees what, where it
+ * is kept, the emails sent. Change a form, a cookie, a provider or an email, and change this with it.
+ */
+const UPDATED = "8 November 2026";
+
+/** One piece of a section: a paragraph (optionally ending in a link), a list, or a small heading. */
+type Block = { p: string; link?: { text: string; href: string }; after?: string } | { list: string[] } | { h: string };
+
+const CONTACT_LINE =
+  "email info@affhan.com, call +91 90920 09044, or write to AFFHAN INTERNATIONAL PVT LTD, Appavoo Tower West, 69/46, 3, S Madha Church Street, near Harbour Gate, Royapuram, Chennai, Tamil Nadu 600013, India.";
+
+const sections: { id: string; title: string; icon: LucideIcon; description: string; content: Block[] }[] = [
+  {
+    id: "who-we-are",
+    title: "Who We Are",
+    icon: Building2,
+    description: "The company behind affhan.com and the AFFHAN app.",
+    content: [
+      { p: "AFFHAN INTERNATIONAL PVT LTD (\"AFFHAN\", \"we\") runs affhan.com and the AFFHAN app. We source products from China for businesses and arrange their shipping and customs clearance." },
+      { p: "This policy explains what we collect when you use the website or the app, why, who sees it and how long we keep it." },
+      { p: "The Free China Business Trip has its own ", link: { text: "Privacy Policy", href: "/free-china-trip/privacy/" }, after: "." },
+    ],
+  },
   {
     id: "info-collect",
     title: "Information We Collect",
     icon: Database,
-    description: "Learn about the types of information we gather from you when you interact with our platform.",
-    content: "We collect information you provide directly to us, such as when you create an account, request a quote, or contact us for support. This may include your name, email address, phone number, company name, and the details of your request.",
+    description: "Only what each form or feature asks you for.",
+    content: [
+      { p: "We collect only what you give us through these forms and features:" },
+      { h: "Your account" },
+      {
+        list: [
+          "Your name, email address, mobile number and a password. We keep only a scrambled (hashed) form of the password, never the password itself.",
+          "If you sign in with Google: your name, email address, profile picture and Google account ID, as Google shares them with us, and then your mobile number.",
+          "Your mobile number is used only to contact you, and a number can belong to only one account.",
+          "In the app, if you add them: your company name and address.",
+        ],
+      },
+      { h: "Quote requests" },
+      { list: ["The product and quantity you ask about, your name, email address, phone number and country, and, if you add them, your company name and your message."] },
+      { h: "Shipping quote requests" },
+      { list: ["Your name, phone number, email address and country, and the shipment's details: what you are shipping, the shipping mode and terms, the ports, the volume, the number of cartons, the weight and any notes."] },
+      { h: "Contact form" },
+      { list: ["Your name, email address, phone number and country, your company name if you add it, and your message."] },
+      { h: "Saved and recently viewed products" },
+      { list: ["If you are signed in, the products you save and the products you open, so that you can find them again in your account."] },
+      { h: "Photo search" },
+      { list: ["The photo you search with. It is sent to Google's Gemini service to name the product in it, and then used to search our catalogue. We do not keep the photo."] },
+      { h: "Supplier Centre" },
+      {
+        list: [
+          "When you register: your name, email address, mobile number and a password (kept only in hashed form). With your first application: your company name, WeChat ID and address.",
+          "Each application: the product, the minimum order quantity, the details you write and up to five photos.",
+        ],
+      },
+    ],
   },
   {
     id: "info-use",
     title: "How We Use Your Information",
     icon: Activity,
-    description: "Understand how we utilize your data to enhance, personalize, and maintain our services.",
-    content: "We use the information we collect to provide, maintain, and improve our services, respond to your quote requests and messages, send you technical notices and support messages, and communicate with you about the products and services you ask us about.",
+    description: "To answer you, and to run the services you use.",
+    content: [
+      {
+        list: [
+          "To reply to your requests by phone, WhatsApp or email, find suppliers, prepare quotations and arrange shipping.",
+          "To run your account: signing you in, and showing your requests, their status and your saved products.",
+          "To review supplier applications and to find suppliers for our customers' requests.",
+          "To send the emails described below.",
+          "To keep the website and the app secure and to stop misuse.",
+          "To meet our legal and accounting obligations.",
+        ],
+      },
+      { p: "We do not use your information for advertising, and we do not sell it." },
+    ],
+  },
+  {
+    id: "who-sees",
+    title: "Who Sees Your Information",
+    icon: Users,
+    description: "Our team, the partners who complete your order, and the services that run the website.",
+    content: [
+      { h: "Our team" },
+      { p: "Your requests are read by our office team. Our sales team sees what you asked for, and sees your contact details once a salesperson takes your request to reply to you. Supplier applications are seen by our office team." },
+      { h: "Suppliers and shipping partners" },
+      { p: "To source and ship your order, we share what you need (the product, quantity and specifications) with suppliers, and the shipment's details with freight and customs partners. We share your name or contact details with them only when it is needed to complete your order or shipment." },
+      { h: "Cargo tracking" },
+      { p: "Anyone who has a consignment number can see its progress on our tracking page: its stage, its expected departure and arrival dates and its updates. They never see the customer's name or other details." },
+      { h: "Services that run the website and the app" },
+      {
+        list: [
+          "Vercel hosts the website (United States).",
+          "Neon runs our database (United States).",
+          "Amazon Web Services stores our files and product images (Mumbai, India).",
+          "Brevo sends our emails.",
+          "Cloudflare checks that our sign-in and contact forms are used by people, not automated programs.",
+          "Upstash counts requests from each connection, to stop misuse.",
+          "Google provides Google sign-in, and reads the photos used in photo search.",
+        ],
+      },
+      { p: "We do not sell or rent your information. We share it with authorities only when the law requires us to." },
+    ],
   },
   {
     id: "emails",
     title: "Emails We Send",
     icon: MailCheck,
-    description: "The emails we send you, and what we do when one can't be delivered.",
-    content: "The only emails affhan.com sends you automatically are about resetting your password. When a password reset is requested for your account, we send a six-digit code to the email address on the account; it expires after 5 minutes and works once. If your account signs in with Google and has no password, we send a short note saying so instead. If you didn't ask for a reset, you can ignore either email. These emails come from noreply@mail.affhan.com and are sent through Brevo. We do not send newsletters or promotional email. Our email provider, Brevo, may record anonymously whether an email was opened or a link was clicked. This is not linked to you or your account. If an email to your address bounces permanently, or you mark one of ours as spam, we stop emailing that address. You can reply to any of our emails; replies go to info@affhan.com.",
+    description: "The only emails we send, and what happens when one can't be delivered.",
+    content: [
+      { p: "We do not send newsletters or promotional email. affhan.com sends only these emails:" },
+      {
+        list: [
+          "Password reset: a six-digit code to the email address on your account. It expires after 5 minutes and works once. If your account signs in with Google and has no password, we send a short note saying so instead. If you didn't ask for a reset, you can ignore either email.",
+          "Supplier Centre: a six-digit code to confirm your email address when you register, password reset codes, and an email when we change the status of your application or reply to it.",
+        ],
+      },
+      { p: "These emails come from noreply@mail.affhan.com and are sent through Brevo. Brevo may record anonymously whether an email was opened or a link was clicked. This is not linked to you or your account. If an email to your address bounces permanently, or you mark one of ours as spam, we stop emailing that address. You can reply to any of our emails; replies go to info@affhan.com." },
+    ],
   },
   {
-    id: "info-sharing",
-    title: "Information Sharing",
-    icon: Share2,
-    description: "Our policies around data sharing, third parties, and legal circumstances.",
-    content: "We do not sell, trade, or otherwise transfer your personal information to third parties without your consent, except as described in this privacy policy or as required by law.",
+    id: "cookies",
+    title: "Cookies and Browser Storage",
+    icon: Cookie,
+    description: "Only what the website needs to work. No advertising or analytics.",
+    content: [
+      { p: "We do not use advertising or analytics cookies, and we do not track you on other websites." },
+      { h: "Cookies" },
+      {
+        list: [
+          "If you sign in, a cookie keeps you signed in for up to 30 days. The Supplier Centre has its own sign-in cookie, which also lasts up to 30 days.",
+          "If you apply for the Free China Business Trip, a cookie remembers, for up to one year, which application this browser sent.",
+        ],
+      },
+      { h: "Stored in your browser" },
+      {
+        list: [
+          "Your account's name, email address, phone number and picture, so that pages show you are signed in straight away. They are cleared when you sign out.",
+          "Your recent searches, so that the search box can suggest them again. They stay on your device.",
+          "Small settings, such as whether the Free China Business Trip film plays sound.",
+        ],
+      },
+    ],
   },
   {
     id: "data-security",
     title: "Data Security",
     icon: Lock,
-    description: "The encryption, storage protocols, and security practices we employ to protect your data.",
-    content: "We implement appropriate security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction.",
+    description: "How we protect your information.",
+    content: [
+      { p: "The website and the app use encrypted (HTTPS) connections. Passwords are kept only in hashed form. Repeated wrong passwords lock sign-in for a while, and Cloudflare's security check protects our sign-in and contact forms. Only our team can see your requests, and each member signs in with their own account." },
+      { p: "No system is completely secure, but we take reasonable steps to protect your information." },
+    ],
+  },
+  {
+    id: "retention",
+    title: "How Long We Keep Information",
+    icon: Clock,
+    description: "As long as we need it, and no longer.",
+    content: [
+      {
+        list: [
+          "Your account: until you ask us to delete it.",
+          "Quote requests, shipping requests, messages and supplier applications: as long as we need them for our business, accounting and legal records.",
+          "Sign-in sessions end after 30 days; password reset codes expire after 5 minutes.",
+          "An address that bounced or marked our email as spam is kept, so that we do not email it again.",
+          "Photos used in photo search are not kept.",
+        ],
+      },
+    ],
+  },
+  {
+    id: "rights",
+    title: "Your Choices and Rights",
+    icon: UserCheck,
+    description: "Seeing, correcting and deleting your information.",
+    content: [
+      { p: "You can change your mobile number in your account at any time." },
+      { p: "To see, correct or delete the information we hold about you, or to delete your account, email info@affhan.com from the address on your account. We may ask you to confirm who you are, and we will reply within 30 days." },
+      { p: "When an account is deleted, its saved and recently viewed products are deleted with it. We may keep requests we have already answered as business records." },
+      { p: "Suppliers can withdraw an open application at any time in the Supplier Centre." },
+    ],
+  },
+  {
+    id: "children",
+    title: "Children",
+    icon: ShieldCheck,
+    description: "The website is for businesses.",
+    content: [{ p: "affhan.com and the AFFHAN app are meant for businesses, not for anyone under 18. We do not knowingly collect information from children." }],
+  },
+  {
+    id: "changes",
+    title: "Changes to This Policy",
+    icon: RefreshCw,
+    description: "How you will know when this policy changes.",
+    content: [{ p: "When we change this policy, we update the date at the top of this page. If a change affects how we use your information, we will say so on the website." }],
   },
   {
     id: "contact-us",
     title: "Contact Us",
     icon: Mail,
-    description: "Get in touch with our security and compliance team for questions about your privacy.",
-    content: "If you have any questions about this Privacy Policy or the emails we send, email info@affhan.com, call +91 90920 09044, or write to AFFHAN INTERNATIONAL PVT LTD, Appavoo Tower West, 69/46, 3, S Madha Church Street, near Harbour Gate, Royapuram, Chennai, Tamil Nadu 600013, India.",
+    description: "Questions, requests and complaints about your information.",
+    content: [{ p: `For any question, request or complaint about this Privacy Policy or your information, ${CONTACT_LINE}` }],
   },
 ];
+
+/** A section's paragraphs, lists and small headings, in the cards' type. */
+function Blocks({ blocks }: { blocks: Block[] }) {
+  return (
+    <div className="space-y-4 text-slate-600 leading-relaxed text-sm md:text-base">
+      {blocks.map((b, i) =>
+        "h" in b ? (
+          <h3 key={i} className="pt-2 text-sm md:text-base font-semibold text-slate-900">
+            {b.h}
+          </h3>
+        ) : "list" in b ? (
+          <ul key={i} className="list-disc space-y-2 pl-5 marker:text-[#245B6D]">
+            {b.list.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        ) : (
+          <p key={i}>
+            {b.p}
+            {b.link && (
+              <a href={b.link.href} className="font-semibold text-[#245B6D] hover:text-[#19414e] transition-colors">
+                {b.link.text}
+              </a>
+            )}
+            {b.after}
+          </p>
+        ),
+      )}
+    </div>
+  );
+}
 
 export default function PrivacyPolicyPage() {
   const [activeSection, setActiveSection] = useState(sections[0].id);
@@ -126,6 +323,7 @@ export default function PrivacyPolicyPage() {
           >
             Learn about how we collect, use, and protect your personal information
           </motion.p>
+          <p className="mt-3 text-sm text-slate-400">Last updated {UPDATED}</p>
         </div>
       </section>
 
@@ -193,9 +391,7 @@ export default function PrivacyPolicyPage() {
                       </div>
                     </div>
 
-                    <p className="text-slate-600 leading-relaxed text-sm md:text-base whitespace-pre-line">
-                      {sect.content}
-                    </p>
+                    <Blocks blocks={sect.content} />
 
                     {sect.id === "contact-us" && (
                       <div className="mt-8 pt-6 border-t border-slate-100 flex flex-wrap gap-4">

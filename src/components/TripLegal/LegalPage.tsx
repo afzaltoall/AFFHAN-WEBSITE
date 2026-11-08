@@ -101,6 +101,8 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
             {count}
             <span aria-hidden className="tl-meta-dot" />
             About {minutesToRead(doc)} minutes to read
+            <span aria-hidden className="tl-meta-dot" />
+            Updated {doc.updated}
           </p>
           <div className="tl-intro">
             {doc.intro.map((line) => (

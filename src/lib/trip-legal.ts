@@ -51,6 +51,8 @@ export function sectionAnchor(prefix: string, s: Pick<LegalSection, "n">) {
 export interface LegalDoc {
   /** The document's own title lines, as it sets them. */
   heading: string[];
+  /** When the wording last changed, as the page states it ("8 November 2026"). */
+  updated: string;
   intro: string[];
   sections: LegalSection[];
 }
@@ -77,9 +79,14 @@ const EMAIL = "info@affhan.com";
  * first, 35-clause version the same day; its closing Acceptance came out on
  * the owner's request, and clause 14 gained its Medical Expenses and
  * Insurance subsection, in the owner's words, the same day.
+ *
+ * Brought up to what the trip does on 2026-11-08 (the owner: "update the terms and conditions and privacy policy
+ * perfectly what we do what we done"): one application a mobile number and the ID proof through a team member's link
+ * (clause 2), a link giving no advantage in the draw (clause 3), and the ID proof's exception to clause 15.
  */
 export const TRIP_TERMS: LegalDoc = {
   heading: ["AFFHAN Free China Business Trip", "Terms & Conditions"],
+  updated: "8 November 2026",
   intro: [
     "These Terms & Conditions explain the rules for applying to and participating in the Affhan Free China Business Trip organised by AFFHAN INTERNATIONAL PVT LTD.",
     "By submitting an application, you confirm that you have read, understood, and agreed to these Terms & Conditions.",
@@ -102,6 +109,8 @@ export const TRIP_TERMS: LegalDoc = {
       blocks: [
         p("Applicants must provide accurate, complete, genuine, and current information."),
         p("Each applicant may submit only one application unless Affhan states otherwise."),
+        p("Only one application is accepted for each mobile number."),
+        p("Applicants who apply through a link shared with them by a member of the Affhan team must include a copy of one identity document with their application, as described in section 4 of the Privacy Policy."),
         p("An application may be rejected if:"),
         list(
           "the information is incomplete, false, or misleading;",
@@ -118,6 +127,7 @@ export const TRIP_TERMS: LegalDoc = {
         p("All applications are first checked for eligibility."),
         p("Only valid and eligible applicants are entered into the final selection pool."),
         p("Every eligible applicant has an equal opportunity to be selected."),
+        p("Applying through a link shared by a member of the Affhan team does not change an applicant's chance of being selected."),
         p("The five winners are selected through a digital random-selection process."),
         p("The final eligible applicant list is entered into an automated random-selection system and randomly shuffled."),
         p("The system does not rank applicants or decide who is better. It randomly selects five applicants from the eligible pool."),
@@ -292,6 +302,7 @@ export const TRIP_TERMS: LegalDoc = {
           "comply with applicable requirements.",
         ),
         p("Passport, visa, identity, and other travel documents will be requested only when reasonably required for the relevant stage of the Program."),
+        p("An application made through a link shared by a member of the Affhan team must include a copy of one identity document (clause 2)."),
         p("Please refer to the Affhan Privacy Policy for full information about personal-data handling.", {
           text: "Affhan Privacy Policy",
           href: TRIP_PRIVACY_HREF,
@@ -333,9 +344,17 @@ export const TRIP_TERMS: LegalDoc = {
 /**
  * The owner's revised text of 2026-10-01: seventeen sections. It replaced
  * the first, 26-section version the same day.
+ *
+ * Brought up to what the trip does on 2026-11-08 (the owner: "update the terms and conditions and privacy policy
+ * perfectly what we do what we done"; "privacy policy la technical information remove panu"): what the one-page
+ * application asks and no Technical Information list (section 1); the ID proof's handling (section 4); what the team
+ * member whose link was used sees (section 5); where the website and the documents are kept (section 6); the cookies
+ * and browser storage the trip really uses, and no analytics (section 11). The section numbers stay: the pages and
+ * the consent sheet link to them.
  */
 export const TRIP_PRIVACY: LegalDoc = {
   heading: ["AFFHAN Free China Business Trip", "Privacy Policy"],
+  updated: "8 November 2026",
   intro: [
     "AFFHAN INTERNATIONAL PVT LTD respects your privacy and is committed to protecting the personal information you provide when using our website, applying for the Affhan Free China Business Trip, or communicating with us.",
     "This Privacy Policy explains what information we collect, why we collect it, how we use it, when we may share it, and how we protect it.",
@@ -345,33 +364,20 @@ export const TRIP_PRIVACY: LegalDoc = {
       n: 1,
       title: "Information We Collect",
       blocks: [
-        p("Depending on how you use our website or application, we may collect:"),
+        p("When you apply for the Trip, we collect only what the application asks:"),
         sub("Personal Details"),
-        list("Full name", "Email address", "Mobile number", "Country", "City or location"),
+        list("Full name", "Mobile number", "Country", "City"),
         sub("Business Details"),
-        list(
-          "Company name",
-          "Job title or designation",
-          "Business category",
-          "Company website",
-          "Business description",
-          "Business experience",
-          "Business interests",
-          "Products or categories of interest",
-          "Business objectives",
-          "Information provided in your application",
-        ),
+        list("Whether you run a business"),
         sub("Application Details"),
         list(
-          "Application information",
-          "Application responses",
-          "Eligibility information",
-          "Winner verification information",
-          "Communication relating to your application",
-          "A copy of an identity document, where you apply through a link shared by the AFFHAN team (see section 4)",
+          "Whether you have a valid passport",
+          "Your agreement to the Terms & Conditions and this Privacy Policy",
+          "A copy of one identity document, only if you apply through a link shared by a member of the Affhan team (see section 4)",
+          "The code of that link, so that the team member who shared it is credited (see section 5)",
         ),
         sub("Travel Details"),
-        p("Where required for selected applicants or travel processing:"),
+        p("Only from selected winners, when required for travel or visa processing:"),
         list(
           "Nationality",
           "Passport information",
@@ -382,11 +388,8 @@ export const TRIP_PRIVACY: LegalDoc = {
           "Other information reasonably required for travel or visa processing",
         ),
         sub("Reimbursement Details"),
-        p("Where an approved reimbursement applies:"),
+        p("Only where an approved reimbursement applies:"),
         list("Invoice details", "Receipt details", "Proof of payment", "Reimbursement information"),
-        sub("Technical Information"),
-        p("We may also automatically collect limited technical information such as:"),
-        list("IP address", "Browser type", "Device information", "Operating system", "Pages visited", "Approximate website usage information"),
       ],
     },
     {
@@ -396,6 +399,7 @@ export const TRIP_PRIVACY: LegalDoc = {
         p("We may use your information to:"),
         list(
           "Process your application",
+          "Credit the Affhan team member whose link you applied through",
           "Check eligibility",
           "Administer the random selection process",
           "Contact applicants",
@@ -430,8 +434,13 @@ export const TRIP_PRIVACY: LegalDoc = {
         p("Passport, visa, identity, and other travel-document information will only be requested when reasonably necessary."),
         // Added 2026-11-02: applicants who come through a link from the AFFHAN team add ID proof with the application; one of
         // five IDs since 2026-11-03; the Emirates ID and any other photo ID since 2026-11-04 (ID_PROOFS).
+        // 2026-11-08: how it is kept and who can open it (the private bucket in Mumbai, the ID proof lock), and what the
+        // browser does to a photo first (IdDocumentField's prepare).
         p(
-          "If you apply through a link shared with you by a member of the AFFHAN team, we ask for a photo or scan of one identity document with your application, your Aadhaar (a masked Aadhaar is accepted), PAN card, Voter ID, driving licence, passport, Emirates ID or another ID with your photo, to confirm who you are. It is stored privately, seen only by the AFFHAN team that handles applications, and used only to verify your application.",
+          "If you apply through a link shared with you by a member of the Affhan team, we ask for a photo or PDF of one identity document with your application: your Aadhaar (a masked Aadhaar is accepted), PAN card, Voter ID, driving licence, passport, Emirates ID, or another ID with your photo. It is used only to confirm who you are and to verify your application.",
+        ),
+        p(
+          "Where your browser can, a photo is resized and the location information your camera saved in it is removed before it is uploaded. The document is kept in private, encrypted storage in India, separate from the rest of your application. Only Affhan administrators can open it, and only after entering their password again. The team member who shared the link cannot see it.",
         ),
         p("This information may be required for:"),
         list(
@@ -463,6 +472,7 @@ export const TRIP_PRIVACY: LegalDoc = {
           "Government or regulatory authorities where legally required",
         ),
         p("We only share information that is reasonably necessary for the relevant purpose."),
+        p("If you applied through a link shared by a member of the Affhan team, that team member can see your Trip ID, your name, part of your mobile number, the date you applied, and whether your application counts towards their referrals. They cannot see your identity document."),
         p("Affhan does not sell personal information as part of the Free China Business Trip Program."),
       ],
     },
@@ -470,6 +480,7 @@ export const TRIP_PRIVACY: LegalDoc = {
       n: 6,
       title: "International Processing",
       blocks: [
+        p("Our website is hosted by Vercel, and your application is stored in a database run by Neon; both are located in the United States. Identity documents are stored with Amazon Web Services in Mumbai, India."),
         p("Because the Program involves international travel, some information may need to be processed by service providers outside India for travel, accommodation, transportation, visa processing, communication, or other Program-related services."),
         p("Such information will be handled according to applicable requirements and the relevant service arrangements."),
       ],
@@ -526,9 +537,14 @@ export const TRIP_PRIVACY: LegalDoc = {
       n: 11,
       title: "Cookies & Third-Party Services",
       blocks: [
-        p("Our website may use cookies and similar technologies for:"),
-        list("Essential website functions", "Security", "Performance", "Preferences", "Analytics where such tools are used"),
-        p("Our application or website may also use third-party services for hosting, analytics, communication, form processing, file storage, payment or reimbursement processing, and travel-related services."),
+        p("Our website uses only the cookies and browser storage it needs to work. It does not use advertising or analytics cookies."),
+        list(
+          "A cookie remembers, on the browser you applied from, which application is yours, so that we can show you your boarding pass. It lasts up to one year.",
+          "If you sign in, a cookie keeps you signed in for up to 30 days.",
+          "While you fill in the application, your answers so far (your name, mobile number, country, city and business answer, never your passport answer or your agreement) are kept in your browser tab until you send the application or close the tab.",
+          "If you arrived through a link shared by a member of the Affhan team, its code is kept in your browser tab for that visit only.",
+        ),
+        p("When you apply without signing in, Cloudflare runs a security check in the background to confirm that the application comes from a person, and the number of applications sent from one internet connection is limited to prevent misuse. These checks use your internet connection's address and are not used to track you."),
         p("Third-party providers may process information according to their own privacy practices and applicable agreements."),
         p("Cookies are not used to automatically request or collect passport or visa information."),
       ],

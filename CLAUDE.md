@@ -138,6 +138,23 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - **The lists, without what read as generated** ("these too feels like ai"): no greeting (Inquiries and Contact Us say "481 requests · 17 not handled"), no capital-letter heading and coloured dot per customer stage, no icon before every field, no line through handled titles (a quieter weight instead), no colour per source tag, Qty as words, the export buttons one dark and the rest plain (All's exports too, without their green icon square and the three tiles that repeated the figures strip), the dashboard's figures one strip with hairlines, and no handling chip on a handled request with nothing else going on (`HandlingChip quietWhenSettled`: Handled beside it already says so; "another request waiting / with …" still shows).
 - **One theme for the whole console** (2026-11-04, the owner: "dont give dark or white in anything just give overall for everything one ... if change color have to update full"): the only switch is the account menu's **Dark mode / Light mode** (on a phone, the Menu's account row); no page has a Dark/Light button of its own. The choice is `useAdminDark`'s (localStorage `affhan:admin-dark`). `AdminFrame` puts `html.admin-dark` on, and the console layout's first-paint script does so before anything is drawn. `src/app/admin/(console)/admin-dark.css` then turns every light-only screen's colours into the dashboard's dark palette, on screen only (print stays light). That CSS is **generated** by `scripts/build_admin_dark_css.mjs` from one table (`--check` says whether the file is current): a light colour missing from the table stays light in dark, so add it there, never to the CSS. On dark the near-black buttons and active tabs turn light with dark words; a photograph's plate keeps `keep-white`; the navy logo sits on white (`logo-plate`). The dashboard, the supplier books and Videos still draw their own dark theme from the same choice. **Employee tasks has Refresh** with "Updated …", as the other boards do.
 
+## Terms and Privacy Policies (2026-11-08)
+
+- **Four documents, each stating what the site really does** (the owner: "update the terms and conditions and privacy policy perfectly what we do what we done"). There are two for the website, `/terms-conditions/` and `/privacy-policy/` (rewritten from a generic template that mentioned "our store"). There are two for the trip, `lib/trip-legal.ts`, which keeps the owner's 1 October text and numbering.
+- The website's Privacy Policy covers:
+  - each form's own fields;
+  - the cookies and browser storage (no analytics or advertising: none is loaded);
+  - who sees what: the office team, salespeople once they take a request, a cargo number showing no customer;
+  - the providers and where they are: Vercel and Neon in the United States, AWS in Mumbai, Brevo, Cloudflare, Upstash, and Google for sign-in and photo search;
+  - the only emails sent: password reset, and the Supplier Centre's codes and decisions.
+- **Change a form, a cookie, a provider or an email, and change the policy and its date:**
+  - each page's `UPDATED`;
+  - the trip documents' `updated`;
+  - `sitemap.ts`'s `UPDATED.legal` and `UPDATED.chinaTripLegal`.
+- **The trip's Privacy Policy section 1 lists only what the application asks** (the owner: "nama ena vanguroma adha matu dhan podurom ... business details nama vangala"). That is name, mobile, country, city, whether you run a business, whether you have a valid passport, the agreement, and the ID document and link code (link visits only). Winners' travel and reimbursement details are listed as asked later.
+- It has **no Technical Information list** ("technical information remove panu"). Section 11 says in one sentence that the Cloudflare check and the per-connection limit use the connection's address.
+- Section numbers stay as they are: the pages, the consent sheet's pass rows (`passRows`, sections 1, 2, 5, 8, 9, 16) and CLAUDE.md link to them. `tests/security/legal-pages.test.mjs` holds these rules.
+
 ## What works — don't touch unless asked
 
 - Email through Brevo, and the daily refresh
