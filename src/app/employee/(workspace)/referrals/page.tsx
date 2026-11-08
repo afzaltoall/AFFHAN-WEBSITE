@@ -3,6 +3,8 @@ import Link from "next/link";
 import { readWorkspaceAuth } from "@/lib/employee-session";
 import { employeeReferrals, taskRunning } from "@/lib/server/trip-referrals";
 import { istDate, istLastDay, maskPhone, referralCounts, referralLink, referralWaiting, rupees } from "@/lib/trip-referral-shared";
+import { ReferralApplicants, type ReferralPerson } from "@/components/employee/ReferralApplicants";
+import { ReferralRefresh } from "@/components/employee/ReferralRefresh";
 import { ReferralShare } from "@/components/employee/ReferralShare";
 import { wt } from "@/components/employee/workspace-ui";
 
@@ -15,6 +17,9 @@ export const metadata: Metadata = {
 
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
 const fmtDayOf = (day: string) => fmtDay(`${day}T12:00:00+05:30`);
+const fmtDayTime = (iso: string) =>
+  new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+const fmtTime = (at: Date) => at.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
 
 /**
  * The employee's Free China Trip referral task (the owner, 2026-11-02): their link to hand out, how far they are
@@ -44,6 +49,8 @@ export default async function MyReferralsPage() {
   // Their own target where the console gave them one, the task's otherwise (2026-11-04).
   const target = r.target;
   const link = referralLink(r.code);
+  // Drawn in two parts, so a phone breaks it before its code and never inside a word ("appl / y/?ref=", 2026-11-08).
+  const [linkPage, linkCode] = link.split("?");
   const perReferral = settings.pointsPerReferral * settings.rupeesPerPoint;
   const done = Math.min(totals.counted, target);
   const running = taskRunning(settings);
@@ -55,24 +62,49 @@ export default async function MyReferralsPage() {
         : settings.startsAt
           ? `from ${fmtDayOf(istDate(settings.startsAt))}`
           : null;
+  // What the list and its details may show, made ready here: this goes to the browser, so the mobile is masked before
+  // it leaves the server, and nothing else of the application goes with it.
+  const people: ReferralPerson[] = r.applications.map((a) => {
+    const counts = referralCounts(a);
+    return {
+      tripId: a.referenceNo,
+      name: a.fullName,
+      mobile: maskPhone(a.phone),
+      city: a.city,
+      country: a.country,
+      day: fmtDay(a.createdAt),
+      at: fmtDayTime(a.createdAt),
+      state: a.paid && counts ? "Paid" : counts ? "Counted" : referralWaiting(a) ? "Waiting" : "Not counted",
+      points: counts ? (a.referralPoints ?? 0) : 0,
+    };
+  });
 
   return (
     // The workspace's full width, as its other pages (the rail decides it; 2026-11-03: a 5xl column "feels lefted"):
     // the link and the progress side by side on a wide screen, the applicants under them.
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">My referrals</h1>
-        <p className={`mt-1 text-[13px] ${wt.mid}`}>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">My referrals</h1>
+          <ReferralRefresh />
+        </div>
+        <p className={`mt-1 text-[14px] leading-snug sm:text-[13px] ${wt.mid}`}>
           Free China Trip · {rupees(perReferral)} for every applicant through your link{dates ? ` · ${dates}` : ""}
           {!running && <span className="font-semibold text-red-600"> · Closed: new applications through your link are not counted</span>}
         </p>
+        <p className={`mt-0.5 text-[12.5px] ${wt.mid}`}>Updated {fmtTime(new Date())}</p>
       </div>
 
       <div className="grid gap-5 xl:grid-cols-2">
         <section className={`flex flex-col rounded-2xl p-5 ${wt.card}`}>
-          <p className={`text-[12px] font-medium ${wt.soft}`}>Your link</p>
-          <p className="mt-1.5 break-all rounded-xl bg-[#f5f5f7] px-4 py-3 font-mono text-[15px] font-semibold">{link}</p>
-          <p className={`mt-3 text-[13px] leading-relaxed ${wt.mid}`}>
+          <p className={`text-[13px] font-semibold sm:text-[12px] sm:font-medium ${wt.mid}`}>Your link</p>
+          <p className="mt-1.5 break-words rounded-xl bg-[#f5f5f7] px-4 py-3 text-[14px] font-medium leading-relaxed sm:font-mono sm:text-[15px] sm:font-semibold">
+            <span className="hidden sm:inline">https://</span>
+            {linkPage.replace("https://", "")}
+            <wbr />
+            <span className="font-semibold text-brand-dark sm:text-inherit">?{linkCode}</span>
+          </p>
+          <p className={`mt-3 text-[14px] leading-relaxed sm:text-[13px] ${wt.mid}`}>
             Whoever opens it agrees to the trip&apos;s Terms, applies with a photo of their ID, and counts for you at once.
           </p>
           <div className="mt-auto pt-4">
@@ -93,53 +125,34 @@ export default async function MyReferralsPage() {
           </div>
           <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Applied through your link", String(totals.referred)],
+              ["Applied", String(totals.referred)],
               ["Points", totals.points.toLocaleString("en-IN")],
               ["Earned", rupees(totals.paidRupees + totals.unpaidRupees)],
               ["Paid", rupees(totals.paidRupees)],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-xl bg-[#f5f5f7] px-3.5 py-2.5">
-                <dt className={`text-[12px] ${wt.soft}`}>{label}</dt>
-                <dd className="mt-0.5 text-[19px] font-semibold tabular-nums">{value}</dd>
+              <div key={label} className="relative rounded-xl bg-[#f5f5f7] px-3.5 py-2.5">
+                <dt className={`text-[12.5px] ${wt.mid}`}>{label}</dt>
+                <dd className="mt-0.5 flex items-baseline justify-between gap-2 text-[19px] font-semibold tabular-nums">
+                  {value}
+                  {/* The whole tile is the link: who they are, in the list below. */}
+                  {label === "Applied" && people.length > 0 && (
+                    <a href="#applied" className="text-[13px] font-semibold text-brand-dark after:absolute after:inset-0 after:rounded-xl">
+                      See who
+                    </a>
+                  )}
+                </dd>
               </div>
             ))}
           </dl>
         </section>
       </div>
 
-      <section className={`overflow-hidden rounded-2xl ${wt.card}`}>
+      <section id="applied" className={`scroll-mt-4 overflow-hidden rounded-2xl ${wt.card}`}>
         <h2 className={`border-b px-5 py-3 text-[15px] font-semibold ${wt.border}`}>Applied through your link</h2>
-        {r.applications.length === 0 ? (
+        {people.length === 0 ? (
           <p className={`px-5 py-10 text-center text-[13px] ${wt.soft}`}>Nobody yet. Everyone who applies after opening your link shows here.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-[13px]">
-              <thead>
-                <tr className={`border-b text-[12px] ${wt.soft} ${wt.border}`}>
-                  <th className="px-5 py-2.5 font-medium">Trip ID</th>
-                  <th className="px-3 py-2.5 font-medium">Name</th>
-                  <th className="px-3 py-2.5 font-medium">Mobile</th>
-                  <th className="px-3 py-2.5 font-medium">Applied</th>
-                  <th className="px-5 py-2.5 font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody className={`divide-y ${wt.divide}`}>
-                {r.applications.map((a) => {
-                  const state = a.paid && referralCounts(a) ? "Paid" : referralCounts(a) ? "Counted" : referralWaiting(a) ? "Waiting" : "Not counted";
-                  const tone = state === "Paid" || state === "Counted" ? "text-emerald-700" : state === "Waiting" ? "text-amber-700" : wt.soft;
-                  return (
-                    <tr key={a.id}>
-                      <td className="whitespace-nowrap px-5 py-2.5 font-mono text-[12.5px]">{a.referenceNo}</td>
-                      <td className="px-3 py-2.5">{a.fullName}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5 tabular-nums">{maskPhone(a.phone)}</td>
-                      <td className="whitespace-nowrap px-3 py-2.5">{fmtDay(a.createdAt)}</td>
-                      <td className={`whitespace-nowrap px-5 py-2.5 font-medium ${tone}`}>{state}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ReferralApplicants people={people} />
         )}
       </section>
 

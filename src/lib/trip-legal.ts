@@ -474,7 +474,7 @@ export const TRIP_PRIVACY: LegalDoc = {
           "Government or regulatory authorities where legally required",
         ),
         p("We only share information that is reasonably necessary for the relevant purpose."),
-        p("If you applied through a link shared by a member of the Affhan team, that team member can see your Trip ID, your name, part of your mobile number, the date you applied, and whether your application counts towards their referrals. They cannot see your identity document."),
+        p("If you applied through a link shared by a member of the Affhan team, that team member can see your Trip ID, your name, your city and country, part of your mobile number, when you applied, and whether your application counts towards their referrals. They cannot see your whole mobile number or your identity document."),
         p("Affhan does not sell personal information as part of the Free China Business Trip Program."),
       ],
     },

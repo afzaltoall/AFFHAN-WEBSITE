@@ -6,6 +6,7 @@ import { isCargoJob, isSalesJob, loginRedirectFor, readWorkspaceAuth, workspaceH
 import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { WorkspaceSidebar, type WorkspacePages } from "@/components/employee/WorkspaceSidebar";
+import { WorkspaceTabs } from "@/components/employee/WorkspaceTabs";
 import { sfFont, wt } from "@/components/employee/workspace-ui";
 
 export const metadata: Metadata = {
@@ -69,42 +70,19 @@ export default async function EmployeeWorkspaceLayout({
           {/* The rail stands in for this bar from lg up, so the two never show
               at once. Below that it is the whole of the chrome. */}
           <header className={`border-b bg-white lg:hidden ${wt.border}`}>
-            <div className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
-              <Link href={home} className="flex items-center gap-3">
-                <span className="relative block h-8 w-24">
-                  <Image src="/logo.png" alt="Affhan" fill className="object-contain" />
-                </span>
-                <span className={`text-[13px] font-semibold tracking-tight ${wt.soft}`}>
-                  Staff workspace
+            {/* Whose workspace it is beside the mark (2026-11-08): the mark sat small in a wide box, with gaps either
+                side of it, and a phone showed no name at all. */}
+            <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
+              <Link href={home} className="flex min-w-0 items-center gap-2.5">
+                <Image src="/logo.png" alt="Affhan" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
+                <span className="min-w-0 leading-tight">
+                  <span className="block truncate text-[15px] font-semibold tracking-tight">{who.name}</span>
+                  <span className={`block truncate text-[12.5px] ${wt.mid}`}>Staff workspace</span>
                 </span>
               </Link>
-              <div className="flex items-center gap-3">
-                <span className="hidden text-right sm:block">
-                  <span className="block text-[13px] font-semibold leading-tight">{who.name}</span>
-                  <span className={`block text-[11px] ${wt.soft}`}>{who.detail}</span>
-                </span>
-                <EmployeeSignOut />
-              </div>
+              <EmployeeSignOut />
             </div>
-            {/* The rail's two destinations, for the screens the rail is not on. */}
-            <nav className="flex gap-1 px-4 pb-2 sm:px-6">
-              {(pages === "sales" || pages === "both") && (
-                <Link href="/employee/dashboard/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
-                  My leads
-                </Link>
-              )}
-              {(pages === "assigner" || pages === "both") && (
-                <Link href="/employee/cargo/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
-                  Cargo tracking
-                </Link>
-              )}
-              <Link href="/employee/referrals/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
-                My referrals
-              </Link>
-              <Link href="/employee/profile/" className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${wt.navIdle}`}>
-                Profile
-              </Link>
-            </nav>
+            <WorkspaceTabs pages={pages} />
           </header>
 
           {/* The console's own main: no max-width, because the width is already

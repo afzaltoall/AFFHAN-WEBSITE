@@ -63,9 +63,10 @@ export function EmployeeSignOut({
       type="button"
       onClick={signOut}
       disabled={busy}
-      className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60"
+      aria-label="Sign out"
+      className="inline-flex h-10 min-w-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-red-50 text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-60 sm:px-4"
     >
-      <LogOut className="h-4 w-4" />
+      <LogOut className="h-[18px] w-[18px] sm:h-4 sm:w-4" />
       <span className="hidden sm:inline">{busy ? "Signing out…" : "Sign out"}</span>
     </button>
   );

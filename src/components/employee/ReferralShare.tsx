@@ -17,8 +17,12 @@ function CopyButton({ text, label }: { text: string; label: string }) {
     }
   };
   return (
-    <button type="button" onClick={() => void copy()} className={`inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold ${wt.pill}`}>
-      {done ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />} {done ? "Copied" : label}
+    <button
+      type="button"
+      onClick={() => void copy()}
+      className={`inline-flex h-12 items-center justify-center gap-2 rounded-full px-4 text-[15px] font-semibold sm:h-9 sm:gap-1.5 sm:text-[13px] ${wt.pill}`}
+    >
+      {done ? <Check className="size-[18px] text-emerald-600 sm:size-3.5" /> : <Copy className="size-[18px] sm:size-3.5" />} {done ? "Copied" : label}
     </button>
   );
 }
@@ -26,19 +30,21 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 /**
  * The employee's link, to hand out (My referrals): copy it, or send it on WhatsApp with a line of its own. It opens
  * the trip's page, and whoever applies after coming through it is credited to them; nobody is ever asked for a code.
+ * On a phone (2026-11-08) both are the card's full width and a thumb's height, WhatsApp first, as that is how a phone
+ * hands it out; from sm up, the two small pills side by side, as before.
  */
 export function ReferralShare({ link }: { link: string }) {
   const message = `Apply for the Free China Business Trip with AFFHAN: ${link}`;
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="grid gap-2.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2">
       <CopyButton text={link} label="Copy link" />
       <a
         href={`https://wa.me/?text=${encodeURIComponent(message)}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#1d1d1f] px-4 text-[13px] font-semibold text-white hover:bg-black"
+        className="order-first inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#1d1d1f] px-4 text-[15px] font-semibold text-white hover:bg-black sm:order-none sm:h-9 sm:gap-1.5 sm:text-[13px]"
       >
-        <MessageCircle size={14} /> Share on WhatsApp
+        <MessageCircle className="size-[18px] sm:size-3.5" /> Share on WhatsApp
       </a>
     </div>
   );

@@ -44,7 +44,9 @@ test("the trip's documents say how the ID proof is kept and who sees it, and the
   const s = (n) => words(TRIP_PRIVACY.sections.find((x) => x.n === n));
   assert.match(s(4), /private, encrypted storage in India/);
   assert.match(s(4), /Only Affhan administrators can open it, and only after entering their password again/);
-  assert.match(s(5), /team member can see your Trip ID, your name, part of your mobile number/);
+  // What My referrals shows them (ReferralApplicants): change one, change the other.
+  assert.match(s(5), /team member can see your Trip ID, your name, your city and country, part of your mobile number, when you applied/);
+  assert.match(s(5), /cannot see your whole mobile number or your identity document/);
   assert.match(s(6), /United States/);
   assert.match(s(11), /does not use advertising or analytics cookies/);
   assert.match(words(TRIP_TERMS.sections.find((x) => x.n === 2)), /Only one application is accepted for each mobile number/);
