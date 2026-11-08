@@ -432,16 +432,6 @@ export const TRIP_PRIVACY: LegalDoc = {
       title: "Passport & Visa Information",
       blocks: [
         p("Passport, visa, identity, and other travel-document information will only be requested when reasonably necessary."),
-        // Added 2026-11-02: applicants who come through a link from the AFFHAN team add ID proof with the application; one of
-        // five IDs since 2026-11-03; the Emirates ID and any other photo ID since 2026-11-04 (ID_PROOFS).
-        // 2026-11-08: how it is kept and who can open it (the private bucket in Mumbai, the ID proof lock), and what the
-        // browser does to a photo first (IdDocumentField's prepare).
-        p(
-          "If you apply through a link shared with you by a member of the Affhan team, we ask for a photo or PDF of one identity document with your application: your Aadhaar (a masked Aadhaar is accepted), PAN card, Voter ID, driving licence, passport, Emirates ID, or another ID with your photo. It is used only to confirm who you are and to verify your application.",
-        ),
-        p(
-          "Where your browser can, a photo is resized and the location information your camera saved in it is removed before it is uploaded. The document is kept in private, encrypted storage in India, separate from the rest of your application. Only Affhan administrators can open it, and only after entering their password again. The team member who shared the link cannot see it.",
-        ),
         p("This information may be required for:"),
         list(
           "Final verification",
@@ -452,6 +442,18 @@ export const TRIP_PRIVACY: LegalDoc = {
           "Applicable legal or travel requirements",
         ),
         p("Where possible, Affhan will request only the information reasonably necessary for the relevant purpose."),
+        // Added 2026-11-02: applicants who come through a link from the AFFHAN team add ID proof with the application; one of
+        // five IDs since 2026-11-03; the Emirates ID and any other photo ID since 2026-11-04 (ID_PROOFS).
+        // 2026-11-08: how it is kept and who can open it (the private bucket in Mumbai, the ID proof lock), and what the
+        // browser does to a photo first (IdDocumentField's prepare). Under a heading of its own, after the list above: it
+        // sat before "This information may be required for: Travel booking...", which read as if the ID were used for those.
+        sub("Identity Document With Your Application"),
+        p(
+          "If you apply through a link shared with you by a member of the Affhan team, we ask for a photo or PDF of one identity document with your application: your Aadhaar (a masked Aadhaar is accepted), PAN card, Voter ID, driving licence, passport, Emirates ID, or another ID with your photo. It is used only to confirm who you are and to verify your application.",
+        ),
+        p(
+          "Where your browser can, a photo is resized and the location information your camera saved in it is removed before it is uploaded. The document is kept in private, encrypted storage in India, separate from the rest of your application. Only Affhan administrators can open it, and only after entering their password again. The team member who shared the link cannot see it.",
+        ),
       ],
     },
     {

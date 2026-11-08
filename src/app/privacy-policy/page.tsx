@@ -63,7 +63,7 @@ const sections: { id: string; title: string; icon: LucideIcon; description: stri
       {
         list: [
           "When you register: your name, email address, mobile number and a password (kept only in hashed form). With your first application: your company name, WeChat ID and address.",
-          "Each application: the product, the minimum order quantity, the details you write and up to five photos.",
+          "Each application: the product, the minimum order quantity, the details you write and up to five photos. The photos are stored with our product images and can be opened by anyone who has their link, so please add only product photos.",
         ],
       },
     ],
