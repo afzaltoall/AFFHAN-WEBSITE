@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { WorkspaceSkeleton } from "@/components/employee/WorkspaceSkeleton";
 
@@ -52,6 +53,19 @@ export function WorkspaceNavProvider({ children }: { children: React.ReactNode }
   const moving = pending && pending !== here ? pending : null;
   const nav = useMemo<WorkspaceNav>(() => ({ moving, start }), [moving, start]);
   return <WorkspaceNavContext.Provider value={nav}>{children}</WorkspaceNavContext.Provider>;
+}
+
+/**
+ * A link to a staff page that is not a tab or a rail row (the header's mark, which goes home): marked as a move the
+ * same way, so a press on it is answered at once too and cannot leave another press's outline standing.
+ */
+export function WorkspaceLink({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) {
+  const nav = useWorkspaceNav();
+  return (
+    <Link href={href} onNavigate={() => nav.start(href)} className={className}>
+      {children}
+    </Link>
+  );
 }
 
 /** The page's place: the page, or while a move is on its way, the next page's outline (the page kept, hidden). */

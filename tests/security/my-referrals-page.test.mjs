@@ -109,3 +109,8 @@ test("the root layout ignores what browser extensions write on <body>, and nothi
   const root = read("src/app/layout.tsx");
   assert.match(root, /<body className="[^"]+" suppressHydrationWarning>/);
 });
+
+test("the header's mark and the rail's mark, which go home, mark a press too", () => {
+  assert.match(read("src/app/employee/(workspace)/layout.tsx"), /<WorkspaceLink href=\{home\}/);
+  assert.match(read("src/components/employee/WorkspaceSidebar.tsx"), /onNavigate=\{\(\) => nav\.start\(home\)\}/);
+});

@@ -41,6 +41,7 @@ export function WorkspaceSidebar({
   const nav = useWorkspaceNav();
   const current = usePathname() ?? "";
   const pathname = nav.moving ?? pathOf(current);
+  const home = pages === "assigner" ? "/employee/cargo/" : pages === "referral" ? "/employee/referrals/" : "/employee/dashboard/";
   const [open, setOpen] = useState(false);
   const onDashboard = pathname.startsWith("/employee/dashboard");
   const onProfile = pathname.startsWith("/employee/profile");
@@ -69,7 +70,8 @@ export function WorkspaceSidebar({
         }`}
       >
         <Link
-          href={pages === "assigner" ? "/employee/cargo/" : pages === "referral" ? "/employee/referrals/" : "/employee/dashboard/"}
+          href={home}
+          onNavigate={() => nav.start(home)}
           className="flex items-center px-3.5 py-5"
         >
           <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${wt.thumb}`}>

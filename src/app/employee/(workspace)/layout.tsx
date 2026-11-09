@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import { isCargoJob, isSalesJob, loginRedirectFor, readWorkspaceAuth, workspaceHome } from "@/lib/employee-session";
 import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { WorkspaceSidebar, type WorkspacePages } from "@/components/employee/WorkspaceSidebar";
 import { WorkspaceTabs } from "@/components/employee/WorkspaceTabs";
-import { WorkspaceMain, WorkspaceNavProvider } from "@/components/employee/workspace-nav";
+import { WorkspaceLink, WorkspaceMain, WorkspaceNavProvider } from "@/components/employee/workspace-nav";
 import { sfFont, wt } from "@/components/employee/workspace-ui";
 
 export const metadata: Metadata = {
@@ -75,13 +74,13 @@ export default async function EmployeeWorkspaceLayout({
             {/* Whose workspace it is beside the mark (2026-11-08): the mark sat small in a wide box, with gaps either
                 side of it, and a phone showed no name at all. */}
             <div className="flex items-center justify-between gap-3 px-4 py-2.5 sm:px-6">
-              <Link href={home} className="flex min-w-0 items-center gap-2.5">
+              <WorkspaceLink href={home} className="flex min-w-0 items-center gap-2.5">
                 <Image src="/logo.png" alt="Affhan" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
                 <span className="min-w-0 leading-tight">
                   <span className="block truncate text-[15px] font-semibold tracking-tight">{who.name}</span>
                   <span className={`block truncate text-[12.5px] ${wt.mid}`}>Staff workspace</span>
                 </span>
-              </Link>
+              </WorkspaceLink>
               <EmployeeSignOut />
             </div>
             <WorkspaceTabs pages={pages} />
