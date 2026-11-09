@@ -142,8 +142,13 @@ export function Navbar() {
     }
   }, []);
 
+  // Not where this bar is never drawn (the console, the staff workspace, the supplier portal; isStaffArea below): the
+  // 252KB list was fetched there on every page load for a menu nobody can open (2026-11-09, the staff pages "very
+  // slow"; on the owner's localhost it was one more read of the database in the United States beside the page's own).
+  const noBarHere = /^\/(admin|employee|supplier)(\/|$)/.test(pathname);
+
   useEffect(() => {
-    if (categoriesFetched.current) return;
+    if (categoriesFetched.current || noBarHere) return;
 
     let idleHandle: number | null = null;
 
@@ -169,7 +174,7 @@ export function Navbar() {
         else window.clearTimeout(idleHandle);
       }
     };
-  }, [isCategoryMenuOpen, fetchCategories]);
+  }, [isCategoryMenuOpen, fetchCategories, noBarHere]);
 
   /**
    * Safety net: the skeleton can never outlive this.
@@ -181,9 +186,10 @@ export function Navbar() {
    * so when the normal path already ran this costs nothing.
    */
   useEffect(() => {
+    if (noBarHere) return;
     const net = window.setTimeout(() => void fetchCategories(), 4000);
     return () => window.clearTimeout(net);
-  }, [fetchCategories]);
+  }, [fetchCategories, noBarHere]);
 
   // Shared tree builder: prunes any branch (at any depth) with zero products
   // anywhere underneath it — same function the homepage sidebar and catalog

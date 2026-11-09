@@ -12,8 +12,10 @@ const bar = "animate-pulse rounded-full bg-black/[0.06] motion-reduce:animate-no
 
 /**
  * A staff page's outline while it is on its way (2026-11-09): its title at once, as it will stand, and grey blocks
- * where its cards will be. Shown the moment a tab or the rail is pressed (WorkspaceMain), and as each page's
- * loading.tsx, which the live site fetches ahead so the press is answered before the server is asked.
+ * where its cards will be. Shown the moment a tab or the rail is pressed (WorkspaceMain), never as a page's
+ * loading.tsx: those were tried the same day and taken out. A page with one answers before it has decided anything, so
+ * My leads and Cargo tracking sent a referral account to My referrals with a 200 and a script instead of a redirect, and
+ * React holds a loading screen at least ~300 ms, so a move the server answered in 20 ms took 330.
  */
 export function WorkspaceSkeleton({ path }: { path: string }) {
   const title = TITLES[path.replace(/\/+$/, "")] ?? null;

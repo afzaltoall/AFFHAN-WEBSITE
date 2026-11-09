@@ -70,9 +70,18 @@ test("a staff tab or rail press is marked at once, the next page's outline in th
   const layout = read("src/app/employee/(workspace)/layout.tsx");
   assert.match(layout, /<WorkspaceNavProvider>/);
   assert.match(layout, /<WorkspaceMain>\{children\}<\/WorkspaceMain>/);
+  // No loading.tsx under the workspace: it turned the account-type redirects into a 200 and held fast moves ~300 ms.
   for (const page of ["referrals", "profile", "dashboard", "cargo"]) {
-    assert.match(read(`src/app/employee/(workspace)/${page}/loading.tsx`), new RegExp(`<WorkspaceSkeleton path="/employee/${page}" />`), page);
+    assert.ok(!fs.existsSync(new URL(`../../src/app/employee/(workspace)/${page}/loading.tsx`, import.meta.url)), page);
   }
+  assert.ok(!fs.existsSync(new URL("../../src/app/employee/(workspace)/loading.tsx", import.meta.url)));
+});
+
+test("the shop's bar does not fetch the category list where it is never drawn", () => {
+  const bar = read("src/components/sections/Navbar.tsx");
+  assert.match(bar, /const noBarHere = \/\^\\\/\(admin\|employee\|supplier\)\(\\\/\|\$\)\/\.test\(pathname\);/);
+  assert.match(bar, /if \(categoriesFetched\.current \|\| noBarHere\) return;/);
+  assert.match(bar, /if \(noBarHere\) return;\s*const net = window\.setTimeout/);
 });
 
 test("the staff pages ask the database once for who is signed in, and side by side for the rest", () => {
