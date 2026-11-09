@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -204,8 +205,14 @@ export async function readEmployeeAuth(): Promise<EmployeeAuth> {
  * console session. Only with no staff cookie at all is the admin one read —
  * the console's owner looking at what the team sees — and it is judged by the
  * console's rules, timeout included.
+ *
+ * Once per request (React's cache): the workspace's layout and its page both ask, and each asking was a trip to the
+ * database, which from the owner's localhost is a trip to the United States (2026-11-09, "the page is very slow").
+ * Outside a page's render (a route handler) it is read each time, as before.
  */
-export async function readWorkspaceAuth(): Promise<WorkspaceAuth> {
+export const readWorkspaceAuth = cache(readWorkspaceAuthNow);
+
+async function readWorkspaceAuthNow(): Promise<WorkspaceAuth> {
   const store = await cookies();
   const staffToken = store.get(STAFF_SESSION_COOKIE)?.value;
 

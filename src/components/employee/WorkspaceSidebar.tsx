@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { Gift, LayoutList, Ship, UserRound } from "lucide-react";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { sideRow, wt } from "@/components/employee/workspace-ui";
+import { pathOf, useWorkspaceNav } from "@/components/employee/workspace-nav";
 
 /**
  * The workspace's rail — the console's, down to the geometry.
@@ -36,12 +37,15 @@ export function WorkspaceSidebar({
   /** Which work the account has: leads, cargo tracking, only its referral link, or both works (an admin). */
   pages?: WorkspacePages;
 }) {
-  const pathname = usePathname();
+  // The page a press is on its way to counts as the one you are on (workspace-nav, 2026-11-09).
+  const nav = useWorkspaceNav();
+  const current = usePathname() ?? "";
+  const pathname = nav.moving ?? pathOf(current);
   const [open, setOpen] = useState(false);
-  const onDashboard = pathname?.startsWith("/employee/dashboard") ?? false;
-  const onProfile = pathname?.startsWith("/employee/profile") ?? false;
-  const onCargo = pathname?.startsWith("/employee/cargo") ?? false;
-  const onReferrals = pathname?.startsWith("/employee/referrals") ?? false;
+  const onDashboard = pathname.startsWith("/employee/dashboard");
+  const onProfile = pathname.startsWith("/employee/profile");
+  const onCargo = pathname.startsWith("/employee/cargo");
+  const onReferrals = pathname.startsWith("/employee/referrals");
 
   const label = `overflow-hidden whitespace-nowrap text-left transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${
     open ? "ml-2.5 max-w-[190px] opacity-100" : "ml-0 max-w-0 opacity-0"
@@ -81,6 +85,7 @@ export function WorkspaceSidebar({
           {(pages === "sales" || pages === "both") && (
             <Link
               href="/employee/dashboard/"
+              onNavigate={() => nav.start("/employee/dashboard/")}
               aria-label="My leads"
               aria-current={onDashboard ? "page" : undefined}
               className={`${sideRow} gap-0 px-1.5 ${onDashboard ? wt.navActive : wt.navIdle}`}
@@ -94,6 +99,7 @@ export function WorkspaceSidebar({
           {(pages === "assigner" || pages === "both") && (
             <Link
               href="/employee/cargo/"
+              onNavigate={() => nav.start("/employee/cargo/")}
               aria-label="Cargo tracking"
               aria-current={onCargo ? "page" : undefined}
               className={`${sideRow} gap-0 px-1.5 ${onCargo ? wt.navActive : wt.navIdle}`}
@@ -107,6 +113,7 @@ export function WorkspaceSidebar({
           {/* The Free China Trip referral task (2026-11-02): every employee's, whatever their job. */}
           <Link
             href="/employee/referrals/"
+            onNavigate={() => nav.start("/employee/referrals/")}
             aria-label="My referrals"
             aria-current={onReferrals ? "page" : undefined}
             className={`${sideRow} gap-0 px-1.5 ${onReferrals ? wt.navActive : wt.navIdle}`}
@@ -118,6 +125,7 @@ export function WorkspaceSidebar({
           </Link>
           <Link
             href="/employee/profile/"
+            onNavigate={() => nav.start("/employee/profile/")}
             aria-label="Profile"
             aria-current={onProfile ? "page" : undefined}
             className={`${sideRow} gap-0 px-1.5 ${onProfile ? wt.navActive : wt.navIdle}`}

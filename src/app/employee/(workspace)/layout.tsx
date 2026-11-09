@@ -7,6 +7,7 @@ import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { WorkspaceSidebar, type WorkspacePages } from "@/components/employee/WorkspaceSidebar";
 import { WorkspaceTabs } from "@/components/employee/WorkspaceTabs";
+import { WorkspaceMain, WorkspaceNavProvider } from "@/components/employee/workspace-nav";
 import { sfFont, wt } from "@/components/employee/workspace-ui";
 
 export const metadata: Metadata = {
@@ -58,6 +59,7 @@ export default async function EmployeeWorkspaceLayout({
   const home = auth.kind === "admin" ? "/employee/dashboard/" : workspaceHome(auth.employee);
 
   return (
+    <WorkspaceNavProvider>
     <div style={sfFont} className={`min-h-screen antialiased ${wt.page}`}>
       {/* Only a real employee session slides its own window; an admin keeps the
           console's session rules. */}
@@ -90,9 +92,11 @@ export default async function EmployeeWorkspaceLayout({
               in a max-w-6xl column, which on a 1440px screen left a third of
               the desk empty and the cards narrower than the same rows are in
               /admin. */}
-          <main className="min-w-0 px-4 pb-16 pt-6 sm:px-6 lg:px-8">{children}</main>
+          {/* The page, or the next page's outline from the moment a tab or the rail is pressed (workspace-nav). */}
+          <WorkspaceMain>{children}</WorkspaceMain>
         </div>
       </div>
     </div>
+    </WorkspaceNavProvider>
   );
 }

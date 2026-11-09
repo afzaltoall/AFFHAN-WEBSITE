@@ -140,7 +140,10 @@ export default function RootLayout({
     // suppressHydrationWarning: the first script below sets data-me, data-trip-locked and two custom
     // properties on <html> before React hydrates it (lib/firstPaintHints.ts). This element only.
     <html lang="en" className={geistSans.variable} data-scroll-behavior="smooth" suppressHydrationWarning>
-      <body className="font-[family-name:var(--font-geist-sans)] w-full relative">
+      {/* suppressHydrationWarning, this element's own attributes only: browser extensions write onto <body> before
+          React starts (the CJ Dropshipping extension's data-cjcrx put "1 Issue" on every page of the owner's
+          localhost, 2026-11-09). Anything inside it is still checked. */}
+      <body className="font-[family-name:var(--font-geist-sans)] w-full relative" suppressHydrationWarning>
         {/* First, before the navbar's HTML: what this device last saw of the account and the trip's lock, so
             the navbar's first frame is right (lib/firstPaintHints.ts). */}
         <script dangerouslySetInnerHTML={{ __html: FIRST_PAINT_SCRIPT }} />

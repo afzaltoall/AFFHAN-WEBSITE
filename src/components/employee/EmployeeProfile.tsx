@@ -14,8 +14,8 @@ import {
   INVALID, NOT_STARTED, OUTCOME_ORDER, leadStatusChip, leadStatusLabel, outcomeMeta, showsTimeToStaff, type LeadOutcomeKey,
 } from "@/lib/leadStatus";
 import { OutcomeTiles, STAFF_ORDER, WinRateCard } from "@/components/ui/OutcomeVisuals";
-import { LiveRefreshButton } from "@/components/ui/LiveRefreshButton";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
+import { RefreshPill } from "@/components/employee/ReferralRefresh";
 import { wt } from "@/components/employee/workspace-ui";
 
 export interface ProfileActivity {
@@ -52,9 +52,17 @@ interface ProfileStats {
 const card = "rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/[0.04]";
 const eyebrow = `text-[11px] font-bold uppercase tracking-wider ${wt.soft}`;
 
+/** When the page was last read, in the office's clock, as My referrals says it. */
+const clockOf = (at: number) => new Date(at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+
 /**
  * A member of staff's own page: their account, their numbers, their recent
  * work, and the two things they manage themselves.
+ *
+ * Its heading is My referrals' (2026-11-09: switching between the two, they looked like two different products): the
+ * title with Refresh beside it, the line under it, when it was last read. Without `stats` (an account that takes no
+ * leads: referral only, or cargo), only the account, the password and the session: no win rate or leads it can never
+ * have.
  */
 export function EmployeeProfile({
   profile,
@@ -63,27 +71,69 @@ export function EmployeeProfile({
   idleMinutes,
 }: {
   profile: ProfileData;
-  stats: ProfileStats;
+  stats: ProfileStats | null;
   activity: ProfileActivity[];
   idleMinutes: number;
 }) {
   const { refresh, refreshing, updatedAt } = useLiveRefresh(60_000);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Profile</h1>
+          <RefreshPill refreshing={refreshing} onRefresh={refresh} />
+        </div>
+        <p className={`mt-1 text-[14px] leading-snug sm:text-[13px] ${wt.mid}`}>
+          {stats ? "Your account, how your leads are going, and your password." : "Your account, your photo and your password."}
+        </p>
+        {/* The server's first answer and the browser's can fall either side of a minute. */}
+        <p className={`mt-0.5 text-[12.5px] ${wt.mid}`} suppressHydrationWarning>
+          Updated {clockOf(updatedAt)}
+        </p>
+      </div>
+
+      <Identity profile={profile} onChanged={refresh} />
+
+      {stats ? (
+        <LeadSections stats={stats} activity={activity} idleMinutes={idleMinutes} />
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <PasswordCard />
+          <SessionCard idleMinutes={idleMinutes} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** How long a session lasts, and the way out. */
+function SessionCard({ idleMinutes }: { idleMinutes: number }) {
+  return (
+    <div className={card}>
+      <h2 className="flex items-center gap-2 text-[15px] font-semibold">
+        <ShieldCheck className="h-4 w-4 text-emerald-600" /> This session
+      </h2>
+      <p className={`mt-1.5 text-[13px] leading-relaxed ${wt.mid}`}>
+        You are signed in on this device. The session ends after {idleMinutes} minutes without activity, and
+        you are asked whether you are still there two minutes before it does. Other tabs of the workspace
+        stay in step with this one.
+      </p>
+      <div className="mt-4">
+        <EmployeeSignOut />
+      </div>
+    </div>
+  );
+}
+
+/** A salesperson's numbers, their leads and their recent work, with the password and the session beside them. */
+function LeadSections({ stats, activity, idleMinutes }: { stats: ProfileStats; activity: ProfileActivity[]; idleMinutes: number }) {
   const won = stats.breakdown.LEAD;
   const decided = won + stats.breakdown.NO_LEAD;
   const rate = decided > 0 ? Math.round((won / decided) * 100) : null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">Profile</h1>
-          <p className={`mt-0.5 text-[13px] ${wt.soft}`}>Your account, how your leads are going, and your password.</p>
-        </div>
-        <LiveRefreshButton onRefresh={refresh} refreshing={refreshing} updatedAt={updatedAt} />
-      </div>
-
-      <Identity profile={profile} onChanged={refresh} />
-
+    <>
       {/* Win rate leads, at the size of the thing it is: the one figure on this
           page that says how the work is going rather than how much of it there
           is. The same card the office sees on their side of the same person,
@@ -177,22 +227,10 @@ export function EmployeeProfile({
 
         <div className="space-y-6">
           <PasswordCard />
-          <div className={card}>
-            <h2 className="flex items-center gap-2 text-[15px] font-semibold">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" /> This session
-            </h2>
-            <p className={`mt-1.5 text-[13px] leading-relaxed ${wt.mid}`}>
-              You are signed in on this device. The session ends after {idleMinutes} minutes without activity, and
-              you are asked whether you are still there two minutes before it does. Other tabs of the workspace
-              stay in step with this one.
-            </p>
-            <div className="mt-4">
-              <EmployeeSignOut />
-            </div>
-          </div>
+          <SessionCard idleMinutes={idleMinutes} />
         </div>
       </div>
-    </div>
+    </>
   );
 }
 

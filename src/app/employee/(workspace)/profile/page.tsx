@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { EMPLOYEE_IDLE_MS, readWorkspaceAuth } from "@/lib/employee-session";
+import { EMPLOYEE_IDLE_MS, isSalesJob, readWorkspaceAuth } from "@/lib/employee-session";
 import { isStoredLeadStatus, NOT_STARTED, OUTCOME_ORDER, type LeadOutcomeKey } from "@/lib/leadStatus";
 import { normalizePhoneKey } from "@/lib/customerGroups";
 import { collapseUpdates } from "@/lib/statusBatch";
@@ -49,11 +49,35 @@ export default async function EmployeeProfilePage() {
   }
 
   const id = auth.employee.id;
-  const [row, inquiries, contacts, shipments, recorded, recent] = await Promise.all([
-    prisma.employee.findUnique({
-      where: { id },
-      select: { name: true, email: true, region: true, role: true, image: true, createdAt: true, lastLoginAt: true },
-    }),
+  const identity = {
+    where: { id },
+    select: { name: true, email: true, region: true, role: true, image: true, createdAt: true, lastLoginAt: true },
+  } as const;
+  const profileOf = (row: NonNullable<Awaited<ReturnType<typeof readIdentity>>>) => ({
+    name: row.name,
+    email: row.email,
+    region: row.region,
+    rank: row.role === "ADMIN" ? "Admin" : "Employee",
+    image: row.image,
+    createdAt: row.createdAt.toISOString(),
+    lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
+  });
+  const readIdentity = () => prisma.employee.findUnique(identity);
+
+  // Only a salesperson has leads (2026-11-09): a referral or cargo account was shown a win rate, leads won and outcome
+  // tiles it can never have, and waited on four rounds of questions to the database for them.
+  if (!isSalesJob(auth.employee)) {
+    const row = await readIdentity();
+    if (!row) return null;
+    return <EmployeeProfile profile={profileOf(row)} stats={null} activity={[]} idleMinutes={Math.round(EMPLOYEE_IDLE_MS / 60000)} />;
+  }
+
+  // What they have recorded lately, for the line under the win rate: asked with everything else, not after it.
+  const week = 7 * 24 * 60 * 60 * 1000;
+  const since = new Date(Date.now() - week);
+  const before = new Date(Date.now() - 2 * week);
+  const [row, inquiries, contacts, shipments, recorded, recent, thisWeek, lastWeek] = await Promise.all([
+    readIdentity(),
     prisma.inquiry.findMany({ where: { assignedToId: id, status: { not: "deleted" } }, select: { id: true } }),
     prisma.contactMessage.findMany({ where: { assignedToId: id, status: { not: "deleted" } }, select: { id: true } }),
     prisma.shipmentInquiry.findMany({ where: { assignedToId: id, status: { not: "deleted" } }, select: { id: true } }),
@@ -72,6 +96,8 @@ export default async function EmployeeProfilePage() {
         shipment: { select: { customerName: true, referenceNo: true, phone: true } },
       },
     }),
+    prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: since } } }),
+    prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: before, lt: since } } }),
   ]);
   if (!row) return null;
 
@@ -104,15 +130,6 @@ export default async function EmployeeProfilePage() {
     seen.add(key);
     if (isStoredLeadStatus(u.status)) breakdown[u.status] += 1;
   }
-  // What they have recorded lately, for the line under the win rate. Two
-  // counts off one indexed column, so it costs a single statement.
-  const week = 7 * 24 * 60 * 60 * 1000;
-  const since = new Date(Date.now() - week);
-  const before = new Date(Date.now() - 2 * week);
-  const [thisWeek, lastWeek] = await Promise.all([
-    prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: since } } }),
-    prisma.statusUpdate.count({ where: { employeeId: id, createdAt: { gte: before, lt: since } } }),
-  ]);
 
   const assigned = inquiries.length + contacts.length + shipments.length;
   breakdown[NOT_STARTED] = Math.max(0, assigned - seen.size);
@@ -154,15 +171,7 @@ export default async function EmployeeProfilePage() {
 
   return (
     <EmployeeProfile
-      profile={{
-        name: row.name,
-        email: row.email,
-        region: row.region,
-        rank: row.role === "ADMIN" ? "Admin" : "Employee",
-        image: row.image,
-        createdAt: row.createdAt.toISOString(),
-        lastLoginAt: row.lastLoginAt ? row.lastLoginAt.toISOString() : null,
-      }}
+      profile={profileOf(row)}
       stats={{
         assigned,
         inquiries: inquiries.length,

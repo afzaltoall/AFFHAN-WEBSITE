@@ -345,8 +345,10 @@ export interface ReferralPayoutView {
  * `withDocuments` (the console's, never the employee's own page), each application's ID proof too.
  */
 export async function employeeReferrals(employee: { id: string; name: string }, { withDocuments = false } = {}) {
-  const code = await ensureReferralCode(employee);
-  const [settings, apps, payouts, ownTarget] = await Promise.all([
+  // All at once, the code with the rest (2026-11-09): it was read first and on its own, a whole trip to the database
+  // before the others started.
+  const [code, settings, apps, payouts, ownTarget] = await Promise.all([
+    ensureReferralCode(employee),
     referralSettings(),
     prisma.tripApplication.findMany({
       where: { referrerId: employee.id, status: { not: "deleted" } },
