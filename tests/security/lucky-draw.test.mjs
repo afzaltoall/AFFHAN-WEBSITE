@@ -84,6 +84,14 @@ test("the pass is a cookie of its own per mode: httpOnly, same-site only, sent o
   assert.match(src, /if \(!claims \|\| claims\.mode !== mode\) return null;/);
 });
 
+test("the TV holds its pass from the moment it opens, renewed while the console's session lasts", () => {
+  // Once the console's session has ended no pass can be had: asked for only after a refusal, it would come too late.
+  const screen = read("src/components/lucky-draw/DrawScreen.tsx");
+  assert.match(screen, /await openPass\(\);\s*const board = await fetchBoard\(\);/);
+  assert.match(screen, /const PASS_EVERY_MS = 30 \* 60_000;/);
+  assert.match(screen, /if \(Date\.now\(\) - passAt\.current > PASS_EVERY_MS\) \{\s*passAt\.current = Date\.now\(\);\s*await openPass\(\);/);
+});
+
 test("only an admin's own session releases, restores, clears the rehearsal or opens a screen; the pass only reads and draws", () => {
   for (const route of ["release", "rehearsal", "screen"]) {
     const src = read(`${API}/${route}/route.ts`);

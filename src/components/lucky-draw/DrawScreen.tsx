@@ -50,6 +50,8 @@ const SETTLE_MS = 900;
 const HOLD_MS = 1600;
 /** The list read again at most this often when the count says it has changed (new applications). */
 const POOL_EVERY_MS = 20_000;
+/** The screen's pass renewed this often while the admin's own session lasts, so it runs 12 hours past the last one. */
+const PASS_EVERY_MS = 30 * 60_000;
 /** Rows in view, and the slots that carry them: one more each side, half in view while the list moves. */
 const ROWS = 7;
 const SLOTS = ROWS + 2;
@@ -315,6 +317,8 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
   const still = useRef(false);
   const poolBusy = useRef(false);
   const poolAt = useRef(0);
+  /** When this screen last got its pass. */
+  const passAt = useRef(0);
   /** What is on the screen, for a press and a poll to read without being made again at every change. */
   const shownNow = useRef<Board | null>(null);
   const showing = useRef<{ scene: Scene; card: DrawCardPublic | null; label: string }>({ scene: "list", card: null, label: "" });
@@ -377,11 +381,16 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
     }
   }, [mode, reel]);
 
-  /** The screen's pass, from the admin's own session in this browser (lib/server/draw-screen.ts). */
+  /**
+   * The screen's pass, from the admin's own session in this browser (lib/server/draw-screen.ts). Taken as the screen
+   * opens and renewed while that session lasts: once it has ended (thirty minutes without a click in the console), no
+   * new pass can be had, so the screen must already hold one.
+   */
   const openPass = useCallback(async (): Promise<boolean> => {
     if (!mode) return false;
     try {
       const res = await fetch(`${API}/screen/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }), cache: "no-store" });
+      if (res.ok) passAt.current = Date.now();
       return res.ok;
     } catch {
       return false;
@@ -469,7 +478,7 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
     [fetchPool, reel, rest, reveal, startRunning],
   );
 
-  // In: the board, with the pass asked for first when this browser has none yet; until then, asked again.
+  // In: the pass, then the board (asked again until it answers), then the list.
   useEffect(() => {
     if (!mode) {
       setAccess("none");
@@ -478,8 +487,9 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
     let stopped = false;
     void (async () => {
       for (let attempt = 0; !stopped; attempt++) {
-        let board = await fetchBoard();
-        if (board === "no_pass" && (await openPass())) board = await fetchBoard();
+        // The pass first, while the admin's session is surely there; without one, a pass this browser already holds.
+        await openPass();
+        const board = await fetchBoard();
         if (stopped) return;
         if (board === "no_pass") {
           setAccess("none");
@@ -519,6 +529,11 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
       running = true;
       try {
         if (document.visibilityState === "visible") {
+          // Tried once a half hour, taken or not (without the admin's session it can't be, and isn't asked again soon).
+          if (Date.now() - passAt.current > PASS_EVERY_MS) {
+            passAt.current = Date.now();
+            await openPass();
+          }
           let next = await fetchBoard();
           if (next === "no_pass") next = (await openPass()) ? await fetchBoard() : "no_pass";
           if (stopped) return;
