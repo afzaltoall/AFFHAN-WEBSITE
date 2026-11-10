@@ -24,7 +24,7 @@
   --faint: rgb(244 239 230 / 0.12);
   --u: min(1vw, 1.7778vh);
   /* One row of the list. */
-  --row: calc(var(--u) * 3.3);
+  --row: calc(var(--u) * 3.05);
   position: fixed;
   inset: 0;
   overflow: hidden;
@@ -58,7 +58,7 @@
   align-items: center;
   justify-content: space-between;
   gap: calc(var(--u) * 2);
-  padding: calc(var(--u) * 2.2) calc(var(--u) * 3.4) 0;
+  padding: calc(var(--u) * 2) calc(var(--u) * 3.4) 0;
 }
 .ld-band-mark {
   display: flex;
@@ -138,7 +138,7 @@
   position: relative;
   width: calc(var(--u) * 74);
   height: calc(var(--row) * 7);
-  margin-top: calc(var(--u) * 1.1);
+  margin-top: calc(var(--u) * 1.4);
 }
 .ld-list,
 .ld-card {
@@ -173,7 +173,7 @@
   will-change: transform;
 }
 .ld-row-id {
-  font-size: calc(var(--u) * 1.2);
+  font-size: calc(var(--u) * 1.15);
   letter-spacing: 0.08em;
   font-variant-numeric: tabular-nums;
   color: rgb(214 168 78 / 0.78);
@@ -183,7 +183,7 @@
   font-family: var(--font-cx-display), Georgia, serif;
   font-variation-settings: "opsz" 11;
   font-weight: 500;
-  font-size: calc(var(--u) * 1.85);
+  font-size: calc(var(--u) * 1.8);
   line-height: 1.2;
   color: var(--white);
   white-space: nowrap;
@@ -191,7 +191,7 @@
   text-overflow: ellipsis;
 }
 .ld-row-from {
-  font-size: calc(var(--u) * 1.05);
+  font-size: calc(var(--u) * 1);
   color: var(--mute);
   white-space: nowrap;
   overflow: hidden;
@@ -298,21 +298,23 @@
   font-weight: 600;
 }
 
+/* The one line under the list: who is in the draw, the draw shown, why Draw waits, or trouble. */
 .ld-note {
-  margin-top: calc(var(--u) * 1.1);
+  margin-top: calc(var(--u) * 1.2);
   height: 1.4em;
-  font-size: calc(var(--u) * 0.95);
+  font-size: calc(var(--u) * 1);
   letter-spacing: 0.04em;
-  color: var(--dim);
+  color: var(--mute);
+}
+.ld-note[data-trouble] {
+  color: #ff9aa6;
 }
 
 /* ---- Draw ---- */
 .ld-act {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: calc(var(--u) * 0.7);
-  padding-bottom: calc(var(--u) * 1.8);
+  justify-content: center;
+  padding: calc(var(--u) * 1.4) 0 calc(var(--u) * 2);
 }
 .ld-draw {
   min-width: calc(var(--u) * 16);
@@ -346,15 +348,6 @@
   cursor: default;
   transform: none;
 }
-.ld-say {
-  height: 1.4em;
-  font-size: calc(var(--u) * 1.05);
-  color: var(--mute);
-  letter-spacing: 0.04em;
-}
-.ld-say[data-trouble] {
-  color: #ff9aa6;
-}
 
 /* ---- The five seats ---- */
 .ld-seats {
@@ -363,10 +356,12 @@
   border-top: 1px solid var(--faint);
   margin: 0 calc(var(--u) * 3.4);
 }
+/* Tall enough for a name on two lines; a shorter one leaves its room at the foot, never between name and city. */
 .ld-seat {
   position: relative;
   min-width: 0;
-  padding: calc(var(--u) * 1.1) calc(var(--u) * 1.3) calc(var(--u) * 1.2);
+  min-height: calc(var(--u) * 12.2);
+  padding: calc(var(--u) * 1) calc(var(--u) * 1.3);
   border-left: 1px solid var(--faint);
 }
 .ld-seat:first-child {
@@ -414,7 +409,6 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
-  min-height: 2.24em;
 }
 .ld-seat-name[data-open] {
   color: var(--dim);
@@ -439,7 +433,7 @@
 
 /* Reserves, once all five seats are taken: one quiet line under them (its place kept, so nothing moves when it comes). */
 .ld-reserves {
-  margin: 0 calc(var(--u) * 3.4) calc(var(--u) * 1.2);
+  margin: 0 calc(var(--u) * 3.4) calc(var(--u) * 1);
   padding-top: calc(var(--u) * 0.9);
   border-top: 1px solid var(--faint);
   font-size: calc(var(--u) * 1.05);

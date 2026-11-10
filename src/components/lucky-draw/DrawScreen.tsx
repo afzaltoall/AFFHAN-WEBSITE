@@ -64,7 +64,9 @@ const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(r
 const count = new Intl.NumberFormat("en-IN");
 const TODAY = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "long", year: "numeric" });
 const AT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-const fromOf = (city: string, country: string) => [city, country].filter(Boolean).join(", ");
+/** "Chennai, India"; a city that is its own country once ("Singapore"). */
+const fromOf = (city: string, country: string) =>
+  city && country && city.trim().toLowerCase() === country.trim().toLowerCase() ? city : [city, country].filter(Boolean).join(", ");
 
 /** An id for one press of Draw (the server draws once per id). */
 function pressId(): string {
@@ -148,7 +150,8 @@ class Reel {
     const here = this.rows.length ? this.rows[mod(Math.round(this.at), this.rows.length)][0] : null;
     this.rows = rows;
     this.shows.fill(-2);
-    this.at = here && rows.length ? mod(this.place(here), rows.length) : 0;
+    // The first list rests with its first person near the top, so the screen opens on the list's start, not its end.
+    this.at = here && rows.length ? mod(this.place(here), rows.length) : Math.max(0, Math.min((ROWS - 1) / 2, rows.length - 1));
     this.paint(this.at);
   }
 
@@ -721,24 +724,21 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
   const empty = !!board && board.ready && board.poolSize === 0;
   /** The live draw waits for applications to close (the server refuses it until then). */
   const early = mode === "live" && !!board?.applicationsOpen;
-  const quiet =
-    say?.text ??
-    (notReady
-      ? "The draw isn't set up on this database yet."
-      : early
-        ? `The live draw opens when applications close on ${closes}. Rehearse until then.`
-        : empty
-          ? "Everyone in the draw has been drawn."
-          : passEnded
-            ? "This screen's pass has ended. Open it again from the console."
-            : "");
   const inList = listed ?? board?.poolSize ?? null;
-  const note =
-    card && (scene === "card" || chosen)
-      ? `Drawn at random from ${count.format(card.poolSize)} applicants · ${AT.format(new Date(card.drawnAt))}`
-      : inList !== null
-        ? `${count.format(inList)} applicants in the draw, listed by Trip ID`
-        : "";
+  /** The one line under the list: trouble first, then why Draw waits, then the draw shown, then who is in it. */
+  const note: { text: string; trouble?: boolean } =
+    say ??
+    (notReady
+      ? { text: "The draw isn't set up on this database yet." }
+      : early
+        ? { text: `The live draw opens when applications close on ${closes}. Rehearse until then.` }
+        : passEnded
+          ? { text: "This screen's pass has ended. Open it again from the console.", trouble: true }
+          : empty
+            ? { text: "Everyone in the draw has been drawn." }
+            : card && (scene === "card" || chosen)
+              ? { text: `Drawn at random from ${count.format(card.poolSize)} applicants · ${AT.format(new Date(card.drawnAt))}` }
+              : { text: inList !== null ? `${count.format(inList)} applicants in the draw, listed by Trip ID` : "" });
 
   if (access === "none") {
     return (
@@ -799,16 +799,15 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
               )}
             </div>
           </div>
-          <p className="ld-note">{note}</p>
+          <p className="ld-note" data-trouble={note.trouble || undefined} role="status">
+            {note.text}
+          </p>
         </main>
 
         <div className="ld-act">
           <button type="button" className="ld-draw" onClick={() => void press()} disabled={drawing || access !== "ok" || notReady || empty || early}>
             {drawing ? "Drawing…" : "Draw"}
           </button>
-          <p className="ld-say" data-trouble={say?.trouble || undefined} role="status">
-            {quiet}
-          </p>
         </div>
 
         <footer>
