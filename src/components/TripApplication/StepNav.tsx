@@ -38,11 +38,17 @@ export function GoldButton({ children, className = "", ...rest }: ButtonHTMLAttr
  * and the Privacy Policy were agreed in the popup before the questions). Enter in a field submits too.
  *
  * Disabled only while the application is being sent (Cloudflare's check never holds it: ApplyExperience). A missing
- * answer is shown on Submit, under its question.
+ * answer is shown on Submit, under its question. `note`: a word over the button while Submit waits (for the ID to
+ * finish uploading, 2026-11-10), where the eye is when it was pressed.
  */
-export function StepNav({ disabled = false }: { disabled?: boolean }) {
+export function StepNav({ disabled = false, note }: { disabled?: boolean; note?: string }) {
   return (
     <div data-ax="nav" className="border-t border-(--cx-white)/10 pt-5">
+      {note && (
+        <p role="status" data-ax-waiting className="mb-3 text-[13px] font-medium text-(--cx-gold) sm:text-right md:pr-[4.75rem] lg:pr-0">
+          {note}
+        </p>
+      )}
       {/* Phones: the gold button across, lowest (under the thumb, and below the site's chat bubble, which floats 96px
           up). Tablets and up: on the right, the bubble's corner (bottom right) left free. */}
       <div className="flex flex-col items-stretch sm:flex-row sm:justify-end md:pr-[4.75rem] lg:pr-0">

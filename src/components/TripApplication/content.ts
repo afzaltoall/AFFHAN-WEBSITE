@@ -62,6 +62,8 @@ export const PLACEHOLDERS = {
 export const SUBMIT = {
   /** Under the AFFHAN emblem while the application is sent and recorded. */
   processing: "Processing your application",
+  /** Over Submit, pressed while the ID was still uploading: it goes by itself once the ID has arrived. */
+  waiting: "Your ID is still uploading. Your application will be sent as soon as it's done.",
 } as const;
 
 /** The moment after the server confirms: then on to their boarding pass. */

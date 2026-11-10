@@ -48,9 +48,10 @@ test("the IDs, and no other, name an upload", () => {
   for (const p of ID_PROOFS) assert.equal(idProofOfKey(`docs/${p.id}/${ID}.jpg`), p.id);
   assert.equal(idProofOfKey(`docs/${ID}.jpg`), null, "a file from before the five names none");
   for (const v of ["ration", "", "Aadhaar", null, 1]) assert.equal(isIdProof(v), false, String(v));
-  // A ticket is refused without one of the five, and the key it makes names it.
+  // A ticket is refused without one of the five, and the key it makes names it. (Since 2026-11-10 the refusal writes a
+  // line in the server's log first, so it is a block.)
   const route = read("src/app/api/trip-applications/document-url/route.ts");
-  assert.ok(route.includes("if (!isIdProof(body.proof)) return NextResponse.json({ error: ID_PROOF_NEEDED }, { status: 400 });"), "refused without one");
+  assert.match(route, /if \(!isIdProof\(body\.proof\)\) \{\s*turnedAway\("no ID named"\);\s*return NextResponse\.json\(\{ error: ID_PROOF_NEEDED \}, \{ status: 400 \}\);\s*\}/, "refused without one");
   assert.ok(route.indexOf("isIdProof(body.proof)") < route.indexOf("documentUploadTarget("), "before a ticket");
   assert.ok(read("src/lib/server/trip-documents.ts").includes("const key = `docs/${proof}/${randomUUID()}."), "the key names it");
   // An application through a link needs a file added as one of them.

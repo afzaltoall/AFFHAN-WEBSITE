@@ -143,6 +143,9 @@ export function ApplyExperience() {
   const [win, setWin] = useState<WindowState>("open");
   /** The consent popup, asked for by Start (the button focus goes back to). */
   const [asking, setAsking] = useState<{ from: HTMLElement | null } | null>(null);
+  /** Submit pressed while the ID was still uploading: the application goes once it has arrived (send). */
+  const queued = useRef<{ from: HTMLElement | null } | null>(null);
+  const [waitingForId, setWaitingForId] = useState(false);
 
   /** A transition is playing: further clicks wait for it. */
   const busy = useRef(true);
@@ -621,13 +624,25 @@ export function ApplyExperience() {
     }
     const payload = toPayload({ ...app.state, consent: agreement });
     const all = validateAll(payload, app.phoneOk);
-    // ID proof still on its way: it goes with the application, so Submit waits for it.
-    if (app.state.documents.uploading > 0) all.idDocument = "Your ID is still uploading. Please wait a moment, then submit.";
+    // An ID still on its way is not missing: it is waited for (below).
+    const onItsWay = app.state.documents.pending.length > 0;
+    if (onItsWay) delete all.idDocument;
     if (FIELD_ORDER.some((k) => all[k])) {
       app.setErrors(all);
       focusFirst(all);
       return;
     }
+    // Submit pressed while the ID is still uploading: the application goes by itself the moment it has arrived
+    // (2026-11-10, the owner: "after uploading any document ... not sending"). It used to answer "Your ID is still
+    // uploading. Please wait a moment, then submit." and send nothing, so whoever waited for it to go waited for good.
+    if (onItsWay) {
+      queued.current = { from: fromButton };
+      setWaitingForId(true);
+      announce(SUBMIT.waiting);
+      return;
+    }
+    queued.current = null;
+    setWaitingForId(false);
     busy.current = true;
     enterTl.current?.progress(1).kill();
     setFailure("");
@@ -637,7 +652,25 @@ export function ApplyExperience() {
     // Not signed in: Cloudflare's token goes with it, the moment there is one (it is usually ready long before
     // Submit; a retry, just after the last one was spent, waits a moment for the next), while the plane takes off;
     // none coming, it goes without one.
-    const request = (needsHuman ? humanWhenReady() : Promise.resolve(null)).then(async (token) => ({ token, result: await submitApplication(payload, token) }));
+    const attempt = async () => {
+      const token = needsHuman ? await humanWhenReady() : null;
+      return { token, result: await submitApplication(payload, token) };
+    };
+    const request = (async () => {
+      let sent = await attempt();
+      // Lost on the way (the line dropped, or no answer in time) with its ID: sent once more by itself (2026-11-10). The
+      // server knows its own files: when the first one was recorded and only its answer was lost, this one is answered
+      // with that application (api/trip-applications), never recorded twice.
+      if (!sent.result.ok && sent.result.reason === "network" && payload.documents?.length) {
+        if (sent.token) {
+          takeHumanToken(null);
+          humanRef.current?.reset();
+        }
+        await sleep(1500);
+        sent = await attempt();
+      }
+      return sent;
+    })();
     // One frame for the pinned frame to be in place before anything is measured.
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     await playSending(fromButton ?? root.current?.querySelector<HTMLElement>("[data-ax-submit]") ?? null);
@@ -691,6 +724,21 @@ export function ApplyExperience() {
     for (let waited = 0; !humanTokenRef.current && !humanStuck.current && waited < 4000; waited += 200) await sleep(200);
     return humanTokenRef.current;
   };
+
+  // Submit was pressed while the ID was still uploading: once nothing is on its way, the application goes, as if
+  // Submit were pressed now. Not when every file failed or was taken off, or one failed (its complaint is under the
+  // field): the applicant decides again.
+  const pendingIds = app.state.documents.pending.length;
+  useEffect(() => {
+    if (!queued.current || pendingIds > 0) return;
+    const from = queued.current.from;
+    queued.current = null;
+    setWaitingForId(false);
+    if (phase !== "form" || !app.state.documents.files.length || app.errors.idDocument) return;
+    void send(from);
+    // Only when the last file settles.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingIds]);
 
   /**
    * On to the boarding pass (TRIP_REGISTERED_HREF), which greets the new
@@ -879,7 +927,7 @@ export function ApplyExperience() {
                   <StepScroll>
                     <ApplicationForm app={app} />
                   </StepScroll>
-                  <StepNav disabled={phase !== "form"} />
+                  <StepNav disabled={phase !== "form"} note={waitingForId ? SUBMIT.waiting : undefined} />
                 </form>
               </div>
             </div>

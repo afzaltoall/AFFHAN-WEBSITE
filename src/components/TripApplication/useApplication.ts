@@ -43,10 +43,11 @@ export interface ApplicationState {
    */
   referral: { code: string };
   /**
-   * With a code, the ID proof the applicant must add (the owner, 2026-11-02): the files uploaded so far, and how many
-   * are still on their way. Memory only, never the draft.
+   * With a code, the ID proof the applicant must add (the owner, 2026-11-02): the files uploaded so far, and the ones
+   * still on their way (each its own id, so one settled twice, or after the field let it go, is counted once).
+   * Memory only, never the draft.
    */
-  documents: { files: UploadedDocument[]; uploading: number };
+  documents: { files: UploadedDocument[]; pending: string[] };
 }
 
 /** One ID file in the private bucket: its key, which of the five IDs it is (`proof`), and what the form shows of it
@@ -64,7 +65,7 @@ const EMPTY: ApplicationState = {
   travel: { hasPassport: null },
   consent: { privacy: false, terms: false },
   referral: { code: "" },
-  documents: { files: [], uploading: 0 },
+  documents: { files: [], pending: [] },
 };
 
 /** The code an employee's link left in this visit's tab (TripRefCapture); "" when none. Never a later visit's. */
@@ -159,7 +160,7 @@ export function useApplication() {
       const back = codeFromLink();
       setState((s) => {
         if (s.referral.code !== gone) return s;
-        return back && back !== gone ? { ...s, referral: { code: back } } : { ...s, referral: { code: "" }, documents: { files: [], uploading: 0 } };
+        return back && back !== gone ? { ...s, referral: { code: back } } : { ...s, referral: { code: "" }, documents: { files: [], pending: [] } };
       });
       setErrors((x) => ({ ...x, idDocument: undefined }));
     };
@@ -231,19 +232,20 @@ export function useApplication() {
    */
   const dropReferral = useCallback(() => {
     forgetLinkCode();
-    setState((s) => ({ ...s, referral: { code: "" }, documents: { files: [], uploading: 0 } }));
+    setState((s) => ({ ...s, referral: { code: "" }, documents: { files: [], pending: [] } }));
     setErrors((e) => ({ ...e, idDocument: undefined }));
   }, []);
 
-  /** ID files: one more on its way, one arrived (or failed: null), one removed. */
-  const documentStarted = useCallback(() => {
-    setState((s) => ({ ...s, documents: { ...s.documents, uploading: s.documents.uploading + 1 } }));
+  /** ID files: one more on its way (its id), one arrived (or failed, or taken off: null), one removed. A file that
+   *  arrives after the field let it go (the link dropped meanwhile) is not taken. */
+  const documentStarted = useCallback((id: string) => {
+    setState((s) => ({ ...s, documents: { ...s.documents, pending: [...s.documents.pending, id] } }));
   }, []);
-  const documentSettled = useCallback((file: UploadedDocument | null) => {
-    setState((s) => ({
-      ...s,
-      documents: { files: file ? [...s.documents.files, file] : s.documents.files, uploading: Math.max(0, s.documents.uploading - 1) },
-    }));
+  const documentSettled = useCallback((id: string, file: UploadedDocument | null) => {
+    setState((s) => {
+      if (!s.documents.pending.includes(id)) return s;
+      return { ...s, documents: { files: file ? [...s.documents.files, file] : s.documents.files, pending: s.documents.pending.filter((p) => p !== id) } };
+    });
     if (file) setErrors((e) => ({ ...e, idDocument: undefined }));
   }, []);
   const removeDocument = useCallback((key: string) => {

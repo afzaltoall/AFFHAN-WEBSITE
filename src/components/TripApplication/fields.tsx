@@ -300,7 +300,7 @@ export function CountryField({ id, value, onChange, error }: { id: string; value
       onPick={(c) => onChange(c.name)}
       invalid={!!error}
       describedBy={error ? `${id}-error` : undefined}
-      placeholder="Select country"
+      placeholder="Select your country"
     />
   );
 }

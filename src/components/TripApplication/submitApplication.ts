@@ -32,28 +32,42 @@ export type SubmitResult =
 
 const ENDPOINT = "/api/trip-applications/";
 const MOCK = process.env.NEXT_PUBLIC_TRIP_APPLICATION_MOCK === "on";
+/**
+ * How long the server has to answer before the attempt counts as lost (2026-11-10): it answers in a few seconds (its
+ * slowest steps, Cloudflare and S3, give up by themselves well before this). Without it, an answer lost on a phone's
+ * line kept "Processing your application" turning for good.
+ */
+const ANSWER_MS = 30_000;
 
 /** `turnstileToken`: Cloudflare's token, for someone not signed in (the API asks for it then, and only then). */
 export async function submitApplication(payload: TripApplicationPayload, turnstileToken: string | null = null): Promise<SubmitResult> {
   if (MOCK) return mockSubmit();
 
+  const stop = new AbortController();
+  const timer = window.setTimeout(() => stop.abort(), ANSWER_MS);
   let res: Response;
-  try {
-    res = await fetch(ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify(turnstileToken ? { ...payload, turnstileToken } : payload),
-    });
-  } catch {
-    return { ok: false, reason: "network", message: "" };
-  }
-
   let data: { referenceNo?: unknown; createdAt?: unknown; error?: unknown; fields?: unknown; reason?: unknown } = {};
   try {
-    data = await res.json();
-  } catch {
-    /* an empty or non-JSON body: the status still says what happened */
+    try {
+      res = await fetch(ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(turnstileToken ? { ...payload, turnstileToken } : payload),
+        signal: stop.signal,
+      });
+    } catch {
+      return { ok: false, reason: "network", message: "" };
+    }
+    try {
+      data = await res.json();
+    } catch {
+      // Recorded, but the answer stopped half-way: as lost as one that never came.
+      if (res.ok && stop.signal.aborted) return { ok: false, reason: "network", message: "" };
+      /* an empty or non-JSON body: the status still says what happened */
+    }
+  } finally {
+    window.clearTimeout(timer);
   }
 
   if (res.ok) {

@@ -15,19 +15,39 @@ export const dynamic = "force-dynamic";
  * its visitor applies like anyone else. The key is made here, and the application checks every key it is sent.
  */
 export async function POST(req: NextRequest) {
+  // One line in the server's log for every file turned away (2026-11-10), the reason only.
+  const turnedAway = (why: string) => console.warn(`[trip-document] no upload: ${why}`);
   const limited = await checkTripDocumentUploadRateLimit(req);
-  if (!limited.success) return limitReached("Several files have been uploaded from this connection in the last hour.", limited);
+  if (!limited.success) {
+    turnedAway("too many from this connection");
+    return limitReached("Several files have been uploaded from this connection in the last hour.", limited);
+  }
 
-  if (await tripClosedHere()) return NextResponse.json({ error: TRIP_LOCKED_ERROR, reason: "locked" }, { status: 403 });
-  if (applicationWindow() !== "open") return NextResponse.json({ error: "Applications are not being taken now.", reason: "closed" }, { status: 403 });
+  if (await tripClosedHere()) {
+    turnedAway("the trip is locked");
+    return NextResponse.json({ error: TRIP_LOCKED_ERROR, reason: "locked" }, { status: 403 });
+  }
+  if (applicationWindow() !== "open") {
+    turnedAway("applications are not being taken");
+    return NextResponse.json({ error: "Applications are not being taken now.", reason: "closed" }, { status: 403 });
+  }
 
   const body = (await req.json().catch(() => ({}))) as { code?: unknown; contentType?: unknown; proof?: unknown };
-  if (!isIdDocumentType(body.contentType)) return NextResponse.json({ error: "Please add a photo (JPEG, PNG or WebP) or a PDF." }, { status: 400 });
+  if (!isIdDocumentType(body.contentType)) {
+    turnedAway(`a type it does not take (${typeof body.contentType === "string" ? body.contentType.slice(0, 40) : typeof body.contentType})`);
+    return NextResponse.json({ error: "Please add a photo (JPEG, PNG or WebP) or a PDF." }, { status: 400 });
+  }
   // Which of the five IDs it is (ID_PROOFS): none other is taken.
-  if (!isIdProof(body.proof)) return NextResponse.json({ error: ID_PROOF_NEEDED }, { status: 400 });
+  if (!isIdProof(body.proof)) {
+    turnedAway("no ID named");
+    return NextResponse.json({ error: ID_PROOF_NEEDED }, { status: 400 });
+  }
 
   try {
-    if (!(await liveReferralCode(body.code))) return NextResponse.json({ error: "This upload isn't available.", reason: "not_live" }, { status: 403 });
+    if (!(await liveReferralCode(body.code))) {
+      turnedAway("not a live link's code");
+      return NextResponse.json({ error: "This upload isn't available.", reason: "not_live" }, { status: 403 });
+    }
   } catch (e) {
     console.error("trip document upload, code check:", e instanceof Error ? e.message : e);
     return NextResponse.json({ error: "Could not start the upload. Please try again." }, { status: 500 });

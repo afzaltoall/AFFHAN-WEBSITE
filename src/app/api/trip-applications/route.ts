@@ -66,6 +66,48 @@ import { LIMITS, SOURCE_NOT_VERIFIED, applicationWindow, isBusinessStatus, isRet
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const bool = (v: unknown) => (typeof v === "boolean" ? v : null);
 
+/**
+ * One line in the server's log for every application turned away (2026-11-10, the owner: "after uploading any document
+ * ... not sending, users are complaining", with nothing on record to say why): the reason, whether a link's code and ID
+ * files came with it, and nothing of the applicant.
+ */
+function turnedAway(why: string, body: Record<string, unknown>) {
+  const files = Array.isArray(body.documents) ? body.documents.length : 0;
+  console.warn(`[trip-application] not recorded: ${why} (link code: ${body.referralCode ? "yes" : "no"}, files: ${files})`);
+}
+
+/** The answer for a recorded application: its Trip ID and when, and this browser remembered as the one that sent it. */
+function recordedAnswer(saved: { id: string; referenceNo: string; createdAt: Date }, status = 201) {
+  const res = NextResponse.json({ referenceNo: saved.referenceNo, createdAt: saved.createdAt.toISOString() }, { status });
+  // This browser is shown its own registration from now on. Never fatal: without AUTH_SECRET the application stands,
+  // and only the remembering is missing.
+  try {
+    rememberTripApplicant(res, saved.id);
+  } catch (e) {
+    console.error("trip application cookie:", e instanceof Error ? e.message : e);
+  }
+  return res;
+}
+
+/**
+ * Whether these ID files are kept with an application already, and whether it is this one (2026-11-10): the same
+ * application sent again, its answer lost on the way back (the form sends it once more by itself, or Try again does),
+ * when every file is kept with one application from this same mobile number, not deleted. Only the browser that
+ * uploaded the files was ever given their keys, so they are proof enough to be told its Trip ID. It used to be told
+ * "Please add your ID again." and, once it had, that the number had applied already: the applicant never saw that the
+ * application they sent was in. Files kept with any other application are this one's only if it adds its own.
+ */
+async function keptWith(keys: string[], customerKey: string | null) {
+  const kept = await prisma.tripApplicationDocument.findMany({
+    where: { key: { in: keys } },
+    select: { application: { select: { id: true, referenceNo: true, createdAt: true, customerKey: true, status: true } } },
+  });
+  if (!kept.length) return "none" as const;
+  const first = kept[0].application;
+  const same = kept.every((k) => k.application.id === first.id) && first.status !== "deleted" && !!customerKey && first.customerKey === customerKey;
+  return same ? first : ("another" as const);
+}
+
 function read(body: Record<string, unknown>): TripApplicationPayload {
   const o = (k: string) => (body[k] && typeof body[k] === "object" ? (body[k] as Record<string, unknown>) : {});
   // Only the six answers (2026-10-29). An email, a website, nationality, travel to China, a company, a business
@@ -114,16 +156,21 @@ export async function POST(req: NextRequest) {
   }
 
   const limited = await checkTripApplicationRateLimit(req);
-  if (!limited.success) return limitReached("Several applications have come from this connection in the last hour.", limited);
+  if (!limited.success) {
+    turnedAway("too many from this connection", body);
+    return limitReached("Several applications have come from this connection in the last hour.", limited);
+  }
 
   // Locked, nothing is taken, from the website or the app (lib/trip-lock.ts).
   if (await tripClosedHere()) {
+    turnedAway("the trip is locked", body);
     return NextResponse.json({ error: TRIP_LOCKED_ERROR, reason: "locked" }, { status: 403 });
   }
 
   const taking = applicationWindow();
   if (taking !== "open") {
     const error = taking === "before" ? `Applications open on ${TRIP_FACTS.applicationsOpen}.` : `Applications closed on ${TRIP_FACTS.applicationsClose}.`;
+    turnedAway(`applications ${taking === "before" ? "not open yet" : "closed"}`, body);
     return NextResponse.json({ error, reason: "closed" }, { status: 403 });
   }
 
@@ -136,6 +183,7 @@ export async function POST(req: NextRequest) {
   const sent = body.business && typeof body.business === "object" ? (body.business as Record<string, unknown>).businessStatus : undefined;
   if (isRetiredBusinessStatus(sent)) errors.businessStatus = "This application has changed. Please reload the page and apply again.";
   if (Object.keys(errors).length) {
+    turnedAway(`answers to look at again: ${Object.keys(errors).join(", ")}`, body);
     return NextResponse.json({ error: "Some answers need another look.", fields: errors }, { status: 400 });
   }
 
@@ -155,16 +203,26 @@ export async function POST(req: NextRequest) {
   const documentKeys = [...new Set(Array.isArray(body.documents) ? body.documents.filter(isIdDocumentKey) : [])].slice(0, ID_DOCUMENTS_MAX);
   // One of the five IDs at least (ID_PROOFS): a key names the one it was added as; one from before the five names none.
   if (referral && !documentKeys.some((k) => idProofOfKey(k))) {
+    turnedAway("no ID proof with a link's code", body);
     return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: ID_DOCUMENT_NEEDED } }, { status: 400 });
   }
-  // An upload already kept with another application (the same files sent twice): this one adds its own. Asked first,
-  // so it costs no call to S3.
+  // Its files already kept with an application: this same one sent again (its answer was lost), answered with its Trip
+  // ID; or another one's, when this one adds its own (keptWith). Asked first, so it costs no call to S3. A lookup that
+  // fails goes on: the files' unique keys still keep one application to a file (the save, below).
   if (documentKeys.length) {
-    const used = await prisma.tripApplicationDocument.findFirst({ where: { key: { in: documentKeys } }, select: { id: true } }).catch(() => null);
-    if (used) return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Please add your ID again." } }, { status: 400 });
+    const kept = await keptWith(documentKeys, customerKey).catch(() => "none" as const);
+    if (kept === "another") {
+      turnedAway("its ID files are kept with another application", body);
+      return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Please add your ID again." } }, { status: 400 });
+    }
+    if (kept !== "none") {
+      console.info("[trip-application] the same application sent again: answered with its Trip ID");
+      return recordedAnswer(kept, 200);
+    }
   }
   const documents = documentKeys.length ? await checkDocuments(documentKeys) : [];
   if (documents.some((d) => d.state === "missing")) {
+    turnedAway("an ID file S3 does not have", body);
     return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Your ID didn't finish uploading. Please add it again." } }, { status: 400 });
   }
 
@@ -178,6 +236,12 @@ export async function POST(req: NextRequest) {
         AND ((${userId}::text IS NOT NULL AND "userId" = ${userId}) OR (${phoneKey}::text IS NOT NULL AND "customerKey" = ${phoneKey}))
       LIMIT 1`;
     if (existing.length) {
+      // This same application, recorded a moment ago by its first try whose answer was slow to come back: its Trip ID.
+      if (documentKeys.length) {
+        const kept = await keptWith(documentKeys, customerKey).catch(() => "none" as const);
+        if (kept !== "none" && kept !== "another") return recordedAnswer(kept, 200);
+      }
+      turnedAway("this account or mobile number has applied already", body);
       return NextResponse.json(
         { error: "We have already received an application from this account or mobile number. To change anything in it, write to info@affhan.com.", reason: "duplicate" },
         { status: 409 },
@@ -238,18 +302,14 @@ export async function POST(req: NextRequest) {
       console.error("trip application customer code:", e instanceof Error ? e.message : e);
     }
 
-    const res = NextResponse.json({ referenceNo: saved.referenceNo, createdAt: saved.createdAt.toISOString() }, { status: 201 });
-    // This browser is shown its own registration from now on. Never fatal either: without AUTH_SECRET the
-    // application stands, and only the remembering is missing.
-    try {
-      rememberTripApplicant(res, saved.id);
-    } catch (e) {
-      console.error("trip application cookie:", e instanceof Error ? e.message : e);
-    }
-    return res;
+    return recordedAnswer(saved);
   } catch (e) {
-    // An upload kept with another application between the check above and this save: this one adds its own.
+    // Its files kept with an application between the check above and this save: this same one, sent twice at once
+    // (its first answer slow to come back), answered with that one's Trip ID; another's, and this one adds its own.
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002" && String(e.meta?.target ?? "").includes("key")) {
+      const kept = await keptWith(documentKeys, customerKey).catch(() => "none" as const);
+      if (kept !== "none" && kept !== "another") return recordedAnswer(kept, 200);
+      turnedAway("its ID files were kept with another application meanwhile", body);
       return NextResponse.json({ error: "Some answers need another look.", fields: { idDocument: "Please add your ID again." } }, { status: 400 });
     }
     console.error("trip application save failed:", e instanceof Error ? e.message : e);
