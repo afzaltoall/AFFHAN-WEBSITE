@@ -6,11 +6,13 @@ import { TRIP_FACTS } from "@/lib/trip-legal";
  * can't, we spin again"). What the server, the console and the TV screen share: the seats, how they are filled, and
  * how a person's name and city are set. No database here, so a test can load it as it is.
  *
- * Five seats (the Terms' five winners). A draw takes the first open seat; once all five are taken it is a reserve. A
- * person released (they can't take part, or the team took their application out as spam or deleted) gives their seat
- * to the first reserve, or leaves it open for the next draw: Terms clause 3 ("Affhan may also select reserve
- * applicants through the same random-selection process") and clause 4 ("offer the place to the next eligible reserve
- * applicant"). So Draw always works, as the owner asked: there is always another person to draw, until nobody is left.
+ * Five seats (the Terms' five winners), drawn in rounds (the owner, the same day: "after completing 5 seats, again draw
+ * has to place in 1st ... replacing 1st one ... in order"; a fresh round from seat 1). Round 1 fills seats 1 to 5. The
+ * next draw starts round 2 and replaces the person in seat 1, the one after replaces seat 2, and so on in order; then
+ * round 3 from seat 1 again. Someone who can't take part (released, or their application taken out as spam or
+ * deleted) leaves their seat open, and the next draw fills it before anything else (Terms clause 4: "offer the place to
+ * the next eligible reserve applicant"). So Draw always works: there is always another person to draw, until nobody is
+ * left.
  */
 export const DRAW_SEATS = TRIP_FACTS.winners;
 
@@ -35,8 +37,12 @@ export interface DrawCardPublic {
   drawnAt: string;
   /** How many were in the draw when this one was drawn. */
   poolSize: number;
+  /** The round it was drawn in: 1 for the first five seats, 2 once seat 1 is drawn again, and so on. */
+  round: number;
   /** Released by the team (can't take part), or taken out as spam or deleted since: no longer holds a seat. */
   out: boolean;
+  /** Its seat went to a later round's draw. */
+  replaced: boolean;
 }
 
 /** The same draw for the console: who it is and how to reach them, who drew and who released. */
@@ -50,6 +56,8 @@ export interface DrawCardFull extends DrawCardPublic {
   releaseNote: string | null;
   /** The application's own status now ("new", "handled", "spam", "deleted"). */
   status: string;
+  /** The draw that took its seat in a later round, when it was replaced. */
+  replacedBy: string | null;
 }
 
 export interface DrawBoard<C extends DrawCardPublic = DrawCardPublic> {
@@ -60,11 +68,13 @@ export interface DrawBoard<C extends DrawCardPublic = DrawCardPublic> {
   cards: C[];
   /** The five seats: each a draw's id, or null while open. */
   seats: (string | null)[];
-  /** Drawn after the seats were full, in order: the first moves up when a seated person is released. */
-  reserves: string[];
-  /** The draw the screen shows large: the last one made, while it still holds a seat or a reserve's place. */
+  /** The round each seat's holder was drawn in, or null while the seat is open. */
+  seatRounds: (number | null)[];
+  /** The round of the latest draw (1 before any). */
+  round: number;
+  /** The draw the screen shows large: the last one made, while it still holds its seat. */
   latest: string | null;
-  /** Whether applications are still being taken (a live draw now leaves out whoever applies later). */
+  /** Whether applications are still being taken (the live draw waits for them to close). */
   applicationsOpen: boolean;
   /** False when the draw's table is not in this database yet (its migration not applied). */
   ready: boolean;
@@ -89,16 +99,41 @@ export interface DrawPool {
 export const compareTripIds = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 /**
+ * Where the next draw goes, given the seats as they stand and the round of the latest draw: the first open seat, in
+ * this round; else the first seat still held from an earlier round, in this round; else (every seat drawn in this
+ * round) seat 1 of the next round. `i` counts from 0.
+ */
+function placeFor(seatRounds: readonly (number | null)[], round: number): { i: number; round: number } {
+  const open = seatRounds.indexOf(null);
+  if (open >= 0) return { i: open, round };
+  const earlier = seatRounds.findIndex((r) => r !== null && r < round);
+  if (earlier >= 0) return { i: earlier, round };
+  return { i: 0, round: round + 1 };
+}
+
+export interface Seating {
+  seats: (string | null)[];
+  seatRounds: (number | null)[];
+  /** The round of the latest draw (1 before any). */
+  round: number;
+  /** Each draw's round, by its id. */
+  roundOf: Record<string, number>;
+  /** Released or taken out, in the order it happened. */
+  out: string[];
+  /** Seats taken by a later round's draw: the one replaced, and the draw that replaced it. */
+  replacedBy: Record<string, string>;
+}
+
+/**
  * Who holds which seat, worked out from the draws alone (never stored): every draw and every release played in the
- * order they happened. A draw takes the first open seat, or joins the reserves; a release frees its seat for the first
- * reserve (or leaves it open), or takes its reserve off the list. Someone taken out as spam or deleted without a
- * release counts as released after everything else. Restoring a release (its time cleared) is as if it never happened.
- * A seat once given never moves to somebody else while its holder stands.
+ * order they happened (placeFor says where each draw goes). A release opens its holder's seat. Someone taken out as
+ * spam or deleted without a release counts as released after everything else. Restoring a release (its time cleared)
+ * is as if it never happened.
  */
 export function seatDraws(
   draws: readonly { id: string; number: number; drawnAt: string; releasedAt: string | null; removed?: boolean }[],
   seats: number = DRAW_SEATS,
-): { seats: (string | null)[]; reserves: string[]; out: string[] } {
+): Seating {
   type Step = { at: number; release: boolean; number: number; id: string };
   const steps: Step[] = [];
   // Draws in their own order, each dated no earlier than the one before it: their numbers say the order they were made.
@@ -112,54 +147,72 @@ export function seatDraws(
   // In time order; at the same moment a draw before a release, and draws in their own order.
   steps.sort((a, b) => a.at - b.at || Number(a.release) - Number(b.release) || a.number - b.number);
   const held: (string | null)[] = Array.from({ length: seats }, () => null);
-  const reserves: string[] = [];
+  const heldRound: (number | null)[] = Array.from({ length: seats }, () => null);
+  const roundOf: Record<string, number> = {};
+  const replacedBy: Record<string, string> = {};
   const out: string[] = [];
+  let round = 1;
   for (const s of steps) {
     if (!s.release) {
-      const open = held.indexOf(null);
-      if (open >= 0) held[open] = s.id;
-      else reserves.push(s.id);
+      const place = placeFor(heldRound, round);
+      const before = held[place.i];
+      if (before) replacedBy[before] = s.id;
+      held[place.i] = s.id;
+      heldRound[place.i] = place.round;
+      round = place.round;
+      roundOf[s.id] = place.round;
       continue;
     }
     out.push(s.id);
     const seat = held.indexOf(s.id);
-    if (seat >= 0) held[seat] = reserves.shift() ?? null;
-    else {
-      const r = reserves.indexOf(s.id);
-      if (r >= 0) reserves.splice(r, 1);
+    if (seat >= 0) {
+      held[seat] = null;
+      heldRound[seat] = null;
     }
   }
-  return { seats: held, reserves, out };
+  return { seats: held, seatRounds: heldRound, round, roundOf, out, replacedBy };
 }
 
-/** Where a draw stands on the board: "Seat 3", "Reserve 1", or null when it no longer holds either. */
-export function placeOf(board: Pick<DrawBoard, "seats" | "reserves">, id: string): { kind: "seat" | "reserve"; n: number } | null {
-  const seat = board.seats.indexOf(id);
-  if (seat >= 0) return { kind: "seat", n: seat + 1 };
-  const reserve = board.reserves.indexOf(id);
-  if (reserve >= 0) return { kind: "reserve", n: reserve + 1 };
-  return null;
+/** Where a draw sits now: its seat (from 1) and the round it was drawn in, or null when it holds no seat. */
+export function placeOf(board: Pick<DrawBoard, "seats" | "seatRounds">, id: string): { n: number; round: number } | null {
+  const i = board.seats.indexOf(id);
+  return i >= 0 ? { n: i + 1, round: board.seatRounds[i] ?? 1 } : null;
 }
+
+/** Where the next draw will go: its seat (from 1) and round. */
+export function nextPlace(board: Pick<DrawBoard, "seatRounds" | "round">): { n: number; round: number } {
+  const p = placeFor(board.seatRounds, board.round);
+  return { n: p.i + 1, round: p.round };
+}
+
+/** "Seat 3 of 5", or "Seat 1 of 5 · Round 2" from the second round on. */
+export const seatWords = (p: { n: number; round: number }) => `Seat ${p.n} of ${DRAW_SEATS}${p.round > 1 ? ` · Round ${p.round}` : ""}`;
+
+/** Small words that stay small inside a name ("Mohamed bin Rashid", "Lucas da Silva"). */
+const PARTICLES = new Set(["bin", "binti", "bint", "van", "von", "der", "de", "da", "di", "du"]);
+/** A word's first letter, and each after an apostrophe, a full stop or a hyphen, as a capital; nothing else touched. */
+const capitalise = (w: string) => w.replace(/(^|['.-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase());
 
 /**
- * A name or a city as people typed it, set for a screen: spaces tidied, and one typed all in small letters or all in
- * capitals given capitals where a name has them ("mohamed ismail", "MOHAMED ISMAIL" -> "Mohamed Ismail"). Anything
- * typed with its own mix of capitals ("McDonald", "Abdul-Rahman") is kept as it was.
+ * A name or a city as people typed it, set for a screen, word by word: spaces tidied; every word begins with a capital
+ * ("mohamed ismail" and "MOHAMED ISMAIL" -> "Mohamed Ismail"; "Mohamed Shairaz fathima Rukaiya" -> "... Fathima ...");
+ * a word typed with its own capitals kept ("McDonald"); in a name of mixed case, a short word in capitals kept as
+ * initials ("Rayyan Ahamed AK") and a longer one set as a name ("MOHAMED Ismail" -> "Mohamed Ismail"); particles kept
+ * small after the first word ("bin", "da").
  */
 export function personName(raw: string): string {
   const s = raw.replace(/\s+/g, " ").trim();
   if (!s) return s;
-  if (s !== s.toLowerCase() && s !== s.toUpperCase()) return s;
-  return s.toLowerCase().replace(/(^|[\s'.-])(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase());
-}
-
-/** The five digits a Trip ID ends with ("TRIP-26-04217" -> "04217"), which the screen turns over one by one. */
-export function tripIdDigits(tripId: string): string {
-  const m = /(\d{5})$/.exec(tripId);
-  return m ? m[1] : tripId.replace(/\D/g, "").slice(-5).padStart(5, "0");
-}
-
-/** The part of a Trip ID before its digits ("TRIP-26-"), shown still while they turn. */
-export function tripIdPrefix(tripId: string): string {
-  return tripId.replace(/\d{5}$/, "");
+  const oneCase = s === s.toLowerCase() || s === s.toUpperCase();
+  return s
+    .split(" ")
+    .map((word, i) => {
+      const lower = word.toLowerCase();
+      if (i > 0 && PARTICLES.has(lower) && (oneCase || word === lower)) return lower;
+      if (oneCase) return capitalise(lower);
+      const letters = word.replace(/[^\p{L}]/gu, "");
+      if (word === word.toUpperCase() && letters !== letters.toLowerCase()) return letters.length >= 4 ? capitalise(lower) : word;
+      return capitalise(word);
+    })
+    .join(" ");
 }

@@ -5,7 +5,9 @@ import { Maximize2, Minimize2 } from "lucide-react";
 import {
   DRAW_SEATS,
   compareTripIds,
+  nextPlace,
   placeOf,
+  seatWords,
   type DrawBoard,
   type DrawCardPublic,
   type DrawMode,
@@ -78,17 +80,16 @@ function pressId(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-/** "Seat 3 of 5", "Reserve 1", or "" when it holds neither any more. */
+/** "Seat 3 of 5", "Seat 1 of 5 · Round 2", or "" when it holds no seat any more. */
 function placeWords(board: Board, id: string): string {
   const p = placeOf(board, id);
-  if (!p) return "";
-  return p.kind === "seat" ? `Seat ${p.n} of ${DRAW_SEATS}` : `Reserve ${p.n}`;
+  return p ? seatWords(p) : "";
 }
 
-/** What the next press draws: the first open seat, or the next reserve. */
+/** What the next press draws: an open seat, or the next seat of the round (seat 1 of a new one after seat 5). */
 function nextWords(board: Board): string {
-  const open = board.seats.indexOf(null);
-  return open >= 0 ? `Drawing seat ${open + 1}` : `Drawing reserve ${board.reserves.length + 1}`;
+  const p = nextPlace(board);
+  return `Drawing seat ${p.n}${p.round > 1 ? ` · Round ${p.round}` : ""}`;
 }
 
 /** The name's size when it comes forward, by its length, so every name fits (draw-screen.css). */
@@ -719,7 +720,8 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
   const board = shown;
   const seats = board?.seats ?? Array.from({ length: DRAW_SEATS }, () => null);
   const byId = new Map((board?.cards ?? []).map((c) => [c.id, c]));
-  const reserves = (board?.reserves ?? []).map((id) => byId.get(id)).filter((c): c is DrawCardPublic => !!c);
+  const seatRounds = board?.seatRounds ?? [];
+  const round = board?.round ?? 1;
   const notReady = !!board && !board.ready;
   const empty = !!board && board.ready && board.poolSize === 0;
   /** The live draw waits for applications to close (the server refuses it until then). */
@@ -814,8 +816,10 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
           <ol className="ld-seats" aria-label="The five seats">
             {seats.map((id, i) => {
               const c = id ? byId.get(id) : null;
+              // A seat still held from an earlier round, waiting its turn in this one: quieter, until it is drawn again.
+              const earlier = !!c && (seatRounds[i] ?? round) < round;
               return (
-                <li key={i} className="ld-seat" data-filled={c ? "" : undefined}>
+                <li key={i} className="ld-seat" data-filled={c ? "" : undefined} data-earlier={earlier || undefined}>
                   <p className="ld-seat-n">Seat {i + 1}</p>
                   {c ? (
                     <>
@@ -836,22 +840,6 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
               );
             })}
           </ol>
-          <p className="ld-reserves" aria-label="Reserves">
-            {reserves.length > 0 ? (
-              <>
-                <b>Reserves</b>
-                {reserves.map((r, i) => (
-                  <span key={r.id}>
-                    <em>{i + 1}</em>
-                    <i>{r.name}</i>
-                    {r.city ? ` · ${r.city}` : ""}
-                  </span>
-                ))}
-              </>
-            ) : (
-              " "
-            )}
-          </p>
         </footer>
       </div>
       {offline && <p className="ld-line">Reconnecting…</p>}

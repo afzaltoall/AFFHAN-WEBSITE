@@ -93,7 +93,7 @@ const removed = (status: string) => status === "spam" || status === "deleted";
 export async function drawBoard(mode: DrawMode, full: true): Promise<DrawBoard<DrawCardFull>>;
 export async function drawBoard(mode: DrawMode, full: false): Promise<DrawBoard<DrawCardPublic>>;
 /**
- * The board in `mode`: every draw in order, the seats and reserves worked out from them (seatDraws), who can still be
+ * The board in `mode`: every draw in order, the seats and rounds worked out from them (seatDraws), who can still be
  * drawn, and the one the screen shows large. `full` for the console (a mobile number to call, who drew, the
  * fingerprint, who released and why); otherwise only what the TV screen may show.
  */
@@ -116,7 +116,8 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
     if (!isMissingTable(e)) throw e;
     // Nobody can have been drawn without the table: everyone in the draw, counted as the pool counts them.
     const [{ n }] = await prisma.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM (${pool(mode, false)}) p`;
-    return { mode, poolSize: n, cards: [], seats: Array.from({ length: DRAW_SEATS }, () => null), reserves: [], latest: null, applicationsOpen, ready: false };
+    const open = Array.from({ length: DRAW_SEATS }, () => null);
+    return { mode, poolSize: n, cards: [], seats: open, seatRounds: open, round: 1, latest: null, applicationsOpen, ready: false };
   }
   const seating = seatDraws(rows.map((r) => ({ id: r.id, number: r.number, drawnAt: iso(r.drawnAt)!, releasedAt: iso(r.releasedAt), removed: removed(r.status) })));
   const out = new Set(seating.out);
@@ -129,7 +130,9 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
     country: r.country,
     drawnAt: iso(r.drawnAt)!,
     poolSize: r.poolSize,
+    round: seating.roundOf[r.id] ?? 1,
     out: out.has(r.id),
+    replaced: !out.has(r.id) && r.id in seating.replacedBy,
     applicationId: r.applicationId,
     phone: r.phone,
     drawnBy: r.drawnBy,
@@ -138,13 +141,37 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
     releasedBy: r.releasedBy,
     releaseNote: r.releaseNote,
     status: r.status,
+    replacedBy: seating.replacedBy[r.id] ?? null,
   }));
   const last = cards.at(-1);
-  const board = { mode, poolSize, seats: seating.seats, reserves: seating.reserves, latest: last && !last.out ? last.id : null, applicationsOpen, ready: true };
+  const board = {
+    mode,
+    poolSize,
+    seats: seating.seats,
+    seatRounds: seating.seatRounds,
+    round: seating.round,
+    latest: last && seating.seats.includes(last.id) ? last.id : null,
+    applicationsOpen,
+    ready: true,
+  };
   if (full) return { ...board, cards };
   return {
     ...board,
-    cards: cards.map(({ id, number, tripId, name, city, country, drawnAt, poolSize: size, out: gone }): DrawCardPublic => ({ id, number, tripId, name, city, country, drawnAt, poolSize: size, out: gone })),
+    cards: cards.map(
+      ({ id, number, tripId, name, city, country, drawnAt, poolSize: size, round, out: gone, replaced }): DrawCardPublic => ({
+        id,
+        number,
+        tripId,
+        name,
+        city,
+        country,
+        drawnAt,
+        poolSize: size,
+        round,
+        out: gone,
+        replaced,
+      }),
+    ),
   };
 }
 
@@ -202,7 +229,7 @@ export async function drawOne(mode: DrawMode, requestId: string, by: string): Pr
   }
 }
 
-/** Someone drawn can't take part: released, with who and why. Their seat goes to the first reserve, or opens. */
+/** Someone drawn can't take part: released, with who and why. Their seat opens, and the next draw fills it first. */
 export async function releaseDraw(id: string, by: string, note: string | null): Promise<boolean> {
   const n = await prisma.$executeRaw`
     UPDATE "TripDraw" SET "releasedAt" = clock_timestamp() AT TIME ZONE 'UTC', "releasedBy" = ${by}, "releaseNote" = ${note}

@@ -135,7 +135,13 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - **Where:** Console → Free China Trip → **Lucky draw** (`/admin/lucky-draw/`, `LuckyDrawBoard`), and the TV screen it opens, `/admin/draw-screen/?mode=live|rehearsal` (`DrawScreen`). The CEO presses Draw on the TV (Space, Enter, Page Down, → and a presenter's clicker too); one press draws one person.
 - **Who is in it** (the owner: "Only those with a valid passport"): applications that answered yes to the passport question, not spam or deleted, one per mobile number (`customerKey`, by the first application), not already drawn in that mode. That was 5,713 people on 2026-11-10.
 - **How one is drawn** (`lib/server/lucky-draw.ts`): on the server, in one transaction under `pg_advisory_xact_lock`. Everyone in the draw is sorted by Trip ID and chosen with `crypto.randomInt`. The row records the pool's size and a sha256 of its Trip IDs. Each press carries its own `requestId`, so a press sent twice is drawn once. Draws are dated with `clock_timestamp()`, after the lock.
-- **Five seats, drawing without end** (the owner: "make it infinity ... if someone says they can't, we spin again"). A draw takes the first open seat, or is a reserve once all five are taken. "Can't take part" (release, with an optional note) gives the seat to the first reserve, or opens it; Restore undoes it. An application marked spam or deleted counts as released. Seats are worked out from the rows (`seatDraws`), never stored.
+- **Five seats, drawn in rounds, without end** (the owner: "make it infinity"; then "after completing 5 seats, again draw has to place in 1st ... replacing 1st one ... in order", choosing a fresh round from seat 1 over reserves):
+  - round 1 fills seats 1 to 5;
+  - the next draw starts round 2 and replaces seat 1's holder, the next seat 2, in order; then round 3 from seat 1;
+  - "Can't take part" (release, with an optional note) opens that seat, and the next draw fills it before any other; Restore undoes it;
+  - an application marked spam or deleted counts as released;
+  - the TV dims seats still held from an earlier round; the console lists everyone replaced or released under "Drawn before" (who took their seat, or why);
+  - seats are worked out from the rows (`seatDraws`, `nextPlace`), never stored. There are no reserves.
 - **Live and Rehearsal:** rehearsal draws never count and never stop anyone being drawn live; Clear rehearsal deletes them. **No live draw while applications are open** (the draw route answers 409 until 25 November 2026, as the Terms require). `next dev` counts applications as always open, so a localhost on the live database can only rehearse.
 - **The TV screen** (the owner: "transparent, genuine ... everyone's names in a list, it scrolls, an arrow at the side, wherever it stops"; "like a Ballon d'Or event"):
   - everyone in the draw scrolls past a gold arrow in Trip ID order: Trip ID, **full name**, city, country;

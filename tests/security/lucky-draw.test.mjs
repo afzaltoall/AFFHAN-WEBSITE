@@ -112,7 +112,7 @@ test("the TV screen never holds a mobile number: the pass and the screen's own r
   assert.match(draw, /const forScreen = actor\.kind === "screen" \|\| body\.view === "screen";/);
   // The public card is made field by field, and the phone is not one of them.
   const server = read("src/lib/server/lucky-draw.ts");
-  const publicCards = /cards: cards\.map\(\(\{([^}]*)\}\): DrawCardPublic/.exec(server);
+  const publicCards = /cards: cards\.map\(\s*\(\{([^}]*)\}\): DrawCardPublic/.exec(server);
   assert.ok(publicCards, "the public cards are picked field by field");
   assert.doesNotMatch(publicCards[1], /phone|drawnBy|poolHash|release|applicationId|status/);
   const shared = read("src/lib/lucky-draw-shared.ts");

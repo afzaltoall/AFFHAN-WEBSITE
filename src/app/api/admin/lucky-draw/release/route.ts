@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Someone drawn can't take part (the owner, 2026-11-10: "if someone says they can't, we spin again"): released, their
- * seat going to the first reserve or opening for the next draw (Terms clause 4); or a release made by mistake, undone.
+ * seat opening for the next draw, which fills it first (Terms clause 4); or a release made by mistake, undone.
  * The admin's own session only, never the TV screen's pass. Body: { id, action: "release" | "restore", note? }.
  */
 export async function POST(req: Request) {
