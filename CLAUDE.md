@@ -135,13 +135,15 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - **Where:** Console → Free China Trip → **Lucky draw** (`/admin/lucky-draw/`, `LuckyDrawBoard`), and the TV screen it opens, `/admin/draw-screen/?mode=live|rehearsal` (`DrawScreen`). The CEO presses Draw on the TV (Space, Enter, Page Down, → and a presenter's clicker too); one press draws one person.
 - **Who is in it** (the owner: "Only those with a valid passport"): applications that answered yes to the passport question, not spam or deleted, one per mobile number (`customerKey`, by the first application), not already drawn in that mode. That was 5,713 people on 2026-11-10.
 - **How one is drawn** (`lib/server/lucky-draw.ts`): on the server, in one transaction under `pg_advisory_xact_lock`. Everyone in the draw is sorted by Trip ID and chosen with `crypto.randomInt`. The row records the pool's size and a sha256 of its Trip IDs. Each press carries its own `requestId`, so a press sent twice is drawn once. Draws are dated with `clock_timestamp()`, after the lock.
-- **Five seats, drawn in rounds, without end** (the owner: "make it infinity"; then "after completing 5 seats, again draw has to place in 1st ... replacing 1st one ... in order", choosing a fresh round from seat 1 over reserves):
-  - round 1 fills seats 1 to 5;
-  - the next draw starts round 2 and replaces seat 1's holder, the next seat 2, in order; then round 3 from seat 1;
+- **Five seats, drawn in rounds, without end** (the owner: "make it infinity"; then "once five seats complete, give a next option; click it and draw 2 opens"):
+  - each round has five seats of its own, filled in order from seat 1;
+  - when all five are taken, the TV's Draw becomes **Start round 2** (Space too) and the console shows the same button; it records nothing, it opens the next round's five empty seats, and the next draw takes its seat 1 (the server starts a round whenever the last one is full);
+  - earlier rounds are kept as they were and listed in the console;
   - "Can't take part" (release, with an optional note) opens that seat, and the next draw fills it before any other; Restore undoes it;
   - an application marked spam or deleted counts as released;
-  - the TV dims seats still held from an earlier round; the console lists everyone replaced or released under "Drawn before" (who took their seat, or why);
-  - seats are worked out from the rows (`seatDraws`, `nextPlace`), never stored. There are no reserves.
+  - seats are worked out from the rows (`seatDraws`, `nextPlace`, `roundFull`), never stored. There are no reserves.
+- **On the TV between draws** (the owner: "show the name 3 seconds, it goes down to its seat, so on to the next person"): the winner's name comes forward for about three seconds, then the list is back with the arrow on the next person. The first opening rests on TRIP-26-00001 with nothing above it.
+- **Its type** (the owner: "fonts are very important"): names in the trip's Bodoni Moda at 600, the winner's in capitals; the screen's words in Jost (`components/lucky-draw/fonts.ts`, TV page only) in spaced capitals; a seat's name sized by its longest word, never split inside one.
 - **Live and Rehearsal:** rehearsal draws never count and never stop anyone being drawn live; Clear rehearsal deletes them. **No live draw while applications are open** (the draw route answers 409 until 25 November 2026, as the Terms require). `next dev` counts applications as always open, so a localhost on the live database can only rehearse.
 - **The TV screen** (the owner: "transparent, genuine ... everyone's names in a list, it scrolls, an arrow at the side, wherever it stops"; "like a Ballon d'Or event"):
   - everyone in the draw scrolls past a gold arrow in Trip ID order: Trip ID, **full name**, city, country;

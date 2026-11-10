@@ -4,17 +4,18 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Loader2, MonitorPlay, RefreshCw, RotateCcw, Ticket, Trash2, UserX, X } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
-import { DRAW_POOL_RULE, DRAW_SEATS, nextPlace, placeOf, seatWords, type DrawBoard, type DrawCardFull, type DrawMode } from "@/lib/lucky-draw-shared";
+import { DRAW_POOL_RULE, DRAW_SEATS, nextPlace, roundFull, seatWords, type DrawBoard, type DrawCardFull, type DrawMode } from "@/lib/lucky-draw-shared";
 
 /**
  * Free China Trip → Lucky draw (the owner, 2026-11-10: "a lucky draw page ... our CEO will click draw the lucky person
  * ... 5 winners ... make it infinity"). The console's side of it; the television's is components/lucky-draw/DrawScreen.
  *
  * Live and Rehearsal, each its own board: the five seats and who holds them (a mobile number to call, where they are
- * from, when they were drawn and by whom, from how many, in which round), and everyone drawn before them: replaced by a
- * later round (after seat 5 the next draw takes seat 1 again, then 2, in order: the owner, 2026-11-10) or released,
- * with why. Draw here as on the TV (a live draw asks first); "Can't take part" releases someone and their seat opens,
- * the next draw filling it first (Terms clause 4); Restore undoes a release made by mistake.
+ * from, when they were drawn and by whom, from how many), round by round: when all five are taken, "Start round 2"
+ * opens the next round's five (the owner, 2026-11-10: "once five seats complete, give a next option; click it and draw
+ * 2 opens"), the rounds before listed under it. Draw here as on the TV (a live draw asks first); "Can't take part"
+ * releases someone and their seat opens, the next draw filling it first (Terms clause 4); Restore undoes a release made
+ * by mistake.
  * "Open the TV screen" opens the screen in a new tab, in the mode chosen. The board reads itself again every few
  * seconds, so a draw made on the TV shows here as it happens.
  */
@@ -63,12 +64,18 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
   const pending = useRef<{ mode: DrawMode; id: string } | null>(null);
   const board = boards[mode];
   const byId = new Map(board.cards.map((c) => [c.id, c]));
-  const seats = board.seats.map((id) => (id ? byId.get(id) ?? null : null));
-  /** Everyone drawn who holds no seat now (replaced by a later round, or released), the latest first. */
-  const earlier = board.cards.filter((c) => c.out || c.replaced).reverse();
-  const releasedCount = board.cards.filter((c) => c.out).length;
-  const upNext = nextPlace(board);
-  const nextWords = `seat ${upNext.n}${upNext.round > 1 ? ` · round ${upNext.round}` : ""}`;
+  /** The next round opened here ("Start round 2"), before its first draw: its five seats shown open. */
+  const [started, setStarted] = useState<Record<DrawMode, number | null>>({ live: null, rehearsal: null });
+  const full = roundFull(board);
+  const startedHere = full && started[mode] === board.round + 1;
+  const round = board.round + (startedHere ? 1 : 0);
+  const seatIds = startedHere ? Array.from({ length: DRAW_SEATS }, (): string | null => null) : board.seats;
+  const seats = seatIds.map((id) => (id ? byId.get(id) ?? null : null));
+  /** The rounds before the one shown, the latest first. */
+  const past = board.rounds.slice(0, startedHere ? board.rounds.length : board.rounds.length - 1).map((ids, i) => ({ n: i + 1, ids })).reverse();
+  const released = board.cards.filter((c) => c.out).reverse();
+  const upNext = startedHere ? { n: 1, round } : nextPlace(board);
+  const nextWords = `seat ${upNext.n} · round ${upNext.round}`;
 
   const read = useCallback(async (which: DrawMode) => {
     const res = await fetch(`/api/admin/lucky-draw/board/?mode=${which}`, { cache: "no-store" });
@@ -128,8 +135,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
       setBoards((b) => ({ ...b, [mode]: j.board! }));
       setReadAt(Date.now());
       const got = j.board.cards.find((c) => c.id === j.drawId);
-      const at = got ? placeOf(j.board, got.id) : null;
-      if (got) setNotice(`${at ? seatWords(at) : "Drawn"}: ${got.name}, ${got.tripId}.`);
+      if (got) setNotice(`${got.seat ? seatWords({ n: got.seat, round: got.round }) : "Drawn"}: ${got.name}, ${got.tripId}.`);
     } catch {
       setError("The draw didn't reach the server. Press Draw again: the same press is sent, so nobody is drawn twice.");
     } finally {
@@ -276,9 +282,9 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
         <dl className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-black/[0.06] shadow-sm ring-1 ring-black/[0.06] sm:grid-cols-4">
           {[
             ["In the draw", count.format(board.poolSize)],
-            ["Round", board.cards.length ? String(board.round) : "–"],
+            ["Round", String(round)],
             ["Drawn", String(board.cards.length)],
-            ["Can't take part", String(releasedCount)],
+            ["Can't take part", String(released.length)],
           ].map(([label, n]) => (
             <div key={label} className="min-w-0 bg-white px-4 py-3">
               <dt className="truncate text-[12px] text-[#6e6e73]">{label}</dt>
@@ -289,23 +295,26 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
 
         <section className={`mb-5 overflow-hidden ${card}`}>
           <div className="flex flex-wrap items-center gap-3 border-b border-black/[0.06] px-5 py-2.5">
-            <h2 className="text-[15px] font-semibold">Seats</h2>
-            <button
-              type="button"
-              onClick={() => (mode === "live" ? setAsk({ kind: "draw" }) : void draw())}
-              disabled={busy || !board.ready || board.poolSize === 0 || (mode === "live" && board.applicationsOpen)}
-              className={`${darkButton} ml-auto h-8 text-[12.5px]`}
-            >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Ticket size={14} />} Draw {nextWords}
-            </button>
+            <h2 className="text-[15px] font-semibold">Round {round}</h2>
+            {full && !startedHere ? (
+              <button type="button" onClick={() => setStarted((st) => ({ ...st, [mode]: board.round + 1 }))} className={`${darkButton} ml-auto h-8 text-[12.5px]`}>
+                <Ticket size={14} /> Start round {board.round + 1}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => (mode === "live" ? setAsk({ kind: "draw" }) : void draw())}
+                disabled={busy || !board.ready || board.poolSize === 0 || (mode === "live" && board.applicationsOpen)}
+                className={`${darkButton} ml-auto h-8 text-[12.5px]`}
+              >
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <Ticket size={14} />} Draw {nextWords}
+              </button>
+            )}
           </div>
           <ol className="divide-y divide-black/[0.06]">
             {seats.map((c, i) => (
               <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3.5">
-                <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">
-                  Seat {i + 1}
-                  {c && board.round > 1 && <span className="mt-0.5 block text-[11px] font-medium normal-case tracking-normal">Round {board.seatRounds[i]}</span>}
-                </span>
+                <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Seat {i + 1}</span>
                 {c ? <Person c={c} /> : <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: the next draw takes it.</p>}
                 {c && (
                   <button type="button" onClick={() => setAsk({ kind: "release", card: c })} disabled={busy} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
@@ -317,11 +326,33 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
           </ol>
         </section>
 
-        {earlier.length > 0 && (
+        {past.map((r) => (
+          <section key={r.n} className={`mb-5 overflow-hidden ${card}`}>
+            <h2 className="border-b border-black/[0.06] px-5 py-2.5 text-[15px] font-semibold">Round {r.n}</h2>
+            <ol className="divide-y divide-black/[0.06]">
+              {r.ids.map((id, i) => {
+                const c = id ? byId.get(id) ?? null : null;
+                return (
+                  <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3">
+                    <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Seat {i + 1}</span>
+                    {c ? <Person c={c} /> : <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: its holder can&rsquo;t take part.</p>}
+                    {c && (
+                      <button type="button" onClick={() => setAsk({ kind: "release", card: c })} disabled={busy} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
+                        <UserX size={14} /> Can&rsquo;t take part
+                      </button>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+        ))}
+
+        {released.length > 0 && (
           <section className={`mb-5 overflow-hidden ${card}`}>
-            <h2 className="border-b border-black/[0.06] px-5 py-2.5 text-[15px] font-semibold">Drawn before</h2>
+            <h2 className="border-b border-black/[0.06] px-5 py-2.5 text-[15px] font-semibold">Can&rsquo;t take part</h2>
             <ul className="divide-y divide-black/[0.06]">
-              {earlier.map((c) => (
+              {released.map((c) => (
                 <li key={c.id} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3.5">
                   <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">
                     Draw {c.number}
@@ -329,7 +360,11 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
                   </span>
                   <div className="min-w-0 flex-1">
                     <Person c={c} />
-                    <p className="mt-1 text-[12.5px] text-[#86868b]">{whyNoSeat(c, byId)}</p>
+                    <p className="mt-1 text-[12.5px] text-[#86868b]">
+                      {c.releasedAt
+                        ? `Released ${fmtWhen(c.releasedAt)} by ${c.releasedBy ?? "the team"}${c.releaseNote ? ` · “${c.releaseNote}”` : ""}`
+                        : `Taken out: marked ${c.status} in Participants`}
+                    </p>
                   </div>
                   {c.releasedAt && (
                     <button type="button" onClick={() => void change(c, "restore")} disabled={busy} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
@@ -368,14 +403,6 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
       {ask?.kind === "screen" && <ScreenWindow live={boards.live} closes={closes} onCancel={() => setAsk(null)} onOpen={openScreen} />}
     </div>
   );
-}
-
-/** Why someone drawn holds no seat now: they couldn't take part (released, or taken out), or a later round took it. */
-function whyNoSeat(c: DrawCardFull, byId: Map<string, DrawCardFull>): string {
-  if (c.releasedAt) return `Can't take part · released ${fmtWhen(c.releasedAt)} by ${c.releasedBy ?? "the team"}${c.releaseNote ? ` · “${c.releaseNote}”` : ""}`;
-  if (c.out) return `Taken out: marked ${c.status} in Participants`;
-  const by = c.replacedBy ? byId.get(c.replacedBy) : null;
-  return by ? `Seat taken in round ${by.round} by draw ${by.number}, ${by.name}` : "Seat taken in a later round";
 }
 
 /** Who was drawn: their name and Trip ID, how to call them, where from, and how they were drawn. */
@@ -472,7 +499,12 @@ function Window({
 function ReleaseWindow({ c, board, busy, onCancel, onConfirm }: { c: DrawCardFull; board: Board; busy: boolean; onCancel: () => void; onConfirm: (note: string) => void }) {
   const [note, setNote] = useState("");
   const seat = board.seats.indexOf(c.id);
-  const where = seat >= 0 ? `Seat ${seat + 1} opens: the next draw takes it, before any other seat.` : "They hold no seat now; this marks that they can't take part.";
+  const where =
+    seat >= 0
+      ? `Seat ${seat + 1} opens: the next draw takes it, before any other seat.`
+      : c.seat
+        ? `Their seat ${c.seat} in round ${c.round} is left open; draws now go to round ${board.round}.`
+        : "This marks that they can't take part.";
   return (
     <Window title={`${c.name} can't take part?`} lines={[where, "If this was a mistake, Restore puts them back."]} busy={busy} confirm="Release" onCancel={onCancel} onConfirm={() => onConfirm(note)}>
       <label className="mt-4 block">

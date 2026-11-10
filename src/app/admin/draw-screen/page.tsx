@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { displayFont } from "@/components/CinematicExperience/fonts";
 import { DrawScreen } from "@/components/lucky-draw/DrawScreen";
+import { drawSans } from "@/components/lucky-draw/fonts";
 import { isDrawMode } from "@/lib/lucky-draw-shared";
 import { TRIP_FACTS } from "@/lib/trip-legal";
 
@@ -22,7 +23,7 @@ export default async function DrawScreenPage({ searchParams }: { searchParams: P
   const params = await searchParams;
   const mode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
   return (
-    <main className={displayFont.variable}>
+    <main className={`${displayFont.variable} ${drawSans.variable}`}>
       <DrawScreen mode={isDrawMode(mode) ? mode : null} closes={TRIP_FACTS.applicationsClose} />
     </main>
   );

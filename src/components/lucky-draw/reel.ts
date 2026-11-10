@@ -20,9 +20,9 @@ export const V1 = 26;
 /** Seconds to reach V1 from a standstill. */
 export const T1 = 0.7;
 /** Seconds of the sweep past the list. */
-export const T2 = 1.8;
+export const T2 = 1.6;
 /** Seconds of the slowing, to the stop. */
-export const T3 = 5.2;
+export const T3 = 4.6;
 /** Rows passed while slowing: an ease-out (1 - (1 - s)^3) that starts at V1 covers V1 * T3 / 3. */
 export const D3 = (V1 * T3) / 3;
 /** The fewest rows the sweep passes, every draw, so every draw is seen to run through the list. */

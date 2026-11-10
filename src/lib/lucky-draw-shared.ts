@@ -6,11 +6,11 @@ import { TRIP_FACTS } from "@/lib/trip-legal";
  * can't, we spin again"). What the server, the console and the TV screen share: the seats, how they are filled, and
  * how a person's name and city are set. No database here, so a test can load it as it is.
  *
- * Five seats (the Terms' five winners), drawn in rounds (the owner, the same day: "after completing 5 seats, again draw
- * has to place in 1st ... replacing 1st one ... in order"; a fresh round from seat 1). Round 1 fills seats 1 to 5. The
- * next draw starts round 2 and replaces the person in seat 1, the one after replaces seat 2, and so on in order; then
- * round 3 from seat 1 again. Someone who can't take part (released, or their application taken out as spam or
- * deleted) leaves their seat open, and the next draw fills it before anything else (Terms clause 4: "offer the place to
+ * Five seats (the Terms' five winners), drawn in rounds (the owner, the same day: "after completing 5 seats ... give a
+ * next option, click it and draw 2 opens"). Each round has five seats of its own, filled in order from seat 1. When
+ * all five are taken, the screen and the console offer "Start round 2"; the next draw then takes seat 1 of round 2,
+ * the round before kept as it was. Someone who can't take part (released, or their application taken out as spam or
+ * deleted) leaves their seat open, and the next draw fills it before any other (Terms clause 4: "offer the place to
  * the next eligible reserve applicant"). So Draw always works: there is always another person to draw, until nobody is
  * left.
  */
@@ -37,12 +37,12 @@ export interface DrawCardPublic {
   drawnAt: string;
   /** How many were in the draw when this one was drawn. */
   poolSize: number;
-  /** The round it was drawn in: 1 for the first five seats, 2 once seat 1 is drawn again, and so on. */
+  /** The round it was drawn in. */
   round: number;
+  /** Its seat in that round (1 to 5), or null once released. */
+  seat: number | null;
   /** Released by the team (can't take part), or taken out as spam or deleted since: no longer holds a seat. */
   out: boolean;
-  /** Its seat went to a later round's draw. */
-  replaced: boolean;
 }
 
 /** The same draw for the console: who it is and how to reach them, who drew and who released. */
@@ -56,8 +56,6 @@ export interface DrawCardFull extends DrawCardPublic {
   releaseNote: string | null;
   /** The application's own status now ("new", "handled", "spam", "deleted"). */
   status: string;
-  /** The draw that took its seat in a later round, when it was replaced. */
-  replacedBy: string | null;
 }
 
 export interface DrawBoard<C extends DrawCardPublic = DrawCardPublic> {
@@ -66,12 +64,12 @@ export interface DrawBoard<C extends DrawCardPublic = DrawCardPublic> {
   poolSize: number;
   /** Every draw in this mode, in the order drawn. */
   cards: C[];
-  /** The five seats: each a draw's id, or null while open. */
+  /** The current round's five seats: each a draw's id, or null while open. */
   seats: (string | null)[];
-  /** The round each seat's holder was drawn in, or null while the seat is open. */
-  seatRounds: (number | null)[];
-  /** The round of the latest draw (1 before any). */
+  /** The current round (1 before any draw). */
   round: number;
+  /** Every round's five seats, round 1 first. */
+  rounds: (string | null)[][];
   /** The draw the screen shows large: the last one made, while it still holds its seat. */
   latest: string | null;
   /** Whether applications are still being taken (the live draw waits for them to close). */
@@ -98,37 +96,21 @@ export interface DrawPool {
 /** Trip IDs in the order the draw puts everyone in (plain character order: TRIP-26-00001 before TRIP-26-00002). */
 export const compareTripIds = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
-/**
- * Where the next draw goes, given the seats as they stand and the round of the latest draw: the first open seat, in
- * this round; else the first seat still held from an earlier round, in this round; else (every seat drawn in this
- * round) seat 1 of the next round. `i` counts from 0.
- */
-function placeFor(seatRounds: readonly (number | null)[], round: number): { i: number; round: number } {
-  const open = seatRounds.indexOf(null);
-  if (open >= 0) return { i: open, round };
-  const earlier = seatRounds.findIndex((r) => r !== null && r < round);
-  if (earlier >= 0) return { i: earlier, round };
-  return { i: 0, round: round + 1 };
-}
-
 export interface Seating {
-  seats: (string | null)[];
-  seatRounds: (number | null)[];
-  /** The round of the latest draw (1 before any). */
-  round: number;
-  /** Each draw's round, by its id. */
+  /** Every round's five seats, round 1 first; the last is the current round. */
+  rounds: (string | null)[][];
+  /** Each draw's round, and its seat in that round (from 1; null once released), by its id. */
   roundOf: Record<string, number>;
+  seatOf: Record<string, number | null>;
   /** Released or taken out, in the order it happened. */
   out: string[];
-  /** Seats taken by a later round's draw: the one replaced, and the draw that replaced it. */
-  replacedBy: Record<string, string>;
 }
 
 /**
  * Who holds which seat, worked out from the draws alone (never stored): every draw and every release played in the
- * order they happened (placeFor says where each draw goes). A release opens its holder's seat. Someone taken out as
- * spam or deleted without a release counts as released after everything else. Restoring a release (its time cleared)
- * is as if it never happened.
+ * order they happened. A draw takes the first open seat of the current round, or, when all five are taken, seat 1 of
+ * a new round. A release opens its holder's seat (in whichever round). Someone taken out as spam or deleted without a
+ * release counts as released after everything else. Restoring a release (its time cleared) is as if it never happened.
  */
 export function seatDraws(
   draws: readonly { id: string; number: number; drawnAt: string; releasedAt: string | null; removed?: boolean }[],
@@ -146,47 +128,46 @@ export function seatDraws(
   }
   // In time order; at the same moment a draw before a release, and draws in their own order.
   steps.sort((a, b) => a.at - b.at || Number(a.release) - Number(b.release) || a.number - b.number);
-  const held: (string | null)[] = Array.from({ length: seats }, () => null);
-  const heldRound: (number | null)[] = Array.from({ length: seats }, () => null);
+  const empty = () => Array.from({ length: seats }, (): string | null => null);
+  const rounds: (string | null)[][] = [empty()];
   const roundOf: Record<string, number> = {};
-  const replacedBy: Record<string, string> = {};
+  const seatOf: Record<string, number | null> = {};
   const out: string[] = [];
-  let round = 1;
   for (const s of steps) {
     if (!s.release) {
-      const place = placeFor(heldRound, round);
-      const before = held[place.i];
-      if (before) replacedBy[before] = s.id;
-      held[place.i] = s.id;
-      heldRound[place.i] = place.round;
-      round = place.round;
-      roundOf[s.id] = place.round;
+      let current = rounds[rounds.length - 1];
+      let i = current.indexOf(null);
+      if (i < 0) {
+        current = empty();
+        rounds.push(current);
+        i = 0;
+      }
+      current[i] = s.id;
+      roundOf[s.id] = rounds.length;
+      seatOf[s.id] = i + 1;
       continue;
     }
     out.push(s.id);
-    const seat = held.indexOf(s.id);
-    if (seat >= 0) {
-      held[seat] = null;
-      heldRound[seat] = null;
+    for (const round of rounds) {
+      const i = round.indexOf(s.id);
+      if (i >= 0) round[i] = null;
     }
+    seatOf[s.id] = null;
   }
-  return { seats: held, seatRounds: heldRound, round, roundOf, out, replacedBy };
+  return { rounds, roundOf, seatOf, out };
 }
 
-/** Where a draw sits now: its seat (from 1) and the round it was drawn in, or null when it holds no seat. */
-export function placeOf(board: Pick<DrawBoard, "seats" | "seatRounds">, id: string): { n: number; round: number } | null {
-  const i = board.seats.indexOf(id);
-  return i >= 0 ? { n: i + 1, round: board.seatRounds[i] ?? 1 } : null;
+/** Where the next draw goes: the first open seat of the current round, or seat 1 of the next round once all are taken. */
+export function nextPlace(board: Pick<DrawBoard, "seats" | "round">): { n: number; round: number } {
+  const open = board.seats.indexOf(null);
+  return open >= 0 ? { n: open + 1, round: board.round } : { n: 1, round: board.round + 1 };
 }
 
-/** Where the next draw will go: its seat (from 1) and round. */
-export function nextPlace(board: Pick<DrawBoard, "seatRounds" | "round">): { n: number; round: number } {
-  const p = placeFor(board.seatRounds, board.round);
-  return { n: p.i + 1, round: p.round };
-}
+/** Whether every seat of the current round is taken (the next draw starts a new round). */
+export const roundFull = (board: Pick<DrawBoard, "seats">) => board.seats.length > 0 && board.seats.every(Boolean);
 
-/** "Seat 3 of 5", or "Seat 1 of 5 · Round 2" from the second round on. */
-export const seatWords = (p: { n: number; round: number }) => `Seat ${p.n} of ${DRAW_SEATS}${p.round > 1 ? ` · Round ${p.round}` : ""}`;
+/** "Round 1 · Seat 3 of 5". */
+export const seatWords = (p: { n: number; round: number }) => `Round ${p.round} · Seat ${p.n} of ${DRAW_SEATS}`;
 
 /** Small words that stay small inside a name ("Mohamed bin Rashid", "Lucas da Silva"). */
 const PARTICLES = new Set(["bin", "binti", "bint", "van", "von", "der", "de", "da", "di", "du"]);

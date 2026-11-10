@@ -6,7 +6,7 @@ import {
   DRAW_SEATS,
   compareTripIds,
   nextPlace,
-  placeOf,
+  roundFull,
   seatWords,
   type DrawBoard,
   type DrawCardPublic,
@@ -46,10 +46,10 @@ const API = "/api/admin/lucky-draw";
 const POLL_MS = 2000;
 /** How long the server has to answer a press, each time it is asked. */
 const ANSWER_MS = 15_000;
-/** After a name is shown, how long before Draw answers again (a clicker pressed twice draws once). */
-const SETTLE_MS = 900;
 /** On the row drawn, lit, before the name comes forward. */
-const HOLD_MS = 1600;
+const HOLD_MS = 1200;
+/** The name, come forward, before the list comes back for the next person (the owner: "3 second katanum podhum"). */
+const CARD_MS = 3000;
 /** The list read again at most this often when the count says it has changed (new applications). */
 const POOL_EVERY_MS = 20_000;
 /** The screen's pass renewed this often while the admin's own session lasts, so it runs 12 hours past the last one. */
@@ -80,22 +80,34 @@ function pressId(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-/** "Seat 3 of 5", "Seat 1 of 5 · Round 2", or "" when it holds no seat any more. */
-function placeWords(board: Board, id: string): string {
-  const p = placeOf(board, id);
-  return p ? seatWords(p) : "";
+/** "Round 1 · Seat 3 of 5" for a draw that holds its seat, or "" once it doesn't. */
+function placeWords(c: DrawCardPublic): string {
+  return c.seat ? seatWords({ n: c.seat, round: c.round }) : "";
 }
 
-/** What the next press draws: an open seat, or the next seat of the round (seat 1 of a new one after seat 5). */
-function nextWords(board: Board): string {
-  const p = nextPlace(board);
-  return `Drawing seat ${p.n}${p.round > 1 ? ` · Round ${p.round}` : ""}`;
+/** What a press draws now: an open seat of the round; seat 1 of the next round once it has been started. */
+function nextWords(board: Board, started: boolean): string {
+  const p = started ? { n: 1, round: board.round + 1 } : nextPlace(board);
+  return `Round ${p.round} · Drawing seat ${p.n}`;
 }
 
-/** The name's size when it comes forward, by its length, so every name fits (draw-screen.css). */
+/** The words over the list between draws: the seat the next press draws, or that the round is complete. */
+function restWords(board: Board, started: boolean): string {
+  if (started) return `Round ${board.round + 1} · Seat 1 next`;
+  if (roundFull(board)) return `Round ${board.round} complete`;
+  return `Round ${board.round} · Seat ${nextPlace(board).n} next`;
+}
+
+/** The name's size when it comes forward, in capitals, by its length, so every name fits its line (draw-screen.css). */
 function nameSize(name: string): "l" | "m" | "s" | "xs" {
   const n = name.length;
-  return n <= 22 ? "l" : n <= 32 ? "m" : n <= 44 ? "s" : "xs";
+  return n <= 18 ? "l" : n <= 24 ? "m" : n <= 31 ? "s" : "xs";
+}
+
+/** A seat's name size by its longest word, so no word is ever broken across two lines ("Soundarapandiyan"). */
+function seatNameSize(name: string): "l" | "m" | "s" | "xs" {
+  const longest = Math.max(0, ...name.split(/\s+/).map((w) => w.length));
+  return longest <= 10 ? "l" : longest <= 13 ? "m" : longest <= 16 ? "s" : "xs";
 }
 
 /**
@@ -151,8 +163,8 @@ class Reel {
     const here = this.rows.length ? this.rows[mod(Math.round(this.at), this.rows.length)][0] : null;
     this.rows = rows;
     this.shows.fill(-2);
-    // The first list rests with its first person near the top, so the screen opens on the list's start, not its end.
-    this.at = here && rows.length ? mod(this.place(here), rows.length) : Math.max(0, Math.min((ROWS - 1) / 2, rows.length - 1));
+    // The first list opens on its first person, under the arrow (the owner: "starting ... trip 1 erundhu start aganum").
+    this.at = here && rows.length ? mod(this.place(here), rows.length) : 0;
     this.paint(this.at);
   }
 
@@ -271,7 +283,9 @@ class Reel {
       if (!el) continue;
       const off = k - MID;
       el.style.transform = `translate3d(0, ${((off - frac) * 100).toFixed(3)}%, 0)`;
-      const row = n ? mod(base + off, n) : -1;
+      // Nothing comes before the list's first person: above it the rows are empty (the list only ever moves on).
+      const raw = base + off;
+      const row = n && raw >= 0 ? mod(raw, n) : -1;
       if (this.shows[k] === row) continue;
       this.shows[k] = row;
       const e = row >= 0 ? this.rows[row] : null;
@@ -302,6 +316,12 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
   const [chosen, setChosen] = useState(false);
   /** How many are in the list on the screen (null until it is read). */
   const [listed, setListed] = useState<number | null>(null);
+  /** A round opened here with "Start round 2", before its first draw: its five seats shown empty. */
+  const [started, setStarted] = useState<number | null>(null);
+  const startedNow = useRef<number | null>(null);
+  useEffect(() => {
+    startedNow.current = started;
+  }, [started]);
   const [say, setSay] = useState<{ text: string; trouble: boolean } | null>(null);
   const [offline, setOffline] = useState(false);
   const [passEnded, setPassEnded] = useState(false);
@@ -401,26 +421,33 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
     }
   }, [mode]);
 
-  /** The screen at rest: the last person drawn, come forward, while they hold a place; otherwise the list. */
+  /** Whether this screen has opened the next round ("Start round 2") and is waiting for its first draw. */
+  const isStarted = useCallback((board: Board | null) => !!board && startedNow.current === board.round + 1 && roundFull(board), []);
+
+  /**
+   * The screen between draws: the list, the arrow on the next person (the owner: "the name goes down to its seat, so
+   * on to the next person"), the words saying which seat the next press draws.
+   */
   const rest = useCallback(
     (board: Board) => {
       const c = board.latest ? board.cards.find((x) => x.id === board.latest) ?? null : null;
       setChosen(false);
-      setCard(c);
-      setLabel(c ? placeWords(board, c.id) : "");
-      setScene(c ? "card" : "list");
+      setCard(null);
+      setScene("list");
+      setLabel(restWords(board, isStarted(board)));
       if (c) reel.restOn(c.tripId);
     },
-    [reel],
+    [isStarted, reel],
   );
 
   /**
    * The person drawn shown: the running list (`running`) lands on their row, which lights; then their name comes
-   * forward, and their seat fills. Without a running list (none read, or reduced motion), the list rests on them.
+   * forward and their seat fills; three seconds later the list is back, on the next person. Without a running list
+   * (none read, or reduced motion), the list rests on them.
    */
   const reveal = useCallback(
     async (c: DrawCardPublic, board: Board, running: Promise<boolean> | null) => {
-      const words = placeWords(board, c.id);
+      const words = placeWords(c);
       if (running) {
         reel.land(reel.ensure([c.tripId, c.name, c.city, c.country]));
         await running;
@@ -437,10 +464,15 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
       setShown(board);
       setHeard(`${words}: ${c.name}, ${fromOf(c.city, c.country)}. Trip ID ${c.tripId}.`);
       reel.settle();
-      // They have left the list: read it again, while their name holds the screen.
+      // They have left the list: read it again while their name holds the screen, so it comes back on the next person.
       void fetchPool();
+      await sleep(still.current ? 1500 : CARD_MS - 650);
+      if (!live.current) return;
+      setStarted(null);
+      startedNow.current = null;
+      rest(board);
     },
-    [fetchPool, reel],
+    [fetchPool, reel, rest],
   );
 
   /** The list starts to run, under the words for what is being drawn (not when it can't: none read, reduced motion). */
@@ -464,7 +496,8 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
         seen.current = newest.number;
         busy.current = true;
         setDrawing(true);
-        const running = startRunning(shownNow.current ? nextWords(shownNow.current) : "Drawing");
+        const before = shownNow.current;
+        const running = startRunning(before ? nextWords(before, isStarted(before)) : "Drawing");
         await reveal(newest, next, running);
         busy.current = false;
         setDrawing(false);
@@ -472,14 +505,12 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
       }
       seen.current = Math.max(seen.current, newest?.number ?? 0);
       setShown(next);
-      // A release or a restore changes who holds the screen.
-      const now = showing.current;
-      if (now.card && now.card.id === next.latest) setLabel(placeWords(next, now.card.id));
-      else if (now.card || next.latest) rest(next);
+      // A release or a restore changes the seats and what the next press draws.
+      if (showing.current.scene === "list") setLabel(restWords(next, isStarted(next)));
       // New applications, or people taken out: the list read again (not too often).
       if (next.poolSize !== reel.size && Date.now() - poolAt.current > POOL_EVERY_MS) void fetchPool();
     },
-    [fetchPool, reel, rest, reveal, startRunning],
+    [fetchPool, isStarted, reel, reveal, startRunning],
   );
 
   // In: the pass, then the board (asked again until it answers), then the list.
@@ -609,6 +640,17 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
     [mode, openPass],
   );
 
+  /** The next round opened (the owner: "once five seats complete, give a next option; click it and draw 2 opens"). */
+  const startRound = useCallback((board: Board) => {
+    setStarted(board.round + 1);
+    startedNow.current = board.round + 1;
+    setSay(null);
+    setChosen(false);
+    setCard(null);
+    setScene("list");
+    setLabel(restWords(board, true));
+  }, []);
+
   const press = useCallback(async () => {
     const board = latest.current ?? shownNow.current;
     if (busy.current || access !== "ok" || !board || !board.ready || (mode === "live" && board.applicationsOpen)) return;
@@ -616,10 +658,15 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
       setSay({ text: "Everyone in the draw has been drawn.", trouble: false });
       return;
     }
+    // All five seats taken: this press opens the next round; the one after draws its seat 1.
+    if (roundFull(board) && !isStarted(board)) {
+      startRound(board);
+      return;
+    }
     busy.current = true;
     setDrawing(true);
     const before = showing.current;
-    const running = startRunning(nextWords(board));
+    const running = startRunning(nextWords(board, isStarted(board)));
     const id = pending.current ?? pressId();
     pending.current = id;
     const answer = await sendDraw(id);
@@ -652,10 +699,9 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
       setShown(answer.board);
       rest(answer.board);
     }
-    await sleep(SETTLE_MS);
     busy.current = false;
     setDrawing(false);
-  }, [access, mode, reel, rest, reveal, sendDraw, startRunning]);
+  }, [access, isStarted, mode, reel, rest, reveal, sendDraw, startRound, startRunning]);
 
   // The keys that draw; F for full screen.
   useEffect(() => {
@@ -718,10 +764,14 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
   }, []);
 
   const board = shown;
-  const seats = board?.seats ?? Array.from({ length: DRAW_SEATS }, () => null);
+  /** The next round opened here, before its first draw: five empty seats under its name. */
+  const startedHere = !!board && started === board.round + 1 && roundFull(board);
+  const openSeats = Array.from({ length: DRAW_SEATS }, (): string | null => null);
+  const seats = startedHere ? openSeats : board?.seats ?? openSeats;
+  const round = (board?.round ?? 1) + (startedHere ? 1 : 0);
+  /** The next press opens a round rather than drawing (every seat of this one taken). */
+  const nextRound = !!board && roundFull(board) && !startedHere;
   const byId = new Map((board?.cards ?? []).map((c) => [c.id, c]));
-  const seatRounds = board?.seatRounds ?? [];
-  const round = board?.round ?? 1;
   const notReady = !!board && !board.ready;
   const empty = !!board && board.ready && board.poolSize === 0;
   /** The live draw waits for applications to close (the server refuses it until then). */
@@ -758,6 +808,11 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
   return (
     <div className={`ld${quietPointer ? " ld-hide-cursor" : ""}`}>
       <div className="ld-frame">
+        {/* Fine gold corners: the frame of a ceremony's plate. Drawn once; nothing moves. */}
+        <span className="ld-corner" data-at="tl" aria-hidden />
+        <span className="ld-corner" data-at="tr" aria-hidden />
+        <span className="ld-corner" data-at="bl" aria-hidden />
+        <span className="ld-corner" data-at="br" aria-hidden />
         <header className="ld-band">
           <div className="ld-band-mark">
             <b>AFFHAN</b>
@@ -807,23 +862,30 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
         </main>
 
         <div className="ld-act">
-          <button type="button" className="ld-draw" onClick={() => void press()} disabled={drawing || access !== "ok" || notReady || empty || early}>
-            {drawing ? "Drawing…" : "Draw"}
+          <button
+            type="button"
+            className="ld-draw"
+            data-next={(nextRound && !drawing) || undefined}
+            onClick={() => void press()}
+            disabled={drawing || access !== "ok" || notReady || empty || early}
+          >
+            {drawing ? "Drawing…" : nextRound ? `Start round ${round + 1}` : "Draw"}
           </button>
         </div>
 
         <footer>
-          <ol className="ld-seats" aria-label="The five seats">
+          <p className="ld-round">Round {round}</p>
+          <ol className="ld-seats" aria-label={`Round ${round}: the five seats`}>
             {seats.map((id, i) => {
               const c = id ? byId.get(id) : null;
-              // A seat still held from an earlier round, waiting its turn in this one: quieter, until it is drawn again.
-              const earlier = !!c && (seatRounds[i] ?? round) < round;
               return (
-                <li key={i} className="ld-seat" data-filled={c ? "" : undefined} data-earlier={earlier || undefined}>
+                <li key={i} className="ld-seat" data-filled={c ? "" : undefined}>
                   <p className="ld-seat-n">Seat {i + 1}</p>
                   {c ? (
                     <>
-                      <p className="ld-seat-name">{c.name}</p>
+                      <p className="ld-seat-name" data-size={seatNameSize(c.name)}>
+                        {c.name}
+                      </p>
                       <p className="ld-seat-meta">{fromOf(c.city, c.country)}</p>
                       <p className="ld-seat-id">{c.tripId}</p>
                     </>
