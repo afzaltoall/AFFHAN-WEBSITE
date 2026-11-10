@@ -1388,11 +1388,47 @@ model TripApplication {
   /// The ID proof an applicant who came through an employee's link must add (the owner, 2026-11-02); none otherwise.
   documents TripApplicationDocument[]
 
+  /// Its turns in the lucky draw (TripDraw): none until it is drawn.
+  draws TripDraw[]
+
   @@index([status])
   @@index([createdAt])
   @@index([customerKey])
   @@index([userId])
   @@index([referrerId])
+}
+
+/// The Free China Trip's lucky draw (the owner, 2026-11-10: "our CEO will click draw the lucky person ... 5 winners ...
+/// make it infinity"): every draw, in the order made, from applicants with a valid passport, one chance a person
+/// (lib/server/lucky-draw.ts). Five seats: a draw takes the first open seat, or is a reserve once all five are taken;
+/// someone released (they can't take part) gives their seat to the first reserve, or leaves it open for the next draw
+/// (Terms clauses 3 and 4). Which seat each holds is worked out from these rows (seatDraws), never stored.
+/// "rehearsal" rows are practice on the TV screen: kept apart, cleared from the console, never stopping anyone being
+/// drawn for real. Read and written in plain SQL, as TripStage is, so a database without the table reads as no draws.
+model TripDraw {
+  id            String          @id @default(uuid())
+  /// "live" or "rehearsal".
+  mode          String          @default("live")
+  /// 1, 2, 3 … within its mode, in the order drawn.
+  number        Int
+  applicationId String
+  /// Restrict: a draw is a result, so the application it names can never be removed from under it (none ever is).
+  application   TripApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict)
+  drawnAt       DateTime        @default(now())
+  /// Who pressed Draw (an admin's name, or the TV screen's admin).
+  drawnBy       String
+  /// How many were in the draw at that moment, and a fingerprint of exactly who (sha256 of their Trip IDs in order).
+  poolSize      Int
+  poolHash      String
+  /// Released: the person can't take part. Cleared again by Restore.
+  releasedAt    DateTime?
+  releasedBy    String?
+  releaseNote   String?
+  /// The screen's own id for one press of Draw, so a press sent twice (its answer lost) is drawn once.
+  requestId     String          @unique
+
+  @@unique([mode, number])
+  @@index([applicationId])
 }
 
 /// A photo or scan of an applicant's ID (Aadhaar, passport or any government ID), required of everyone who applies

@@ -53,7 +53,7 @@ const UPDATED = {
   shipping: '2026-09-16',
   chinaTrip: '2026-10-01',
   /** The trip's own Terms & Conditions and Privacy Policy (lib/trip-legal.ts). */
-  chinaTripLegal: '2026-11-08',
+  chinaTripLegal: '2026-11-10',
   careers: '2026-09-17',
   /** Every role page is generated from lib/careerRoles.ts, so they share its date. */
   careerRoles: '2026-09-17',

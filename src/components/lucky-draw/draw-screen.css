@@ -1,0 +1,508 @@
+/*
+ * The lucky draw's TV screen (DrawScreen). Everything under .ld, the page's root.
+ *
+ * A ceremony's screen (the owner, 2026-11-10: "like a Ballon d'Or event, perfect"; "not too much animation, we will run
+ * it on a TV, it must not get stuck"): black, gold and white, the trip's Didone (Bodoni Moda) for names, thin gold
+ * rules, and one thing moving at a time.
+ *   - One unit, --u, a hundredth of the largest 16:9 frame the window holds, so a laptop, a 1080p and a 4K screen show
+ *     the same picture, only sharper.
+ *   - Nothing moves on its own: no loop, no particles, no glow that breathes. Movement comes only with a draw: the list
+ *     running (transforms only, nine rows), the chosen row lighting, the name coming forward (opacity and transform),
+ *     then stillness again.
+ *   - No blur, no filter and no backdrop. The list's soft top and bottom are a mask, drawn once.
+ *   - The result never waits on an animation ending: the component sets what is shown on its own clock, and the
+ *     transitions are dress over it, so a slow screen shows the same result a moment later, never a frozen one.
+ */
+
+.ld {
+  --ink: #070608;
+  --gold: #d6a84e;
+  --gold-hi: #f2d38e;
+  --white: #f4efe6;
+  --mute: rgb(244 239 230 / 0.66);
+  --dim: rgb(244 239 230 / 0.38);
+  --faint: rgb(244 239 230 / 0.12);
+  --u: min(1vw, 1.7778vh);
+  /* One row of the list. */
+  --row: calc(var(--u) * 3.3);
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  /* One soft light from above the stage, as on a ceremony's set; nothing else. */
+  background: radial-gradient(ellipse 60% 55% at 50% 36%, rgb(214 168 78 / 0.08), transparent 72%), var(--ink);
+  color: var(--white);
+  font-family: var(--font-geist-sans), "Plus Jakarta Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+.ld.ld-hide-cursor,
+.ld.ld-hide-cursor * {
+  cursor: none !important;
+}
+
+/* The frame: the largest 16:9 the window holds, centred; everything is placed inside it. */
+.ld-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--u) * 100);
+  height: calc(var(--u) * 56.25);
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+}
+
+/* ---- The band across the top ---- */
+.ld-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u) * 2);
+  padding: calc(var(--u) * 2.2) calc(var(--u) * 3.4) 0;
+}
+.ld-band-mark {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 1.2);
+  font-size: calc(var(--u) * 1.1);
+}
+.ld-band-mark b {
+  color: var(--gold);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+}
+.ld-band-mark span {
+  color: var(--mute);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.ld-band-right {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.4);
+  font-size: calc(var(--u) * 1.1);
+  letter-spacing: 0.02em;
+  color: var(--mute);
+  font-weight: 500;
+}
+.ld-rehearsal {
+  padding: calc(var(--u) * 0.3) calc(var(--u) * 1.1);
+  border: 1px solid rgb(214 168 78 / 0.55);
+  border-radius: 999px;
+  font-size: calc(var(--u) * 0.9);
+  color: var(--gold-hi);
+  font-weight: 600;
+}
+.ld-full {
+  display: grid;
+  place-items: center;
+  width: calc(var(--u) * 2.4);
+  height: calc(var(--u) * 2.4);
+  border-radius: 999px;
+  color: var(--dim);
+  transition: color 0.2s;
+}
+.ld-full:hover {
+  color: var(--white);
+}
+.ld-full svg {
+  width: calc(var(--u) * 1.15);
+  height: calc(var(--u) * 1.15);
+}
+
+/* ---- The stage ---- */
+.ld-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0 calc(var(--u) * 6);
+}
+/* What is happening, in words: "Drawing seat 3", then "Seat 3 of 5". A status, as a gate's screen says Boarding. */
+.ld-eyebrow {
+  font-size: calc(var(--u) * 1.3);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+  /* the letter-spacing's trailing gap, given back so the words sit centred */
+  margin-right: -0.26em;
+  height: 1.4em;
+}
+
+/* The list and the person drawn share one place, one fading out as the other comes in. */
+.ld-theatre {
+  position: relative;
+  width: calc(var(--u) * 74);
+  height: calc(var(--row) * 7);
+  margin-top: calc(var(--u) * 1.1);
+}
+.ld-list,
+.ld-card {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.55s ease;
+}
+.ld-theatre[data-scene="card"] .ld-list {
+  opacity: 0;
+}
+
+/* The list: Trip ID, name, city. Its rows fade towards the top and the bottom; the arrow's row is at the middle. */
+.ld-reel {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 27%, #000 73%, transparent 100%);
+  mask-image: linear-gradient(180deg, transparent 0%, #000 27%, #000 73%, transparent 100%);
+}
+.ld-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - var(--row) / 2);
+  height: var(--row);
+  display: grid;
+  grid-template-columns: calc(var(--u) * 12.5) minmax(0, 1fr) calc(var(--u) * 17);
+  align-items: center;
+  column-gap: calc(var(--u) * 2);
+  padding: 0 calc(var(--u) * 2.6);
+  text-align: left;
+  will-change: transform;
+}
+.ld-row-id {
+  font-size: calc(var(--u) * 1.2);
+  letter-spacing: 0.08em;
+  font-variant-numeric: tabular-nums;
+  color: rgb(214 168 78 / 0.78);
+  font-weight: 600;
+}
+.ld-row-name {
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-variation-settings: "opsz" 11;
+  font-weight: 500;
+  font-size: calc(var(--u) * 1.85);
+  line-height: 1.2;
+  color: var(--white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ld-row-from {
+  font-size: calc(var(--u) * 1.05);
+  color: var(--mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+.ld-row[data-chosen] .ld-row-id,
+.ld-row[data-chosen] .ld-row-name {
+  color: var(--gold-hi);
+}
+.ld-row[data-chosen] .ld-row-from {
+  color: var(--white);
+}
+
+/* The arrow's row: two gold rules across the list, the arrow at its side. */
+.ld-lens {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(50% - var(--row) / 2);
+  height: var(--row);
+  border-top: calc(var(--u) * 0.1) solid rgb(214 168 78 / 0.55);
+  border-bottom: calc(var(--u) * 0.1) solid rgb(214 168 78 / 0.55);
+  background: rgb(214 168 78 / 0.05);
+  pointer-events: none;
+  transition:
+    background-color 0.4s ease,
+    border-color 0.4s ease;
+}
+.ld-lens[data-chosen] {
+  border-color: var(--gold-hi);
+  background: rgb(214 168 78 / 0.14);
+}
+.ld-arrow {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--u) * -3.3);
+  width: 0;
+  height: 0;
+  border-top: calc(var(--u) * 1) solid transparent;
+  border-bottom: calc(var(--u) * 1) solid transparent;
+  border-left: calc(var(--u) * 1.7) solid var(--gold);
+  transform: translateY(-50%);
+}
+
+/* The person drawn, come forward. */
+.ld-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(calc(var(--u) * 0.8));
+  transition:
+    opacity 0.6s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+  pointer-events: none;
+}
+.ld-theatre[data-scene="card"] .ld-card {
+  opacity: 1;
+  transform: none;
+}
+.ld-name {
+  max-width: calc(var(--u) * 84);
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-weight: 500;
+  font-size: calc(var(--u) * 5.6);
+  line-height: 1.04;
+  letter-spacing: -0.005em;
+  overflow-wrap: anywhere;
+  color: var(--white);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.ld-name[data-size="m"] {
+  font-size: calc(var(--u) * 4.4);
+}
+.ld-name[data-size="s"] {
+  font-size: calc(var(--u) * 3.4);
+}
+.ld-name[data-size="xs"] {
+  font-size: calc(var(--u) * 2.8);
+}
+.ld-rule {
+  display: block;
+  width: calc(var(--u) * 6);
+  height: calc(var(--u) * 0.12);
+  margin: calc(var(--u) * 1.8) 0 calc(var(--u) * 1.5);
+  background: var(--gold);
+}
+.ld-from {
+  font-size: calc(var(--u) * 1.6);
+  letter-spacing: 0.05em;
+  color: var(--mute);
+}
+.ld-card-id {
+  margin-top: calc(var(--u) * 0.8);
+  font-size: calc(var(--u) * 1.15);
+  letter-spacing: 0.14em;
+  font-variant-numeric: tabular-nums;
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.ld-note {
+  margin-top: calc(var(--u) * 1.1);
+  height: 1.4em;
+  font-size: calc(var(--u) * 0.95);
+  letter-spacing: 0.04em;
+  color: var(--dim);
+}
+
+/* ---- Draw ---- */
+.ld-act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 0.7);
+  padding-bottom: calc(var(--u) * 1.8);
+}
+.ld-draw {
+  min-width: calc(var(--u) * 16);
+  height: calc(var(--u) * 4.2);
+  padding: 0 calc(var(--u) * 3);
+  border-radius: 999px;
+  background: var(--gold);
+  color: #1a1206;
+  font-size: calc(var(--u) * 1.3);
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
+  text-transform: uppercase;
+  transition:
+    background-color 0.15s ease,
+    transform 0.12s ease,
+    opacity 0.25s ease;
+}
+.ld-draw:hover {
+  background: var(--gold-hi);
+}
+.ld-draw:active {
+  transform: translateY(1px);
+}
+.ld-draw:focus-visible {
+  outline: 2px solid var(--white);
+  outline-offset: 4px;
+}
+.ld-draw:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+.ld-say {
+  height: 1.4em;
+  font-size: calc(var(--u) * 1.05);
+  color: var(--mute);
+  letter-spacing: 0.04em;
+}
+.ld-say[data-trouble] {
+  color: #ff9aa6;
+}
+
+/* ---- The five seats ---- */
+.ld-seats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-top: 1px solid var(--faint);
+  margin: 0 calc(var(--u) * 3.4);
+}
+.ld-seat {
+  position: relative;
+  min-width: 0;
+  padding: calc(var(--u) * 1.1) calc(var(--u) * 1.3) calc(var(--u) * 1.2);
+  border-left: 1px solid var(--faint);
+}
+.ld-seat:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.ld-seat:last-child {
+  padding-right: 0;
+}
+/* The gold line a seat gets as it is filled: drawn once along its top, then it stays. */
+.ld-seat::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 2px;
+  background: var(--gold);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 0.9s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ld-seat[data-filled]::before {
+  transform: scaleX(1);
+}
+.ld-seat-n {
+  font-size: calc(var(--u) * 0.9);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+}
+.ld-seat[data-filled] .ld-seat-n {
+  color: var(--gold-hi);
+}
+.ld-seat-name {
+  margin-top: calc(var(--u) * 0.6);
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-weight: 500;
+  font-size: calc(var(--u) * 2.05);
+  line-height: 1.12;
+  color: var(--white);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  min-height: 2.24em;
+}
+.ld-seat-name[data-open] {
+  color: var(--dim);
+  font-style: italic;
+}
+.ld-seat-meta {
+  margin-top: calc(var(--u) * 0.45);
+  font-size: calc(var(--u) * 1);
+  color: var(--mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ld-seat-id {
+  margin-top: calc(var(--u) * 0.25);
+  font-size: calc(var(--u) * 0.95);
+  letter-spacing: 0.12em;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+  min-height: 1.3em;
+}
+
+/* Reserves, once all five seats are taken: one quiet line under them (its place kept, so nothing moves when it comes). */
+.ld-reserves {
+  margin: 0 calc(var(--u) * 3.4) calc(var(--u) * 1.2);
+  padding-top: calc(var(--u) * 0.9);
+  border-top: 1px solid var(--faint);
+  font-size: calc(var(--u) * 1.05);
+  line-height: 1.4;
+  color: var(--mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ld-reserves b {
+  color: var(--gold);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  font-size: 0.82em;
+  margin-right: 1.2em;
+}
+.ld-reserves i {
+  font-style: normal;
+  color: var(--white);
+}
+.ld-reserves em {
+  font-style: normal;
+  color: var(--gold);
+  margin: 0 0.5em 0 1.4em;
+}
+
+/* Trouble with the line, said quietly in a corner; never a banner across the room. */
+.ld-line {
+  position: absolute;
+  left: calc(var(--u) * 3.4);
+  bottom: calc(var(--u) * 0.9);
+  font-size: calc(var(--u) * 0.9);
+  color: var(--dim);
+  letter-spacing: 0.06em;
+}
+
+/* No pass: what to do, nothing else. */
+.ld-door {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 0 8vw;
+}
+.ld-door h1 {
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-weight: 500;
+  font-size: calc(var(--u) * 3.6);
+  line-height: 1.1;
+}
+.ld-door p {
+  margin-top: calc(var(--u) * 1.4);
+  font-size: calc(var(--u) * 1.2);
+  color: var(--mute);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ld-list,
+  .ld-card,
+  .ld-lens,
+  .ld-seat::before {
+    transition-duration: 0.01s !important;
+    transition-delay: 0s !important;
+  }
+}

@@ -349,12 +349,14 @@ export const TRIP_TERMS: LegalDoc = {
  * perfectly what we do what we done"; "privacy policy la technical information remove panu"): what the one-page
  * application asks and no Technical Information list (section 1); the ID proof's handling (section 4); what the team
  * member whose link was used sees (section 5); where the website and the documents are kept (section 6); the cookies
- * and browser storage the trip really uses, and no analytics (section 11). The section numbers stay: the pages and
- * the consent sheet link to them.
+ * and browser storage the trip really uses, and no analytics (section 11); the lucky draw's screen, which lists
+ * everyone in the draw by Trip ID, name, city and country (section 12, 2026-11-10: the owner chose full names; change
+ * it with lib/lucky-draw-shared.ts's DrawPoolEntry). The section numbers stay: the pages and the consent sheet link to
+ * them.
  */
 export const TRIP_PRIVACY: LegalDoc = {
   heading: ["AFFHAN Free China Business Trip", "Privacy Policy"],
-  updated: "8 November 2026",
+  updated: "10 November 2026",
   intro: [
     "AFFHAN INTERNATIONAL PVT LTD respects your privacy and is committed to protecting the personal information you provide when using our website, applying for the Affhan Free China Business Trip, or communicating with us.",
     "This Privacy Policy explains what information we collect, why we collect it, how we use it, when we may share it, and how we protect it.",
@@ -556,6 +558,7 @@ export const TRIP_PRIVACY: LegalDoc = {
       title: "Winner Information",
       blocks: [
         p("If you are selected as a winner, Affhan may publish or communicate limited winner information as part of the official winner announcement."),
+        p("The winners are drawn live, in front of an audience, on a screen. While each winner is drawn, the screen shows everyone in the random-selection pool as a scrolling list: each applicant's Trip ID, name, city and country. Mobile numbers, identity documents and passport answers are never shown on it. The draw may be recorded, and the recording shared through Affhan's official communication channels as part of the winner announcement."),
         p("Passport numbers, passport copies, visa documents, private contact information, and other sensitive travel information will not be publicly displayed as part of a standard winner announcement."),
       ],
     },

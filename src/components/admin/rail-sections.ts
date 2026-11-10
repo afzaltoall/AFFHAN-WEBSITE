@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import {
-  Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Store, Trash2,
+  Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Store, Ticket, Trash2,
   TrendingUp, Trophy, UserCog, Users, type LucideIcon,
 } from "lucide-react";
 
@@ -19,7 +19,7 @@ import {
  */
 
 export type RailKey =
-  | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-referrals" | "trip-lock" | "trash"
+  | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-referrals" | "lucky-draw" | "trip-lock" | "trash"
   | "staff" | "team-performance" | "activity"
   | "suppliers" | "new-suppliers" | "videos"
   | "website-users" | "app-users" | "supplier-users";
@@ -97,6 +97,8 @@ export const RAIL_GROUPS: RailGroup[] = [
       { key: "trips", href: "/admin/trip-applications/", label: "Participants", icon: Plane },
       // The employees' referral task (the owner, 2026-11-02): everyone's code, progress, counting and payments.
       { key: "trip-referrals", href: "/admin/trip-referrals/", label: "Employee tasks", icon: Trophy },
+      // The lucky draw for the five seats (the owner, 2026-11-10): drawn here or on the TV screen it opens.
+      { key: "lucky-draw", href: "/admin/lucky-draw/", label: "Lucky draw", icon: Ticket },
       // The key to the homepage trip banner's lock (TripLockPanel), one click
       // from anywhere in the console, its row saying which way it stands
       // (TripLockRailStatus). The owner's request of 2026-10-06.
