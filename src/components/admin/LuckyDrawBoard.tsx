@@ -270,15 +270,16 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
           </p>
         )}
 
-        <dl className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+        {/* One strip with hairlines, as the dashboard's figures (the owner, 2026-11-03), never four tiles. */}
+        <dl className="mb-5 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-black/[0.06] shadow-sm ring-1 ring-black/[0.06] sm:grid-cols-4">
           {[
             ["In the draw", count.format(board.poolSize)],
             ["Seats filled", `${filled} of ${DRAW_SEATS}`],
             ["Reserves", String(reserves.length)],
             ["Released", String(released.length)],
           ].map(([label, n]) => (
-            <div key={label} className={`min-w-0 px-4 py-3 ${card}`}>
-              <dt className="truncate text-[12px] text-[#86868b]">{label}</dt>
+            <div key={label} className="min-w-0 bg-white px-4 py-3">
+              <dt className="truncate text-[12px] text-[#6e6e73]">{label}</dt>
               <dd className="mt-0.5 text-[22px] font-semibold tabular-nums tracking-tight">{n}</dd>
             </div>
           ))}
