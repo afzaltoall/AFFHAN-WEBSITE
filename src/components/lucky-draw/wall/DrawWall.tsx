@@ -23,11 +23,13 @@ import "./wall.css";
  * they do the lucky draw ... animated, innovative ... like opening a gift box"; the first screen, the list, is kept as
  * tag backup/lucky-draw-v1 and stays as this page's fallback, ../DrawScreen.tsx).
  *
- * Everyone in the draw is a tile on a turning drum (./stage.ts), in Trip ID order from TRIP-26-00001, under a gold
- * frame. One press of Draw (the button, or Space, Enter, Page Down or → from a presenter's clicker): the drum turns,
- * slows until the last names can be read, and stops with the person drawn in the frame; their tile becomes a gift,
- * the gift opens, and their boarding pass rises out of it and holds the screen for three seconds before going down
- * into their seat; then the frame moves on to the next person. A draw made from the console shows here the same way.
+ * The screen is a wall of names, every row in Trip ID order and rolling slowly, the first clear row opening with
+ * TRIP-26-00001 (./stage.ts, ./grid.ts; the owner, 2026-11-11: "filled completely ... one box of light, moving
+ * everywhere, for real, not like magic ... a genuine random draw"). One press of Draw (the button, or Space, Enter,
+ * Page Down or → from a presenter's clicker): one box of light runs over the names, a box at a time in every
+ * direction, quick and then ever slower, while the rows roll on by a screen; its last step lands on the person the
+ * server drew. Their box becomes a gift, the gift opens, and their boarding pass rises out of it and holds the screen
+ * for three seconds before going down into their seat. A draw made from the console shows here the same way.
  *
  * Everything else is the list screen's, unchanged: the server chooses (lib/server/lucky-draw.ts), the screen only shows
  * the choice; each press carries its own id, so one whose answer is lost is asked again and answered with the same
@@ -78,10 +80,17 @@ function restWords(board: Board, started: boolean): string {
   return `Round ${board.round} · Seat ${nextPlace(board).n} next`;
 }
 
-/** A seat's name size by its longest word, so no word is ever broken across two lines ("Soundarapandiyan"). */
+/**
+ * A seat's name size: by its longest word, so no word is ever broken across two lines ("Soundarapandiyan"), and by its
+ * whole length, so it fits in two lines ("Mohommed Safardeen Mohommed Inshaf").
+ */
 function seatNameSize(name: string): "l" | "m" | "s" | "xs" {
+  const sizes = ["l", "m", "s", "xs"] as const;
   const longest = Math.max(0, ...name.split(/\s+/).map((w) => w.length));
-  return longest <= 10 ? "l" : longest <= 13 ? "m" : longest <= 16 ? "s" : "xs";
+  const byWord = longest <= 12 ? 0 : longest <= 14 ? 1 : longest <= 17 ? 2 : 3;
+  // One line up to 18 letters (l, then m); two lines after that (s, then xs).
+  const byLength = name.length <= 15 ? 0 : name.length <= 18 ? 1 : name.length <= 34 ? 2 : 3;
+  return sizes[Math.max(byWord, byLength)];
 }
 
 type Fetched = Board | "no_pass" | null;
@@ -115,6 +124,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
   const rootRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const liftRef = useRef<HTMLDivElement>(null);
+  const viewRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<WallStage | null>(null);
   const seatEls = useRef<(HTMLLIElement | null)[]>([]);
   const seatRefs = useMemo(
@@ -156,7 +166,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     };
   }, []);
 
-  /** The wall's people from the pool and the board's winners (gold); put in when the drum is at rest. */
+  /** The wall's people from the pool and the board's winners (gold); put in between draws. */
   const syncWall = useCallback((board: Board | null) => {
     const stage = stageRef.current;
     const pool = poolRef.current;
@@ -165,7 +175,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     stage.setRows(w.entries, w.gold);
   }, []);
 
-  /** Once the stage, the pool and the board are all here: the wall put in, the frame on its first person. */
+  /** Once the stage, the pool and the board are all here: the wall put in, its top row opening on the first person. */
   const placeFirst = useCallback(() => {
     const stage = stageRef.current;
     const board = shownNow.current ?? latest.current;
@@ -229,7 +239,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
 
   const isStarted = useCallback((board: Board | null) => !!board && startedNow.current === board.round + 1 && roundFull(board), []);
 
-  /** Between draws: the words for the next press, the winners gold on the wall, the frame on the next person. */
+  /** Between draws: the words for the next press, the winners gold on the wall, the light out and the rows rolling. */
   const rest = useCallback(
     (board: Board) => {
       const c = board.latest ? board.cards.find((x) => x.id === board.latest) ?? null : null;
@@ -242,13 +252,15 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     [isStarted, syncWall],
   );
 
-  /** The person drawn shown: the drum lands on them, their gift opens, their pass goes down into their seat. */
+  /** The person drawn shown: the light lands on them, their gift opens, their pass goes down into their seat. */
   const reveal = useCallback(
     async (c: DrawCardPublic, board: Board, running: Promise<boolean> | null) => {
       const words = placeWords(c);
       const stage = stageRef.current;
       if (running && stage) {
         stage.land(stage.ensure([c.tripId, c.name, c.city, c.country]));
+        // Their gift and pass made while the names slow, so the stop itself is never held up.
+        stage.prepare(c);
         await running;
       } else stage?.restOn(c.tripId);
       if (!live.current) return;
@@ -351,7 +363,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     const root = rootRef.current;
     const canvas = canvasRef.current;
     const lift = liftRef.current;
-    if (!root || !canvas || !lift) return;
+    const view = viewRef.current;
+    if (!root || !canvas || !lift || !view) return;
     let stopped = false;
     let stage: WallStage | null = null;
     const lost = (e: Event) => {
@@ -372,6 +385,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
         stage = new WallStage(canvas, {
           fonts,
           lift,
+          view,
           seats: DRAW_SEATS,
           onRest: (id) => {
             if (live.current) setFrameId(id);
@@ -627,7 +641,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
             ? { text: "Everyone in the draw has been drawn." }
             : card && phase === "drawn"
               ? { text: `Drawn at random from ${count.format(card.poolSize)} applicants · ${AT.format(new Date(card.drawnAt))}` }
-              : { text: inDraw !== null ? `${count.format(inDraw)} applicants in the draw, in Trip ID order` : "" });
+              : { text: inDraw !== null ? `${count.format(inDraw)} applicants in the draw` : "" });
 
   if (access === "none") {
     return (
@@ -652,8 +666,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       data-ready={ready || undefined}
     >
       <canvas ref={canvasRef} className="lw-canvas" aria-hidden />
-      <div className="lw-shade" aria-hidden />
       <div className="lw-frame">
+        <div ref={viewRef} className="lw-view" aria-hidden />
         <header className="lw-band">
           <div className="lw-band-mark">
             <b>AFFHAN</b>
@@ -674,19 +688,18 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           {note.text}
         </p>
 
-        <div className="lw-act">
-          <button
-            type="button"
-            className="lw-draw"
-            data-next={(nextRound && !drawing) || undefined}
-            onClick={() => void press()}
-            disabled={drawing || access !== "ok" || notReady || empty || early}
-          >
-            {drawing ? "Drawing…" : nextRound ? `Start round ${round + 1}` : "Draw"}
-          </button>
-        </div>
-
         <footer className="lw-foot">
+          <div className="lw-act">
+            <button
+              type="button"
+              className="lw-draw"
+              data-next={(nextRound && !drawing) || undefined}
+              onClick={() => void press()}
+              disabled={drawing || access !== "ok" || notReady || empty || early}
+            >
+              {drawing ? "Drawing…" : nextRound ? `Start round ${round + 1}` : "Draw"}
+            </button>
+          </div>
           <p className="lw-round">Round {round}</p>
           <ol className="lw-seats" aria-label={`Round ${round}: the five seats`}>
             {seats.map((id, i) => {

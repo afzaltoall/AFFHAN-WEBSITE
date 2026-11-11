@@ -1,42 +1,63 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
-import { endOf, halt, mod, plan, reelAt, type Run } from "../reel";
-import { DRUM, blur, nextFree, placeOfTrip, shows } from "./drum";
+import { placeOfTrip } from "./drum";
 import { FACE_H, FACE_W, INSIDE, PASS_H, PASS_W, TAG_H, TAG_W, WRAP, drawFace, drawInside, drawPass, drawTag, drawWrap, type Fonts } from "./faces";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
+import { GRID, ROLL_T, STEP_QUICK, TAIL_T, flatX, mod, nextCell, openingRows, personAt, rollAt, rollPlan, stepTimes, stretchFor, type Cell, type Segment } from "./grid";
+
+/** A draw on the wall: pressed at `start` (ms); once the server answers, its roll, the light's steps and the target. */
+interface Run {
+  start: number;
+  done: (landed: boolean) => void;
+  /** The rows' roll: from where, to where, from when (seconds from the press), and their pace as it began. */
+  roll: { from: number; to: number; at: number; v0: number } | null;
+  steps: number[] | null;
+  next: number;
+  target: Cell | null;
+  lastStep: number;
+}
 
 /**
- * The lucky draw's wall, drawn in 3D on the TV (the owner, 2026-11-11, with four pictures of video walls: "look how
- * they are ... animated, innovative ... like opening a gift box"). Everyone in the draw is a tile on a drum, the names
- * in one spiral in Trip ID order, a gold frame at the front. A press turns the drum: it gathers pace, the names streak
- * into light, then it slows until the last names can be read as they pass the frame, and stops with the person the
- * server drew in it (the same arithmetic as the list's, ./reel.ts). Their tile lifts out of the wall towards the room,
- * turns, and is a gift; the gift hops, its lid flies off, light pours out, and their boarding pass rises out of it and
- * holds the screen for three seconds; then it goes down into its seat, and the frame moves on to the next person.
+ * The lucky draw's wall, drawn in 3D on the TV (the owner, 2026-11-11, with four pictures of video walls: "like opening
+ * a gift box"; then "filled completely, the users rolling, curved, facing the screen"; "not blurred ... one box of
+ * light, moving everywhere, for real, not like magic"; "up and down too, in every direction ... a genuine random draw").
+ *
+ * Everyone in the draw is a box in rows of names, a gently curved wall facing the room, its rows as many as the view
+ * between the screen's words and its seats holds whole (opts.view), each row in Trip ID order and rolling slowly left
+ * while it waits (./grid.ts). A press: one box of light runs over the names, a box at a time, across, up, down and
+ * corner to corner, quick at first and then ever slower, while the rows roll on by a screen, calmly, bringing in new
+ * names; its last step lands on the person the server drew. Their box lifts out of the wall, turns, and is a gift; the
+ * gift hops, its lid flies off, light pours out, and their boarding pass rises out of it and holds the screen for three
+ * seconds; then it goes down into its seat, and the rows roll on.
  *
  * Built not to stick: every moment is worked out from the clock, never from how many frames were drawn, and timers
  * finish a run and a reveal even when the browser stops drawing (./DrawWall.tsx checks the result, not the picture).
- * Only the tiles near the front carry words, drawn into one texture as they are needed; the rest of the wall is glass
- * and light. No mobile number ever reaches it.
+ * The names are drawn into one texture as tiles need them. No mobile number ever reaches it.
  */
 
 export interface StageOptions {
   fonts: Fonts;
   /** A layer of the page over everything (the seats too), where the pass is shown once it faces the room. */
   lift: HTMLElement;
+  /** The part of the page between its words and its seats: the rows of names are drawn only there, whole. */
+  view?: HTMLElement;
   /** Seats in a round (the pass's stub says "of 5"). */
   seats: number;
-  /** The Trip ID in the frame each time the drum comes to rest (or stops on someone), null with nobody on the wall. */
+  /** The Trip ID the light lands on (and the first name, as the wall opens); null while the light is out. */
   onRest?: (tripId: string | null) => void;
   /** Called once if this screen draws too slowly to keep the wall (the page then shows the list instead). */
   onSlow?: () => void;
 }
 
-/** A tile's state, per slot: as it is, a winner (gold), out of the wall (the winner's, while it is a gift), blank. */
+/** A tile's state: as it is, a winner (gold), or out of the wall (the winner's, while it is a gift). */
 const GOLD = 1;
 const HIDDEN = 2;
-const BLANK = 3;
+/** Columns a second the rows roll while they wait: a name about every five and a half seconds. */
+const DRIFT = 0.18;
+/** Seconds the rows stay still after they come to rest, before they roll on, and the seconds they take to get going. */
+const DRIFT_AFTER = 2.5;
+const DRIFT_EASE = 1.6;
 
 /** The reveal, in seconds from the stop. */
 const TL = {
@@ -78,45 +99,33 @@ function seeded(seed: number) {
 }
 
 const tileVertex = /* glsl */ `
-  attribute float aJ;
+  attribute vec3 aPos;
   attribute float aCell;
   attribute float aFlag;
-  uniform float uFrac;
-  uniform float uPerTurn;
-  uniform float uRadius;
-  uniform float uPitchY;
   uniform float uAtlasCols;
   uniform vec2 uCellUV;
-  uniform float uBlur;
+  uniform float uCurve;
   varying vec2 vUv;
-  varying float vFacing;
-  varying float vRow;
+  varying vec2 vCenter;
   varying float vFlag;
   varying float vHasCell;
   varying vec2 vCell;
-  varying float vJ;
   varying vec3 vWorld;
   void main() {
-    float j = aJ - uFrac;
-    float ang = 6.28318530718 * j / uPerTurn;
-    float c = cos(ang);
-    float s = sin(ang);
-    // Level rows: a name moves down to the next row behind the drum, where nobody sees it (./drum.ts).
-    float row = floor(j / uPerTurn + 0.5);
     vec3 p = position;
-    // At speed the tiles of a row close up into one ribbon (see the fragment shader).
-    p.x *= 1.0 + uBlur * 0.1;
-    vec3 w = vec3(c * p.x + s * uRadius, p.y - uPitchY * row, -s * p.x + c * uRadius - uRadius);
+    // The wall curves gently towards the room, each tile turned to face it (./grid.ts): aPos is its place on the flat.
+    float th = aPos.x / uCurve;
+    float c = cos(th);
+    float s = sin(th);
+    vec3 w = vec3(uCurve * s + p.x * c, aPos.y + p.y, uCurve * (1.0 - c) + p.x * s);
     vUv = uv;
-    vFacing = c;
-    vRow = row;
+    vCenter = aPos.xy;
     vFlag = aFlag;
-    vJ = j;
     vWorld = w;
     vHasCell = aCell >= 0.0 ? 1.0 : 0.0;
     float cell = max(aCell, 0.0);
     vCell = vec2(mod(cell, uAtlasCols), floor(cell / uAtlasCols)) * uCellUV;
-    bool gone = c < -0.08 || (aFlag > 1.5 && aFlag < 2.5);
+    bool gone = aFlag > 1.5 && aFlag < 2.5;
     gl_Position = gone ? vec4(2.0, 2.0, 2.0, 1.0) : projectionMatrix * modelViewMatrix * vec4(w, 1.0);
   }
 `;
@@ -130,14 +139,14 @@ const tileFragment = /* glsl */ `
   uniform float uTime;
   uniform float uIdle;
   uniform float uLock;
-  uniform float uBlur;
+  uniform vec2 uRes;
+  // The selected tile's centre (x, y) and whether a tile is selected (z).
+  uniform vec3 uSel;
   varying vec2 vUv;
-  varying float vFacing;
-  varying float vRow;
+  varying vec2 vCenter;
   varying float vFlag;
   varying float vHasCell;
   varying vec2 vCell;
-  varying float vJ;
   varying vec3 vWorld;
   void main() {
     vec2 q = (vUv - 0.5) * uTile;
@@ -145,45 +154,31 @@ const tileFragment = /* glsl */ `
     vec2 dd = abs(q) - (uTile * 0.5 - rad);
     float sdf = length(max(dd, 0.0)) + min(max(dd.x, dd.y), 0.0) - rad;
     float aa = fwidth(sdf) * 1.2;
-    // At speed a tile is cut only top and bottom: the row runs on as one band.
-    float sdfY = abs(q.y) - uTile.y * 0.5;
-    float insideRow = 1.0 - smoothstep(-aa, aa, sdfY);
-    float inside = mix(1.0 - smoothstep(-aa, aa, sdf), insideRow, uBlur);
+    float inside = 1.0 - smoothstep(-aa, aa, sdf);
     if (inside < 0.004) discard;
     float edge = 1.0 - smoothstep(0.0, aa + 0.012, abs(sdf + 0.017));
     float gold = (vFlag > 0.5 && vFlag < 1.5) ? 1.0 : 0.0;
-    float blank = vFlag > 2.5 ? 1.0 : 0.0;
-    // Where it is: facing the room, and how many rows from the frame's.
-    float face = smoothstep(-0.05, 0.92, vFacing);
-    float band = 1.0 - 0.72 * smoothstep(1.2, 2.2, abs(vRow)) - 0.28 * smoothstep(2.2, 3.2, abs(vRow));
-    float framed = uLock * (1.0 - smoothstep(0.3, 0.6, abs(vJ)));
-    float bright = (0.16 + 0.84 * face) * (0.2 + 0.8 * band) * (1.0 - 0.74 * uDim * (1.0 - framed));
+    // The box the light is on: lit, and brighter still as it locks.
+    float picked = uSel.z * (1.0 - step(0.05, abs(vCenter.x - uSel.x))) * (1.0 - step(0.05, abs(vCenter.y - uSel.y)));
+    // The rows run off the screen's left and right edges; their far ends fall a little into shadow.
+    vec2 ndc = gl_FragCoord.xy / uRes * 2.0 - 1.0;
+    float vig = 1.0 - 0.3 * smoothstep(0.7, 1.45, length(ndc * vec2(0.82, 1.0)));
+    float bright = vig * (1.0 - 0.74 * uDim * (1.0 - picked));
     // Glass: deep violet, lighter towards the top, a soft sheen at its upper left.
     vec3 glass = mix(vec3(0.045, 0.032, 0.115), vec3(0.115, 0.082, 0.255), vUv.y);
     glass += vec3(0.07, 0.055, 0.14) * pow(max(0.0, 1.0 - length(q / uTile - vec2(-0.28, 0.36)) * 1.7), 2.0);
     glass = mix(glass, vec3(0.20, 0.14, 0.06) + glass * 0.6, gold * 0.55);
-    // The words, near the front, at rest or slowing.
     float words = 0.0;
-    if (vHasCell > 0.5 && blank < 0.5) {
-      words = texture2D(uAtlas, vCell + vec2(vUv.x, 1.0 - vUv.y) * uCellUV).a;
-    }
-    float readable = uWords * smoothstep(0.45, 0.86, vFacing) * (1.0 - smoothstep(1.2, 1.8, abs(vRow)));
+    if (vHasCell > 0.5) words = texture2D(uAtlas, vCell + vec2(vUv.x, 1.0 - vUv.y) * uCellUV).a;
     vec3 ink = mix(vec3(0.95, 0.94, 1.0), vec3(1.0, 0.87, 0.55), gold);
     vec3 line = mix(vec3(0.45, 0.35, 1.0), vec3(1.0, 0.80, 0.42), gold);
     // A slow light passing over the wall while it waits.
     float d = vWorld.x * 0.085 - vWorld.y * 0.24 - (mod(uTime * 0.13, 2.8) - 1.4);
     float sweep = exp(-d * d * 36.0) * uIdle;
-    vec3 col = glass + ink * words * readable;
-    col += line * edge * (0.5 + 0.5 * gold + sweep * 1.5 + framed * 1.4);
-    col += vec3(1.0, 0.85, 0.5) * framed * 0.16;
-    // At speed, rows of light streaming past: bright along their top and bottom edges, softer inside, rippling the
-    // way the drum turns. No tile can be followed by the eye at that pace, so none is drawn: nothing strobes.
-    float v = abs(q.y) / (uTile.y * 0.5);
-    float rim = exp(-(1.0 - v) * (1.0 - v) * 60.0);
-    float ripple = 0.72 + 0.28 * sin(vWorld.x * 2.6 + uTime * 9.0 + vRow * 1.7);
-    vec3 ribbon = (vec3(0.07, 0.05, 0.18) + vec3(0.36, 0.27, 0.95) * (0.16 + 0.55 * rim) * ripple) * (1.0 + gold * 0.4);
-    col = mix(col, ribbon, uBlur);
-    col *= bright * (1.0 + framed * 0.5);
+    vec3 col = glass + ink * words * uWords;
+    col += line * edge * (0.5 + 0.5 * gold + sweep * 1.5 + picked * (0.8 + 1.2 * uLock));
+    col += vec3(1.0, 0.85, 0.5) * picked * (0.06 + 0.12 * uLock);
+    col *= bright * (1.0 + picked * (0.25 + 0.4 * uLock));
     gl_FragColor = vec4(col, inside);
   }
 `;
@@ -369,7 +364,7 @@ function glowTexture(): THREE.CanvasTexture {
 
 /**
  * The faces of the tiles near the front, kept in one texture of 256×144 cells and drawn the moment a tile needs one:
- * as the drum turns, one new name reaches the front of each row and one leaves. A cell not used lately is drawn over.
+ * as the rows roll, a new name comes in at the end of each row and one leaves. A cell not used lately is drawn over.
  */
 class FaceAtlas {
   readonly texture: THREE.DataTexture;
@@ -414,7 +409,7 @@ class FaceAtlas {
     return new THREE.Vector2(FACE_W / this.texture.image.width, FACE_H / this.texture.image.height);
   }
 
-  /** A new round of asking: the tiles ask again for what they need, the nearest the frame first. */
+  /** A new round of asking: the tiles ask again for what they need, the nearest the light first. */
   restart() {
     this.queue = [];
     this.queued.clear();
@@ -484,42 +479,56 @@ interface Show {
   resolve: () => void;
   timers: number[];
   risen: { pos: THREE.Vector3; quat: THREE.Quaternion; scale: number } | null;
+  /** Where the winner's tile was on the wall when the light landed on it (where it leaves from), and its turn. */
+  from: THREE.Vector3;
+  turn: number;
   /** Where the pass goes down to: the seat on the page. */
   seatRect: DOMRect | null;
   burst: boolean;
   seated: boolean;
 }
 
-/** The camera, where the room sees the wall from: a little below the frame, looking slightly up at it. */
-const CAM = new THREE.Vector3(0, -0.95, 12.6);
-const LOOK = new THREE.Vector3(0, -0.5, 0);
+/** The camera's view: set back just far enough for the wall's ten columns to fill the screen's width (resize). */
 const FOV = 30;
-/** The frame, at the front of the drum; the gift, between the wall and the room, a little below the frame. */
-const FRAME_AT = new THREE.Vector3(0, 0, 0.06);
-const GIFT_AT = new THREE.Vector3(0, -0.95, 5.6);
-const GIFT_SCALE = 0.62;
+/**
+ * The gift, between the wall and the room: in the room's own view, 7.2 units away, a little below the middle of the
+ * view (between the words and the seats), so its open top and the pass rising from it stay clear of the words.
+ */
+const GIFT_DIST = 7.2;
+const GIFT_BELOW = 0.44;
+const GIFT_SCALE = 0.58;
 const GIFT_YAW = -0.62;
 const GIFT_TILT = 0.36;
 /** The pass, world units: 2048 × 1000 pixels. */
 const PASS_WORLD_W = 2.2;
 const PASS_WORLD_H = (PASS_WORLD_W * PASS_H) / PASS_W;
-/** Where the pass holds the screen: far enough from the room to be just over half its width, a little above the middle. */
+/** Where the pass holds the screen: far enough from the room to be just over half its width, on the view's middle. */
 const HOLD_DIST = 4.28;
-const HOLD_UP = 0.14;
+const HOLD_BELOW = 0.03;
+/** Rows of names the view can hold at most (a tall screen's). */
+const MAX_ROWS = 18;
 
 export class WallStage {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(FOV, 16 / 9, 0.1, 90);
-  private readonly drum = DRUM;
-  private readonly J = Math.ceil(DRUM.perTurn * 3.6);
-  private readonly count = 2 * this.J + 1;
-  /** Slots nearest the frame first: their faces are asked for first. */
-  private readonly order: number[];
+  private readonly grid = GRID;
+  /** Every tile the screen can show (its rows, each a row's places), placed each frame on the CPU. */
+  private readonly cap = MAX_ROWS * (GRID.cols + 2);
+  private readonly tilesGeometry: THREE.InstancedBufferGeometry;
+  private readonly posArr: Float32Array;
   private readonly cellArr: Float32Array;
   private readonly flagArr: Float32Array;
+  private readonly posAttr: THREE.InstancedBufferAttribute;
   private readonly cellAttr: THREE.InstancedBufferAttribute;
   private readonly flagAttr: THREE.InstancedBufferAttribute;
+  /** The rows of names (every one inside the view, seen whole), and the first one's height on the wall. */
+  private rowsShown = 4;
+  private yTop = 0;
+  /** The middle of the view, up the screen (-1 at its foot, 1 at its top): the gift and the pass are placed by it. */
+  private viewMid = 0.18;
+  /** Where the gift sits: in the room's own view, so it is the same on any screen. */
+  private readonly giftAt = new THREE.Vector3();
   private readonly atlas: FaceAtlas;
   private readonly tileU: Record<string, THREE.IUniform>;
   private readonly frameU: Record<string, THREE.IUniform>;
@@ -558,21 +567,27 @@ export class WallStage {
 
   private rows: DrawPoolEntry[] = [];
   private gold: ReadonlySet<string> = new Set();
-  /** A wall read while the drum was running or a gift was open, put in when it stops. */
+  /** A wall read while a draw or a gift was on (or one that would change the names in view), put in at the next draw. */
   private waiting: { entries: DrawPoolEntry[]; gold: ReadonlySet<string> } | null = null;
-  /** Where the drum rests: the place in the frame. */
-  private at = 0;
-  /** Before the first run: nothing comes before Trip ID 1 (the owner: "starting ... trip 1 erundhu start aganum"). */
-  private opening = true;
-  private run: (Run & { start: number; done: (landed: boolean) => void }) | null = null;
-  private glide: { from: number; to: number; start: number; T: number } | null = null;
+  /** Each row's stretches of names (index: the row, 0 at the top). */
+  private segs: Segment[][] = [];
+  /** Where the rows have rolled to (columns; fractional while they move), and their pace while they wait. */
+  private p = 0;
+  private drift = 0;
+  /** A draw: since when, its roll (once the server has answered), the light's steps, the person drawn's box. */
+  private run: Run | null = null;
+  /** The box of light: the box it is on and the one it came from, when it stepped (seconds from the press), its glide. */
+  private light: { cur: Cell; prev: Cell | null; at: number; glide: number; on: boolean; flash: number } = { cur: { r: 0, c: 0 }, prev: null, at: 0, glide: 0.1, on: false, flash: 0 };
+  /** When the wall last came to rest (it rolls on slowly a moment later), and the last frame's time. */
+  private restSince = performance.now();
+  private lastFrame = performance.now();
+  private opened = false;
   private show: Show | null = null;
   private dim = { from: 0, to: 0, start: 0, T: 1 };
   private idle = 1;
-  private hiddenId: string | null = null;
-  private slotBase = Number.NaN;
+  /** The winner's box while it is out of the wall as a gift. */
+  private hidden: Cell | null = null;
   private slotsDirty = true;
-  private fast = false;
   private frameNo = 0;
   private raf = 0;
   private dog = 0;
@@ -584,6 +599,7 @@ export class WallStage {
   private disposed = false;
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
+  private readonly tmpV2 = new THREE.Vector3();
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -610,9 +626,6 @@ export class WallStage {
     const rim = new THREE.DirectionalLight(0x8a6bff, 2.2);
     rim.position.set(-6, 3, -5);
     this.scene.add(key, rim);
-
-    this.camera.position.copy(CAM);
-    this.camera.lookAt(LOOK);
 
     // The room: a deep violet night behind the wall.
     this.bgU = { uRes: { value: new THREE.Vector2(16, 9) }, uTime: { value: 0 } };
@@ -674,36 +687,34 @@ export class WallStage {
     bokeh.renderOrder = -5;
     this.scene.add(bokeh);
 
-    // The drum: one plane, drawn once for every slot of the spiral, each slot placed by the shader.
+    // The wall: one plane, drawn once for every tile the screen shows, each placed on the CPU every frame.
     this.atlas = new FaceAtlas(this.renderer, opts.fonts);
     this.owned.push(this.atlas);
-    const plane = keep(new THREE.PlaneGeometry(this.drum.tileW, this.drum.tileH));
+    const plane = keep(new THREE.PlaneGeometry(this.grid.tileW, this.grid.tileH));
     const geometry = keep(new THREE.InstancedBufferGeometry());
     geometry.index = plane.index;
     geometry.setAttribute("position", plane.getAttribute("position"));
     geometry.setAttribute("uv", plane.getAttribute("uv"));
-    const js = new Float32Array(this.count);
-    for (let k = 0; k < this.count; k++) js[k] = k - this.J;
-    this.cellArr = new Float32Array(this.count).fill(-1);
-    this.flagArr = new Float32Array(this.count);
-    geometry.setAttribute("aJ", new THREE.InstancedBufferAttribute(js, 1));
+    this.posArr = new Float32Array(this.cap * 3);
+    this.cellArr = new Float32Array(this.cap).fill(-1);
+    this.flagArr = new Float32Array(this.cap);
+    this.posAttr = new THREE.InstancedBufferAttribute(this.posArr, 3).setUsage(THREE.DynamicDrawUsage);
     this.cellAttr = new THREE.InstancedBufferAttribute(this.cellArr, 1).setUsage(THREE.DynamicDrawUsage);
     this.flagAttr = new THREE.InstancedBufferAttribute(this.flagArr, 1).setUsage(THREE.DynamicDrawUsage);
+    geometry.setAttribute("aPos", this.posAttr);
     geometry.setAttribute("aCell", this.cellAttr);
     geometry.setAttribute("aFlag", this.flagAttr);
-    geometry.instanceCount = this.count;
-    this.order = Array.from({ length: this.count }, (_, k) => k).sort((a, b) => Math.abs(a - this.J) - Math.abs(b - this.J));
+    geometry.instanceCount = 0;
+    this.tilesGeometry = geometry;
     this.tileU = {
-      uFrac: { value: 0 },
-      uPerTurn: { value: this.drum.perTurn },
-      uRadius: { value: this.drum.radius },
-      uPitchY: { value: this.drum.pitchY },
-      uTile: { value: new THREE.Vector2(this.drum.tileW, this.drum.tileH) },
+      uTile: { value: new THREE.Vector2(this.grid.tileW, this.grid.tileH) },
+      uCurve: { value: this.grid.curve },
       uAtlas: { value: this.atlas.texture },
       uAtlasCols: { value: this.atlas.cols },
       uCellUV: { value: this.atlas.uv },
+      uRes: { value: new THREE.Vector2(1920, 1080) },
+      uSel: { value: new THREE.Vector3(0, 0, 0) },
       uWords: { value: 1 },
-      uBlur: { value: 0 },
       uDim: { value: 0 },
       uTime: { value: 0 },
       uIdle: { value: 1 },
@@ -713,14 +724,13 @@ export class WallStage {
     tiles.frustumCulled = false;
     this.scene.add(tiles);
 
-    // The gold frame at the front of the drum: where it stops is who is drawn.
-    const frameSize = new THREE.Vector2(this.drum.tileW + 0.8, this.drum.tileH + 0.8);
-    this.frameU = { uSize: { value: frameSize }, uTile: { value: new THREE.Vector2(this.drum.tileW, this.drum.tileH) }, uGlow: { value: 1 }, uAlpha: { value: 1 } };
+    // The box of light, a gold frame: where its last step lands is who is drawn.
+    const frameSize = new THREE.Vector2(this.grid.tileW + 0.8, this.grid.tileH + 0.8);
+    this.frameU = { uSize: { value: frameSize }, uTile: { value: new THREE.Vector2(this.grid.tileW, this.grid.tileH) }, uGlow: { value: 1 }, uAlpha: { value: 0 } };
     this.frameMesh = new THREE.Mesh(
       keep(new THREE.PlaneGeometry(frameSize.x, frameSize.y)),
       keep(new THREE.ShaderMaterial({ uniforms: this.frameU, vertexShader: plainVertex, fragmentShader: frameFragment, transparent: true, depthWrite: false })),
     );
-    this.frameMesh.position.copy(FRAME_AT);
     this.frameMesh.renderOrder = 3;
     this.scene.add(this.frameMesh);
 
@@ -729,9 +739,9 @@ export class WallStage {
     this.heroCanvas.height = FACE_H * 2;
     this.heroTex = keep(new THREE.CanvasTexture(this.heroCanvas));
     this.heroTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-    this.heroU = { uMap: { value: this.heroTex }, uTile: { value: new THREE.Vector2(this.drum.tileW, this.drum.tileH) }, uGlow: { value: 0 } };
+    this.heroU = { uMap: { value: this.heroTex }, uTile: { value: new THREE.Vector2(this.grid.tileW, this.grid.tileH) }, uGlow: { value: 0 } };
     this.hero = new THREE.Mesh(
-      keep(new THREE.PlaneGeometry(this.drum.tileW, this.drum.tileH)),
+      keep(new THREE.PlaneGeometry(this.grid.tileW, this.grid.tileH)),
       keep(new THREE.ShaderMaterial({ uniforms: this.heroU, vertexShader: plainVertex, fragmentShader: heroFragment, alphaToCoverage: true, side: THREE.DoubleSide })),
     );
     this.hero.visible = false;
@@ -764,7 +774,6 @@ export class WallStage {
     inside.colorSpace = THREE.SRGBColorSpace;
     this.gift = new Gift(wrap, this.tagTex, inside);
     this.owned.push(this.gift);
-    this.gift.root.position.copy(GIFT_AT);
     this.gift.root.scale.setScalar(GIFT_SCALE);
     this.scene.add(this.gift.root);
 
@@ -860,58 +869,76 @@ export class WallStage {
     return this.rows.length;
   }
 
-  /** The Trip ID in the frame now, while the drum is at rest. */
+  /** The Trip ID the light is on, while it shows. */
   framed(): string | null {
-    const n = this.rows.length;
-    return n ? this.rows[mod(Math.round(this.at), n)][0] : null;
+    return this.rows.length && this.light.on ? this.rows[this.personIn(this.light.cur)][0] : null;
   }
 
-  /** The wall's people (in Trip ID order) and its winners: the person in the frame stays in it (or the one after). */
-  setRows(entries: DrawPoolEntry[], gold: ReadonlySet<string>) {
-    // Never while the drum moves (a run, a reveal, the frame gliding on): put in when it rests.
-    if (this.run || this.show || this.glide) {
-      this.waiting = { entries, gold };
-      return;
-    }
-    const here = this.framed();
-    this.rows = entries;
-    this.gold = gold;
-    const n = entries.length;
-    this.at = here && n ? mod(placeOfTrip(entries, here), n) : 0;
-    this.slotsDirty = true;
-    this.rested();
+  /** Who is in a box (its row, and its column on the rolling wall), as their place on the wall. */
+  private personIn(cell: Cell): number {
+    this.fillRows();
+    return personAt(this.segs[cell.r] ?? this.segs[0], cell.c, this.rows.length);
   }
 
-  /** The drum at rest with this Trip ID in the frame (or where it would be). */
-  restOn(tripId: string) {
-    if (this.run || !this.rows.length) return;
-    this.glide = null;
-    this.at = mod(placeOfTrip(this.rows, tripId), this.rows.length);
-    this.slotsDirty = true;
-    this.rested();
+  /** The row in the middle of the view (the upper of two). */
+  private middleRow(): number {
+    return Math.floor((this.rowsShown - 1) / 2);
   }
 
   /**
-   * The frame moves on from this Trip ID to the next person who can still be drawn (the owner: "so next person"),
-   * gliding there, or at once (`instant`: the screen opening after draws have been made).
+   * The wall's people (in Trip ID order) and its winners (gold at once). The first wall lays the rows out, the first
+   * clear row opening with TRIP-26-00001. A wall that would change the names in view is kept for the next draw, which
+   * brings a new screen of names in anyway.
    */
-  restAfter(tripId: string, instant = false) {
-    const n = this.rows.length;
-    if (this.run || !n) return;
-    if (this.glide) this.endGlide();
-    const i = placeOfTrip(this.rows, tripId);
-    let to = i < n && this.rows[i][0] === tripId ? nextFree(this.rows, this.gold, i) : mod(i, n);
-    if (this.gold.has(this.rows[to][0])) to = nextFree(this.rows, this.gold, to);
-    let d = mod(to - this.at, n);
-    if (d > n / 2) d -= n;
-    if (instant) this.opening = false;
-    if (d === 0 || instant) {
-      this.at = to;
-      this.slotsDirty = true;
-      this.rested();
+  setRows(entries: DrawPoolEntry[], gold: ReadonlySet<string>) {
+    this.gold = gold;
+    this.slotsDirty = true;
+    if (!this.opened) {
+      if (!entries.length) return;
+      this.rows = entries;
+      this.segs = openingRows(this.rowsShown, entries.length, this.p);
+      this.opened = true;
+      this.opts.onRest?.(entries[0][0]);
       return;
     }
-    this.glide = { from: this.at, to: this.at + d, start: performance.now(), T: Math.min(1.4, 0.7 + Math.abs(d) * 0.04) };
+    const n = this.rows.length;
+    const same = n === entries.length && n > 0 && entries[0][0] === this.rows[0][0] && entries[n - 1][0] === this.rows[n - 1][0];
+    if (this.run || this.show || !same) {
+      this.waiting = { entries, gold };
+      return;
+    }
+    this.rows = entries;
+  }
+
+  /** Rows for every row the screen shows (a taller screen than the wall opened on gets rows of its own). */
+  private fillRows() {
+    const n = Math.max(1, this.rows.length);
+    while (this.segs.length < this.rowsShown) this.segs.push([{ from: Math.floor(this.p) - 1, start: Math.floor(Math.random() * n) }]);
+  }
+
+  /** The light on this Trip ID in a clear box, at rest (a draw shown without the run: no stage when it was made). */
+  restOn(tripId: string) {
+    const n = this.rows.length;
+    if (this.run || !n) return;
+    const i = placeOfTrip(this.rows, tripId);
+    if (this.rows[i]?.[0] !== tripId) return;
+    this.p = Math.round(this.p);
+    this.drift = 0;
+    this.fillRows();
+    const r = this.middleRow();
+    const c = this.p + Math.ceil(this.grid.cols / 2);
+    this.segs[r].push(stretchFor(i, n, this.p - 1, c));
+    this.light = { cur: { r, c }, prev: null, at: 0, glide: 0.1, on: true, flash: performance.now() };
+    this.slotsDirty = true;
+    this.opts.onRest?.(tripId);
+  }
+
+  /** A winner shown: the light goes, and the rows roll on slowly (`instant`: the screen opening, nothing to undo). */
+  restAfter(_tripId: string, instant = false) {
+    if (this.run || instant) return;
+    this.light.on = false;
+    this.restSince = performance.now();
+    this.opts.onRest?.(null);
   }
 
   /** Someone drawn, on the wall: their place, or one made for them if they joined after the wall was read. */
@@ -923,55 +950,85 @@ export class WallStage {
     return i;
   }
 
-  /** The drum starts to turn. Settles true when it stops on someone (land), false when on nobody (halt). */
+  /** The light comes on and starts to run. Settles true when it stops on someone (land), false when not (halt). */
   spin(): Promise<boolean> {
     this.finish();
-    if (this.glide) this.endGlide();
+    if (this.waiting) {
+      const w = this.waiting;
+      this.waiting = null;
+      this.rows = w.entries;
+      this.gold = w.gold;
+    }
+    this.fillRows();
     this.dimTo(0, 0.2);
+    const r = this.middleRow();
+    const c = Math.floor(this.p) + Math.ceil(this.grid.cols / 2);
+    this.light = { cur: { r, c }, prev: null, at: 0, glide: 0.1, on: true, flash: performance.now() };
+    this.slotsDirty = true;
     return new Promise((done) => {
-      this.run = { p0: this.at, plan: null, halt: null, start: performance.now(), done };
+      this.run = { start: performance.now(), done, roll: null, steps: null, next: 0, target: null, lastStep: 0 };
     });
   }
 
-  /** The person drawn is known: the rest of the run, to their place. */
-  land(target: number) {
+  /**
+   * The person drawn is known (`i`, their place on the wall). The rows will roll on by a screen; from the first column
+   * not yet in view, every row gets a new stretch of names in Trip ID order from a random place, and the drawn person's
+   * row (a clear one, chosen at random) the stretch that puts them, in their own place, in a box chosen at random. The
+   * light's steps are timed: quick while the rows roll, slower and slower once they have stopped, the last onto them.
+   */
+  land(i: number) {
     const r = this.run;
-    if (!r || r.plan || r.halt || !this.rows.length) return;
-    r.plan = plan(r.p0, this.elapsed(r), target, this.rows.length);
+    const n = this.rows.length;
+    if (!r || r.target || !n) return;
+    const t = this.elapsed(r);
+    this.fillRows();
+    const { cut, end } = rollPlan(this.grid, this.p, Math.floor(Math.random() * 3));
+    const row = Math.floor(Math.random() * this.rowsShown);
+    const col = end + 1 + Math.floor(Math.random() * this.grid.cols);
+    const inView = end + this.grid.cols + 2 - cut;
+    for (let k = 0; k < this.segs.length; k++) {
+      if (k === row) {
+        this.segs[k].push(stretchFor(i, n, cut, col));
+        continue;
+      }
+      // Nobody else's new names show the drawn person too.
+      let start = Math.floor(Math.random() * n);
+      for (let tries = 0; tries < 12 && n > inView && mod(i - start, n) < inView; tries++) start = Math.floor(Math.random() * n);
+      this.segs[k].push({ from: cut, start });
+    }
+    r.roll = { from: this.p, to: end, at: t, v0: this.drift };
+    r.target = { r: row, c: col };
+    r.steps = stepTimes(t, t + ROLL_T + TAIL_T);
+    r.next = 0;
     this.watch(r);
   }
 
-  /** Nobody drawn (the draw failed): the drum slows to a stop. */
+  /** Nobody drawn (the draw failed): the light goes out where it is. */
   halt() {
     const r = this.run;
-    if (!r || r.plan || r.halt) return;
-    r.halt = halt(r, this.elapsed(r));
-    this.watch(r);
+    if (!r || r.target) return;
+    this.finish();
   }
 
-  /** Stops whatever is running at once, where it would have ended. */
+  /** Stops whatever is running at once, where it would have ended: the rows at rest, the light on the person drawn. */
   finish = () => {
     const r = this.run;
     if (!r) return;
     this.run = null;
     window.clearTimeout(this.dog);
-    const n = this.rows.length;
-    const end = r.plan ? r.plan.target : r.halt ? r.halt.to : reelAt(r, this.elapsed(r)).p;
-    this.at = n ? mod(Math.round(end), n) : 0;
-    this.opening = false;
+    if (r.roll && r.target) {
+      this.p = r.roll.to;
+      if (this.light.cur.r !== r.target.r || this.light.cur.c !== r.target.c) this.light = { ...this.light, prev: this.light.cur, cur: r.target, at: 0, on: true, flash: performance.now() };
+    } else this.light.on = false;
+    this.restSince = performance.now();
     this.slotsDirty = true;
-    if (this.waiting && !r.plan) {
-      const w = this.waiting;
-      this.waiting = null;
-      this.setRows(w.entries, w.gold);
-    }
-    this.rested();
-    r.done(!!r.plan);
+    this.opts.onRest?.(this.framed());
+    r.done(!!r.target);
   };
 
   /**
-   * The person drawn, known while the drum still turns (the server has answered): their gift's tag and their pass are
-   * made in the drum's last, slowest moments, when a frame that takes longer moves nothing anyone can see, rather than
+   * The person drawn, known while the rows still roll (the server has answered): their gift's tag and their pass are
+   * made as the rows come to rest, when a frame that takes longer moves nothing anyone can see, rather than
    * at the stop, where it held the gold frame's flare still for a tenth of a second (measured).
    */
   prepare(card: DrawCardPublic) {
@@ -1037,8 +1094,9 @@ export class WallStage {
   present(card: DrawCardPublic, o: { seat: () => DOMRect | null; onSeat: () => void }): Promise<void> {
     this.endShow();
     if (this.made !== card.id) this.make(card);
+    const { pos, turn } = this.cellPos(this.light.cur);
     return new Promise((resolve) => {
-      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, seatRect: null, burst: false, seated: false };
+      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, seated: false };
       show.timers.push(
         window.setTimeout(() => {
           if (this.show === show && !show.seated) {
@@ -1086,99 +1144,156 @@ export class WallStage {
     this.frameNo++;
     this.health(now);
     const time = (now - this.born) / 1000;
-    const { p, v } = this.position(now);
-    // The drawn person's gift and pass made, a step a frame, once the drum is nearly still (or has stopped).
-    if (this.steps.length && (!this.run || (this.run.plan && Math.abs(v) < 2.2))) (this.steps.shift() as () => void)();
-    const b = blur(v);
-    const fast = b > 0.97;
-    if (fast !== this.fast) {
-      this.fast = fast;
-      this.slotsDirty = true;
+    const r = this.run;
+    const t = r ? (now - r.start) / 1000 : 0;
+    const { p, v } = this.position(now, r, t);
+    this.p = p;
+    // The drawn person's gift and pass made, a step a frame, as the rows come to rest (or between draws): never while
+    // the light hops quickest over rolling names, where a slower frame would show.
+    if (this.steps.length && (!r || (r.roll && t - r.roll.at > ROLL_T - 0.3 && Math.abs(v) < 0.5))) (this.steps.shift() as () => void)();
+    // The light's steps due by now; the run is over with the last of them, on the person drawn.
+    if (r) {
+      this.stepLight(r, t);
+      if (r.steps && r.next >= r.steps.length) this.finish();
     }
-    this.refreshSlots(p);
-    if (this.atlas.pump(fast ? 0 : 12, this.frameNo) > 0) this.slotsDirty = true;
-    const quiet = !this.run && !this.glide && !this.show ? 1 : 0;
+    this.place(this.p);
+    if (this.atlas.pump(12, this.frameNo) > 0) this.slotsDirty = true;
+    const quiet = !this.run && !this.show ? 1 : 0;
     this.idle += (quiet - this.idle) * 0.04;
     const u = this.tileU;
-    u.uFrac.value = p - Math.floor(p);
-    u.uWords.value = 1 - b;
-    // The ribbons only once the names are gone, and gone again before they come back.
-    u.uBlur.value = smooth(b, 0.55, 1);
+    u.uWords.value = 1;
     u.uTime.value = time;
     u.uIdle.value = this.idle;
     u.uDim.value = this.dimAt(now);
+    // The box of light: on its box, gliding there from the last one; a little flash of light each step.
+    const sel = u.uSel.value as THREE.Vector3;
+    const L = this.light;
+    if (L.on) {
+      const to = this.cellPos(L.cur);
+      const k = this.run && L.prev ? easeOut((t - L.at) / L.glide) : 1;
+      const from = L.prev && k < 1 ? this.cellPos(L.prev, this.tmpV2) : to;
+      const turn = from.turn + (to.turn - from.turn) * k;
+      this.frameMesh.position.set(
+        from.pos.x + (to.pos.x - from.pos.x) * k + Math.sin(turn) * 0.06,
+        from.pos.y + (to.pos.y - from.pos.y) * k,
+        from.pos.z + (to.pos.z - from.pos.z) * k + Math.cos(turn) * 0.06,
+      );
+      this.frameMesh.rotation.set(0, turn, 0);
+      sel.set(to.x, to.y, k > 0.6 ? 1 : 0);
+    } else sel.z = 0;
     if (this.show) this.pose((now - this.show.start) / 1000, time);
     else {
       u.uLock.value = 0;
-      this.frameU.uGlow.value = 0.85 + 0.15 * Math.sin(time * 1.6) * this.idle;
+      this.frameU.uAlpha.value = L.on ? 1 : 0;
+      this.frameU.uGlow.value = 0.9 + 1.5 * Math.exp(-((now - L.flash) / 1000) * 10);
     }
     this.bgU.uTime.value = time;
     this.bokehU.uTime.value = time;
     this.renderer.render(this.scene, this.camera);
   }
 
-  /** The drum's position (in places) and pace (places a second) now. */
-  private position(now: number): { p: number; v: number } {
-    const r = this.run;
-    if (r) {
-      const t = this.elapsed(r);
-      if (t >= endOf(r)) {
-        this.finish();
-        return { p: this.at, v: 0 };
-      }
-      return reelAt(r, t);
+  /**
+   * Where the rows are (columns) and their pace (columns a second) now. At rest they roll on slowly (the owner: "users
+   * roll"), a moment after they came to rest, getting going gently; never while a winner is shown or the light is on
+   * someone. Pressed, they keep their pace until the server answers, and the draw's roll carries it on: nothing jerks.
+   */
+  private position(now: number, r: Run | null, t: number): { p: number; v: number } {
+    const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
+    this.lastFrame = now;
+    if (r?.roll) {
+      this.drift = 0;
+      return rollAt(r.roll.from, r.roll.to, t - r.roll.at, r.roll.v0);
     }
-    const g = this.glide;
-    if (g) {
-      const s = Math.min(1, (now - g.start) / (g.T * 1000));
-      if (s >= 1) {
-        this.endGlide();
-        return { p: this.at, v: 0 };
-      }
-      return { p: g.from + (g.to - g.from) * easeInOut(s), v: 0 };
+    if (!r) {
+      const since = (now - this.restSince) / 1000 - DRIFT_AFTER;
+      if (!this.show && !this.light.on && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
+      else this.drift = Math.max(0, this.drift - (DRIFT / 0.8) * dt);
     }
-    return { p: this.at, v: 0 };
+    return { p: this.p + this.drift * dt, v: this.drift };
   }
 
-  private endGlide() {
-    const g = this.glide;
-    if (!g) return;
-    this.glide = null;
+  /**
+   * The light's steps due by `t` seconds after the press: each to a box beside the last that the room sees clearly
+   * (./grid.ts nextCell), wandering while it has steps to spare, heading for the person drawn as they run out; the
+   * last one onto them. Before the server has answered, quick wandering steps.
+   */
+  private stepLight(r: Run, t: number) {
+    const rnd = Math.random;
+    if (!r.steps) {
+      if (t - r.lastStep >= STEP_QUICK) {
+        r.lastStep = t;
+        this.stepTo(nextCell(this.light.cur, this.light.prev, null, 99, (c) => this.clear(c, r, t), rnd), t, STEP_QUICK);
+      }
+      return;
+    }
+    while (r.next < r.steps.length && t >= r.steps[r.next]) {
+      const at = r.steps[r.next];
+      const left = r.steps.length - 1 - r.next;
+      const gap = r.next + 1 < r.steps.length ? r.steps[r.next + 1] - at : 0.4;
+      const next = left === 0 && r.target ? r.target : nextCell(this.light.cur, this.light.prev, r.target, left, (c) => this.clear(c, r, at), rnd);
+      this.stepTo(next, at, gap);
+      r.next++;
+    }
+  }
+
+  /** A box the light may step to at `t`: in a row of the view, whole on the screen then and a moment later as it rolls. */
+  private clear(c: Cell, r: Run, t: number): boolean {
+    if (c.r < 0 || c.r >= this.rowsShown) return false;
+    for (const ahead of [0, 0.25]) {
+      const p = r.roll ? rollAt(r.roll.from, r.roll.to, t + ahead - r.roll.at, r.roll.v0).p : this.p + this.drift * ahead;
+      if (c.c < p + 0.75 || c.c > p + this.grid.cols + 0.25) return false;
+    }
+    return true;
+  }
+
+  private stepTo(cell: Cell, at: number, gap: number) {
+    this.light = { cur: cell, prev: this.light.cur, at, glide: Math.min(0.12, Math.max(0.05, gap * 0.7)), on: true, flash: performance.now() };
+  }
+
+  /** Where a box is in the scene now (on the wall's curve), how far it is turned to face the room, its flat place. */
+  private cellPos(cell: Cell, out = new THREE.Vector3()): { pos: THREE.Vector3; turn: number; x: number; y: number } {
+    const x = flatX(this.grid, cell.c, this.p);
+    const y = this.yTop - cell.r * this.grid.pitchY;
+    const th = x / this.grid.curve;
+    out.set(this.grid.curve * Math.sin(th), y, this.grid.curve * (1 - Math.cos(th)));
+    return { pos: out, turn: -th, x, y };
+  }
+
+  /**
+   * Every box the screen shows, the rows rolled to `p`: its place on the flat wall (the shader curves it), who is in it
+   * (gold, or out of the wall while they are a gift), and their face's cell once drawn.
+   */
+  private place(p: number) {
+    const g = this.grid;
     const n = this.rows.length;
-    this.at = n ? mod(Math.round(g.to), n) : 0;
-    this.slotsDirty = true;
-    if (this.waiting) {
-      const w = this.waiting;
-      this.waiting = null;
-      this.setRows(w.entries, w.gold);
-    } else this.rested();
-  }
-
-  /** Each slot's tile: who it is now, gold or out of the wall, and its face's cell when it is near enough to read. */
-  private refreshSlots(p: number) {
-    const base = Math.floor(p);
-    if (base === this.slotBase && !this.slotsDirty) return;
-    this.slotBase = base;
-    this.slotsDirty = false;
+    this.fillRows();
+    const c0 = Math.floor(p);
     this.atlas.restart();
-    const n = this.rows.length;
-    for (const k of this.order) {
-      const j = k - this.J;
-      const raw = base + j;
-      let cell = -1;
-      let flag = 0;
-      if (!n || (this.opening && raw < 0)) flag = BLANK;
-      else {
-        const e = this.rows[mod(raw, n)];
-        if (e[0] === this.hiddenId) flag = HIDDEN;
-        else if (this.gold.has(e[0])) flag = GOLD;
-        if (!this.fast && shows(this.drum, j)) cell = this.atlas.cell(e, this.frameNo);
+    let idx = 0;
+    for (let row = 0; row < this.rowsShown && idx < this.cap; row++) {
+      const y = this.yTop - row * g.pitchY;
+      const segs = this.segs[row] ?? this.segs[0];
+      for (let c = c0; c <= c0 + g.cols + 1 && idx < this.cap; c++, idx++) {
+        this.posArr[idx * 3] = flatX(g, c, p);
+        this.posArr[idx * 3 + 1] = y;
+        this.posArr[idx * 3 + 2] = 0;
+        let cell = -1;
+        let flag = 0;
+        if (n && segs) {
+          const e = this.rows[personAt(segs, c, n)];
+          if (this.hidden && this.hidden.r === row && this.hidden.c === c) flag = HIDDEN;
+          else if (this.gold.has(e[0])) flag = GOLD;
+          cell = this.atlas.cell(e, this.frameNo);
+        }
+        this.cellArr[idx] = cell;
+        this.flagArr[idx] = flag;
       }
-      this.cellArr[k] = cell;
-      this.flagArr[k] = flag;
     }
+    this.tilesGeometry.instanceCount = idx;
+    this.posAttr.needsUpdate = true;
     this.cellAttr.needsUpdate = true;
     this.flagAttr.needsUpdate = true;
+    this.slotsDirty = false;
   }
 
   private dimTo(to: number, seconds: number) {
@@ -1197,14 +1312,11 @@ export class WallStage {
   }
 
   /** Finishes the run even if the browser stops drawing frames (a tab out of sight): the result never waits on it. */
-  private watch(r: Run & { start: number }) {
+  private watch(r: Run) {
     window.clearTimeout(this.dog);
-    const left = (endOf(r) - this.elapsed(r)) * 1000;
+    const end = r.steps ? r.steps[r.steps.length - 1] : 0;
+    const left = (end - this.elapsed(r)) * 1000;
     this.dog = window.setTimeout(this.finish, Math.max(0, left) + 400);
-  }
-
-  private rested() {
-    this.opts.onRest?.(this.framed());
   }
 
   /**
@@ -1224,25 +1336,64 @@ export class WallStage {
     if (sorted[sorted.length >> 1] > 45) this.opts.onSlow?.();
   }
 
+  /**
+   * The camera set back just so far that the wall's columns fill the screen's width, edge to edge, on its curve; then
+   * as many whole rows as the view (opts.view: between the words at the top and the seats at the foot) holds, even
+   * about its middle, and none outside it, so no word on the screen is ever over a name. The wall's ends are nearer
+   * the room, where a row looks a little taller: the rows are fitted to the view as seen there. Then the gift's place.
+   */
   private resize() {
     const host = this.canvas.parentElement;
     const w = Math.max(1, host?.clientWidth ?? window.innerWidth);
     const h = Math.max(1, host?.clientHeight ?? window.innerHeight);
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
+    const aspect = w / h;
+    const tan = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+    const g = this.grid;
+    const edge = (g.cols / 2) * g.pitchX;
+    const th = edge / g.curve;
+    const dist = g.curve * (1 - Math.cos(th)) + (g.curve * Math.sin(th)) / (tan * aspect);
+    this.camera.aspect = aspect;
+    this.camera.position.set(0, 0, dist);
+    this.camera.lookAt(0, 0, 0);
     this.camera.updateProjectionMatrix();
+    this.camera.updateMatrixWorld();
+    const halfH = dist * tan;
+    // The view's top and foot as lines across the screen (fractions of its height), and as heights on the wall: in the
+    // middle, and at the ends, nearer the room.
+    const box = this.opts.view?.getBoundingClientRect();
+    const seen = !!box && box.height > 1;
+    const top = this.canvas.getBoundingClientRect().top;
+    const f0 = seen ? (box.top - top) / h : 0.142;
+    const f1 = seen ? (box.bottom - top) / h : 0.678;
+    const near = (dist - g.curve * (1 - Math.cos(th))) / dist;
+    const y0 = halfH * (1 - 2 * f0);
+    const y1 = halfH * (1 - 2 * f1);
+    const hi = Math.min(y0, y0 * near);
+    const lo = Math.max(y1, y1 * near);
+    const gap = g.pitchY - g.tileH;
+    const rows = Math.max(1, Math.min(MAX_ROWS, Math.floor((hi - lo + gap) / g.pitchY + 1e-6)));
+    const span = rows * g.pitchY - gap;
+    const mid = Math.min(hi - span / 2, Math.max(lo + span / 2, (y0 + y1) / 2));
+    this.rowsShown = rows;
+    this.yTop = mid + span / 2 - g.tileH / 2;
+    this.viewMid = 1 - f0 - f1;
+    this.giftAt.set(0, this.viewMid * GIFT_DIST * tan - GIFT_BELOW, -GIFT_DIST);
+    this.camera.localToWorld(this.giftAt);
     const px = this.renderer.getPixelRatio() * h;
-    const scale = px / (2 * Math.tan(THREE.MathUtils.degToRad(FOV / 2)));
+    const scale = px / (2 * tan);
     this.bokehU.uScale.value = scale;
     this.sparkU.uScale.value = scale;
     this.bgU.uRes.value.set(w, h);
+    (this.tileU.uRes.value as THREE.Vector2).set(w * this.renderer.getPixelRatio(), h * this.renderer.getPixelRatio());
+    this.slotsDirty = true;
   }
 
   // ---- the reveal ----
 
-  /** Where the pass holds the screen: in front of the room, a little above the middle, facing it squarely. */
+  /** Where the pass holds the screen: in front of the room, on the middle of the view, facing it squarely. */
   private holdAt(out: THREE.Vector3): THREE.Vector3 {
-    out.set(0, HOLD_UP, -HOLD_DIST);
+    out.set(0, this.viewMid * HOLD_DIST * Math.tan(THREE.MathUtils.degToRad(FOV / 2)) - HOLD_BELOW, -HOLD_DIST);
     return this.camera.localToWorld(out);
   }
 
@@ -1300,9 +1451,10 @@ export class WallStage {
     u.uLock.value = smooth(t, 0, 0.18) * (1 - smooth(t, TL.out, TL.out + 0.2));
     u.uDim.value = 0.78 * smooth(t, 0.1, 0.6) * (1 - smooth(t, TL.seat - 0.1, TL.end));
     this.frameU.uGlow.value = 0.9 + 2.6 * bell(t, 0, 0.75);
-    this.frameU.uAlpha.value = 1 - 0.85 * smooth(t, 0.9, 1.5) * (1 - smooth(t, TL.seat - 0.1, TL.end));
-    if (t >= TL.out && this.hiddenId !== s.card.tripId) {
-      this.hiddenId = s.card.tripId;
+    // The light stays on the tile until it leaves the wall, then goes (the tile is a gift now).
+    this.frameU.uAlpha.value = 1 - smooth(t, TL.out, TL.out + 0.35);
+    if (t >= TL.out && !this.hidden) {
+      this.hidden = { ...this.light.cur };
       this.slotsDirty = true;
     }
 
@@ -1312,16 +1464,16 @@ export class WallStage {
     if (heroOn) {
       const k = (t - TL.out) / (TL.flip - TL.out);
       const e = easeInOut(k);
-      this.hero.position.lerpVectors(FRAME_AT, GIFT_AT, e);
+      this.hero.position.lerpVectors(s.from, this.giftAt, e);
       this.hero.position.y += Math.sin(Math.PI * k) * 0.45;
       this.hero.scale.setScalar(1 - 0.3 * e);
-      this.hero.rotation.set(GIFT_TILT * e, (-Math.PI / 2) * easeIn(k), 0);
+      this.hero.rotation.set(GIFT_TILT * e, s.turn * (1 - e) + (-Math.PI / 2) * easeIn(k), 0);
       this.heroU.uGlow.value = k * 1.5;
     }
     this.flash.visible = t > TL.flip - 0.15 && t < TL.flip + 0.4;
     if (this.flash.visible) {
       (this.flash.material as THREE.SpriteMaterial).opacity = bell(t, TL.flip - 0.15, TL.flip + 0.4) * 0.95;
-      this.flash.position.copy(GIFT_AT);
+      this.flash.position.copy(this.giftAt);
       const f = 1.4 + 1.2 * smooth(t, TL.flip - 0.15, TL.flip + 0.4);
       this.flash.scale.set(f, f, 1);
     }
@@ -1334,7 +1486,7 @@ export class WallStage {
       this.gift.root.scale.setScalar(GIFT_SCALE * (0.35 + 0.65 * backOut(pop)));
       this.gift.root.rotation.set(GIFT_TILT, GIFT_YAW + (Math.PI / 2) * (1 - easeOut(pop)), 0);
       const sink = easeIn((t - TL.risen - 0.05) / (TL.placed + 0.3 - TL.risen - 0.05));
-      this.gift.root.position.set(GIFT_AT.x, GIFT_AT.y - 2.6 * sink, GIFT_AT.z);
+      this.gift.root.position.set(this.giftAt.x, this.giftAt.y - 2.6 * sink, this.giftAt.z);
       const h = clamp01((t - TL.landed) / (TL.pop - TL.landed));
       const hopping = t >= TL.landed && t < TL.pop;
       const m: GiftMoment = {
@@ -1468,16 +1620,13 @@ export class WallStage {
     this.giftHalo.visible = false;
     this.sparks.visible = false;
     this.sparkU.uT.value = -10;
-    this.hiddenId = null;
+    this.hidden = null;
+    this.light.on = false;
+    this.restSince = performance.now();
     this.slotsDirty = true;
-    this.frameU.uAlpha.value = 1;
+    this.frameU.uAlpha.value = 0;
     this.tileU.uLock.value = 0;
     this.dimTo(0, 0.5);
-    if (this.waiting) {
-      const w = this.waiting;
-      this.waiting = null;
-      this.setRows(w.entries, w.gold);
-    }
     s.resolve();
   }
 }

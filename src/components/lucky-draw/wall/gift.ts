@@ -202,9 +202,11 @@ export class Gift {
   set(m: GiftMoment, time: number) {
     this.body.position.y = m.hop;
     this.body.scale.set(1 + m.squash * 0.5, 1 - m.squash, 1 + m.squash * 0.5);
+    // The lid pops up a little, tips back and drops away behind the box, gone as it falls (it never rises over the
+    // screen's words).
     const o = m.open;
-    this.lid.position.set(-0.55 * o, this.lidY + 1.95 * o + 0.9 * Math.max(0, o - 0.6), -0.3 * o);
-    this.lid.rotation.set(-1.05 * o, 0.25 * o, m.tremble + 0.5 * o);
+    this.lid.position.set(-0.35 * o, this.lidY + 0.95 * o - 0.55 * o * o, -1.5 * o);
+    this.lid.rotation.set(-1.0 * o, 0.2 * o, m.tremble + 0.25 * o);
     const lidOpacity = 1 - m.lidFade;
     for (const mat of this.lidMaterials) mat.opacity = lidOpacity;
     this.lid.visible = lidOpacity > 0.01;

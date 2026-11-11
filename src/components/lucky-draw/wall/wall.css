@@ -1,6 +1,8 @@
 /*
- * The lucky draw's wall on the TV (DrawWall): the words and seats over the 3D wall (./stage.ts draws the rest).
- * Laid out on a 16:9 plate scaled to the screen (--u is a hundredth of its width), so it is the same on any TV.
+ * The lucky draw's wall on the TV (DrawWall): the words at the top, the Draw button and the round's seats at the foot,
+ * and between them the view (.lw-view), where ./stage.ts draws its rows of names: only there, so no word on the screen
+ * ever sits over a name. Laid out on a 16:9 plate scaled to the screen (--u is a hundredth of its width), the same on
+ * any TV; everything that must be read keeps 4% from the plate's edges, inside a TV's title-safe area.
  * The type: the screen's words in Jost, spaced capitals; the winners' names in the trip's Bodoni at 600.
  */
 .lw {
@@ -40,15 +42,6 @@
   width: 100%;
   height: 100%;
 }
-/* The plate's top and foot darkened a little, so the words and the seats read over the wall. */
-.lw-shade {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(to bottom, rgb(6 4 20 / 0.62), rgb(6 4 20 / 0) 15%),
-    linear-gradient(to top, rgb(6 4 20 / 0.92), rgb(6 4 20 / 0.7) 22%, rgb(6 4 20 / 0) 40%);
-}
 .lw-frame {
   position: absolute;
   left: 50%;
@@ -57,16 +50,25 @@
   height: calc(56.25 * var(--u));
   transform: translate(-50%, -50%);
 }
+/* Where the rows of names are seen whole (./stage.ts reads it): under the words, over the Draw button. */
+.lw-view {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(8 * var(--u));
+  bottom: calc(18.1 * var(--u));
+  pointer-events: none;
+}
 
 .lw-band {
   position: absolute;
-  top: calc(2.3 * var(--u));
-  left: calc(3 * var(--u));
-  right: calc(3 * var(--u));
+  top: calc(2 * var(--u));
+  left: calc(4 * var(--u));
+  right: calc(4 * var(--u));
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: calc(0.86 * var(--u));
+  font-size: calc(0.9 * var(--u));
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--mute);
@@ -78,7 +80,7 @@
 }
 .lw-band-mark b {
   font-weight: 600;
-  font-size: calc(1.12 * var(--u));
+  font-size: calc(1.25 * var(--u));
   letter-spacing: 0.34em;
   color: var(--gold-hi);
 }
@@ -93,7 +95,7 @@
   border-radius: 999px;
   color: #ffd3dc;
   font-weight: 600;
-  font-size: calc(0.72 * var(--u));
+  font-size: calc(0.76 * var(--u));
   letter-spacing: 0.2em;
 }
 .lw-full {
@@ -118,13 +120,13 @@
 /* What the next press draws, or the seat being drawn. */
 .lw-eyebrow {
   position: absolute;
-  top: calc(6.6 * var(--u));
+  top: calc(4.05 * var(--u));
   left: 0;
   right: 0;
   margin: 0;
   text-align: center;
   font-weight: 500;
-  font-size: calc(1.22 * var(--u));
+  font-size: calc(1.3 * var(--u));
   letter-spacing: 0.36em;
   text-transform: uppercase;
   color: var(--gold-hi);
@@ -134,12 +136,12 @@
 /* One line under those words: who is in the draw, the draw just made, or what is wrong. */
 .lw-note {
   position: absolute;
-  top: calc(9.1 * var(--u));
+  top: calc(6 * var(--u));
   left: 0;
   right: 0;
   margin: 0;
   text-align: center;
-  font-size: calc(0.86 * var(--u));
+  font-size: calc(0.88 * var(--u));
   letter-spacing: 0.12em;
   color: var(--mute);
   text-shadow: 0 0 calc(0.8 * var(--u)) rgb(0 0 0 / 0.9);
@@ -148,30 +150,31 @@
   color: #ffb3b3;
 }
 
+/* The Draw button, at the head of the seats' own block: its place is kept while it is hidden, so nothing moves. */
 .lw-act {
-  position: absolute;
-  top: calc(39.4 * var(--u));
-  left: 0;
-  right: 0;
   display: flex;
   justify-content: center;
+  height: calc(3.1 * var(--u));
+  margin-bottom: calc(0.85 * var(--u));
   transition: opacity 0.35s ease;
 }
-/* While a winner is shown, the button steps aside: the pass comes down through here to its seat. */
+/* While a draw runs and its winner is shown, the button steps aside: the pass comes down through here to its seat. */
+.lw[data-phase="drawing"] .lw-act,
 .lw[data-phase="drawn"] .lw-act {
   opacity: 0;
   pointer-events: none;
 }
 .lw-draw {
-  min-width: calc(15 * var(--u));
-  padding: calc(0.78 * var(--u)) calc(3 * var(--u));
+  min-width: calc(16 * var(--u));
+  height: 100%;
+  padding: 0 calc(3.2 * var(--u));
   border: 1px solid rgb(231 194 108 / 0.85);
   border-radius: 999px;
-  background: rgb(10 7 28 / 0.55);
+  background: rgb(10 7 28 / 0.7);
   color: var(--gold-hi);
   font: inherit;
   font-weight: 600;
-  font-size: calc(0.98 * var(--u));
+  font-size: calc(1.12 * var(--u));
   letter-spacing: 0.32em;
   text-transform: uppercase;
   cursor: pointer;
@@ -193,17 +196,18 @@
 /* The round's five seats. */
 .lw-foot {
   position: absolute;
-  left: calc(3 * var(--u));
-  right: calc(3 * var(--u));
+  left: calc(4 * var(--u));
+  right: calc(4 * var(--u));
   bottom: calc(2.2 * var(--u));
 }
 .lw-round {
-  margin: 0 0 calc(0.9 * var(--u));
+  height: calc(1.3 * var(--u));
+  margin: 0 0 calc(0.75 * var(--u));
   display: flex;
   align-items: center;
   gap: calc(1.2 * var(--u));
   font-weight: 600;
-  font-size: calc(0.8 * var(--u));
+  font-size: calc(0.92 * var(--u));
   letter-spacing: 0.4em;
   text-transform: uppercase;
   color: var(--gold);
@@ -226,57 +230,64 @@
   padding: 0;
   list-style: none;
 }
+/* A seat is always the same height (its name is sized to fit two lines at most), so the block never grows. */
 .lw-seat {
-  min-height: calc(8.8 * var(--u));
-  padding: calc(0.9 * var(--u)) calc(1.1 * var(--u)) calc(0.85 * var(--u));
-  border: 1px solid rgb(150 128 255 / 0.24);
+  height: calc(9.3 * var(--u));
+  padding: calc(0.85 * var(--u)) calc(1.1 * var(--u)) calc(0.8 * var(--u));
+  border: 1px solid rgb(150 128 255 / 0.3);
   border-radius: calc(0.9 * var(--u));
-  background: linear-gradient(180deg, rgb(26 18 62 / 0.78), rgb(12 8 32 / 0.86));
+  background: linear-gradient(180deg, #1b1340, #0e0a26);
   display: flex;
   flex-direction: column;
   text-align: center;
+  overflow: hidden;
 }
 .lw-seat-n {
   margin: 0;
   font-weight: 600;
-  font-size: calc(0.66 * var(--u));
+  font-size: calc(0.76 * var(--u));
   letter-spacing: 0.34em;
   text-transform: uppercase;
   color: var(--faint);
 }
 .lw-seat-name {
   margin: auto 0 0;
-  padding-top: calc(0.5 * var(--u));
+  padding-top: calc(0.4 * var(--u));
   font-family: var(--font-cx-display), Georgia, serif;
   font-variation-settings: "opsz" 11;
   font-weight: 600;
-  font-size: calc(1.62 * var(--u));
-  line-height: 1.12;
+  font-size: calc(1.8 * var(--u));
+  line-height: 1.1;
   color: var(--white);
   overflow-wrap: normal;
   word-break: normal;
   hyphens: none;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
 }
 .lw-seat-name[data-size="m"] {
-  font-size: calc(1.42 * var(--u));
+  font-size: calc(1.55 * var(--u));
 }
 .lw-seat-name[data-size="s"] {
-  font-size: calc(1.24 * var(--u));
+  font-size: calc(1.34 * var(--u));
 }
 .lw-seat-name[data-size="xs"] {
-  font-size: calc(1.08 * var(--u));
+  font-size: calc(1.16 * var(--u));
 }
 .lw-seat-name[data-open] {
   font-family: inherit;
   font-weight: 400;
-  font-size: calc(0.86 * var(--u));
+  font-size: calc(0.95 * var(--u));
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--faint);
 }
 .lw-seat-meta {
-  margin: calc(0.35 * var(--u)) 0 0;
-  font-size: calc(0.78 * var(--u));
+  margin: calc(0.4 * var(--u)) 0 0;
+  font-size: calc(0.9 * var(--u));
   color: var(--mute);
   white-space: nowrap;
   overflow: hidden;
@@ -286,13 +297,13 @@
   margin: calc(0.3 * var(--u)) 0 0;
   min-height: 1em;
   font-weight: 600;
-  font-size: calc(0.66 * var(--u));
+  font-size: calc(0.76 * var(--u));
   letter-spacing: 0.24em;
   color: var(--faint);
 }
 .lw-seat[data-filled] {
   border-color: rgb(231 194 108 / 0.7);
-  background: linear-gradient(180deg, rgb(46 32 74 / 0.86), rgb(18 12 38 / 0.9));
+  background: linear-gradient(180deg, #2b1f49, #130d29);
   box-shadow: 0 0 calc(2.2 * var(--u)) rgb(231 194 108 / 0.16), inset 0 1px 0 rgb(255 236 190 / 0.18);
 }
 .lw-seat[data-filled] .lw-seat-n {
@@ -375,14 +386,14 @@
 .lw-line {
   position: fixed;
   left: 50%;
-  bottom: calc(1 * var(--u));
+  bottom: calc(0.4 * var(--u));
   transform: translateX(-50%);
   margin: 0;
-  padding: calc(0.3 * var(--u)) calc(1 * var(--u));
+  padding: calc(0.2 * var(--u)) calc(1 * var(--u));
   border-radius: 999px;
   background: rgb(0 0 0 / 0.6);
   color: var(--mute);
-  font-size: calc(0.8 * var(--u));
+  font-size: calc(0.76 * var(--u));
 }
 
 .lw-door {
