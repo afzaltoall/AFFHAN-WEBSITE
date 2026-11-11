@@ -2,54 +2,66 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
 import { placeOfTrip } from "./drum";
-import { FACE_H, FACE_W, INSIDE, PASS_H, PASS_W, TAG_H, TAG_W, WRAP, drawFace, drawInside, drawPass, drawTag, drawWrap, type Fonts } from "./faces";
+import { FACE_H, FACE_W, INSIDE, PASS_H, PASS_W, STUB_AT, TAG_H, TAG_W, WRAP, drawBack, drawFace, drawInside, drawPass, drawTag, drawWrap, type Fonts } from "./faces";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
 import {
+  ALL_DOWN,
+  DOWN_AT,
+  FLIP_T,
   GRID,
-  TAIL_T,
+  ROWS,
+  WAVE_T,
+  drawTimes,
   flatX,
+  flipAngle,
+  flipDelay,
   mod,
   openingRows,
   pathAt,
   personAt,
-  planStop,
-  rollAt,
-  startRoll,
+  stepIndex,
   stretchFor,
   walkAhead,
-  walkLand,
   walkStart,
   type Cell,
-  type Roll,
   type Segment,
   type Walk,
 } from "./grid";
 
 /**
- * A draw on the wall: pressed at `start` (ms); the rows' roll from then; the light's way; once the server has answered,
- * where the rows stop and when the light lands (seconds from the press).
+ * A draw on the wall, pressed at `start` (ms; its moments are seconds from then): where the rows settle for it (a whole
+ * column), when the tickets turn face up again (Infinity until the server has answered), the person drawn and whether
+ * the new names are in, when the light comes on and when it lands, its way, the ticket it lands on, and whether the
+ * draw failed (the tickets then turn back up as they were).
  */
 interface Run {
   start: number;
   done: (landed: boolean) => void;
-  roll: Roll;
-  walk: Walk;
-  plan: { end: number; cut: number } | null;
-  landAt: number | null;
+  settle: { from: number; to: number };
+  up: number;
+  drawn: number | null;
+  placed: boolean;
+  light: number;
+  land: number;
+  walk: Walk | null;
+  target: Cell | null;
+  halted: boolean;
 }
 
 /**
  * The lucky draw's wall, drawn in 3D on the TV (the owner, 2026-11-11, with four pictures of video walls: "like opening
- * a gift box"; then "filled completely, the users rolling, curved, facing the screen"; "not blurred ... one box of
- * light, moving everywhere, for real, not like magic"; "up and down too, in every direction ... a genuine random draw").
+ * a gift box"; then "filled completely ... curved, facing the screen"; "one box of light ... for real, not like
+ * magic"; "card to card, a snap, not a mouse drag or a slideshow"; "tickets ... six rows ... a Ballon d'Or gold feel").
  *
- * Everyone in the draw is a box in rows of names, a gently curved wall facing the room, its rows as many as the view
- * between the screen's words and its seats holds whole (opts.view), each row in Trip ID order and rolling slowly left
- * while it waits (./grid.ts). A press: one box of light runs over the names, a box at a time, across, up, down and
- * corner to corner, quick at first and then ever slower, while the rows roll on by a screen, calmly, bringing in new
- * names; its last step lands on the person the server drew. Their box lifts out of the wall, turns, and is a gift; the
- * gift hops, its lid flies off, light pours out, and their boarding pass rises out of it and holds the screen for three
- * seconds; then it goes down into its seat, and the rows roll on.
+ * Everyone in the draw is a ticket, black with gold print, in six rows on a gently curved wall facing the room, drawn
+ * only in the view between the screen's words and its seats (opts.view); each row in Trip ID order, rolling slowly
+ * left while it waits (./grid.ts). A press: the wall stops; the tickets turn face down in a wave, their gold backs
+ * showing while the server draws, and turn face up again with new names, the person drawn among them in their own
+ * place. The light comes on and jumps from ticket to ticket, a snap each time, every way across the wall, the ticket
+ * it is on turning gold; it slows, holding on each name, and its last jump lands on the person drawn. Their golden
+ * ticket lifts out of the wall, turns, and is a gift; the gift hops, its lid tips off, light pours out, and their
+ * boarding pass rises out of it and holds the screen for three seconds; then it goes down into its seat, and the rows
+ * roll on.
  *
  * Built not to stick: every moment is worked out from the clock, never from how many frames were drawn, and timers
  * finish a run and a reveal even when the browser stops drawing (./DrawWall.tsx checks the result, not the picture).
@@ -78,8 +90,10 @@ const DRIFT = 0.18;
 /** Seconds the rows stay still after they come to rest, before they roll on, and the seconds they take to get going. */
 const DRIFT_AFTER = 2.5;
 const DRIFT_EASE = 1.6;
-/** Seconds the boxes the light has passed over keep a fading glow: its trail across the wall. */
-const TRAIL = 0.9;
+/** Seconds the tickets the light has jumped from stay golden, fading: its trail across the wall. */
+const TRAIL = 0.55;
+/** Seconds the rows take to settle on a whole column when Draw is pressed. */
+const SETTLE_T = 0.7;
 
 /** The reveal, in seconds from the stop. */
 const TL = {
@@ -120,14 +134,40 @@ function seeded(seed: number) {
   return () => (s = (s * 16807) % 2147483647) / 2147483647;
 }
 
+/** A ticket's outline (a rounded card with a notch top and bottom at its perforation), and gold foil. */
+const ticketGlsl = /* glsl */ `
+  float ticketSdf(vec2 q, vec2 size, float stub) {
+    float rad = 0.045;
+    vec2 dd = abs(q) - (size * 0.5 - rad);
+    float sdf = length(max(dd, 0.0)) + min(max(dd.x, dd.y), 0.0) - rad;
+    float xs = (stub - 0.5) * size.x;
+    float notch = min(length(q - vec2(xs, size.y * 0.5)), length(q - vec2(xs, -size.y * 0.5))) - 0.052;
+    return max(sdf, -notch);
+  }
+  float perforation(vec2 q, vec2 size, float stub, float aa) {
+    float xs = (stub - 0.5) * size.x;
+    float d = length(vec2(q.x - xs, mod(q.y + 0.019, 0.038) - 0.019)) - 0.0072;
+    return (1.0 - smoothstep(-aa * 0.6, aa * 0.6, d)) * step(abs(q.y), size.y * 0.5 - 0.07);
+  }
+  // Warm gold, its light running slowly across it.
+  vec3 foil(vec2 q, float t) {
+    float band = 0.5 + 0.5 * sin(q.x * 2.1 + q.y * 3.3 - t * 0.55);
+    vec3 c = mix(vec3(0.50, 0.34, 0.10), vec3(0.86, 0.66, 0.30), smoothstep(0.0, 0.62, band));
+    return mix(c, vec3(1.0, 0.91, 0.64), smoothstep(0.78, 1.0, band));
+  }
+`;
+
 const tileVertex = /* glsl */ `
   attribute vec3 aPos;
   attribute float aCell;
   attribute float aFlag;
   attribute float aLit;
+  attribute float aFlip;
   uniform float uAtlasCols;
   uniform vec2 uCellUV;
   uniform float uCurve;
+  uniform vec3 uSel;
+  uniform float uPop;
   varying vec2 vUv;
   varying vec2 vCenter;
   varying float vFlag;
@@ -138,11 +178,19 @@ const tileVertex = /* glsl */ `
   void main() {
     vec3 p = position;
     vLit = aLit;
-    // The wall curves gently towards the room, each tile turned to face it (./grid.ts): aPos is its place on the flat.
+    // The ticket the light has just jumped to stands out a little, for a moment.
+    float picked = uSel.z * (1.0 - step(0.05, abs(aPos.x - uSel.x))) * (1.0 - step(0.05, abs(aPos.y - uSel.y)));
+    p.xy *= 1.0 + (uPop - 1.0) * picked;
+    // Turning over (the shuffle): about its own upright, coming a little towards the room as it turns.
+    float ca = cos(aFlip);
+    float sa = sin(aFlip);
+    float lx = p.x * ca;
+    float lz = -p.x * sa + 0.16 * abs(sa);
+    // The wall curves gently towards the room, each ticket turned to face it (./grid.ts): aPos is its place on the flat.
     float th = aPos.x / uCurve;
     float c = cos(th);
     float s = sin(th);
-    vec3 w = vec3(uCurve * s + p.x * c, aPos.y + p.y, uCurve * (1.0 - c) + p.x * s);
+    vec3 w = vec3(uCurve * s + lx * c - lz * s, aPos.y + p.y, uCurve * (1.0 - c) + lx * s + lz * c);
     vUv = uv;
     vCenter = aPos.xy;
     vFlag = aFlag;
@@ -158,14 +206,15 @@ const tileVertex = /* glsl */ `
 const tileFragment = /* glsl */ `
   uniform sampler2D uAtlas;
   uniform vec2 uCellUV;
+  uniform vec2 uBackCell;
   uniform vec2 uTile;
-  uniform float uWords;
+  uniform float uStub;
   uniform float uDim;
   uniform float uTime;
   uniform float uIdle;
   uniform float uLock;
   uniform vec2 uRes;
-  // The selected tile's centre (x, y) and whether a tile is selected (z).
+  // The ticket the light is on: its centre (x, y), and whether the light is on (z).
   uniform vec3 uSel;
   varying vec2 vUv;
   varying vec2 vCenter;
@@ -174,60 +223,82 @@ const tileFragment = /* glsl */ `
   varying vec2 vCell;
   varying vec3 vWorld;
   varying float vLit;
+  ${ticketGlsl}
   void main() {
-    vec2 q = (vUv - 0.5) * uTile;
-    float rad = 0.075;
-    vec2 dd = abs(q) - (uTile * 0.5 - rad);
-    float sdf = length(max(dd, 0.0)) + min(max(dd.x, dd.y), 0.0) - rad;
+    // Turned over, a ticket shows its back, the right way round.
+    bool back = !gl_FrontFacing;
+    vec2 uv = back ? vec2(1.0 - vUv.x, vUv.y) : vUv;
+    vec2 q = (uv - 0.5) * uTile;
+    float sdf = ticketSdf(q, uTile, uStub);
     float aa = fwidth(sdf) * 1.2;
     float inside = 1.0 - smoothstep(-aa, aa, sdf);
     if (inside < 0.004) discard;
-    float edge = 1.0 - smoothstep(0.0, aa + 0.012, abs(sdf + 0.017));
+    float edge = 1.0 - smoothstep(0.0, aa + 0.008, abs(sdf + 0.013));
+    float perf = perforation(q, uTile, uStub, aa);
     float gold = (vFlag > 0.5 && vFlag < 1.5) ? 1.0 : 0.0;
-    // The box the light is on: lit, and brighter still as it locks.
     float picked = uSel.z * (1.0 - step(0.05, abs(vCenter.x - uSel.x))) * (1.0 - step(0.05, abs(vCenter.y - uSel.y)));
+    // How golden the ticket is: the light's (fully), a winner's (fully), the light's trail (fading).
+    float trail = vLit * vLit * (1.0 - picked);
+    float golden = max(max(picked, gold), trail * 0.9);
     // The rows run off the screen's left and right edges; their far ends fall a little into shadow.
     vec2 ndc = gl_FragCoord.xy / uRes * 2.0 - 1.0;
     float vig = 1.0 - 0.3 * smoothstep(0.7, 1.45, length(ndc * vec2(0.82, 1.0)));
     float bright = vig * (1.0 - 0.74 * uDim * (1.0 - picked));
-    // Glass: deep violet, lighter towards the top, a soft sheen at its upper left.
-    vec3 glass = mix(vec3(0.045, 0.032, 0.115), vec3(0.115, 0.082, 0.255), vUv.y);
-    glass += vec3(0.07, 0.055, 0.14) * pow(max(0.0, 1.0 - length(q / uTile - vec2(-0.28, 0.36)) * 1.7), 2.0);
-    glass = mix(glass, vec3(0.20, 0.14, 0.06) + glass * 0.6, gold * 0.55);
-    float words = 0.0;
-    if (vHasCell > 0.5) words = texture2D(uAtlas, vCell + vec2(vUv.x, 1.0 - vUv.y) * uCellUV).a;
-    vec3 ink = mix(vec3(0.95, 0.94, 1.0), vec3(1.0, 0.87, 0.55), gold);
-    // The light's trail: the boxes it has just passed over take its gold, fading.
-    float trail = vLit * vLit * (1.0 - picked);
-    vec3 line = mix(vec3(0.45, 0.35, 1.0), vec3(1.0, 0.80, 0.42), max(gold, smoothstep(0.04, 0.4, trail)));
-    // A slow light passing over the wall while it waits.
-    float d = vWorld.x * 0.085 - vWorld.y * 0.24 - (mod(uTime * 0.13, 2.8) - 1.4);
-    float sweep = exp(-d * d * 36.0) * uIdle;
-    vec3 col = glass + ink * words * uWords;
-    col += line * edge * (0.5 + 0.5 * gold + sweep * 1.5 + picked * (0.8 + 1.2 * uLock) + trail * 0.9);
-    col += vec3(1.0, 0.85, 0.5) * picked * (0.06 + 0.12 * uLock) + vec3(1.0, 0.84, 0.5) * trail * 0.04;
-    col *= bright * (1.0 + picked * (0.25 + 0.4 * uLock));
+    vec3 metal = foil(q + vCenter, uTime);
+    vec3 col;
+    if (back) {
+      // The back: gold foil, finely lined, the AFFHAN mark printed dark.
+      col = metal * (0.9 + 0.06 * sin((q.x - q.y) * 120.0));
+      float mark = texture2D(uAtlas, uBackCell + vec2(uv.x, 1.0 - uv.y) * uCellUV).a;
+      col = mix(col, vec3(0.17, 0.11, 0.03), mark * 0.88);
+      col = mix(col, vec3(1.0, 0.95, 0.78), edge * 0.55);
+      col = mix(col, vec3(0.32, 0.21, 0.06), perf * 0.7);
+    } else {
+      // The face: a black card with gold print, a shade lighter on its stub; golden when lit, its print then dark.
+      vec3 card = mix(vec3(0.043, 0.034, 0.021), vec3(0.098, 0.076, 0.044), uv.y);
+      card += vec3(0.05, 0.04, 0.02) * pow(max(0.0, 1.0 - length(q / uTile - vec2(-0.3, 0.35)) * 1.6), 2.0);
+      card = mix(card, card * 1.3 + vec3(0.016, 0.012, 0.004), step(uStub, uv.x));
+      vec3 body = mix(card, metal, golden);
+      vec4 m = vHasCell > 0.5 ? texture2D(uAtlas, vCell + vec2(uv.x, 1.0 - uv.y) * uCellUV) : vec4(0.0);
+      float sum = max(m.r + m.g, 0.0001);
+      float ivory = m.a * m.r / sum;
+      float printed = m.a * m.g / sum;
+      col = body;
+      col = mix(col, mix(vec3(0.97, 0.93, 0.84), vec3(0.13, 0.08, 0.02), golden), ivory);
+      col = mix(col, mix(vec3(0.92, 0.75, 0.41), vec3(0.22, 0.13, 0.03), golden), printed);
+      col = mix(col, mix(vec3(0.74, 0.57, 0.26), vec3(1.0, 0.94, 0.72), golden), edge * (0.8 + 0.2 * golden));
+      col = mix(col, mix(vec3(0.66, 0.51, 0.24), vec3(0.36, 0.23, 0.07), golden), perf * 0.85);
+      // A slow light passing over the wall while it waits.
+      float d = vWorld.x * 0.085 - vWorld.y * 0.24 - (mod(uTime * 0.13, 2.8) - 1.4);
+      col += vec3(1.0, 0.86, 0.56) * edge * exp(-d * d * 36.0) * uIdle;
+    }
+    col += vec3(1.0, 0.84, 0.5) * picked * (0.04 + 0.12 * uLock);
+    col *= bright * (1.0 + picked * (0.12 + 0.35 * uLock));
     gl_FragColor = vec4(col, inside);
   }
 `;
 
+/** The winner's ticket as it leaves the wall: golden, its print dark, drawn twice as large so it stays sharp. */
 const heroFragment = /* glsl */ `
   uniform sampler2D uMap;
   uniform vec2 uTile;
   uniform float uGlow;
+  uniform float uStub;
+  uniform float uTime;
   varying vec2 vUv;
+  ${ticketGlsl}
   void main() {
     vec2 q = (vUv - 0.5) * uTile;
-    float rad = 0.075;
-    vec2 dd = abs(q) - (uTile * 0.5 - rad);
-    float sdf = length(max(dd, 0.0)) + min(max(dd.x, dd.y), 0.0) - rad;
+    float sdf = ticketSdf(q, uTile, uStub);
     float aa = fwidth(sdf) * 1.2;
     float inside = 1.0 - smoothstep(-aa, aa, sdf);
     if (inside < 0.004) discard;
-    float edge = 1.0 - smoothstep(0.0, aa + 0.012, abs(sdf + 0.017));
-    vec3 glass = mix(vec3(0.10, 0.07, 0.16), vec3(0.24, 0.17, 0.30), vUv.y);
-    float words = texture2D(uMap, vUv).a;
-    vec3 col = glass + vec3(1.0, 0.9, 0.62) * words + vec3(1.0, 0.82, 0.45) * edge * (1.2 + uGlow);
+    float edge = 1.0 - smoothstep(0.0, aa + 0.008, abs(sdf + 0.013));
+    vec3 col = foil(q, uTime);
+    col = mix(col, vec3(0.13, 0.08, 0.02), texture2D(uMap, vUv).a);
+    col = mix(col, vec3(1.0, 0.95, 0.76), edge);
+    col = mix(col, vec3(0.36, 0.23, 0.07), perforation(q, uTile, uStub, aa) * 0.85);
+    col += vec3(1.0, 0.86, 0.55) * uGlow * 0.12;
     gl_FragColor = vec4(col, inside);
   }
 `;
@@ -291,9 +362,9 @@ const backgroundFragment = /* glsl */ `
   void main() {
     vec2 d = (vUv - vec2(0.5, 0.57)) * vec2(uRes.x / uRes.y, 1.0);
     float r = length(d);
-    vec3 col = mix(vec3(0.150, 0.092, 0.330), vec3(0.068, 0.040, 0.170), smoothstep(0.0, 0.62, r));
-    col = mix(col, vec3(0.016, 0.011, 0.040), smoothstep(0.5, 1.25, r));
-    col += vec3(0.09, 0.05, 0.20) * exp(-pow((vUv.y - 0.57) * 3.4, 2.0)) * 0.5;
+    vec3 col = mix(vec3(0.120, 0.088, 0.040), vec3(0.052, 0.038, 0.020), smoothstep(0.0, 0.62, r));
+    col = mix(col, vec3(0.012, 0.010, 0.008), smoothstep(0.5, 1.25, r));
+    col += vec3(0.11, 0.075, 0.025) * exp(-pow((vUv.y - 0.57) * 3.4, 2.0)) * 0.45;
     // A grain under a step of the TV's own, so the dark gradient never bands.
     col += (hash(gl_FragCoord.xy + fract(uTime) * 61.0) - 0.5) * (1.6 / 255.0);
     gl_FragColor = vec4(col, 1.0);
@@ -407,7 +478,9 @@ class FaceAtlas {
   private queue: DrawPoolEntry[] = [];
   private readonly queued = new Set<string>();
   private readonly at = new THREE.Vector2();
-  private fresh = 0;
+  /** Cell 0 holds the mark on the tickets' backs (drawn first); faces use the rest. */
+  private fresh = 1;
+  private backDrawn = false;
 
   constructor(
     private readonly renderer: THREE.WebGLRenderer,
@@ -460,6 +533,13 @@ class FaceAtlas {
   /** Draws up to `budget` faces asked for; how many it drew. */
   pump(budget: number, frame: number): number {
     let drawn = 0;
+    if (!this.backDrawn) {
+      drawBack(this.ctx, this.fonts);
+      this.at.set(0, 0);
+      this.renderer.copyTextureToTexture(this.source, this.texture, null, this.at);
+      this.backDrawn = true;
+      drawn++;
+    }
     while (drawn < budget && this.queue.length) {
       const e = this.queue.shift() as DrawPoolEntry;
       this.queued.delete(e[0]);
@@ -484,7 +564,7 @@ class FaceAtlas {
     if (this.fresh < this.cells) return this.fresh++;
     let best = -1;
     let oldest = frame;
-    for (let c = 0; c < this.cells; c++) {
+    for (let c = 1; c < this.cells; c++) {
       if (this.used[c] < oldest) {
         oldest = this.used[c];
         best = c;
@@ -550,6 +630,8 @@ export class WallStage {
   private readonly posAttr: THREE.InstancedBufferAttribute;
   private readonly cellAttr: THREE.InstancedBufferAttribute;
   private readonly flagAttr: THREE.InstancedBufferAttribute;
+  private readonly flipArr: Float32Array;
+  private readonly flipAttr: THREE.InstancedBufferAttribute;
   private readonly litArr: Float32Array;
   private readonly litAttr: THREE.InstancedBufferAttribute;
   /** When the light last passed over each box (seconds; key "row:column"), for its trail. */
@@ -609,10 +691,11 @@ export class WallStage {
   /** A draw: since when, its roll (once the server has answered), the light's steps, the person drawn's box. */
   private run: Run | null = null;
   /** The box of light: the box it is on and the one it came from, when it stepped (seconds from the press), its glide. */
-  private light: { on: boolean; walk: Walk; t: number } = { on: false, walk: walkStart({ r: 0, c: 0 }, 0), t: Infinity };
-  /** When the light last came to rest on someone (ms), for its flash; and the rows coming to rest after a failed draw. */
+  /** The light: whether it is on, the tickets it lands on and when (seconds from the press), and the time now. */
+  private light: { on: boolean; cells: Cell[]; times: number[]; t: number } = { on: false, cells: [{ r: 0, c: 0 }], times: [0], t: Infinity };
+  /** When the light last landed on a ticket (ms), for its flash and the ticket's little start, and which jump that was. */
   private landFlash = 0;
-  private coast: { roll: Roll; start: number } | null = null;
+  private jump = -1;
   /** When the wall last came to rest (it rolls on slowly a moment later), and the last frame's time. */
   private restSince = performance.now();
   private lastFrame = performance.now();
@@ -658,11 +741,11 @@ export class WallStage {
     pmrem.dispose();
     const key = new THREE.DirectionalLight(0xfff1dc, 1.7);
     key.position.set(3, 6, 9);
-    const rim = new THREE.DirectionalLight(0x8a6bff, 2.2);
+    const rim = new THREE.DirectionalLight(0xffc56e, 1.6);
     rim.position.set(-6, 3, -5);
     this.scene.add(key, rim);
 
-    // The room: a deep violet night behind the wall.
+    // The room: warm black, a golden haze behind the wall.
     this.bgU = { uRes: { value: new THREE.Vector2(16, 9) }, uTime: { value: 0 } };
     const bgGeometry = keep(new THREE.BufferGeometry());
     bgGeometry.setAttribute("position", new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
@@ -691,10 +774,10 @@ export class WallStage {
     const phase = new Float32Array(N);
     const alpha = new Float32Array(N);
     const tints = [
-      [0.48, 0.36, 1.0],
-      [0.25, 0.42, 1.0],
-      [0.75, 0.32, 1.0],
       [1.0, 0.78, 0.42],
+      [1.0, 0.86, 0.6],
+      [0.9, 0.62, 0.3],
+      [1.0, 0.95, 0.85],
     ];
     for (let i = 0; i < N; i++) {
       const front = i % 7 === 0;
@@ -736,12 +819,15 @@ export class WallStage {
     this.posAttr = new THREE.InstancedBufferAttribute(this.posArr, 3).setUsage(THREE.DynamicDrawUsage);
     this.cellAttr = new THREE.InstancedBufferAttribute(this.cellArr, 1).setUsage(THREE.DynamicDrawUsage);
     this.flagAttr = new THREE.InstancedBufferAttribute(this.flagArr, 1).setUsage(THREE.DynamicDrawUsage);
+    this.flipArr = new Float32Array(this.cap);
+    this.flipAttr = new THREE.InstancedBufferAttribute(this.flipArr, 1).setUsage(THREE.DynamicDrawUsage);
     this.litArr = new Float32Array(this.cap);
     this.litAttr = new THREE.InstancedBufferAttribute(this.litArr, 1).setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute("aPos", this.posAttr);
     geometry.setAttribute("aCell", this.cellAttr);
     geometry.setAttribute("aFlag", this.flagAttr);
     geometry.setAttribute("aLit", this.litAttr);
+    geometry.setAttribute("aFlip", this.flipAttr);
     geometry.instanceCount = 0;
     this.tilesGeometry = geometry;
     this.tileU = {
@@ -752,13 +838,15 @@ export class WallStage {
       uCellUV: { value: this.atlas.uv },
       uRes: { value: new THREE.Vector2(1920, 1080) },
       uSel: { value: new THREE.Vector3(0, 0, 0) },
-      uWords: { value: 1 },
+      uPop: { value: 1 },
+      uStub: { value: STUB_AT },
+      uBackCell: { value: new THREE.Vector2(0, 0) },
       uDim: { value: 0 },
       uTime: { value: 0 },
       uIdle: { value: 1 },
       uLock: { value: 0 },
     };
-    const tiles = new THREE.Mesh(geometry, keep(new THREE.ShaderMaterial({ uniforms: this.tileU, vertexShader: tileVertex, fragmentShader: tileFragment, alphaToCoverage: true })));
+    const tiles = new THREE.Mesh(geometry, keep(new THREE.ShaderMaterial({ uniforms: this.tileU, vertexShader: tileVertex, fragmentShader: tileFragment, alphaToCoverage: true, side: THREE.DoubleSide })));
     tiles.frustumCulled = false;
     this.scene.add(tiles);
 
@@ -777,7 +865,7 @@ export class WallStage {
     this.heroCanvas.height = FACE_H * 2;
     this.heroTex = keep(new THREE.CanvasTexture(this.heroCanvas));
     this.heroTex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
-    this.heroU = { uMap: { value: this.heroTex }, uTile: { value: new THREE.Vector2(this.grid.tileW, this.grid.tileH) }, uGlow: { value: 0 } };
+    this.heroU = { uMap: { value: this.heroTex }, uTile: { value: new THREE.Vector2(this.grid.tileW, this.grid.tileH) }, uGlow: { value: 0 }, uStub: { value: STUB_AT }, uTime: { value: 0 } };
     this.hero = new THREE.Mesh(
       keep(new THREE.PlaneGeometry(this.grid.tileW, this.grid.tileH)),
       keep(new THREE.ShaderMaterial({ uniforms: this.heroU, vertexShader: plainVertex, fragmentShader: heroFragment, alphaToCoverage: true, side: THREE.DoubleSide })),
@@ -914,7 +1002,7 @@ export class WallStage {
 
   /** Where the light is now, between boxes (row and column, fractional), and the box it is over. */
   private lightAt(): { r: number; c: number } {
-    return pathAt(this.light.walk.cells, this.light.walk.times, this.light.t);
+    return pathAt(this.light.cells, this.light.times, this.light.t);
   }
 
   private lightCell(): Cell {
@@ -976,7 +1064,7 @@ export class WallStage {
     const r = this.middleRow();
     const c = this.p + Math.ceil(this.grid.cols / 2);
     this.segs[r].push(stretchFor(i, n, this.p - 1, c));
-    this.light = { on: true, walk: walkStart({ r, c }, 0), t: Infinity };
+    this.light = { on: true, cells: [{ r, c }], times: [0], t: Infinity };
     this.landFlash = performance.now();
     this.slotsDirty = true;
     this.opts.onRest?.(tripId);
@@ -1000,8 +1088,8 @@ export class WallStage {
   }
 
   /**
-   * The press: the rows gather pace and the light comes on in the middle and sets off searching. Settles true when it
-   * lands on someone (land), false when not (halt).
+   * The press: the rows settle on a whole column and the tickets turn face down in a wave, their gold backs showing
+   * while the server draws. Settles true when the light lands on someone (land), false when not (halt).
    */
   spin(): Promise<boolean> {
     this.finish();
@@ -1014,62 +1102,66 @@ export class WallStage {
     this.fillRows();
     this.dimTo(0, 0.2);
     this.litAt.clear();
-    this.coast = null;
-    const r = this.middleRow();
-    const c = Math.floor(this.p) + Math.ceil(this.grid.cols / 2);
-    const walk = walkStart({ r, c }, Math.floor(Math.random() * 8));
-    this.light = { on: true, walk, t: 0 };
+    this.light = { on: false, cells: [{ r: 0, c: 0 }], times: [0], t: 0 };
+    const to = this.p - Math.floor(this.p) < 0.02 ? Math.floor(this.p) : Math.ceil(this.p);
     this.slotsDirty = true;
     return new Promise((done) => {
-      this.run = { start: performance.now(), done, roll: startRoll(this.p, this.drift), walk, plan: null, landAt: null };
+      this.run = { start: performance.now(), done, settle: { from: this.p, to }, up: Infinity, drawn: null, placed: false, light: Infinity, land: Infinity, walk: null, target: null, halted: false };
+      this.watch(this.run);
     });
   }
 
   /**
-   * The person drawn is known (`i`, their place on the wall). The rows roll on and come to rest a little after STOP_AT
-   * (./grid.ts planStop); from the first column not yet on the screen, every row gets a new stretch of names in Trip ID
-   * order from a random place, and the drawn person's row (chosen at random) the stretch that puts them, in their own
-   * place, in a box chosen at random. The light searches on, slows once the rows are still, and lands on them.
+   * The person drawn is known (`i`, their place on the wall). Once every ticket is face down, the rows get new names
+   * (./stage.ts placeNames); the tickets then turn face up, the light comes on and searches, and lands on them.
    */
   land(i: number) {
     const r = this.run;
+    if (!r || r.drawn !== null || r.halted || !this.rows.length) return;
+    r.drawn = i;
+    const { up, light, land } = drawTimes(this.elapsed(r));
+    r.up = up;
+    r.light = light;
+    r.land = land;
+    this.watch(r);
+  }
+
+  /**
+   * Every ticket face down: each row gets a new stretch of names in Trip ID order from a random place, and the drawn
+   * person's row (chosen at random) the stretch that puts them, in their own place, on a ticket chosen at random. Unseen:
+   * every ticket shows its back.
+   */
+  private placeNames(r: Run, i: number) {
     const n = this.rows.length;
-    if (!r || r.plan || !n) return;
-    const t = this.elapsed(r);
     this.fillRows();
-    const { td, end, cut } = planStop(this.grid, r.roll, t);
-    r.roll.td = td;
+    const P = r.settle.to;
+    const from = P - 1;
     const row = Math.floor(Math.random() * this.rowsShown);
-    const col = end + 1 + Math.floor(Math.random() * this.grid.cols);
-    const inView = end + this.grid.cols + 2 - cut;
+    const col = P + 1 + Math.floor(Math.random() * this.grid.cols);
+    const span = this.grid.cols + 4;
     for (let k = 0; k < this.segs.length; k++) {
       if (k === row) {
-        this.segs[k].push(stretchFor(i, n, cut, col));
+        this.segs[k].push(stretchFor(i, n, from, col));
         continue;
       }
       // Nobody else's new names show the drawn person too.
       let start = Math.floor(Math.random() * n);
-      for (let tries = 0; tries < 12 && n > inView && mod(i - start, n) < inView; tries++) start = Math.floor(Math.random() * n);
-      this.segs[k].push({ from: cut, start });
+      for (let tries = 0; tries < 12 && n > span && mod(i - start, n) < span; tries++) start = Math.floor(Math.random() * n);
+      this.segs[k].push({ from, start });
     }
-    r.plan = { end, cut };
-    r.landAt = td + r.roll.dec + TAIL_T;
-    walkLand(r.walk, { r: row, c: col }, r.landAt);
-    this.watch(r);
+    r.target = { r: row, c: col };
+    r.placed = true;
+    this.slotsDirty = true;
   }
 
-  /** Nobody drawn (the draw failed): the light goes out at once, and the rows slow to a stop on their own. */
+  /** Nobody drawn (the draw failed): the tickets turn face up again as they were, and no light comes on. */
   halt() {
     const r = this.run;
-    if (!r || r.plan) return;
-    const t = this.elapsed(r);
-    this.run = null;
-    window.clearTimeout(this.dog);
-    this.coast = { roll: { ...r.roll, td: Math.max(r.roll.acc, t) }, start: r.start };
-    this.light.on = false;
-    this.restSince = performance.now();
-    this.opts.onRest?.(null);
-    r.done(false);
+    if (!r || r.drawn !== null) return;
+    r.halted = true;
+    r.up = Math.max(ALL_DOWN + 0.1, this.elapsed(r) + 0.05);
+    r.land = r.up + WAVE_T + FLIP_T + 0.05;
+    this.watch(r);
   }
 
   /**
@@ -1081,19 +1173,20 @@ export class WallStage {
     if (!r) return;
     this.run = null;
     window.clearTimeout(this.dog);
-    const target = r.walk.target;
-    if (r.plan && target) {
-      this.p = r.plan.end;
+    this.p = r.settle.to;
+    const target = r.target;
+    const landed = !r.halted && r.placed && !!target;
+    if (landed && target) {
       const w = r.walk;
-      const last = w.cells[w.cells.length - 1];
-      this.light = last.r === target.r && last.c === target.c && w.sched?.length === 0 ? { on: true, walk: w, t: Infinity } : { on: true, walk: walkStart(target, w.dir), t: Infinity };
+      const last = w?.cells[w.cells.length - 1];
+      this.light = w && last && last.r === target.r && last.c === target.c ? { on: true, cells: w.cells, times: w.times, t: Infinity } : { on: true, cells: [target], times: [0], t: Infinity };
       this.landFlash = performance.now();
     } else this.light.on = false;
     this.drift = 0;
     this.restSince = performance.now();
     this.slotsDirty = true;
     this.opts.onRest?.(this.framed());
-    r.done(!!(r.plan && target));
+    r.done(landed);
   };
 
   /**
@@ -1216,29 +1309,24 @@ export class WallStage {
     const time = (now - this.born) / 1000;
     const r = this.run;
     const t = r ? (now - r.start) / 1000 : 0;
-    const { p, v } = this.position(now, r, t);
+    const { p } = this.position(now, r, t);
     this.p = p;
-    // The drawn person's gift and pass made, a step a frame, as the rows come to rest (or between draws): never while
-    // the light searches over rolling names, where a slower frame would show.
-    if (this.steps.length && (!r || (r.plan && t > r.roll.td + r.roll.dec - 0.3 && Math.abs(v) < 0.5))) (this.steps.shift() as () => void)();
-    // The light's way planned a little ahead; the run is over when it lands, on the person drawn.
-    if (r) {
-      walkAhead(r.walk, t, (c, at, leave) => this.clear(c, r, at, leave), Math.random);
-      this.light.t = t;
-      if (r.landAt !== null && t >= r.landAt) this.finish();
-    }
+    // The drawn person's gift and pass made, a step a frame, while the tickets show their backs (or between draws),
+    // where a slower frame moves nothing anyone follows; never while the light jumps.
+    if (this.steps.length && (!r || (r.drawn !== null && t >= ALL_DOWN && t < r.up))) (this.steps.shift() as () => void)();
+    if (r) this.drawStep(r, t, now);
     this.place(this.p);
     if (this.atlas.pump(12, this.frameNo) > 0) this.slotsDirty = true;
     const quiet = !this.run && !this.show ? 1 : 0;
     this.idle += (quiet - this.idle) * 0.04;
     const u = this.tileU;
-    u.uWords.value = 1;
     u.uTime.value = time;
     u.uIdle.value = this.idle;
     u.uDim.value = this.dimAt(now);
-    // The box of light, gliding over the wall; the box it is over lit, and those it has passed glowing after it.
+    // The light: on its ticket, snapping to the next; the ticket it is on golden, those it has left fading after it.
     const sel = u.uSel.value as THREE.Vector3;
     const L = this.light;
+    const since = (now - this.landFlash) / 1000;
     if (L.on) {
       const at = this.cellPos(this.lightAt());
       this.frameMesh.position.set(at.pos.x + Math.sin(at.turn) * 0.06, at.pos.y, at.pos.z + Math.cos(at.turn) * 0.06);
@@ -1248,11 +1336,13 @@ export class WallStage {
       sel.set(lit.x, lit.y, 1);
       if (this.run) this.litAt.set(`${box.r}:${box.c}`, now / 1000);
     } else sel.z = 0;
+    u.uPop.value = 1 + 0.07 * Math.exp(-since * 14);
+    this.heroU.uTime.value = time;
     if (this.show) this.pose((now - this.show.start) / 1000, time);
     else {
       u.uLock.value = 0;
       this.frameU.uAlpha.value = L.on ? 1 : 0;
-      this.frameU.uGlow.value = 1.1 + 1.6 * Math.exp(-((now - this.landFlash) / 1000) * 6);
+      this.frameU.uGlow.value = 1.1 + 1.5 * Math.exp(-since * 9);
     }
     this.bgU.uTime.value = time;
     this.bokehU.uTime.value = time;
@@ -1260,25 +1350,18 @@ export class WallStage {
   }
 
   /**
-   * Where the rows are (columns) and their pace (columns a second) now. At a draw, its roll from the press (gathering
-   * pace from their drift, so nothing jerks). After a failed draw, coming to rest. Otherwise they roll on slowly (the
-   * owner: "users roll"), a moment after they came to rest, getting going gently; never while a winner is shown or the
-   * light is on someone.
+   * Where the rows are (columns) and their pace (columns a second) now. At a draw they settle on a whole column and
+   * stand still. Otherwise they roll on slowly (the owner: "users roll"), a moment after they came to rest, getting
+   * going gently; never while a winner is shown or the light is on someone.
    */
   private position(now: number, r: Run | null, t: number): { p: number; v: number } {
     const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
     if (r) {
       this.drift = 0;
-      return rollAt(r.roll, t);
-    }
-    if (this.coast) {
-      const ct = (now - this.coast.start) / 1000;
-      const q = rollAt(this.coast.roll, ct);
-      if (ct < this.coast.roll.td + this.coast.roll.dec) return q;
-      this.coast = null;
-      this.restSince = now;
-      this.p = q.p;
+      const k = clamp01(t / SETTLE_T);
+      const e = k * k * k * (k * (k * 6 - 15) + 10);
+      return { p: r.settle.from + (r.settle.to - r.settle.from) * e, v: 0 };
     }
     const since = (now - this.restSince) / 1000 - DRIFT_AFTER;
     if (!this.show && !this.light.on && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
@@ -1287,12 +1370,36 @@ export class WallStage {
   }
 
   /**
-   * A box the light may be on from `at` until it leaves at `leave` (seconds from the press): in a row of the view, and
-   * whole on the screen all that while as the rows roll (they only move one way, so its ends tell).
+   * One moment of a draw, `t` seconds after the press: the new names put in once every ticket is face down and the
+   * server has answered; the light on when the tickets are face up again, its way planned a jump or two ahead, a flash
+   * at each landing; the run over when it lands on the person drawn (or, a failed draw, when the tickets are back up).
    */
-  private clear(c: Cell, r: Run, at: number, leave: number): boolean {
-    if (c.r < 0 || c.r >= this.rowsShown) return false;
-    return c.c >= rollAt(r.roll, leave).p + 0.75 && c.c <= rollAt(r.roll, at).p + this.grid.cols + 0.25;
+  private drawStep(r: Run, t: number, now: number) {
+    if (!r.placed && !r.halted && r.drawn !== null && t >= ALL_DOWN) this.placeNames(r, r.drawn);
+    if (r.placed && r.target && !r.walk && t >= r.light) {
+      const P = r.settle.to;
+      let start = { r: this.middleRow(), c: P + Math.ceil(this.grid.cols / 2) };
+      if (start.r === r.target.r && start.c === r.target.c) start = { r: start.r, c: start.c - 1 };
+      r.walk = walkStart(start, Math.floor(Math.random() * 8), r.light, r.target, r.land);
+      this.light = { on: true, cells: r.walk.cells, times: r.walk.times, t };
+      this.landFlash = now;
+      this.jump = 0;
+    }
+    if (r.walk) {
+      walkAhead(r.walk, t, (c) => this.clear(c, r), Math.random);
+      this.light.t = t;
+      const j = stepIndex(r.walk.times, t);
+      if (j !== this.jump) {
+        this.jump = j;
+        this.landFlash = now;
+      }
+    }
+    if (t >= r.land) this.finish();
+  }
+
+  /** A ticket the light may jump to: in a row of the view, and whole on the screen (the rows stand still at a draw). */
+  private clear(c: Cell, r: Run): boolean {
+    return c.r >= 0 && c.r < this.rowsShown && c.c >= r.settle.to + 1 && c.c <= r.settle.to + this.grid.cols;
   }
 
   /** Where a box is in the scene now (on the wall's curve), how far it is turned to face the room, its flat place. */
@@ -1314,6 +1421,8 @@ export class WallStage {
     this.fillRows();
     const c0 = Math.floor(p);
     const nowS = performance.now() / 1000;
+    const r = this.run;
+    const t = r ? this.elapsed(r) : 0;
     this.atlas.restart();
     let idx = 0;
     for (let row = 0; row < this.rowsShown && idx < this.cap; row++) {
@@ -1335,6 +1444,7 @@ export class WallStage {
         this.flagArr[idx] = flag;
         const lit = this.litAt.size ? this.litAt.get(`${row}:${c}`) : undefined;
         this.litArr[idx] = lit === undefined ? 0 : Math.max(0, 1 - (nowS - lit) / TRAIL);
+        this.flipArr[idx] = r ? flipAngle(t, DOWN_AT, r.up, flipDelay(row, c - c0, this.rowsShown, g.cols)) : 0;
       }
     }
     this.tilesGeometry.instanceCount = idx;
@@ -1342,6 +1452,7 @@ export class WallStage {
     this.cellAttr.needsUpdate = true;
     this.flagAttr.needsUpdate = true;
     this.litAttr.needsUpdate = true;
+    this.flipAttr.needsUpdate = true;
     this.slotsDirty = false;
   }
 
@@ -1363,7 +1474,8 @@ export class WallStage {
   /** Finishes the run even if the browser stops drawing frames (a tab out of sight): the result never waits on it. */
   private watch(r: Run) {
     window.clearTimeout(this.dog);
-    const left = ((r.landAt ?? 0) - this.elapsed(r)) * 1000;
+    const end = Number.isFinite(r.land) ? r.land : ALL_DOWN + 30;
+    const left = (end - this.elapsed(r)) * 1000;
     this.dog = window.setTimeout(this.finish, Math.max(0, left) + 400);
   }
 
@@ -1420,7 +1532,7 @@ export class WallStage {
     const hi = Math.min(y0, y0 * near);
     const lo = Math.max(y1, y1 * near);
     const gap = g.pitchY - g.tileH;
-    const rows = Math.max(1, Math.min(MAX_ROWS, Math.floor((hi - lo + gap) / g.pitchY + 1e-6)));
+    const rows = Math.max(1, Math.min(ROWS, MAX_ROWS, Math.floor((hi - lo + gap) / g.pitchY + 1e-6)));
     const span = rows * g.pitchY - gap;
     const mid = Math.min(hi - span / 2, Math.max(lo + span / 2, (y0 + y1) / 2));
     this.rowsShown = rows;
@@ -1465,7 +1577,7 @@ export class WallStage {
       [1.0, 0.84, 0.48],
       [1.0, 0.94, 0.78],
       [1.0, 1.0, 1.0],
-      [0.74, 0.64, 1.0],
+      [1.0, 0.72, 0.36],
     ];
     for (let i = 0; i < n; i++) {
       const h = hues[i % 11 === 0 ? 3 : i % 3 === 0 ? 2 : i % 2];

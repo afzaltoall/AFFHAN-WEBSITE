@@ -1,36 +1,37 @@
 /**
- * The lucky draw's wall: rows of names, rolling, and one box of light that searches over them and stops on the person
- * drawn (the owner, 2026-11-11: "filled completely, the users rolling ... let it face the screen"; "not blurred ... one
- * box of light, moving everywhere, moving for real, not like magic"; "up and down too, in every direction"; "it draws
- * too quickly, as if it never searched: make it feel real"). Plain arithmetic, no three.js and no page, so a test can
- * check it (tests/lucky-draw/wall.test.mjs).
+ * The lucky draw's wall: rows of golden tickets, one for everyone in the draw, and one light that searches over them
+ * and stops on the person drawn (the owner, 2026-11-11: "filled completely ... curved, facing the screen"; "one box
+ * of light, moving everywhere, for real, not like magic"; "up and down too"; "not like a mouse drag or a slideshow:
+ * card to card, snap"; "make the cards tickets ... six rows ... a Ballon d'Or gold feel"). Plain arithmetic, no
+ * three.js and no page, so a test can check it (tests/lucky-draw/wall.test.mjs).
  *
- * The wall's rows each roll left at the same pace, like a ticker: row r shows, from grid column `from` on, the people
- * start, start + 1, ... in Trip ID order (wrapping round the end), and the screen shows columns p + 1 to p + cols
- * when the rows have rolled to p. At the opening, the top row starts with TRIP-26-00001 and the rows together run
- * through everyone.
+ * The wall's rows each roll slowly left while it waits, like a ticker: row r shows, from grid column `from` on, the
+ * people start, start + 1, ... in Trip ID order (wrapping round the end), and the screen shows columns p + 1 to
+ * p + cols when the rows have rolled to p. At the opening, the top row starts with TRIP-26-00001.
  *
- * A draw, about twelve seconds: the rows gather pace and roll on steadily, about two screens of names passing, then
- * slow and stop, the new names (each row in Trip ID order again, the person the server drew among them, in their own
- * place) filling the screen. All the while one box of light searches over them: it glides from box to box, keeping its
- * way and turning now and then, bouncing off the screen's edges, so it crosses the whole wall, up, down, across and
- * corner to corner, leaving a fading trail. Once the rows are still it slows, step by step, and its last step lands on
- * the person drawn. Every step is to a box beside the last; nothing jumps.
+ * A draw, about ten seconds, the wall still throughout: the tickets turn face down in a wave, their gold backs showing
+ * while the server draws; they turn face up again with new names (each row in Trip ID order from a new place, the
+ * person drawn among them, in their own place), as a dealer shuffles a deck. Then the light comes on and jumps from
+ * ticket to ticket, a snap each time, across, up, down and corner to corner, keeping its way and bouncing off the
+ * screen's edges; it slows, holding on each name, and its last jump lands on the person drawn.
  */
 
 export interface Grid {
-  /** Tiles across the screen. */
+  /** Tickets across the screen. */
   cols: number;
-  /** A tile's size, and the step to the next one across and down (world units). */
+  /** A ticket's size, and the step to the next one across and down (world units). */
   tileW: number;
   tileH: number;
   pitchX: number;
   pitchY: number;
-  /** The radius of the wall's curve towards the room (world units): gentle, so every tile faces the room. */
+  /** The radius of the wall's curve towards the room (world units): gentle, so every ticket faces the room. */
   curve: number;
 }
 
-export const GRID: Grid = { cols: 8, tileW: 1.6, tileH: 0.9, pitchX: 1.76, pitchY: 1.06, curve: 26 };
+/** Tickets 2.67 times as wide as they are tall, as a ticket is. */
+export const GRID: Grid = { cols: 8, tileW: 1.6, tileH: 0.6, pitchX: 1.76, pitchY: 0.7, curve: 26 };
+/** Rows of tickets on the screen (the owner: "six rows"), fewer only where six cannot fit. */
+export const ROWS = 6;
 
 /** x modulo n, never negative. */
 export const mod = (x: number, n: number): number => ((x % n) + n) % n;
@@ -65,70 +66,50 @@ export function openingRows(count: number, n: number, p: number): Segment[][] {
   return Array.from({ length: count }, (_, i) => [{ from, start: mod(i * share, n) }]);
 }
 
-/** The new stretch for the drawn person's row: from `cut` on, in Trip ID order, with them (`i` of `n`) at column `c`. */
-export const stretchFor = (i: number, n: number, cut: number, c: number): Segment => ({ from: cut, start: mod(i - (c - cut), n) });
+/** A row's new stretch: from column `from` on, in Trip ID order, with person `i` of `n` at column `c`. */
+export const stretchFor = (i: number, n: number, from: number, c: number): Segment => ({ from, start: mod(i - (c - from), n) });
 
-// ---- the rows' roll ----
+// ---- the shuffle ----
 
-/** The rows' steady pace at a draw (columns a second: a name crosses the screen in under four seconds, never blurred). */
-export const CRUISE = 2.2;
-/** Seconds the rows take to gather that pace from the press, and to come to rest from it. */
-export const ACC_T = 1.4;
-export const DEC_T = 3.6;
-/** When the rows come to rest, seconds from the press (later only if the server answers late). */
-export const STOP_AT = 9;
-/** The light's last steps on the still wall, seconds from the rows' rest to its landing. */
-export const TAIL_T = 3.2;
+/** Seconds a ticket takes to turn over, and how long the wave takes to cross the wall (first ticket to last). */
+export const FLIP_T = 0.5;
+export const WAVE_T = 0.6;
+/** The face-down wave starts this long after the press; the gold backs then show for at least BACKS_T. */
+export const DOWN_AT = 0.05;
+export const BACKS_T = 0.45;
+/** Seconds from the tickets' last turn face up to the light coming on, and from then to its landing. */
+export const LIGHT_GAP = 0.15;
+export const CHASE_T = 7;
 
-/** The rows' roll at a draw, from the press: gathering pace, steady, then coming to rest. */
-export interface Roll {
-  /** Where the rows were at the press, and their pace then (their slow drift). */
-  from: number;
-  v0: number;
-  /** Their steady pace, and the seconds taken to reach it. */
-  V: number;
-  acc: number;
-  /** When they begin to slow (seconds from the press; Infinity until it is known), and the seconds that takes. */
-  td: number;
-  dec: number;
+/** When the wave reaches a ticket (seconds after it starts): a diagonal sweep from the top left to the bottom right. */
+export function flipDelay(r: number, k: number, rows: number, cols: number): number {
+  const span = Math.max(1, rows - 1 + cols + 1);
+  return (WAVE_T * Math.min(span, Math.max(0, r + k))) / span;
 }
 
-/** A pace that changes smoothly (smoothstep: no jolt at either end), and the distance it covers (its integral). */
-const ease = (s: number) => s * s * (3 - 2 * s);
-const eased = (s: number) => s * s * s - (s * s * s * s) / 2;
-
-export const startRoll = (from: number, v0: number): Roll => ({ from, v0, V: CRUISE, acc: ACC_T, td: Infinity, dec: DEC_T });
-
-/** Where the rows are (columns) and their pace (columns a second), `t` seconds after the press. `td` is never before `acc`. */
-export function rollAt(R: Roll, t: number): { p: number; v: number } {
-  if (t <= 0) return { p: R.from, v: R.v0 };
-  const dv = R.V - R.v0;
-  if (t < R.acc) {
-    const s = t / R.acc;
-    return { p: R.from + R.v0 * t + dv * R.acc * eased(s), v: R.v0 + dv * ease(s) };
-  }
-  const steady = R.from + R.v0 * R.acc + (dv * R.acc) / 2;
-  if (t < R.td) return { p: steady + R.V * (t - R.acc), v: R.V };
-  const pd = steady + R.V * (R.td - R.acc);
-  const s = Math.min(1, (t - R.td) / R.dec);
-  return { p: pd + R.V * R.dec * (s - eased(s)), v: R.V * (1 - ease(s)) };
+/** A ticket's turn, in radians (0 face up, π face down, 2π face up again), at `t`, for waves starting at `down` and `up`. */
+export function flipAngle(t: number, down: number, up: number, delay: number): number {
+  const turn = (start: number) => {
+    const s = Math.min(1, Math.max(0, (t - start - delay) / FLIP_T));
+    return s * s * (3 - 2 * s);
+  };
+  return Math.PI * (turn(down) + (Number.isFinite(up) ? turn(up) : 0));
 }
 
 /**
- * The server has answered, `ta` seconds after the press. The rows come to rest on a whole column, `end`, chosen so
- * that the screen then shows only new names (from `cut`, the first column not yet on the screen, on); they begin to
- * slow at `td`, a moment later than planned rather than earlier, so as to stop exactly there, at about STOP_AT.
+ * The draw's moments once the server has answered, `ta` seconds after the press: the face-up wave (after every ticket
+ * is face down and the backs have shown a moment), the light coming on, and its landing.
  */
-export function planStop(g: Grid, R: Roll, ta: number): { td: number; end: number; cut: number } {
-  const steady: Roll = { ...R, td: Infinity };
-  const cut = Math.ceil(rollAt(steady, ta).p + g.cols + 1) + 1;
-  const at = Math.max(STOP_AT - R.dec, ta + 0.5, R.acc);
-  const endIf = (td: number) => rollAt(steady, td).p + (R.V * R.dec) / 2;
-  const end = Math.max(Math.ceil(endIf(at) - 1e-9), cut - 1);
-  return { td: at + (end - endIf(at)) / R.V, end, cut };
+export function drawTimes(ta: number): { up: number; light: number; land: number } {
+  const up = Math.max(DOWN_AT + WAVE_T + FLIP_T + BACKS_T, ta + 0.25);
+  const light = up + WAVE_T + FLIP_T + LIGHT_GAP;
+  return { up, light, land: light + CHASE_T };
 }
 
-// ---- the box of light ----
+/** Seconds from the press until every ticket is face down (the new names can then be put in, unseen). */
+export const ALL_DOWN = DOWN_AT + WAVE_T + FLIP_T;
+
+// ---- the light ----
 
 export interface Cell {
   r: number;
@@ -137,7 +118,7 @@ export interface Cell {
 
 export const dist = (a: Cell, b: Cell) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
 
-/** The eight ways the light can step, round from "right": across, corner to corner, up and down. */
+/** The eight ways the light can jump, round from "right": across, corner to corner, up and down. */
 export const DIRS: readonly (readonly [number, number])[] = [
   [0, 1],
   [1, 1],
@@ -150,14 +131,17 @@ export const DIRS: readonly (readonly [number, number])[] = [
 ];
 const dirOf = (dr: number, dc: number) => DIRS.findIndex(([r, c]) => r === dr && c === dc);
 
-/** The light's quickest step, while it searches (seconds), and its slowest, the last onto the person drawn. */
-export const STEP_QUICK = 0.18;
+/** The light's quickest jumps (nine a second), its slowest (the last, onto the person drawn), and how each slows. */
+export const STEP_QUICK = 0.11;
 export const STEP_SLOW = 0.75;
+const SLOWING = 1.17;
+/** The jump itself: this long, easing in and out; the rest of each step the light holds on its ticket. */
+export const MOVE_T = 0.06;
 
 /**
- * When the light reaches its boxes, in seconds after `from` (the last one already planned) up to `end`, its landing:
- * at its searching pace, then slower and slower, each step 1.2 times the one before, the last STEP_SLOW. The slowing
- * steps are laid back from `end` (about the last 3.5 seconds); the quick ones evenly before them.
+ * When the light reaches its tickets, in seconds after `from` (where it is) up to `end`, its landing: quick at first,
+ * then slower and slower, each step SLOWING times the one before, the last STEP_SLOW. The slowing steps are laid back
+ * from `end`; the quick ones evenly before them.
  */
 export function stepTimes(from: number, end: number): number[] {
   const tail: number[] = [end];
@@ -166,7 +150,7 @@ export function stepTimes(from: number, end: number): number[] {
   while (gap > STEP_QUICK * 1.05 && at - gap > from + STEP_QUICK) {
     at -= gap;
     tail.unshift(at);
-    gap /= 1.2;
+    gap /= SLOWING;
   }
   const span = at - from;
   const k = Math.max(0, Math.round(span / STEP_QUICK) - 1);
@@ -175,11 +159,11 @@ export function stepTimes(from: number, end: number): number[] {
 }
 
 /**
- * The light's next box, and the way it now goes. It keeps its way (`dir`) most steps and turns a little now and then,
- * so it sweeps across the wall rather than trembling in one place; at the screen's edges it bounces off. Only a box
- * beside it that the room can see (`ok`); with a person drawn (`target`) and `left` steps after this one, only a box
- * from which they can still be reached in time, and never their own box before the last step: so it searches while it
- * has steps to spare, closes in as they run out, and its last step, and only that, lands on them.
+ * The light's next ticket, and the way it now goes. It keeps its way (`dir`) most jumps and turns a little now and
+ * then, so it sweeps across the wall rather than trembling in one place; at the screen's edges it bounces off. Only a
+ * ticket beside it that the room can see (`ok`); with a person drawn (`target`) and `left` jumps after this one, only
+ * a ticket from which they can still be reached in time, and never their own before the last jump: so it searches
+ * while it has jumps to spare, closes in as they run out, and its last jump, and only that, lands on them.
  */
 export function nextStep(cur: Cell, dir: number, target: Cell | null, left: number, ok: (c: Cell) => boolean, rnd: () => number): { cell: Cell; dir: number } {
   const at = (d: number): Cell => ({ r: cur.r + DIRS[d][0], c: cur.c + DIRS[d][1] });
@@ -200,7 +184,7 @@ export function nextStep(cur: Cell, dir: number, target: Cell | null, left: numb
     const c = at(d);
     if (fits(c)) return { cell: c, dir: d };
   }
-  // Nowhere fits: the box the room sees nearest the person drawn (never theirs early), or stay.
+  // Nowhere fits: the ticket the room sees nearest the person drawn (never theirs early), or stay.
   let best: { cell: Cell; dir: number } | null = null;
   for (let d = 0; d < 8; d++) {
     const c = at(d);
@@ -210,39 +194,36 @@ export function nextStep(cur: Cell, dir: number, target: Cell | null, left: numb
   return best ?? { cell: cur, dir };
 }
 
-/** The light's way: the boxes it passes through and when (seconds from the press), and, once known, its landing. */
+/** The light's way: the tickets it lands on and when (seconds from the press), and its landing. */
 export interface Walk {
   cells: Cell[];
   times: number[];
   dir: number;
-  /** The times still to come once the server has answered (the last is the landing), and the person drawn. */
-  sched: number[] | null;
-  target: Cell | null;
+  /** The times still to come (the last is the landing), and the person drawn. */
+  sched: number[];
+  target: Cell;
 }
 
-export const walkStart = (cell: Cell, dir: number): Walk => ({ cells: [cell], times: [0], dir, sched: null, target: null });
+/** The light comes on at `cell` at `at` and will land on `target` at `land`. */
+export const walkStart = (cell: Cell, dir: number, at: number, target: Cell, land: number): Walk => ({
+  cells: [cell],
+  times: [at],
+  dir,
+  sched: stepTimes(at, land),
+  target,
+});
 
-/**
- * Plans the light's boxes until two lie beyond `t` (so its glide always knows where it goes next), or its landing is
- * planned. `ok(cell, at, leave)`: may the light be on that box from `at` until it leaves at `leave`?
- */
-export function walkAhead(w: Walk, t: number, ok: (c: Cell, at: number, leave: number) => boolean, rnd: () => number): void {
+/** Plans the light's tickets until two lie beyond `t` (so it always knows where it jumps next), or its landing. */
+export function walkAhead(w: Walk, t: number, ok: (c: Cell) => boolean, rnd: () => number): void {
   for (;;) {
     let ahead = 0;
     for (let k = w.times.length - 1; k >= 0 && w.times[k] > t; k--) ahead++;
-    if (ahead >= 2) return;
-    let at: number;
-    if (w.sched) {
-      if (!w.sched.length) return;
-      at = w.sched.shift() as number;
-    } else at = w.times[w.times.length - 1] + STEP_QUICK;
-    const leave = w.sched ? (w.sched[0] ?? at) : at + STEP_QUICK;
-    const left = w.sched ? w.sched.length : 99;
-    const cur = w.cells[w.cells.length - 1];
-    if (w.sched && left === 0 && w.target) {
-      w.cells.push(w.target);
-    } else {
-      const s = nextStep(cur, w.dir, w.sched ? w.target : null, left, (c) => ok(c, at, leave), rnd);
+    if (ahead >= 2 || !w.sched.length) return;
+    const at = w.sched.shift() as number;
+    const left = w.sched.length;
+    if (left === 0) w.cells.push(w.target);
+    else {
+      const s = nextStep(w.cells[w.cells.length - 1], w.dir, w.target, left, ok, rnd);
       w.cells.push(s.cell);
       w.dir = s.dir;
     }
@@ -250,20 +231,9 @@ export function walkAhead(w: Walk, t: number, ok: (c: Cell, at: number, leave: n
   }
 }
 
-/** The server's answer: the light's remaining times, ending at `landAt`, its last step onto `target`. */
-export function walkLand(w: Walk, target: Cell, landAt: number): void {
-  w.target = target;
-  w.sched = stepTimes(w.times[w.times.length - 1], landAt);
-}
-
-/** A slower step than this: the light moves over in this time, easing in and out, and holds on its box the rest. */
-export const MOVE_T = 0.24;
-
 /**
- * Where the light is at `t`, between boxes (row and column, fractional). While it searches, a smooth glide through its
- * boxes, its pace carried from one to the next (Hermite curves with the boxes' own paces); once its steps slow, it
- * settles on each box and holds there, so the room reads the name, before it moves on (MOVE_T), the last time onto
- * the person drawn. It sets off from rest at the first box and comes to rest on the last.
+ * Where the light is at `t` (row and column, fractional): on a ticket, and at each of its times a jump to the next,
+ * MOVE_T long, easing in and out, so it snaps from ticket to ticket and holds on each (never a slow drag).
  */
 export function pathAt(cells: readonly Cell[], times: readonly number[], t: number): { r: number; c: number } {
   const n = cells.length;
@@ -271,22 +241,15 @@ export function pathAt(cells: readonly Cell[], times: readonly number[], t: numb
   if (t >= times[n - 1]) return { r: cells[n - 1].r, c: cells[n - 1].c };
   let i = n - 2;
   while (i > 0 && times[i] > t) i--;
-  const h = times[i + 1] - times[i];
-  if (h > MOVE_T) {
-    const s = Math.min(1, Math.max(0, (t - (times[i + 1] - MOVE_T)) / MOVE_T));
-    const e = s * s * s * (s * (s * 6 - 15) + 10);
-    return { r: cells[i].r + (cells[i + 1].r - cells[i].r) * e, c: cells[i].c + (cells[i + 1].c - cells[i].c) * e };
-  }
-  const u = h > 0 ? (t - times[i]) / h : 1;
-  // A box next to a slow step is arrived at, or left, from rest.
-  const holds = (k: number) => (k > 0 && times[k] - times[k - 1] > MOVE_T) || (k < n - 1 && times[k + 1] - times[k] > MOVE_T);
-  const pace = (k: number, key: "r" | "c") => (k <= 0 || k >= n - 1 || holds(k) ? 0 : (cells[k + 1][key] - cells[k - 1][key]) / (times[k + 1] - times[k - 1]));
-  const u2 = u * u;
-  const u3 = u2 * u;
-  const h00 = 2 * u3 - 3 * u2 + 1;
-  const h10 = u3 - 2 * u2 + u;
-  const h01 = -2 * u3 + 3 * u2;
-  const h11 = u3 - u2;
-  const at = (key: "r" | "c") => h00 * cells[i][key] + h10 * h * pace(i, key) + h01 * cells[i + 1][key] + h11 * h * pace(i + 1, key);
-  return { r: at("r"), c: at("c") };
+  const move = Math.min(MOVE_T, times[i + 1] - times[i]);
+  const s = Math.min(1, Math.max(0, (t - (times[i + 1] - move)) / move));
+  const e = s * s * (3 - 2 * s);
+  return { r: cells[i].r + (cells[i + 1].r - cells[i].r) * e, c: cells[i].c + (cells[i + 1].c - cells[i].c) * e };
+}
+
+/** Which jump the light is on at `t` (it changes the moment a jump begins): for its flash. */
+export function stepIndex(times: readonly number[], t: number): number {
+  let i = 0;
+  while (i + 1 < times.length && t >= times[i + 1] - MOVE_T) i++;
+  return i;
 }

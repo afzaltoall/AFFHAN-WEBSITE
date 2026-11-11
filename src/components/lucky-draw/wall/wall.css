@@ -4,18 +4,19 @@
  * ever sits over a name. Laid out on a 16:9 plate scaled to the screen (--u is a hundredth of its width), the same on
  * any TV; everything that must be read keeps 4% from the plate's edges, inside a TV's title-safe area.
  * The type: the screen's words in Jost, spaced capitals; the winners' names in the trip's Bodoni at 600.
+ * Black and gold (the owner: "a Ballon d'Or gold feel"): warm blacks, ivory words, gold.
  */
 .lw {
   --u: min(1vw, 1.7778vh);
   --gold: #e7c26c;
   --gold-hi: #f7dfa3;
-  --white: #f3f0ff;
-  --mute: rgb(222 216 255 / 0.66);
-  --faint: rgb(222 216 255 / 0.42);
+  --white: #f6efe0;
+  --mute: rgb(240 228 205 / 0.66);
+  --faint: rgb(240 228 205 / 0.42);
   position: fixed;
   inset: 0;
   overflow: hidden;
-  background: #07051a;
+  background: #070604;
   color: var(--white);
   font-family: var(--font-ld-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -29,7 +30,7 @@
 .lw-boot {
   position: fixed;
   inset: 0;
-  background: #07051a;
+  background: #070604;
 }
 .lw-hide-cursor,
 .lw-hide-cursor * {
@@ -170,7 +171,7 @@
   padding: 0 calc(3.2 * var(--u));
   border: 1px solid rgb(231 194 108 / 0.85);
   border-radius: 999px;
-  background: rgb(10 7 28 / 0.7);
+  background: rgb(14 11 6 / 0.78);
   color: var(--gold-hi);
   font: inherit;
   font-weight: 600;
@@ -234,9 +235,9 @@
 .lw-seat {
   height: calc(9.3 * var(--u));
   padding: calc(0.85 * var(--u)) calc(1.1 * var(--u)) calc(0.8 * var(--u));
-  border: 1px solid rgb(150 128 255 / 0.3);
+  border: 1px solid rgb(212 175 95 / 0.3);
   border-radius: calc(0.9 * var(--u));
-  background: linear-gradient(180deg, #1b1340, #0e0a26);
+  background: linear-gradient(180deg, #19140c, #0c0a06);
   display: flex;
   flex-direction: column;
   text-align: center;
@@ -303,7 +304,7 @@
 }
 .lw-seat[data-filled] {
   border-color: rgb(231 194 108 / 0.7);
-  background: linear-gradient(180deg, #2b1f49, #130d29);
+  background: linear-gradient(180deg, #2c2211, #120e07);
   box-shadow: 0 0 calc(2.2 * var(--u)) rgb(231 194 108 / 0.16), inset 0 1px 0 rgb(255 236 190 / 0.18);
 }
 .lw-seat[data-filled] .lw-seat-n {
@@ -402,7 +403,7 @@
   display: grid;
   place-items: center;
   text-align: center;
-  background: radial-gradient(ellipse at 50% 45%, #1e1347, #07051a 70%);
+  background: radial-gradient(ellipse at 50% 45%, #2a2010, #070604 70%);
 }
 .lw-door h1 {
   margin: 0 0 calc(1 * var(--u));

@@ -2,7 +2,7 @@ import * as THREE from "three";
 
 /**
  * The gift the winner's tile becomes on the wall's screen (the owner, 2026-11-11: "open like a gift box ... animated,
- * gift box opening, it should open in a nice style"): a box in violet paper with a fine gold pattern, tied with gold
+ * gift box opening, it should open in a nice style"): a box in black paper with a fine gold pattern, tied with gold
  * satin ribbon and a bow, a tag on its front with the winner's Trip ID. Inside it is light. When it opens, the lid lifts
  * away, light pours up out of it, and the boarding pass rises from it (./stage.ts plays all that; this only builds the
  * box and sets one moment of it, `set`).

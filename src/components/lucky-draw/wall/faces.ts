@@ -1,9 +1,10 @@
 import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
 
 /**
- * What the wall's pictures say, drawn on canvases the wall and the gift turn into textures (./stage.ts): a tile's face
- * (Trip ID, name, city), the winner's boarding pass, the gift's tag and its wrapping paper. In the page's own fonts
- * (Jost, and the trip's Bodoni for the winner's name), read from the page and loaded before anything is drawn.
+ * What the wall's pictures say, drawn on canvases the wall and the gift turn into textures (./stage.ts): a ticket's
+ * face (name and city; the Trip ID on its stub) and the mark on the tickets' gold backs, the winner's boarding pass,
+ * the gift's tag and its wrapping paper. In the page's own fonts (Jost, and the trip's Bodoni for the winner's name),
+ * read from the page and loaded before anything is drawn.
  *
  * Only what the TV may show (Privacy Policy section 12): Trip ID, name, city and country, and the seat. Never a mobile
  * number: none reaches this page.
@@ -15,9 +16,16 @@ export interface Fonts {
   display: string;
 }
 
-/** A tile's face on the wall, in pixels (16:9, as the tiles are). */
-export const FACE_W = 256;
-export const FACE_H = 144;
+/** A ticket's face on the wall, in pixels (8:3, as the tickets are), and where its perforation is (its stub to the right). */
+export const FACE_W = 320;
+export const FACE_H = 120;
+export const STUB_AT = 0.775;
+/**
+ * A face's two inks, kept apart so the wall's shader can colour each: what is drawn in red it inks ivory (the name and
+ * the city), what is drawn in green it inks gold (the stub); on a golden ticket both are inked dark, as if printed.
+ */
+const IVORY_INK = "#ff0000";
+const GOLD_INK = "#00ff00";
 
 type Ctx = CanvasRenderingContext2D;
 
@@ -128,39 +136,85 @@ function setBodoniName(ctx: Ctx, name: string, sizes: number[], width: number, f
 }
 
 /**
- * A tile's face in white on clear (the wall's shader lights and colours it): the Trip ID in small spaced capitals, the
- * name, the city and country. `s` scales the whole face (the winner's tile is drawn four times as large).
+ * A ticket's face, its two inks on clear (the wall's shader draws the ticket and colours them): on its main part the
+ * name, one line or two, and the city and country under it; on its stub, past the perforation, "TRIP-26" and the
+ * number. `s` scales the whole face (the winner's ticket is drawn twice as large).
  */
 export function drawFace(ctx: Ctx, e: DrawPoolEntry, fonts: Fonts, s = 1) {
   const w = FACE_W * s;
   const h = FACE_H * s;
-  const pad = 17 * s;
+  const pad = 18 * s;
+  const main = STUB_AT * w - pad - 10 * s;
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = "#fff";
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
-
-  ctx.globalAlpha = 0.6;
-  ctx.font = `600 ${13.5 * s}px ${fonts.sans}`;
-  spacing(ctx, 1.7 * s);
-  ctx.fillText(e[0], pad, 31 * s);
-
   ctx.globalAlpha = 1;
+
+  ctx.fillStyle = IVORY_INK;
   spacing(ctx, 0);
-  const { size, lines } = setName(ctx, e[1], (z) => `500 ${z}px ${fonts.sans}`, [30, 27, 24, 21, 19].map((z) => z * s), w - 2 * pad);
+  const { size, lines } = setName(ctx, e[1], (z) => `500 ${z}px ${fonts.sans}`, [27, 24, 21, 19, 17].map((z) => z * s), main);
   ctx.font = `500 ${size}px ${fonts.sans}`;
-  if (lines.length === 1) ctx.fillText(lines[0], pad, 84 * s);
-  else {
-    ctx.fillText(lines[0], pad, 71 * s);
-    ctx.fillText(lines[1], pad, 71 * s + size * 1.12);
+  let city: number;
+  if (lines.length === 1) {
+    ctx.fillText(lines[0], pad, 62 * s);
+    city = 93 * s;
+  } else {
+    ctx.fillText(lines[0], pad, 47 * s);
+    ctx.fillText(lines[1], pad, 47 * s + size * 1.06);
+    city = 47 * s + size * 1.06 + 24 * s;
   }
-
-  ctx.globalAlpha = 0.56;
-  ctx.font = `400 ${14 * s}px ${fonts.sans}`;
+  ctx.globalAlpha = 0.66;
+  ctx.font = `400 ${12.5 * s}px ${fonts.sans}`;
   spacing(ctx, 0.3 * s);
-  ctx.fillText(ellipsize(ctx, fromOf(e[2], e[3]), w - 2 * pad), pad, 128 * s);
+  ctx.fillText(ellipsize(ctx, fromOf(e[2], e[3]), main), pad, city);
+
+  // The stub: "TRIP-26" small and spaced, the number large.
+  const cut = e[0].lastIndexOf("-");
+  const head = cut > 0 ? e[0].slice(0, cut) : "";
+  const number = cut > 0 ? e[0].slice(cut + 1) : e[0];
+  const mid = ((STUB_AT + 1) / 2) * w;
+  ctx.fillStyle = GOLD_INK;
+  ctx.textAlign = "center";
+  ctx.globalAlpha = 0.85;
+  ctx.font = `600 ${10 * s}px ${fonts.sans}`;
+  spacing(ctx, 1.4 * s);
+  if (head) ctx.fillText(head, mid + 0.7 * s, 51 * s);
   ctx.globalAlpha = 1;
+  spacing(ctx, 0.4 * s);
+  for (const px of [21, 19, 17, 15]) {
+    ctx.font = `600 ${px * s}px ${fonts.sans}`;
+    if (ctx.measureText(number).width <= (1 - STUB_AT) * w - 12 * s) break;
+  }
+  ctx.fillText(number, mid, 78 * s);
+  ctx.textAlign = "left";
   spacing(ctx, 0);
+}
+
+/** The mark on the tickets' gold backs: AFFHAN in the trip's Bodoni, and the draw under it (one ink; inked dark). */
+export function drawBack(ctx: Ctx, fonts: Fonts) {
+  const w = FACE_W;
+  const h = FACE_H;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = IVORY_INK;
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  const word = "AFFHAN";
+  const size = 30;
+  const tracked = (text: string, px: number) => bodoniWidth(ctx, text, size, fonts) + px * (text.length - 1);
+  let x = (w - tracked(word, 6)) / 2;
+  for (const ch of word) {
+    bodoniText(ctx, ch, x, 66, size, fonts);
+    x += bodoniWidth(ctx, ch, size, fonts) + 6;
+  }
+  ctx.globalAlpha = 0.8;
+  ctx.fillRect(w / 2 - 46, 78, 92, 1.5);
+  ctx.textAlign = "center";
+  ctx.font = `600 9.5px ${fonts.sans}`;
+  spacing(ctx, 3.2);
+  ctx.fillText("LUCKY DRAW", w / 2 + 1.6, 96);
+  spacing(ctx, 0);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "left";
 }
 
 /** The boarding pass, in pixels (as the registered page's pass, wider for the stub). */
@@ -594,17 +648,17 @@ export function drawInside(ctx: Ctx) {
 /** The wrapping paper, one repeat of it, in pixels. */
 export const WRAP = 512;
 
-/** The gift's wrapping paper: deep violet with a fine gold pattern of dots and small four-pointed stars. */
+/** The gift's wrapping paper: glossy black with a fine gold pattern of dots and small four-pointed stars. */
 export function drawWrap(ctx: Ctx) {
   const S = WRAP;
   const g = ctx.createLinearGradient(0, 0, S, S);
-  g.addColorStop(0, "#2a1563");
-  g.addColorStop(1, "#3a1f86");
+  g.addColorStop(0, "#0d0a06");
+  g.addColorStop(1, "#1c160d");
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, S, S);
   // Fine diagonal lines, barely there.
   ctx.save();
-  ctx.strokeStyle = "rgb(255 255 255 / 0.045)";
+  ctx.strokeStyle = "rgb(255 236 190 / 0.05)";
   ctx.lineWidth = 6;
   for (let k = -S; k < S * 2; k += 32) {
     ctx.beginPath();
@@ -628,7 +682,7 @@ export function drawWrap(ctx: Ctx) {
     for (let col = 0; col < 4; col++) {
       const x = col * step + (row % 2 ? step / 2 : 0) + step / 4;
       const y = row * step + step / 4;
-      ctx.fillStyle = "rgb(236 200 116 / 0.78)";
+      ctx.fillStyle = "rgb(236 200 116 / 0.9)";
       if ((row + col) % 2) star(x % S, y, 13);
       else {
         ctx.beginPath();
