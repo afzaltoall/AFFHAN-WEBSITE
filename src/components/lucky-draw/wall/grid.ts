@@ -1,19 +1,21 @@
 /**
- * The lucky draw's wall: a full screen of names, rolling, and one box of light that runs over them and stops on the
- * person drawn (the owner, 2026-11-11: "filled completely, the users rolling ... let it face the screen"; "not
- * blurred, the background real; one box of light, moving everywhere, moving for real, not like magic, choosing one
- * candidate"). Plain arithmetic, no three.js and no page, so a test can check it (tests/lucky-draw/wall.test.mjs).
+ * The lucky draw's wall: rows of names, rolling, and one box of light that searches over them and stops on the person
+ * drawn (the owner, 2026-11-11: "filled completely, the users rolling ... let it face the screen"; "not blurred ... one
+ * box of light, moving everywhere, moving for real, not like magic"; "up and down too, in every direction"; "it draws
+ * too quickly, as if it never searched: make it feel real"). Plain arithmetic, no three.js and no page, so a test can
+ * check it (tests/lucky-draw/wall.test.mjs).
  *
  * The wall's rows each roll left at the same pace, like a ticker: row r shows, from grid column `from` on, the people
  * start, start + 1, ... in Trip ID order (wrapping round the end), and the screen shows columns p + 1 to p + cols
  * when the rows have rolled to p. At the opening, the top row starts with TRIP-26-00001 and the rows together run
  * through everyone.
  *
- * A draw: the rows roll on by one screen, calmly, never too fast to see, bringing a new screen of names in from the
- * right (each row's names in Trip ID order again, the person the server drew among them, in their own place); one
- * box of light runs from box to box all over the screen meanwhile, quick while the rows roll, then, once they are
- * still, ever slower, and its last step lands on the person drawn. Every step is to a box beside the last (across, up,
- * down or corner to corner), and the light glides there: nothing jumps.
+ * A draw, about twelve seconds: the rows gather pace and roll on steadily, about two screens of names passing, then
+ * slow and stop, the new names (each row in Trip ID order again, the person the server drew among them, in their own
+ * place) filling the screen. All the while one box of light searches over them: it glides from box to box, keeping its
+ * way and turning now and then, bouncing off the screen's edges, so it crosses the whole wall, up, down, across and
+ * corner to corner, leaving a fading trail. Once the rows are still it slows, step by step, and its last step lands on
+ * the person drawn. Every step is to a box beside the last; nothing jumps.
  */
 
 export interface Grid {
@@ -63,48 +65,99 @@ export function openingRows(count: number, n: number, p: number): Segment[][] {
   return Array.from({ length: count }, (_, i) => [{ from, start: mod(i * share, n) }]);
 }
 
-/** Seconds the rows take to roll on by a screen at a draw, and the light's last stretch on the still wall after. */
-export const ROLL_T = 3.6;
-export const TAIL_T = 2.6;
-
-/**
- * The rows' roll at a draw, `t` seconds after it begins: smoothly to rest at `to` (smootherstep), never faster than
- * 1.875 x its mean pace; `v0`, the slow pace the rows had as it began, is carried on and let go, so they never jerk.
- */
-export function rollAt(from: number, to: number, t: number, v0 = 0): { p: number; v: number } {
-  const s = Math.min(1, Math.max(0, t / ROLL_T));
-  const e = s * s * s * (s * (s * 6 - 15) + 10);
-  const de = 30 * s * s * (s - 1) * (s - 1);
-  // h(0) = 0, h'(0) = 1, h(1) = h'(1) = 0: the first pace, gone by the end.
-  const h = s * (1 - s) ** 3;
-  const dh = (1 - s) ** 2 * (1 - 4 * s);
-  return { p: from + (to - from) * e + v0 * ROLL_T * h, v: ((to - from) * de) / ROLL_T + v0 * dh };
-}
-
-/**
- * Where the rows roll to at a draw, from `p` (where they are when the server answers): `cut` is the first column not
- * yet on the screen (from it on, every row shows new names), `end` where they stop (a whole column), so that the
- * screen then shows only new names; `extra` (0, 1 or 2) varies how far.
- */
-export function rollPlan(g: Grid, p: number, extra: number): { cut: number; end: number } {
-  const cut = Math.ceil(p + g.cols + 1) + 1;
-  return { cut, end: cut - 1 + extra };
-}
-
-/**
- * The new stretch for the drawn person's row: from `cut` on, in Trip ID order, with them (`i` of `n`) at column `c`.
- */
+/** The new stretch for the drawn person's row: from `cut` on, in Trip ID order, with them (`i` of `n`) at column `c`. */
 export const stretchFor = (i: number, n: number, cut: number, c: number): Segment => ({ from: cut, start: mod(i - (c - cut), n) });
 
-/** The light's quickest step (13 a second, while the rows roll) and its slowest (the last, onto the person drawn). */
-export const STEP_QUICK = 0.075;
-export const STEP_SLOW = 0.5;
+// ---- the rows' roll ----
+
+/** The rows' steady pace at a draw (columns a second: a name crosses the screen in under four seconds, never blurred). */
+export const CRUISE = 2.2;
+/** Seconds the rows take to gather that pace from the press, and to come to rest from it. */
+export const ACC_T = 1.4;
+export const DEC_T = 3.6;
+/** When the rows come to rest, seconds from the press (later only if the server answers late). */
+export const STOP_AT = 9;
+/** The light's last steps on the still wall, seconds from the rows' rest to its landing. */
+export const TAIL_T = 3.2;
+
+/** The rows' roll at a draw, from the press: gathering pace, steady, then coming to rest. */
+export interface Roll {
+  /** Where the rows were at the press, and their pace then (their slow drift). */
+  from: number;
+  v0: number;
+  /** Their steady pace, and the seconds taken to reach it. */
+  V: number;
+  acc: number;
+  /** When they begin to slow (seconds from the press; Infinity until it is known), and the seconds that takes. */
+  td: number;
+  dec: number;
+}
+
+/** A pace that changes smoothly (smoothstep: no jolt at either end), and the distance it covers (its integral). */
+const ease = (s: number) => s * s * (3 - 2 * s);
+const eased = (s: number) => s * s * s - (s * s * s * s) / 2;
+
+export const startRoll = (from: number, v0: number): Roll => ({ from, v0, V: CRUISE, acc: ACC_T, td: Infinity, dec: DEC_T });
+
+/** Where the rows are (columns) and their pace (columns a second), `t` seconds after the press. `td` is never before `acc`. */
+export function rollAt(R: Roll, t: number): { p: number; v: number } {
+  if (t <= 0) return { p: R.from, v: R.v0 };
+  const dv = R.V - R.v0;
+  if (t < R.acc) {
+    const s = t / R.acc;
+    return { p: R.from + R.v0 * t + dv * R.acc * eased(s), v: R.v0 + dv * ease(s) };
+  }
+  const steady = R.from + R.v0 * R.acc + (dv * R.acc) / 2;
+  if (t < R.td) return { p: steady + R.V * (t - R.acc), v: R.V };
+  const pd = steady + R.V * (R.td - R.acc);
+  const s = Math.min(1, (t - R.td) / R.dec);
+  return { p: pd + R.V * R.dec * (s - eased(s)), v: R.V * (1 - ease(s)) };
+}
 
 /**
- * When the light steps, in seconds, from `from` (the server's answer) to `end` (its last step, onto the person drawn):
- * quick all the while the rows roll, so it keeps up with the names however fast they pass; then, on the still wall,
- * slower and slower, each step 1.2 times the one before, the last half a second. The slowing steps are laid back from
- * `end` (about TAIL_T seconds of them); the quick ones evenly before.
+ * The server has answered, `ta` seconds after the press. The rows come to rest on a whole column, `end`, chosen so
+ * that the screen then shows only new names (from `cut`, the first column not yet on the screen, on); they begin to
+ * slow at `td`, a moment later than planned rather than earlier, so as to stop exactly there, at about STOP_AT.
+ */
+export function planStop(g: Grid, R: Roll, ta: number): { td: number; end: number; cut: number } {
+  const steady: Roll = { ...R, td: Infinity };
+  const cut = Math.ceil(rollAt(steady, ta).p + g.cols + 1) + 1;
+  const at = Math.max(STOP_AT - R.dec, ta + 0.5, R.acc);
+  const endIf = (td: number) => rollAt(steady, td).p + (R.V * R.dec) / 2;
+  const end = Math.max(Math.ceil(endIf(at) - 1e-9), cut - 1);
+  return { td: at + (end - endIf(at)) / R.V, end, cut };
+}
+
+// ---- the box of light ----
+
+export interface Cell {
+  r: number;
+  c: number;
+}
+
+export const dist = (a: Cell, b: Cell) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
+
+/** The eight ways the light can step, round from "right": across, corner to corner, up and down. */
+export const DIRS: readonly (readonly [number, number])[] = [
+  [0, 1],
+  [1, 1],
+  [1, 0],
+  [1, -1],
+  [0, -1],
+  [-1, -1],
+  [-1, 0],
+  [-1, 1],
+];
+const dirOf = (dr: number, dc: number) => DIRS.findIndex(([r, c]) => r === dr && c === dc);
+
+/** The light's quickest step, while it searches (seconds), and its slowest, the last onto the person drawn. */
+export const STEP_QUICK = 0.18;
+export const STEP_SLOW = 0.75;
+
+/**
+ * When the light reaches its boxes, in seconds after `from` (the last one already planned) up to `end`, its landing:
+ * at its searching pace, then slower and slower, each step 1.2 times the one before, the last STEP_SLOW. The slowing
+ * steps are laid back from `end` (about the last 3.5 seconds); the quick ones evenly before them.
  */
 export function stepTimes(from: number, end: number): number[] {
   const tail: number[] = [end];
@@ -121,36 +174,119 @@ export function stepTimes(from: number, end: number): number[] {
   return [...quick, ...tail];
 }
 
-export interface Cell {
-  r: number;
-  c: number;
+/**
+ * The light's next box, and the way it now goes. It keeps its way (`dir`) most steps and turns a little now and then,
+ * so it sweeps across the wall rather than trembling in one place; at the screen's edges it bounces off. Only a box
+ * beside it that the room can see (`ok`); with a person drawn (`target`) and `left` steps after this one, only a box
+ * from which they can still be reached in time, and never their own box before the last step: so it searches while it
+ * has steps to spare, closes in as they run out, and its last step, and only that, lands on them.
+ */
+export function nextStep(cur: Cell, dir: number, target: Cell | null, left: number, ok: (c: Cell) => boolean, rnd: () => number): { cell: Cell; dir: number } {
+  const at = (d: number): Cell => ({ r: cur.r + DIRS[d][0], c: cur.c + DIRS[d][1] });
+  const fits = (c: Cell) => ok(c) && (!target || ((c.r !== target.r || c.c !== target.c) && dist(c, target) <= left));
+  const [dr, dc] = DIRS[dir];
+  const turn = rnd() < 0.72 ? 0 : (rnd() < 0.5 ? 1 : -1) * (rnd() < 0.8 ? 1 : 2);
+  const side = rnd() < 0.5 ? 1 : -1;
+  const order = [
+    (dir + turn + 8) % 8,
+    dir,
+    dirOf(-dr, dc),
+    dirOf(dr, -dc),
+    ...[1, 2, 3].flatMap((k) => [(dir + side * k + 8) % 8, (dir - side * k + 8) % 8]),
+    (dir + 4) % 8,
+  ];
+  for (const d of order) {
+    if (d < 0) continue;
+    const c = at(d);
+    if (fits(c)) return { cell: c, dir: d };
+  }
+  // Nowhere fits: the box the room sees nearest the person drawn (never theirs early), or stay.
+  let best: { cell: Cell; dir: number } | null = null;
+  for (let d = 0; d < 8; d++) {
+    const c = at(d);
+    if (!ok(c) || (target && left > 0 && c.r === target.r && c.c === target.c)) continue;
+    if (!best || (target && dist(c, target) < dist(best.cell, target))) best = { cell: c, dir: d };
+  }
+  return best ?? { cell: cur, dir };
 }
 
-const dist = (a: Cell, b: Cell) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
+/** The light's way: the boxes it passes through and when (seconds from the press), and, once known, its landing. */
+export interface Walk {
+  cells: Cell[];
+  times: number[];
+  dir: number;
+  /** The times still to come once the server has answered (the last is the landing), and the person drawn. */
+  sched: number[] | null;
+  target: Cell | null;
+}
+
+export const walkStart = (cell: Cell, dir: number): Walk => ({ cells: [cell], times: [0], dir, sched: null, target: null });
 
 /**
- * The light's next box: one beside it (across, up, down or corner to corner) that the room can see (`ok`), never the
- * one it has just left when it has another choice. With a person drawn (`target`) and `left` steps after this one,
- * only boxes from which they can still be reached in time, and never their own box before the last step: so it
- * wanders while it has steps to spare, heads for them as its steps run out, and its last step, and only that, lands on
- * them. (On a wall of two rows or more, a box beside them always has a neighbour beside them too, to wait on.)
+ * Plans the light's boxes until two lie beyond `t` (so its glide always knows where it goes next), or its landing is
+ * planned. `ok(cell, at, leave)`: may the light be on that box from `at` until it leaves at `leave`?
  */
-export function nextCell(cur: Cell, prev: Cell | null, target: Cell | null, left: number, ok: (c: Cell) => boolean, rnd: () => number): Cell {
-  const near: Cell[] = [];
-  for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) if (dr || dc) near.push({ r: cur.r + dr, c: cur.c + dc });
-  let pool = near.filter(ok);
-  if (target) {
-    if (left <= 0 && dist(cur, target) <= 1) return target;
-    const off = pool.filter((c) => c.r !== target.r || c.c !== target.c);
-    const inTime = off.filter((c) => dist(c, target) <= left);
-    if (inTime.length) pool = inTime;
-    else if (off.length) {
-      const best = Math.min(...off.map((c) => dist(c, target)));
-      pool = off.filter((c) => dist(c, target) === best);
+export function walkAhead(w: Walk, t: number, ok: (c: Cell, at: number, leave: number) => boolean, rnd: () => number): void {
+  for (;;) {
+    let ahead = 0;
+    for (let k = w.times.length - 1; k >= 0 && w.times[k] > t; k--) ahead++;
+    if (ahead >= 2) return;
+    let at: number;
+    if (w.sched) {
+      if (!w.sched.length) return;
+      at = w.sched.shift() as number;
+    } else at = w.times[w.times.length - 1] + STEP_QUICK;
+    const leave = w.sched ? (w.sched[0] ?? at) : at + STEP_QUICK;
+    const left = w.sched ? w.sched.length : 99;
+    const cur = w.cells[w.cells.length - 1];
+    if (w.sched && left === 0 && w.target) {
+      w.cells.push(w.target);
+    } else {
+      const s = nextStep(cur, w.dir, w.sched ? w.target : null, left, (c) => ok(c, at, leave), rnd);
+      w.cells.push(s.cell);
+      w.dir = s.dir;
     }
+    w.times.push(at);
   }
-  if (!pool.length) return cur;
-  const away = pool.filter((c) => !prev || c.r !== prev.r || c.c !== prev.c);
-  const from = away.length ? away : pool;
-  return from[Math.floor(rnd() * from.length) % from.length];
+}
+
+/** The server's answer: the light's remaining times, ending at `landAt`, its last step onto `target`. */
+export function walkLand(w: Walk, target: Cell, landAt: number): void {
+  w.target = target;
+  w.sched = stepTimes(w.times[w.times.length - 1], landAt);
+}
+
+/** A slower step than this: the light moves over in this time, easing in and out, and holds on its box the rest. */
+export const MOVE_T = 0.24;
+
+/**
+ * Where the light is at `t`, between boxes (row and column, fractional). While it searches, a smooth glide through its
+ * boxes, its pace carried from one to the next (Hermite curves with the boxes' own paces); once its steps slow, it
+ * settles on each box and holds there, so the room reads the name, before it moves on (MOVE_T), the last time onto
+ * the person drawn. It sets off from rest at the first box and comes to rest on the last.
+ */
+export function pathAt(cells: readonly Cell[], times: readonly number[], t: number): { r: number; c: number } {
+  const n = cells.length;
+  if (n === 1 || t <= times[0]) return { r: cells[0].r, c: cells[0].c };
+  if (t >= times[n - 1]) return { r: cells[n - 1].r, c: cells[n - 1].c };
+  let i = n - 2;
+  while (i > 0 && times[i] > t) i--;
+  const h = times[i + 1] - times[i];
+  if (h > MOVE_T) {
+    const s = Math.min(1, Math.max(0, (t - (times[i + 1] - MOVE_T)) / MOVE_T));
+    const e = s * s * s * (s * (s * 6 - 15) + 10);
+    return { r: cells[i].r + (cells[i + 1].r - cells[i].r) * e, c: cells[i].c + (cells[i + 1].c - cells[i].c) * e };
+  }
+  const u = h > 0 ? (t - times[i]) / h : 1;
+  // A box next to a slow step is arrived at, or left, from rest.
+  const holds = (k: number) => (k > 0 && times[k] - times[k - 1] > MOVE_T) || (k < n - 1 && times[k + 1] - times[k] > MOVE_T);
+  const pace = (k: number, key: "r" | "c") => (k <= 0 || k >= n - 1 || holds(k) ? 0 : (cells[k + 1][key] - cells[k - 1][key]) / (times[k + 1] - times[k - 1]));
+  const u2 = u * u;
+  const u3 = u2 * u;
+  const h00 = 2 * u3 - 3 * u2 + 1;
+  const h10 = u3 - 2 * u2 + u;
+  const h01 = -2 * u3 + 3 * u2;
+  const h11 = u3 - u2;
+  const at = (key: "r" | "c") => h00 * cells[i][key] + h10 * h * pace(i, key) + h01 * cells[i + 1][key] + h11 * h * pace(i + 1, key);
+  return { r: at("r"), c: at("c") };
 }

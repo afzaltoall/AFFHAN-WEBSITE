@@ -4,18 +4,38 @@ import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
 import { placeOfTrip } from "./drum";
 import { FACE_H, FACE_W, INSIDE, PASS_H, PASS_W, TAG_H, TAG_W, WRAP, drawFace, drawInside, drawPass, drawTag, drawWrap, type Fonts } from "./faces";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
-import { GRID, ROLL_T, STEP_QUICK, TAIL_T, flatX, mod, nextCell, openingRows, personAt, rollAt, rollPlan, stepTimes, stretchFor, type Cell, type Segment } from "./grid";
+import {
+  GRID,
+  TAIL_T,
+  flatX,
+  mod,
+  openingRows,
+  pathAt,
+  personAt,
+  planStop,
+  rollAt,
+  startRoll,
+  stretchFor,
+  walkAhead,
+  walkLand,
+  walkStart,
+  type Cell,
+  type Roll,
+  type Segment,
+  type Walk,
+} from "./grid";
 
-/** A draw on the wall: pressed at `start` (ms); once the server answers, its roll, the light's steps and the target. */
+/**
+ * A draw on the wall: pressed at `start` (ms); the rows' roll from then; the light's way; once the server has answered,
+ * where the rows stop and when the light lands (seconds from the press).
+ */
 interface Run {
   start: number;
   done: (landed: boolean) => void;
-  /** The rows' roll: from where, to where, from when (seconds from the press), and their pace as it began. */
-  roll: { from: number; to: number; at: number; v0: number } | null;
-  steps: number[] | null;
-  next: number;
-  target: Cell | null;
-  lastStep: number;
+  roll: Roll;
+  walk: Walk;
+  plan: { end: number; cut: number } | null;
+  landAt: number | null;
 }
 
 /**
@@ -58,6 +78,8 @@ const DRIFT = 0.18;
 /** Seconds the rows stay still after they come to rest, before they roll on, and the seconds they take to get going. */
 const DRIFT_AFTER = 2.5;
 const DRIFT_EASE = 1.6;
+/** Seconds the boxes the light has passed over keep a fading glow: its trail across the wall. */
+const TRAIL = 0.9;
 
 /** The reveal, in seconds from the stop. */
 const TL = {
@@ -102,6 +124,7 @@ const tileVertex = /* glsl */ `
   attribute vec3 aPos;
   attribute float aCell;
   attribute float aFlag;
+  attribute float aLit;
   uniform float uAtlasCols;
   uniform vec2 uCellUV;
   uniform float uCurve;
@@ -111,8 +134,10 @@ const tileVertex = /* glsl */ `
   varying float vHasCell;
   varying vec2 vCell;
   varying vec3 vWorld;
+  varying float vLit;
   void main() {
     vec3 p = position;
+    vLit = aLit;
     // The wall curves gently towards the room, each tile turned to face it (./grid.ts): aPos is its place on the flat.
     float th = aPos.x / uCurve;
     float c = cos(th);
@@ -148,6 +173,7 @@ const tileFragment = /* glsl */ `
   varying float vHasCell;
   varying vec2 vCell;
   varying vec3 vWorld;
+  varying float vLit;
   void main() {
     vec2 q = (vUv - 0.5) * uTile;
     float rad = 0.075;
@@ -171,13 +197,15 @@ const tileFragment = /* glsl */ `
     float words = 0.0;
     if (vHasCell > 0.5) words = texture2D(uAtlas, vCell + vec2(vUv.x, 1.0 - vUv.y) * uCellUV).a;
     vec3 ink = mix(vec3(0.95, 0.94, 1.0), vec3(1.0, 0.87, 0.55), gold);
-    vec3 line = mix(vec3(0.45, 0.35, 1.0), vec3(1.0, 0.80, 0.42), gold);
+    // The light's trail: the boxes it has just passed over take its gold, fading.
+    float trail = vLit * vLit * (1.0 - picked);
+    vec3 line = mix(vec3(0.45, 0.35, 1.0), vec3(1.0, 0.80, 0.42), max(gold, smoothstep(0.04, 0.4, trail)));
     // A slow light passing over the wall while it waits.
     float d = vWorld.x * 0.085 - vWorld.y * 0.24 - (mod(uTime * 0.13, 2.8) - 1.4);
     float sweep = exp(-d * d * 36.0) * uIdle;
     vec3 col = glass + ink * words * uWords;
-    col += line * edge * (0.5 + 0.5 * gold + sweep * 1.5 + picked * (0.8 + 1.2 * uLock));
-    col += vec3(1.0, 0.85, 0.5) * picked * (0.06 + 0.12 * uLock);
+    col += line * edge * (0.5 + 0.5 * gold + sweep * 1.5 + picked * (0.8 + 1.2 * uLock) + trail * 0.9);
+    col += vec3(1.0, 0.85, 0.5) * picked * (0.06 + 0.12 * uLock) + vec3(1.0, 0.84, 0.5) * trail * 0.04;
     col *= bright * (1.0 + picked * (0.25 + 0.4 * uLock));
     gl_FragColor = vec4(col, inside);
   }
@@ -522,6 +550,10 @@ export class WallStage {
   private readonly posAttr: THREE.InstancedBufferAttribute;
   private readonly cellAttr: THREE.InstancedBufferAttribute;
   private readonly flagAttr: THREE.InstancedBufferAttribute;
+  private readonly litArr: Float32Array;
+  private readonly litAttr: THREE.InstancedBufferAttribute;
+  /** When the light last passed over each box (seconds; key "row:column"), for its trail. */
+  private readonly litAt = new Map<string, number>();
   /** The rows of names (every one inside the view, seen whole), and the first one's height on the wall. */
   private rowsShown = 4;
   private yTop = 0;
@@ -577,7 +609,10 @@ export class WallStage {
   /** A draw: since when, its roll (once the server has answered), the light's steps, the person drawn's box. */
   private run: Run | null = null;
   /** The box of light: the box it is on and the one it came from, when it stepped (seconds from the press), its glide. */
-  private light: { cur: Cell; prev: Cell | null; at: number; glide: number; on: boolean; flash: number } = { cur: { r: 0, c: 0 }, prev: null, at: 0, glide: 0.1, on: false, flash: 0 };
+  private light: { on: boolean; walk: Walk; t: number } = { on: false, walk: walkStart({ r: 0, c: 0 }, 0), t: Infinity };
+  /** When the light last came to rest on someone (ms), for its flash; and the rows coming to rest after a failed draw. */
+  private landFlash = 0;
+  private coast: { roll: Roll; start: number } | null = null;
   /** When the wall last came to rest (it rolls on slowly a moment later), and the last frame's time. */
   private restSince = performance.now();
   private lastFrame = performance.now();
@@ -701,9 +736,12 @@ export class WallStage {
     this.posAttr = new THREE.InstancedBufferAttribute(this.posArr, 3).setUsage(THREE.DynamicDrawUsage);
     this.cellAttr = new THREE.InstancedBufferAttribute(this.cellArr, 1).setUsage(THREE.DynamicDrawUsage);
     this.flagAttr = new THREE.InstancedBufferAttribute(this.flagArr, 1).setUsage(THREE.DynamicDrawUsage);
+    this.litArr = new Float32Array(this.cap);
+    this.litAttr = new THREE.InstancedBufferAttribute(this.litArr, 1).setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute("aPos", this.posAttr);
     geometry.setAttribute("aCell", this.cellAttr);
     geometry.setAttribute("aFlag", this.flagAttr);
+    geometry.setAttribute("aLit", this.litAttr);
     geometry.instanceCount = 0;
     this.tilesGeometry = geometry;
     this.tileU = {
@@ -871,7 +909,17 @@ export class WallStage {
 
   /** The Trip ID the light is on, while it shows. */
   framed(): string | null {
-    return this.rows.length && this.light.on ? this.rows[this.personIn(this.light.cur)][0] : null;
+    return this.rows.length && this.light.on ? this.rows[this.personIn(this.lightCell())][0] : null;
+  }
+
+  /** Where the light is now, between boxes (row and column, fractional), and the box it is over. */
+  private lightAt(): { r: number; c: number } {
+    return pathAt(this.light.walk.cells, this.light.walk.times, this.light.t);
+  }
+
+  private lightCell(): Cell {
+    const q = this.lightAt();
+    return { r: Math.round(q.r), c: Math.round(q.c) };
   }
 
   /** Who is in a box (its row, and its column on the rolling wall), as their place on the wall. */
@@ -928,7 +976,8 @@ export class WallStage {
     const r = this.middleRow();
     const c = this.p + Math.ceil(this.grid.cols / 2);
     this.segs[r].push(stretchFor(i, n, this.p - 1, c));
-    this.light = { cur: { r, c }, prev: null, at: 0, glide: 0.1, on: true, flash: performance.now() };
+    this.light = { on: true, walk: walkStart({ r, c }, 0), t: Infinity };
+    this.landFlash = performance.now();
     this.slotsDirty = true;
     this.opts.onRest?.(tripId);
   }
@@ -950,7 +999,10 @@ export class WallStage {
     return i;
   }
 
-  /** The light comes on and starts to run. Settles true when it stops on someone (land), false when not (halt). */
+  /**
+   * The press: the rows gather pace and the light comes on in the middle and sets off searching. Settles true when it
+   * lands on someone (land), false when not (halt).
+   */
   spin(): Promise<boolean> {
     this.finish();
     if (this.waiting) {
@@ -961,28 +1013,32 @@ export class WallStage {
     }
     this.fillRows();
     this.dimTo(0, 0.2);
+    this.litAt.clear();
+    this.coast = null;
     const r = this.middleRow();
     const c = Math.floor(this.p) + Math.ceil(this.grid.cols / 2);
-    this.light = { cur: { r, c }, prev: null, at: 0, glide: 0.1, on: true, flash: performance.now() };
+    const walk = walkStart({ r, c }, Math.floor(Math.random() * 8));
+    this.light = { on: true, walk, t: 0 };
     this.slotsDirty = true;
     return new Promise((done) => {
-      this.run = { start: performance.now(), done, roll: null, steps: null, next: 0, target: null, lastStep: 0 };
+      this.run = { start: performance.now(), done, roll: startRoll(this.p, this.drift), walk, plan: null, landAt: null };
     });
   }
 
   /**
-   * The person drawn is known (`i`, their place on the wall). The rows will roll on by a screen; from the first column
-   * not yet in view, every row gets a new stretch of names in Trip ID order from a random place, and the drawn person's
-   * row (a clear one, chosen at random) the stretch that puts them, in their own place, in a box chosen at random. The
-   * light's steps are timed: quick while the rows roll, slower and slower once they have stopped, the last onto them.
+   * The person drawn is known (`i`, their place on the wall). The rows roll on and come to rest a little after STOP_AT
+   * (./grid.ts planStop); from the first column not yet on the screen, every row gets a new stretch of names in Trip ID
+   * order from a random place, and the drawn person's row (chosen at random) the stretch that puts them, in their own
+   * place, in a box chosen at random. The light searches on, slows once the rows are still, and lands on them.
    */
   land(i: number) {
     const r = this.run;
     const n = this.rows.length;
-    if (!r || r.target || !n) return;
+    if (!r || r.plan || !n) return;
     const t = this.elapsed(r);
     this.fillRows();
-    const { cut, end } = rollPlan(this.grid, this.p, Math.floor(Math.random() * 3));
+    const { td, end, cut } = planStop(this.grid, r.roll, t);
+    r.roll.td = td;
     const row = Math.floor(Math.random() * this.rowsShown);
     const col = end + 1 + Math.floor(Math.random() * this.grid.cols);
     const inView = end + this.grid.cols + 2 - cut;
@@ -996,34 +1052,48 @@ export class WallStage {
       for (let tries = 0; tries < 12 && n > inView && mod(i - start, n) < inView; tries++) start = Math.floor(Math.random() * n);
       this.segs[k].push({ from: cut, start });
     }
-    r.roll = { from: this.p, to: end, at: t, v0: this.drift };
-    r.target = { r: row, c: col };
-    r.steps = stepTimes(t, t + ROLL_T + TAIL_T);
-    r.next = 0;
+    r.plan = { end, cut };
+    r.landAt = td + r.roll.dec + TAIL_T;
+    walkLand(r.walk, { r: row, c: col }, r.landAt);
     this.watch(r);
   }
 
-  /** Nobody drawn (the draw failed): the light goes out where it is. */
+  /** Nobody drawn (the draw failed): the light goes out at once, and the rows slow to a stop on their own. */
   halt() {
     const r = this.run;
-    if (!r || r.target) return;
-    this.finish();
+    if (!r || r.plan) return;
+    const t = this.elapsed(r);
+    this.run = null;
+    window.clearTimeout(this.dog);
+    this.coast = { roll: { ...r.roll, td: Math.max(r.roll.acc, t) }, start: r.start };
+    this.light.on = false;
+    this.restSince = performance.now();
+    this.opts.onRest?.(null);
+    r.done(false);
   }
 
-  /** Stops whatever is running at once, where it would have ended: the rows at rest, the light on the person drawn. */
+  /**
+   * The run over: on its landing, or at once (frames stopped: the watchdog, or a new press), where it would have
+   * ended: the rows at rest, the light on the person drawn.
+   */
   finish = () => {
     const r = this.run;
     if (!r) return;
     this.run = null;
     window.clearTimeout(this.dog);
-    if (r.roll && r.target) {
-      this.p = r.roll.to;
-      if (this.light.cur.r !== r.target.r || this.light.cur.c !== r.target.c) this.light = { ...this.light, prev: this.light.cur, cur: r.target, at: 0, on: true, flash: performance.now() };
+    const target = r.walk.target;
+    if (r.plan && target) {
+      this.p = r.plan.end;
+      const w = r.walk;
+      const last = w.cells[w.cells.length - 1];
+      this.light = last.r === target.r && last.c === target.c && w.sched?.length === 0 ? { on: true, walk: w, t: Infinity } : { on: true, walk: walkStart(target, w.dir), t: Infinity };
+      this.landFlash = performance.now();
     } else this.light.on = false;
+    this.drift = 0;
     this.restSince = performance.now();
     this.slotsDirty = true;
     this.opts.onRest?.(this.framed());
-    r.done(!!r.target);
+    r.done(!!(r.plan && target));
   };
 
   /**
@@ -1094,7 +1164,7 @@ export class WallStage {
   present(card: DrawCardPublic, o: { seat: () => DOMRect | null; onSeat: () => void }): Promise<void> {
     this.endShow();
     if (this.made !== card.id) this.make(card);
-    const { pos, turn } = this.cellPos(this.light.cur);
+    const { pos, turn } = this.cellPos(this.lightCell());
     return new Promise((resolve) => {
       const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, seated: false };
       show.timers.push(
@@ -1149,12 +1219,13 @@ export class WallStage {
     const { p, v } = this.position(now, r, t);
     this.p = p;
     // The drawn person's gift and pass made, a step a frame, as the rows come to rest (or between draws): never while
-    // the light hops quickest over rolling names, where a slower frame would show.
-    if (this.steps.length && (!r || (r.roll && t - r.roll.at > ROLL_T - 0.3 && Math.abs(v) < 0.5))) (this.steps.shift() as () => void)();
-    // The light's steps due by now; the run is over with the last of them, on the person drawn.
+    // the light searches over rolling names, where a slower frame would show.
+    if (this.steps.length && (!r || (r.plan && t > r.roll.td + r.roll.dec - 0.3 && Math.abs(v) < 0.5))) (this.steps.shift() as () => void)();
+    // The light's way planned a little ahead; the run is over when it lands, on the person drawn.
     if (r) {
-      this.stepLight(r, t);
-      if (r.steps && r.next >= r.steps.length) this.finish();
+      walkAhead(r.walk, t, (c, at, leave) => this.clear(c, r, at, leave), Math.random);
+      this.light.t = t;
+      if (r.landAt !== null && t >= r.landAt) this.finish();
     }
     this.place(this.p);
     if (this.atlas.pump(12, this.frameNo) > 0) this.slotsDirty = true;
@@ -1165,27 +1236,23 @@ export class WallStage {
     u.uTime.value = time;
     u.uIdle.value = this.idle;
     u.uDim.value = this.dimAt(now);
-    // The box of light: on its box, gliding there from the last one; a little flash of light each step.
+    // The box of light, gliding over the wall; the box it is over lit, and those it has passed glowing after it.
     const sel = u.uSel.value as THREE.Vector3;
     const L = this.light;
     if (L.on) {
-      const to = this.cellPos(L.cur);
-      const k = this.run && L.prev ? easeOut((t - L.at) / L.glide) : 1;
-      const from = L.prev && k < 1 ? this.cellPos(L.prev, this.tmpV2) : to;
-      const turn = from.turn + (to.turn - from.turn) * k;
-      this.frameMesh.position.set(
-        from.pos.x + (to.pos.x - from.pos.x) * k + Math.sin(turn) * 0.06,
-        from.pos.y + (to.pos.y - from.pos.y) * k,
-        from.pos.z + (to.pos.z - from.pos.z) * k + Math.cos(turn) * 0.06,
-      );
-      this.frameMesh.rotation.set(0, turn, 0);
-      sel.set(to.x, to.y, k > 0.6 ? 1 : 0);
+      const at = this.cellPos(this.lightAt());
+      this.frameMesh.position.set(at.pos.x + Math.sin(at.turn) * 0.06, at.pos.y, at.pos.z + Math.cos(at.turn) * 0.06);
+      this.frameMesh.rotation.set(0, at.turn, 0);
+      const box = this.lightCell();
+      const lit = this.cellPos(box, this.tmpV2);
+      sel.set(lit.x, lit.y, 1);
+      if (this.run) this.litAt.set(`${box.r}:${box.c}`, now / 1000);
     } else sel.z = 0;
     if (this.show) this.pose((now - this.show.start) / 1000, time);
     else {
       u.uLock.value = 0;
       this.frameU.uAlpha.value = L.on ? 1 : 0;
-      this.frameU.uGlow.value = 0.9 + 1.5 * Math.exp(-((now - L.flash) / 1000) * 10);
+      this.frameU.uGlow.value = 1.1 + 1.6 * Math.exp(-((now - this.landFlash) / 1000) * 6);
     }
     this.bgU.uTime.value = time;
     this.bokehU.uTime.value = time;
@@ -1193,61 +1260,39 @@ export class WallStage {
   }
 
   /**
-   * Where the rows are (columns) and their pace (columns a second) now. At rest they roll on slowly (the owner: "users
-   * roll"), a moment after they came to rest, getting going gently; never while a winner is shown or the light is on
-   * someone. Pressed, they keep their pace until the server answers, and the draw's roll carries it on: nothing jerks.
+   * Where the rows are (columns) and their pace (columns a second) now. At a draw, its roll from the press (gathering
+   * pace from their drift, so nothing jerks). After a failed draw, coming to rest. Otherwise they roll on slowly (the
+   * owner: "users roll"), a moment after they came to rest, getting going gently; never while a winner is shown or the
+   * light is on someone.
    */
   private position(now: number, r: Run | null, t: number): { p: number; v: number } {
     const dt = Math.min(0.1, Math.max(0, (now - this.lastFrame) / 1000));
     this.lastFrame = now;
-    if (r?.roll) {
+    if (r) {
       this.drift = 0;
-      return rollAt(r.roll.from, r.roll.to, t - r.roll.at, r.roll.v0);
+      return rollAt(r.roll, t);
     }
-    if (!r) {
-      const since = (now - this.restSince) / 1000 - DRIFT_AFTER;
-      if (!this.show && !this.light.on && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
-      else this.drift = Math.max(0, this.drift - (DRIFT / 0.8) * dt);
+    if (this.coast) {
+      const ct = (now - this.coast.start) / 1000;
+      const q = rollAt(this.coast.roll, ct);
+      if (ct < this.coast.roll.td + this.coast.roll.dec) return q;
+      this.coast = null;
+      this.restSince = now;
+      this.p = q.p;
     }
+    const since = (now - this.restSince) / 1000 - DRIFT_AFTER;
+    if (!this.show && !this.light.on && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
+    else this.drift = Math.max(0, this.drift - (DRIFT / 0.8) * dt);
     return { p: this.p + this.drift * dt, v: this.drift };
   }
 
   /**
-   * The light's steps due by `t` seconds after the press: each to a box beside the last that the room sees clearly
-   * (./grid.ts nextCell), wandering while it has steps to spare, heading for the person drawn as they run out; the
-   * last one onto them. Before the server has answered, quick wandering steps.
+   * A box the light may be on from `at` until it leaves at `leave` (seconds from the press): in a row of the view, and
+   * whole on the screen all that while as the rows roll (they only move one way, so its ends tell).
    */
-  private stepLight(r: Run, t: number) {
-    const rnd = Math.random;
-    if (!r.steps) {
-      if (t - r.lastStep >= STEP_QUICK) {
-        r.lastStep = t;
-        this.stepTo(nextCell(this.light.cur, this.light.prev, null, 99, (c) => this.clear(c, r, t), rnd), t, STEP_QUICK);
-      }
-      return;
-    }
-    while (r.next < r.steps.length && t >= r.steps[r.next]) {
-      const at = r.steps[r.next];
-      const left = r.steps.length - 1 - r.next;
-      const gap = r.next + 1 < r.steps.length ? r.steps[r.next + 1] - at : 0.4;
-      const next = left === 0 && r.target ? r.target : nextCell(this.light.cur, this.light.prev, r.target, left, (c) => this.clear(c, r, at), rnd);
-      this.stepTo(next, at, gap);
-      r.next++;
-    }
-  }
-
-  /** A box the light may step to at `t`: in a row of the view, whole on the screen then and a moment later as it rolls. */
-  private clear(c: Cell, r: Run, t: number): boolean {
+  private clear(c: Cell, r: Run, at: number, leave: number): boolean {
     if (c.r < 0 || c.r >= this.rowsShown) return false;
-    for (const ahead of [0, 0.25]) {
-      const p = r.roll ? rollAt(r.roll.from, r.roll.to, t + ahead - r.roll.at, r.roll.v0).p : this.p + this.drift * ahead;
-      if (c.c < p + 0.75 || c.c > p + this.grid.cols + 0.25) return false;
-    }
-    return true;
-  }
-
-  private stepTo(cell: Cell, at: number, gap: number) {
-    this.light = { cur: cell, prev: this.light.cur, at, glide: Math.min(0.12, Math.max(0.05, gap * 0.7)), on: true, flash: performance.now() };
+    return c.c >= rollAt(r.roll, leave).p + 0.75 && c.c <= rollAt(r.roll, at).p + this.grid.cols + 0.25;
   }
 
   /** Where a box is in the scene now (on the wall's curve), how far it is turned to face the room, its flat place. */
@@ -1268,6 +1313,7 @@ export class WallStage {
     const n = this.rows.length;
     this.fillRows();
     const c0 = Math.floor(p);
+    const nowS = performance.now() / 1000;
     this.atlas.restart();
     let idx = 0;
     for (let row = 0; row < this.rowsShown && idx < this.cap; row++) {
@@ -1287,12 +1333,15 @@ export class WallStage {
         }
         this.cellArr[idx] = cell;
         this.flagArr[idx] = flag;
+        const lit = this.litAt.size ? this.litAt.get(`${row}:${c}`) : undefined;
+        this.litArr[idx] = lit === undefined ? 0 : Math.max(0, 1 - (nowS - lit) / TRAIL);
       }
     }
     this.tilesGeometry.instanceCount = idx;
     this.posAttr.needsUpdate = true;
     this.cellAttr.needsUpdate = true;
     this.flagAttr.needsUpdate = true;
+    this.litAttr.needsUpdate = true;
     this.slotsDirty = false;
   }
 
@@ -1314,8 +1363,7 @@ export class WallStage {
   /** Finishes the run even if the browser stops drawing frames (a tab out of sight): the result never waits on it. */
   private watch(r: Run) {
     window.clearTimeout(this.dog);
-    const end = r.steps ? r.steps[r.steps.length - 1] : 0;
-    const left = (end - this.elapsed(r)) * 1000;
+    const left = ((r.landAt ?? 0) - this.elapsed(r)) * 1000;
     this.dog = window.setTimeout(this.finish, Math.max(0, left) + 400);
   }
 
@@ -1454,7 +1502,7 @@ export class WallStage {
     // The light stays on the tile until it leaves the wall, then goes (the tile is a gift now).
     this.frameU.uAlpha.value = 1 - smooth(t, TL.out, TL.out + 0.35);
     if (t >= TL.out && !this.hidden) {
-      this.hidden = { ...this.light.cur };
+      this.hidden = this.lightCell();
       this.slotsDirty = true;
     }
 

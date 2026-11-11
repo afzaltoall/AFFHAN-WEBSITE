@@ -1,11 +1,33 @@
 // The TV screen's wall (src/components/lucky-draw/wall/grid.ts and drum.ts): who is on it and in what order, how the
-// rows roll, and that the box of light's every step is to a box beside the last that the room can see, its last step
-// onto the person the server drew, never a jump.
+// rows roll and come to rest, and that the box of light searches the whole wall, every step to a box beside the last
+// that the room can see, gliding without a jump, its last step onto the person the server drew.
 //   npm run test:lucky-draw
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { placeOfTrip, wallOf } from "@/components/lucky-draw/wall/drum";
-import { GRID, ROLL_T, STEP_QUICK, STEP_SLOW, TAIL_T, flatX, mod, nextCell, openingRows, personAt, rollAt, rollPlan, stepTimes, stretchFor } from "@/components/lucky-draw/wall/grid";
+import {
+  CRUISE,
+  GRID,
+  STEP_QUICK,
+  STEP_SLOW,
+  STOP_AT,
+  TAIL_T,
+  dist,
+  flatX,
+  mod,
+  nextStep,
+  openingRows,
+  pathAt,
+  personAt,
+  planStop,
+  rollAt,
+  startRoll,
+  stepTimes,
+  stretchFor,
+  walkAhead,
+  walkLand,
+  walkStart,
+} from "@/components/lucky-draw/wall/grid";
 
 const id = (n) => `TRIP-26-${String(n).padStart(5, "0")}`;
 const entry = (n) => [id(n), `Person ${n}`, "Chennai", "India"];
@@ -19,7 +41,6 @@ function rng(seed) {
   };
 }
 
-const dist = (a, b) => Math.max(Math.abs(a.r - b.r), Math.abs(a.c - b.c));
 /** The screen's edge, either side of the middle (the camera is set back so the columns fill the width). */
 const EDGE = (GRID.cols / 2) * GRID.pitchX;
 const seen = (c, p) => flatX(GRID, c, p) + GRID.tileW / 2 > -EDGE && flatX(GRID, c, p) - GRID.tileW / 2 < EDGE;
@@ -64,7 +85,6 @@ test("the opening: the top row starts with TRIP-26-00001 on the screen's first c
     const first = Math.floor(p) + 1;
     assert.equal(personAt(rows[0], first, n), 0, "person 0 first");
     for (const segs of rows) for (let c = first; c < first + 20; c++) assert.equal(personAt(segs, c + 1, n), mod(personAt(segs, c, n) + 1, n), "in Trip ID order along a row");
-    // Each row's share, laid end to end, is everyone.
     const share = Math.ceil(n / count);
     const met = new Set();
     for (const segs of rows) for (let k = 0; k < share; k++) met.add(personAt(segs, first + k, n));
@@ -81,7 +101,6 @@ test("a row's stretches: each takes over from its own column on, the earlier one
   assert.equal(personAt(segs, 24, n), 54);
   assert.equal(personAt(segs, 25, n), 90);
   assert.equal(personAt(segs, 35, n), 0, "wrapping round the end");
-  // The drawn person's stretch puts them at the column chosen, in their place.
   for (const [i, cut, c] of [
     [0, 30, 33],
     [99, 30, 37],
@@ -96,132 +115,135 @@ test("a row's stretches: each takes over from its own column on, the earlier one
   }
 });
 
-test("a draw's roll: new names come in only from off the screen, and the rows stop on a whole column showing only them", () => {
-  const r = rng(11);
-  for (let i = 0; i < 500; i++) {
-    const p = r() * 5000;
-    const extra = i % 3;
-    const { cut, end } = rollPlan(GRID, p, extra);
-    for (let c = cut; c < cut + 5; c++) assert.ok(!seen(c, p), `column ${c} is off the screen at ${p.toFixed(2)}`);
-    assert.equal(end, Math.round(end));
-    assert.ok(end + 1 >= cut, "at the stop, every column on the screen is new");
-    assert.ok(end - p >= GRID.cols + 1 - 1e-9, "it rolls at least a screen");
-    assert.ok(end - p <= GRID.cols + 5, "and not much more");
-  }
-});
-
-test("the roll: smooth from the pace it had to rest exactly on its column, never back, never racing", () => {
+test("the roll: from the drift to a steady pace and to rest, every change smooth, never back, never racing", () => {
   for (const v0 of [0, 0.05, 0.18]) {
-    for (const span of [9, 10.5, 13]) {
-      const from = 100.3;
-      const to = from + span;
-      const start = rollAt(from, to, 0, v0);
-      assert.ok(Math.abs(start.p - from) < 1e-12 && Math.abs(start.v - v0) < 1e-12, "it carries on the pace the rows had");
-      const stop = rollAt(from, to, ROLL_T, v0);
-      assert.equal(stop.p, to);
-      assert.ok(Math.abs(stop.v) < 1e-12);
-      assert.equal(rollAt(from, to, ROLL_T + 5, v0).p, to, "and stays");
-      let last = start.p;
-      let fastest = 0;
-      for (let t = 0.01; t <= ROLL_T; t += 0.01) {
-        const now = rollAt(from, to, t, v0);
-        assert.ok(now.p >= last - 1e-12, "never back");
-        assert.ok(now.v >= -1e-9);
-        fastest = Math.max(fastest, now.v);
-        last = now.p;
-      }
-      assert.ok(fastest <= (1.875 * span) / ROLL_T + v0 + 1e-9, `never racing (${fastest.toFixed(2)} columns a second)`);
-      // Its pace, found from its places, is the pace it reports (so the light and the gift read it right).
-      for (const t of [0.4, 1.8, 3.1]) {
-        const d = (rollAt(from, to, t + 1e-5, v0).p - rollAt(from, to, t - 1e-5, v0).p) / 2e-5;
-        assert.ok(Math.abs(d - rollAt(from, to, t, v0).v) < 1e-4);
-      }
+    const R = startRoll(100.3, v0);
+    R.td = 5.6;
+    let last = rollAt(R, 0);
+    assert.equal(last.v, v0, "it sets off at the pace the rows had");
+    let fastest = 0;
+    for (let t = 0.005; t < R.td + R.dec + 2; t += 0.005) {
+      const now = rollAt(R, t);
+      assert.ok(now.p >= last.p - 1e-12, "never back");
+      assert.ok(Math.abs(now.v - last.v) < 0.02, `no jolt in its pace at ${t.toFixed(3)} s`);
+      assert.ok(now.p - last.p < CRUISE * 0.005 + 1e-9, "never faster than its steady pace");
+      fastest = Math.max(fastest, now.v);
+      last = now;
+    }
+    assert.ok(Math.abs(fastest - CRUISE) < 1e-9);
+    assert.equal(rollAt(R, R.td + R.dec + 3).v, 0, "and at rest");
+    // Its pace, found from its places, is the pace it reports.
+    for (const t of [0.7, 3, R.td + 1.3]) {
+      const d = (rollAt(R, t + 1e-5).p - rollAt(R, t - 1e-5).p) / 2e-5;
+      assert.ok(Math.abs(d - rollAt(R, t).v) < 1e-4);
     }
   }
 });
 
-test("the light's steps: quick while the rows roll, then slower and slower on the still wall, the last at the end", () => {
-  const from = 0.42;
-  const end = from + ROLL_T + TAIL_T;
+test("the stop: on a whole column, about STOP_AT after the press, the screen then showing only new names", () => {
+  const r = rng(11);
+  for (let i = 0; i < 600; i++) {
+    const R = startRoll(r() * 5000, r() < 0.4 ? 0 : 0.18 * r());
+    const ta = i % 10 === 0 ? 2 + r() * 8 : 0.05 + r() * 1.5;
+    const { td, end, cut } = planStop(GRID, R, ta);
+    R.td = td;
+    const pa = rollAt(R, ta).p;
+    for (let c = cut; c < cut + 5; c++) assert.ok(!seen(c, pa), `column ${c} is off the screen when the server answers`);
+    assert.equal(end, Math.round(end));
+    assert.ok(end + 1 >= cut, "at the stop, every column on the screen is new");
+    assert.ok(td >= ta + 0.5 - 1e-9 && td >= R.acc, "it begins to slow only after the answer");
+    assert.ok(Math.abs(rollAt(R, td + R.dec).p - end) < 1e-9, `it rests exactly on its column (${rollAt(R, td + R.dec).p} vs ${end})`);
+    if (ta < 3) assert.ok(Math.abs(td + R.dec - STOP_AT) <= 1 / CRUISE + 1e-9, `at rest about ${STOP_AT} s after the press (${(td + R.dec).toFixed(2)})`);
+  }
+});
+
+test("the light's times: its searching pace, then slower and slower, the last half a second and more", () => {
+  const from = 0.9;
+  const end = 12.2;
   const t = stepTimes(from, end);
   assert.equal(t[t.length - 1], end);
   assert.ok(t[0] > from);
   const gaps = t.map((x, i) => x - (i ? t[i - 1] : from));
   for (let i = 1; i < gaps.length; i++) assert.ok(gaps[i] >= gaps[i - 1] - 0.004, `never quicker again (${i})`);
-  assert.ok(Math.abs(gaps[0] - STEP_QUICK) < 0.004, "13 a second at first");
-  assert.ok(Math.abs(gaps[gaps.length - 1] - STEP_SLOW) < 1e-9, "the last half a second");
-  const rolling = t.filter((x) => x <= from + ROLL_T);
-  for (let i = 1; i < rolling.length; i++) assert.ok(rolling[i] - rolling[i - 1] < 0.09, "quick all the while the rows roll");
-  const slowing = t.filter((x) => x > from + ROLL_T - 0.05);
-  assert.ok(slowing.length >= 9, `${slowing.length} slowing steps on the still wall, more than the widest wall needs to cross`);
+  assert.ok(Math.abs(gaps[0] - STEP_QUICK) < 0.01, "its searching pace at first");
+  assert.ok(Math.abs(gaps[gaps.length - 1] - STEP_SLOW) < 1e-9, "the last step the slowest");
+  const still = t.filter((x) => x > end - TAIL_T);
+  assert.ok(still.length >= 7, `${still.length} slowing steps on the still wall, enough to cross it`);
 });
 
 /**
- * One draw, as the stage plays it (./stage.ts): the light wanders over the rows (rolling at their drift pace) until the
- * server answers, then the rows roll a screen and the light steps at the planned times, the last onto the target.
+ * One draw, as the stage plays it (./stage.ts), frame by frame at 60 a second: the rows gather pace from their drift
+ * and the light sets off searching; the server answers; the rows come to rest and the light lands.
  */
 function playDraw(seed, rowsShown) {
-  const r = rng(seed);
-  const p0 = r() * 3000;
-  const v0 = r() < 0.4 ? 0 : 0.18 * r();
-  const answer = 0.08 + r() * 0.9;
-  const pA = p0 + v0 * answer;
-  const { end } = rollPlan(GRID, pA, Math.floor(r() * 3));
-  const target = { r: Math.floor(r() * rowsShown), c: end + 1 + Math.floor(r() * GRID.cols) };
-  const pAt = (t) => (t < answer ? p0 + v0 * t : rollAt(pA, end, t - answer, v0).p);
-  const ok = (t) => (c) => {
-    if (c.r < 0 || c.r >= rowsShown) return false;
-    for (const ahead of [0, 0.25]) {
-      const p = pAt(t + ahead);
-      if (c.c < p + 0.75 || c.c > p + GRID.cols + 0.25) return false;
-    }
-    return true;
-  };
-  let cur = { r: Math.floor((rowsShown - 1) / 2), c: Math.floor(p0) + Math.ceil(GRID.cols / 2) };
-  let prev = null;
-  const moves = [];
-  const step = (next, at) => {
-    moves.push({ from: cur, to: next, at });
-    prev = cur;
-    cur = next;
-  };
-  for (let t = STEP_QUICK; t < answer; t += STEP_QUICK) step(nextCell(cur, prev, null, 99, ok(t), r), t);
-  const times = stepTimes(answer, answer + ROLL_T + TAIL_T);
-  times.forEach((at, i) => {
-    const left = times.length - 1 - i;
-    step(left === 0 ? target : nextCell(cur, prev, target, left, ok(at), r), at);
-  });
-  return { moves, target, pAt, end };
+  const rnd = rng(seed);
+  const R = startRoll(rnd() * 3000, rnd() < 0.4 ? 0 : 0.18 * rnd());
+  const ta = seed % 17 === 0 ? 2 + rnd() * 4 : 0.08 + rnd() * 1.2;
+  const ok = (c, at, leave) => c.r >= 0 && c.r < rowsShown && c.c >= rollAt(R, leave).p + 0.75 && c.c <= rollAt(R, at).p + GRID.cols + 0.25;
+  const w = walkStart({ r: Math.floor((rowsShown - 1) / 2), c: Math.floor(R.from) + Math.ceil(GRID.cols / 2) }, Math.floor(rnd() * 8));
+  let t = 0;
+  for (; t < ta; t += 1 / 60) walkAhead(w, t, ok, rnd);
+  const { td, end } = planStop(GRID, R, ta);
+  R.td = td;
+  const landAt = td + R.dec + TAIL_T;
+  const target = { r: Math.floor(rnd() * rowsShown), c: end + 1 + Math.floor(rnd() * GRID.cols) };
+  walkLand(w, target, landAt);
+  const frames = [];
+  for (t = 0; t <= landAt + 0.2; t += 1 / 60) {
+    walkAhead(w, t, ok, rnd);
+    frames.push({ t, ...pathAt(w.cells, w.times, t) });
+  }
+  return { w, R, end, target, landAt, ok, frames };
 }
 
-test("every draw: each step to a box beside the last, on the screen; the last onto the person drawn; never a jump", () => {
-  const dirs = new Map();
+test("every draw: the light searches the whole wall, a box at a time, never jumping, and lands on the person drawn", () => {
+  const dirs = new Set();
   let steps = 0;
   let upDown = 0;
-  for (let seed = 1; seed <= 3000; seed++) {
-    const rowsShown = [2, 3, 4, 4, 5, 8][seed % 6];
-    const { moves, target, pAt, end } = playDraw(seed, rowsShown);
-    for (const m of moves) {
-      assert.equal(dist(m.from, m.to), 1, `seed ${seed}: a step of one box (${JSON.stringify(m)})`);
-      assert.ok(m.to.r >= 0 && m.to.r < rowsShown, `seed ${seed}: in a row of the view`);
-      const p = pAt(m.at);
-      assert.ok(m.to.c >= p + 0.75 - 1e-9 && m.to.c <= p + GRID.cols + 0.25 + 1e-9, `seed ${seed}: on the screen when it lands there`);
-      dirs.set(`${m.to.r - m.from.r},${m.to.c - m.from.c}`, (dirs.get(`${m.to.r - m.from.r},${m.to.c - m.from.c}`) ?? 0) + 1);
+  let cover = 0;
+  const N = 1500;
+  for (let seed = 1; seed <= N; seed++) {
+    const rowsShown = [2, 3, 4, 4, 4, 5, 8][seed % 7];
+    const { w, R, end, target, landAt, ok, frames } = playDraw(seed, rowsShown);
+    const { cells, times } = w;
+    for (let k = 1; k < cells.length; k++) {
+      assert.equal(dist(cells[k - 1], cells[k]), 1, `seed ${seed}: step ${k} is to a box beside the last`);
+      assert.ok(ok(cells[k], times[k], times[k + 1] ?? times[k]), `seed ${seed}: step ${k} is to a box on the screen while the light is there`);
+      dirs.add(`${cells[k].r - cells[k - 1].r},${cells[k].c - cells[k - 1].c}`);
       steps++;
-      if (m.to.r !== m.from.r) upDown++;
+      if (cells[k].r !== cells[k - 1].r) upDown++;
     }
-    const last = moves[moves.length - 1];
-    assert.deepEqual(last.to, target, `seed ${seed}: the last step is onto the person drawn`);
-    assert.equal(pAt(last.at), end, "and the rows are still by then");
+    assert.deepEqual(cells[cells.length - 1], target, `seed ${seed}: the last step is onto the person drawn`);
+    assert.equal(times[times.length - 1], landAt);
+    for (let k = 0; k < cells.length - 1; k++) assert.ok(cells[k].r !== target.r || cells[k].c !== target.c || times[k] < landAt - 4, `seed ${seed}: not on them before the end`);
+    assert.ok(Math.abs(rollAt(R, landAt).p - end) < 1e-9, "the rows are still when it lands");
+    assert.ok(landAt > 11 && landAt < (seed % 17 === 0 ? 17 : 13.4), `seed ${seed}: a search of ${landAt.toFixed(1)} s`);
+    // The glide: never a jump from one frame to the next, and at rest on them at the end.
+    for (let k = 1; k < frames.length; k++) {
+      const d = Math.max(Math.abs(frames[k].r - frames[k - 1].r), Math.abs(frames[k].c - frames[k - 1].c));
+      assert.ok(d < 0.25, `seed ${seed}: the light glides (${d.toFixed(3)} boxes in a frame at ${frames[k].t.toFixed(2)} s)`);
+    }
+    const lastF = frames[frames.length - 1];
+    assert.ok(Math.abs(lastF.r - target.r) < 1e-9 && Math.abs(lastF.c - target.c) < 1e-9);
+    // How much of the screen it searched: the places on the screen it passed over.
+    const places = new Set(cells.map((c, k) => `${c.r}:${Math.round(c.c - rollAt(R, times[k]).p)}`));
+    cover += places.size / (rowsShown * GRID.cols);
   }
-  assert.equal(dirs.size, 8, `all eight directions (${[...dirs.keys()].join(" ")})`);
-  assert.ok(upDown / steps > 0.4, `up and down as much as across (${((100 * upDown) / steps).toFixed(0)}% of steps change row)`);
+  assert.equal(dirs.size, 8, `all eight directions (${[...dirs].join(" ")})`);
+  assert.ok(upDown / steps > 0.35, `up and down as well as across (${((100 * upDown) / steps).toFixed(0)}% of steps change row)`);
+  assert.ok(cover / N > 0.6, `it searches most of the screen: ${((100 * cover) / N).toFixed(0)}% of its places on average`);
 });
 
-test("a light with nowhere to go stays where it is", () => {
+test("the light keeps its way and turns now and then; with nowhere to go it stays", () => {
+  const always = () => true;
+  let kept = 0;
+  const r = rng(5);
+  for (let i = 0; i < 2000; i++) if (nextStep({ r: 5, c: 5 }, 1, null, 99, always, r).dir === 1) kept++;
+  assert.ok(kept > 1300 && kept < 1600, `kept its way ${kept} times in 2,000`);
   const cur = { r: 0, c: 5 };
-  assert.deepEqual(
-    nextCell(cur, null, null, 9, () => false, Math.random),
-    cur,
-  );
+  assert.deepEqual(nextStep(cur, 0, null, 9, () => false, Math.random).cell, cur);
+  // At the screen's edge it bounces off: going up-right on the top row, it goes down-right.
+  const top = (c) => c.r >= 0 && c.r < 4;
+  const b = nextStep({ r: 0, c: 5 }, 7, null, 99, top, () => 0.1);
+  assert.deepEqual(b.cell, { r: 1, c: 6 });
 });
