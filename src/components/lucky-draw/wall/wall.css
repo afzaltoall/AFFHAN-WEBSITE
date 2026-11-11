@@ -1,0 +1,414 @@
+/*
+ * The lucky draw's wall on the TV (DrawWall): the words and seats over the 3D wall (./stage.ts draws the rest).
+ * Laid out on a 16:9 plate scaled to the screen (--u is a hundredth of its width), so it is the same on any TV.
+ * The type: the screen's words in Jost, spaced capitals; the winners' names in the trip's Bodoni at 600.
+ */
+.lw {
+  --u: min(1vw, 1.7778vh);
+  --gold: #e7c26c;
+  --gold-hi: #f7dfa3;
+  --white: #f3f0ff;
+  --mute: rgb(222 216 255 / 0.66);
+  --faint: rgb(222 216 255 / 0.42);
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #07051a;
+  color: var(--white);
+  font-family: var(--font-ld-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+.lw *,
+.lw *::before,
+.lw *::after {
+  box-sizing: border-box;
+}
+.lw-boot {
+  position: fixed;
+  inset: 0;
+  background: #07051a;
+}
+.lw-hide-cursor,
+.lw-hide-cursor * {
+  cursor: none !important;
+}
+.lw-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* The plate's top and foot darkened a little, so the words and the seats read over the wall. */
+.lw-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgb(6 4 20 / 0.62), rgb(6 4 20 / 0) 15%),
+    linear-gradient(to top, rgb(6 4 20 / 0.92), rgb(6 4 20 / 0.7) 22%, rgb(6 4 20 / 0) 40%);
+}
+.lw-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(100 * var(--u));
+  height: calc(56.25 * var(--u));
+  transform: translate(-50%, -50%);
+}
+
+.lw-band {
+  position: absolute;
+  top: calc(2.3 * var(--u));
+  left: calc(3 * var(--u));
+  right: calc(3 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: calc(0.86 * var(--u));
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.lw-band-mark {
+  display: flex;
+  align-items: baseline;
+  gap: calc(1.1 * var(--u));
+}
+.lw-band-mark b {
+  font-weight: 600;
+  font-size: calc(1.12 * var(--u));
+  letter-spacing: 0.34em;
+  color: var(--gold-hi);
+}
+.lw-band-right {
+  display: flex;
+  align-items: center;
+  gap: calc(1.4 * var(--u));
+}
+.lw-rehearsal {
+  padding: calc(0.32 * var(--u)) calc(0.9 * var(--u));
+  border: 1px solid rgb(255 140 160 / 0.5);
+  border-radius: 999px;
+  color: #ffd3dc;
+  font-weight: 600;
+  font-size: calc(0.72 * var(--u));
+  letter-spacing: 0.2em;
+}
+.lw-full {
+  display: grid;
+  place-items: center;
+  width: calc(2 * var(--u));
+  height: calc(2 * var(--u));
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mute);
+  cursor: pointer;
+}
+.lw-full svg {
+  width: calc(1.05 * var(--u));
+  height: calc(1.05 * var(--u));
+}
+.lw-full:hover {
+  color: var(--gold-hi);
+}
+
+/* What the next press draws, or the seat being drawn. */
+.lw-eyebrow {
+  position: absolute;
+  top: calc(6.6 * var(--u));
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  font-weight: 500;
+  font-size: calc(1.22 * var(--u));
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: var(--gold-hi);
+  text-shadow: 0 0 calc(1.2 * var(--u)) rgb(0 0 0 / 0.6);
+}
+
+/* One line under those words: who is in the draw, the draw just made, or what is wrong. */
+.lw-note {
+  position: absolute;
+  top: calc(9.1 * var(--u));
+  left: 0;
+  right: 0;
+  margin: 0;
+  text-align: center;
+  font-size: calc(0.86 * var(--u));
+  letter-spacing: 0.12em;
+  color: var(--mute);
+  text-shadow: 0 0 calc(0.8 * var(--u)) rgb(0 0 0 / 0.9);
+}
+.lw-note[data-trouble] {
+  color: #ffb3b3;
+}
+
+.lw-act {
+  position: absolute;
+  top: calc(39.4 * var(--u));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  transition: opacity 0.35s ease;
+}
+/* While a winner is shown, the button steps aside: the pass comes down through here to its seat. */
+.lw[data-phase="drawn"] .lw-act {
+  opacity: 0;
+  pointer-events: none;
+}
+.lw-draw {
+  min-width: calc(15 * var(--u));
+  padding: calc(0.78 * var(--u)) calc(3 * var(--u));
+  border: 1px solid rgb(231 194 108 / 0.85);
+  border-radius: 999px;
+  background: rgb(10 7 28 / 0.55);
+  color: var(--gold-hi);
+  font: inherit;
+  font-weight: 600;
+  font-size: calc(0.98 * var(--u));
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.25s ease, color 0.25s ease, opacity 0.25s ease;
+}
+.lw-draw:hover:not(:disabled) {
+  background: rgb(231 194 108 / 0.14);
+}
+.lw-draw[data-next] {
+  background: linear-gradient(180deg, #f3d48d, #d9ab52);
+  color: #1d1305;
+  border-color: transparent;
+}
+.lw-draw:disabled {
+  opacity: 0.42;
+  cursor: default;
+}
+
+/* The round's five seats. */
+.lw-foot {
+  position: absolute;
+  left: calc(3 * var(--u));
+  right: calc(3 * var(--u));
+  bottom: calc(2.2 * var(--u));
+}
+.lw-round {
+  margin: 0 0 calc(0.9 * var(--u));
+  display: flex;
+  align-items: center;
+  gap: calc(1.2 * var(--u));
+  font-weight: 600;
+  font-size: calc(0.8 * var(--u));
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.lw-round::before,
+.lw-round::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgb(231 194 108 / 0), rgb(231 194 108 / 0.45));
+}
+.lw-round::after {
+  background: linear-gradient(90deg, rgb(231 194 108 / 0.45), rgb(231 194 108 / 0));
+}
+.lw-seats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: calc(1.2 * var(--u));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lw-seat {
+  min-height: calc(8.8 * var(--u));
+  padding: calc(0.9 * var(--u)) calc(1.1 * var(--u)) calc(0.85 * var(--u));
+  border: 1px solid rgb(150 128 255 / 0.24);
+  border-radius: calc(0.9 * var(--u));
+  background: linear-gradient(180deg, rgb(26 18 62 / 0.78), rgb(12 8 32 / 0.86));
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+}
+.lw-seat-n {
+  margin: 0;
+  font-weight: 600;
+  font-size: calc(0.66 * var(--u));
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.lw-seat-name {
+  margin: auto 0 0;
+  padding-top: calc(0.5 * var(--u));
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-variation-settings: "opsz" 11;
+  font-weight: 600;
+  font-size: calc(1.62 * var(--u));
+  line-height: 1.12;
+  color: var(--white);
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+.lw-seat-name[data-size="m"] {
+  font-size: calc(1.42 * var(--u));
+}
+.lw-seat-name[data-size="s"] {
+  font-size: calc(1.24 * var(--u));
+}
+.lw-seat-name[data-size="xs"] {
+  font-size: calc(1.08 * var(--u));
+}
+.lw-seat-name[data-open] {
+  font-family: inherit;
+  font-weight: 400;
+  font-size: calc(0.86 * var(--u));
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.lw-seat-meta {
+  margin: calc(0.35 * var(--u)) 0 0;
+  font-size: calc(0.78 * var(--u));
+  color: var(--mute);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lw-seat-id {
+  margin: calc(0.3 * var(--u)) 0 0;
+  min-height: 1em;
+  font-weight: 600;
+  font-size: calc(0.66 * var(--u));
+  letter-spacing: 0.24em;
+  color: var(--faint);
+}
+.lw-seat[data-filled] {
+  border-color: rgb(231 194 108 / 0.7);
+  background: linear-gradient(180deg, rgb(46 32 74 / 0.86), rgb(18 12 38 / 0.9));
+  box-shadow: 0 0 calc(2.2 * var(--u)) rgb(231 194 108 / 0.16), inset 0 1px 0 rgb(255 236 190 / 0.18);
+}
+.lw-seat[data-filled] .lw-seat-n {
+  color: var(--gold);
+}
+.lw-seat[data-filled] .lw-seat-name {
+  background: linear-gradient(180deg, #fff3cf, #e7c26c);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.lw-seat[data-filled] .lw-seat-id {
+  color: rgb(247 223 163 / 0.72);
+}
+/* The seat a pass has just come down into: lit, then settling. */
+.lw-seat[data-landed] {
+  animation: lw-land 1.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes lw-land {
+  0% {
+    box-shadow: 0 0 calc(5 * var(--u)) rgb(255 214 130 / 0.75), inset 0 0 calc(2 * var(--u)) rgb(255 230 170 / 0.45);
+    border-color: #fff0c4;
+  }
+  100% {
+    box-shadow: 0 0 calc(2.2 * var(--u)) rgb(231 194 108 / 0.16), inset 0 1px 0 rgb(255 236 190 / 0.18);
+  }
+}
+
+/* The winner's pass once it faces the room (./stage.ts sets where): over everything, the seats too, so it is seen to
+   go down into its seat. Only its transform and opacity change while it moves. */
+.lw-lifts {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+.lw-lift {
+  position: absolute;
+  inset: 0;
+}
+.lw-lift[hidden] {
+  display: none;
+}
+.lw-lift-pass,
+.lw-lift-glow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform, opacity;
+}
+.lw-lift-pass {
+  border-radius: 2.25% / 4.6%;
+  box-shadow: 0 calc(2.2 * var(--u)) calc(4.4 * var(--u)) calc(-1.4 * var(--u)) rgb(0 0 0 / 0.8);
+}
+.lw-lift-pass canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.lw-lift-glow {
+  background: radial-gradient(closest-side, rgb(255 214 140 / 0.42), rgb(240 180 90 / 0.14) 55%, rgb(240 180 90 / 0) 76%);
+}
+/* The light passing over the foil: a plain soft band (a blend mode here cost the TV a dropped frame as the pass appeared). */
+.lw-lift-foil {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+.lw-lift-band {
+  position: absolute;
+  top: -12%;
+  bottom: -12%;
+  left: 0;
+  width: 30%;
+  background: linear-gradient(100deg, rgb(255 252 240 / 0), rgb(255 252 240 / 0.26) 46%, rgb(255 240 205 / 0.2) 56%, rgb(255 252 240 / 0));
+}
+
+.lw-line {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1 * var(--u));
+  transform: translateX(-50%);
+  margin: 0;
+  padding: calc(0.3 * var(--u)) calc(1 * var(--u));
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  color: var(--mute);
+  font-size: calc(0.8 * var(--u));
+}
+
+.lw-door {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  background: radial-gradient(ellipse at 50% 45%, #1e1347, #07051a 70%);
+}
+.lw-door h1 {
+  margin: 0 0 calc(1 * var(--u));
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-weight: 600;
+  font-size: calc(2.2 * var(--u));
+  color: var(--gold-hi);
+}
+.lw-door p {
+  margin: 0;
+  font-size: calc(1 * var(--u));
+  letter-spacing: 0.16em;
+  color: var(--mute);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lw-seat[data-landed] {
+    animation: none;
+  }
+}

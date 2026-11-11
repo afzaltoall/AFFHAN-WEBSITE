@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { displayFont } from "@/components/CinematicExperience/fonts";
-import { DrawScreen } from "@/components/lucky-draw/DrawScreen";
+import { DrawShow } from "@/components/lucky-draw/DrawShow";
 import { drawSans } from "@/components/lucky-draw/fonts";
 import { isDrawMode } from "@/lib/lucky-draw-shared";
 import { TRIP_FACTS } from "@/lib/trip-legal";
@@ -13,7 +13,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * The Free China Trip's lucky draw on the television (components/lucky-draw/DrawScreen.tsx), opened from the console's
+ * The Free China Trip's lucky draw on the television (components/lucky-draw/DrawShow.tsx: the wall, or the list where
+ * the wall can't run), opened from the console's
  * Free China Trip → Lucky draw → "Open the TV screen" with ?mode=live or ?mode=rehearsal. Outside the console's own
  * layout on purpose: no rail, and none of its thirty-minute session's countdown, which on a TV between two draws would
  * be the screen stuck in front of the room. It draws on a pass of its own (lib/server/draw-screen.ts); without one it
@@ -24,7 +25,7 @@ export default async function DrawScreenPage({ searchParams }: { searchParams: P
   const mode = Array.isArray(params.mode) ? params.mode[0] : params.mode;
   return (
     <main className={`${displayFont.variable} ${drawSans.variable}`}>
-      <DrawScreen mode={isDrawMode(mode) ? mode : null} closes={TRIP_FACTS.applicationsClose} />
+      <DrawShow mode={isDrawMode(mode) ? mode : null} closes={TRIP_FACTS.applicationsClose} />
     </main>
   );
 }
