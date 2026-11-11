@@ -1,37 +1,43 @@
 // The TV screen's wall (src/components/lucky-draw/wall/grid.ts and drum.ts): who is on it and in what order, the
-// shuffle (every ticket face down before any name changes, face up again only after), and that the light searches
-// the whole wall, every jump a snap to a ticket beside the last that the room can see, its last onto the person drawn.
+// roll at the press (smooth, at rest on a whole column, new names coming in only from off the screen), and that the
+// light searches the whole still wall, every jump a snap to a ticket beside the last, its last onto the person drawn.
 //   npm run test:lucky-draw
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { placeOfTrip, wallOf } from "@/components/lucky-draw/wall/drum";
 import {
-  ALL_DOWN,
-  BACKS_T,
   CHASE_T,
-  DOWN_AT,
-  FLIP_T,
+  CRUISE,
   GRID,
+  LIGHT_GAP,
   MOVE_T,
   STEP_QUICK,
   STEP_SLOW,
-  WAVE_T,
+  STOP_AT,
   dist,
-  drawTimes,
   flatX,
-  flipAngle,
-  flipDelay,
   mod,
   nextStep,
   openingRows,
   pathAt,
   personAt,
+  planStop,
+  rollAt,
+  startRoll,
   stepIndex,
   stepTimes,
   stretchFor,
   walkAhead,
   walkStart,
 } from "@/components/lucky-draw/wall/grid";
+
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    return s / 2 ** 32;
+  };
+}
 
 const id = (n) => `TRIP-26-${String(n).padStart(5, "0")}`;
 const entry = (n) => [id(n), `Person ${n}`, "Chennai", "India"];
@@ -111,29 +117,48 @@ test("a row's stretches: each takes over from its own column on, the earlier one
   }
 });
 
-test("the shuffle: every ticket face down before any name can change, and face up again only after the answer", () => {
-  const rows = 6;
-  const cols = GRID.cols;
-  const delays = [];
-  for (let r = 0; r < rows; r++) for (let k = 0; k <= cols + 1; k++) delays.push(flipDelay(r, k, rows, cols));
-  assert.ok(Math.min(...delays) === 0 && Math.max(...delays) <= WAVE_T + 1e-9, "the wave crosses the wall in WAVE_T");
-  assert.ok(flipDelay(0, 0, rows, cols) < flipDelay(2, 3, rows, cols) && flipDelay(2, 3, rows, cols) < flipDelay(5, 9, rows, cols), "from the top left to the bottom right");
-  for (const ta of [0.05, 0.3, 0.9, 1.6, 4]) {
-    const { up, light, land } = drawTimes(ta);
-    assert.ok(up >= ALL_DOWN + BACKS_T - 1e-9, "the backs show a moment once all are down");
-    assert.ok(up >= ta + 0.25 - 1e-9, "never up before the answer");
-    for (const d of delays) {
-      assert.equal(flipAngle(ALL_DOWN, DOWN_AT, up, d), Math.PI, "every ticket face down by ALL_DOWN");
-      assert.equal(flipAngle(up, DOWN_AT, up, d), Math.PI, "and still down when the face-up wave starts");
-      assert.ok(Math.abs(flipAngle(up + WAVE_T + FLIP_T, DOWN_AT, up, d) - 2 * Math.PI) < 1e-9, "every ticket face up again after it");
+test("the roll: from the drift to a steady pace and to rest, every change smooth, never back, never racing", () => {
+  for (const v0 of [0, 0.05, 0.18]) {
+    const R = startRoll(100.3, v0);
+    R.td = 3.1;
+    let last = rollAt(R, 0);
+    assert.equal(last.v, v0, "it sets off at the pace the rows had");
+    let fastest = 0;
+    for (let t = 0.005; t < R.td + R.dec + 2; t += 0.005) {
+      const now = rollAt(R, t);
+      assert.ok(now.p >= last.p - 1e-12, "never back");
+      assert.ok(Math.abs(now.v - last.v) < 0.03, `no jolt in its pace at ${t.toFixed(3)} s`);
+      assert.ok(now.p - last.p < CRUISE * 0.005 + 1e-9, "never faster than its steady pace");
+      fastest = Math.max(fastest, now.v);
+      last = now;
     }
-    assert.ok(light >= up + WAVE_T + FLIP_T, "the light comes on when every ticket is face up");
-    assert.ok(Math.abs(land - light - CHASE_T) < 1e-9);
-    if (ta < 1) assert.ok(land > 9 && land < 10.5, `about ten seconds from the press to the landing (${land.toFixed(2)})`);
+    assert.ok(Math.abs(fastest - CRUISE) < 1e-9);
+    assert.equal(rollAt(R, R.td + R.dec + 3).v, 0, "and at rest");
+    for (const t of [0.6, 2, R.td + 1.1]) {
+      const d = (rollAt(R, t + 1e-5).p - rollAt(R, t - 1e-5).p) / 2e-5;
+      assert.ok(Math.abs(d - rollAt(R, t).v) < 1e-4, "its pace, found from its places, is the pace it reports");
+    }
   }
-  // Before the answer, the tickets stay face down however long it takes.
-  for (const d of delays) assert.equal(flipAngle(30, DOWN_AT, Infinity, d), Math.PI);
-  assert.equal(flipAngle(0, DOWN_AT, Infinity, 0), 0, "face up at the press");
+});
+
+test("the stop: on a whole column, about STOP_AT after the press, the screen then showing only new names", () => {
+  const r = rng(11);
+  for (let i = 0; i < 600; i++) {
+    const R = startRoll(r() * 5000, r() < 0.4 ? 0 : 0.18 * r());
+    const ta = i % 10 === 0 ? 2 + r() * 8 : 0.05 + r() * 1.5;
+    const { td, end, cut } = planStop(GRID, R, ta);
+    R.td = td;
+    const pa = rollAt(R, ta).p;
+    for (let c = cut; c < cut + 5; c++) assert.ok(!seen(c, pa), `column ${c} is off the screen when the server answers`);
+    assert.equal(end, Math.round(end));
+    assert.ok(end + 1 >= cut, "at the stop, every column on the screen is new");
+    assert.ok(td >= ta + 0.5 - 1e-9 && td >= R.acc, "it begins to slow only after the answer");
+    assert.ok(Math.abs(rollAt(R, td + R.dec).p - end) < 1e-9, "it rests exactly on its column");
+    assert.ok(end - R.from >= GRID.cols, "more than a screen of names passes");
+    // A late answer rolls on until a whole screen of new names can come in; a usual one stops about STOP_AT.
+    if (ta < 0.8) assert.ok(Math.abs(td + R.dec - STOP_AT) <= 1 / CRUISE + 1e-9, `at rest about ${STOP_AT} s after the press (${(td + R.dec).toFixed(2)})`);
+    assert.ok(td + R.dec <= Math.max(STOP_AT, ta + 5) + 1 / CRUISE + 1e-9, `never long after the answer (${(td + R.dec).toFixed(2)} for ${ta.toFixed(2)})`);
+  }
 });
 
 test("the light's times: quick jumps, then slower and slower, the last the slowest", () => {
@@ -171,16 +196,20 @@ test("the light snaps: on a ticket, then a jump of MOVE_T to the next, never a s
   assert.equal(stepIndex(times, 5), 3);
 });
 
-/** One chase on a still wall of `rows`, as the stage plays it, frame by frame at 60 a second. */
+/** One draw's chase, as the stage plays it, frame by frame at 60 a second, on the wall at rest after its roll. */
 function playChase(seed, rows) {
   let s = seed >>> 0;
   const rnd = () => {
     s = (s * 1664525 + 1013904223) >>> 0;
     return s / 2 ** 32;
   };
-  const P = Math.floor(rnd() * 3000);
+  const R = startRoll(rnd() * 3000, 0.18 * rnd());
+  const { td, end: P } = planStop(GRID, R, 0.1 + rnd() * 0.8);
+  R.td = td;
   const ok = (c) => c.r >= 0 && c.r < rows && c.c >= P + 1 && c.c <= P + GRID.cols;
-  const { light, land } = drawTimes(0.1 + rnd() * 0.8);
+  const light = td + R.dec + LIGHT_GAP;
+  const land = light + CHASE_T;
+  assert.ok(land > 11 && land < 13, `about twelve seconds from the press to the landing (${land.toFixed(2)})`);
   const target = { r: Math.floor(rnd() * rows), c: P + 1 + Math.floor(rnd() * GRID.cols) };
   let start = { r: Math.floor((rows - 1) / 2), c: P + Math.ceil(GRID.cols / 2) };
   if (start.r === target.r && start.c === target.c) start = { r: start.r, c: start.c - 1 };
