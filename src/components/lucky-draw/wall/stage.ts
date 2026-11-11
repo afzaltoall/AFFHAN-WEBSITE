@@ -98,6 +98,8 @@ const DRIFT = 0.18;
 /** Seconds the rows stay still after they come to rest, before they roll on, and the seconds they take to get going. */
 const DRIFT_AFTER = 2.5;
 const DRIFT_EASE = 1.6;
+/** The page's pass, before it is shown: there, ready, and too faint to see. */
+const LIFT_READY = 0.004;
 /** Seconds the tickets the light has jumped from stay golden, fading: its trail across the wall. */
 const TRAIL = 0.55;
 
@@ -1239,7 +1241,9 @@ export class WallStage {
         this.renderer.initTexture(this.passTex);
       },
       () => {
-        this.liftCard.style.opacity = "0";
+        // Kept on the page at an opacity no eye can see, so the browser has it ready: showing it for the first time at
+        // the hand-over cost the TV a frame (measured, 2026-11-11).
+        this.liftCard.style.opacity = String(LIFT_READY);
         this.liftGlow.style.opacity = "0";
         this.liftSize();
         this.liftRoot.hidden = false;
@@ -1776,7 +1780,7 @@ export class WallStage {
       cy = hy + (sr.top + sr.height / 2 - hy) * k;
       sc = 1 + (sr.width / w - 1) * k;
     }
-    const on = t >= TL.placed ? 1 : 0;
+    const on = t >= TL.placed ? 1 : LIFT_READY;
     this.liftCard.style.transform = `translate3d(${(cx - (w * sc) / 2).toFixed(1)}px, ${(cy - (h * sc) / 2).toFixed(1)}px, 0) scale(${sc.toFixed(4)})`;
     this.liftCard.style.opacity = String(on * (1 - smooth(t, TL.seat - 0.06, TL.end - 0.02)));
     this.liftGlow.style.transform = `translate3d(${(cx - (w * 1.7 * sc) / 2).toFixed(1)}px, ${(cy - (h * 2.1 * sc) / 2).toFixed(1)}px, 0) scale(${sc.toFixed(4)})`;

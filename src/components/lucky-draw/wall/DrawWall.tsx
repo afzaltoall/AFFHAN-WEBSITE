@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, Minimize2 } from "lucide-react";
 import {
   DRAW_SEATS,
@@ -80,17 +80,49 @@ function restWords(board: Board, started: boolean): string {
   return `Round ${board.round} · Seat ${nextPlace(board).n} next`;
 }
 
+/** A seat's name sizes, in hundredths of the screen's width: the largest that fits is used (fitName). */
+const NAME_SIZES = [1.7, 1.45, 1.22, 1.05];
+
 /**
- * A seat's name size: by its longest word, so no word is ever broken across two lines ("Soundarapandiyan"), and by its
- * whole length, so it fits in two lines ("Mohommed Safardeen Mohommed Inshaf").
+ * A seat's name set at the largest of NAME_SIZES at which it fits in two lines at most without breaking a word,
+ * measured in the page itself (a guess from its letters clipped "Mohomed Hakeem", 2026-11-11). Most names fit at the
+ * largest, so the seats read alike; the size is in the screen's own units, so it holds on any screen.
  */
-function seatNameSize(name: string): "l" | "m" | "s" | "xs" {
-  const sizes = ["l", "m", "s", "xs"] as const;
-  const longest = Math.max(0, ...name.split(/\s+/).map((w) => w.length));
-  const byWord = longest <= 12 ? 0 : longest <= 14 ? 1 : longest <= 17 ? 2 : 3;
-  // One line up to 18 letters (l, then m); two lines after that (s, then xs).
-  const byLength = name.length <= 15 ? 0 : name.length <= 18 ? 1 : name.length <= 34 ? 2 : 3;
-  return sizes[Math.max(byWord, byLength)];
+function fitName(el: HTMLElement) {
+  el.style.setProperty("--name-clamp", "none");
+  let chosen = NAME_SIZES[NAME_SIZES.length - 1];
+  for (const size of NAME_SIZES) {
+    el.style.setProperty("--name-size", String(size));
+    const line = parseFloat(getComputedStyle(el).lineHeight) || 1;
+    if (Math.round(el.scrollHeight / line) <= 2 && el.scrollWidth <= el.clientWidth + 1) {
+      chosen = size;
+      break;
+    }
+  }
+  el.style.setProperty("--name-size", String(chosen));
+  el.style.removeProperty("--name-clamp");
+}
+
+/** A winner's name in their seat, fitted (fitName) as it appears and again once the trip's Bodoni has loaded. */
+function SeatName({ name }: { name: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    fitName(el);
+    let live = true;
+    void document.fonts.ready.then(() => {
+      if (live) fitName(el);
+    });
+    return () => {
+      live = false;
+    };
+  }, [name]);
+  return (
+    <p ref={ref} className="lw-seat-name">
+      {name}
+    </p>
+  );
 }
 
 type Fetched = Board | "no_pass" | null;
@@ -709,9 +741,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
                   <p className="lw-seat-n">Seat {i + 1}</p>
                   {c ? (
                     <>
-                      <p className="lw-seat-name" data-size={seatNameSize(c.name)}>
-                        {c.name}
-                      </p>
+                      <SeatName name={c.name} />
                       <p className="lw-seat-meta">{fromOf(c.city, c.country)}</p>
                       <p className="lw-seat-id">{c.tripId}</p>
                     </>
