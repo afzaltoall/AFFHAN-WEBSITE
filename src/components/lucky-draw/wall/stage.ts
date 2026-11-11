@@ -868,11 +868,11 @@ export class WallStage {
 
   /** The wall's people (in Trip ID order) and its winners: the person in the frame stays in it (or the one after). */
   setRows(entries: DrawPoolEntry[], gold: ReadonlySet<string>) {
-    if (this.run || this.show) {
+    // Never while the drum moves (a run, a reveal, the frame gliding on): put in when it rests.
+    if (this.run || this.show || this.glide) {
       this.waiting = { entries, gold };
       return;
     }
-    if (this.glide) this.endGlide();
     const here = this.framed();
     this.rows = entries;
     this.gold = gold;
@@ -1147,7 +1147,11 @@ export class WallStage {
     const n = this.rows.length;
     this.at = n ? mod(Math.round(g.to), n) : 0;
     this.slotsDirty = true;
-    this.rested();
+    if (this.waiting) {
+      const w = this.waiting;
+      this.waiting = null;
+      this.setRows(w.entries, w.gold);
+    } else this.rested();
   }
 
   /** Each slot's tile: who it is now, gold or out of the wall, and its face's cell when it is near enough to read. */
