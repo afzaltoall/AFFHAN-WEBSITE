@@ -14,7 +14,7 @@ import {
   FLIP_T,
   GRID,
   MOVE_T,
-  ROLL_COLS,
+  SEARCH_T,
   STEP_QUICK,
   STEP_SLOW,
   TAIL_T,
@@ -146,19 +146,19 @@ test("the press: every ticket face down before any name can change, face up agai
   assert.equal(flipAngle(0, DOWN_AT, Infinity, 0), 0, "face up at the press");
 });
 
-test("the roll: from rest, smoothly, never back, never racing, to rest exactly on its column about a screen on", () => {
+test("the roll: from rest, smoothly, never back, never racing, to rest exactly on its column, the landing about thirty seconds after the press", () => {
   const r = rng(11);
   for (let i = 0; i < 400; i++) {
     const p0 = r() * 5000;
     const ta = 0.05 + r() * 1.5;
     const { roll, end, roll0, land } = drawPlan(p0, ta);
     assert.equal(end, Math.round(end));
-    assert.ok(end - p0 >= ROLL_COLS - 1e-9 && end - p0 < ROLL_COLS + 1, "about a screen on");
+    assert.ok(end - p0 >= 5 * GRID.cols - 1 && end - p0 < 6 * GRID.cols, `about five screens of names pass (${(end - p0).toFixed(1)} columns)`);
     assert.ok(roll.td >= roll.acc, "it reaches its pace before it slows");
     const stop = roll.td + roll.dec;
     assert.ok(Math.abs(rollAt(roll, stop).p - end) < 1e-9, "it rests exactly on its column");
     assert.ok(Math.abs(land - (roll0 + stop + TAIL_T)) < 1e-9);
-    if (ta < 1) assert.ok(land > 9.5 && land < 11.5, `about ten and a half seconds from the press to the landing (${land.toFixed(2)})`);
+    if (ta < 1.5) assert.ok(land >= SEARCH_T - 1e-9 && land < SEARCH_T + 0.5, `about ${SEARCH_T} seconds from the press to the landing (${land.toFixed(2)})`);
     let last = rollAt(roll, 0);
     assert.equal(last.v, 0, "from rest");
     for (let t = 0.005; t < stop + 1; t += 0.005) {

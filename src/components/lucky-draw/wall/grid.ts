@@ -10,15 +10,15 @@
  * people start, start + 1, ... in Trip ID order (wrapping round the end), and the screen shows columns p + 1 to
  * p + cols when the rows have rolled to p. At the opening, the top row starts with TRIP-26-00001.
  *
- * A draw, about eleven seconds:
+ * A draw, about thirty seconds from the press to the landing (the owner: "make it 30 seconds"):
  *   - the moment Draw is pressed, the tickets turn face down in a wave: a wall of gold backs, held while the server
  *     draws;
  *   - they turn face up again with new names (each row in Trip ID order from a new place, the person drawn among them
- *     in their own place, off to the right), and the rows roll, about a screen of names passing;
- *   - while they roll, the light jumps from ticket to ticket, a snap each time, across, up, down and corner to corner,
- *     keeping its way and bouncing off the screen's edges;
- *   - the rows slow and stop on a whole column; the light slows too, holding on each name, and its last jump lands on
- *     the person drawn.
+ *     in their own place, off to the right), and the rows roll, calmly, about five screens of names passing;
+ *   - while they roll, the light jumps from ticket to ticket, a snap each time, about six a second, across, up, down and
+ *     corner to corner, keeping its way and bouncing off the screen's edges;
+ *   - the rows slow and stop on a whole column; then, the wall still for six seconds, the light slows, holding longer
+ *     and longer on each name (the last holds about a second), and its last jump lands on the person drawn.
  */
 
 export interface Grid {
@@ -81,7 +81,7 @@ export const FLIP_T = 0.5;
 export const WAVE_T = 0.6;
 /** The face-down wave starts this long after the press; the gold backs then show for at least BACKS_T. */
 export const DOWN_AT = 0.05;
-export const BACKS_T = 0.6;
+export const BACKS_T = 0.9;
 /** Seconds from the press until every ticket is face down (the new names can then be put in, unseen). */
 export const ALL_DOWN = DOWN_AT + WAVE_T + FLIP_T;
 
@@ -102,16 +102,18 @@ export function flipAngle(t: number, down: number, up: number, delay: number): n
 
 // ---- the roll ----
 
-/** The rows' steady pace at a draw (columns a second: a ticket crosses the screen in about three seconds). */
-export const CRUISE = 2.6;
+/** The rows' steady pace at a draw (columns a second: a ticket crosses the screen in about three and a half seconds). */
+export const CRUISE = 2.4;
 /** Seconds the rows take to gather that pace, and to come to rest from it. */
-export const ACC_T = 1;
-export const DEC_T = 2.6;
-/** The rows set off this long after the face-up wave begins (its last tickets still turning), and roll this far. */
+export const ACC_T = 1.5;
+export const DEC_T = 4;
+/** The rows set off this long after the face-up wave begins (its last tickets still turning). */
 export const ROLL_AFTER = 0.6;
-export const ROLL_COLS = 8;
-/** The light's last steps on the still wall: seconds from the rows' rest to its landing. */
-export const TAIL_T = 3.2;
+/** Seconds from the press to the light's landing when the server answers in time, and the last of them, on the still wall. */
+export const SEARCH_T = 30;
+export const TAIL_T = 6;
+/** How long the rows roll, from rest to rest: what the search leaves after the gold backs and before the still wall. */
+const ROLL_T = SEARCH_T - TAIL_T - (ALL_DOWN + BACKS_T + ROLL_AFTER);
 
 /** The rows' roll at a draw, from when it begins: gathering pace, steady, then coming to rest. */
 export interface Roll {
@@ -148,12 +150,13 @@ export function rollAt(R: Roll, t: number): { p: number; v: number } {
 /**
  * A draw's moments, in seconds from the press, once the server has answered (`ta`), the rows standing at `p0`: the
  * face-up wave (after every ticket is face down and the gold backs have shown a moment), the roll (from rest, to rest
- * on the whole column `end`, about a screen on), the light coming on as the rows set off, and its landing.
+ * on the whole column `end`, about ROLL_T long), the light coming on as the rows set off, and its landing, about
+ * SEARCH_T after the press (a late answer moves it all later by as much).
  */
 export function drawPlan(p0: number, ta: number): { up: number; roll0: number; roll: Roll; end: number; light: number; land: number } {
   const up = Math.max(ALL_DOWN + BACKS_T, ta + 0.25);
   const roll0 = up + ROLL_AFTER;
-  const end = Math.ceil(p0 + ROLL_COLS - 1e-9);
+  const end = Math.ceil(p0 + CRUISE * (ROLL_T - (ACC_T + DEC_T) / 2) - 1e-9);
   const roll: Roll = { from: p0, v0: 0, V: CRUISE, acc: ACC_T, td: 0, dec: DEC_T };
   roll.td = Math.max(ACC_T, (end - p0) / CRUISE + (ACC_T - DEC_T) / 2);
   return { up, roll0, roll, end, light: roll0, land: roll0 + roll.td + roll.dec + TAIL_T };
@@ -181,10 +184,10 @@ export const DIRS: readonly (readonly [number, number])[] = [
 ];
 const dirOf = (dr: number, dc: number) => DIRS.findIndex(([r, c]) => r === dr && c === dc);
 
-/** The light's quickest jumps (nine a second), its slowest (the last, onto the person drawn), and how each slows. */
-export const STEP_QUICK = 0.11;
-export const STEP_SLOW = 0.75;
-const SLOWING = 1.25;
+/** The light's quick jumps (about six a second), its slowest (the last, onto the person drawn), and how each slows. */
+export const STEP_QUICK = 0.16;
+export const STEP_SLOW = 1.1;
+const SLOWING = 1.18;
 /** The jump itself: this long, easing in and out; the rest of each step the light holds on its ticket. */
 export const MOVE_T = 0.06;
 
