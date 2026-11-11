@@ -1,7 +1,7 @@
 import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
 
 /**
- * What the wall's pictures say, drawn on canvases the drum and the gift turn into textures (./stage.ts): a tile's face
+ * What the wall's pictures say, drawn on canvases the wall and the gift turn into textures (./stage.ts): a tile's face
  * (Trip ID, name, city), the winner's boarding pass, the gift's tag and its wrapping paper. In the page's own fonts
  * (Jost, and the trip's Bodoni for the winner's name), read from the page and loaded before anything is drawn.
  *
@@ -15,7 +15,7 @@ export interface Fonts {
   display: string;
 }
 
-/** A tile's face on the drum, in pixels (16:9, as the tiles are). */
+/** A tile's face on the wall, in pixels (16:9, as the tiles are). */
 export const FACE_W = 256;
 export const FACE_H = 144;
 
@@ -128,7 +128,7 @@ function setBodoniName(ctx: Ctx, name: string, sizes: number[], width: number, f
 }
 
 /**
- * A tile's face in white on clear (the drum's shader lights and colours it): the Trip ID in small spaced capitals, the
+ * A tile's face in white on clear (the wall's shader lights and colours it): the Trip ID in small spaced capitals, the
  * name, the city and country. `s` scales the whole face (the winner's tile is drawn four times as large).
  */
 export function drawFace(ctx: Ctx, e: DrawPoolEntry, fonts: Fonts, s = 1) {
