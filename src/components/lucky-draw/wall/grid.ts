@@ -2,19 +2,23 @@
  * The lucky draw's wall: rows of golden tickets, one for everyone in the draw, and one light that searches over them
  * and stops on the person drawn (the owner, 2026-11-11: "filled completely ... curved, facing the screen"; "one box
  * of light, moving everywhere, for real, not like magic"; "up and down too"; "not like a mouse drag or a slideshow:
- * card to card, snap"; "make the cards tickets ... six rows ... a Ballon d'Or gold feel"; "as soon as Draw is
- * pressed, bring that roll back, the screen scrolling"). Plain arithmetic, no three.js and no page, so a test can
- * check it (tests/lucky-draw/wall.test.mjs).
+ * card to card, snap"; "make the cards tickets ... six rows ... a Ballon d'Or gold feel"; "bring that roll back";
+ * then "when I click Draw, first that image" (the wall of gold backs) "... and while it scrolls, the selection").
+ * Plain arithmetic, no three.js and no page, so a test can check it (tests/lucky-draw/wall.test.mjs).
  *
  * The wall's rows each roll slowly left while it waits, like a ticker: row r shows, from grid column `from` on, the
  * people start, start + 1, ... in Trip ID order (wrapping round the end), and the screen shows columns p + 1 to
  * p + cols when the rows have rolled to p. At the opening, the top row starts with TRIP-26-00001.
  *
- * A draw, about twelve seconds: the moment Draw is pressed the rows gather pace and roll, more than a screen of names
- * passing, and come to rest on a whole column, the screen then showing only new names (each row in Trip ID order from
- * a new place, the person the server drew among them, in their own place). Then, the wall still, the light comes on
- * and jumps from ticket to ticket, a snap each time, across, up, down and corner to corner, keeping its way and
- * bouncing off the screen's edges; it slows, holding on each name, and its last jump lands on the person drawn.
+ * A draw, about eleven seconds:
+ *   - the moment Draw is pressed, the tickets turn face down in a wave: a wall of gold backs, held while the server
+ *     draws;
+ *   - they turn face up again with new names (each row in Trip ID order from a new place, the person drawn among them
+ *     in their own place, off to the right), and the rows roll, about a screen of names passing;
+ *   - while they roll, the light jumps from ticket to ticket, a snap each time, across, up, down and corner to corner,
+ *     keeping its way and bouncing off the screen's edges;
+ *   - the rows slow and stop on a whole column; the light slows too, holding on each name, and its last jump lands on
+ *     the person drawn.
  */
 
 export interface Grid {
@@ -70,65 +74,89 @@ export function openingRows(count: number, n: number, p: number): Segment[][] {
 /** A row's new stretch: from column `from` on, in Trip ID order, with person `i` of `n` at column `c`. */
 export const stretchFor = (i: number, n: number, from: number, c: number): Segment => ({ from, start: mod(i - (c - from), n) });
 
+// ---- the gold backs ----
+
+/** Seconds a ticket takes to turn over, and how long the wave takes to cross the wall (first ticket to last). */
+export const FLIP_T = 0.5;
+export const WAVE_T = 0.6;
+/** The face-down wave starts this long after the press; the gold backs then show for at least BACKS_T. */
+export const DOWN_AT = 0.05;
+export const BACKS_T = 0.6;
+/** Seconds from the press until every ticket is face down (the new names can then be put in, unseen). */
+export const ALL_DOWN = DOWN_AT + WAVE_T + FLIP_T;
+
+/** When the wave reaches a ticket (seconds after it starts): a diagonal sweep from the top left to the bottom right. */
+export function flipDelay(r: number, k: number, rows: number, cols: number): number {
+  const span = Math.max(1, rows - 1 + cols + 1);
+  return (WAVE_T * Math.min(span, Math.max(0, r + k))) / span;
+}
+
+/** A ticket's turn, in radians (0 face up, π face down, 2π face up again), at `t`, for waves starting at `down` and `up`. */
+export function flipAngle(t: number, down: number, up: number, delay: number): number {
+  const turn = (start: number) => {
+    const x = Math.min(1, Math.max(0, (t - start - delay) / FLIP_T));
+    return x * x * (3 - 2 * x);
+  };
+  return Math.PI * (turn(down) + (Number.isFinite(up) ? turn(up) : 0));
+}
+
 // ---- the roll ----
 
 /** The rows' steady pace at a draw (columns a second: a ticket crosses the screen in about three seconds). */
 export const CRUISE = 2.6;
-/** Seconds the rows take to gather that pace from the press, and to come to rest from it. */
+/** Seconds the rows take to gather that pace, and to come to rest from it. */
 export const ACC_T = 1;
 export const DEC_T = 2.6;
-/** When the rows come to rest, seconds from the press (later only if the server answers late). */
-export const STOP_AT = 5.6;
-/** Seconds from the rows' rest to the light coming on, and from then to its landing. */
-export const LIGHT_GAP = 0.2;
-export const CHASE_T = 6;
+/** The rows set off this long after the face-up wave begins (its last tickets still turning), and roll this far. */
+export const ROLL_AFTER = 0.6;
+export const ROLL_COLS = 8;
+/** The light's last steps on the still wall: seconds from the rows' rest to its landing. */
+export const TAIL_T = 3.2;
 
-/** The rows' roll at a draw, from the press: gathering pace, steady, then coming to rest. */
+/** The rows' roll at a draw, from when it begins: gathering pace, steady, then coming to rest. */
 export interface Roll {
-  /** Where the rows were at the press, and their pace then (their slow drift). */
+  /** Where the rows were as it began, and their pace then. */
   from: number;
   v0: number;
   /** Their steady pace, and the seconds taken to reach it. */
   V: number;
   acc: number;
-  /** When they begin to slow (seconds from the press; Infinity until it is known), and the seconds that takes. */
+  /** When they begin to slow (seconds from the roll's start), and the seconds that takes. */
   td: number;
   dec: number;
 }
 
 /** A pace that changes smoothly (smoothstep: no jolt at either end), and the distance it covers (its integral). */
-const ease = (s: number) => s * s * (3 - 2 * s);
-const eased = (s: number) => s * s * s - (s * s * s * s) / 2;
+const ease = (x: number) => x * x * (3 - 2 * x);
+const eased = (x: number) => x * x * x - (x * x * x * x) / 2;
 
-export const startRoll = (from: number, v0: number): Roll => ({ from, v0, V: CRUISE, acc: ACC_T, td: Infinity, dec: DEC_T });
-
-/** Where the rows are (columns) and their pace (columns a second), `t` seconds after the press. `td` is never before `acc`. */
+/** Where the rows are (columns) and their pace (columns a second), `t` seconds after the roll began. `td` is never before `acc`. */
 export function rollAt(R: Roll, t: number): { p: number; v: number } {
   if (t <= 0) return { p: R.from, v: R.v0 };
   const dv = R.V - R.v0;
   if (t < R.acc) {
-    const s = t / R.acc;
-    return { p: R.from + R.v0 * t + dv * R.acc * eased(s), v: R.v0 + dv * ease(s) };
+    const x = t / R.acc;
+    return { p: R.from + R.v0 * t + dv * R.acc * eased(x), v: R.v0 + dv * ease(x) };
   }
   const steady = R.from + R.v0 * R.acc + (dv * R.acc) / 2;
   if (t < R.td) return { p: steady + R.V * (t - R.acc), v: R.V };
   const pd = steady + R.V * (R.td - R.acc);
-  const s = Math.min(1, (t - R.td) / R.dec);
-  return { p: pd + R.V * R.dec * (s - eased(s)), v: R.V * (1 - ease(s)) };
+  const x = Math.min(1, (t - R.td) / R.dec);
+  return { p: pd + R.V * R.dec * (x - eased(x)), v: R.V * (1 - ease(x)) };
 }
 
 /**
- * The server has answered, `ta` seconds after the press. The rows come to rest on a whole column, `end`, chosen so that
- * the screen then shows only new names (from `cut`, the first column not yet on the screen, on); they begin to slow at
- * `td`, a moment later than planned rather than earlier, so as to stop exactly there, at about STOP_AT.
+ * A draw's moments, in seconds from the press, once the server has answered (`ta`), the rows standing at `p0`: the
+ * face-up wave (after every ticket is face down and the gold backs have shown a moment), the roll (from rest, to rest
+ * on the whole column `end`, about a screen on), the light coming on as the rows set off, and its landing.
  */
-export function planStop(g: Grid, R: Roll, ta: number): { td: number; end: number; cut: number } {
-  const steady: Roll = { ...R, td: Infinity };
-  const cut = Math.ceil(rollAt(steady, ta).p + g.cols + 1) + 1;
-  const at = Math.max(STOP_AT - R.dec, ta + 0.5, R.acc);
-  const endIf = (td: number) => rollAt(steady, td).p + (R.V * R.dec) / 2;
-  const end = Math.max(Math.ceil(endIf(at) - 1e-9), cut - 1);
-  return { td: at + (end - endIf(at)) / R.V, end, cut };
+export function drawPlan(p0: number, ta: number): { up: number; roll0: number; roll: Roll; end: number; light: number; land: number } {
+  const up = Math.max(ALL_DOWN + BACKS_T, ta + 0.25);
+  const roll0 = up + ROLL_AFTER;
+  const end = Math.ceil(p0 + ROLL_COLS - 1e-9);
+  const roll: Roll = { from: p0, v0: 0, V: CRUISE, acc: ACC_T, td: 0, dec: DEC_T };
+  roll.td = Math.max(ACC_T, (end - p0) / CRUISE + (ACC_T - DEC_T) / 2);
+  return { up, roll0, roll, end, light: roll0, land: roll0 + roll.td + roll.dec + TAIL_T };
 }
 
 // ---- the light ----
@@ -235,17 +263,21 @@ export const walkStart = (cell: Cell, dir: number, at: number, target: Cell, lan
   target,
 });
 
-/** Plans the light's tickets until two lie beyond `t` (so it always knows where it jumps next), or its landing. */
-export function walkAhead(w: Walk, t: number, ok: (c: Cell) => boolean, rnd: () => number): void {
+/**
+ * Plans the light's tickets until two lie beyond `t` (so it always knows where it jumps next), or its landing.
+ * `ok(cell, at, leave)`: may the light be on that ticket from `at` until it leaves at `leave` (the rows may be rolling)?
+ */
+export function walkAhead(w: Walk, t: number, ok: (c: Cell, at: number, leave: number) => boolean, rnd: () => number): void {
   for (;;) {
     let ahead = 0;
     for (let k = w.times.length - 1; k >= 0 && w.times[k] > t; k--) ahead++;
     if (ahead >= 2 || !w.sched.length) return;
     const at = w.sched.shift() as number;
     const left = w.sched.length;
+    const leave = w.sched[0] ?? at;
     if (left === 0) w.cells.push(w.target);
     else {
-      const s = nextStep(w.cells[w.cells.length - 1], w.dir, w.target, left, ok, rnd);
+      const s = nextStep(w.cells[w.cells.length - 1], w.dir, w.target, left, (c) => ok(c, at, leave), rnd);
       w.cells.push(s.cell);
       w.dir = s.dir;
     }

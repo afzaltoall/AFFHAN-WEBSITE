@@ -2,7 +2,8 @@ import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
 
 /**
  * What the wall's pictures say, drawn on canvases the wall and the gift turn into textures (./stage.ts): a ticket's
- * face (name and city; the Trip ID on its stub), the winner's boarding pass, the gift's tag and its wrapping paper. In the page's own fonts (Jost, and the trip's Bodoni for the winner's name),
+ * face (name and city; the Trip ID on its stub) and the mark on the tickets' gold backs, the winner's boarding pass,
+ * the gift's tag and its wrapping paper. In the page's own fonts (Jost, and the trip's Bodoni for the winner's name),
  * read from the page and loaded before anything is drawn.
  *
  * Only what the TV may show (Privacy Policy section 12): Trip ID, name, city and country, and the seat. Never a mobile
@@ -187,6 +188,33 @@ export function drawFace(ctx: Ctx, e: DrawPoolEntry, fonts: Fonts, s = 1) {
   ctx.fillText(number, mid, 78 * s);
   ctx.textAlign = "left";
   spacing(ctx, 0);
+}
+
+/** The mark on the tickets' gold backs: AFFHAN in the trip's Bodoni, and the draw under it (one ink; inked dark). */
+export function drawBack(ctx: Ctx, fonts: Fonts) {
+  const w = FACE_W;
+  const h = FACE_H;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = IVORY_INK;
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  const word = "AFFHAN";
+  const size = 30;
+  const tracked = (text: string, px: number) => bodoniWidth(ctx, text, size, fonts) + px * (text.length - 1);
+  let x = (w - tracked(word, 6)) / 2;
+  for (const ch of word) {
+    bodoniText(ctx, ch, x, 66, size, fonts);
+    x += bodoniWidth(ctx, ch, size, fonts) + 6;
+  }
+  ctx.globalAlpha = 0.8;
+  ctx.fillRect(w / 2 - 46, 78, 92, 1.5);
+  ctx.textAlign = "center";
+  ctx.font = `600 9.5px ${fonts.sans}`;
+  spacing(ctx, 3.2);
+  ctx.fillText("LUCKY DRAW", w / 2 + 1.6, 96);
+  spacing(ctx, 0);
+  ctx.globalAlpha = 1;
+  ctx.textAlign = "left";
 }
 
 /** The boarding pass, in pixels (as the registered page's pass, wider for the stub). */
