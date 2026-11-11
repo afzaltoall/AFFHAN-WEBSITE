@@ -87,6 +87,7 @@ const tileVertex = /* glsl */ `
   uniform float uPitchY;
   uniform float uAtlasCols;
   uniform vec2 uCellUV;
+  uniform float uBlur;
   varying vec2 vUv;
   varying float vFacing;
   varying float vRow;
@@ -103,6 +104,8 @@ const tileVertex = /* glsl */ `
     // Level rows: a name moves down to the next row behind the drum, where nobody sees it (./drum.ts).
     float row = floor(j / uPerTurn + 0.5);
     vec3 p = position;
+    // At speed the tiles of a row close up into one ribbon (see the fragment shader).
+    p.x *= 1.0 + uBlur * 0.1;
     vec3 w = vec3(c * p.x + s * uRadius, p.y - uPitchY * row, -s * p.x + c * uRadius - uRadius);
     vUv = uv;
     vFacing = c;
@@ -127,6 +130,7 @@ const tileFragment = /* glsl */ `
   uniform float uTime;
   uniform float uIdle;
   uniform float uLock;
+  uniform float uBlur;
   varying vec2 vUv;
   varying float vFacing;
   varying float vRow;
@@ -141,7 +145,10 @@ const tileFragment = /* glsl */ `
     vec2 dd = abs(q) - (uTile * 0.5 - rad);
     float sdf = length(max(dd, 0.0)) + min(max(dd.x, dd.y), 0.0) - rad;
     float aa = fwidth(sdf) * 1.2;
-    float inside = 1.0 - smoothstep(-aa, aa, sdf);
+    // At speed a tile is cut only top and bottom: the row runs on as one band.
+    float sdfY = abs(q.y) - uTile.y * 0.5;
+    float insideRow = 1.0 - smoothstep(-aa, aa, sdfY);
+    float inside = mix(1.0 - smoothstep(-aa, aa, sdf), insideRow, uBlur);
     if (inside < 0.004) discard;
     float edge = 1.0 - smoothstep(0.0, aa + 0.012, abs(sdf + 0.017));
     float gold = (vFlag > 0.5 && vFlag < 1.5) ? 1.0 : 0.0;
@@ -169,6 +176,13 @@ const tileFragment = /* glsl */ `
     vec3 col = glass + ink * words * readable;
     col += line * edge * (0.5 + 0.5 * gold + sweep * 1.5 + framed * 1.4);
     col += vec3(1.0, 0.85, 0.5) * framed * 0.16;
+    // At speed, rows of light streaming past: bright along their top and bottom edges, softer inside, rippling the
+    // way the drum turns. No tile can be followed by the eye at that pace, so none is drawn: nothing strobes.
+    float v = abs(q.y) / (uTile.y * 0.5);
+    float rim = exp(-(1.0 - v) * (1.0 - v) * 60.0);
+    float ripple = 0.72 + 0.28 * sin(vWorld.x * 2.6 + uTime * 9.0 + vRow * 1.7);
+    vec3 ribbon = (vec3(0.07, 0.05, 0.18) + vec3(0.36, 0.27, 0.95) * (0.16 + 0.55 * rim) * ripple) * (1.0 + gold * 0.4);
+    col = mix(col, ribbon, uBlur);
     col *= bright * (1.0 + framed * 0.5);
     gl_FragColor = vec4(col, inside);
   }
@@ -689,6 +703,7 @@ export class WallStage {
       uAtlasCols: { value: this.atlas.cols },
       uCellUV: { value: this.atlas.uv },
       uWords: { value: 1 },
+      uBlur: { value: 0 },
       uDim: { value: 0 },
       uTime: { value: 0 },
       uIdle: { value: 1 },
@@ -1087,6 +1102,8 @@ export class WallStage {
     const u = this.tileU;
     u.uFrac.value = p - Math.floor(p);
     u.uWords.value = 1 - b;
+    // The ribbons only once the names are gone, and gone again before they come back.
+    u.uBlur.value = smooth(b, 0.55, 1);
     u.uTime.value = time;
     u.uIdle.value = this.idle;
     u.uDim.value = this.dimAt(now);
