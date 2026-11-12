@@ -2,8 +2,33 @@ import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
 import { placeOfTrip } from "./drum";
-import { FACE_H, FACE_W, INSIDE, PASS_H, PASS_W, STUB_AT, TAG_H, TAG_W, WRAP, drawBack, drawFace, drawInside, drawPass, drawTag, drawWrap, type Fonts } from "./faces";
+import {
+  ENV_PX,
+  FACE_H,
+  FACE_W,
+  INSIDE,
+  LINING_PX,
+  PASS_H,
+  PASS_W,
+  STUB_AT,
+  TAG_H,
+  TAG_W,
+  WAX_PX,
+  WRAP,
+  drawBack,
+  drawEnvelopeFlap,
+  drawEnvelopePocket,
+  drawFace,
+  drawInside,
+  drawLining,
+  drawPass,
+  drawTag,
+  drawWaxSeal,
+  drawWrap,
+  type Fonts,
+} from "./faces";
 import { BOARD_PRINT_AT, Board } from "./board";
+import { CARD_IN, CARD_Z, ENV, Envelope, TE } from "./envelope";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
 import {
   ALL_DOWN,
@@ -117,10 +142,11 @@ export interface StageOptions {
   /** Called once the wall has opened: the names in, drawn, and turned face up (Draw can be pressed from then on). */
   onOpen?: () => void;
   /**
-   * How the winner is revealed: the airport departures board (./board.ts; the owner, 2026-11-12: "airport
-   * departure"), or the gift box it replaced (`?reveal=gift` on the TV page, to compare).
+   * How the winner is revealed: the golden envelope, as at an award show (./envelope.ts; the owner, 2026-11-12:
+   * "golden envelope, award-show style"), the airport departures board (./board.ts, "airport departure"), or the gift
+   * box they replaced (`?reveal=board`, `?reveal=gift` on the TV page, to compare).
    */
-  reveal?: "board" | "gift";
+  reveal?: "envelope" | "board" | "gift";
 }
 
 /** A tile's state: as it is, a winner (gold), or out of the wall (the winner's, while it is a gift). */
@@ -666,6 +692,13 @@ const GIFT_BELOW = 0.44;
 const GIFT_SCALE = 0.58;
 const GIFT_YAW = -0.62;
 const GIFT_TILT = 0.36;
+/**
+ * The golden envelope, between the wall and the room: in the room's own view, below the middle of the view (the card
+ * rises out of it into the view's upper half, clear of the words).
+ */
+const ENV_DIST = 6.6;
+const ENV_BELOW = 0.3;
+const ENV_SCALE = 0.74;
 /** The pass, world units: 2048 × 1000 pixels. */
 const PASS_WORLD_W = 2.2;
 const PASS_WORLD_H = (PASS_WORLD_W * PASS_H) / PASS_W;
@@ -702,6 +735,11 @@ export class WallStage {
   private viewMid = 0.18;
   /** Where the gift sits: in the room's own view, so it is the same on any screen. */
   private readonly giftAt = new THREE.Vector3();
+  /** The golden envelope (./envelope.ts), where it is shown, and its front, drawn for each winner (round and seat). */
+  private readonly envelope: Envelope;
+  private readonly envAt = new THREE.Vector3();
+  private readonly envCanvas = document.createElement("canvas");
+  private readonly envTex: THREE.CanvasTexture;
   private readonly atlas: FaceAtlas;
   private readonly tileU: Record<string, THREE.IUniform>;
   private readonly frameU: Record<string, THREE.IUniform>;
@@ -728,7 +766,7 @@ export class WallStage {
   /** The departures board (./board.ts) and the flash of gold as the ticket checks in, on the page under the pass. */
   private readonly board: Board;
   private readonly boardFlash = document.createElement("div");
-  private readonly style: "board" | "gift";
+  private readonly style: "envelope" | "board" | "gift";
   private liftW = 0;
   /** The person whose gift and pass are made (prepare, make), one still being made, and the steps left. */
   private made: string | null = null;
@@ -977,6 +1015,32 @@ export class WallStage {
     this.scene.add(this.gift.root);
 
     const glow = keep(glowTexture());
+
+    // The golden envelope: its flap, lining and seal drawn once; its front drawn for each winner (makeSteps).
+    const paper = (canvas: HTMLCanvasElement, w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void, repeat = false) => {
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (ctx) draw(ctx);
+      const tex = keep(new THREE.CanvasTexture(canvas));
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+      if (repeat) {
+        tex.wrapS = THREE.RepeatWrapping;
+        tex.wrapT = THREE.RepeatWrapping;
+      }
+      return tex;
+    };
+    this.envTex = paper(this.envCanvas, ENV_PX.w, ENV_PX.h, (ctx) => drawEnvelopePocket(ctx, { round: 1, seat: 1 }, opts.fonts));
+    const envFlap = paper(document.createElement("canvas"), ENV_PX.w, ENV_PX.flapH, (ctx) => drawEnvelopeFlap(ctx));
+    const envLining = paper(document.createElement("canvas"), LINING_PX, LINING_PX, (ctx) => drawLining(ctx), true);
+    envLining.repeat.set(2.4, 1.5);
+    const envSeal = paper(document.createElement("canvas"), WAX_PX, WAX_PX, (ctx) => drawWaxSeal(ctx, opts.fonts));
+    this.envelope = new Envelope({ pocket: this.envTex, flap: envFlap, lining: envLining, seal: envSeal, light: glow });
+    this.owned.push(this.envelope);
+    this.envelope.root.scale.setScalar(ENV_SCALE);
+    this.scene.add(this.envelope.root);
+    for (const t of [this.envTex, envFlap, envLining, envSeal]) this.renderer.initTexture(t);
     this.flash = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: glow, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, toneMapped: false })));
     this.flash.visible = false;
     this.flash.renderOrder = 12;
@@ -1021,7 +1085,7 @@ export class WallStage {
     foil.appendChild(this.liftBand);
     this.liftCard.append(this.passCanvas, foil);
     this.liftRoot.append(this.liftGlow, this.liftCard);
-    this.style = opts.reveal ?? "board";
+    this.style = opts.reveal ?? "envelope";
     this.board = new Board(opts.fonts);
     this.board.el.hidden = true;
     this.boardFlash.className = "lw-board-flash";
@@ -1057,8 +1121,10 @@ export class WallStage {
     // the gift appeared. Lights count only when they show, so the gift (its lamp) shows for the call.
     for (const t of [wrap, inside, glow]) this.renderer.initTexture(t);
     this.gift.root.visible = true;
+    this.envelope.root.visible = true;
     void this.renderer.compileAsync(this.scene, this.camera).catch(() => {});
     this.gift.root.visible = false;
+    this.envelope.root.visible = false;
     // A practice pass, drawn once while the screen opens and nothing moves: the canvas's own first-time work (126 ms,
     // measured) is then done before the first winner's pass is drawn.
     this.warmTimer = window.setTimeout(() => {
@@ -1066,7 +1132,7 @@ export class WallStage {
       this.warmed = true;
       if (this.disposed || this.run || this.show || this.steps.length) return;
       const practice: DrawCardPublic = { id: "", number: 0, tripId: "TRIP-26-00000", name: "Affhan International", city: "Chennai", country: "India", drawnAt: new Date().toISOString(), poolSize: 0, round: 1, seat: 1, out: false };
-      for (const step of this.makeSteps(practice).slice(0, 3)) step();
+      for (const step of this.makeSteps(practice).slice(0, 4)) step();
       // The board too: its letters' tiles and a board drawn once, unseen.
       if (this.style === "board") {
         this.board.warm();
@@ -1377,6 +1443,14 @@ export class WallStage {
         this.tagTex.needsUpdate = true;
         this.renderer.initTexture(this.heroTex);
         this.renderer.initTexture(this.tagTex);
+      },
+      () => {
+        // The envelope's front: "The Winner", and their round and seat, as an award's envelope carries its category.
+        if (this.style !== "envelope") return;
+        const ectx = this.envCanvas.getContext("2d");
+        if (ectx) drawEnvelopePocket(ectx, card, this.opts.fonts);
+        this.envTex.needsUpdate = true;
+        this.renderer.initTexture(this.envTex);
       },
       () => {
         const pctx = this.passCanvas.getContext("2d");
@@ -1762,6 +1836,8 @@ export class WallStage {
     this.viewMid = 1 - f0 - f1;
     this.giftAt.set(0, this.viewMid * GIFT_DIST * tan - GIFT_BELOW, -GIFT_DIST);
     this.camera.localToWorld(this.giftAt);
+    this.envAt.set(0, this.viewMid * ENV_DIST * tan - ENV_BELOW, -ENV_DIST);
+    this.camera.localToWorld(this.envAt);
     const px = this.renderer.getPixelRatio() * h;
     const scale = px / (2 * tan);
     this.bokehU.uScale.value = scale;
@@ -1786,7 +1862,7 @@ export class WallStage {
 
   /** This style's moments. */
   private get T(): Moments {
-    return this.style === "board" ? TB : TL;
+    return this.style === "envelope" ? TE : this.style === "board" ? TB : TL;
   }
 
   /** The board's width on the page: six tenths of the 16:9 plate the page is laid out on. */
@@ -1811,7 +1887,7 @@ export class WallStage {
   }
 
   /** Sparks: a fountain from the gift's open top as the lid goes, and gold dust round the pass while it holds. */
-  private burst(from: THREE.Vector3, hold: THREE.Vector3, dustAt: number) {
+  private burst(from: THREE.Vector3, hold: THREE.Vector3, dustAt: number, lift = 1) {
     const g = this.sparks.geometry;
     const pos = g.getAttribute("position") as THREE.BufferAttribute;
     const vel = g.getAttribute("aVel") as THREE.BufferAttribute;
@@ -1835,7 +1911,7 @@ export class WallStage {
         const r = Math.random() * 0.75;
         pos.setXYZ(i, from.x + Math.cos(a) * r, from.y, from.z + Math.sin(a) * r);
         const spread = 0.6 + Math.random() * 1.5;
-        vel.setXYZ(i, Math.cos(a) * spread, 2.6 + Math.random() * 3.3, Math.sin(a) * spread + 0.8 + Math.random() * 1.6);
+        vel.setXYZ(i, Math.cos(a) * spread * lift, (2.6 + Math.random() * 3.3) * lift, (Math.sin(a) * spread + 0.8 + Math.random() * 1.6) * lift);
         born.setX(i, Math.random() * 0.9);
         life.setX(i, 1.3 + Math.random() * 1.4);
         size.setX(i, 0.05 + Math.random() * 0.11);
@@ -1868,6 +1944,10 @@ export class WallStage {
     }
     if (this.style === "board") {
       this.poseBoard(t, s);
+      return;
+    }
+    if (this.style === "envelope") {
+      this.poseEnvelope(t, s);
       return;
     }
 
@@ -2016,6 +2096,117 @@ export class WallStage {
     this.liftPose(t, s);
   }
 
+  /**
+   * The golden envelope's reveal, `t` seconds after the stop (./envelope.ts TE), as at an award show and in slow motion:
+   * the winner's ticket rises out of the wall and floats towards the room, turning to face it, their name on it; it
+   * turns edge-on over the envelope's place and half way round is the envelope, sealed; the seal breaks and the flap
+   * lifts back; the card slides up out of it, slowly, and comes to the room facing it, where the page's pass takes over
+   * (liftPose) for its three seconds and its way down into its seat.
+   */
+  private poseEnvelope(t: number, s: Show) {
+    const env = this.envelope;
+    // Where the ticket floats in its slow part: most of the way from the wall to the envelope's place, a little above.
+    const float = this.tmpV2.copy(s.from).lerp(this.envAt, 0.62);
+    float.y += 0.42;
+    const heroOn = t >= TE.out && t < TE.flip;
+    this.hero.visible = heroOn;
+    if (heroOn) {
+      if (t < TE.turn) {
+        const k = (t - TE.out) / (TE.turn - TE.out);
+        const e = easeInOut(k);
+        this.hero.position.lerpVectors(s.from, float, e);
+        this.hero.position.y += Math.sin(Math.PI * k) * 0.12;
+        this.hero.scale.setScalar(1 + 1.1 * e);
+        this.hero.rotation.set(0.1 * Math.sin(Math.PI * k), s.turn * (1 - e) - 0.16 * Math.sin(Math.PI * k), 0.04 * Math.sin(2 * Math.PI * k));
+        this.heroU.uGlow.value = 0.4 + 1.1 * e;
+      } else {
+        const k = (t - TE.turn) / (TE.flip - TE.turn);
+        this.hero.position.lerpVectors(float, this.envAt, easeInOut(k));
+        this.hero.scale.setScalar(2.1 - 0.75 * easeIn(k));
+        this.hero.rotation.set(0, (Math.PI / 2) * easeIn(k), 0);
+        this.heroU.uGlow.value = 1.5;
+      }
+    }
+    // A flash where it becomes the envelope.
+    this.flash.visible = t > TE.flip - 0.15 && t < TE.flip + 0.4;
+    if (this.flash.visible) {
+      (this.flash.material as THREE.SpriteMaterial).opacity = bell(t, TE.flip - 0.15, TE.flip + 0.4) * 0.85;
+      this.flash.position.copy(this.envAt);
+      const f = 1.6 + 1.4 * smooth(t, TE.flip - 0.15, TE.flip + 0.4);
+      this.flash.scale.set(f, f, 1);
+    }
+    // The envelope: finishes the turn to face the room and settles; sways a little as it waits, so its gold catches the
+    // light; the seal breaks and the flap lifts back, light inside; once the card is out, it drops away below.
+    const on = t >= TE.flip && t < TE.placed + 0.45;
+    env.root.visible = on;
+    if (on) {
+      const pop = clamp01((t - TE.flip) / 0.6);
+      const wait = t - TE.flip;
+      const sway = 0.09 * Math.sin(wait * 1.25) * (1 - smooth(t, TE.open - 0.2, TE.open + 0.3));
+      env.root.rotation.set(-0.05, -(Math.PI / 2) * (1 - easeOut(pop)) + sway, 0.015 * Math.sin(wait * 0.9));
+      env.root.scale.setScalar(ENV_SCALE * (0.92 + 0.08 * backOut(pop)));
+      const drop = easeIn((t - TE.risen + 0.15) / (TE.placed + 0.45 - TE.risen + 0.15));
+      env.root.position.set(this.envAt.x, this.envAt.y + 0.03 * Math.sin(wait * 1.6) - 3.2 * drop, this.envAt.z);
+      env.set({
+        open: easeInOut(clamp01((t - TE.open) / 0.7)),
+        crack: clamp01((t - TE.open + 0.06) / 0.5),
+        glow: smooth(t, TE.open, TE.open + 0.45) * (1 - smooth(t, TE.risen - 0.2, TE.placed)),
+      });
+    }
+    // Light behind the opening, as it opens.
+    this.giftHalo.visible = t > TE.open && t < TE.placed + 0.2;
+    if (this.giftHalo.visible) {
+      env.root.updateMatrixWorld();
+      env.root.localToWorld(this.giftHalo.position.set(0, ENV.h / 2, -0.05));
+      const a = smooth(t, TE.open, TE.open + 0.4) * (1 - smooth(t, TE.risen - 0.3, TE.placed + 0.2));
+      (this.giftHalo.material as THREE.SpriteMaterial).opacity = a * 0.7;
+      this.giftHalo.scale.set(3.4, 2.4, 1);
+    }
+    // Sparks from the seal as it breaks, and gold dust round the card while it holds.
+    if (!s.burst && t >= TE.open) {
+      s.burst = true;
+      // A gentle fountain: the seal is mid-screen, and the sparks never rise over the words.
+      this.burst(env.sealAt(new THREE.Vector3()), this.holdAt(new THREE.Vector3()), TE.placed - TE.open, 0.5);
+      this.sparks.visible = true;
+    }
+    this.sparkU.uT.value = s.burst ? t - TE.open : -10;
+    // The card: slides up out of the envelope, slowly, then comes to the room facing it, growing to where it holds.
+    const inScene = t >= TE.slide && t < TE.placed;
+    this.passGroup.visible = inScene;
+    if (inScene) {
+      const g = this.passGroup;
+      const half = (PASS_WORLD_H * CARD_IN) / 2;
+      // Inside, its top under the V of the front's opening; drawn out, its middle at the envelope's top edge (as a card is
+      // pulled out to be read; never up over the screen's words).
+      const y0 = ENV.h / 2 - ENV.notch - 0.03 - half;
+      const y1 = ENV.h / 2;
+      if (t < TE.risen) {
+        const k = easeInOut((t - TE.slide) / (TE.risen - TE.slide));
+        env.root.updateMatrixWorld();
+        env.root.localToWorld(g.position.set(0, y0 + (y1 - y0) * k, CARD_Z));
+        env.root.getWorldQuaternion(g.quaternion);
+        g.scale.setScalar(env.root.scale.x * CARD_IN);
+        this.passU.uWarm.value = 1;
+      } else {
+        if (!s.risen) {
+          env.root.updateMatrixWorld();
+          const p = env.root.localToWorld(new THREE.Vector3(0, y1, CARD_Z));
+          s.risen = { pos: p, quat: env.root.getWorldQuaternion(new THREE.Quaternion()), scale: env.root.scale.x * CARD_IN };
+        }
+        const k = easeInOut((t - TE.risen) / (TE.placed - TE.risen));
+        g.position.lerpVectors(s.risen.pos, this.holdAt(this.tmpV), k);
+        g.position.y += Math.sin(Math.PI * k) * 0.1;
+        g.quaternion.slerpQuaternions(s.risen.quat, this.camera.quaternion, k);
+        g.scale.setScalar(s.risen.scale + (1 - s.risen.scale) * k);
+        this.passU.uWarm.value = 1 - k;
+      }
+      this.passU.uSweep.value = -1;
+      (this.passHalo.material as THREE.SpriteMaterial).opacity = 0.5 * smooth(t, TE.risen - 0.5, TE.placed);
+    }
+    this.liftRoot.hidden = false;
+    this.liftPose(t, s);
+  }
+
   /** The board in its place on the page (the view's middle), at this opacity and size. */
   private placeBoard(opacity: number, scale: number) {
     const el = this.board.el;
@@ -2100,6 +2291,7 @@ export class WallStage {
     }
     this.hero.visible = false;
     this.gift.root.visible = false;
+    this.envelope.root.visible = false;
     this.passGroup.visible = false;
     this.liftRoot.hidden = true;
     this.board.el.hidden = true;

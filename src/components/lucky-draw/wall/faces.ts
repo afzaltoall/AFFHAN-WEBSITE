@@ -692,3 +692,195 @@ export function drawWrap(ctx: Ctx) {
     }
   }
 }
+
+// ---- the golden envelope (./envelope.ts) ----
+
+/** The envelope's paper in pixels (its 2.6 by 1.62 shape), and its flap's height (the triangle down to its tip). */
+export const ENV_PX = { w: 1300, h: 810, flapH: 470 };
+/** The lining, one repeat of it; the wax seal. */
+export const LINING_PX = 512;
+export const WAX_PX = 256;
+
+/** Gold paper over the whole canvas: warm light to deep gold, finely lined as the tickets' backs are. */
+function goldPaper(ctx: Ctx, w: number, h: number, lift: number) {
+  const g = ctx.createLinearGradient(0, 0, w, h);
+  g.addColorStop(0, lift ? "#f0d488" : "#e8c873");
+  g.addColorStop(0.45, lift ? "#d4a64c" : "#c99a42");
+  g.addColorStop(1, lift ? "#a87830" : "#9a6c26");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ctx.save();
+  ctx.strokeStyle = "rgb(104 68 12 / 0.09)";
+  ctx.lineWidth = 1.2;
+  for (let k = -h; k < w; k += 7) {
+    ctx.beginPath();
+    ctx.moveTo(k, 0);
+    ctx.lineTo(k + h, h);
+    ctx.stroke();
+  }
+  // A soft light across the paper's upper left, as a lamp catches it.
+  const sheen = ctx.createRadialGradient(w * 0.28, h * 0.22, 0, w * 0.28, h * 0.22, w * 0.7);
+  sheen.addColorStop(0, "rgb(255 248 222 / 0.32)");
+  sheen.addColorStop(1, "rgb(255 248 222 / 0)");
+  ctx.fillStyle = sheen;
+  ctx.fillRect(0, 0, w, h);
+  ctx.restore();
+}
+
+/** Text in Bodoni, centred on x, pressed into the gold: a light edge under it, then the ink. */
+function engraved(ctx: Ctx, text: string, cx: number, y: number, size: number, fonts: Fonts, ink: string) {
+  const width = bodoniWidth(ctx, text, size, fonts);
+  ctx.save();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgb(255 244 210 / 0.6)";
+  bodoniText(ctx, text, cx - width / 2, y + size * 0.03, size, fonts);
+  ctx.fillStyle = ink;
+  bodoniText(ctx, text, cx - width / 2, y, size, fonts);
+  ctx.restore();
+}
+
+/**
+ * The envelope's front for a winner, as an award's envelope carries its category: an engraved border, the shadow the
+ * closed flap leaves along its edges, and under the seal "The Winner", a rule, and their round and seat.
+ */
+export function drawEnvelopePocket(ctx: Ctx, card: Pick<DrawCardPublic, "round" | "seat">, fonts: Fonts) {
+  const { w, h, flapH } = ENV_PX;
+  ctx.clearRect(0, 0, w, h);
+  goldPaper(ctx, w, h, 0);
+  ctx.save();
+  ctx.strokeStyle = "rgb(92 60 12 / 0.55)";
+  ctx.lineWidth = 4;
+  ctx.strokeRect(30, 30, w - 60, h - 60);
+  ctx.strokeStyle = "rgb(92 60 12 / 0.32)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(46, 46, w - 92, h - 92);
+  // The closed flap's shadow along its two edges (a crease in the paper once it is open).
+  ctx.filter = "blur(6px)";
+  ctx.strokeStyle = "rgb(58 34 4 / 0.34)";
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.moveTo(-10, 6);
+  ctx.lineTo(w / 2, flapH + 10);
+  ctx.lineTo(w + 10, 6);
+  ctx.stroke();
+  ctx.filter = "none";
+  ctx.restore();
+  const ink = "#3a2507";
+  engraved(ctx, "The Winner", w / 2, 640, 92, fonts, ink);
+  ctx.save();
+  ctx.fillStyle = "rgb(92 60 12 / 0.5)";
+  ctx.fillRect(w / 2 - 120, 670, 240, 2);
+  ctx.fillStyle = ink;
+  ctx.globalAlpha = 0.82;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `500 34px ${fonts.sans}`;
+  ctx.fillText(card.seat ? `Round ${card.round} · Seat ${card.seat}` : `Round ${card.round}`, w / 2, 724);
+  ctx.restore();
+}
+
+/** The flap's outside: gold paper a shade lighter (it catches the light), a crisp paper edge, a line inside it. */
+export function drawEnvelopeFlap(ctx: Ctx) {
+  const { w, flapH: h } = ENV_PX;
+  ctx.clearRect(0, 0, w, h);
+  goldPaper(ctx, w, h, 1);
+  ctx.save();
+  const edge = (inset: number, colour: string, width: number) => {
+    // The two edges down to the tip, moved `inset` pixels in, and the top edge.
+    const slope = Math.hypot(w / 2, h) / (w / 2);
+    ctx.strokeStyle = colour;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(inset * slope + inset * 0.5, inset);
+    ctx.lineTo(w / 2, h - inset * slope * 1.6);
+    ctx.lineTo(w - inset * slope - inset * 0.5, inset);
+    ctx.closePath();
+    ctx.stroke();
+  };
+  edge(3, "rgb(84 52 8 / 0.65)", 3);
+  edge(7, "rgb(255 244 212 / 0.5)", 2);
+  edge(34, "rgb(92 60 12 / 0.42)", 2.5);
+  ctx.restore();
+}
+
+/** The lining, inside the envelope and its flap: black, with a fine gold lattice. */
+export function drawLining(ctx: Ctx) {
+  const S = LINING_PX;
+  const g = ctx.createLinearGradient(0, 0, S, S);
+  g.addColorStop(0, "#0c0906");
+  g.addColorStop(1, "#17110a");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, S, S);
+  ctx.save();
+  ctx.strokeStyle = "rgb(214 174 96 / 0.24)";
+  ctx.lineWidth = 1.6;
+  const step = S / 8;
+  for (let k = -S; k <= S * 2; k += step) {
+    ctx.beginPath();
+    ctx.moveTo(k, 0);
+    ctx.lineTo(k + S, S);
+    ctx.moveTo(k, S);
+    ctx.lineTo(k + S, 0);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+/**
+ * The seal: crimson wax (the pass's WINNER seal is the same red), pressed with the AFFHAN mark, a gold A in a raised
+ * ring; its edge a little uneven, as wax spreads. Clear outside the wax.
+ */
+export function drawWaxSeal(ctx: Ctx, fonts: Fonts) {
+  const S = WAX_PX;
+  const c = S / 2;
+  const R = S * 0.46;
+  ctx.clearRect(0, 0, S, S);
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i <= 96; i++) {
+    const a = (i / 96) * Math.PI * 2;
+    const r = R * (1 + 0.035 * Math.sin(7 * a + 0.6) + 0.02 * Math.sin(13 * a + 1.9));
+    const x = c + Math.cos(a) * r;
+    const y = c + Math.sin(a) * r;
+    if (i) ctx.lineTo(x, y);
+    else ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+  const wax = ctx.createRadialGradient(c - R * 0.25, c - R * 0.3, R * 0.1, c, c, R * 1.05);
+  wax.addColorStop(0, "#b4263c");
+  wax.addColorStop(0.55, "#7d1224");
+  wax.addColorStop(1, "#4a0814");
+  ctx.fillStyle = wax;
+  ctx.fill();
+  // The pressed ring: a lit edge outside, a shadow inside.
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = "rgb(255 196 196 / 0.2)";
+  ctx.beginPath();
+  ctx.arc(c, c, R * 0.72, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgb(36 0 8 / 0.5)";
+  ctx.beginPath();
+  ctx.arc(c, c, R * 0.68, 0, Math.PI * 2);
+  ctx.stroke();
+  // The mark, in gold, pressed in.
+  const size = R * 1.02;
+  const width = bodoniWidth(ctx, "A", size, fonts);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillStyle = "rgb(40 0 8 / 0.6)";
+  bodoniText(ctx, "A", c - width / 2 + 2, c + size * 0.36 + 3, size, fonts);
+  const gold = ctx.createLinearGradient(0, c - size * 0.5, 0, c + size * 0.4);
+  gold.addColorStop(0, "#f8e2a2");
+  gold.addColorStop(1, "#c8973c");
+  ctx.fillStyle = gold;
+  bodoniText(ctx, "A", c - width / 2, c + size * 0.36, size, fonts);
+  // Light on the wax's upper left.
+  const shine = ctx.createRadialGradient(c - R * 0.4, c - R * 0.45, 0, c - R * 0.4, c - R * 0.45, R * 0.5);
+  shine.addColorStop(0, "rgb(255 255 255 / 0.22)");
+  shine.addColorStop(1, "rgb(255 255 255 / 0)");
+  ctx.fillStyle = shine;
+  ctx.fillRect(0, 0, S, S);
+  ctx.restore();
+}
