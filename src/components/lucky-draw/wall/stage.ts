@@ -9,10 +9,12 @@ import {
   ALL_DOWN,
   BACKS_T,
   DOWN_AT,
+  DRIFT,
   FLIP_T,
   GRID,
-  PRESS_BEAT,
   ROWS,
+  SHUFFLE_MIN,
+  SHUFFLE_RAMP,
   WAVE_T,
   drawPlan,
   flatX,
@@ -23,6 +25,8 @@ import {
   pathAt,
   personAt,
   rollAt,
+  shuffleAt,
+  shuffleEnd,
   stepIndex,
   stretchFor,
   walkAhead,
@@ -63,6 +67,16 @@ interface Run {
   allDown: number;
   /** The earliest the names may turn face up (drawPlan's `from`). */
   from: number;
+  /** The rows' pace at the press (rolling on between draws), kept until the roll takes it up; the up wave's first column. */
+  v: number;
+  upK0: number;
+  /**
+   * Pressed on the gold backs: the rows shuffle at once (./grid.ts shuffleAt), told to stop (`stop`, seconds from the
+   * press; Infinity until the answer) and at rest again by `settled` (0 for a run that does not shuffle).
+   */
+  shuffle: boolean;
+  stop: number;
+  settled: number;
 }
 
 /**
@@ -112,8 +126,6 @@ export interface StageOptions {
 /** A tile's state: as it is, a winner (gold), or out of the wall (the winner's, while it is a gift). */
 const GOLD = 1;
 const HIDDEN = 2;
-/** Columns a second the rows roll while they wait: a name about every five and a half seconds. */
-const DRIFT = 0.18;
 /** Seconds the rows stay still after they come to rest, before they roll on, and the seconds they take to get going. */
 const DRIFT_AFTER = 2.5;
 const DRIFT_EASE = 1.6;
@@ -1193,15 +1205,40 @@ export class WallStage {
       this.opts.onOpen?.();
     }
     const now = performance.now();
-    // Face down for the draw: from the gold backs the wall rests on (down already, or still turning), or, face up, in
-    // a wave from now. From the backs the names turn up a beat after the press; from face up, once the backs have shown.
+    // Face down for the draw: from the gold backs the wall rests on (down already, or still turning), which shuffle at
+    // once, the names turning up once the shuffle is at rest (land); or, face up, in a wave from now, the names turning
+    // up once the backs have shown a moment.
     const T = this.turn;
     const down = T.down ? (Number.isFinite(T.at) ? (T.at - now) / 1000 : -Infinity) : DOWN_AT;
     const allDown = Math.max(0, down + WAVE_T + FLIP_T);
-    const from = T.down ? Math.max(allDown, PRESS_BEAT) : ALL_DOWN + BACKS_T;
+    const from = ALL_DOWN + BACKS_T;
     const downK0 = T.down ? T.k0 : Math.floor(this.p);
     return new Promise((done) => {
-      this.run = { start: now, done, p0: this.p, up: Infinity, drawn: null, placed: false, roll: null, roll0: Infinity, end: this.p, target: null, light: Infinity, land: Infinity, walk: null, halted: false, down, downK0, allDown, from };
+      this.run = {
+        start: now,
+        done,
+        p0: this.p,
+        up: Infinity,
+        drawn: null,
+        placed: false,
+        roll: null,
+        roll0: Infinity,
+        end: this.p,
+        target: null,
+        light: Infinity,
+        land: Infinity,
+        walk: null,
+        halted: false,
+        down,
+        downK0,
+        allDown,
+        from,
+        v: this.drift,
+        upK0: Math.floor(this.p),
+        shuffle: T.down,
+        stop: Infinity,
+        settled: T.down ? Infinity : 0,
+      };
       this.watch(this.run);
     });
   }
@@ -1215,8 +1252,17 @@ export class WallStage {
     const r = this.run;
     if (!r || r.drawn !== null || r.halted || !this.rows.length) return;
     r.drawn = i;
-    const plan = drawPlan(r.p0, this.elapsed(r), r.from);
+    const ta = this.elapsed(r);
+    // A shuffle stops once it has run its least and the answer is in (now, if it has run long enough); the names turn
+    // up the moment every row is at rest again.
+    if (r.shuffle) {
+      r.stop = Math.max(SHUFFLE_MIN, ta);
+      r.settled = shuffleEnd(this.rowsShown, r.stop);
+      r.from = r.settled + 0.05;
+    }
+    const plan = drawPlan(r.p0, ta, r.from, r.v);
     r.up = plan.up;
+    r.upK0 = Math.floor(r.p0 + r.v * plan.up);
     r.roll = plan.roll;
     r.roll0 = plan.roll0;
     r.end = plan.end;
@@ -1257,8 +1303,13 @@ export class WallStage {
     const r = this.run;
     if (!r || r.drawn !== null || r.halted) return;
     r.halted = true;
-    // From the gold backs the wall rests on, it stays on them; a press from face up turns back up as it was.
-    if (r.down < 0) {
+    // From the gold backs the wall rests on, it stays on them (a shuffle comes to rest first); a press from face up
+    // turns back up as it was.
+    if (r.shuffle) {
+      r.stop = Math.max(SHUFFLE_RAMP, this.elapsed(r));
+      r.settled = shuffleEnd(this.rowsShown, r.stop);
+      r.land = r.settled + 0.05;
+    } else if (r.down < 0) {
       r.land = this.elapsed(r) + 0.05;
     } else {
       r.up = Math.max(r.allDown + 0.1, this.elapsed(r) + 0.05);
@@ -1278,7 +1329,8 @@ export class WallStage {
     window.clearTimeout(this.dog);
     const target = r.target;
     const landed = !r.halted && r.placed && !!target;
-    this.p = landed ? r.end : r.roll && Number.isFinite(r.roll0) ? rollAt(r.roll, this.elapsed(r) - r.roll0).p : r.p0;
+    const at = this.elapsed(r);
+    this.p = landed ? r.end : r.roll && Number.isFinite(r.roll0) && at >= r.roll0 ? rollAt(r.roll, at - r.roll0).p : r.p0 + r.v * at;
     if (landed && target) {
       const w = r.walk;
       const last = w?.cells[w.cells.length - 1];
@@ -1288,8 +1340,11 @@ export class WallStage {
     // The tickets rest as the run left them: face up once they turned up (the winner's reveal shows over the names,
     // and the wall goes back to gold after it: restAfter), face down when they never did (a draw that failed).
     this.turn = { down: !Number.isFinite(r.up), at: -Infinity, k0: Math.floor(this.p) };
-    this.drift = 0;
-    this.restSince = performance.now();
+    // A draw that never turned the names up (it failed) leaves the backs rolling on at their pace, never stopped; a
+    // landing holds the rows still for the reveal (they roll on again after it: restAfter).
+    const rollOn = !landed && this.turn.down && r.v > 0;
+    this.drift = rollOn ? r.v : 0;
+    this.restSince = performance.now() - (rollOn ? (DRIFT_AFTER + DRIFT_EASE) * 1000 : 0);
     this.slotsDirty = true;
     this.opts.onRest?.(this.framed());
     r.done(landed);
@@ -1441,9 +1496,10 @@ export class WallStage {
     if (this.steps.length && (!r || this.still(r, t))) (this.steps.shift() as () => void)();
     if (r) this.drawStep(r, t, now);
     this.place(this.p);
-    // While a draw's tickets are face down, its new names' faces all at once (behind the backs, a long frame shows
-    // nothing), so they are ready when they turn up; otherwise a few a frame, as new names roll into view.
-    if (this.atlas.pump(r && t < r.up ? 48 : 12, this.frameNo) > 0) this.slotsDirty = true;
+    // While a draw's tickets are face down, its new names' faces drawn ahead, so they are ready when they turn up: all
+    // at once if the rows stand still (a long frame then shows nothing), a few a frame while they roll on (a long frame
+    // would jolt them; a screen of faces still takes only a few frames); otherwise a few a frame, as names roll in.
+    if (this.atlas.pump(r && t < r.up ? (r.v > 0 || t < r.settled ? 8 : 48) : 12, this.frameNo) > 0) this.slotsDirty = true;
     // Draw opens once the names are in and the practice pass is made, behind the gold backs the screen opens on.
     if (!this.openDone && this.opened && this.warmed) {
       this.openDone = true;
@@ -1491,11 +1547,11 @@ export class WallStage {
     this.lastFrame = now;
     if (r) {
       this.drift = 0;
-      return r.roll && t >= r.roll0 ? rollAt(r.roll, t - r.roll0) : { p: r.p0, v: 0 };
+      // Rolling on at the press's pace until the draw's roll takes it up (never a stop at the press).
+      return r.roll && t >= r.roll0 ? rollAt(r.roll, t - r.roll0) : { p: r.p0 + r.v * t, v: r.v };
     }
     const since = (now - this.restSince) / 1000 - DRIFT_AFTER;
-    // The gold backs rest still, as the owner chose them; names, face up, roll on slowly.
-    if (!this.show && !this.light.on && !this.turn.down && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
+    if (!this.show && !this.light.on && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
     else this.drift = Math.max(0, this.drift - (DRIFT / 0.8) * dt);
     return { p: this.p + this.drift * dt, v: this.drift };
   }
@@ -1505,7 +1561,7 @@ export class WallStage {
    * rows at rest and the light holding on its ticket.
    */
   private still(r: Run, t: number): boolean {
-    if (r.drawn !== null && t >= r.allDown && t < r.up) return true;
+    if (r.drawn !== null && r.v === 0 && t >= r.allDown && t >= r.settled && t < r.up) return true;
     if (!r.roll || !r.walk || t < r.roll0 + r.roll.td + r.roll.dec) return false;
     const next = r.walk.times.find((x) => x > t);
     return next !== undefined && next - t > 0.18;
@@ -1520,7 +1576,8 @@ export class WallStage {
   private drawStep(r: Run, t: number, now: number) {
     if (!r.placed && !r.halted && r.drawn !== null && t >= r.allDown) this.placeNames(r, r.drawn);
     if (r.placed && r.target && !r.walk && t >= r.light) {
-      const P = Math.floor(r.p0);
+      // From the middle of the screen as the rows set off (they may have rolled on since the press).
+      const P = Math.floor(r.roll ? r.roll.from : r.p0);
       let start = { r: this.middleRow(), c: P + Math.ceil(this.grid.cols / 2) };
       if (start.r === r.target.r && start.c === r.target.c) start = { r: start.r, c: start.c - 1 };
       r.walk = walkStart(start, Math.floor(Math.random() * 8), r.light, r.target, r.land);
@@ -1571,17 +1628,21 @@ export class WallStage {
     const nowS = performance.now() / 1000;
     const run = this.run;
     const t = run ? this.elapsed(run) : 0;
-    const k0 = run ? Math.floor(run.p0) : 0;
     // Between draws, the tickets as they rest (turn): face down (π), or up (2π), or turning into it in a wave.
     const T = this.turn;
     const turnT = Number.isFinite(T.at) ? Math.max(0, nowS - T.at / 1000) : Infinity;
     this.atlas.restart();
     let idx = 0;
+    // A press's shuffle: each row raced its own way (whole columns from where it set off once at rest, the backs alike,
+    // so the wall is whole again); its tickets keep their own columns' names and faces, only drawn further along.
+    const shuffling = !!run && run.shuffle && t < run.settled;
     for (let row = 0; row < this.rowsShown && idx < this.cap; row++) {
       const y = this.yTop - row * g.pitchY;
       const segs = this.segs[row] ?? this.segs[0];
+      const o = shuffling && run ? shuffleAt(row, t, run.stop).o : 0;
+      const dc = Math.floor(p + o) - c0;
       for (let c = c0; c <= c0 + g.cols + 1 && idx < this.cap; c++, idx++) {
-        this.posArr[idx * 3] = flatX(g, c, p);
+        this.posArr[idx * 3] = flatX(g, c + dc, p + o);
         this.posArr[idx * 3 + 1] = y;
         this.posArr[idx * 3 + 2] = 0;
         let cell = -1;
@@ -1600,7 +1661,7 @@ export class WallStage {
         if (run) {
           // A draw: face down (already, or in its wave), then up in the run's own wave once the names are in.
           flip = flipAngle(t, run.down, Infinity, flipDelay(row, c - run.downK0, this.rowsShown, g.cols));
-          if (Number.isFinite(run.up)) flip += flipAngle(t, run.up, Infinity, flipDelay(row, c - k0, this.rowsShown, g.cols));
+          if (Number.isFinite(run.up)) flip += flipAngle(t, run.up, Infinity, flipDelay(row, c - run.upK0, this.rowsShown, g.cols));
         } else {
           const turned = flipAngle(turnT, 0, Infinity, flipDelay(row, c - T.k0, this.rowsShown, g.cols));
           flip = T.down ? turned : Math.PI + turned;

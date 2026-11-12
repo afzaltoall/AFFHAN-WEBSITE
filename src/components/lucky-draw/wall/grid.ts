@@ -148,26 +148,79 @@ export function rollAt(R: Roll, t: number): { p: number; v: number } {
 }
 
 /**
- * Between draws the wall rests on its gold backs (the owner, 2026-11-12: "after the winner ... back again to gold ...
- * while clicking Draw it has to show"): from them, the names turn up this soon after the press (or the answer), a beat
- * so the press is seen first.
+ * Columns a second the rows roll on between draws, the gold backs moving all the while (the owner, 2026-11-12: "these
+ * cards have to move continuously, auto move"): a ticket about every three and a half seconds. A press never stops
+ * them: they keep this pace until the draw's roll takes it up (drawPlan's `v`).
  */
-export const PRESS_BEAT = 0.4;
+export const DRIFT = 0.3;
+
+// ---- the shuffle ----
+
+/**
+ * The press shuffles the gold backs at once (the owner, 2026-11-12: "when Draw is clicked, show the shuffling, so it is
+ * seen to shuffle; then the run, with no delay"): the rows race left and right, each its own way and pace, while the
+ * server draws; at least SHUFFLE_MIN seconds, and on for as long as the answer takes, so a press is never followed by
+ * nothing. Then each row comes to rest on a whole column (the backs alike, the wall is whole again) and the names
+ * turn up. Seconds: the rows gather pace over SHUFFLE_RAMP and come to rest over about SHUFFLE_DEC.
+ */
+export const SHUFFLE_MIN = 1.6;
+export const SHUFFLE_RAMP = 0.35;
+export const SHUFFLE_DEC = 0.55;
+/** Each row's pace in the shuffle (columns a second), the rows going alternately left and right. */
+const SHUFFLE_PACE = [5.4, 6.2, 4.8, 5.8, 5.0, 6.4];
+
+export function shufflePace(row: number): number {
+  const v = SHUFFLE_PACE[mod(row, SHUFFLE_PACE.length)];
+  return row % 2 ? -v : v;
+}
+
+/**
+ * A row's shuffle `t` seconds after the press: how far it has moved (columns, past where the rows are) and its pace,
+ * stopping from `stop` (seconds from the press, never before SHUFFLE_RAMP; Infinity: not yet told), at rest from
+ * `end` on a whole column `o`.
+ */
+export function shuffleAt(row: number, t: number, stop: number): { o: number; v: number; end: number } {
+  const V = shufflePace(row);
+  const R = SHUFFLE_RAMP;
+  const going = (u: number) => (u <= 0 ? 0 : u < R ? V * R * eased(u / R) : V * (R / 2 + (u - R)));
+  if (!Number.isFinite(stop)) return { o: going(t), v: t <= 0 ? 0 : V * ease(Math.min(1, t / R)), end: Infinity };
+  const from = Math.max(R, stop);
+  const o0 = going(from);
+  // At rest on the next whole column it reaches coming to rest in about SHUFFLE_DEC.
+  const nominal = o0 + (V * SHUFFLE_DEC) / 2;
+  const at = V > 0 ? Math.ceil(nominal - 1e-9) : Math.floor(nominal + 1e-9);
+  const D = (2 * (at - o0)) / V;
+  const end = from + D;
+  if (t < from) return { o: going(t), v: t <= 0 ? 0 : V * ease(Math.min(1, t / R)), end };
+  if (t >= end) return { o: at, v: 0, end };
+  const x = (t - from) / D;
+  return { o: o0 + V * D * (x - eased(x)), v: V * (1 - ease(x)), end };
+}
+
+/** When every one of `rows` rows has come to rest, for a shuffle told to stop at `stop`. */
+export function shuffleEnd(rows: number, stop: number): number {
+  let end = Math.max(SHUFFLE_RAMP, stop);
+  for (let r = 0; r < rows; r++) end = Math.max(end, shuffleAt(r, 0, stop).end);
+  return end;
+}
 
 /**
  * A draw's moments, in seconds from the press, once the server has answered (`ta`), the rows standing at `p0`: the
  * face-up wave, no sooner than `from` (by default once every ticket has turned face down and the gold backs have
- * shown a moment; from the backs the wall rests on, PRESS_BEAT), the roll (from rest, to rest on the whole column
+ * shown a moment; from the backs the wall rests on, once its shuffle is at rest), the roll (from rest, to rest on the whole column
  * `end`), the light coming on as the rows set off, and its landing, about SEARCH_T after the press: the time the backs
- * no longer take is rolled instead, and a late answer moves it all later by as much.
+ * no longer take is rolled instead, and a late answer moves it all later by as much. `v`: the rows' pace at the press
+ * (rolling on between draws); they keep it until the roll takes over, from that pace, so nothing ever stops or jerks.
  */
-export function drawPlan(p0: number, ta: number, from: number = ALL_DOWN + BACKS_T): { up: number; roll0: number; roll: Roll; end: number; light: number; land: number } {
+export function drawPlan(p0: number, ta: number, from: number = ALL_DOWN + BACKS_T, v = 0): { up: number; roll0: number; roll: Roll; end: number; light: number; land: number } {
   const up = Math.max(from, ta + 0.25);
   const roll0 = up + ROLL_AFTER;
+  const start = p0 + v * roll0;
   const rollT = ROLL_T + Math.max(0, ALL_DOWN + BACKS_T - from);
-  const end = Math.ceil(p0 + CRUISE * (rollT - (ACC_T + DEC_T) / 2) - 1e-9);
-  const roll: Roll = { from: p0, v0: 0, V: CRUISE, acc: ACC_T, td: 0, dec: DEC_T };
-  roll.td = Math.max(ACC_T, (end - p0) / CRUISE + (ACC_T - DEC_T) / 2);
+  // The distance a roll of rollT seconds covers, from pace v: gathering pace, steady, coming to rest (rollAt).
+  const end = Math.ceil(start + CRUISE * rollT - (CRUISE * DEC_T) / 2 - (ACC_T * (CRUISE - v)) / 2 - 1e-9);
+  const roll: Roll = { from: start, v0: v, V: CRUISE, acc: ACC_T, td: 0, dec: DEC_T };
+  roll.td = Math.max(ACC_T, (end - start) / CRUISE + (ACC_T * (CRUISE - v)) / (2 * CRUISE) - DEC_T / 2);
   return { up, roll0, roll, end, light: roll0, land: roll0 + roll.td + roll.dec + TAIL_T };
 }
 

@@ -11,11 +11,14 @@ import {
   BACKS_T,
   CRUISE,
   DOWN_AT,
+  DRIFT,
   FLIP_T,
   GRID,
   MOVE_T,
-  PRESS_BEAT,
   SEARCH_T,
+  SHUFFLE_DEC,
+  SHUFFLE_MIN,
+  SHUFFLE_RAMP,
   STEP_QUICK,
   STEP_SLOW,
   TAIL_T,
@@ -31,6 +34,9 @@ import {
   pathAt,
   personAt,
   rollAt,
+  shuffleAt,
+  shuffleEnd,
+  shufflePace,
   stepIndex,
   stepTimes,
   stretchFor,
@@ -147,27 +153,70 @@ test("the press: every ticket face down before any name can change, face up agai
   assert.equal(flipAngle(0, DOWN_AT, Infinity, 0), 0, "face up at the press");
 });
 
-test("from the gold backs the wall rests on: the names turn up a beat after the press, never before the answer, and land about thirty seconds after it", () => {
-  // Resting face down (π), a press needs no wave down: the run's down wave began long before (-Infinity).
+/** As the stage plans a press on the gold backs once the answer is in (`ta`): when its shuffle is at rest, a hair after. */
+const shuffleFrom = (ta, rows = 6) => shuffleEnd(rows, Math.max(SHUFFLE_MIN, ta)) + 0.05;
+
+test("the press shuffles the gold backs at once: the rows race each their own way, rest on whole columns, and only then do the names turn up", () => {
+  const rows = 6;
+  for (let r = 0; r < rows; r++) {
+    assert.ok(Math.abs(shufflePace(r)) >= 4, `row ${r} races`);
+    assert.equal(Math.sign(shufflePace(r)), r % 2 ? -1 : 1, "the rows go alternately left and right");
+  }
+  // Resting face down (π), the press needs no wave down: the run's down wave began long before (-Infinity).
   for (const d of [0, 0.3, WAVE_T]) assert.equal(flipAngle(0, -Infinity, Infinity, d), Math.PI, "face down at the press");
-  const r = rng(23);
+  for (const ta of [0.05, 0.4, 1, 1.6, 2.5, 7]) {
+    const stop = Math.max(SHUFFLE_MIN, ta);
+    const settled = shuffleEnd(rows, stop);
+    assert.ok(settled >= stop + SHUFFLE_DEC - 1e-9 && settled <= stop + SHUFFLE_DEC + 0.5, `at rest soon after it is told to stop (${(settled - stop).toFixed(2)} s)`);
+    for (let r = 0; r < rows; r++) {
+      const V = shufflePace(r);
+      let last = shuffleAt(r, 0, stop);
+      assert.ok(last.o === 0 && last.v === 0, "from where the rows are, at the press");
+      for (let t = 0.005; t <= settled + 0.3; t += 0.005) {
+        const now = shuffleAt(r, t, stop);
+        assert.ok(Math.abs(now.o - last.o) <= Math.abs(V) * 0.005 + 1e-9, `row ${r}: no jump at ${t.toFixed(3)} s`);
+        assert.ok(Math.abs(now.v - last.v) < 0.2, `row ${r}: no jolt at ${t.toFixed(3)} s`);
+        assert.ok((now.o - last.o) * Math.sign(V) >= -1e-12, `row ${r}: never back`);
+        if (t > SHUFFLE_RAMP && t < stop) assert.ok(Math.abs(now.v - V) < 1e-9, `row ${r}: racing until told to stop`);
+        last = now;
+      }
+      const end = shuffleAt(r, settled + 1, stop);
+      assert.ok(end.o === Math.round(end.o) && end.v === 0, `row ${r}: at rest on a whole column (${end.o})`);
+      // Asked before the stop, where it will come to rest is already known (the stage plans it with the answer).
+      assert.equal(shuffleAt(r, stop / 2, stop).end, shuffleAt(r, settled + 1, stop).end);
+    }
+    const from = shuffleFrom(ta);
+    const { up, roll0, land } = drawPlan(100.3, ta, from, DRIFT);
+    assert.ok(up >= settled && up >= ta + 0.25 - 1e-9, "the names turn up only once every row is at rest, and the answer is in");
+    assert.ok(roll0 > up && roll0 < up + WAVE_T + FLIP_T, "the run sets off at once, as the last tickets finish turning");
+    if (ta <= SHUFFLE_MIN) assert.ok(land >= SEARCH_T - 1e-9 && land < SEARCH_T + 1.5, `about ${SEARCH_T} s from the press to the landing (${land.toFixed(2)})`);
+    else assert.ok(land - drawPlan(100.3, 0.05, shuffleFrom(0.05), DRIFT).land > ta - SHUFFLE_MIN - 0.6, "a late answer moves it all later by as much");
+  }
+});
+
+test("the gold backs roll on between draws, and a press never stops them: the draw's roll takes up their pace", () => {
+  assert.ok(DRIFT > 0 && DRIFT < CRUISE / 4, "moving all the while, calmly");
+  const r = rng(31);
   for (let i = 0; i < 400; i++) {
     const p0 = r() * 5000;
-    const ta = 0.05 + r() * 1.5;
-    const { up, roll, end, roll0, light, land } = drawPlan(p0, ta, PRESS_BEAT);
-    assert.ok(up >= PRESS_BEAT - 1e-9 && up >= ta + 0.25 - 1e-9, "a beat after the press, and never before the answer");
-    if (ta + 0.25 <= PRESS_BEAT) assert.equal(up, PRESS_BEAT, "a quick answer: the names turn up a beat after the press");
-    assert.equal(light, roll0);
-    assert.ok(roll0 > up && roll0 < up + WAVE_T + FLIP_T, "the rows set off as the last tickets finish turning");
-    for (const d of [0, 0.3, WAVE_T]) {
-      assert.equal(flipAngle(up, -Infinity, Infinity, d) + flipAngle(up, up, Infinity, d), Math.PI, "still face down when the wave up starts");
-      assert.ok(Math.abs(flipAngle(up + WAVE_T + FLIP_T, -Infinity, Infinity, d) + flipAngle(up + WAVE_T + FLIP_T, up, Infinity, d) - 2 * Math.PI) < 1e-9, "every ticket face up after it");
-    }
+    const ta = 0.05 + r() * 4;
+    const v = DRIFT * (0.2 + 0.8 * r());
+    const { roll, roll0, end, land } = drawPlan(p0, ta, shuffleFrom(ta), v);
+    // Until the roll takes over, the rows keep the press's pace; it takes over from exactly there, at that pace.
+    const start = rollAt(roll, 0);
+    assert.ok(Math.abs(start.p - (p0 + v * roll0)) < 1e-9 && Math.abs(start.v - v) < 1e-12, "the roll starts where and as fast as the rows were going");
     const stop = roll.td + roll.dec;
+    assert.ok(roll.td >= roll.acc);
     assert.ok(Math.abs(rollAt(roll, stop).p - end) < 1e-9, "at rest exactly on its column");
-    assert.ok(end - p0 >= 5 * GRID.cols, `the time the backs no longer take is rolled: ${(end - p0).toFixed(1)} columns pass`);
-    if (ta + 0.25 <= PRESS_BEAT) assert.ok(land >= SEARCH_T - 1e-9 && land < SEARCH_T + 0.5, `about ${SEARCH_T} s from the press to the landing (${land.toFixed(2)})`);
-    else assert.ok(Math.abs(land - (SEARCH_T + (ta + 0.25 - PRESS_BEAT))) < 0.5, "a late answer moves it all later by as much");
+    let last = start;
+    for (let t = 0.005; t < stop + 1; t += 0.005) {
+      const now = rollAt(roll, t);
+      assert.ok(now.p >= last.p - 1e-12, "never back");
+      assert.ok(Math.abs(now.v - last.v) < 0.03, `no jolt in its pace at ${t.toFixed(3)} s`);
+      assert.ok(now.v <= CRUISE + 1e-9, "never faster than its steady pace");
+      last = now;
+    }
+    if (ta <= SHUFFLE_MIN) assert.ok(land >= SEARCH_T - 1e-9 && land < SEARCH_T + 1.5, `about ${SEARCH_T} s to the landing (${land.toFixed(2)})`);
   }
 });
 
@@ -239,12 +288,14 @@ function playChase(seed, rows) {
     return x / 2 ** 32;
   };
   const p0 = rnd() * 3000;
-  // Half from the gold backs the wall rests on between draws, half from names face up.
-  const { roll, roll0, end, light, land } = drawPlan(p0, 0.1 + rnd() * 0.8, seed % 2 ? PRESS_BEAT : undefined);
+  // Half from the gold backs rolling on between draws, half from names face up and still.
+  const backs = seed % 2 === 1;
+  const ta = 0.1 + rnd() * 0.8;
+  const { roll, roll0, end, light, land } = drawPlan(p0, ta, backs ? shuffleFrom(ta, rows) : undefined, backs ? DRIFT : 0);
   const pAt = (t) => rollAt(roll, t - roll0).p;
   const ok = (c, at, leave) => c.r >= 0 && c.r < rows && c.c >= pAt(leave) + 0.75 && c.c <= pAt(at) + GRID.cols + 0.25;
   const target = { r: Math.floor(rnd() * rows), c: end + 1 + Math.floor(rnd() * GRID.cols) };
-  const start = { r: Math.floor((rows - 1) / 2), c: Math.floor(p0) + Math.ceil(GRID.cols / 2) };
+  const start = { r: Math.floor((rows - 1) / 2), c: Math.floor(roll.from) + Math.ceil(GRID.cols / 2) };
   const w = walkStart(start, Math.floor(rnd() * 8), light, target, land);
   for (let t = light; t <= land + 0.1; t += 1 / 60) walkAhead(w, t, ok, rnd);
   return { w, ok: (c, k) => ok(c, w.times[k], w.times[k + 1] ?? w.times[k]), target, land, pAt };
