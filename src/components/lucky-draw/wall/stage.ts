@@ -59,6 +59,7 @@ import {
   shuffleEnd,
   stepIndex,
   stretchFor,
+  lightStart,
   walkAhead,
   walkStart,
   type Cell,
@@ -1839,10 +1840,10 @@ export class WallStage {
   private drawStep(r: Run, t: number, now: number) {
     if (!r.placed && !r.halted && r.drawn !== null && t >= r.allDown) this.placeNames(r, r.drawn);
     if (r.placed && r.target && !r.walk && t >= r.light) {
-      // From the middle of the screen as the rows set off (they may have rolled on since the press).
+      // Anywhere on the screen as the rows set off, a new place each draw (the owner, 2026-11-12: "it can start from
+      // anywhere"), on a ticket the room sees until its first jump (./grid.ts lightStart).
       const P = Math.floor(r.roll ? r.roll.from : r.p0);
-      let start = { r: this.middleRow(), c: P + Math.ceil(this.grid.cols / 2) };
-      if (start.r === r.target.r && start.c === r.target.c) start = { r: start.r, c: start.c - 1 };
+      const start = lightStart(this.rowsShown, P + 1, P + this.grid.cols, r.target, (c) => this.clear(c, r, r.light, r.light + 0.35), Math.random);
       r.walk = walkStart(start, Math.floor(Math.random() * 8), r.light, r.target, r.land);
       this.light = { on: true, cells: r.walk.cells, times: r.walk.times, t };
       this.landFlash = now;

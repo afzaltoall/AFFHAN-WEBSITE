@@ -319,6 +319,20 @@ export interface Walk {
   target: Cell;
 }
 
+/**
+ * Where the light comes on (the owner, 2026-11-12: "when it starts, the selection can start from anywhere"): any ticket
+ * of `rows` rows and the columns `lo` to `hi` that the room sees as it comes on (`ok`), chosen at random, a new place
+ * each draw; never the person drawn. With none of them free, the middle, where it always came on before.
+ */
+export function lightStart(rows: number, lo: number, hi: number, target: Cell, ok: (c: Cell) => boolean, rnd: () => number): Cell {
+  for (let i = 0; i < 48; i++) {
+    const cell = { r: Math.floor(rnd() * rows), c: lo + Math.floor(rnd() * (hi - lo + 1)) };
+    if ((cell.r !== target.r || cell.c !== target.c) && ok(cell)) return cell;
+  }
+  const mid = { r: Math.floor((rows - 1) / 2), c: Math.floor((lo + hi + 1) / 2) };
+  return mid.r === target.r && mid.c === target.c ? { r: mid.r, c: mid.c - 1 } : mid;
+}
+
 /** The light comes on at `cell` at `at` and will land on `target` at `land`. */
 export const walkStart = (cell: Cell, dir: number, at: number, target: Cell, land: number): Walk => ({
   cells: [cell],

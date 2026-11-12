@@ -40,6 +40,7 @@ import {
   stepIndex,
   stepTimes,
   stretchFor,
+  lightStart,
   walkAhead,
   walkStart,
 } from "@/components/lucky-draw/wall/grid";
@@ -295,11 +296,27 @@ function playChase(seed, rows) {
   const pAt = (t) => rollAt(roll, t - roll0).p;
   const ok = (c, at, leave) => c.r >= 0 && c.r < rows && c.c >= pAt(leave) + 0.75 && c.c <= pAt(at) + GRID.cols + 0.25;
   const target = { r: Math.floor(rnd() * rows), c: end + 1 + Math.floor(rnd() * GRID.cols) };
-  const start = { r: Math.floor((rows - 1) / 2), c: Math.floor(roll.from) + Math.ceil(GRID.cols / 2) };
+  // Anywhere on the screen, as the stage chooses it.
+  const P = Math.floor(roll.from);
+  const start = lightStart(rows, P + 1, P + GRID.cols, target, (c) => ok(c, light, light + 0.35), rnd);
   const w = walkStart(start, Math.floor(rnd() * 8), light, target, land);
   for (let t = light; t <= land + 0.1; t += 1 / 60) walkAhead(w, t, ok, rnd);
-  return { w, ok: (c, k) => ok(c, w.times[k], w.times[k + 1] ?? w.times[k]), target, land, pAt };
+  return { w, ok: (c, k) => ok(c, w.times[k], w.times[k + 1] ?? w.times[k]), target, land, pAt, start };
 }
+
+test("the light comes on anywhere on the screen, a new place each draw, never on the person drawn", () => {
+  const rowsSeen = new Set();
+  const placesSeen = new Set();
+  for (let seed = 1; seed <= 600; seed++) {
+    const { w, start, target, pAt } = playChase(seed, 6);
+    assert.deepEqual(w.cells[0], start);
+    assert.ok(start.r !== target.r || start.c !== target.c, `seed ${seed}: not on the person drawn`);
+    rowsSeen.add(start.r);
+    placesSeen.add(`${start.r}:${Math.round(start.c - pAt(w.times[0]))}`);
+  }
+  assert.equal(rowsSeen.size, 6, "in every row");
+  assert.ok(placesSeen.size >= 30, `all over the screen: ${placesSeen.size} places`);
+});
 
 test("every draw: the light jumps a ticket at a time all over the wall as it rolls, and its last jump, only that, lands on the person drawn", () => {
   const dirs = new Set();
