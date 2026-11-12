@@ -60,7 +60,13 @@
   right: 0;
   top: calc(8 * var(--u));
   bottom: calc(18.1 * var(--u));
-  pointer-events: none;
+  /* The room can take the wall in hand between draws (./stage.ts hold, move, letGo, scrollBy). */
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.lw-view[data-held] {
+  cursor: grabbing;
 }
 
 .lw-band {

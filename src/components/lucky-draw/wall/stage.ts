@@ -155,6 +155,14 @@ const HIDDEN = 2;
 /** Seconds the rows stay still after they come to rest, before they roll on, and the seconds they take to get going. */
 const DRIFT_AFTER = 2.5;
 const DRIFT_EASE = 1.6;
+/**
+ * The wall moved by hand between draws (the owner, 2026-11-12: "scroll the cards with the cursor, as by hand"): let
+ * go, it keeps the hand's pace (at most FLING_MAX columns a second), slowing as a heavy wheel does (its pace halving
+ * about every 0.4 s); a mouse's wheel or a trackpad moves it by as much, eased in over about a tenth of a second.
+ */
+const FLING_MAX = 8;
+const FLING_FRICTION = 1.8;
+const WHEEL_EASE = 9;
 /** The page's pass, before it is shown: there, ready, and too faint to see. */
 const LIFT_READY = 0.004;
 /** Seconds the tickets the light has jumped from stay golden, fading: its trail across the wall. */
@@ -808,6 +816,11 @@ export class WallStage {
    * `at`: when the wave into that state began (ms; -Infinity: already there), `k0` its first column.
    */
   private turn = { down: true, at: -Infinity, k0: 0 };
+  /**
+   * The room's hand on the wall between draws: held (and where, when), the pace it lets go with (columns a second,
+   * slowing), and a wheel's columns still to move.
+   */
+  private hand = { held: false, x: 0, at: 0, v: 0, wheel: 0 };
   /** Whether Draw has been opened (onOpen: the names in and the practice pass made), and that pass. */
   private openDone = false;
   private warmed = false;
@@ -1255,6 +1268,8 @@ export class WallStage {
    */
   spin(): Promise<boolean> {
     this.finish();
+    // A hand on the wall lets go: the draw starts from the wall's own pace.
+    this.hand = { held: false, x: 0, at: 0, v: 0, wheel: 0 };
     if (this.waiting) {
       const w = this.waiting;
       this.waiting = null;
@@ -1624,10 +1639,80 @@ export class WallStage {
       // Rolling on at the press's pace until the draw's roll takes it up (never a stop at the press).
       return r.roll && t >= r.roll0 ? rollAt(r.roll, t - r.roll0) : { p: r.p0 + r.v * t, v: r.v };
     }
+    // Held by hand: exactly where the hand has put it (move), nothing else moving it.
+    const h = this.hand;
+    if (h.held) {
+      this.drift = 0;
+      return { p: this.p, v: 0 };
+    }
     const since = (now - this.restSince) / 1000 - DRIFT_AFTER;
     if (!this.show && !this.light.on && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
     else this.drift = Math.max(0, this.drift - (DRIFT / 0.8) * dt);
-    return { p: this.p + this.drift * dt, v: this.drift };
+    // Let go: the hand's pace, slowing; the wheel's columns, eased in; the wall's own pace back under them.
+    h.v *= Math.exp(-dt * FLING_FRICTION);
+    if (Math.abs(h.v) < 0.005) h.v = 0;
+    const wheeled = h.wheel * (1 - Math.exp(-dt * WHEEL_EASE));
+    h.wheel -= wheeled;
+    if (Math.abs(h.wheel) < 1e-4) h.wheel = 0;
+    return { p: this.p + (this.drift + h.v) * dt + wheeled, v: this.drift + h.v };
+  }
+
+  /** Whether the room can move the wall by hand now: between draws, with its names in. */
+  get movable(): boolean {
+    return !this.run && !this.show && this.rows.length > 0;
+  }
+
+  /** How far the pointer moves (page pixels) for the wall to move a column, in the middle of the screen. */
+  private pxPerColumn(): number {
+    const r = this.canvas.getBoundingClientRect();
+    const row = this.middleRow();
+    const c = Math.floor(this.p) + Math.floor(this.grid.cols / 2);
+    const a = this.cellPos({ r: row, c }, this.tmpV).pos.project(this.camera).x;
+    const b = this.cellPos({ r: row, c: c + 1 }, this.tmpV2).pos.project(this.camera).x;
+    return Math.max(20, (Math.abs(b - a) * r.width) / 2);
+  }
+
+  /** The wall taken in hand at the page's `x` (a pointer pressed on it); false while a draw is on. */
+  hold(x: number): boolean {
+    if (!this.movable) return false;
+    this.hand = { held: true, x, at: performance.now(), v: 0, wheel: 0 };
+    this.drift = 0;
+    return true;
+  }
+
+  /** The hand moved to the page's `x`: the wall goes with it, exactly. */
+  move(x: number) {
+    const h = this.hand;
+    if (!h.held) return;
+    if (!this.movable) {
+      h.held = false;
+      return;
+    }
+    const now = performance.now();
+    const cols = -(x - h.x) / this.pxPerColumn();
+    this.p += cols;
+    const dt = (now - h.at) / 1000;
+    if (dt > 0) h.v = 0.6 * h.v + 0.4 * (cols / Math.max(dt, 0.004));
+    h.x = x;
+    h.at = now;
+    this.slotsDirty = true;
+  }
+
+  /** Let go: the wall carries on at the hand's pace, slowing, and rolls on at its own again (none if the hand had stopped). */
+  letGo() {
+    const h = this.hand;
+    if (!h.held) return;
+    h.held = false;
+    if (performance.now() - h.at > 90) h.v = 0;
+    h.v = Math.max(-FLING_MAX, Math.min(FLING_MAX, h.v));
+    this.restSince = performance.now() - DRIFT_AFTER * 1000;
+  }
+
+  /** A mouse's wheel or a trackpad: the wall moves by `px` page pixels (more: further left), eased in. */
+  scrollBy(px: number) {
+    if (!this.movable || this.hand.held) return;
+    this.hand.wheel += px / this.pxPerColumn();
+    this.restSince = performance.now() - DRIFT_AFTER * 1000;
   }
 
   /**

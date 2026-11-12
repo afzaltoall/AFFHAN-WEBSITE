@@ -152,6 +152,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
   const [ready, setReady] = useState(false);
   const wallUp = useRef(false);
   const [frameId, setFrameId] = useState<string | null>(null);
+  /** The wall held by hand (the cursor says so). */
+  const [held, setHeld] = useState(false);
   /** The seat a pass has just come down into: it lights as it fills. */
   const [landed, setLanded] = useState<string | null>(null);
 
@@ -729,7 +731,34 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     >
       <canvas ref={canvasRef} className="lw-canvas" aria-hidden />
       <div className="lw-frame">
-        <div ref={viewRef} className="lw-view" aria-hidden />
+        {/* The wall, moved by hand between draws (the owner, 2026-11-12: "scroll the cards with the cursor, as by
+            hand"): dragged, flung, or a wheel or trackpad turned over it. */}
+        <div
+          ref={viewRef}
+          className="lw-view"
+          aria-hidden
+          data-held={held || undefined}
+          onPointerDown={(e) => {
+            if (e.pointerType === "mouse" && e.button !== 0) return;
+            if (!stageRef.current?.hold(e.clientX)) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            setHeld(true);
+          }}
+          onPointerMove={(e) => stageRef.current?.move(e.clientX)}
+          onPointerUp={(e) => {
+            stageRef.current?.letGo();
+            if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
+            setHeld(false);
+          }}
+          onPointerCancel={() => {
+            stageRef.current?.letGo();
+            setHeld(false);
+          }}
+          onWheel={(e) => {
+            const unit = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 800 : 1;
+            stageRef.current?.scrollBy((Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * unit);
+          }}
+        />
         <header className="lw-band">
           <div className="lw-band-mark">
             <b>AFFHAN</b>
