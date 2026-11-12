@@ -735,7 +735,10 @@ const GIFT_TILT = 0.36;
  * The golden envelope, between the wall and the room: in the room's own view, below the middle of the view (the card
  * rises out of it into the view's upper half, clear of the words).
  */
-/** The grand opening's pack: the view's middle, in the room's own view, near enough to fill most of its height. */
+/**
+ * The grand opening's pack: in the middle of the screen (the owner, 2026-11-12: "too high, bring it a little lower";
+ * it had been the view's middle, nearer the words, which are faded while it shows), near enough to fill most of it.
+ */
 const PACK_DIST = 6.4;
 /** Where the card spins in from, deep in the dark. */
 const CARD_FAR = 34;
@@ -2075,7 +2078,7 @@ export class WallStage {
     this.camera.localToWorld(this.giftAt);
     this.envAt.set(0, this.viewMid * ENV_DIST * tan - ENV_BELOW, -ENV_DIST);
     this.camera.localToWorld(this.envAt);
-    this.packAt.set(0, this.viewMid * PACK_DIST * tan, -PACK_DIST);
+    this.packAt.set(0, 0, -PACK_DIST);
     this.camera.localToWorld(this.packAt);
     const px = this.renderer.getPixelRatio() * h;
     const scale = px / (2 * tan);
