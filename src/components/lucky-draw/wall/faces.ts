@@ -937,6 +937,25 @@ export function drawPack(ctx: Ctx, fonts: Fonts) {
 /** A detail cast in gold, in pixels (wide, as a title is). */
 export const PLATE_PX = { w: 2048, h: 680 };
 
+/** A plate's room for its value and the line under it, under its label (pixels from its top). */
+export const PLATE_ROOM = { top: 160, bottom: 660 };
+
+/**
+ * Where a plate's value and the line under it go, and at what size, so all of it fits the plate: `lines` of the value
+ * (one or two), the size they fit across at, and whether a line goes under them. Set in the middle of the room under
+ * the label; smaller if the value's lines and that line would not fit it (a long place on two lines had run its
+ * country into its second line, 2026-11-12: "no perfection"). A Bodoni line takes 0.75 of its size above its
+ * baseline and 0.22 below; the line under it 88 pixels of capitals, a gap of 26 above them and 24 below for its tails.
+ */
+export function plateLayout(lines: number, size: number, sub: boolean): { size: number; first: number; step: number; sub: number } {
+  const room = PLATE_ROOM.bottom - PLATE_ROOM.top;
+  const tall = (s: number) => (lines - 1) * s * 1.08 + 0.97 * s + (sub ? 112 : 0);
+  let s = size;
+  while (s > 60 && tall(s) > room) s -= 6;
+  const first = PLATE_ROOM.top + (room - tall(s)) / 2 + 0.75 * s;
+  return { size: s, first, step: s * 1.08, sub: first + (lines - 1) * s * 1.08 + 0.22 * s + 88 };
+}
+
 /**
  * A detail's letters for its gold plate: its label in spaced capitals, its value in Bodoni (as large as fits), and
  * under it a second line; drawn twice on black, crisp in red and blurred in green (the plate's shader takes its gold
@@ -973,16 +992,16 @@ export function drawPlate(ctx: Ctx, label: string, value: string, sub: string, f
     size = 230;
     while (size > 90 && Math.max(...lines.map((l) => wide(l, size))) > room) size -= 6;
   } else while (size > 90 && wide(value, size) > room) size -= 6;
-  const base = lines.length > 1 ? 330 : sub ? 440 : 470;
+  const at = plateLayout(lines.length, size, !!sub);
   const draw = () => {
     caps(ctx, label.toUpperCase(), w / 2, 118, 58, 24, 600, fonts);
-    lines.forEach((line, i) => bodoniCentred(ctx, line, w / 2, base + i * size * 1.08, size, track, fonts));
+    lines.forEach((line, i) => bodoniCentred(ctx, line, w / 2, at.first + i * at.step, at.size, track, fonts));
     if (sub) {
       ctx.save();
       ctx.font = `500 88px ${fonts.sans}`;
       ctx.textAlign = "center";
       ctx.textBaseline = "alphabetic";
-      ctx.fillText(sub, w / 2, 600);
+      ctx.fillText(sub, w / 2, at.sub);
       ctx.restore();
     }
   };
