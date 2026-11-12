@@ -33,7 +33,7 @@ import {
 } from "./faces";
 import { BOARD_PRINT_AT, Board } from "./board";
 import { CARD_IN, CARD_Z, ENV, Envelope, TE } from "./envelope";
-import { EMERGE, FW_RISE, Fireworks, GoldPack, GoldPlate, LightBeams, PLATE_HOLD, RayBurst, ShockRing, TG, WarpStreaks, emergeAt, plateAt, ringAt, shakeAt, shellSpot, warpAt } from "./grand";
+import { Confetti, EMERGE, FW_RISE, Fireworks, GoldPack, GoldPlate, LightBeams, PLATE_HOLD, RayBurst, ShockRing, TG, WarpStreaks, emergeAt, plateAt, ringAt, shakeAt, shellSpot, warpAt } from "./grand";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
 import {
   ALL_DOWN,
@@ -809,6 +809,7 @@ export class WallStage {
   private readonly burstRays: RayBurst;
   private readonly warp: WarpStreaks;
   private readonly fireworks: Fireworks;
+  private readonly confetti: Confetti;
   /** How far from the room the fireworks burst (behind the pack, in front of the wall), and the view's half height there. */
   private fwDist = 8;
   private fwHalf = 2;
@@ -1088,8 +1089,9 @@ export class WallStage {
     this.ring = new ShockRing();
     this.warp = new WarpStreaks();
     this.fireworks = new Fireworks();
-    this.owned.push(this.beams, this.burstRays, this.ring, this.warp, this.fireworks);
-    this.scene.add(this.beams.root, this.burstRays.mesh, this.ring.mesh, this.warp.mesh, this.fireworks.points);
+    this.confetti = new Confetti();
+    this.owned.push(this.beams, this.burstRays, this.ring, this.warp, this.fireworks, this.confetti);
+    this.scene.add(this.beams.root, this.burstRays.mesh, this.ring.mesh, this.warp.mesh, this.fireworks.points, this.confetti.points);
     for (const t of [packInk, ...this.plateTex]) this.renderer.initTexture(t);
     this.flash = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: glow, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, toneMapped: false })));
     this.flash.visible = false;
@@ -1176,7 +1178,7 @@ export class WallStage {
     this.gift.root.visible = true;
     this.envelope.root.visible = true;
     this.hero.visible = true;
-    const grand = [this.grandPack.root, ...this.plates.map((p) => p.mesh), this.beams.root, this.burstRays.mesh, this.ring.mesh, this.warp.mesh, this.fireworks.points];
+    const grand = [this.grandPack.root, ...this.plates.map((p) => p.mesh), this.beams.root, this.burstRays.mesh, this.ring.mesh, this.warp.mesh, this.fireworks.points, this.confetti.points];
     for (const o of grand) o.visible = true;
     void this.renderer.compileAsync(this.scene, this.camera).catch(() => {});
     for (const o of grand) o.visible = false;
@@ -2035,6 +2037,7 @@ export class WallStage {
     const scale = px / (2 * tan);
     this.sparkU.uScale.value = scale;
     this.fireworks.scale(scale);
+    this.confetti.scale(scale);
     this.warp.size(w * this.renderer.getPixelRatio(), h * this.renderer.getPixelRatio());
     // The fireworks burst behind the pack (nearer: it hides them) and in front of the whole wall (its edges are its nearest).
     this.fwDist = Math.min(9.5, Math.max(PACK_DIST + 0.9, this.camDist - g.curve * (1 - Math.cos(th)) - 0.5));
@@ -2508,6 +2511,7 @@ export class WallStage {
       this.warp.mesh.quaternion.copy(this.camera.quaternion);
     }
     this.fireworksAt(t, s, time);
+    this.confettiAt(t, s, time);
 
     this.liftRoot.hidden = false;
     this.liftPose(t, s);
@@ -2538,6 +2542,27 @@ export class WallStage {
       if (s.fwNext > 0) this.shell(time + 0.05);
       const gap = t < TG.tear ? 1.3 : t < TG.build ? 0.9 : t < TG.placed ? 0.7 : 0.5;
       s.fwNext = time + gap * (0.75 + 0.5 * Math.random());
+    }
+  }
+
+  /**
+   * Gold confetti (./grand.ts Confetti): thrown high from two cannons at the foot of the screen as the name bursts in,
+   * and falling gently from above as the card lands; gone as it leaves. On the screen's own clock, as the fireworks.
+   */
+  private confettiAt(t: number, s: Show, time: number) {
+    const cf = this.confetti;
+    const H = this.fwHalf;
+    const W = H * this.camera.aspect;
+    cf.set(time, smooth(t, TG.burst - 0.1, TG.burst + 0.2) * (1 - smooth(t, TG.leave, TG.leave + 0.5)), H * 0.32);
+    cf.points.position.copy(this.camera.position);
+    cf.points.quaternion.copy(this.camera.quaternion);
+    if (!(s.fwDone & 16) && t >= TG.burst) {
+      s.fwDone |= 16;
+      cf.cannons(time, W, H, -this.fwDist + 0.3, 180);
+    }
+    if (!(s.fwDone & 32) && t >= TG.placed) {
+      s.fwDone |= 32;
+      cf.rain(time, W, H, -this.fwDist + 0.3, 120, 2.5);
     }
   }
 
@@ -2791,6 +2816,8 @@ export class WallStage {
     this.warp.set(0, 0, 0);
     this.fireworks.set(0, 0, 0);
     this.fireworks.reset();
+    this.confetti.set(0, 0, 0);
+    this.confetti.reset();
     this.ring.set(0, 0);
     delete this.opts.lift.parentElement?.dataset.walk;
     delete this.opts.lift.parentElement?.dataset.pack;

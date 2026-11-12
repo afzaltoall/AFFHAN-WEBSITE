@@ -841,3 +841,173 @@ export class Fireworks {
     for (const x of this.owned) x.dispose();
   }
 }
+
+const confettiVertex = /* glsl */ `
+  attribute vec3 aVel;
+  attribute float aBorn;
+  attribute float aLife;
+  attribute vec3 aColor;
+  attribute float aSize;
+  attribute vec3 aTumble;
+  uniform float uT;
+  uniform float uScale;
+  uniform float uFall;
+  uniform float uA;
+  varying vec3 vColor;
+  varying float vTurn;
+  varying float vSpin;
+  varying float vAlpha;
+  void main() {
+    float age = uT - aBorn;
+    vColor = aColor;
+    vTurn = 0.0;
+    vSpin = 0.0;
+    if (age < 0.0 || age > aLife) {
+      vAlpha = 0.0;
+      gl_PointSize = 0.0;
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+    // Thrown, then taken by the air: slowing to a gentle fall (uFall), swaying side to side (aTumble.z its pace).
+    float k = 2.2;
+    vec3 fall = vec3(0.0, -uFall, 0.0);
+    vec3 p = position + fall * age + (aVel - fall) * (1.0 - exp(-k * age)) / k;
+    p.x += sin(age * aTumble.z + aTumble.y) * uFall * 0.35 * (1.0 - exp(-1.5 * age));
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = aSize * uScale / -mv.z;
+    // Turning over (aTumble.x radians a second) and round (slowly) as it falls.
+    vTurn = aTumble.y + aTumble.x * age;
+    vSpin = aTumble.y * 2.7 + age * aTumble.x * 0.35;
+    vAlpha = uA * smoothstep(0.0, 0.15, age) * (1.0 - smoothstep(aLife - 0.6, aLife, age));
+  }
+`;
+const confettiFragment = /* glsl */ `
+  varying vec3 vColor;
+  varying float vTurn;
+  varying float vSpin;
+  varying float vAlpha;
+  void main() {
+    if (vAlpha <= 0.0) discard;
+    // A flake of gold foil turning over as it falls: thin edge-on, full face-on, catching the light as it turns.
+    vec2 q = gl_PointCoord * 2.0 - 1.0;
+    float c = cos(vSpin);
+    float s = sin(vSpin);
+    q = vec2(c * q.x - s * q.y, s * q.x + c * q.y);
+    float face = abs(cos(vTurn));
+    if (abs(q.x) > 0.85 || abs(q.y) > 0.08 + 0.42 * face) discard;
+    float glint = 0.55 + 0.45 * pow(abs(sin(vTurn)), 3.0) + 0.25 * face;
+    gl_FragColor = vec4(vColor * glint * vAlpha, vAlpha);
+  }
+`;
+
+/** The flakes in the air at once at most. */
+export const CONFETTI = { flakes: 360 } as const;
+/** Gold, deep gold, champagne, bronze. */
+const CONFETTI_HUES = [
+  [0.98, 0.82, 0.45],
+  [0.93, 0.7, 0.32],
+  [1.0, 0.93, 0.78],
+  [0.78, 0.56, 0.24],
+] as const;
+
+/**
+ * Gold foil confetti, the winner's moment at an awards night (the owner, 2026-11-12: "think something innovative" for
+ * behind the name and the card, a fan of rays having been too much): thrown high from two cannons at the foot of the
+ * screen as the name bursts in, and falling gently from above as the card lands; each flake turning over as it falls,
+ * catching the light. In the room's own space, behind the words and the card, never over them.
+ */
+export class Confetti {
+  readonly points: THREE.Points;
+  private readonly g: THREE.BufferGeometry;
+  private readonly u: { uT: THREE.IUniform; uScale: THREE.IUniform; uFall: THREE.IUniform; uA: THREE.IUniform };
+  private readonly owned: { dispose(): void }[] = [];
+  private next = 0;
+  private dirty = false;
+
+  constructor() {
+    const n = CONFETTI.flakes;
+    this.u = { uT: { value: 0 }, uScale: { value: 500 }, uFall: { value: 0.6 }, uA: { value: 0 } };
+    this.g = new THREE.BufferGeometry();
+    const put = (name: string, size: number, fill = 0) => this.g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(n * size).fill(fill), size).setUsage(THREE.DynamicDrawUsage));
+    put("position", 3);
+    put("aVel", 3);
+    put("aBorn", 1, -1e4);
+    put("aLife", 1, 1);
+    put("aColor", 3);
+    put("aSize", 1);
+    put("aTumble", 3);
+    const material = new THREE.ShaderMaterial({ uniforms: this.u, vertexShader: confettiVertex, fragmentShader: confettiFragment, transparent: true, premultipliedAlpha: true, depthWrite: false, depthTest: false });
+    this.owned.push(this.g, material);
+    this.points = new THREE.Points(this.g, material);
+    this.points.frustumCulled = false;
+    // Over the fireworks and the glow (7), under the card's light (8), the card and the words.
+    this.points.renderOrder = 7.5;
+    this.points.visible = false;
+  }
+
+  private arr(name: string): Float32Array {
+    return (this.g.attributes[name] as THREE.BufferAttribute).array as Float32Array;
+  }
+
+  /** One flake, thrown from (x, y, z) at `at` (the screen's clock) at pace (vx, vy), `size` across, gone after `life`. */
+  private flake(at: number, x: number, y: number, z: number, vx: number, vy: number, size: number, life: number, rnd: () => number) {
+    const i = this.next;
+    this.next = (this.next + 1) % CONFETTI.flakes;
+    this.arr("position").set([x, y, z], i * 3);
+    this.arr("aVel").set([vx, vy, 0], i * 3);
+    this.arr("aBorn")[i] = at;
+    this.arr("aLife")[i] = life;
+    this.arr("aColor").set(CONFETTI_HUES[Math.floor(rnd() * CONFETTI_HUES.length) % CONFETTI_HUES.length], i * 3);
+    this.arr("aSize")[i] = size;
+    this.arr("aTumble").set([4 + rnd() * 6, rnd() * 6.283, 1.2 + rnd() * 1.6], i * 3);
+    this.dirty = true;
+  }
+
+  /**
+   * Two cannons at the foot of the screen, either side (W, H: the view's half width and height where they are, z how
+   * far), `n` flakes between them thrown high up its edges from `at` over a quarter of a second.
+   */
+  cannons(at: number, W: number, H: number, z: number, n: number, rnd: () => number = Math.random) {
+    for (let k = 0; k < n; k++) {
+      const side = k % 2 ? 1 : -1;
+      // Up the screen's edge, leaning in only a little: the band where the name is read stays clear.
+      this.flake(at + rnd() * 0.25, side * W * 0.95, -H * 1.05, z + (rnd() - 0.5) * 0.4, -side * H * (0.05 + 0.35 * rnd()), H * (3.8 + 1.4 * rnd()), H * (0.035 + 0.02 * rnd()), 4.5 + rnd() * 1.5, rnd);
+    }
+  }
+
+  /** A gentle fall of `n` flakes from just above the screen, across its width, set off over `over` seconds from `at`. */
+  rain(at: number, W: number, H: number, z: number, n: number, over: number, rnd: () => number = Math.random) {
+    for (let k = 0; k < n; k++) {
+      this.flake(at + rnd() * over, (rnd() * 2 - 1) * W, H * (1.08 + 0.2 * rnd()), z + (rnd() - 0.5) * 0.4, (rnd() - 0.5) * H * 0.2, -H * 0.1, H * (0.03 + 0.02 * rnd()), 5 + rnd() * 1.5, rnd);
+    }
+  }
+
+  /** The screen's clock now, how bright (0 to 1), and how fast a flake falls once the air has it (world units a second). */
+  set(time: number, alpha: number, fall: number) {
+    this.u.uT.value = time;
+    this.u.uA.value = alpha;
+    this.u.uFall.value = fall;
+    this.points.visible = alpha > 0.002;
+    if (this.dirty) {
+      for (const a of Object.values(this.g.attributes)) (a as THREE.BufferAttribute).needsUpdate = true;
+      this.dirty = false;
+    }
+  }
+
+  /** Its flakes' size (pixels a world unit at one unit from the room). */
+  scale(px: number) {
+    this.u.uScale.value = px;
+  }
+
+  /** None in the air. */
+  reset() {
+    this.arr("aBorn").fill(-1e4);
+    this.next = 0;
+    this.dirty = true;
+  }
+
+  dispose() {
+    for (const x of this.owned) x.dispose();
+  }
+}

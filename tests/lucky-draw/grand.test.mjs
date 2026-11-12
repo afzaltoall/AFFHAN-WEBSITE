@@ -152,3 +152,32 @@ test("the Trip ID comes out of the pack: from inside it, out of its torn top, th
   assert.equal(emergeAt(TG.land1).on, false, "landed: on its own way from there");
   assert.ok(TG.land1 - TG.plate1 - EMERGE.rise >= 0.4, "time to fly to its place, seen");
 });
+
+test("gold confetti: thrown up from the foot of the screen either side, falling from above; all of it within its room", async () => {
+  const { Confetti, CONFETTI } = await import("@/components/lucky-draw/wall/grand");
+  const cf = new Confetti();
+  let seed = 3;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  cf.cannons(20, 3.6, 2, -8, 180, rnd);
+  cf.rain(30, 3.6, 2, -8, 120, 2.5, rnd);
+  const a = cf.points.geometry.attributes;
+  const born = a.aBorn.array;
+  const pos = a.position.array;
+  const vel = a.aVel.array;
+  let left = 0;
+  for (let i = 0; i < 180; i++) {
+    assert.ok(born[i] >= 20 && born[i] <= 20.25, "thrown together");
+    assert.ok(pos[i * 3 + 1] < -2, "from the foot of the screen");
+    assert.ok(vel[i * 3 + 1] > 0 && Math.sign(vel[i * 3]) === -Math.sign(pos[i * 3]), "up, and in towards the middle");
+    if (pos[i * 3] < 0) left++;
+  }
+  assert.equal(left, 90, "as many from each side");
+  for (let i = 180; i < 300; i++) {
+    assert.ok(born[i] >= 30 && born[i] <= 32.5 && pos[i * 3 + 1] > 2, "falling from above the screen");
+  }
+  assert.ok(CONFETTI.flakes >= 300, "room for both at once");
+  for (let i = 300; i < CONFETTI.flakes; i++) assert.ok(born[i] < -1000, "nothing else in the air");
+  cf.reset();
+  assert.ok([...a.aBorn.array].every((b) => b < -1000), "reset: none in the air");
+  cf.dispose();
+});
