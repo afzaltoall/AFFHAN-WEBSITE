@@ -52,6 +52,8 @@ interface Run {
   land: number;
   walk: Walk | null;
   halted: boolean;
+  /** Pressed while the screen was still opening, its tickets already face down: they stay down until the run's own wave up. */
+  backs: boolean;
 }
 
 /**
@@ -89,6 +91,8 @@ export interface StageOptions {
   onRest?: (tripId: string | null) => void;
   /** Called once if this screen draws too slowly to keep the wall (the page then shows the list instead). */
   onSlow?: () => void;
+  /** Called once the wall has opened: the names in, drawn, and turned face up (Draw can be pressed from then on). */
+  onOpen?: () => void;
   /**
    * How the winner is revealed: the airport departures board (./board.ts; the owner, 2026-11-12: "airport
    * departure"), or the gift box it replaced (`?reveal=gift` on the TV page, to compare).
@@ -738,6 +742,16 @@ export class WallStage {
   private restSince = performance.now();
   private lastFrame = performance.now();
   private opened = false;
+  /**
+   * The screen opening (the owner, 2026-11-12: "empty very slow while opening"): every ticket face down, its gold back
+   * showing, never an empty ticket, until the names are in, every ticket in view has its face drawn and the practice
+   * pass is made; then they turn face up in a wave, as after a press. `up`: when that wave began (ms; Infinity while
+   * the backs hold), `k0` its first column; `done` once it is over.
+   */
+  private opening = { up: Infinity, k0: 0, done: false };
+  /** Tickets in view without their face yet (place counts them), and whether the practice pass has been made. */
+  private faceless = 0;
+  private warmed = false;
   private show: Show | null = null;
   private dim = { from: 0, to: 0, start: 0, T: 1 };
   private idle = 1;
@@ -1027,6 +1041,8 @@ export class WallStage {
     // A practice pass, drawn once while the screen opens and nothing moves: the canvas's own first-time work (126 ms,
     // measured) is then done before the first winner's pass is drawn.
     this.warmTimer = window.setTimeout(() => {
+      // Made behind the gold backs the screen opens on, so the longest frame it takes moves nothing anyone can see.
+      this.warmed = true;
       if (this.disposed || this.run || this.show || this.steps.length) return;
       const practice: DrawCardPublic = { id: "", number: 0, tripId: "TRIP-26-00000", name: "Affhan International", city: "Chennai", country: "India", drawnAt: new Date().toISOString(), poolSize: 0, round: 1, seat: 1, out: false };
       for (const step of this.makeSteps(practice).slice(0, 3)) step();
@@ -1155,8 +1171,14 @@ export class WallStage {
     this.litAt.clear();
     this.light = { on: false, cells: [{ r: 0, c: 0 }], times: [0], t: 0 };
     this.slotsDirty = true;
+    // A draw made while the screen was still opening (from the console): its tickets are face down already.
+    const backs = !this.opening.done;
+    if (backs) {
+      this.opening.done = true;
+      this.opts.onOpen?.();
+    }
     return new Promise((done) => {
-      this.run = { start: performance.now(), done, p0: this.p, up: Infinity, drawn: null, placed: false, roll: null, roll0: Infinity, end: this.p, target: null, light: Infinity, land: Infinity, walk: null, halted: false };
+      this.run = { start: performance.now(), done, p0: this.p, up: Infinity, drawn: null, placed: false, roll: null, roll0: Infinity, end: this.p, target: null, light: Infinity, land: Infinity, walk: null, halted: false, backs };
       this.watch(this.run);
     });
   }
@@ -1388,7 +1410,10 @@ export class WallStage {
     if (this.steps.length && (!r || this.still(r, t))) (this.steps.shift() as () => void)();
     if (r) this.drawStep(r, t, now);
     this.place(this.p);
-    if (this.atlas.pump(12, this.frameNo) > 0) this.slotsDirty = true;
+    // While the screen opens, every face in view at once (behind the backs, a long frame shows nothing); then a few a
+    // frame, as new names roll into view.
+    if (this.atlas.pump(this.opening.done ? 12 : 48, this.frameNo) > 0) this.slotsDirty = true;
+    if (!this.opening.done) this.openUp(now);
     const quiet = !this.run && !this.show ? 1 : 0;
     this.idle += (quiet - this.idle) * 0.04;
     const u = this.tileU;
@@ -1419,6 +1444,25 @@ export class WallStage {
     this.bgU.uTime.value = time;
     this.bokehU.uTime.value = time;
     this.renderer.render(this.scene, this.camera);
+  }
+
+  /**
+   * The screen opening: its tickets turn face up in a wave (as after a press) once the names are in, every ticket in
+   * view has its face, and the practice pass is made; Draw is then open (onOpen).
+   */
+  private openUp(now: number) {
+    const o = this.opening;
+    if (!Number.isFinite(o.up)) {
+      if (!this.opened || !this.warmed || this.faceless > 0 || this.run || this.show) return;
+      o.up = now;
+      o.k0 = Math.floor(this.p);
+      this.slotsDirty = true;
+      return;
+    }
+    if ((now - o.up) / 1000 < WAVE_T + FLIP_T) return;
+    o.done = true;
+    this.slotsDirty = true;
+    this.opts.onOpen?.();
   }
 
   /**
@@ -1511,7 +1555,11 @@ export class WallStage {
     const run = this.run;
     const t = run ? this.elapsed(run) : 0;
     const k0 = run ? Math.floor(run.p0) : 0;
+    // The screen opening: face down (π) while the backs hold, then its wave up (π to 2π); once open, face up.
+    const o = this.opening;
+    const openT = o.done ? null : Number.isFinite(o.up) ? Math.max(0, nowS - o.up / 1000) : -1;
     this.atlas.restart();
+    let faceless = 0;
     let idx = 0;
     for (let row = 0; row < this.rowsShown && idx < this.cap; row++) {
       const y = this.yTop - row * g.pitchY;
@@ -1530,11 +1578,19 @@ export class WallStage {
         }
         this.cellArr[idx] = cell;
         this.flagArr[idx] = flag;
+        if (cell < 0) faceless++;
         const lit = this.litAt.size ? this.litAt.get(`${row}:${c}`) : undefined;
         this.litArr[idx] = lit === undefined ? 0 : Math.max(0, 1 - (nowS - lit) / TRAIL);
-        this.flipArr[idx] = run ? flipAngle(t, DOWN_AT, run.up, flipDelay(row, c - k0, this.rowsShown, g.cols)) : 0;
+        let flip = 0;
+        if (run) {
+          flip = flipAngle(t, DOWN_AT, run.up, flipDelay(row, c - k0, this.rowsShown, g.cols));
+          if (run.backs) flip = Math.max(Math.PI, flip);
+        } else if (openT === -1) flip = Math.PI;
+        else if (openT !== null) flip = Math.PI + flipAngle(openT, 0, Infinity, flipDelay(row, c - o.k0, this.rowsShown, g.cols));
+        this.flipArr[idx] = flip;
       }
     }
+    this.faceless = faceless;
     this.tilesGeometry.instanceCount = idx;
     this.posAttr.needsUpdate = true;
     this.cellAttr.needsUpdate = true;

@@ -13,6 +13,7 @@ import {
   type DrawCardPublic,
   type DrawMode,
   type DrawPool,
+  type DrawPoolEntry,
 } from "@/lib/lucky-draw-shared";
 
 /**
@@ -51,16 +52,27 @@ const pool = (mode: DrawMode, drawn = true) => Prisma.sql`
     AND a."hasPassport" = true${drawn ? notDrawn(mode) : Prisma.empty}
   ORDER BY COALESCE(a."customerKey", a."id"), a."createdAt", a."id"`;
 
-interface PoolRow {
-  id: string;
-  referenceNo: string;
-  fullName: string;
-  city: string;
-  country: string;
-}
+/**
+ * The pool as one row of arrays, a column each, in the same order (one pass over the pool), never a row a person: the
+ * same people, but a value a column crosses a long link far faster than six thousand rows. Measured from Chennai to
+ * the database in the United States, as a localhost runs (2026-11-12, the owner: "romba slow"): 1.9 s as rows, 0.6 s
+ * as these arrays, and 0.25 s for the Trip IDs alone, all a draw needs (poolTripIds). Beside the database, as on
+ * Vercel, either is quick. Their order is put right here, in Trip ID order (compareTripIds), never left to the database.
+ */
+const poolArrays = (mode: DrawMode, drawn = true) => Prisma.sql`
+  SELECT array_agg(p."referenceNo") AS "tripIds", array_agg(p."fullName") AS "names", array_agg(p."city") AS "cities", array_agg(p."country") AS "countries"
+  FROM (${pool(mode, drawn)}) p`;
 
-/** Trip ID order, the order the draw is made in and the list is shown in (Trip IDs are unique; the id never decides). */
-const byTripId = (a: PoolRow, b: PoolRow) => compareTripIds(a.referenceNo, b.referenceNo) || compareTripIds(a.id, b.id);
+/** Everyone in the draw in `mode` now, as their Trip IDs alone, in one array: who they are is all a draw needs. */
+const poolTripIds = (mode: DrawMode) => Prisma.sql`SELECT array_agg(p."referenceNo") AS "tripIds" FROM (${pool(mode)}) p`;
+
+/** The pool's arrays (null for none: array_agg over nobody). */
+interface PoolArrays {
+  tripIds: string[] | null;
+  names: string[] | null;
+  cities: string[] | null;
+  countries: string[] | null;
+}
 
 /** The table is not there yet: its migration has not been applied to this database. */
 function isMissingTable(e: unknown): boolean {
@@ -179,17 +191,22 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
  * 2026-11-10: the names scroll past an arrow and the draw stops on one): Trip ID, name, city and country, nothing else.
  */
 export async function drawPool(mode: DrawMode): Promise<DrawPool> {
-  let rows: PoolRow[];
+  let cols: PoolArrays | undefined;
   let ready = true;
   try {
-    rows = await prisma.$queryRaw<PoolRow[]>(pool(mode));
+    [cols] = await prisma.$queryRaw<PoolArrays[]>(poolArrays(mode));
   } catch (e) {
     if (!isMissingTable(e)) throw e;
     ready = false;
-    rows = await prisma.$queryRaw<PoolRow[]>(pool(mode, false));
+    [cols] = await prisma.$queryRaw<PoolArrays[]>(poolArrays(mode, false));
   }
-  rows.sort(byTripId);
-  return { size: rows.length, ready, entries: rows.map((r) => [r.referenceNo, personName(r.fullName), personName(r.city), r.country]) };
+  const tripIds = cols?.tripIds ?? [];
+  const names = cols?.names ?? [];
+  const cities = cols?.cities ?? [];
+  const countries = cols?.countries ?? [];
+  const entries = tripIds.map((tripId, k): DrawPoolEntry => [tripId, personName(names[k] ?? ""), personName(cities[k] ?? ""), countries[k] ?? ""]);
+  entries.sort((a, b) => compareTripIds(a[0], b[0]));
+  return { size: entries.length, ready, entries };
 }
 
 export type DrawResult = { ok: true; id: string; again: boolean } | { ok: false; reason: "empty" | "not_ready" };
@@ -206,18 +223,22 @@ export async function drawOne(mode: DrawMode, requestId: string, by: string): Pr
         await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext('affhan-trip-lucky-draw'))`;
         const done = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "TripDraw" WHERE "requestId" = ${requestId} LIMIT 1`;
         if (done.length) return { ok: true, id: done[0].id, again: true };
-        const everyone = await tx.$queryRaw<PoolRow[]>(pool(mode));
+        // Everyone in the draw, by Trip ID (unique: one a person), in the list's own order.
+        const [{ tripIds }] = await tx.$queryRaw<{ tripIds: string[] | null }[]>(poolTripIds(mode));
+        const everyone = (tripIds ?? []).sort(compareTripIds);
         if (!everyone.length) return { ok: false, reason: "empty" };
-        everyone.sort(byTripId);
-        const poolHash = crypto.createHash("sha256").update(everyone.map((p) => p.referenceNo).join("\n")).digest("hex");
+        const poolHash = crypto.createHash("sha256").update(everyone.join("\n")).digest("hex");
         const chosen = everyone[crypto.randomInt(everyone.length)];
-        const [{ n }] = await tx.$queryRaw<{ n: number }[]>`SELECT (COALESCE(MAX("number"), 0) + 1)::int AS n FROM "TripDraw" WHERE "mode" = ${mode}`;
         const id = crypto.randomUUID();
-        // The time now, after the lock (never the transaction's start, now(), which a press that waited for the lock
-        // would date before the draw it waited for): draws are dated in the order they were made.
-        await tx.$executeRaw`
+        // The application with the Trip ID chosen, numbered after the mode's last draw, in one statement (a trip to the
+        // database fewer). Dated now, after the lock (never the transaction's start, now(), which a press that waited
+        // for the lock would date before the draw it waited for): draws are dated in the order they were made.
+        const made = await tx.$executeRaw`
           INSERT INTO "TripDraw" ("id", "mode", "number", "applicationId", "drawnAt", "drawnBy", "poolSize", "poolHash", "requestId")
-          VALUES (${id}, ${mode}, ${n}, ${chosen.id}, clock_timestamp() AT TIME ZONE 'UTC', ${by}, ${everyone.length}, ${poolHash}, ${requestId})`;
+          SELECT ${id}, ${mode}, (SELECT COALESCE(MAX(d."number"), 0) + 1 FROM "TripDraw" d WHERE d."mode" = ${mode}), a."id",
+                 clock_timestamp() AT TIME ZONE 'UTC', ${by}, ${everyone.length}, ${poolHash}, ${requestId}
+          FROM "TripApplication" a WHERE a."referenceNo" = ${chosen}`;
+        if (made !== 1) throw new Error(`the Trip ID drawn, ${chosen}, is not one application`);
         return { ok: true, id, again: false };
       },
       { maxWait: 10_000, timeout: 20_000 },

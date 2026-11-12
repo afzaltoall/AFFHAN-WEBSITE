@@ -119,9 +119,13 @@ test("the TV screen never holds a mobile number: the pass and the screen's own r
   const publicType = /export interface DrawCardPublic \{([\s\S]*?)\}/.exec(shared);
   assert.doesNotMatch(publicType[1], /phone/);
   // The list everyone scrolls past in: Trip ID, name, city and country, and nothing else.
-  const entries = /entries: rows\.map\(\(r\) => \[([^\]]*)\]\)/.exec(server);
-  assert.ok(entries, "the list is made row by row");
-  assert.deepEqual(entries[1].split(",").map((x) => x.trim()), ["r.referenceNo", "personName(r.fullName)", "personName(r.city)", "r.country"]);
+  const entries = /const entries = tripIds\.map\(\(tripId, k\): DrawPoolEntry => \[(.*)\]\);/.exec(server);
+  assert.ok(entries, "the list is made a person at a time, from the pool's arrays");
+  assert.deepEqual(entries[1].split(/, (?![^(]*\))/).map((x) => x.trim()), ["tripId", 'personName(names[k] ?? "")', 'personName(cities[k] ?? "")', 'countries[k] ?? ""']);
+  // The arrays are the pool's Trip IDs, names, cities and countries, and nothing else.
+  const arrays = /const poolArrays = \(mode: DrawMode, drawn = true\) => Prisma\.sql`\s*SELECT (.*)\s*FROM \(\$\{pool\(mode, drawn\)\}\) p`;/.exec(server);
+  assert.ok(arrays, "the list's arrays are the pool's own query");
+  assert.deepEqual([...arrays[1].matchAll(/array_agg\(p\."(\w+)"\)/g)].map((m) => m[1]), ["referenceNo", "fullName", "city", "country"]);
   assert.match(shared, /export type DrawPoolEntry = \[tripId: string, name: string, city: string, country: string\];/);
   // The screen asks for the public view itself, so even an admin's laptop shows no number on the TV.
   const screen = read("src/components/lucky-draw/DrawScreen.tsx");
@@ -144,9 +148,11 @@ test("who is in the draw: a valid passport, not spam or deleted, once per mobile
   assert.match(notDrawn[1], /NOT EXISTS \([\s\S]*d\."mode" = \$\{mode\}[\s\S]*b\."customerKey" = a\."customerKey"/);
   // Earlier draws are left out of it only where the draw's table is missing, so nobody can have been drawn: the
   // count and the list there, and nowhere else.
-  assert.equal(server.match(/pool\(mode, false\)/g).length, 2);
+  assert.equal(server.match(/\(mode, false\)/g).length, 2);
   assert.match(server, /SELECT count\(\*\)::int AS n FROM \(\$\{pool\(mode, false\)\}\) p/);
-  assert.match(server, /if \(!isMissingTable\(e\)\) throw e;\s*ready = false;\s*rows = await prisma\.\$queryRaw<PoolRow\[\]>\(pool\(mode, false\)\);/);
+  assert.match(server, /if \(!isMissingTable\(e\)\) throw e;\s*ready = false;\s*\[cols\] = await prisma\.\$queryRaw<PoolArrays\[\]>\(poolArrays\(mode, false\)\);/);
+  // The draw's own read of it never leaves anyone drawn in.
+  assert.match(server, /const poolTripIds = \(mode: DrawMode\) => Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) AS "tripIds" FROM \(\$\{pool\(mode\)\}\) p`;/);
 });
 
 test("a draw: one at a time under the draw's lock, once per press, chosen by the system's cryptographic random numbers", () => {
@@ -157,10 +163,12 @@ test("a draw: one at a time under the draw's lock, once per press, chosen by the
   const choose = draw.indexOf("crypto.randomInt(everyone.length)");
   assert.ok(lock > 0 && again > lock && choose > again, "the lock, then the same press answered, then a choice");
   assert.doesNotMatch(draw, /Math\.random/);
-  assert.match(draw, /const everyone = await tx\.\$queryRaw<PoolRow\[\]>\(pool\(mode\)\);/, "never anyone already drawn");
-  assert.match(draw, /everyone\.sort\(byTripId\);/, "in the list's own order");
-  assert.match(draw, /createHash\("sha256"\)\.update\(everyone\.map\(\(p\) => p\.referenceNo\)\.join\("\\n"\)\)/);
+  assert.match(draw, /const \[\{ tripIds \}\] = await tx\.\$queryRaw<\{ tripIds: string\[\] \| null \}\[\]>\(poolTripIds\(mode\)\);/, "never anyone already drawn");
+  assert.match(draw, /const everyone = \(tripIds \?\? \[\]\)\.sort\(compareTripIds\);/, "in the list's own order");
+  assert.match(draw, /createHash\("sha256"\)\.update\(everyone\.join\("\\n"\)\)/);
   assert.match(draw, /clock_timestamp\(\) AT TIME ZONE 'UTC'/, "dated after the lock, in the order drawn");
+  // The application drawn is the one with the Trip ID chosen (Trip IDs are unique), exactly one, or nothing is written.
+  assert.match(draw, /FROM "TripApplication" a WHERE a\."referenceNo" = \$\{chosen\}`;\s*if \(made !== 1\) throw /);
   assert.match(read(`${API}/draw/route.ts`), /const PRESS = \/\^\[0-9a-f\]\{8\}-/);
 });
 

@@ -148,7 +148,9 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
   const [drawing, setDrawing] = useState(false);
   const [heard, setHeard] = useState("");
   const [today, setToday] = useState("");
+  /** The wall has opened: its names in and face up. Draw waits for it (it shows its gold backs until then). */
   const [ready, setReady] = useState(false);
+  const wallUp = useRef(false);
   const [frameId, setFrameId] = useState<string | null>(null);
   /** The seat a pass has just come down into: it lights as it fills. */
   const [landed, setLanded] = useState<string | null>(null);
@@ -238,7 +240,9 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     if (!mode || poolBusy.current) return false;
     poolBusy.current = true;
     const stop = new AbortController();
-    const timer = window.setTimeout(() => stop.abort(), 30_000);
+    // Long enough for a slow link to finish (a localhost reads the database across the world): a read given up on
+    // only starts another beside the one still coming, and both come slower.
+    const timer = window.setTimeout(() => stop.abort(), 60_000);
     try {
       const res = await fetch(`${API}/pool/?mode=${mode}`, { cache: "no-store", signal: stop.signal });
       if (!res.ok) return false;
@@ -257,6 +261,21 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       poolBusy.current = false;
     }
   }, [mode, placeFirst, syncWall]);
+
+  /**
+   * Someone drawn leaves the list here, as they leave it on the server (the wall keeps them, gold, from the board),
+   * rather than the whole list being read again after every draw: about half a megabyte, seconds on a slow link, and
+   * a localhost's every read crosses the world. A list that changed otherwise (an application marked spam) no longer
+   * matches the board's count, and is read again then (absorb).
+   */
+  const dropFromPool = useCallback((tripId: string) => {
+    const pool = poolRef.current;
+    if (!pool) return;
+    const next = pool.filter((e) => e[0] !== tripId);
+    if (next.length === pool.length) return;
+    poolRef.current = next;
+    setListed(next.length);
+  }, []);
 
   const openPass = useCallback(async (): Promise<boolean> => {
     if (!mode) return false;
@@ -311,12 +330,12 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
         await sleep(CARD_MS);
       }
       if (!live.current) return;
-      void fetchPool();
+      dropFromPool(c.tripId);
       setStarted(null);
       startedNow.current = null;
       rest(board);
     },
-    [fetchPool, rest],
+    [dropFromPool, rest],
   );
 
   const startRunning = useCallback((words: string): Promise<boolean> | null => {
@@ -355,7 +374,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     [fetchPool, isStarted, reveal, startRunning, syncWall],
   );
 
-  // In: the pass, then the board (asked again until it answers), then everyone in the draw.
+  // In: the pass, then the board (asked again until it answers) and everyone in the draw, asked for together.
   useEffect(() => {
     if (!mode) {
       setAccess("none");
@@ -365,6 +384,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     void (async () => {
       for (let attempt = 0; !stopped; attempt++) {
         await openPass();
+        // The names asked for beside the board, never after it: the wall shows its gold backs until they are in.
+        const names = fetchPool();
         const board = await fetchBoard();
         if (stopped) return;
         if (board === "no_pass") {
@@ -378,9 +399,11 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           setShown(board);
           rest(board);
           setAccess("ok");
+          if (await names) return;
           for (let tries = 0; !stopped && !(await fetchPool()); tries++) await sleep(Math.min(10_000, 2000 * (tries + 1)));
           return;
         }
+        await names;
         await sleep(Math.min(10_000, 2000 * (attempt + 1)));
       }
     })();
@@ -425,6 +448,11 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
             if (live.current) setFrameId(id);
           },
           onSlow: keep ? undefined : () => failRef.current?.("slow"),
+          onOpen: () => {
+            if (stopped || !live.current) return;
+            wallUp.current = true;
+            setReady(true);
+          },
         });
       } catch {
         failRef.current?.("webgl");
@@ -435,7 +463,6 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
         return;
       }
       stageRef.current = stage;
-      setReady(true);
       placeFirst();
     })();
     return () => {
@@ -444,6 +471,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       stage?.dispose();
       stageRef.current = null;
       placedRef.current = false;
+      wallUp.current = false;
+      setReady(false);
     };
   }, [access, keep, placeFirst]);
 
@@ -544,7 +573,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
 
   const press = useCallback(async () => {
     const board = latest.current ?? shownNow.current;
-    if (busy.current || access !== "ok" || !board || !board.ready || (mode === "live" && board.applicationsOpen)) return;
+    if (busy.current || access !== "ok" || !wallUp.current || !board || !board.ready || (mode === "live" && board.applicationsOpen)) return;
     if (board.poolSize === 0) {
       setSay({ text: "Everyone in the draw has been drawn.", trouble: false });
       return;
@@ -729,7 +758,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
               className="lw-draw"
               data-next={(nextRound && !drawing) || undefined}
               onClick={() => void press()}
-              disabled={drawing || access !== "ok" || notReady || empty || early}
+              disabled={drawing || access !== "ok" || !ready || notReady || empty || early}
             >
               {drawing ? "Drawing…" : nextRound ? `Start round ${round + 1}` : "Draw"}
             </button>
