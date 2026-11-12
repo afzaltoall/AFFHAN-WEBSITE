@@ -481,6 +481,11 @@
 .lw[data-walk] .lw-foot {
   opacity: 0.06;
 }
+/* The pack waiting to be opened by hand: a hand cursor anywhere on the screen. */
+.lw[data-pack],
+.lw[data-pack] * {
+  cursor: pointer;
+}
 .lw-walk {
   position: absolute;
   inset: 0;

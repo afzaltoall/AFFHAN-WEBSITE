@@ -7,13 +7,14 @@ import assert from "node:assert/strict";
 import { IMPACTS, PAST_T, PLATES, PLATE_DRIFT, PLATE_FAR, PLATE_HOLD, TG, plateAt, ringAt, shakeAt } from "@/components/lucky-draw/wall/grand";
 
 test("the grand opening's moments: the pack, its tearing, the Trip ID, then the place, the burst, the card, its seat", () => {
-  const order = ["out", "swap", "pack", "charge", "tear", "plate1", "land1", "through1", "plate2", "land2", "through2", "build", "burst", "placed", "leave", "seat", "end"];
+  const order = ["out", "swap", "pack", "wait", "charge", "tear", "plate1", "land1", "through1", "plate2", "land2", "through2", "build", "burst", "placed", "leave", "seat", "end"];
   for (let k = 1; k < order.length; k++) assert.ok(TG[order[k]] > TG[order[k - 1]], `${order[k - 1]} before ${order[k]}`);
   assert.ok(PLATES[0].in === TG.plate1 && PLATES[1].in === TG.plate2, "first the Trip ID, next the place");
   for (const p of PLATES) assert.ok(p.through - p.land >= 1.3, "each detail held long enough to read from the back of the room");
   assert.ok(PLATES[0].through + PAST_T <= PLATES[1].in + 0.05, "one detail at a time");
   assert.ok(Math.abs(TG.leave - TG.placed - 3) < 1e-9, "the card holds the screen three seconds");
   assert.ok(TG.end <= 14);
+  assert.ok(TG.wait > TG.pack && TG.wait < TG.charge, "the pack waits to be opened by hand once it has landed, before it charges");
 });
 
 test("each detail zooms in out of the dark, lands at its place, drifts a little closer, and rushes past the room", () => {

@@ -713,6 +713,9 @@ interface Show {
   burst: boolean;
   /** The grand opening's embers, rising before its burst. */
   embers: boolean;
+  /** Where the reveal waits to be opened by hand (seconds from the stop; null: it never waits), and whether it has been. */
+  hold: number | null;
+  opened: boolean;
   seated: boolean;
 }
 
@@ -1637,20 +1640,44 @@ export class WallStage {
     if (this.made !== card.id) this.make(card);
     const { pos, turn } = this.cellPos(this.lightCell());
     return new Promise((resolve) => {
-      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, embers: false, seated: false };
-      show.timers.push(
-        window.setTimeout(() => {
-          if (this.show === show && !show.seated) {
-            show.seated = true;
-            o.onSeat();
-          }
-        }, this.T.seat * 1000),
-        window.setTimeout(() => {
-          if (this.show === show) this.endShow();
-        }, this.T.end * 1000),
-      );
+      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, embers: false, hold: this.style === "walk" ? TG.wait : null, opened: false, seated: false };
       this.show = show;
+      // A reveal that waits to be opened has its seat and its end timed from its opening (openPack).
+      if (show.hold === null) this.timeShow(show, 0);
     });
+  }
+
+  /** The reveal's seat and end, `from` seconds into it (the stop, or the moment it was opened). */
+  private timeShow(show: Show, from: number) {
+    show.timers.push(
+      window.setTimeout(() => {
+        if (this.show === show && !show.seated) {
+          show.seated = true;
+          show.onSeat();
+        }
+      }, (this.T.seat - from) * 1000),
+      window.setTimeout(() => {
+        if (this.show === show) this.endShow();
+      }, (this.T.end - from) * 1000),
+    );
+  }
+
+  /** Whether the grand opening's pack is waiting to be opened by hand. */
+  get packWaiting(): boolean {
+    const s = this.show;
+    return !!s && s.hold !== null && !s.opened && (performance.now() - s.start) / 1000 >= TG.pack;
+  }
+
+  /**
+   * The pack opened by hand (a click, a Draw key, the clicker): the reveal goes on from where it waited. False when no
+   * pack is waiting (not yet landed, already opened, or none in this reveal).
+   */
+  openPack(): boolean {
+    const s = this.show;
+    if (!this.packWaiting || !s || s.hold === null) return false;
+    s.opened = true;
+    this.timeShow(s, Math.min(s.hold, (performance.now() - s.start) / 1000));
+    return true;
   }
 
   dispose() {
@@ -1724,7 +1751,11 @@ export class WallStage {
     } else sel.z = 0;
     u.uPop.value = 1 + 0.07 * Math.exp(-since * 14);
     this.heroU.uTime.value = time;
-    if (this.show) this.pose((now - this.show.start) / 1000, time);
+    if (this.show) {
+      const s = this.show;
+      if (s.hold !== null && !s.opened && now - s.start > s.hold * 1000) s.start = now - s.hold * 1000;
+      this.pose((now - s.start) / 1000, time);
+    }
     else {
       u.uLock.value = 0;
       this.frameU.uAlpha.value = L.on ? 1 : 0;
@@ -2316,6 +2347,8 @@ export class WallStage {
     if (root) {
       if (t >= 0.08 && t < TG.leave) root.dataset.walk = "";
       else delete root.dataset.walk;
+      if (this.packWaiting) root.dataset.pack = "";
+      else delete root.dataset.pack;
     }
     // The jolts shake the room: the camera, about where it stands.
     const jolt = shakeAt(t);
@@ -2359,14 +2392,17 @@ export class WallStage {
       pk.root.position.copy(this.packAt);
       pk.root.position.z += 1.8 * (1 - easeOut(land));
       pk.root.position.x += Math.sin(t * 73) * 0.022 * quake;
-      pk.root.position.y += Math.cos(t * 61) * 0.02 * quake + Math.sin(t * 1.4) * 0.04;
+      pk.root.position.y += Math.cos(t * 61) * 0.02 * quake + Math.sin(time * 1.4) * 0.04;
       pk.root.scale.setScalar((0.8 + 0.2 * backOut(land)) * (1 + 0.16 * easeIn(charge)) * (1 + 0.4 * easeOut(after)));
       pk.root.rotation.set(
         0.05 * Math.sin(t * 0.9),
-        0.34 * Math.sin((t - TG.pack) * 0.8) * (1 - charge) + 1.1 * (1 - easeOut(land)) + Math.sin(t * 83) * 0.02 * quake,
+        0.34 * Math.sin(time * 0.8) * (1 - charge) + 1.1 * (1 - easeOut(land)) + Math.sin(t * 83) * 0.02 * quake,
         0.025 * Math.sin(t * 0.7),
       );
-      pk.set(time, 0.25 + 2.3 * quake, smooth(t, TG.tear, TG.tear + 0.15), clamp01((t - TG.tear) / 0.55), smooth(t, TG.tear + 0.25, TG.tear + 0.6));
+      // Waiting to be opened: its edges breathing light, calling for the hand.
+      const waiting = s.hold !== null && !s.opened && t >= TG.pack ? 1 : 0;
+      const breathe = waiting * (0.3 + 0.3 * (0.5 + 0.5 * Math.sin(time * 2.6)));
+      pk.set(time, 0.25 + 2.3 * quake + breathe, smooth(t, TG.tear, TG.tear + 0.15), clamp01((t - TG.tear) / 0.55), smooth(t, TG.tear + 0.25, TG.tear + 0.6));
     }
     // The flare rising behind the pack as it charges, and again before the burst.
     const flare =
@@ -2686,6 +2722,7 @@ export class WallStage {
     this.pillar.set(0, 0, 0);
     this.ring.set(0, 0);
     delete this.opts.lift.parentElement?.dataset.walk;
+    delete this.opts.lift.parentElement?.dataset.pack;
     this.tileU.uDark.value = 0;
     this.bgU.uDark.value = 0;
     this.bokehU.uDark.value = 0;

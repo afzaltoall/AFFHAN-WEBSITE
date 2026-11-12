@@ -24,6 +24,12 @@ export const TG = {
   out: 0.1,
   swap: 0.5,
   pack: 0.85,
+  /**
+   * The pack waits here, floating under the spotlights, until it is opened by hand (the owner, 2026-11-12: "we click
+   * the pack to open it"): a click on the screen, or a Draw key or the clicker. Its every moment after this counts from
+   * the opening.
+   */
+  wait: 1.5,
   /** It charges (trembling, light at its seams, the flare rising), and its top tears off. */
   charge: 1.8,
   tear: 2.9,

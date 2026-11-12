@@ -629,6 +629,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
       if (DRAW_KEYS.has(e.key)) {
         e.preventDefault();
+        // The grand opening's pack, waiting: the same key opens it.
+        if (stageRef.current?.openPack()) return;
         void press();
       } else if (e.key === "f" || e.key === "F") {
         e.preventDefault();
@@ -728,6 +730,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       data-phase={phase}
       data-frame={frameId ?? undefined}
       data-ready={ready || undefined}
+      onPointerDown={() => stageRef.current?.openPack()}
     >
       <canvas ref={canvasRef} className="lw-canvas" aria-hidden />
       <div className="lw-frame">
