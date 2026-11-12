@@ -887,6 +887,8 @@ export class WallStage {
   private raf = 0;
   private dog = 0;
   private warmTimer = 0;
+  /** The frame the rays turn in, unseen, as the screen opens (their first painting done before any draw). */
+  private raysWarm = 0;
   private readonly born = performance.now();
   private lastNow = 0;
   private gaps: number[] = [];
@@ -1253,6 +1255,23 @@ export class WallStage {
         this.board.set(practice);
         this.boardSize();
         this.board.draw(BOARD_PRINT_AT);
+      }
+      // And the rays behind the winner's card, turning where they turn, too faint to see, then put away: the browser's
+      // first painting of them turning held the TV a frame as the name landed (25 to 42 ms, measured 2026-11-12, on
+      // the first draw only; painted still, as the pass is, they still held it). Once it has, it paints them quickly.
+      if (this.style === "walk") {
+        const from = performance.now();
+        const turn = (now: number) => {
+          if (this.disposed || this.show) return;
+          if (now - from < 600) {
+            this.placeRays(LIFT_READY, TG.nameLand + (now - from) / 1000);
+            this.raysWarm = requestAnimationFrame(turn);
+            return;
+          }
+          this.walk.hidden = true;
+          this.rays.style.opacity = "0";
+        };
+        this.raysWarm = requestAnimationFrame(turn);
       }
     }, 1200);
     this.raf = requestAnimationFrame(this.loop);
@@ -1700,6 +1719,7 @@ export class WallStage {
     cancelAnimationFrame(this.raf);
     window.clearTimeout(this.dog);
     window.clearTimeout(this.warmTimer);
+    cancelAnimationFrame(this.raysWarm);
     this.resizeWatch.disconnect();
     if (this.show) for (const t of this.show.timers) window.clearTimeout(t);
     this.show = null;
@@ -2510,18 +2530,22 @@ export class WallStage {
     }
 
     // Rays turning behind the card while it holds.
-    const { hx, hy, w } = this.liftSize();
-    const rays = smooth(t, TG.nameLand - 0.15, TG.nameLand + 0.4) * (1 - smooth(t, TG.leave, TG.leave + 0.4));
-    this.walk.hidden = false;
-    this.rays.style.opacity = rays.toFixed(3);
-    const size = w * 2.1;
-    this.rays.style.width = `${size.toFixed(0)}px`;
-    this.rays.style.height = `${size.toFixed(0)}px`;
-    this.rays.style.transform = `translate3d(${(hx - size / 2).toFixed(1)}px, ${(hy - size / 2).toFixed(1)}px, 0) scale(${(0.85 + 0.15 * rays).toFixed(3)})`;
-    this.rays.style.setProperty("--spin", `${(t * 9).toFixed(2)}deg`);
+    this.placeRays(smooth(t, TG.nameLand - 0.15, TG.nameLand + 0.4) * (1 - smooth(t, TG.leave, TG.leave + 0.4)), t);
 
     this.liftRoot.hidden = false;
     this.liftPose(t, s);
+  }
+
+  /** The rays behind the card, at `alpha`, centred where it holds, turned as they are `t` seconds into the reveal. */
+  private placeRays(alpha: number, t: number) {
+    const { hx, hy, w } = this.liftSize();
+    this.walk.hidden = false;
+    this.rays.style.opacity = alpha.toFixed(3);
+    const size = w * 2.1;
+    this.rays.style.width = `${size.toFixed(0)}px`;
+    this.rays.style.height = `${size.toFixed(0)}px`;
+    this.rays.style.transform = `translate3d(${(hx - size / 2).toFixed(1)}px, ${(hy - size / 2).toFixed(1)}px, 0) scale(${(0.85 + 0.15 * alpha).toFixed(3)})`;
+    this.rays.style.setProperty("--spin", `${(t * 9).toFixed(2)}deg`);
   }
 
   /** Embers rising round the middle before the grand opening's burst. */
