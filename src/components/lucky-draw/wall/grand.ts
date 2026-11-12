@@ -88,7 +88,7 @@ export const PAST_T = 0.32;
  * The Trip ID out of the pack: seconds it takes to rise out of its torn top (the rest of its way in, it flies to its
  * place), how far it rises (world units), and its size meanwhile (of its own: the pack's width).
  */
-export const EMERGE = { rise: 0.45, lift: 1.55, scale: 0.26 } as const;
+export const EMERGE = { rise: 0.45, lift: 1.7, scale: 0.26 } as const;
 
 /** The Trip ID's way out of the pack at `t`: whether it is on it, how far it has risen out of the pack, and flown on (0 to 1). */
 export function emergeAt(t: number): { on: boolean; rise: number; fly: number } {
@@ -193,7 +193,7 @@ export function shellSpot(rnd: () => number): { x: number; y: number; side: bool
 // ---- the pieces ----
 
 /** The pack, world units: its size, and where its top tears off (a fraction of its height from its foot). */
-export const PACK = { w: 1.5, h: 2.15, cut: 0.875 };
+export const PACK = { w: 1.5, h: 2.15, cut: 0.915 };
 
 const packVertex = /* glsl */ `
   varying vec2 vUv;
@@ -219,6 +219,7 @@ const packFragment = /* glsl */ `
   uniform float uCut;
   uniform float uOpen;
   uniform float uFade;
+  uniform float uSeam;
   varying vec2 vUv;
   varying float vBulge;
   float tri(float x) { return abs(fract(x) - 0.5) * 2.0; }
@@ -244,11 +245,19 @@ const packFragment = /* glsl */ `
     float s = vUv.x * 0.8 - vUv.y * 0.6 - (mod(uTime * 0.35, 2.6) - 0.9);
     c += vec3(1.0, 0.9, 0.65) * exp(-s * s * 60.0) * 0.3 * vBulge;
     if (gl_FrontFacing) c = mix(c, vec3(0.15, 0.09, 0.02), texture2D(uMap, vUv).a * 0.9);
-    // Charged: light at its edges and seams.
+    // The tear line, as a sealed pack has it (the owner, 2026-11-12: "the opening line is wrong ... the pack's tear"): a
+    // fine perforation pressed into the foil just under its top seal, a notch at each side to tear it from; light leaks
+    // through it only as the pack charges (uSeam), never a bright line across it while it waits.
+    float ny = abs(vUv.y - uCut);
+    float notch = 0.022 * (1.0 - ny / 0.014);
+    if (ny < 0.014 && (vUv.x < notch || vUv.x > 1.0 - notch)) discard;
+    float pressed = (1.0 - smoothstep(0.0012, 0.0036, ny)) * step(0.42, fract(vUv.x * 70.0));
+    c *= 1.0 - 0.5 * pressed;
+    // Charged: light at its edges, and leaking through the tear line.
     float edge = 1.0 - smoothstep(0.0, 0.07, min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y)));
-    float seam = (1.0 - smoothstep(0.0, 0.012, abs(vUv.y - uCut))) * (uPart < 0.5 ? 1.0 : 0.0);
-    c += vec3(1.0, 0.88, 0.6) * (edge + seam) * uGlow;
+    c += vec3(1.0, 0.88, 0.6) * edge * uGlow;
     c += vec3(1.0, 0.92, 0.7) * uGlow * 0.07;
+    c += vec3(1.0, 0.9, 0.62) * (1.0 - smoothstep(0.0, 0.008, ny)) * uSeam * 1.6;
     // Torn open: light pouring out of the opening, close to it (lit wide and white, the pack read as a paper sachet).
     if (uPart < 0.5) c += vec3(1.0, 0.9, 0.66) * uOpen * smoothstep(uCut - 0.07, uCut, vUv.y) * 1.5;
     gl_FragColor = vec4(c * (1.0 - uFade), 1.0);
@@ -269,7 +278,7 @@ export class GoldPack {
     const yCut = (PACK.cut - 0.5) * PACK.h;
     for (const part of [0, 1]) {
       const mat = new THREE.ShaderMaterial({
-        uniforms: { uMap: { value: ink }, uTime: { value: 0 }, uGlow: { value: 0 }, uPart: { value: part }, uCut: { value: PACK.cut }, uOpen: { value: 0 }, uFade: { value: 0 } },
+        uniforms: { uMap: { value: ink }, uTime: { value: 0 }, uGlow: { value: 0 }, uPart: { value: part }, uCut: { value: PACK.cut }, uOpen: { value: 0 }, uFade: { value: 0 }, uSeam: { value: 0 } },
         vertexShader: packVertex,
         fragmentShader: packFragment,
         side: THREE.DoubleSide,
@@ -289,12 +298,13 @@ export class GoldPack {
   }
 
   /** One moment: the time (its foil's light), its charge, its opening's light, how far the strip has come away (0 to 1), its fading. */
-  set(time: number, glow: number, open: number, torn: number, fade: number) {
+  set(time: number, glow: number, open: number, torn: number, fade: number, seam = 0) {
     for (const m of this.mats) {
       m.uniforms.uTime.value = time;
       m.uniforms.uGlow.value = glow;
       m.uniforms.uOpen.value = open;
       m.uniforms.uFade.value = fade;
+      m.uniforms.uSeam.value = seam;
     }
     // The strip tears away at a corner first, then flies up and back, turning.
     this.strip.rotation.set(-1.4 * torn, 0.5 * torn, 0.35 * smooth(torn * 3));

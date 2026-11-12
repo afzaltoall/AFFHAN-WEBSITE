@@ -2381,11 +2381,13 @@ export class WallStage {
       );
       // Waiting to be opened: its edges breathing light, calling for the hand.
       const waiting = s.hold !== null && !s.opened && t >= TG.pack ? 1 : 0;
-      const breathe = waiting * (0.3 + 0.3 * (0.5 + 0.5 * Math.sin(time * 2.6)));
+      const breathe = waiting * (0.2 + 0.2 * (0.5 + 0.5 * Math.sin(time * 2.6)));
       // Charging, light gathers at its edges and seams, gold, never white (at full it washed the pack pale), and is let
       // go of as it tears.
       const glow = (0.2 + 1.1 * charge * charge) * (1 - smooth(t, TG.tear, TG.tear + 0.2)) + breathe;
-      pk.set(time, glow, smooth(t, TG.tear, TG.tear + 0.15), clamp01((t - TG.tear) / 0.55), smooth(drop, 0.25, 1));
+      // Light through the tear line as it charges, gone as it tears.
+      const seam = smooth(t, TG.charge, TG.tear) * (1 - smooth(t, TG.tear, TG.tear + 0.25));
+      pk.set(time, glow, smooth(t, TG.tear, TG.tear + 0.15), clamp01((t - TG.tear) / 0.55), smooth(drop, 0.25, 1), seam);
     }
     // The spotlights: on as the pack lands, sweeping; closing in on the middle before the burst; gone in it, before the
     // name lands (lingering, they hazed it).
