@@ -442,8 +442,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           fonts,
           lift,
           view,
-          // The golden envelope; ?reveal=board and ?reveal=gift show the departures board and the gift box, to compare.
-          reveal: ((v) => (v === "board" || v === "gift" ? v : "envelope"))(new URLSearchParams(window.location.search).get("reveal")),
+          // The award-show walkout; ?reveal=envelope, ?reveal=board and ?reveal=gift show the ones it replaced, to compare.
+          reveal: ((v) => (v === "envelope" || v === "board" || v === "gift" ? v : "walk"))(new URLSearchParams(window.location.search).get("reveal")),
           seats: DRAW_SEATS,
           onRest: (id) => {
             if (live.current) setFrameId(id);

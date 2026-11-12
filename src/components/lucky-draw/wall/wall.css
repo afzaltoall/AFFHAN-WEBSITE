@@ -466,3 +466,86 @@
     animation: none;
   }
 }
+
+/* The award-show walkout (./walk.ts): the page's words fade while it plays (the screen goes dark), its clues come
+   in the middle a letter at a time, rays turn behind the card, and a flash of gold as the light lands and as the
+   ticket bursts. */
+.lw-band,
+.lw-eyebrow,
+.lw-note,
+.lw-foot {
+  transition: opacity 0.6s ease;
+}
+.lw[data-walk] .lw-band,
+.lw[data-walk] .lw-eyebrow,
+.lw[data-walk] .lw-note,
+.lw[data-walk] .lw-foot {
+  opacity: 0.06;
+}
+.lw-walk {
+  position: absolute;
+  inset: 0;
+}
+.lw-walk[hidden] {
+  display: none;
+}
+.lw-clue {
+  position: absolute;
+  left: 0;
+  top: 0;
+  text-align: center;
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+.lw-clue-label {
+  margin: 0 0 calc(0.9 * var(--u));
+  padding-left: 0.42em;
+  font-family: var(--font-ld-sans), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: calc(1.15 * var(--u));
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  color: #e7c26c;
+}
+.lw-clue-word {
+  margin: 0;
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-variation-settings: "opsz" 11;
+  font-weight: 600;
+  font-size: calc(6.2 * var(--u));
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+  color: #fff2cf;
+}
+.lw-clue-word span {
+  display: inline-block;
+  will-change: transform, opacity;
+}
+.lw-clue-sub {
+  margin: calc(1.1 * var(--u)) 0 0;
+  font-family: var(--font-ld-sans), system-ui, sans-serif;
+  font-weight: 500;
+  font-size: calc(1.7 * var(--u));
+  letter-spacing: 0.04em;
+  color: #e9d6a8;
+}
+.lw-clue-sub:empty {
+  display: none;
+}
+.lw-walk-rays {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgb(255 216 140 / 0.2) 0deg 3deg, rgb(255 216 140 / 0) 3deg 12deg);
+  -webkit-mask: radial-gradient(closest-side, #000 0%, #000 30%, transparent 78%);
+  mask: radial-gradient(closest-side, #000 0%, #000 30%, transparent 78%);
+  will-change: transform, opacity;
+}
+.lw-walk-flash {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 46%, #fffaf0 0%, #ffe3a4 30%, rgb(255 200 110 / 0.62) 58%, rgb(60 40 10 / 0) 100%);
+  will-change: opacity;
+}
