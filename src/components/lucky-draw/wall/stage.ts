@@ -1704,7 +1704,16 @@ export class WallStage {
     if (this.show) for (const t of this.show.timers) window.clearTimeout(t);
     this.show = null;
     this.run = null;
+    // Everything this stage put in the page goes with it, as a stage made again (the screen's pass renewed) puts in
+    // its own: the pass, the departures board and its flash, the walkout's rays and its flash; and the walkout's marks
+    // on the page (its words faded, the hand's cursor), should it go in the middle of a reveal.
     this.liftRoot.remove();
+    this.board.el.remove();
+    this.boardFlash.remove();
+    this.walk.remove();
+    this.walkFlash.remove();
+    delete this.opts.lift.parentElement?.dataset.walk;
+    delete this.opts.lift.parentElement?.dataset.pack;
     for (const x of this.owned) x.dispose();
     this.renderer.dispose();
   }
