@@ -470,35 +470,23 @@ const raysFragment = /* glsl */ `
   uniform float uA;
   uniform float uSpin;
   varying vec2 vUv;
-  // One fan of rays: 1 on a ray (w radians wide, one every period), soft at its edges by a pixel's angle (px).
-  float fan(float a, float period, float w, float px) {
-    float d = abs(mod(a + 0.5 * period, period) - 0.5 * period);
-    return 1.0 - smoothstep(0.5 * w - px, 0.5 * w + px, d);
-  }
   void main() {
     vec2 p = vUv * 2.0 - 1.0;
     float r = length(p);
     if (r > 1.0) discard;
-    // Round from the top, as a clock's hands go.
-    float a = atan(p.x, p.y);
-    float px = length(fwidth(p)) / max(r, 0.002);
-    // Broad warm rays, one 2.5 degrees wide every 12, turning; fine pale ones, one 1.5 wide every 9, turning back.
-    // Strongest round the words, not behind them: the heart quiet.
-    float reach = smoothstep(0.06, 0.3, r) * (1.0 - smoothstep(0.55, 0.95, r));
-    float broad = fan(a - uSpin, 0.20944, 0.04363, px) * 0.3 * reach;
-    float fine = fan(a + 0.6 * uSpin - 0.10472, 0.15708, 0.02618, px) * 0.16 * reach;
-    // A ring of glow round the words.
-    float glow = 0.2 * exp(-pow((r - 0.34) / 0.2, 2.0));
-    vec3 heart = mix(vec3(1.0, 0.886, 0.627), vec3(1.0, 0.784, 0.431), smoothstep(0.0, 0.38, r));
-    vec3 col = vec3(1.0, 0.87, 0.59) * broad + vec3(1.0, 0.925, 0.745) * fine + heart * glow;
+    // A soft glow of gold behind the words, breathing a little as it turns, and nothing else: no stripes (the owner,
+    // 2026-11-12, of a fan of rays filling the screen: "I don't like this background ... something in it is too much").
+    float breath = 0.92 + 0.08 * sin(uSpin * 3.0);
+    float glow = (0.26 * exp(-pow(r / 0.4, 2.0)) + 0.07 * exp(-pow(r / 0.8, 2.0))) * breath;
+    vec3 col = mix(vec3(1.0, 0.86, 0.56), vec3(1.0, 0.7, 0.34), smoothstep(0.0, 0.8, r)) * glow;
     gl_FragColor = vec4(col * uA, 1.0);
   }
 `;
 
 /**
- * The rays turning behind the winner's name and their card: a fan of broad warm rays and a fan of fine pale ones
- * turning against it, and a glow at their heart. In the scene, drawn before the name and the card, so their letters
- * always lie over the rays (on the page, over the scene, the rays ran through the name: the owner's video, 2026-11-12).
+ * The light behind the winner's name and their card: a soft glow of gold, no stripes (a fan of rays filling the screen
+ * was "too much", 2026-11-12). In the scene, drawn before the name and the card, so their letters always lie over it
+ * (on the page, over the scene, rays had run through the name: the owner's video, 2026-11-12).
  */
 export class RayBurst {
   readonly mesh: THREE.Mesh;
