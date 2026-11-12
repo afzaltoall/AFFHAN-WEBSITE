@@ -825,7 +825,9 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
               const c = id ? byId.get(id) : null;
               return (
                 <li key={i} ref={seatRefs[i]} className="lw-seat" data-filled={c ? "" : undefined} data-landed={c && c.id === landed ? "" : undefined}>
-                  <p className="lw-seat-n">Seat {i + 1}</p>
+                  <p className="lw-seat-n">
+                    <span>Seat</span> <b>{i + 1}</b>
+                  </p>
                   {c ? (
                     <>
                       <SeatName name={c.name} />
