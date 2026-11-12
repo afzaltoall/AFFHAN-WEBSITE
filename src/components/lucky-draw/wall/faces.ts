@@ -884,3 +884,119 @@ export function drawWaxSeal(ctx: Ctx, fonts: Fonts) {
   ctx.fillRect(0, 0, S, S);
   ctx.restore();
 }
+
+// ---- the grand opening (./grand.ts) ----
+
+/** The Winner Pack's print, in pixels (its 1.5 by 2.15 shape). */
+export const PACK_PX = { w: 1024, h: 1468 };
+
+/** Spaced capitals in Jost, centred on x. */
+function caps(ctx: Ctx, text: string, x: number, y: number, px: number, track: number, weight: number, fonts: Fonts) {
+  ctx.save();
+  ctx.font = `${weight} ${px}px ${fonts.sans}`;
+  spacing(ctx, track);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(text, x + track / 2, y);
+  spacing(ctx, 0);
+  ctx.restore();
+}
+
+/** Bodoni centred on x, at `size`, tracked by `track` pixels a letter. */
+function bodoniCentred(ctx: Ctx, text: string, x: number, y: number, size: number, track: number, fonts: Fonts) {
+  const widths = [...text].map((ch) => bodoniWidth(ctx, ch, size, fonts));
+  let at = x - (widths.reduce((a, b) => a + b, 0) + track * (text.length - 1)) / 2;
+  [...text].forEach((ch, i) => {
+    bodoniText(ctx, ch, at, y, size, fonts);
+    at += widths[i] + track;
+  });
+}
+
+/**
+ * The pack's print, in ink on clear (the pack's foil is its shader's): AFFHAN, a medallion with the A, "Winner Pack",
+ * the lucky draw and the trip, inside an engraved border; lines where its crimped ends begin.
+ */
+export function drawPack(ctx: Ctx, fonts: Fonts) {
+  const { w, h } = PACK_PX;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = "#000";
+  ctx.strokeStyle = "#000";
+  // Where the crimped ends begin.
+  ctx.globalAlpha = 0.55;
+  ctx.fillRect(0, h * 0.078, w, 5);
+  ctx.fillRect(0, h * 0.922 - 5, w, 5);
+  // The engraved border, double.
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 6;
+  ctx.strokeRect(54, h * 0.1, w - 108, h * 0.8);
+  ctx.globalAlpha = 0.32;
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(72, h * 0.1 + 18, w - 144, h * 0.8 - 36);
+  ctx.globalAlpha = 0.85;
+  bodoniCentred(ctx, "AFFHAN", w / 2, 262, 70, 22, fonts);
+  // The medallion: two rings, the A.
+  const cx = w / 2;
+  const cy = 620;
+  ctx.globalAlpha = 0.7;
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 236, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 0.45;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(cx, cy, 208, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 0.9;
+  bodoniCentred(ctx, "A", cx, cy + 112, 330, 0, fonts);
+  bodoniCentred(ctx, "Winner Pack", w / 2, 1000, 98, 2, fonts);
+  ctx.globalAlpha = 0.6;
+  ctx.fillRect(w / 2 - 170, 1042, 340, 3);
+  ctx.globalAlpha = 0.85;
+  caps(ctx, "LUCKY DRAW · 2026", w / 2, 1116, 40, 14, 600, fonts);
+  ctx.globalAlpha = 0.7;
+  caps(ctx, "FREE CHINA BUSINESS TRIP", w / 2, 1196, 32, 9, 500, fonts);
+  ctx.globalAlpha = 1;
+}
+
+/** A detail cast in gold, in pixels (wide, as a title is). */
+export const PLATE_PX = { w: 2048, h: 680 };
+
+/**
+ * A detail's letters for its gold plate: its label in spaced capitals, its value in Bodoni (as large as fits), and
+ * under it a second line; drawn twice on black, crisp in red and blurred in green (the plate's shader takes its gold
+ * from the one, its bevel and its glow from the other).
+ */
+export function drawPlate(ctx: Ctx, label: string, value: string, sub: string, fonts: Fonts) {
+  const { w, h } = PLATE_PX;
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.filter = "none";
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, w, h);
+  let size = 300;
+  const track = 6;
+  const wide = (s: number) => [...value].reduce((a, ch) => a + bodoniWidth(ctx, ch, s, fonts), 0) + track * (value.length - 1);
+  while (size > 120 && wide(size) > w * 0.92) size -= 6;
+  const base = sub ? 440 : 470;
+  const draw = () => {
+    caps(ctx, label.toUpperCase(), w / 2, 118, 58, 24, 600, fonts);
+    bodoniCentred(ctx, value, w / 2, base, size, track, fonts);
+    if (sub) {
+      ctx.save();
+      ctx.font = `500 88px ${fonts.sans}`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillText(sub, w / 2, 600);
+      ctx.restore();
+    }
+  };
+  ctx.globalCompositeOperation = "lighter";
+  ctx.filter = "blur(14px)";
+  ctx.fillStyle = "#00ff00";
+  draw();
+  ctx.filter = "none";
+  ctx.fillStyle = "#ff0000";
+  draw();
+  ctx.restore();
+}

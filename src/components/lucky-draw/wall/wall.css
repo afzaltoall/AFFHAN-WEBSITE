@@ -467,9 +467,8 @@
   }
 }
 
-/* The award-show walkout (./walk.ts): the page's words fade while it plays (the screen goes dark), its clues come
-   in the middle a letter at a time, rays turn behind the card, and a flash of gold as the light lands and as the
-   ticket bursts. */
+/* The grand opening (./grand.ts): the page's words fade while it plays (the screen goes dark), rays turn behind
+   the card, and a flash of gold at each of its moments. */
 .lw-band,
 .lw-eyebrow,
 .lw-note,
@@ -487,49 +486,6 @@
   inset: 0;
 }
 .lw-walk[hidden] {
-  display: none;
-}
-.lw-clue {
-  position: absolute;
-  left: 0;
-  top: 0;
-  text-align: center;
-  white-space: nowrap;
-  will-change: transform, opacity;
-}
-.lw-clue-label {
-  margin: 0 0 calc(0.9 * var(--u));
-  padding-left: 0.42em;
-  font-family: var(--font-ld-sans), system-ui, sans-serif;
-  font-weight: 600;
-  font-size: calc(1.15 * var(--u));
-  letter-spacing: 0.42em;
-  text-transform: uppercase;
-  color: #e7c26c;
-}
-.lw-clue-word {
-  margin: 0;
-  font-family: var(--font-cx-display), Georgia, serif;
-  font-variation-settings: "opsz" 11;
-  font-weight: 600;
-  font-size: calc(6.2 * var(--u));
-  line-height: 1.05;
-  letter-spacing: 0.01em;
-  color: #fff2cf;
-}
-.lw-clue-word span {
-  display: inline-block;
-  will-change: transform, opacity;
-}
-.lw-clue-sub {
-  margin: calc(1.1 * var(--u)) 0 0;
-  font-family: var(--font-ld-sans), system-ui, sans-serif;
-  font-weight: 500;
-  font-size: calc(1.7 * var(--u));
-  letter-spacing: 0.04em;
-  color: #e9d6a8;
-}
-.lw-clue-sub:empty {
   display: none;
 }
 .lw-walk-rays {

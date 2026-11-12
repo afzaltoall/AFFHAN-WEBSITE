@@ -8,7 +8,9 @@ import {
   FACE_W,
   INSIDE,
   LINING_PX,
+  PACK_PX,
   PASS_H,
+  PLATE_PX,
   PASS_W,
   STUB_AT,
   TAG_H,
@@ -21,7 +23,9 @@ import {
   drawFace,
   drawInside,
   drawLining,
+  drawPack,
   drawPass,
+  drawPlate,
   drawTag,
   drawWaxSeal,
   drawWrap,
@@ -29,7 +33,7 @@ import {
 } from "./faces";
 import { BOARD_PRINT_AT, Board } from "./board";
 import { CARD_IN, CARD_Z, ENV, Envelope, TE } from "./envelope";
-import { CLUES, TW, letterAt, lineAt } from "./walk";
+import { FlarePillar, GoldPack, GoldPlate, LightBeams, PLATE_HOLD, ShockRing, TG, plateAt, ringAt, shakeAt } from "./grand";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
 import {
   ALL_DOWN,
@@ -143,8 +147,8 @@ export interface StageOptions {
   /** Called once the wall has opened: the names in, drawn, and turned face up (Draw can be pressed from then on). */
   onOpen?: () => void;
   /**
-   * How the winner is revealed: the award-show walkout (./walk.ts; the owner, 2026-11-12: "goes dark ... first the
-   * Trip ID, next the place, finally the winner's name ... like a FIFA card pack opening"), or the ones it replaced,
+   * How the winner is revealed: the grand opening, as a card pack's walkout (./grand.ts; the owner, 2026-11-12: "a
+   * grand opening, zooming in one by one ... FIFA style": the pack, the Trip ID, the place, the card), or the ones it replaced,
    * to compare on the TV page: the golden envelope (`?reveal=envelope`), the airport departures board
    * (`?reveal=board`), the gift box (`?reveal=gift`).
    */
@@ -707,6 +711,8 @@ interface Show {
   /** Where the pass goes down to: the seat on the page. */
   seatRect: DOMRect | null;
   burst: boolean;
+  /** The grand opening's embers, rising before its burst. */
+  embers: boolean;
   seated: boolean;
 }
 
@@ -725,8 +731,10 @@ const GIFT_TILT = 0.36;
  * The golden envelope, between the wall and the room: in the room's own view, below the middle of the view (the card
  * rises out of it into the view's upper half, clear of the words).
  */
-/** The walkout's stage: the view's middle, in the room's own view. */
-const WALK_DIST = 7.5;
+/** The grand opening's pack: the view's middle, in the room's own view, near enough to fill most of its height. */
+const PACK_DIST = 6.4;
+/** Where the card spins in from, deep in the dark. */
+const CARD_FAR = 34;
 const ENV_DIST = 6.6;
 const ENV_BELOW = 0.3;
 const ENV_SCALE = 0.74;
@@ -769,7 +777,9 @@ export class WallStage {
   /** The golden envelope (./envelope.ts), where it is shown, and its front, drawn for each winner (round and seat). */
   private readonly envelope: Envelope;
   private readonly envAt = new THREE.Vector3();
-  private readonly walkAt = new THREE.Vector3();
+  private readonly packAt = new THREE.Vector3();
+  /** The camera's distance from the wall as it is set (resize); the jolts shake it about there. */
+  private camDist = 10;
   private readonly envCanvas = document.createElement("canvas");
   private readonly envTex: THREE.CanvasTexture;
   private readonly atlas: FaceAtlas;
@@ -798,14 +808,18 @@ export class WallStage {
   /** The departures board (./board.ts) and the flash of gold as the ticket checks in, on the page under the pass. */
   private readonly board: Board;
   private readonly boardFlash = document.createElement("div");
-  /**
-   * The walkout's words and light on the page (./walk.ts): its clues (the Trip ID, then the place), each a label, a
-   * word of letters and a second line; the golden rays behind the card; and the flash over everything.
-   */
+  /** The grand opening on the page: the golden rays behind the card, and the flash over everything. */
   private readonly walk = document.createElement("div");
   private readonly rays = document.createElement("div");
-  private readonly clues: { root: HTMLDivElement; label: HTMLParagraphElement; word: HTMLParagraphElement; sub: HTMLParagraphElement; letters: HTMLSpanElement[] }[] = [];
   private readonly walkFlash = document.createElement("div");
+  /** The grand opening in the scene (./grand.ts): the pack, the details cast in gold, the spotlights, the flare, the shock ring. */
+  private readonly grandPack: GoldPack;
+  private readonly plates: GoldPlate[] = [];
+  private readonly plateCanvases = [document.createElement("canvas"), document.createElement("canvas")];
+  private readonly plateTex: THREE.CanvasTexture[] = [];
+  private readonly beams: LightBeams;
+  private readonly pillar: FlarePillar;
+  private readonly ring: ShockRing;
   private readonly style: "walk" | "envelope" | "board" | "gift";
   private liftW = 0;
   /** The person whose gift and pass are made (prepare, make), one still being made, and the steps left. */
@@ -1097,6 +1111,28 @@ export class WallStage {
     this.envelope.root.scale.setScalar(ENV_SCALE);
     this.scene.add(this.envelope.root);
     for (const t of [this.envTex, envFlap, envLining, envSeal]) this.renderer.initTexture(t);
+
+    // The grand opening: the pack's print drawn once; the details' letters drawn for each winner (makeSteps).
+    const packInk = paper(document.createElement("canvas"), PACK_PX.w, PACK_PX.h, (ctx) => drawPack(ctx, opts.fonts));
+    packInk.colorSpace = THREE.NoColorSpace;
+    this.grandPack = new GoldPack(packInk);
+    this.owned.push(this.grandPack);
+    this.scene.add(this.grandPack.root);
+    this.plateCanvases.forEach((canvas, k) => {
+      const tex = paper(canvas, PLATE_PX.w, PLATE_PX.h, (ctx) => drawPlate(ctx, k ? "From" : "Trip ID", k ? "Chennai" : "TRIP-26-00000", k ? "India" : "", opts.fonts));
+      tex.colorSpace = THREE.NoColorSpace;
+      this.plateTex.push(tex);
+      const plate = new GoldPlate(tex, 5.6, (5.6 * PLATE_PX.h) / PLATE_PX.w, PLATE_PX.w, PLATE_PX.h);
+      this.plates.push(plate);
+      this.owned.push(plate);
+      this.scene.add(plate.mesh);
+    });
+    this.beams = new LightBeams();
+    this.pillar = new FlarePillar();
+    this.ring = new ShockRing();
+    this.owned.push(this.beams, this.pillar, this.ring);
+    this.scene.add(this.beams.root, this.pillar.mesh, this.ring.mesh);
+    for (const t of [packInk, ...this.plateTex]) this.renderer.initTexture(t);
     this.flash = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: glow, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, toneMapped: false })));
     this.flash.visible = false;
     this.flash.renderOrder = 12;
@@ -1151,20 +1187,6 @@ export class WallStage {
     this.walk.hidden = true;
     this.rays.className = "lw-walk-rays";
     this.walk.appendChild(this.rays);
-    for (const name of ["Trip ID", "From"]) {
-      const root = document.createElement("div");
-      root.className = "lw-clue";
-      const label = document.createElement("p");
-      label.className = "lw-clue-label";
-      label.textContent = name;
-      const word = document.createElement("p");
-      word.className = "lw-clue-word";
-      const sub = document.createElement("p");
-      sub.className = "lw-clue-sub";
-      root.append(label, word, sub);
-      this.walk.appendChild(root);
-      this.clues.push({ root, label, word, sub, letters: [] });
-    }
     opts.lift.appendChild(this.walk);
     opts.lift.appendChild(this.liftRoot);
     this.walkFlash.className = "lw-walk-flash";
@@ -1201,7 +1223,10 @@ export class WallStage {
     this.gift.root.visible = true;
     this.envelope.root.visible = true;
     this.hero.visible = true;
+    const grand = [this.grandPack.root, ...this.plates.map((p) => p.mesh), this.beams.root, this.pillar.mesh, this.ring.mesh];
+    for (const o of grand) o.visible = true;
     void this.renderer.compileAsync(this.scene, this.camera).catch(() => {});
+    for (const o of grand) o.visible = false;
     this.gift.root.visible = false;
     this.envelope.root.visible = false;
     this.hero.visible = false;
@@ -1212,7 +1237,7 @@ export class WallStage {
       this.warmed = true;
       if (this.disposed || this.run || this.show || this.steps.length) return;
       const practice: DrawCardPublic = { id: "", number: 0, tripId: "TRIP-26-00000", name: "Affhan International", city: "Chennai", country: "India", drawnAt: new Date().toISOString(), poolSize: 0, round: 1, seat: 1, out: false };
-      for (const step of this.makeSteps(practice).slice(0, 4)) step();
+      for (const step of this.makeSteps(practice).slice(0, 6)) step();
       // The board too: its letters' tiles and a board drawn once, unseen.
       if (this.style === "board") {
         this.board.warm();
@@ -1527,29 +1552,21 @@ export class WallStage {
         this.renderer.initTexture(this.tagTex);
       },
       () => {
-        // The walkout's clues: the Trip ID, then the city (and the country, when it is another), letter by letter.
+        // The grand opening's first detail, cast in gold: their Trip ID.
         if (this.style !== "walk") return;
-        const words = [card.tripId, card.city || card.country];
-        const subs = ["", card.city && card.country && card.city.toLowerCase() !== card.country.toLowerCase() ? card.country : ""];
-        this.clues.forEach((clue, i) => {
-          clue.word.replaceChildren();
-          clue.letters = [...words[i]].map((ch) => {
-            const span = document.createElement("span");
-            span.textContent = ch === " " ? String.fromCharCode(160) : ch;
-            clue.word.appendChild(span);
-            return span;
-          });
-          clue.sub.textContent = subs[i];
-          clue.root.style.opacity = String(LIFT_READY);
-          clue.word.style.removeProperty("font-size");
-        });
-        this.walk.hidden = false;
-        // A long city on one line, fitted to the screen's width: never broken, never past its edges.
-        const room = this.canvas.getBoundingClientRect().width * 0.86;
-        for (const clue of this.clues) {
-          const wide = clue.word.scrollWidth;
-          if (wide > room) clue.word.style.fontSize = `${((parseFloat(getComputedStyle(clue.word).fontSize) * room) / wide).toFixed(1)}px`;
-        }
+        const ctx = this.plateCanvases[0].getContext("2d");
+        if (ctx) drawPlate(ctx, "Trip ID", card.tripId, "", this.opts.fonts);
+        this.plateTex[0].needsUpdate = true;
+        this.renderer.initTexture(this.plateTex[0]);
+      },
+      () => {
+        // The second: their city, and their country when it is another.
+        if (this.style !== "walk") return;
+        const ctx = this.plateCanvases[1].getContext("2d");
+        const other = card.city && card.country && card.city.trim().toLowerCase() !== card.country.trim().toLowerCase();
+        if (ctx) drawPlate(ctx, "From", card.city || card.country, other ? card.country : "", this.opts.fonts);
+        this.plateTex[1].needsUpdate = true;
+        this.renderer.initTexture(this.plateTex[1]);
       },
       () => {
         // The envelope's front: "The Winner", and their round and seat, as an award's envelope carries its category.
@@ -1620,7 +1637,7 @@ export class WallStage {
     if (this.made !== card.id) this.make(card);
     const { pos, turn } = this.cellPos(this.lightCell());
     return new Promise((resolve) => {
-      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, seated: false };
+      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, embers: false, seated: false };
       show.timers.push(
         window.setTimeout(() => {
           if (this.show === show && !show.seated) {
@@ -1988,6 +2005,7 @@ export class WallStage {
     const dist = g.curve * (1 - Math.cos(th)) + (g.curve * Math.sin(th)) / (tan * aspect);
     this.camera.aspect = aspect;
     this.camera.position.set(0, 0, dist);
+    this.camDist = dist;
     this.camera.lookAt(0, 0, 0);
     this.camera.updateProjectionMatrix();
     this.camera.updateMatrixWorld();
@@ -2015,8 +2033,8 @@ export class WallStage {
     this.camera.localToWorld(this.giftAt);
     this.envAt.set(0, this.viewMid * ENV_DIST * tan - ENV_BELOW, -ENV_DIST);
     this.camera.localToWorld(this.envAt);
-    this.walkAt.set(0, this.viewMid * WALK_DIST * tan, -WALK_DIST);
-    this.camera.localToWorld(this.walkAt);
+    this.packAt.set(0, this.viewMid * PACK_DIST * tan, -PACK_DIST);
+    this.camera.localToWorld(this.packAt);
     const px = this.renderer.getPixelRatio() * h;
     const scale = px / (2 * tan);
     this.bokehU.uScale.value = scale;
@@ -2041,7 +2059,7 @@ export class WallStage {
 
   /** This style's moments. */
   private get T(): Moments {
-    return this.style === "walk" ? TW : this.style === "envelope" ? TE : this.style === "board" ? TB : TL;
+    return this.style === "walk" ? TG : this.style === "envelope" ? TE : this.style === "board" ? TB : TL;
   }
 
   /** The board's width on the page: six tenths of the 16:9 plate the page is laid out on. */
@@ -2130,7 +2148,7 @@ export class WallStage {
       return;
     }
     if (this.style === "walk") {
-      this.poseWalk(t, s);
+      this.poseGrand(t, s, time);
       return;
     }
 
@@ -2280,86 +2298,156 @@ export class WallStage {
   }
 
   /**
-   * The award-show walkout, `t` seconds after the stop (./walk.ts TW): a flash of gold as the light lands, the ticket
-   * turned over under it as it leaves the wall and the screen goes dark; its slow rise to the middle, its gold back to
-   * the room; the Trip ID, then the city, each coming in a letter at a time over it as it drifts, dimmed; then it
-   * trembles, light leaking from its edges, and bursts; out of the light, the card in the middle, rays turning behind
-   * it, for its three seconds, then down into its seat (liftPose) as the screen lights again.
+   * The grand opening, `t` seconds after the stop (./grand.ts TG), as a card pack's walkout: the light lands, the
+   * screen goes dark, and the winner's ticket spins out of the wall towards the room; in a flash it is the Winner Pack,
+   * which lands in the middle with a jolt, spotlights sweeping; it charges (trembling, light at its seams, a flare
+   * rising behind it) and its top tears off, light bursting out; their Trip ID, cast in gold, zooms in out of the dark
+   * and lands with a shock, a glint running over it, and rushes past the room; their city the same way; the
+   * spotlights close in, embers rise, the light pulses; a burst, and their card spins in out of it and lands in the
+   * middle, rays turning behind it; the page's card takes over (liftPose) for its three seconds and its seat.
    */
-  private poseWalk(t: number, s: Show) {
+  private poseGrand(t: number, s: Show, time: number) {
     // The dark: the wall, its background and its lights all but gone, the page's words faded (.lw[data-walk]).
-    const dark = smooth(t, 0.08, 0.7) * (1 - smooth(t, TW.leave, TW.seat));
+    const dark = smooth(t, 0.06, 0.6) * (1 - smooth(t, TG.leave, TG.seat));
     this.tileU.uDark.value = dark;
     this.bgU.uDark.value = dark;
     this.bokehU.uDark.value = dark;
     const root = this.opts.lift.parentElement;
     if (root) {
-      if (t >= 0.1 && t < TW.leave) root.dataset.walk = "";
+      if (t >= 0.08 && t < TG.leave) root.dataset.walk = "";
       else delete root.dataset.walk;
     }
-    // The flashes: as the light lands, and as the ticket bursts; quick to come, slower to go.
+    // The jolts shake the room: the camera, about where it stands.
+    const jolt = shakeAt(t);
+    this.camera.position.set(jolt.x, jolt.y, this.camDist);
+    this.camera.updateMatrixWorld();
+    const tan = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+    // A point on the view's middle line, `d` from the room (where it stands, not shaken with it).
+    const along = (d: number, out: THREE.Vector3) => out.set(0, this.viewMid * d * tan, this.camDist - d);
+    // The flashes: as the light lands, as the ticket becomes the pack, as the pack tears, as it all bursts.
     const pulse = (at: number, rise: number, fall: number, peak: number) =>
       t < at ? 0 : t < at + rise ? (peak * (t - at)) / rise : peak * Math.exp(-(t - at - rise) / fall);
-    this.walkFlash.style.opacity = Math.max(pulse(-0.04, 0.08, 0.16, 0.9), pulse(TW.burst - 0.08, 0.1, 0.22, 1)).toFixed(3);
+    this.walkFlash.style.opacity = Math.max(
+      pulse(-0.03, 0.07, 0.14, 0.55),
+      pulse(TG.swap - 0.06, 0.06, 0.12, 0.85),
+      pulse(TG.tear - 0.02, 0.1, 0.2, 1),
+      pulse(TG.burst - 0.06, 0.08, 0.22, 1),
+    ).toFixed(3);
 
-    // The ticket.
-    const heroOn = t >= TW.out && t < TW.burst + 0.04;
+    // The ticket, spinning out of the wall towards the room; in the flash, the pack.
+    const heroOn = t >= TG.out && t < TG.swap;
     this.hero.visible = heroOn;
-    const clueOn = Math.max(...CLUES.map((k) => lineAt(t - k.in, k.out - t, 0)));
     if (heroOn) {
-      const over = easeInOut(clamp01((t - TW.out) / (TW.over - TW.out)));
-      const rise = easeInOut(clamp01((t - TW.rise) / (TW.risen - TW.rise)));
-      const build = clamp01((t - TW.build) / (TW.burst - TW.build));
-      this.hero.position.lerpVectors(s.from, this.walkAt, rise);
-      // Drifting as a camera glides over it while the clues come: one way under the first, the other under the second.
-      const glide = t < TW.clue2 - 0.1 ? smooth(t, TW.risen, TW.clue1Out) : 1 - smooth(t, TW.clue1Out, TW.clue2Out);
-      this.hero.position.x += (glide - 0.5) * 0.7 * rise * (1 - build);
-      this.hero.position.y += Math.sin(t * 1.3) * 0.05 * rise;
-      // Trembling as it is about to burst.
-      const shake = build * build;
-      this.hero.position.x += Math.sin(t * 71) * 0.025 * shake;
-      this.hero.position.y += Math.cos(t * 59) * 0.02 * shake;
-      this.hero.scale.setScalar(1 + 1.6 * rise + 0.9 * easeIn(build));
-      // Turned over under the flash, so no name is read; then a slow turn to and fro, its gold catching the light.
-      const sway = 0.2 * Math.sin((t - TW.risen) * 0.9) * rise * (1 - build);
-      this.hero.rotation.set(0.06 * Math.sin(t * 0.8) * rise, s.turn * (1 - over) + Math.PI * over + sway, 0.03 * Math.sin(t * 0.6) * rise + Math.sin(t * 83) * 0.03 * shake);
-      this.heroU.uGlow.value = 0.8 + 3.8 * build * build;
-      this.heroU.uShade.value = 0.5 * clueOn;
+      const k = (t - TG.out) / (TG.swap - TG.out);
+      const e = easeInOut(k);
+      this.hero.position.lerpVectors(s.from, this.packAt, e);
+      this.hero.scale.setScalar(1 + 1.3 * e);
+      this.hero.rotation.set(0, s.turn * (1 - e) + Math.PI * 3 * easeIn(k), 0);
+      this.heroU.uGlow.value = 1 + 2.5 * k;
+      this.heroU.uShade.value = 0;
     }
 
-    // The clues, over the ticket, in the middle of the view.
-    const r = this.canvas.getBoundingClientRect();
-    const c = this.boardCentre(r);
-    this.walk.hidden = false;
-    CLUES.forEach((k, i) => {
-      const clue = this.clues[i];
-      const on = t >= k.in - 0.05 && t <= k.out + 0.05;
-      clue.root.style.opacity = on ? "1" : String(LIFT_READY);
-      clue.root.style.transform = `translate3d(${c.x.toFixed(1)}px, ${c.y.toFixed(1)}px, 0) translate(-50%, -50%)`;
-      if (!on) return;
-      const tt = t - k.in;
-      const left = k.out - t;
-      clue.label.style.opacity = lineAt(tt, left, 0.1).toFixed(3);
-      clue.sub.style.opacity = lineAt(tt, left, 0.55 + clue.letters.length * 0.045).toFixed(3);
-      clue.letters.forEach((span, j) => {
-        const L = letterAt(j, tt, left);
-        span.style.opacity = L.a.toFixed(3);
-        span.style.transform = `translateY(${L.y.toFixed(3)}em) scale(${L.s.toFixed(3)})`;
-        span.style.textShadow = `0 0 ${(0.25 + 0.6 * L.glow).toFixed(2)}em rgb(255 214 140 / ${(0.3 + 0.7 * L.glow).toFixed(2)})`;
-      });
+    // The pack: lands with a jolt, floats, charges, tears; falls away into the light.
+    const pk = this.grandPack;
+    const packOn = t >= TG.swap && t < TG.tear + 0.6;
+    pk.root.visible = packOn;
+    if (packOn) {
+      const land = clamp01((t - TG.swap) / (TG.pack - TG.swap));
+      const charge = clamp01((t - TG.charge) / (TG.tear - TG.charge));
+      const after = clamp01((t - TG.tear) / 0.6);
+      const quake = charge * charge;
+      pk.root.position.copy(this.packAt);
+      pk.root.position.z += 1.8 * (1 - easeOut(land));
+      pk.root.position.x += Math.sin(t * 73) * 0.022 * quake;
+      pk.root.position.y += Math.cos(t * 61) * 0.02 * quake + Math.sin(t * 1.4) * 0.04;
+      pk.root.scale.setScalar((0.8 + 0.2 * backOut(land)) * (1 + 0.16 * easeIn(charge)) * (1 + 0.4 * easeOut(after)));
+      pk.root.rotation.set(
+        0.05 * Math.sin(t * 0.9),
+        0.34 * Math.sin((t - TG.pack) * 0.8) * (1 - charge) + 1.1 * (1 - easeOut(land)) + Math.sin(t * 83) * 0.02 * quake,
+        0.025 * Math.sin(t * 0.7),
+      );
+      pk.set(time, 0.25 + 2.3 * quake, smooth(t, TG.tear, TG.tear + 0.15), clamp01((t - TG.tear) / 0.55), smooth(t, TG.tear + 0.25, TG.tear + 0.6));
+    }
+    // The flare rising behind the pack as it charges, and again before the burst.
+    const flare =
+      smooth(t, TG.charge - 0.2, TG.charge + 0.4) * (1 - smooth(t, TG.tear + 0.1, TG.tear + 0.6)) +
+      smooth(t, TG.build + 0.3, TG.burst - 0.1) * (1 - smooth(t, TG.burst, TG.burst + 0.4));
+    this.pillar.mesh.position.copy(this.packAt).add(this.tmpV.set(0, -2.4, -2.6));
+    this.pillar.set(0.85 * flare, easeOut(clamp01(flare * 1.4)), time);
+    // The spotlights: on as the pack lands, sweeping; closing in on the middle before the burst; gone in it.
+    const beams = 0.62 * smooth(t, TG.pack - 0.3, TG.pack + 0.4) * (1 - smooth(t, TG.burst, TG.burst + 0.5));
+    this.beams.root.position.copy(this.packAt);
+    this.beams.set(beams, time, smooth(t, TG.build, TG.burst));
+
+    // The details, cast in gold: out of the dark, landed, rushing past the room.
+    this.plates.forEach((plate, k) => {
+      const P = plateAt(k as 0 | 1, t);
+      plate.mesh.visible = P.on;
+      if (!P.on) return;
+      along(P.dist, plate.mesh.position);
+      plate.mesh.quaternion.copy(this.camera.quaternion);
+      plate.mesh.rotateY(P.swing);
+      plate.mesh.rotateZ(P.swing * 0.12);
+      plate.u.uAlpha.value = P.alpha;
+      plate.u.uGlint.value = P.glint < 0 || P.glint > 1.3 ? -1 : P.glint;
+      plate.u.uHeat.value = P.heat;
     });
 
-    // The burst: sparks out of the light, gold dust round the card while it holds.
-    if (!s.burst && t >= TW.burst) {
-      s.burst = true;
-      this.burst(this.hero.position.clone(), this.holdAt(new THREE.Vector3()), TW.placed - TW.burst + 0.3, 0.85);
+    // The shock ring from the latest jolt, where it struck.
+    const R = ringAt(t);
+    this.ring.set(0.9 * R.alpha, R.spread);
+    if (R.on) {
+      if (R.at === TG.placed) this.holdAt(this.ring.mesh.position);
+      else if (R.at === TG.land1 || R.at === TG.land2) along(PLATE_HOLD, this.ring.mesh.position);
+      else this.ring.mesh.position.copy(this.packAt);
+      this.ring.mesh.quaternion.copy(this.camera.quaternion);
+      this.ring.mesh.scale.setScalar(1.5 + 9 * R.spread);
+    }
+
+    // Before the burst: embers rising, the light at the middle pulsing ever faster.
+    if (!s.embers && t >= TG.build) {
+      s.embers = true;
+      this.rise(this.holdAt(new THREE.Vector3()));
       this.sparks.visible = true;
     }
-    this.sparkU.uT.value = s.burst ? t - TW.burst : -10;
+    const b = t - TG.build;
+    const beat = b > 0 && t < TG.burst ? 0.5 + 0.5 * Math.sin(2 * Math.PI * (1.6 * b + 1.6 * b * b)) : 0;
+    this.flash.visible = beat > 0;
+    if (this.flash.visible) {
+      (this.flash.material as THREE.SpriteMaterial).opacity = (0.15 + 0.35 * beat) * smooth(t, TG.build, TG.build + 0.4);
+      this.holdAt(this.flash.position);
+      const f = 1.2 + 1.6 * clamp01(b / (TG.burst - TG.build)) + 0.3 * beat;
+      this.flash.scale.set(f, f, 1);
+    }
+
+    // The burst: sparks out of the light, and gold dust round the card while it holds.
+    if (!s.burst && t >= TG.burst) {
+      s.burst = true;
+      this.burst(this.holdAt(new THREE.Vector3()), this.holdAt(new THREE.Vector3()), TG.placed - TG.burst + 0.2);
+      this.sparks.visible = true;
+    }
+    this.sparkU.uT.value = s.burst ? t - TG.burst : s.embers ? t - TG.build : -10;
+
+    // The card: spins in out of the burst from deep in the dark, landing in the middle facing the room.
+    const cardOn = t >= TG.burst && t < TG.placed;
+    this.passGroup.visible = cardOn;
+    if (cardOn) {
+      const g = this.passGroup;
+      const k = 1 - (1 - (t - TG.burst) / (TG.placed - TG.burst)) ** 3;
+      along(CARD_FAR, this.tmpV);
+      g.position.lerpVectors(this.tmpV, this.holdAt(this.tmpV2), k);
+      g.quaternion.copy(this.camera.quaternion);
+      g.rotateY(4 * Math.PI * (1 - k));
+      g.scale.setScalar(1);
+      this.passU.uWarm.value = 1 - k;
+      this.passU.uSweep.value = -1;
+      (this.passHalo.material as THREE.SpriteMaterial).opacity = 0.6 * k;
+    }
 
     // Rays turning behind the card while it holds.
     const { hx, hy, w } = this.liftSize();
-    const rays = smooth(t, TW.burst - 0.05, TW.burst + 0.45) * (1 - smooth(t, TW.leave, TW.leave + 0.4));
+    const rays = smooth(t, TG.placed - 0.25, TG.placed + 0.35) * (1 - smooth(t, TG.leave, TG.leave + 0.4));
+    this.walk.hidden = false;
     this.rays.style.opacity = rays.toFixed(3);
     const size = w * 2.1;
     this.rays.style.width = `${size.toFixed(0)}px`;
@@ -2368,6 +2456,26 @@ export class WallStage {
 
     this.liftRoot.hidden = false;
     this.liftPose(t, s);
+  }
+
+  /** Embers rising round the middle before the grand opening's burst. */
+  private rise(at: THREE.Vector3) {
+    const g = this.sparks.geometry;
+    const pos = g.getAttribute("position") as THREE.BufferAttribute;
+    const vel = g.getAttribute("aVel") as THREE.BufferAttribute;
+    const born = g.getAttribute("aBorn") as THREE.BufferAttribute;
+    const life = g.getAttribute("aLife") as THREE.BufferAttribute;
+    const size = g.getAttribute("aSize") as THREE.BufferAttribute;
+    const color = g.getAttribute("aColor") as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setXYZ(i, at.x + (Math.random() - 0.5) * 7, at.y - 2.6 + Math.random() * 1.6, at.z - 0.6 - Math.random() * 1.2);
+      vel.setXYZ(i, (Math.random() - 0.5) * 0.3, 1.5 + Math.random() * 1.1, 0);
+      born.setX(i, Math.random() * 1.05);
+      life.setX(i, 1.0 + Math.random() * 0.9);
+      size.setX(i, 0.025 + Math.random() * 0.05);
+      color.setXYZ(i, 1.0, 0.72 + Math.random() * 0.2, 0.36 + Math.random() * 0.2);
+    }
+    for (const x of [pos, vel, born, life, size, color]) x.needsUpdate = true;
   }
 
   /**
@@ -2528,7 +2636,6 @@ export class WallStage {
     let cy = hy + Math.sin((t - T.placed) * 1.15) * r.height * 0.003;
     let sc = 1;
     let on = t >= T.placed ? 1 : LIFT_READY;
-    if (this.style === "walk" && t < T.leave) sc = 0.78 + 0.22 * backOut(clamp01((t - T.placed) / 0.55));
     if (this.style === "board" && t >= TB.print && t < TB.placed) {
       // Printed: out of the board's slot, rising and growing to where it holds the screen.
       const k = easeOut((t - TB.print) / (TB.placed - TB.print));
@@ -2571,6 +2678,13 @@ export class WallStage {
     this.liftRoot.hidden = true;
     this.walk.hidden = true;
     this.walkFlash.style.opacity = "0";
+    this.camera.position.set(0, 0, this.camDist);
+    this.camera.updateMatrixWorld();
+    this.grandPack.root.visible = false;
+    for (const p of this.plates) p.mesh.visible = false;
+    this.beams.set(0, 0, 0);
+    this.pillar.set(0, 0, 0);
+    this.ring.set(0, 0);
     delete this.opts.lift.parentElement?.dataset.walk;
     this.tileU.uDark.value = 0;
     this.bgU.uDark.value = 0;
