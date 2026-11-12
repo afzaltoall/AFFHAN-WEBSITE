@@ -418,6 +418,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           fonts,
           lift,
           view,
+          // The departures board; ?reveal=gift shows the gift box it replaced, to compare.
+          reveal: new URLSearchParams(window.location.search).get("reveal") === "gift" ? "gift" : "board",
           seats: DRAW_SEATS,
           onRest: (id) => {
             if (live.current) setFrameId(id);

@@ -344,6 +344,31 @@
   }
 }
 
+/* The departures board the winner's ticket checks in to (./board.ts draws it, ./stage.ts places it): over the wall,
+   under the pass; and the flash of gold as the ticket goes in. Only their transform and opacity change. */
+.lw-board {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 50%;
+  will-change: transform, opacity;
+  border-radius: calc(1 * var(--u));
+  box-shadow:
+    0 calc(2 * var(--u)) calc(5 * var(--u)) rgb(0 0 0 / 0.75),
+    0 0 calc(3 * var(--u)) rgb(231 194 108 / 0.14);
+}
+.lw-board[hidden] {
+  display: none;
+}
+.lw-board-flash {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+  background: linear-gradient(180deg, rgb(255 214 130 / 0), rgb(255 226 160 / 0.32) 42%, rgb(255 246 220 / 0.85) 50%, rgb(255 226 160 / 0.32) 58%, rgb(255 214 130 / 0));
+}
+
 /* The winner's pass once it faces the room (./stage.ts sets where): over everything, the seats too, so it is seen to
    go down into its seat. Only its transform and opacity change while it moves. */
 .lw-lifts {

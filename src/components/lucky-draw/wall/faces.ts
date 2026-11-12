@@ -256,14 +256,14 @@ function barcode(ctx: Ctx, text: string, x: number, y: number, w: number, h: num
   for (const b of bars) ctx.fillRect(x, y + b.at * k, w, b.w * k);
 }
 
-/** A small plane flying right, as the pass's route has one (lucide's plane, turned to the route). */
-function plane(ctx: Ctx, cx: number, cy: number, size: number) {
+/** A small plane flying right, as the pass's route has one (lucide's plane, turned to the route); the departures board's too. */
+export function plane(ctx: Ctx, cx: number, cy: number, size: number, color = INK) {
   ctx.save();
   ctx.translate(cx, cy);
   ctx.rotate(Math.PI / 4);
   ctx.scale(size / 24, size / 24);
   ctx.translate(-12, -12);
-  ctx.strokeStyle = INK;
+  ctx.strokeStyle = color;
   ctx.lineWidth = 1.8;
   ctx.lineJoin = "round";
   ctx.lineCap = "round";

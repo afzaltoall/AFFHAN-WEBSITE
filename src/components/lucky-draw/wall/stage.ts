@@ -3,6 +3,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
 import { placeOfTrip } from "./drum";
 import { FACE_H, FACE_W, INSIDE, PASS_H, PASS_W, STUB_AT, TAG_H, TAG_W, WRAP, drawBack, drawFace, drawInside, drawPass, drawTag, drawWrap, type Fonts } from "./faces";
+import { BOARD_PRINT_AT, Board } from "./board";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
 import {
   ALL_DOWN,
@@ -88,6 +89,11 @@ export interface StageOptions {
   onRest?: (tripId: string | null) => void;
   /** Called once if this screen draws too slowly to keep the wall (the page then shows the list instead). */
   onSlow?: () => void;
+  /**
+   * How the winner is revealed: the airport departures board (./board.ts; the owner, 2026-11-12: "airport
+   * departure"), or the gift box it replaced (`?reveal=gift` on the TV page, to compare).
+   */
+  reveal?: "board" | "gift";
 }
 
 /** A tile's state: as it is, a winner (gold), or out of the wall (the winner's, while it is a gift). */
@@ -118,6 +124,26 @@ const TL = {
   seat: 7.35,
   end: 7.55,
 } as const;
+
+/**
+ * The departures board's reveal, in seconds from the stop: the ticket flies out and checks in to the board as it
+ * comes up; the board's letters settle by BOARD_PRINT_AT (./board.ts); the pass prints out of its slot, holds the
+ * screen three seconds, and goes down into its seat.
+ */
+const TB = {
+  lock: 0.6,
+  out: 0.45,
+  dock: 1.2,
+  boardIn: 0.9,
+  print: BOARD_PRINT_AT,
+  placed: BOARD_PRINT_AT + 0.65,
+  leave: BOARD_PRINT_AT + 3.65,
+  seat: BOARD_PRINT_AT + 4.3,
+  end: BOARD_PRINT_AT + 4.5,
+} as const;
+
+/** The moments every reveal has. */
+type Moments = { lock: number; out: number; placed: number; leave: number; seat: number; end: number };
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const smooth = (t: number, a: number, b: number) => {
@@ -674,6 +700,10 @@ export class WallStage {
   private readonly liftCard = document.createElement("div");
   private readonly liftGlow = document.createElement("div");
   private readonly liftBand = document.createElement("div");
+  /** The departures board (./board.ts) and the flash of gold as the ticket checks in, on the page under the pass. */
+  private readonly board: Board;
+  private readonly boardFlash = document.createElement("div");
+  private readonly style: "board" | "gift";
   private liftW = 0;
   /** The person whose gift and pass are made (prepare, make), one still being made, and the steps left. */
   private made: string | null = null;
@@ -956,6 +986,12 @@ export class WallStage {
     foil.appendChild(this.liftBand);
     this.liftCard.append(this.passCanvas, foil);
     this.liftRoot.append(this.liftGlow, this.liftCard);
+    this.style = opts.reveal ?? "board";
+    this.board = new Board(opts.fonts);
+    this.board.el.hidden = true;
+    this.boardFlash.className = "lw-board-flash";
+    this.boardFlash.style.opacity = String(LIFT_READY);
+    opts.lift.append(this.board.el, this.boardFlash);
     opts.lift.appendChild(this.liftRoot);
 
     // Sparks from the open gift, and gold dust round the pass while it holds the screen.
@@ -994,6 +1030,13 @@ export class WallStage {
       if (this.disposed || this.run || this.show || this.steps.length) return;
       const practice: DrawCardPublic = { id: "", number: 0, tripId: "TRIP-26-00000", name: "Affhan International", city: "Chennai", country: "India", drawnAt: new Date().toISOString(), poolSize: 0, round: 1, seat: 1, out: false };
       for (const step of this.makeSteps(practice).slice(0, 3)) step();
+      // The board too: its letters' tiles and a board drawn once, unseen.
+      if (this.style === "board") {
+        this.board.warm();
+        this.board.set(practice);
+        this.boardSize();
+        this.board.draw(BOARD_PRINT_AT);
+      }
     }, 1200);
     this.raf = requestAnimationFrame(this.loop);
   }
@@ -1241,6 +1284,22 @@ export class WallStage {
         this.renderer.initTexture(this.passTex);
       },
       () => {
+        // The board with the winner's flight, laid out (its frame, labels and blank flaps drawn once)...
+        if (this.style === "board") {
+          this.board.set(card);
+          this.boardSize();
+        }
+      },
+      () => {
+        // ...then drawn blank and put on the page in its place, too faint to see, so the browser has it ready before it
+        // is shown (as the pass is). Two steps, a frame each: one alone held the gold backs still for 42 ms (measured).
+        if (this.style === "board") {
+          this.board.warm();
+          this.board.draw(0);
+          this.placeBoard(LIFT_READY, 1);
+        }
+      },
+      () => {
         // Kept on the page at an opacity no eye can see, so the browser has it ready: showing it for the first time at
         // the hand-over cost the TV a frame (measured, 2026-11-11).
         this.liftCard.style.opacity = String(LIFT_READY);
@@ -1279,10 +1338,10 @@ export class WallStage {
             show.seated = true;
             o.onSeat();
           }
-        }, TL.seat * 1000),
+        }, this.T.seat * 1000),
         window.setTimeout(() => {
           if (this.show === show) this.endShow();
-        }, TL.end * 1000),
+        }, this.T.end * 1000),
       );
       this.show = show;
     });
@@ -1591,8 +1650,34 @@ export class WallStage {
     return 2 * dist * Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * this.camera.aspect;
   }
 
+  /** This style's moments. */
+  private get T(): Moments {
+    return this.style === "board" ? TB : TL;
+  }
+
+  /** The board's width on the page: six tenths of the 16:9 plate the page is laid out on. */
+  private boardSize() {
+    const r = this.canvas.getBoundingClientRect();
+    this.board.size(Math.min(r.width, r.height * (16 / 9)) * 0.6, Math.min(2, window.devicePixelRatio || 1));
+  }
+
+  /** Where the board's middle is on the page (the view's middle). */
+  private boardCentre(r: DOMRect): { x: number; y: number } {
+    return { x: r.left + r.width / 2, y: r.top + ((1 - this.viewMid) / 2) * r.height };
+  }
+
+  /** A point on the page, `dist` from the room in the scene (where the ticket goes in, and the sparks come from). */
+  private pageToScene(px: number, py: number, dist: number, out: THREE.Vector3): THREE.Vector3 {
+    const r = this.canvas.getBoundingClientRect();
+    const tan = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+    const nx = ((px - r.left) / r.width) * 2 - 1;
+    const ny = 1 - ((py - r.top) / r.height) * 2;
+    out.set(nx * tan * this.camera.aspect * dist, ny * tan * dist, -dist);
+    return this.camera.localToWorld(out);
+  }
+
   /** Sparks: a fountain from the gift's open top as the lid goes, and gold dust round the pass while it holds. */
-  private burst(from: THREE.Vector3, hold: THREE.Vector3) {
+  private burst(from: THREE.Vector3, hold: THREE.Vector3, dustAt: number) {
     const g = this.sparks.geometry;
     const pos = g.getAttribute("position") as THREE.BufferAttribute;
     const vel = g.getAttribute("aVel") as THREE.BufferAttribute;
@@ -1623,7 +1708,7 @@ export class WallStage {
       } else {
         pos.setXYZ(i, hold.x + (Math.random() - 0.5) * PASS_WORLD_W * 1.4, hold.y + (Math.random() - 0.5) * PASS_WORLD_H * 1.4, hold.z - 0.1 - Math.random() * 0.3);
         vel.setXYZ(i, (Math.random() - 0.5) * 0.12, 0.08 + Math.random() * 0.18, 0);
-        born.setX(i, TL.placed - TL.pop - 0.2 + Math.random() * 2.2);
+        born.setX(i, dustAt - 0.2 + Math.random() * 2.2);
         life.setX(i, 1.4 + Math.random() * 1.2);
         size.setX(i, 0.012 + Math.random() * 0.022);
       }
@@ -1636,15 +1721,20 @@ export class WallStage {
     const s = this.show;
     if (!s) return;
     const u = this.tileU;
+    const T = this.T;
     // The stop: the frame flares, the tile in it lights, the rest of the wall dims.
-    u.uLock.value = smooth(t, 0, 0.18) * (1 - smooth(t, TL.out, TL.out + 0.2));
-    u.uDim.value = 0.78 * smooth(t, 0.1, 0.6) * (1 - smooth(t, TL.seat - 0.1, TL.end));
+    u.uLock.value = smooth(t, 0, 0.18) * (1 - smooth(t, T.out, T.out + 0.2));
+    u.uDim.value = 0.78 * smooth(t, 0.1, 0.6) * (1 - smooth(t, T.seat - 0.1, T.end));
     this.frameU.uGlow.value = 0.9 + 2.6 * bell(t, 0, 0.75);
-    // The light stays on the tile until it leaves the wall, then goes (the tile is a gift now).
-    this.frameU.uAlpha.value = 1 - smooth(t, TL.out, TL.out + 0.35);
-    if (t >= TL.out && !this.hidden) {
+    // The light stays on the ticket until it leaves the wall, then goes.
+    this.frameU.uAlpha.value = 1 - smooth(t, T.out, T.out + 0.35);
+    if (t >= T.out && !this.hidden) {
       this.hidden = this.lightCell();
       this.slotsDirty = true;
+    }
+    if (this.style === "board") {
+      this.poseBoard(t, s);
+      return;
     }
 
     // The tile comes out of the wall towards the room, turning; half way round, it is a gift.
@@ -1704,7 +1794,7 @@ export class WallStage {
       s.burst = true;
       this.gift.root.updateMatrixWorld();
       const rim = this.gift.root.localToWorld(new THREE.Vector3(0, RIM_Y, 0));
-      this.burst(rim, this.holdAt(new THREE.Vector3()));
+      this.burst(rim, this.holdAt(new THREE.Vector3()), TL.placed - TL.pop);
       this.sparks.visible = true;
     }
     this.sparkU.uT.value = s.burst ? t - TL.pop : -10;
@@ -1744,6 +1834,71 @@ export class WallStage {
     this.liftPose(t, s);
   }
 
+  /**
+   * The departures board's reveal, `t` seconds after the stop: the winner's golden ticket flies out to the middle and
+   * checks in to the board, with a flash of gold, as the board comes up; the board's letters clatter and settle; the
+   * pass prints out of its slot (liftPose) as the board dims, holds the screen three seconds, and goes to its seat.
+   */
+  private poseBoard(t: number, s: Show) {
+    const r = this.canvas.getBoundingClientRect();
+    const c = this.boardCentre(r);
+    const into = this.pageToScene(c.x, c.y, 6, this.tmpV2);
+    const heroOn = t >= TB.out && t < TB.dock;
+    this.hero.visible = heroOn;
+    if (heroOn) {
+      const k = (t - TB.out) / (TB.dock - TB.out);
+      const e = easeInOut(k);
+      this.hero.position.lerpVectors(s.from, into, e);
+      this.hero.position.y += Math.sin(Math.PI * k) * 0.35;
+      this.hero.scale.setScalar((1 + 0.45 * e) * (1 - smooth(k, 0.72, 1)));
+      this.hero.rotation.set(0, s.turn * (1 - e), 0);
+      this.heroU.uGlow.value = k * 1.5;
+    }
+    this.flash.visible = false;
+    // The board, on the page: up as the ticket arrives, gone as the pass prints out of it.
+    this.boardSize();
+    const w = parseFloat(this.board.el.style.width) || 0;
+    const h = this.board.heightCss;
+    const up = easeOut(clamp01((t - TB.boardIn) / 0.4));
+    this.placeBoard(Math.max(LIFT_READY, up * (1 - smooth(t, TB.print, TB.print + 0.35))), 0.94 + 0.06 * up);
+    this.board.draw(t);
+    // The check-in: a line of gold light sweeping down the board, as a boarding gate's scanner reads the ticket.
+    const sweep = smooth(t, TB.dock - 0.1, TB.dock + 0.5);
+    const bw = w * 0.96;
+    const bh = h * 0.16;
+    this.boardFlash.style.width = `${bw}px`;
+    this.boardFlash.style.height = `${bh}px`;
+    this.boardFlash.style.transform = `translate3d(${(c.x - bw / 2).toFixed(1)}px, ${(c.y - h / 2 + (h - bh) * sweep).toFixed(1)}px, 0)`;
+    this.boardFlash.style.opacity = String(bell(t, TB.dock - 0.1, TB.dock + 0.5).toFixed(3));
+    // Gold dust round the pass while it holds, and a little fountain from the slot as it prints.
+    if (!s.burst && t >= TB.print) {
+      s.burst = true;
+      const slot = this.boardSlot(r);
+      this.burst(this.pageToScene(slot.x, slot.y, 6, new THREE.Vector3()), this.holdAt(new THREE.Vector3()), TB.placed - TB.print);
+      this.sparks.visible = true;
+    }
+    this.sparkU.uT.value = s.burst ? t - TB.print : -10;
+    this.liftRoot.hidden = false;
+    this.liftPose(t, s);
+  }
+
+  /** The board in its place on the page (the view's middle), at this opacity and size. */
+  private placeBoard(opacity: number, scale: number) {
+    const el = this.board.el;
+    const c = this.boardCentre(this.canvas.getBoundingClientRect());
+    const w = parseFloat(el.style.width) || 0;
+    const h = this.board.heightCss;
+    el.hidden = false;
+    el.style.opacity = String(opacity);
+    el.style.transform = `translate3d(${(c.x - w / 2).toFixed(1)}px, ${(c.y - h / 2).toFixed(1)}px, 0) scale(${scale.toFixed(4)})`;
+  }
+
+  /** The board's slot on the page, the pass's way out. */
+  private boardSlot(r: DOMRect): { x: number; y: number } {
+    const c = this.boardCentre(r);
+    return { x: c.x, y: c.y - this.board.heightCss / 2 + this.board.slotY };
+  }
+
   /** The page's pass sized to the scene's where it holds the screen, and that place's centre, in page pixels. */
   private liftSize(): { r: DOMRect; hx: number; hy: number; w: number; h: number } {
     const r = this.canvas.getBoundingClientRect();
@@ -1768,24 +1923,34 @@ export class WallStage {
    * shrinking to the seat's width, and gone as the seat lights. Only transforms change (nothing is laid out again).
    */
   private liftPose(t: number, s: Show) {
+    const T = this.T;
     const { r, hx, hy, w, h } = this.liftSize();
     let cx = hx;
-    let cy = hy + Math.sin((t - TL.placed) * 1.15) * r.height * 0.003;
+    let cy = hy + Math.sin((t - T.placed) * 1.15) * r.height * 0.003;
     let sc = 1;
-    if (t >= TL.leave) {
+    let on = t >= T.placed ? 1 : LIFT_READY;
+    if (this.style === "board" && t >= TB.print && t < TB.placed) {
+      // Printed: out of the board's slot, rising and growing to where it holds the screen.
+      const k = easeOut((t - TB.print) / (TB.placed - TB.print));
+      const slot = this.boardSlot(r);
+      cx = slot.x + (hx - slot.x) * k;
+      cy = slot.y + (hy - slot.y) * k;
+      sc = 0.3 + 0.7 * k;
+      on = Math.max(LIFT_READY, smooth(t, TB.print, TB.print + 0.22));
+    }
+    if (t >= T.leave) {
       if (!s.seatRect) s.seatRect = s.seat() ?? new DOMRect(r.left + r.width * 0.42, r.top + r.height * 0.8, r.width * 0.16, r.height * 0.15);
-      const k = easeInOut((t - TL.leave) / (TL.seat - TL.leave));
+      const k = easeInOut((t - T.leave) / (T.seat - T.leave));
       const sr = s.seatRect;
       cx = hx + (sr.left + sr.width / 2 - hx) * k;
       cy = hy + (sr.top + sr.height / 2 - hy) * k;
       sc = 1 + (sr.width / w - 1) * k;
     }
-    const on = t >= TL.placed ? 1 : LIFT_READY;
     this.liftCard.style.transform = `translate3d(${(cx - (w * sc) / 2).toFixed(1)}px, ${(cy - (h * sc) / 2).toFixed(1)}px, 0) scale(${sc.toFixed(4)})`;
-    this.liftCard.style.opacity = String(on * (1 - smooth(t, TL.seat - 0.06, TL.end - 0.02)));
+    this.liftCard.style.opacity = String(on * (1 - smooth(t, T.seat - 0.06, T.end - 0.02)));
     this.liftGlow.style.transform = `translate3d(${(cx - (w * 1.7 * sc) / 2).toFixed(1)}px, ${(cy - (h * 2.1 * sc) / 2).toFixed(1)}px, 0) scale(${sc.toFixed(4)})`;
-    this.liftGlow.style.opacity = String(on * 0.9 * (1 - smooth(t, TL.leave, TL.leave + 0.35)));
-    const k = clamp01((t - TL.placed - 0.3) / 1.15);
+    this.liftGlow.style.opacity = String(on * 0.9 * (1 - smooth(t, T.leave, T.leave + 0.35)));
+    const k = clamp01((t - T.placed - 0.3) / 1.15);
     this.liftBand.style.transform = `translate3d(${(-130 + 260 * easeInOut(k)).toFixed(1)}%, 0, 0) skewX(-16deg)`;
   }
 
@@ -1803,6 +1968,8 @@ export class WallStage {
     this.gift.root.visible = false;
     this.passGroup.visible = false;
     this.liftRoot.hidden = true;
+    this.board.el.hidden = true;
+    this.boardFlash.style.opacity = "0";
     this.liftW = 0;
     this.made = null;
     this.flash.visible = false;
