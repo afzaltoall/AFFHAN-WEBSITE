@@ -974,14 +974,34 @@ export function drawPlate(ctx: Ctx, label: string, value: string, sub: string, f
   ctx.filter = "none";
   ctx.fillStyle = "#000";
   ctx.fillRect(0, 0, w, h);
-  let size = 300;
   const track = 6;
-  const wide = (s: number) => [...value].reduce((a, ch) => a + bodoniWidth(ctx, ch, s, fonts), 0) + track * (value.length - 1);
-  while (size > 120 && wide(size) > w * 0.92) size -= 6;
-  const base = sub ? 440 : 470;
+  const room = w * 0.92;
+  const wide = (text: string, s: number) => [...text].reduce((a, ch) => a + bodoniWidth(ctx, ch, s, fonts), 0) + track * (text.length - 1);
+  // One line, as large as fits; a long value (a long name) on two lines, broken at the space that evens them most,
+  // never inside a word, rather than set small.
+  let lines = [value];
+  let size = 300;
+  while (size > 170 && wide(value, size) > room) size -= 6;
+  if (wide(value, size) > room && value.includes(" ")) {
+    const words = value.split(" ");
+    let best = [value, ""];
+    let worst = Infinity;
+    for (let i = 1; i < words.length; i++) {
+      const two = [words.slice(0, i).join(" "), words.slice(i).join(" ")];
+      const m = Math.max(...two.map((l) => l.length));
+      if (m < worst) {
+        worst = m;
+        best = two;
+      }
+    }
+    lines = best;
+    size = 230;
+    while (size > 90 && Math.max(...lines.map((l) => wide(l, size))) > room) size -= 6;
+  } else while (size > 90 && wide(value, size) > room) size -= 6;
+  const base = lines.length > 1 ? 330 : sub ? 440 : 470;
   const draw = () => {
     caps(ctx, label.toUpperCase(), w / 2, 118, 58, 24, 600, fonts);
-    bodoniCentred(ctx, value, w / 2, base, size, track, fonts);
+    lines.forEach((line, i) => bodoniCentred(ctx, line, w / 2, base + i * size * 1.08, size, track, fonts));
     if (sub) {
       ctx.save();
       ctx.font = `500 88px ${fonts.sans}`;

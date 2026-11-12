@@ -41,19 +41,29 @@ export const TG = {
   plate2: 5.45,
   land2: 6.05,
   through2: 7.45,
-  /** The spotlights close in, embers rise, the light pulses; the burst, and the card spins in. */
+  /** The spotlights close in, embers rise, the light pulses; the burst. */
   build: 7.7,
   burst: 8.8,
-  placed: 9.6,
-  leave: 12.6,
-  seat: 13.25,
-  end: 13.45,
+  /**
+   * Their name, the last detail and the climax (the owner: "finally the winner's name"; of the card alone, "this
+   * opening is weak"): out of the burst, landed with the strongest jolt, held, rushing past the room.
+   */
+  name: 8.85,
+  nameLand: 9.2,
+  nameOut: 11.1,
+  /** Then their card spins in and lands in the middle with a jolt of its own, alive while it holds, three seconds. */
+  cardIn: 11.15,
+  placed: 11.9,
+  leave: 14.9,
+  seat: 15.55,
+  end: 15.75,
 } as const;
 
-/** The two details, in the order they come (the owner: "first the Trip ID, next the place"). */
+/** The details, in the order they come (the owner: "first the Trip ID, next the place, finally the winner's name"). */
 export const PLATES = [
   { in: TG.plate1, land: TG.land1, through: TG.through1, side: 1 },
   { in: TG.plate2, land: TG.land2, through: TG.through2, side: -1 },
+  { in: TG.name, land: TG.nameLand, through: TG.nameOut, side: 0 },
 ] as const;
 
 /** How far from the room a plate is (world units): deep in the dark, where it lands, where it drifts to, rushing past. */
@@ -74,7 +84,7 @@ const smooth = (x: number) => {
  * A plate `t` seconds from the landing: whether it shows, how far from the room it is, its swing (radians), how much
  * of it shows, where its glint is (0 to 1 across it; outside: none), and its heat (the glow as it lands).
  */
-export function plateAt(k: 0 | 1, t: number): { on: boolean; dist: number; swing: number; alpha: number; glint: number; heat: number } {
+export function plateAt(k: 0 | 1 | 2, t: number): { on: boolean; dist: number; swing: number; alpha: number; glint: number; heat: number } {
   const p = PLATES[k];
   const off = { on: false, dist: PLATE_FAR, swing: 0, alpha: 0, glint: -1, heat: 0 };
   if (t < p.in || t > p.through + PAST_T) return off;
@@ -100,7 +110,8 @@ export const IMPACTS: readonly { at: number; strength: number }[] = [
   { at: TG.tear, strength: 0.55 },
   { at: TG.land1, strength: 0.8 },
   { at: TG.land2, strength: 0.8 },
-  { at: TG.placed, strength: 0.7 },
+  { at: TG.nameLand, strength: 1.25 },
+  { at: TG.placed, strength: 0.8 },
 ];
 
 /** The room shaken by the jolts at `t` (world units at the middle of the view): sharp, dying in about half a second. */

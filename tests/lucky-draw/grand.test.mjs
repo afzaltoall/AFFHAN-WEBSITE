@@ -7,18 +7,19 @@ import assert from "node:assert/strict";
 import { IMPACTS, PAST_T, PLATES, PLATE_DRIFT, PLATE_FAR, PLATE_HOLD, TG, plateAt, ringAt, shakeAt } from "@/components/lucky-draw/wall/grand";
 
 test("the grand opening's moments: the pack, its tearing, the Trip ID, then the place, the burst, the card, its seat", () => {
-  const order = ["out", "swap", "pack", "wait", "charge", "tear", "plate1", "land1", "through1", "plate2", "land2", "through2", "build", "burst", "placed", "leave", "seat", "end"];
+  const order = ["out", "swap", "pack", "wait", "charge", "tear", "plate1", "land1", "through1", "plate2", "land2", "through2", "build", "burst", "name", "nameLand", "nameOut", "cardIn", "placed", "leave", "seat", "end"];
   for (let k = 1; k < order.length; k++) assert.ok(TG[order[k]] > TG[order[k - 1]], `${order[k - 1]} before ${order[k]}`);
-  assert.ok(PLATES[0].in === TG.plate1 && PLATES[1].in === TG.plate2, "first the Trip ID, next the place");
+  assert.ok(PLATES[0].in === TG.plate1 && PLATES[1].in === TG.plate2 && PLATES[2].in === TG.name, "first the Trip ID, next the place, finally the name");
   for (const p of PLATES) assert.ok(p.through - p.land >= 1.3, "each detail held long enough to read from the back of the room");
-  assert.ok(PLATES[0].through + PAST_T <= PLATES[1].in + 0.05, "one detail at a time");
+  for (const k of [1, 2]) assert.ok(PLATES[k - 1].through + PAST_T <= PLATES[k].in + 0.05, "one detail at a time");
+  assert.ok(TG.cardIn >= TG.nameOut, "the card after the name");
   assert.ok(Math.abs(TG.leave - TG.placed - 3) < 1e-9, "the card holds the screen three seconds");
-  assert.ok(TG.end <= 14);
+  assert.ok(TG.end <= 16);
   assert.ok(TG.wait > TG.pack && TG.wait < TG.charge, "the pack waits to be opened by hand once it has landed, before it charges");
 });
 
 test("each detail zooms in out of the dark, lands at its place, drifts a little closer, and rushes past the room", () => {
-  for (const k of [0, 1]) {
+  for (const k of [0, 1, 2]) {
     const p = PLATES[k];
     assert.equal(plateAt(k, p.in - 0.01).on, false, "not before it comes");
     let last = Infinity;

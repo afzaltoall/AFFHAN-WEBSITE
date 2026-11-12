@@ -711,8 +711,9 @@ interface Show {
   /** Where the pass goes down to: the seat on the page. */
   seatRect: DOMRect | null;
   burst: boolean;
-  /** The grand opening's embers, rising before its burst. */
+  /** The grand opening's embers, rising before its burst, and the card's own burst as it lands. */
   embers: boolean;
+  cardBurst: boolean;
   /** Where the reveal waits to be opened by hand (seconds from the stop; null: it never waits), and whether it has been. */
   hold: number | null;
   opened: boolean;
@@ -818,7 +819,7 @@ export class WallStage {
   /** The grand opening in the scene (./grand.ts): the pack, the details cast in gold, the spotlights, the flare, the shock ring. */
   private readonly grandPack: GoldPack;
   private readonly plates: GoldPlate[] = [];
-  private readonly plateCanvases = [document.createElement("canvas"), document.createElement("canvas")];
+  private readonly plateCanvases = [document.createElement("canvas"), document.createElement("canvas"), document.createElement("canvas")];
   private readonly plateTex: THREE.CanvasTexture[] = [];
   private readonly beams: LightBeams;
   private readonly pillar: FlarePillar;
@@ -1122,10 +1123,12 @@ export class WallStage {
     this.owned.push(this.grandPack);
     this.scene.add(this.grandPack.root);
     this.plateCanvases.forEach((canvas, k) => {
-      const tex = paper(canvas, PLATE_PX.w, PLATE_PX.h, (ctx) => drawPlate(ctx, k ? "From" : "Trip ID", k ? "Chennai" : "TRIP-26-00000", k ? "India" : "", opts.fonts));
+      const sample = [["Trip ID", "TRIP-26-00000", ""], ["From", "Chennai", "India"], ["Winner", "AFFHAN INTERNATIONAL", ""]][k];
+      const tex = paper(canvas, PLATE_PX.w, PLATE_PX.h, (ctx) => drawPlate(ctx, sample[0], sample[1], sample[2], opts.fonts));
       tex.colorSpace = THREE.NoColorSpace;
       this.plateTex.push(tex);
-      const plate = new GoldPlate(tex, 5.6, (5.6 * PLATE_PX.h) / PLATE_PX.w, PLATE_PX.w, PLATE_PX.h);
+      const wide = k === 2 ? 6.6 : 5.6;
+      const plate = new GoldPlate(tex, wide, (wide * PLATE_PX.h) / PLATE_PX.w, PLATE_PX.w, PLATE_PX.h);
       this.plates.push(plate);
       this.owned.push(plate);
       this.scene.add(plate.mesh);
@@ -1240,7 +1243,7 @@ export class WallStage {
       this.warmed = true;
       if (this.disposed || this.run || this.show || this.steps.length) return;
       const practice: DrawCardPublic = { id: "", number: 0, tripId: "TRIP-26-00000", name: "Affhan International", city: "Chennai", country: "India", drawnAt: new Date().toISOString(), poolSize: 0, round: 1, seat: 1, out: false };
-      for (const step of this.makeSteps(practice).slice(0, 6)) step();
+      for (const step of this.makeSteps(practice).slice(0, 7)) step();
       // The board too: its letters' tiles and a board drawn once, unseen.
       if (this.style === "board") {
         this.board.warm();
@@ -1572,6 +1575,14 @@ export class WallStage {
         this.renderer.initTexture(this.plateTex[1]);
       },
       () => {
+        // The last: their name, the climax (on two lines when it is long).
+        if (this.style !== "walk") return;
+        const ctx = this.plateCanvases[2].getContext("2d");
+        if (ctx) drawPlate(ctx, "Winner", card.name.toUpperCase(), "", this.opts.fonts);
+        this.plateTex[2].needsUpdate = true;
+        this.renderer.initTexture(this.plateTex[2]);
+      },
+      () => {
         // The envelope's front: "The Winner", and their round and seat, as an award's envelope carries its category.
         if (this.style !== "envelope") return;
         const ectx = this.envCanvas.getContext("2d");
@@ -1640,7 +1651,7 @@ export class WallStage {
     if (this.made !== card.id) this.make(card);
     const { pos, turn } = this.cellPos(this.lightCell());
     return new Promise((resolve) => {
-      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, embers: false, hold: this.style === "walk" ? TG.wait : null, opened: false, seated: false };
+      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, embers: false, cardBurst: false, hold: this.style === "walk" ? TG.wait : null, opened: false, seated: false };
       this.show = show;
       // A reveal that waits to be opened has its seat and its end timed from its opening (openPack).
       if (show.hold === null) this.timeShow(show, 0);
@@ -2365,6 +2376,7 @@ export class WallStage {
       pulse(TG.swap - 0.06, 0.06, 0.12, 0.85),
       pulse(TG.tear - 0.02, 0.1, 0.2, 1),
       pulse(TG.burst - 0.06, 0.08, 0.22, 1),
+      pulse(TG.placed - 0.04, 0.06, 0.18, 0.6),
     ).toFixed(3);
 
     // The ticket, spinning out of the wall towards the room; in the flash, the pack.
@@ -2417,7 +2429,7 @@ export class WallStage {
 
     // The details, cast in gold: out of the dark, landed, rushing past the room.
     this.plates.forEach((plate, k) => {
-      const P = plateAt(k as 0 | 1, t);
+      const P = plateAt(k as 0 | 1 | 2, t);
       plate.mesh.visible = P.on;
       if (!P.on) return;
       along(P.dist, plate.mesh.position);
@@ -2434,7 +2446,7 @@ export class WallStage {
     this.ring.set(0.9 * R.alpha, R.spread);
     if (R.on) {
       if (R.at === TG.placed) this.holdAt(this.ring.mesh.position);
-      else if (R.at === TG.land1 || R.at === TG.land2) along(PLATE_HOLD, this.ring.mesh.position);
+      else if (R.at === TG.land1 || R.at === TG.land2 || R.at === TG.nameLand) along(PLATE_HOLD, this.ring.mesh.position);
       else this.ring.mesh.position.copy(this.packAt);
       this.ring.mesh.quaternion.copy(this.camera.quaternion);
       this.ring.mesh.scale.setScalar(1.5 + 9 * R.spread);
@@ -2459,17 +2471,22 @@ export class WallStage {
     // The burst: sparks out of the light, and gold dust round the card while it holds.
     if (!s.burst && t >= TG.burst) {
       s.burst = true;
-      this.burst(this.holdAt(new THREE.Vector3()), this.holdAt(new THREE.Vector3()), TG.placed - TG.burst + 0.2);
+      this.burst(along(PLATE_HOLD, new THREE.Vector3()), this.holdAt(new THREE.Vector3()), 9, 1.1);
       this.sparks.visible = true;
     }
-    this.sparkU.uT.value = s.burst ? t - TG.burst : s.embers ? t - TG.build : -10;
+    if (!s.cardBurst && t >= TG.placed) {
+      s.cardBurst = true;
+      this.burst(this.holdAt(new THREE.Vector3()), this.holdAt(new THREE.Vector3()), 0.25, 0.8);
+      this.sparks.visible = true;
+    }
+    this.sparkU.uT.value = s.cardBurst ? t - TG.placed : s.burst ? t - TG.burst : s.embers ? t - TG.build : -10;
 
     // The card: spins in out of the burst from deep in the dark, landing in the middle facing the room.
-    const cardOn = t >= TG.burst && t < TG.placed;
+    const cardOn = t >= TG.cardIn && t < TG.placed;
     this.passGroup.visible = cardOn;
     if (cardOn) {
       const g = this.passGroup;
-      const k = 1 - (1 - (t - TG.burst) / (TG.placed - TG.burst)) ** 3;
+      const k = 1 - (1 - (t - TG.cardIn) / (TG.placed - TG.cardIn)) ** 3;
       along(CARD_FAR, this.tmpV);
       g.position.lerpVectors(this.tmpV, this.holdAt(this.tmpV2), k);
       g.quaternion.copy(this.camera.quaternion);
@@ -2482,13 +2499,14 @@ export class WallStage {
 
     // Rays turning behind the card while it holds.
     const { hx, hy, w } = this.liftSize();
-    const rays = smooth(t, TG.placed - 0.25, TG.placed + 0.35) * (1 - smooth(t, TG.leave, TG.leave + 0.4));
+    const rays = smooth(t, TG.nameLand - 0.15, TG.nameLand + 0.4) * (1 - smooth(t, TG.leave, TG.leave + 0.4));
     this.walk.hidden = false;
     this.rays.style.opacity = rays.toFixed(3);
     const size = w * 2.1;
     this.rays.style.width = `${size.toFixed(0)}px`;
     this.rays.style.height = `${size.toFixed(0)}px`;
-    this.rays.style.transform = `translate3d(${(hx - size / 2).toFixed(1)}px, ${(hy - size / 2).toFixed(1)}px, 0) rotate(${(t * 9).toFixed(2)}deg) scale(${(0.85 + 0.15 * rays).toFixed(3)})`;
+    this.rays.style.transform = `translate3d(${(hx - size / 2).toFixed(1)}px, ${(hy - size / 2).toFixed(1)}px, 0) scale(${(0.85 + 0.15 * rays).toFixed(3)})`;
+    this.rays.style.setProperty("--spin", `${(t * 9).toFixed(2)}deg`);
 
     this.liftRoot.hidden = false;
     this.liftPose(t, s);
@@ -2689,11 +2707,16 @@ export class WallStage {
       cy = hy + (sr.top + sr.height / 2 - hy) * k;
       sc = 1 + (sr.width / w - 1) * k;
     }
-    this.liftCard.style.transform = `translate3d(${(cx - (w * sc) / 2).toFixed(1)}px, ${(cy - (h * sc) / 2).toFixed(1)}px, 0) scale(${sc.toFixed(4)})`;
+    // The grand opening's card, alive while it holds: tilting slowly, as a card held up to the room.
+    const alive = this.style === "walk" ? smooth(t, T.placed + 0.3, T.placed + 1.1) * (1 - smooth(t, T.leave - 0.2, T.leave + 0.1)) : 0;
+    const tilt = alive ? ` perspective(${(w * 2.2).toFixed(0)}px) rotateY(${(5 * alive * Math.sin((t - T.placed) * 0.95)).toFixed(2)}deg) rotateX(${(2.6 * alive * Math.sin((t - T.placed) * 0.7 + 1)).toFixed(2)}deg)` : "";
+    this.liftCard.style.transform = `translate3d(${(cx - (w * sc) / 2).toFixed(1)}px, ${(cy - (h * sc) / 2).toFixed(1)}px, 0) scale(${sc.toFixed(4)})${tilt}`;
     this.liftCard.style.opacity = String(on * (1 - smooth(t, T.seat - 0.06, T.end - 0.02)));
     this.liftGlow.style.transform = `translate3d(${(cx - (w * 1.7 * sc) / 2).toFixed(1)}px, ${(cy - (h * 2.1 * sc) / 2).toFixed(1)}px, 0) scale(${sc.toFixed(4)})`;
-    this.liftGlow.style.opacity = String(on * 0.9 * (1 - smooth(t, T.leave, T.leave + 0.35)));
-    const k = clamp01((t - T.placed - 0.3) / 1.15);
+    const breathe = this.style === "walk" ? 0.78 + 0.22 * Math.sin((t - T.placed) * 3.1) : 1;
+    this.liftGlow.style.opacity = String(on * 0.9 * breathe * (1 - smooth(t, T.leave, T.leave + 0.35)));
+    // The light over its foil: once; on the grand opening's card, again and again while it holds.
+    const k = clamp01((this.style === "walk" ? (t - T.placed - 0.3) % 2.1 : t - T.placed - 0.3) / 1.15);
     this.liftBand.style.transform = `translate3d(${(-130 + 260 * easeInOut(k)).toFixed(1)}%, 0, 0) skewX(-16deg)`;
   }
 
