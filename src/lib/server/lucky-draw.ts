@@ -64,7 +64,7 @@ const poolArrays = (mode: DrawMode, drawn = true) => Prisma.sql`
   FROM (${pool(mode, drawn)}) p`;
 
 /** Everyone in the draw in `mode` now, as their Trip IDs alone, in one array: who they are is all a draw needs. */
-const poolTripIds = (mode: DrawMode) => Prisma.sql`SELECT array_agg(p."referenceNo") AS "tripIds" FROM (${pool(mode)}) p`;
+const poolTripIds = (mode: DrawMode) => Prisma.sql`SELECT array_agg(p."referenceNo") FROM (${pool(mode)}) p`;
 
 /** The pool's arrays (null for none: array_agg over nobody). */
 interface PoolArrays {
@@ -221,10 +221,12 @@ export async function drawOne(mode: DrawMode, requestId: string, by: string): Pr
       async (tx): Promise<DrawResult> => {
         // One draw at a time, wherever Draw is pressed: held until this transaction ends.
         await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext('affhan-trip-lucky-draw'))`;
-        const done = await tx.$queryRaw<{ id: string }[]>`SELECT "id" FROM "TripDraw" WHERE "requestId" = ${requestId} LIMIT 1`;
-        if (done.length) return { ok: true, id: done[0].id, again: true };
-        // Everyone in the draw, by Trip ID (unique: one a person), in the list's own order.
-        const [{ tripIds }] = await tx.$queryRaw<{ tripIds: string[] | null }[]>(poolTripIds(mode));
+        // In one statement after the lock (a trip to the database fewer, and it sees every draw made before it): this
+        // press's draw if it was made already, and everyone in the draw, by Trip ID (unique: one a person).
+        const [{ done, tripIds }] = await tx.$queryRaw<{ done: string | null; tripIds: string[] | null }[]>`
+          SELECT (SELECT "id" FROM "TripDraw" WHERE "requestId" = ${requestId} LIMIT 1) AS "done", (${poolTripIds(mode)}) AS "tripIds"`;
+        if (done) return { ok: true, id: done, again: true };
+        // In the list's own order.
         const everyone = (tripIds ?? []).sort(compareTripIds);
         if (!everyone.length) return { ok: false, reason: "empty" };
         const poolHash = crypto.createHash("sha256").update(everyone.join("\n")).digest("hex");

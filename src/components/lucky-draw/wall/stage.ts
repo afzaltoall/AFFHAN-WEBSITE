@@ -7,9 +7,11 @@ import { BOARD_PRINT_AT, Board } from "./board";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
 import {
   ALL_DOWN,
+  BACKS_T,
   DOWN_AT,
   FLIP_T,
   GRID,
+  PRESS_BEAT,
   ROWS,
   WAVE_T,
   drawPlan,
@@ -52,8 +54,15 @@ interface Run {
   land: number;
   walk: Walk | null;
   halted: boolean;
-  /** Pressed while the screen was still opening, its tickets already face down: they stay down until the run's own wave up. */
-  backs: boolean;
+  /**
+   * When the tickets' face-down wave began (seconds from the press: before it, or -Infinity, when the press found them
+   * resting on their gold backs), its first column, and when every ticket is face down (at least 0: the press).
+   */
+  down: number;
+  downK0: number;
+  allDown: number;
+  /** The earliest the names may turn face up (drawPlan's `from`). */
+  from: number;
 }
 
 /**
@@ -743,14 +752,14 @@ export class WallStage {
   private lastFrame = performance.now();
   private opened = false;
   /**
-   * The screen opening (the owner, 2026-11-12: "empty very slow while opening"): every ticket face down, its gold back
-   * showing, never an empty ticket, until the names are in, every ticket in view has its face drawn and the practice
-   * pass is made; then they turn face up in a wave, as after a press. `up`: when that wave began (ms; Infinity while
-   * the backs hold), `k0` its first column; `done` once it is over.
+   * How the tickets rest between draws: face down, the wall's gold backs (the owner, 2026-11-12: "after the winner ...
+   * back again to gold ... while clicking Draw it has to show"), from the moment the screen opens (never an empty
+   * ticket while the names load) and again after every winner; face up only from a landing to the end of its reveal.
+   * `at`: when the wave into that state began (ms; -Infinity: already there), `k0` its first column.
    */
-  private opening = { up: Infinity, k0: 0, done: false };
-  /** Tickets in view without their face yet (place counts them), and whether the practice pass has been made. */
-  private faceless = 0;
+  private turn = { down: true, at: -Infinity, k0: 0 };
+  /** Whether Draw has been opened (onOpen: the names in and the practice pass made), and that pass. */
+  private openDone = false;
   private warmed = false;
   private show: Show | null = null;
   private dim = { from: 0, to: 0, start: 0, T: 1 };
@@ -1133,15 +1142,23 @@ export class WallStage {
     this.segs[r].push(stretchFor(i, n, this.p - 1, c));
     this.light = { on: true, cells: [{ r, c }], times: [0], t: Infinity };
     this.landFlash = performance.now();
+    // Face up, so the ticket the light is on is seen.
+    if (this.turn.down) this.turn = { down: false, at: performance.now(), k0: Math.floor(this.p) };
     this.slotsDirty = true;
     this.opts.onRest?.(tripId);
   }
 
-  /** A winner shown: the light goes, and the rows roll on slowly (`instant`: the screen opening, nothing to undo). */
-  restAfter(_tripId: string, instant = false) {
-    if (this.run || instant) return;
+  /**
+   * A winner shown: the light goes, and the tickets turn face down in a wave, back to the wall's gold backs for the
+   * next press (the owner, 2026-11-12: "after the winner ... back again to gold"). Already on its backs (the screen
+   * opening, or a draw that failed), it stays on them.
+   */
+  restAfter() {
+    if (this.run) return;
     this.light.on = false;
+    if (!this.turn.down) this.turn = { down: true, at: performance.now(), k0: Math.floor(this.p) };
     this.restSince = performance.now();
+    this.slotsDirty = true;
     this.opts.onRest?.(null);
   }
 
@@ -1171,14 +1188,20 @@ export class WallStage {
     this.litAt.clear();
     this.light = { on: false, cells: [{ r: 0, c: 0 }], times: [0], t: 0 };
     this.slotsDirty = true;
-    // A draw made while the screen was still opening (from the console): its tickets are face down already.
-    const backs = !this.opening.done;
-    if (backs) {
-      this.opening.done = true;
+    if (!this.openDone) {
+      this.openDone = true;
       this.opts.onOpen?.();
     }
+    const now = performance.now();
+    // Face down for the draw: from the gold backs the wall rests on (down already, or still turning), or, face up, in
+    // a wave from now. From the backs the names turn up a beat after the press; from face up, once the backs have shown.
+    const T = this.turn;
+    const down = T.down ? (Number.isFinite(T.at) ? (T.at - now) / 1000 : -Infinity) : DOWN_AT;
+    const allDown = Math.max(0, down + WAVE_T + FLIP_T);
+    const from = T.down ? Math.max(allDown, PRESS_BEAT) : ALL_DOWN + BACKS_T;
+    const downK0 = T.down ? T.k0 : Math.floor(this.p);
     return new Promise((done) => {
-      this.run = { start: performance.now(), done, p0: this.p, up: Infinity, drawn: null, placed: false, roll: null, roll0: Infinity, end: this.p, target: null, light: Infinity, land: Infinity, walk: null, halted: false, backs };
+      this.run = { start: now, done, p0: this.p, up: Infinity, drawn: null, placed: false, roll: null, roll0: Infinity, end: this.p, target: null, light: Infinity, land: Infinity, walk: null, halted: false, down, downK0, allDown, from };
       this.watch(this.run);
     });
   }
@@ -1192,7 +1215,7 @@ export class WallStage {
     const r = this.run;
     if (!r || r.drawn !== null || r.halted || !this.rows.length) return;
     r.drawn = i;
-    const plan = drawPlan(r.p0, this.elapsed(r));
+    const plan = drawPlan(r.p0, this.elapsed(r), r.from);
     r.up = plan.up;
     r.roll = plan.roll;
     r.roll0 = plan.roll0;
@@ -1234,8 +1257,13 @@ export class WallStage {
     const r = this.run;
     if (!r || r.drawn !== null || r.halted) return;
     r.halted = true;
-    r.up = Math.max(ALL_DOWN + 0.1, this.elapsed(r) + 0.05);
-    r.land = r.up + WAVE_T + FLIP_T + 0.05;
+    // From the gold backs the wall rests on, it stays on them; a press from face up turns back up as it was.
+    if (r.down < 0) {
+      r.land = this.elapsed(r) + 0.05;
+    } else {
+      r.up = Math.max(r.allDown + 0.1, this.elapsed(r) + 0.05);
+      r.land = r.up + WAVE_T + FLIP_T + 0.05;
+    }
     this.watch(r);
   }
 
@@ -1257,6 +1285,9 @@ export class WallStage {
       this.light = w && last && last.r === target.r && last.c === target.c ? { on: true, cells: w.cells, times: w.times, t: Infinity } : { on: true, cells: [target], times: [0], t: Infinity };
       this.landFlash = performance.now();
     } else this.light.on = false;
+    // The tickets rest as the run left them: face up once they turned up (the winner's reveal shows over the names,
+    // and the wall goes back to gold after it: restAfter), face down when they never did (a draw that failed).
+    this.turn = { down: !Number.isFinite(r.up), at: -Infinity, k0: Math.floor(this.p) };
     this.drift = 0;
     this.restSince = performance.now();
     this.slotsDirty = true;
@@ -1410,10 +1441,14 @@ export class WallStage {
     if (this.steps.length && (!r || this.still(r, t))) (this.steps.shift() as () => void)();
     if (r) this.drawStep(r, t, now);
     this.place(this.p);
-    // While the screen opens, every face in view at once (behind the backs, a long frame shows nothing); then a few a
-    // frame, as new names roll into view.
-    if (this.atlas.pump(this.opening.done ? 12 : 48, this.frameNo) > 0) this.slotsDirty = true;
-    if (!this.opening.done) this.openUp(now);
+    // While a draw's tickets are face down, its new names' faces all at once (behind the backs, a long frame shows
+    // nothing), so they are ready when they turn up; otherwise a few a frame, as new names roll into view.
+    if (this.atlas.pump(r && t < r.up ? 48 : 12, this.frameNo) > 0) this.slotsDirty = true;
+    // Draw opens once the names are in and the practice pass is made, behind the gold backs the screen opens on.
+    if (!this.openDone && this.opened && this.warmed) {
+      this.openDone = true;
+      this.opts.onOpen?.();
+    }
     const quiet = !this.run && !this.show ? 1 : 0;
     this.idle += (quiet - this.idle) * 0.04;
     const u = this.tileU;
@@ -1447,25 +1482,6 @@ export class WallStage {
   }
 
   /**
-   * The screen opening: its tickets turn face up in a wave (as after a press) once the names are in, every ticket in
-   * view has its face, and the practice pass is made; Draw is then open (onOpen).
-   */
-  private openUp(now: number) {
-    const o = this.opening;
-    if (!Number.isFinite(o.up)) {
-      if (!this.opened || !this.warmed || this.faceless > 0 || this.run || this.show) return;
-      o.up = now;
-      o.k0 = Math.floor(this.p);
-      this.slotsDirty = true;
-      return;
-    }
-    if ((now - o.up) / 1000 < WAVE_T + FLIP_T) return;
-    o.done = true;
-    this.slotsDirty = true;
-    this.opts.onOpen?.();
-  }
-
-  /**
    * Where the rows are (columns) and their pace (columns a second) now. At a draw, its roll from the press (gathering
    * pace from their drift, so nothing jerks), to rest. Otherwise they roll on slowly (the owner: "users roll"), a moment
    * after they came to rest, getting going gently; never while a winner is shown or the light is on someone.
@@ -1478,7 +1494,8 @@ export class WallStage {
       return r.roll && t >= r.roll0 ? rollAt(r.roll, t - r.roll0) : { p: r.p0, v: 0 };
     }
     const since = (now - this.restSince) / 1000 - DRIFT_AFTER;
-    if (!this.show && !this.light.on && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
+    // The gold backs rest still, as the owner chose them; names, face up, roll on slowly.
+    if (!this.show && !this.light.on && !this.turn.down && since > 0) this.drift = DRIFT * smooth(since, 0, DRIFT_EASE);
     else this.drift = Math.max(0, this.drift - (DRIFT / 0.8) * dt);
     return { p: this.p + this.drift * dt, v: this.drift };
   }
@@ -1488,7 +1505,7 @@ export class WallStage {
    * rows at rest and the light holding on its ticket.
    */
   private still(r: Run, t: number): boolean {
-    if (r.drawn !== null && t >= ALL_DOWN && t < r.up) return true;
+    if (r.drawn !== null && t >= r.allDown && t < r.up) return true;
     if (!r.roll || !r.walk || t < r.roll0 + r.roll.td + r.roll.dec) return false;
     const next = r.walk.times.find((x) => x > t);
     return next !== undefined && next - t > 0.18;
@@ -1501,7 +1518,7 @@ export class WallStage {
    * tickets are back up).
    */
   private drawStep(r: Run, t: number, now: number) {
-    if (!r.placed && !r.halted && r.drawn !== null && t >= ALL_DOWN) this.placeNames(r, r.drawn);
+    if (!r.placed && !r.halted && r.drawn !== null && t >= r.allDown) this.placeNames(r, r.drawn);
     if (r.placed && r.target && !r.walk && t >= r.light) {
       const P = Math.floor(r.p0);
       let start = { r: this.middleRow(), c: P + Math.ceil(this.grid.cols / 2) };
@@ -1555,11 +1572,10 @@ export class WallStage {
     const run = this.run;
     const t = run ? this.elapsed(run) : 0;
     const k0 = run ? Math.floor(run.p0) : 0;
-    // The screen opening: face down (π) while the backs hold, then its wave up (π to 2π); once open, face up.
-    const o = this.opening;
-    const openT = o.done ? null : Number.isFinite(o.up) ? Math.max(0, nowS - o.up / 1000) : -1;
+    // Between draws, the tickets as they rest (turn): face down (π), or up (2π), or turning into it in a wave.
+    const T = this.turn;
+    const turnT = Number.isFinite(T.at) ? Math.max(0, nowS - T.at / 1000) : Infinity;
     this.atlas.restart();
-    let faceless = 0;
     let idx = 0;
     for (let row = 0; row < this.rowsShown && idx < this.cap; row++) {
       const y = this.yTop - row * g.pitchY;
@@ -1578,19 +1594,20 @@ export class WallStage {
         }
         this.cellArr[idx] = cell;
         this.flagArr[idx] = flag;
-        if (cell < 0) faceless++;
         const lit = this.litAt.size ? this.litAt.get(`${row}:${c}`) : undefined;
         this.litArr[idx] = lit === undefined ? 0 : Math.max(0, 1 - (nowS - lit) / TRAIL);
-        let flip = 0;
+        let flip: number;
         if (run) {
-          flip = flipAngle(t, DOWN_AT, run.up, flipDelay(row, c - k0, this.rowsShown, g.cols));
-          if (run.backs) flip = Math.max(Math.PI, flip);
-        } else if (openT === -1) flip = Math.PI;
-        else if (openT !== null) flip = Math.PI + flipAngle(openT, 0, Infinity, flipDelay(row, c - o.k0, this.rowsShown, g.cols));
+          // A draw: face down (already, or in its wave), then up in the run's own wave once the names are in.
+          flip = flipAngle(t, run.down, Infinity, flipDelay(row, c - run.downK0, this.rowsShown, g.cols));
+          if (Number.isFinite(run.up)) flip += flipAngle(t, run.up, Infinity, flipDelay(row, c - k0, this.rowsShown, g.cols));
+        } else {
+          const turned = flipAngle(turnT, 0, Infinity, flipDelay(row, c - T.k0, this.rowsShown, g.cols));
+          flip = T.down ? turned : Math.PI + turned;
+        }
         this.flipArr[idx] = flip;
       }
     }
-    this.faceless = faceless;
     this.tilesGeometry.instanceCount = idx;
     this.posAttr.needsUpdate = true;
     this.cellAttr.needsUpdate = true;

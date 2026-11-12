@@ -148,15 +148,24 @@ export function rollAt(R: Roll, t: number): { p: number; v: number } {
 }
 
 /**
- * A draw's moments, in seconds from the press, once the server has answered (`ta`), the rows standing at `p0`: the
- * face-up wave (after every ticket is face down and the gold backs have shown a moment), the roll (from rest, to rest
- * on the whole column `end`, about ROLL_T long), the light coming on as the rows set off, and its landing, about
- * SEARCH_T after the press (a late answer moves it all later by as much).
+ * Between draws the wall rests on its gold backs (the owner, 2026-11-12: "after the winner ... back again to gold ...
+ * while clicking Draw it has to show"): from them, the names turn up this soon after the press (or the answer), a beat
+ * so the press is seen first.
  */
-export function drawPlan(p0: number, ta: number): { up: number; roll0: number; roll: Roll; end: number; light: number; land: number } {
-  const up = Math.max(ALL_DOWN + BACKS_T, ta + 0.25);
+export const PRESS_BEAT = 0.4;
+
+/**
+ * A draw's moments, in seconds from the press, once the server has answered (`ta`), the rows standing at `p0`: the
+ * face-up wave, no sooner than `from` (by default once every ticket has turned face down and the gold backs have
+ * shown a moment; from the backs the wall rests on, PRESS_BEAT), the roll (from rest, to rest on the whole column
+ * `end`), the light coming on as the rows set off, and its landing, about SEARCH_T after the press: the time the backs
+ * no longer take is rolled instead, and a late answer moves it all later by as much.
+ */
+export function drawPlan(p0: number, ta: number, from: number = ALL_DOWN + BACKS_T): { up: number; roll0: number; roll: Roll; end: number; light: number; land: number } {
+  const up = Math.max(from, ta + 0.25);
   const roll0 = up + ROLL_AFTER;
-  const end = Math.ceil(p0 + CRUISE * (ROLL_T - (ACC_T + DEC_T) / 2) - 1e-9);
+  const rollT = ROLL_T + Math.max(0, ALL_DOWN + BACKS_T - from);
+  const end = Math.ceil(p0 + CRUISE * (rollT - (ACC_T + DEC_T) / 2) - 1e-9);
   const roll: Roll = { from: p0, v0: 0, V: CRUISE, acc: ACC_T, td: 0, dec: DEC_T };
   roll.td = Math.max(ACC_T, (end - p0) / CRUISE + (ACC_T - DEC_T) / 2);
   return { up, roll0, roll, end, light: roll0, land: roll0 + roll.td + roll.dec + TAIL_T };

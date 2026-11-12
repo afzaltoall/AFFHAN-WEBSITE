@@ -14,6 +14,7 @@ import {
   FLIP_T,
   GRID,
   MOVE_T,
+  PRESS_BEAT,
   SEARCH_T,
   STEP_QUICK,
   STEP_SLOW,
@@ -146,6 +147,30 @@ test("the press: every ticket face down before any name can change, face up agai
   assert.equal(flipAngle(0, DOWN_AT, Infinity, 0), 0, "face up at the press");
 });
 
+test("from the gold backs the wall rests on: the names turn up a beat after the press, never before the answer, and land about thirty seconds after it", () => {
+  // Resting face down (π), a press needs no wave down: the run's down wave began long before (-Infinity).
+  for (const d of [0, 0.3, WAVE_T]) assert.equal(flipAngle(0, -Infinity, Infinity, d), Math.PI, "face down at the press");
+  const r = rng(23);
+  for (let i = 0; i < 400; i++) {
+    const p0 = r() * 5000;
+    const ta = 0.05 + r() * 1.5;
+    const { up, roll, end, roll0, light, land } = drawPlan(p0, ta, PRESS_BEAT);
+    assert.ok(up >= PRESS_BEAT - 1e-9 && up >= ta + 0.25 - 1e-9, "a beat after the press, and never before the answer");
+    if (ta + 0.25 <= PRESS_BEAT) assert.equal(up, PRESS_BEAT, "a quick answer: the names turn up a beat after the press");
+    assert.equal(light, roll0);
+    assert.ok(roll0 > up && roll0 < up + WAVE_T + FLIP_T, "the rows set off as the last tickets finish turning");
+    for (const d of [0, 0.3, WAVE_T]) {
+      assert.equal(flipAngle(up, -Infinity, Infinity, d) + flipAngle(up, up, Infinity, d), Math.PI, "still face down when the wave up starts");
+      assert.ok(Math.abs(flipAngle(up + WAVE_T + FLIP_T, -Infinity, Infinity, d) + flipAngle(up + WAVE_T + FLIP_T, up, Infinity, d) - 2 * Math.PI) < 1e-9, "every ticket face up after it");
+    }
+    const stop = roll.td + roll.dec;
+    assert.ok(Math.abs(rollAt(roll, stop).p - end) < 1e-9, "at rest exactly on its column");
+    assert.ok(end - p0 >= 5 * GRID.cols, `the time the backs no longer take is rolled: ${(end - p0).toFixed(1)} columns pass`);
+    if (ta + 0.25 <= PRESS_BEAT) assert.ok(land >= SEARCH_T - 1e-9 && land < SEARCH_T + 0.5, `about ${SEARCH_T} s from the press to the landing (${land.toFixed(2)})`);
+    else assert.ok(Math.abs(land - (SEARCH_T + (ta + 0.25 - PRESS_BEAT))) < 0.5, "a late answer moves it all later by as much");
+  }
+});
+
 test("the roll: from rest, smoothly, never back, never racing, to rest exactly on its column, the landing about thirty seconds after the press", () => {
   const r = rng(11);
   for (let i = 0; i < 400; i++) {
@@ -214,7 +239,8 @@ function playChase(seed, rows) {
     return x / 2 ** 32;
   };
   const p0 = rnd() * 3000;
-  const { roll, roll0, end, light, land } = drawPlan(p0, 0.1 + rnd() * 0.8);
+  // Half from the gold backs the wall rests on between draws, half from names face up.
+  const { roll, roll0, end, light, land } = drawPlan(p0, 0.1 + rnd() * 0.8, seed % 2 ? PRESS_BEAT : undefined);
   const pAt = (t) => rollAt(roll, t - roll0).p;
   const ok = (c, at, leave) => c.r >= 0 && c.r < rows && c.c >= pAt(leave) + 0.75 && c.c <= pAt(at) + GRID.cols + 0.25;
   const target = { r: Math.floor(rnd() * rows), c: end + 1 + Math.floor(rnd() * GRID.cols) };

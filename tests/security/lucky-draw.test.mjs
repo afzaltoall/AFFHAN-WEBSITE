@@ -152,7 +152,7 @@ test("who is in the draw: a valid passport, not spam or deleted, once per mobile
   assert.match(server, /SELECT count\(\*\)::int AS n FROM \(\$\{pool\(mode, false\)\}\) p/);
   assert.match(server, /if \(!isMissingTable\(e\)\) throw e;\s*ready = false;\s*\[cols\] = await prisma\.\$queryRaw<PoolArrays\[\]>\(poolArrays\(mode, false\)\);/);
   // The draw's own read of it never leaves anyone drawn in.
-  assert.match(server, /const poolTripIds = \(mode: DrawMode\) => Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) AS "tripIds" FROM \(\$\{pool\(mode\)\}\) p`;/);
+  assert.match(server, /const poolTripIds = \(mode: DrawMode\) => Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) FROM \(\$\{pool\(mode\)\}\) p`;/);
 });
 
 test("a draw: one at a time under the draw's lock, once per press, chosen by the system's cryptographic random numbers", () => {
@@ -163,7 +163,8 @@ test("a draw: one at a time under the draw's lock, once per press, chosen by the
   const choose = draw.indexOf("crypto.randomInt(everyone.length)");
   assert.ok(lock > 0 && again > lock && choose > again, "the lock, then the same press answered, then a choice");
   assert.doesNotMatch(draw, /Math\.random/);
-  assert.match(draw, /const \[\{ tripIds \}\] = await tx\.\$queryRaw<\{ tripIds: string\[\] \| null \}\[\]>\(poolTripIds\(mode\)\);/, "never anyone already drawn");
+  // This press's draw and everyone in the draw, read together after the lock: a press already answered draws nobody.
+  assert.match(draw, /SELECT \(SELECT "id" FROM "TripDraw" WHERE "requestId" = \$\{requestId\} LIMIT 1\) AS "done", \(\$\{poolTripIds\(mode\)\}\) AS "tripIds"`;\s*if \(done\) return \{ ok: true, id: done, again: true \};/, "never anyone already drawn");
   assert.match(draw, /const everyone = \(tripIds \?\? \[\]\)\.sort\(compareTripIds\);/, "in the list's own order");
   assert.match(draw, /createHash\("sha256"\)\.update\(everyone\.join\("\\n"\)\)/);
   assert.match(draw, /clock_timestamp\(\) AT TIME ZONE 'UTC'/, "dated after the lock, in the order drawn");

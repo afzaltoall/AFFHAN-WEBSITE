@@ -209,15 +209,13 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     stage.setRows(w.entries, w.gold);
   }, []);
 
-  /** Once the stage, the pool and the board are all here: the wall put in, its top row opening on the first person. */
+  /** Once the stage, the pool and the board are all here: the wall's people put in, behind its gold backs. */
   const placeFirst = useCallback(() => {
     const stage = stageRef.current;
     const board = shownNow.current ?? latest.current;
     if (placedRef.current || !stage || !poolRef.current || !board) return;
     placedRef.current = true;
     syncWall(board);
-    const c = board.latest ? board.cards.find((x) => x.id === board.latest) : null;
-    if (c) stage.restAfter(c.tripId, true);
   }, [syncWall]);
 
   const fetchBoard = useCallback(async (): Promise<Fetched> => {
@@ -290,15 +288,14 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
 
   const isStarted = useCallback((board: Board | null) => !!board && startedNow.current === board.round + 1 && roundFull(board), []);
 
-  /** Between draws: the words for the next press, the winners gold on the wall, the light out and the rows rolling. */
+  /** Between draws: the words for the next press, the light out, and the wall back on its gold backs. */
   const rest = useCallback(
     (board: Board) => {
-      const c = board.latest ? board.cards.find((x) => x.id === board.latest) ?? null : null;
       setCard(null);
       setPhase("rest");
       setLabel(restWords(board, isStarted(board)));
       syncWall(board);
-      if (c && placedRef.current) stageRef.current?.restAfter(c.tripId);
+      if (placedRef.current) stageRef.current?.restAfter();
     },
     [isStarted, syncWall],
   );
@@ -400,7 +397,9 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           rest(board);
           setAccess("ok");
           if (await names) return;
-          for (let tries = 0; !stopped && !(await fetchPool()); tries++) await sleep(Math.min(10_000, 2000 * (tries + 1)));
+          // Asked again until it comes, unless a read already in flight brings it (React runs this twice in
+          // development: the second run's read was refused while the first's was still coming).
+          for (let tries = 0; !stopped && !poolRef.current && !(await fetchPool()); tries++) await sleep(Math.min(10_000, 2000 * (tries + 1)));
           return;
         }
         await names;
