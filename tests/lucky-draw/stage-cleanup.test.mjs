@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-const stage = readFileSync("src/components/lucky-draw/wall/stage.ts", "utf8");
+const stage = readFileSync("src/components/lucky-draw/wall/stage.ts", "utf8").replace(/\r\n/g, "\n");
 const dispose = /\n  dispose\(\) \{\n    if \(this\.disposed\) return;([\s\S]*?)\n  \}\n/.exec(stage);
 
 test("the stage's cleanup takes out every element it put in the page", () => {

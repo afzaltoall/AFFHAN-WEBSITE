@@ -128,6 +128,29 @@ function SeatName({ name }: { name: string }) {
 type Fetched = Board | "no_pass" | null;
 type Phase = "rest" | "drawing" | "drawn";
 
+/** What runs beside the Draw button, as an awards night's screens run it: the trip, the draw, AFFHAN and its offices. */
+const TICKER = ["Free China Business Trip", "Lucky Draw 2026", "AFFHAN International", "Since 2000", "Chennai", "Guangzhou", "Dubai", "London", "Singapore", "Malaysia"];
+
+/** One side's ticker: the words twice over, so it runs on without a seam (wall.css .lw-ticker). */
+function Ticker({ side }: { side: "left" | "right" }) {
+  return (
+    <div className="lw-ticker" data-side={side} aria-hidden>
+      <div className="lw-ticker-track">
+        {[0, 1].map((k) => (
+          <span key={k} className="lw-ticker-run">
+            {TICKER.map((w) => (
+              <span key={w} className="lw-ticker-word">
+                {w}
+                <i>✦</i>
+              </span>
+            ))}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMode | null; closes: string; onFail?: (why: string) => void; keep?: boolean }) {
   const [access, setAccess] = useState<"checking" | "ok" | "none">("checking");
   const [shown, setShown] = useState<Board | null>(null);
@@ -784,6 +807,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
 
         <footer className="lw-foot">
           <div className="lw-act">
+            <Ticker side="left" />
             <button
               type="button"
               className="lw-draw"
@@ -793,6 +817,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
             >
               {drawing ? "Drawing…" : nextRound ? `Start round ${round + 1}` : "Draw"}
             </button>
+            <Ticker side="right" />
           </div>
           <p className="lw-round">Round {round}</p>
           <ol className="lw-seats" aria-label={`Round ${round}: the five seats`}>

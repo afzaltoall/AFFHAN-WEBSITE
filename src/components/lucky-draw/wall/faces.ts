@@ -221,40 +221,8 @@ export function drawBack(ctx: Ctx, fonts: Fonts) {
 export const PASS_W = 2048;
 export const PASS_H = 1000;
 const INK = "#1b1307";
-const SEAL = "rgb(163 22 44)";
 
 const DRAWN = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
-
-/**
- * A barcode down the pass, from its Trip ID, as the registered page's pass draws it (guard bars, then each character's
- * last five bits as a wide or narrow bar): the same person always has the same code. Decoration, not for scanning.
- */
-function barcode(ctx: Ctx, text: string, x: number, y: number, w: number, h: number) {
-  const bars: { at: number; w: number }[] = [];
-  let at = 0;
-  const put = (dark: boolean, bw: number) => {
-    if (dark) bars.push({ at, w: bw });
-    at += bw;
-  };
-  const guard = () => {
-    put(true, 1);
-    put(false, 1);
-    put(true, 1);
-    put(false, 1.4);
-  };
-  guard();
-  for (const ch of text) {
-    const c = ch.charCodeAt(0);
-    for (let b = 4; b >= 0; b--) {
-      put(true, (c >> b) & 1 ? 2.3 : 1);
-      put(false, b === 0 ? 1.8 : 1);
-    }
-  }
-  guard();
-  const k = h / at;
-  ctx.fillStyle = INK;
-  for (const b of bars) ctx.fillRect(x, y + b.at * k, w, b.w * k);
-}
 
 /** A small plane flying right, as the pass's route has one (lucide's plane, turned to the route); the departures board's too. */
 export function plane(ctx: Ctx, cx: number, cy: number, size: number, color = INK) {
@@ -271,123 +239,115 @@ export function plane(ctx: Ctx, cx: number, cy: number, size: number, color = IN
   ctx.restore();
 }
 
-function label(ctx: Ctx, fonts: Fonts, text: string, x: number, y: number, align: CanvasTextAlign = "left") {
+/** The pass's foil gold, light at the top of a letter and deep at its foot; the gold of its labels; its plain words. */
+const PASS_GOLD = ["#fff3cf", "#ecc879", "#b88b3d"] as const;
+const PASS_LABEL = "rgb(222 190 120 / 0.74)";
+const PASS_TEXT = "#f2e2b6";
+/** The band of foil round the pass's edge, in its pixels: the only part of it the page's light runs over (wall.css). */
+export const PASS_BAND = 40;
+
+/** A layer the pass's size for letters filled with foil gold (made once). */
+let goldLayer: HTMLCanvasElement | null = null;
+
+/**
+ * Letters filled with foil gold: drawn in white by `draw` inside `box` on a layer of their own, the gold laid into them
+ * (light at the box's top, deep at its foot), then set on the pass. A gradient set straight into Bodoni's scaled
+ * drawing would be scaled with it.
+ */
+function inGold(ctx: Ctx, box: [number, number, number, number], draw: (g: Ctx) => void) {
+  const [x, y, w, h] = box;
+  if (!goldLayer) goldLayer = document.createElement("canvas");
+  if (goldLayer.width !== PASS_W || goldLayer.height !== PASS_H) {
+    goldLayer.width = PASS_W;
+    goldLayer.height = PASS_H;
+  }
+  const g = goldLayer.getContext("2d");
+  if (!g) return;
+  g.save();
+  g.globalCompositeOperation = "source-over";
+  g.clearRect(x, y, w, h);
+  g.fillStyle = "#fff";
+  draw(g);
+  g.globalCompositeOperation = "source-in";
+  const foil = g.createLinearGradient(0, y, 0, y + h);
+  foil.addColorStop(0, PASS_GOLD[0]);
+  foil.addColorStop(0.55, PASS_GOLD[1]);
+  foil.addColorStop(1, PASS_GOLD[2]);
+  g.fillStyle = foil;
+  g.fillRect(x, y, w, h);
+  g.restore();
+  ctx.drawImage(goldLayer, x, y, w, h, x, y, w, h);
+}
+
+/** Small spaced capitals in the pass's label gold. */
+function passLabel(ctx: Ctx, fonts: Fonts, text: string, x: number, y: number, align: CanvasTextAlign = "left") {
   ctx.save();
-  ctx.globalAlpha = 0.56;
-  ctx.fillStyle = INK;
+  ctx.fillStyle = PASS_LABEL;
   ctx.textAlign = align;
-  ctx.font = `700 22px ${fonts.sans}`;
-  spacing(ctx, 6);
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `600 22px ${fonts.sans}`;
+  spacing(ctx, 6.5);
   ctx.fillText(text.toUpperCase(), x, y);
   ctx.restore();
 }
 
-/**
- * The winner's entry seal, stamped across the perforation as the registered page's is ("Registered", "Free China
- * Trip"): two rings, "Lucky draw" over the rim, "Free China Trip" under it, "Winner" and the day in the middle, in red
- * ink that sinks into the gold, a little uneven, as a rubber stamp leaves it.
- */
-/** The seal for a day, made once: it changes only with the date (every winner of the day shares it). */
-const seals = new Map<string, HTMLCanvasElement>();
+/** A four-pointed glint. */
+function glint(ctx: Ctx, x: number, y: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(x, y - r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.quadraticCurveTo(x, y, x, y + r);
+  ctx.quadraticCurveTo(x, y, x - r, y);
+  ctx.quadraticCurveTo(x, y, x, y - r);
+  ctx.fill();
+}
 
-function seal(ctx: Ctx, fonts: Fonts, cx: number, cy: number, r: number, when: Date) {
-  const day = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" }).format(when);
-  const key = `${day}|${r}|${fonts.sans}`;
-  let s = seals.get(key);
-  if (!s) {
-    s = sealCanvas(fonts, r, when);
-    seals.set(key, s);
-  }
-  const c = s.width / 2;
+/** The winner's medallion on the stub: a gold coin, its rim beaded, a glint, and "Winner" and the year struck into it. */
+function medallion(ctx: Ctx, fonts: Fonts, cx: number, cy: number, r: number, year: string) {
   ctx.save();
-  ctx.globalAlpha = 0.86;
-  ctx.globalCompositeOperation = "multiply";
-  ctx.translate(cx, cy);
-  ctx.rotate(-0.21);
-  ctx.drawImage(s, -c, -c);
+  const coin = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.42, r * 0.08, cx, cy, r);
+  coin.addColorStop(0, "#fff3cc");
+  coin.addColorStop(0.45, "#e6bf6c");
+  coin.addColorStop(1, "#946a2c");
+  ctx.fillStyle = coin;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgb(70 44 10 / 0.55)";
+  ctx.lineWidth = r * 0.028;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.8, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = "rgb(70 44 10 / 0.6)";
+  ctx.beginPath();
+  for (let i = 0; i < 40; i++) {
+    const a = (i / 40) * Math.PI * 2;
+    const bx = cx + Math.cos(a) * r * 0.9;
+    const by = cy + Math.sin(a) * r * 0.9;
+    ctx.moveTo(bx + r * 0.022, by);
+    ctx.arc(bx, by, r * 0.022, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  ctx.fillStyle = "#3a2507";
+  glint(ctx, cx, cy - r * 0.36, r * 0.12);
+  ctx.textAlign = "center";
+  ctx.textBaseline = "alphabetic";
+  ctx.font = `700 ${Math.round(r * 0.25)}px ${fonts.sans}`;
+  spacing(ctx, r * 0.035);
+  ctx.fillText("WINNER", cx + r * 0.017, cy + r * 0.1);
+  ctx.font = `600 ${Math.round(r * 0.15)}px ${fonts.sans}`;
+  spacing(ctx, r * 0.04);
+  ctx.fillText(year, cx + r * 0.02, cy + r * 0.4);
+  spacing(ctx, 0);
   ctx.restore();
 }
 
-function sealCanvas(fonts: Fonts, r: number, when: Date): HTMLCanvasElement {
-  const s = document.createElement("canvas");
-  const size = Math.ceil(r * 2 + 8);
-  s.width = size;
-  s.height = size;
-  const g = s.getContext("2d");
-  if (!g) return s;
-  const c = size / 2;
-  g.strokeStyle = SEAL;
-  g.fillStyle = SEAL;
-  g.lineWidth = r * 0.05;
-  g.beginPath();
-  g.arc(c, c, r * 0.96, 0, Math.PI * 2);
-  g.stroke();
-  g.lineWidth = r * 0.022;
-  g.beginPath();
-  g.arc(c, c, r * 0.72, 0, Math.PI * 2);
-  g.stroke();
-  // The rim's words, upright, round the top and the bottom.
-  const arc = (text: string, radius: number, top: boolean, px: number) => {
-    g.save();
-    g.font = `700 ${px}px ${fonts.sans}`;
-    spacing(g, 0);
-    const chars = [...text.toUpperCase()];
-    const widths = chars.map((ch) => g.measureText(ch).width + px * 0.18);
-    const total = widths.reduce((a, b) => a + b, 0);
-    let a = -total / radius / 2;
-    for (let i = 0; i < chars.length; i++) {
-      const mid = a + widths[i] / radius / 2;
-      g.save();
-      if (top) {
-        g.translate(c + radius * Math.sin(mid), c - radius * Math.cos(mid));
-        g.rotate(mid);
-      } else {
-        // Left to right along the foot of the ring, each letter upright (its top towards the middle).
-        g.translate(c + radius * Math.sin(mid), c + radius * Math.cos(mid));
-        g.rotate(-mid);
-      }
-      g.textAlign = "center";
-      g.textBaseline = "middle";
-      g.fillText(chars[i], 0, 0);
-      g.restore();
-      a += widths[i] / radius;
-    }
-    g.restore();
-  };
-  arc("Lucky draw", r * 0.84, true, r * 0.17);
-  arc("Free China Trip", r * 0.84, false, r * 0.15);
-  g.textAlign = "center";
-  g.textBaseline = "alphabetic";
-  g.font = `700 ${r * 0.27}px ${fonts.sans}`;
-  spacing(g, r * 0.03);
-  g.fillText("WINNER", c, c + r * 0.06);
-  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", year: "numeric" }).formatToParts(when).map((x) => [x.type, x.value]));
-  g.font = `600 ${r * 0.15}px ${fonts.sans}`;
-  spacing(g, r * 0.02);
-  g.fillText(`${p.day} ${p.month} ${p.year}`.toUpperCase(), c, c + r * 0.33);
-  // Uneven ink: specks where the stamp did not take, in three shades, one path each.
-  g.globalCompositeOperation = "destination-out";
-  let seed = 7;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  for (const alpha of [0.3, 0.55, 0.8]) {
-    g.globalAlpha = alpha;
-    g.beginPath();
-    for (let i = 0; i < 170; i++) {
-      const x = rnd() * size;
-      const y = rnd() * size;
-      const rad = 0.6 + rnd() * 2.4;
-      g.moveTo(x + rad, y);
-      g.arc(x, y, rad, 0, Math.PI * 2);
-    }
-    g.fill();
-  }
-  return s;
-}
-
 /**
- * The winner's boarding pass: the registered page's pass (its gold, its words, its barcode and its plane from their
- * country to China), now with their round and seat on the stub and the winner's seal across the perforation. The name
- * in the trip's Bodoni, in capitals, as large as its line allows.
+ * The winner's pass, the card the reveal ends on (the owner, 2026-11-12: "the final card is not perfect ... think
+ * innovative ... the effects must not touch the text"): black lacquer, the wall's own ticket made the winner's, every
+ * word in gold on the black; a band of fine gold lines round its edge between gold rules, the only part the page's
+ * light runs over (wall.css .lw-lift-foil); the stub with their round and seat over a gold medallion. Their name in
+ * the trip's Bodoni, in capitals, in foil gold, as large as its line allows.
  */
 export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: number) {
   const W = PASS_W;
@@ -395,137 +355,157 @@ export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: numbe
   const R = 46;
   const STUB = 420;
   const main = W - STUB;
+  const B = PASS_BAND;
   ctx.clearRect(0, 0, W, H);
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(0, 0, W, H, R);
   ctx.clip();
-  const g = ctx.createLinearGradient(0, 0, W, H);
-  g.addColorStop(0, "#f8ecd0");
-  g.addColorStop(0.48, "#ecd3a0");
-  g.addColorStop(1, "#d8b06a");
-  ctx.fillStyle = g;
+  // Black lacquer, warm, lighter where the light falls on it; the stub a shade warmer.
+  const lacquer = ctx.createLinearGradient(0, 0, W, H);
+  lacquer.addColorStop(0, "#1d160b");
+  lacquer.addColorStop(0.45, "#0c0905");
+  lacquer.addColorStop(1, "#161009");
+  ctx.fillStyle = lacquer;
   ctx.fillRect(0, 0, W, H);
-  const hi = ctx.createRadialGradient(0, 0, 0, 0, 0, W * 0.75);
-  hi.addColorStop(0, "rgb(255 250 236 / 0.92)");
-  hi.addColorStop(1, "rgb(255 250 236 / 0)");
-  ctx.fillStyle = hi;
+  const lit = ctx.createRadialGradient(W * 0.3, -H * 0.25, 0, W * 0.3, -H * 0.25, W * 0.85);
+  lit.addColorStop(0, "rgb(255 214 140 / 0.11)");
+  lit.addColorStop(1, "rgb(255 214 140 / 0)");
+  ctx.fillStyle = lit;
   ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "rgb(231 194 108 / 0.05)";
+  ctx.fillRect(main, 0, STUB, H);
 
-  const L = 92;
-  const right = main - 92;
-  ctx.textBaseline = "alphabetic";
-  // The head: the brand, and what it is.
-  ctx.fillStyle = INK;
-  ctx.font = `800 30px ${fonts.sans}`;
-  spacing(ctx, 7.5);
-  ctx.textAlign = "left";
-  ctx.fillText("AFFHAN INTERNATIONAL", L, 118);
-  ctx.globalAlpha = 0.6;
-  ctx.font = `700 24px ${fonts.sans}`;
-  spacing(ctx, 7.5);
-  ctx.textAlign = "right";
-  ctx.fillText("BOARDING PASS", right, 118);
-  ctx.globalAlpha = 1;
+  // The foil band: fine gold lines on the bias, between the edge and the inner rule.
+  const foil = ctx.createLinearGradient(0, 0, W, H);
+  foil.addColorStop(0, "#f6dc9a");
+  foil.addColorStop(0.5, "#c99a48");
+  foil.addColorStop(1, "#f0d08a");
   ctx.save();
-  ctx.strokeStyle = "rgb(27 19 7 / 0.28)";
-  ctx.lineWidth = 2;
-  ctx.setLineDash([12, 9]);
   ctx.beginPath();
-  ctx.moveTo(L, 150);
-  ctx.lineTo(right, 150);
+  ctx.rect(0, 0, W, H);
+  ctx.roundRect(B, B, W - 2 * B, H - 2 * B, R - B * 0.6);
+  ctx.clip("evenodd");
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = foil;
+  ctx.fillRect(0, 0, W, H);
+  ctx.globalAlpha = 0.6;
+  ctx.strokeStyle = foil;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = -H; x < W + H; x += 9) {
+    ctx.moveTo(x, H);
+    ctx.lineTo(x + H, 0);
+  }
+  ctx.stroke();
+  ctx.restore();
+  // Its rules: the band's inner edge, and a finer one inside it.
+  const rule = ctx.createLinearGradient(0, 0, W, 0);
+  rule.addColorStop(0, "#c9994a");
+  rule.addColorStop(0.5, "#fbe6b0");
+  rule.addColorStop(1, "#c9994a");
+  ctx.save();
+  ctx.strokeStyle = rule;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.roundRect(B, B, W - 2 * B, H - 2 * B, R - B * 0.6);
+  ctx.stroke();
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(B + 12, B + 12, W - 2 * B - 24, H - 2 * B - 24, Math.max(4, R - B * 0.6 - 10));
   ctx.stroke();
   ctx.restore();
 
-  // The barcode down the right of the main part, its Trip ID printed beside it.
-  barcode(ctx, c.tripId, right - 64, 206, 64, 430);
-  ctx.save();
-  ctx.translate(right - 86, 421);
-  ctx.rotate(-Math.PI / 2);
-  ctx.fillStyle = INK;
-  ctx.globalAlpha = 0.7;
-  ctx.textAlign = "center";
-  ctx.font = `600 21px ${fonts.sans}`;
-  spacing(ctx, 5);
-  ctx.fillText(c.tripId, 0, 0);
-  ctx.restore();
+  const L = 112;
+  const right = main - 96;
+  const year = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", year: "numeric" }).format(new Date(c.drawnAt));
+  // The head: AFFHAN in foil gold, spaced as on the wall's tickets, and what the card is.
+  const tracked = (g: Ctx, text: string, x: number, y: number, size: number, track: number) => {
+    for (const ch of text) {
+      bodoniText(g, ch, x, y, size, fonts);
+      x += bodoniWidth(g, ch, size, fonts) + track;
+    }
+  };
+  inGold(ctx, [L - 6, 100, 520, 64], (g) => tracked(g, "AFFHAN", L, 152, 52, 20));
+  passLabel(ctx, fonts, `Winner · Lucky Draw ${year}`, right, 146, "right");
+  const headRule = ctx.createLinearGradient(L, 0, right, 0);
+  headRule.addColorStop(0, "rgb(231 194 108 / 0.7)");
+  headRule.addColorStop(1, "rgb(231 194 108 / 0.06)");
+  ctx.fillStyle = headRule;
+  ctx.fillRect(L, 184, right - L, 2);
 
-  // The passenger: the name as large as its line allows, in capitals, in the trip's Bodoni at its text cut.
-  label(ctx, fonts, "Passenger", L, 226);
-  const nameWidth = right - 140 - L;
-  const { size, lines } = setBodoniName(ctx, c.name.toUpperCase(), [158, 144, 130, 118, 106, 96, 86, 78, 70, 62], nameWidth, fonts);
-  ctx.fillStyle = INK;
-  ctx.textAlign = "left";
-  spacing(ctx, 0);
-  // One line sits in the middle of the space between the label and the Trip ID; two fill it.
-  if (lines.length === 1) bodoniText(ctx, lines[0], L - 4, 246 + (300 + size * 0.7) / 2, size, fonts);
-  else {
-    bodoniText(ctx, lines[0], L - 4, 252 + size * 0.86, size, fonts);
-    bodoniText(ctx, lines[1], L - 4, 252 + size * 0.86 + size * 1.04, size, fonts);
+  // The passenger: their name in foil gold, as large as its line allows (two lines at most, never set too tall for them).
+  passLabel(ctx, fonts, "Passenger", L, 262);
+  const set = setBodoniName(ctx, c.name.toUpperCase(), [158, 144, 130, 118, 106, 96, 86, 78, 70, 62], right - L, fonts);
+  const size = set.lines.length > 1 ? Math.min(set.size, 128) : set.size;
+  const baselines = set.lines.length === 1 ? [282 + (290 + size * 0.7) / 2] : [288 + size * 0.86, 288 + size * 0.86 + size * 1.04];
+  set.lines.forEach((line, i) => {
+    const y = baselines[i];
+    inGold(ctx, [L - 10, Math.floor(y - size * 0.8), right - L + 20, Math.ceil(size * 0.98)], (g) => {
+      g.textAlign = "left";
+      spacing(g, 0);
+      bodoniText(g, line, L - 4, y, size, fonts);
+    });
+  });
+
+  // Their Trip ID, then the route: their city (and country), the plane, China.
+  const rowLabel = 606;
+  const rowValue = 670;
+  const value = (text: string, x: number, track: number) => {
+    ctx.fillStyle = PASS_TEXT;
+    ctx.font = `600 52px ${fonts.sans}`;
+    ctx.textAlign = "left";
+    spacing(ctx, track);
+    ctx.fillText(text, x, rowValue);
+    spacing(ctx, 0);
+  };
+  passLabel(ctx, fonts, "Trip ID", L, rowLabel);
+  value(c.tripId, L, 3);
+  const fromX = 660;
+  passLabel(ctx, fonts, "From", fromX, rowLabel);
+  const other = !!c.city && !!c.country && c.city.trim().toLowerCase() !== c.country.trim().toLowerCase();
+  ctx.font = `600 52px ${fonts.sans}`;
+  value(ellipsize(ctx, c.city || c.country || "—", 330), fromX, 0.5);
+  if (other) {
+    ctx.fillStyle = PASS_LABEL;
+    ctx.font = `500 32px ${fonts.sans}`;
+    ctx.textAlign = "left";
+    ctx.fillText(ellipsize(ctx, c.country, 330), fromX, rowValue + 48);
   }
-
-  // Trip ID, then the route: their country and city, the plane, China.
-  const rowLabel = 574;
-  const rowValue = 640;
-  label(ctx, fonts, "Trip ID", L, rowLabel);
-  ctx.fillStyle = INK;
-  ctx.font = `600 50px ${fonts.sans}`;
-  spacing(ctx, 3);
-  ctx.textAlign = "left";
-  ctx.fillText(c.tripId, L, rowValue);
-
-  const fromX = 640;
-  label(ctx, fonts, "From", fromX, rowLabel);
-  ctx.fillStyle = INK;
-  ctx.font = `600 50px ${fonts.sans}`;
-  spacing(ctx, 0.5);
-  ctx.fillText(ellipsize(ctx, c.country || "—", 300), fromX, rowValue);
-  ctx.globalAlpha = 0.7;
-  ctx.font = `400 32px ${fonts.sans}`;
-  spacing(ctx, 0.3);
-  ctx.fillText(ellipsize(ctx, c.city && c.city !== c.country ? c.city : "", 300), fromX, rowValue + 46);
-  ctx.globalAlpha = 1;
-
-  const toX = right - 250;
-  const trackA = fromX + 310;
-  const trackB = toX - 40;
+  const toX = right - 210;
+  const trackA = fromX + 360;
+  const trackB = toX - 44;
   ctx.save();
-  ctx.strokeStyle = "rgb(27 19 7 / 0.35)";
+  ctx.strokeStyle = "rgb(231 194 108 / 0.55)";
   ctx.lineWidth = 3;
   ctx.setLineDash([10, 10]);
   ctx.beginPath();
-  ctx.moveTo(trackA, rowValue - 16);
-  ctx.lineTo(trackB, rowValue - 16);
+  ctx.moveTo(trackA, rowValue - 17);
+  ctx.lineTo(trackB, rowValue - 17);
   ctx.stroke();
   ctx.restore();
-  plane(ctx, (trackA + trackB) / 2, rowValue - 16, 54);
-  label(ctx, fonts, "To", toX, rowLabel);
-  ctx.fillStyle = INK;
-  ctx.font = `600 50px ${fonts.sans}`;
-  spacing(ctx, 0.5);
-  ctx.fillText("China", toX, rowValue);
+  plane(ctx, (trackA + trackB) / 2, rowValue - 17, 58, "#e9c676");
+  passLabel(ctx, fonts, "To", toX, rowLabel);
+  value("China", toX, 0.5);
 
-  // The foot: when they were drawn, and what they are now.
-  ctx.save();
-  ctx.strokeStyle = "rgb(27 19 7 / 0.18)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(L, 740);
-  ctx.lineTo(right, 740);
-  ctx.stroke();
-  ctx.restore();
-  label(ctx, fonts, "Drawn on", L, 812);
+  // The foot: when they were drawn, and the trip.
+  const footRule = ctx.createLinearGradient(L, 0, right, 0);
+  footRule.addColorStop(0, "rgb(231 194 108 / 0.4)");
+  footRule.addColorStop(1, "rgb(231 194 108 / 0.04)");
+  ctx.fillStyle = footRule;
+  ctx.fillRect(L, 760, right - L, 2);
+  passLabel(ctx, fonts, "Drawn on", L, 828);
   const d = Object.fromEntries(DRAWN.formatToParts(new Date(c.drawnAt)).map((x) => [x.type, x.value]));
-  ctx.fillStyle = INK;
+  ctx.fillStyle = PASS_TEXT;
   ctx.font = `500 40px ${fonts.sans}`;
+  ctx.textAlign = "left";
   spacing(ctx, 0.5);
-  ctx.fillText(`${d.day} ${d.month} ${d.year} · ${d.hour}:${d.minute} IST`, L, 870);
-  label(ctx, fonts, "Status", fromX + 120, 812);
-  ctx.fillStyle = INK;
-  ctx.font = `600 40px ${fonts.sans}`;
-  ctx.fillText("Lucky draw winner", fromX + 120, 870);
+  ctx.fillText(`${d.day} ${d.month} ${d.year} · ${d.hour}:${d.minute} IST`, L, 886);
+  spacing(ctx, 0);
+  passLabel(ctx, fonts, "Free China Business Trip", right, 886, "right");
 
-  // The perforation: a line of holes and a notch at each end, cut through.
+  // The perforation: a line of holes, and a notch at each end, cut through.
   ctx.save();
   ctx.globalCompositeOperation = "destination-out";
   for (let y = 58; y < H - 40; y += 30) {
@@ -539,35 +519,30 @@ export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: numbe
   ctx.fill();
   ctx.restore();
 
-  // The stub: the round and the seat, large.
+  // The stub: their round and their seat in foil gold, over the medallion.
   const sx = main + STUB / 2;
-  label(ctx, fonts, "Round", sx, 210, "center");
-  ctx.fillStyle = INK;
-  ctx.textAlign = "left";
-  spacing(ctx, 0);
-  const big = (text: string, y: number) => bodoniText(ctx, text, sx - bodoniWidth(ctx, text, 168, fonts) / 2, y, 168, fonts);
-  big(String(c.round), 380);
-  label(ctx, fonts, "Seat", sx, 500, "center");
-  ctx.fillStyle = INK;
-  ctx.textAlign = "left";
-  big(String(c.seat ?? "—"), 670);
-  ctx.textAlign = "center";
-  ctx.globalAlpha = 0.6;
-  ctx.font = `600 32px ${fonts.sans}`;
-  spacing(ctx, 4);
-  ctx.fillText(`OF ${seats}`, sx, 728);
-  ctx.globalAlpha = 1;
-  spacing(ctx, 0);
-
-  seal(ctx, fonts, main - 40, 826, 118, new Date(c.drawnAt));
+  passLabel(ctx, fonts, "Round", sx, 200, "center");
+  const numeral = (text: string, y: number) => {
+    const wd = bodoniWidth(ctx, text, 160, fonts);
+    inGold(ctx, [Math.floor(sx - wd / 2 - 8), Math.floor(y - 135), Math.ceil(wd + 16), 160], (g) => {
+      g.textAlign = "left";
+      spacing(g, 0);
+      bodoniText(g, text, sx - wd / 2, y, 160, fonts);
+    });
+  };
+  numeral(String(c.round), 362);
+  passLabel(ctx, fonts, "Seat", sx, 452, "center");
+  numeral(String(c.seat ?? "—"), 614);
+  passLabel(ctx, fonts, `Of ${seats}`, sx, 668, "center");
+  medallion(ctx, fonts, sx, 830, 94, year);
   ctx.restore();
 
-  // A hairline just inside the edge, as foil card has.
+  // A hairline just inside the edge, as a foil card has.
   ctx.save();
-  ctx.strokeStyle = "rgb(255 246 222 / 0.65)";
+  ctx.strokeStyle = "rgb(255 236 190 / 0.5)";
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.roundRect(2.5, 2.5, W - 5, H - 5, R - 2);
+  ctx.roundRect(1.5, 1.5, W - 3, H - 3, R - 1);
   ctx.stroke();
   ctx.restore();
 }

@@ -12,8 +12,11 @@ import * as THREE from "three";
  *    seams, and its top tears off, light bursting out of it as it falls away into the dark;
  *  - their Trip ID, cast in gold, zooms in out of the dark and lands with a shock, a glint running over it; it rushes
  *    past the room, and their city (and country) swings in the same way;
- *  - the spotlights close in, embers rise, the light pulses; a burst, and their card spins in out of it and lands in
- *    the middle, rays turning behind it, for its three seconds, then down into its seat as the screen lights again.
+ *  - the spotlights close in, embers rise, the light pulses; a burst, and their name; their card spins in out of it and
+ *    lands in the middle, rays turning behind it, for its three seconds, then down into its seat as the screen lights
+ *    again;
+ *  - from one detail into the next the room travels, gold streaks rushing past it (warpAt), and fireworks burst over
+ *    the background all the while (Fireworks), never in the middle band where the words are read.
  *
  * ./stage.ts plays it (poseGrand); this module holds its moments, its motion and its pieces.
  */
@@ -30,33 +33,40 @@ export const TG = {
    * the opening.
    */
   wait: 1.5,
-  /** It charges (trembling, light at its seams, the flare rising), and its top tears off. */
+  /** It charges (trembling, gold light gathering at its seams), and its top tears off. */
   charge: 1.8,
   tear: 2.9,
-  /** The Trip ID: out of the dark, landed, rushing past. */
-  plate1: 3.15,
-  land1: 3.75,
-  through1: 5.15,
-  /** The place, the same way. */
-  plate2: 5.45,
-  land2: 6.05,
-  through2: 7.45,
+  /**
+   * The Trip ID: out of the pack (the owner, 2026-11-12: "while clicking the pack ... from the pack the contents come"),
+   * rising out of its torn top from inside it, then flying to its place (emergeAt); landed; rushing past.
+   */
+  plate1: 3.0,
+  land1: 3.95,
+  through1: 5.25,
+  /**
+   * The place, the same way, already on its way out of the dark as the Trip ID rushes past the room, the room
+   * travelling from the one into the other (the owner, 2026-11-12: "between the Trip ID and the place the transition
+   * is weak, it gets stuck ... some continuity"; warpAt).
+   */
+  plate2: 5.1,
+  land2: 5.7,
+  through2: 7.0,
   /** The spotlights close in, embers rise, the light pulses; the burst. */
-  build: 7.7,
-  burst: 8.8,
+  build: 7.1,
+  burst: 8.2,
   /**
    * Their name, the last detail and the climax (the owner: "finally the winner's name"; of the card alone, "this
    * opening is weak"): out of the burst, landed with the strongest jolt, held, rushing past the room.
    */
-  name: 8.85,
-  nameLand: 9.2,
-  nameOut: 11.1,
-  /** Then their card spins in and lands in the middle with a jolt of its own, alive while it holds, three seconds. */
-  cardIn: 11.15,
-  placed: 11.9,
-  leave: 14.9,
-  seat: 15.55,
-  end: 15.75,
+  name: 8.25,
+  nameLand: 8.6,
+  nameOut: 10.5,
+  /** Then their card spins in out of the name's rush and lands in the middle with a jolt, alive while it holds, three seconds. */
+  cardIn: 10.5,
+  placed: 11.25,
+  leave: 14.25,
+  seat: 14.9,
+  end: 15.1,
 } as const;
 
 /** The details, in the order they come (the owner: "first the Trip ID, next the place, finally the winner's name"). */
@@ -73,6 +83,19 @@ export const PLATE_DRIFT = 7.4;
 export const PLATE_PAST = 1.1;
 /** Seconds a plate takes to rush past the room. */
 export const PAST_T = 0.32;
+
+/**
+ * The Trip ID out of the pack: seconds it takes to rise out of its torn top (the rest of its way in, it flies to its
+ * place), how far it rises (world units), and its size meanwhile (of its own: the pack's width).
+ */
+export const EMERGE = { rise: 0.45, lift: 1.55, scale: 0.26 } as const;
+
+/** The Trip ID's way out of the pack at `t`: whether it is on it, how far it has risen out of the pack, and flown on (0 to 1). */
+export function emergeAt(t: number): { on: boolean; rise: number; fly: number } {
+  if (t < TG.plate1) return { on: false, rise: 0, fly: 0 };
+  if (t >= TG.land1) return { on: false, rise: 1, fly: 1 };
+  return { on: true, rise: clamp01((t - TG.plate1) / EMERGE.rise), fly: clamp01((t - TG.plate1 - EMERGE.rise) / (TG.land1 - TG.plate1 - EMERGE.rise)) };
+}
 
 const clamp01 = (x: number) => (x < 0 ? 0 : x > 1 ? 1 : x);
 const smooth = (x: number) => {
@@ -135,6 +158,36 @@ export function ringAt(t: number): { on: boolean; at: number; spread: number; al
   if (!last) return { on: false, at: 0, spread: 0, alpha: 0 };
   const d = (t - last.at) / 0.7;
   return { on: true, at: last.at, spread: 1 - (1 - d) ** 3, alpha: (1 - d) ** 2 * last.strength };
+}
+
+/**
+ * The warp from one detail into the next (the owner, 2026-11-12: "the transition is weak ... it gets stuck"): how fast
+ * the room travels at `t` (0 to 1), from each detail rushing past it into the next, gold streaks rushing by
+ * meanwhile. Still while a detail holds, and while the card does.
+ */
+export function warpAt(t: number): number {
+  const leg = (from: number, peak: number, to: number) =>
+    t <= from || t >= to ? 0 : t < peak ? smooth((t - from) / (peak - from)) : 1 - smooth((t - peak) / (to - peak));
+  return Math.max(
+    leg(TG.through1 - 0.12, TG.through1 + 0.2, TG.land2),
+    leg(TG.through2 - 0.12, TG.through2 + 0.2, TG.build + 0.5),
+    leg(TG.nameOut - 0.12, TG.nameOut + 0.2, TG.placed),
+  );
+}
+
+/**
+ * Where a shell of the fireworks bursts, across the background (x by the view's half width, y by its half height, the
+ * middle 0): up the sides or over the top, never in the middle band where the details and the card are read. `side`:
+ * up a side, so a rocket can rise to it from below without crossing that band.
+ */
+export function shellSpot(rnd: () => number): { x: number; y: number; side: boolean } {
+  for (let i = 0; i < 64; i++) {
+    const x = (rnd() * 2 - 1) * 0.94;
+    const y = -0.2 + rnd() * 1.08;
+    if (Math.abs(x) > 0.58) return { x, y, side: true };
+    if (y > 0.64) return { x, y, side: false };
+  }
+  return { x: 0.8, y: 0.5, side: true };
 }
 
 // ---- the pieces ----
@@ -293,8 +346,17 @@ const plateFragment = /* glsl */ `
     gold += vec3(1.0, 0.85, 0.52) * exp(-g * g * 26.0) * 0.3;
     // A warm glow round the letters, strongest as it lands.
     float halo = soft * (1.0 - face) * (0.3 + 0.7 * uHeat);
+    // And a dark ground round them, further out (twelve looks at the blurred letters, around): whatever turns behind a
+    // word, rays, spotlights, fireworks, never runs into a letter (the owner, 2026-11-12: "the text is not clear, the
+    // background effects affect the text").
+    float ground = 0.0;
+    for (int i = 0; i < 12; i++) {
+      float an = float(i) * 0.5235988;
+      ground += texture2D(uMap, vUv + vec2(cos(an), sin(an)) * uTexel * 30.0).g;
+    }
+    ground = clamp(ground / 12.0 * 2.6, 0.0, 1.0);
     vec3 col = gold * face + vec3(1.0, 0.76, 0.36) * halo;
-    float a = clamp(face + halo, 0.0, 1.0) * uAlpha;
+    float a = clamp(max(face + halo, ground * 0.9), 0.0, 1.0) * uAlpha;
     gl_FragColor = vec4(col * uAlpha, a);
   }
 `;
@@ -411,11 +473,12 @@ const raysFragment = /* glsl */ `
     float a = atan(p.x, p.y);
     float px = length(fwidth(p)) / max(r, 0.002);
     // Broad warm rays, one 2.5 degrees wide every 12, turning; fine pale ones, one 1.5 wide every 9, turning back.
-    float reach = 1.0 - smoothstep(0.3, 0.8, r);
+    // Strongest round the words, not behind them: the heart quiet.
+    float reach = smoothstep(0.06, 0.3, r) * (1.0 - smoothstep(0.55, 0.95, r));
     float broad = fan(a - uSpin, 0.20944, 0.04363, px) * 0.3 * reach;
     float fine = fan(a + 0.6 * uSpin - 0.10472, 0.15708, 0.02618, px) * 0.16 * reach;
-    // A glow at their heart.
-    float glow = r < 0.38 ? mix(0.42, 0.12, r / 0.38) : 0.12 * (1.0 - smoothstep(0.38, 0.7, r));
+    // A ring of glow round the words.
+    float glow = 0.2 * exp(-pow((r - 0.34) / 0.2, 2.0));
     vec3 heart = mix(vec3(1.0, 0.886, 0.627), vec3(1.0, 0.784, 0.431), smoothstep(0.0, 0.38, r));
     vec3 col = vec3(1.0, 0.87, 0.59) * broad + vec3(1.0, 0.925, 0.745) * fine + heart * glow;
     gl_FragColor = vec4(col * uA, 1.0);
@@ -490,6 +553,290 @@ export class ShockRing {
     this.u.uA.value = alpha;
     this.u.uR.value = spread;
     this.mesh.visible = alpha > 0.002;
+  }
+
+  dispose() {
+    for (const x of this.owned) x.dispose();
+  }
+}
+
+const warpVertex = /* glsl */ `
+  attribute vec2 aCorner;
+  attribute vec3 aStart;
+  attribute float aPace;
+  uniform float uTravel;
+  uniform float uLen;
+  uniform float uDepth;
+  uniform vec2 uRes;
+  uniform float uWidth;
+  varying float vAlong;
+  varying float vAcross;
+  varying float vDepth;
+  void main() {
+    // Each streak runs at the room, its tail behind it, and comes round again from the far end.
+    float far = mod(aStart.z - uTravel * aPace, uDepth);
+    float z = -0.8 - far;
+    vec4 head = projectionMatrix * modelViewMatrix * vec4(aStart.xy, z, 1.0);
+    vec4 tail = projectionMatrix * modelViewMatrix * vec4(aStart.xy, z - uLen * aPace, 1.0);
+    vec2 dir = (tail.xy / tail.w - head.xy / head.w) * uRes;
+    float len = length(dir);
+    vec2 n = len > 1e-4 ? vec2(-dir.y, dir.x) / len : vec2(0.0, 1.0);
+    vec4 p = aCorner.y < 0.5 ? head : tail;
+    float width = uWidth * (aCorner.y < 0.5 ? 1.0 : 0.3);
+    p.xy += n * aCorner.x * width / uRes * 2.0 * p.w;
+    gl_Position = p;
+    vAlong = aCorner.y;
+    vAcross = aCorner.x;
+    vDepth = far / uDepth;
+  }
+`;
+const warpFragment = /* glsl */ `
+  uniform float uA;
+  varying float vAlong;
+  varying float vAcross;
+  varying float vDepth;
+  void main() {
+    float a = (1.0 - vAlong) * (1.0 - smoothstep(0.35, 1.0, abs(vAcross))) * (1.0 - smoothstep(0.55, 1.0, vDepth)) * smoothstep(0.0, 0.05, vDepth) * uA;
+    gl_FragColor = vec4(vec3(1.0, 0.86, 0.56) * a, 1.0);
+  }
+`;
+
+/** The warp's gold streaks, rushing past the room from one detail into the next (warpAt): in the room's own space. */
+export class WarpStreaks {
+  readonly mesh: THREE.Mesh;
+  private readonly u: { uTravel: THREE.IUniform; uLen: THREE.IUniform; uDepth: THREE.IUniform; uRes: THREE.IUniform; uWidth: THREE.IUniform; uA: THREE.IUniform };
+  private readonly owned: { dispose(): void }[] = [];
+
+  constructor(count = 240) {
+    this.u = { uTravel: { value: 0 }, uLen: { value: 1 }, uDepth: { value: 26 }, uRes: { value: new THREE.Vector2(1920, 1080) }, uWidth: { value: 2.4 }, uA: { value: 0 } };
+    const g = new THREE.InstancedBufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(new Float32Array(12), 3));
+    g.setAttribute("aCorner", new THREE.Float32BufferAttribute([-1, 0, 1, 0, -1, 1, 1, 1], 2));
+    g.setIndex([0, 1, 2, 2, 1, 3]);
+    const start = new Float32Array(count * 3);
+    const pace = new Float32Array(count);
+    let seed = 11;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    for (let i = 0; i < count; i++) {
+      // Round the view's middle line, never on it: the words are read there.
+      const a = rnd() * Math.PI * 2;
+      const r = 0.6 + Math.pow(rnd(), 0.8) * 3.8;
+      start[i * 3] = Math.cos(a) * r;
+      start[i * 3 + 1] = Math.sin(a) * r;
+      start[i * 3 + 2] = rnd() * 26;
+      pace[i] = 0.7 + rnd() * 0.6;
+    }
+    g.setAttribute("aStart", new THREE.InstancedBufferAttribute(start, 3));
+    g.setAttribute("aPace", new THREE.InstancedBufferAttribute(pace, 1));
+    g.instanceCount = count;
+    const material = new THREE.ShaderMaterial({ uniforms: this.u, vertexShader: warpVertex, fragmentShader: warpFragment, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
+    this.owned.push(g, material);
+    this.mesh = new THREE.Mesh(g, material);
+    this.mesh.frustumCulled = false;
+    // Drawn before the rays (7), the card and the details (14): behind every word.
+    this.mesh.renderOrder = 6;
+    this.mesh.visible = false;
+  }
+
+  /** The drawing's size (device pixels): the streaks keep their width on any screen. */
+  size(w: number, h: number) {
+    (this.u.uRes.value as THREE.Vector2).set(w, h);
+    this.u.uWidth.value = 2.4 * (h / 1080);
+  }
+
+  /** How fast (0 to 1), how far the room has travelled, and how long the streaks are. */
+  set(pace: number, travel: number, len: number) {
+    this.u.uA.value = Math.min(1, pace) * 0.9;
+    this.u.uTravel.value = travel;
+    this.u.uLen.value = len;
+    this.mesh.visible = pace > 0.002;
+  }
+
+  dispose() {
+    for (const x of this.owned) x.dispose();
+  }
+}
+
+const fireworksVertex = /* glsl */ `
+  attribute vec3 aVel;
+  attribute float aBorn;
+  attribute float aLife;
+  attribute vec3 aColor;
+  attribute float aSize;
+  attribute float aKind;
+  uniform float uT;
+  uniform float uScale;
+  uniform float uG;
+  uniform float uA;
+  varying vec3 vColor;
+  varying float vAlpha;
+  float hash(float x) { return fract(sin(x) * 43758.5453); }
+  void main() {
+    float age = uT - aBorn;
+    vColor = aColor;
+    if (age < 0.0 || age > aLife) {
+      vAlpha = 0.0;
+      gl_PointSize = 0.0;
+      gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+      return;
+    }
+    float k = age / aLife;
+    vec3 p;
+    float bright;
+    if (aKind > 0.5) {
+      // A rocket rising to where it bursts (aVel), slowing as it climbs.
+      p = mix(position, aVel, 1.0 - (1.0 - k) * (1.0 - k));
+      bright = 0.55 + 0.45 * k;
+    } else {
+      // A star thrown out of the burst, slowed by the air and falling; bright, fading, and at its end crackling.
+      p = position + aVel * (1.0 - exp(-1.9 * age)) / 1.9 - vec3(0.0, uG * age * age, 0.0);
+      bright = 0.25 + (1.0 - k) * (1.0 - k) * 0.95;
+      if (k > 0.6) bright *= 0.3 + 1.5 * step(0.55, hash(aBorn * 37.1 + aSize * 911.0 + floor(age * 24.0)));
+    }
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+    gl_PointSize = aSize * uScale / -mv.z * (aKind > 0.5 ? 1.0 : 1.1 - 0.5 * k);
+    vAlpha = bright * uA;
+  }
+`;
+const fireworksFragment = /* glsl */ `
+  varying vec3 vColor;
+  varying float vAlpha;
+  void main() {
+    vec2 q = gl_PointCoord * 2.0 - 1.0;
+    float d = dot(q, q);
+    if (d > 1.0 || vAlpha <= 0.0) discard;
+    float core = exp(-d * 10.0);
+    float glow = exp(-d * 2.8) * 0.5;
+    gl_FragColor = vec4(mix(vColor, vec3(1.0, 0.97, 0.9), core * 0.65) * (core + glow) * vAlpha, 1.0);
+  }
+`;
+
+/** A shell's stars, the points a star leaves behind it (its trail), a rocket's points, and the shells in the air at once. */
+export const FIREWORKS = { stars: 64, trail: 3, rocket: 6, shells: 24 } as const;
+const FW_PER = FIREWORKS.stars * FIREWORKS.trail + FIREWORKS.rocket;
+/** Seconds a rocket takes to rise to where its shell bursts. */
+export const FW_RISE = 0.7;
+/** Gold, champagne, amber. */
+const FW_HUES = [
+  [1.0, 0.8, 0.42],
+  [1.0, 0.93, 0.78],
+  [1.0, 0.62, 0.28],
+] as const;
+
+/**
+ * Fireworks over the background (the owner, 2026-11-12: "the background is fully black ... make innovative crackers"):
+ * each shell its rocket rising, its burst of stars trailing gold, falling, crackling as they go out. In the room's own
+ * space, behind everything the reveal shows; the pack, nearer, hides them.
+ */
+export class Fireworks {
+  readonly points: THREE.Points;
+  private readonly g: THREE.BufferGeometry;
+  private readonly u: { uT: THREE.IUniform; uScale: THREE.IUniform; uG: THREE.IUniform; uA: THREE.IUniform };
+  private readonly owned: { dispose(): void }[] = [];
+  private slot = 0;
+  private dirty = false;
+
+  constructor() {
+    const n = FIREWORKS.shells * FW_PER;
+    this.u = { uT: { value: 0 }, uScale: { value: 500 }, uG: { value: 0.2 }, uA: { value: 0 } };
+    this.g = new THREE.BufferGeometry();
+    const put = (name: string, size: number, fill = 0) => this.g.setAttribute(name, new THREE.BufferAttribute(new Float32Array(n * size).fill(fill), size).setUsage(THREE.DynamicDrawUsage));
+    put("position", 3);
+    put("aVel", 3);
+    put("aBorn", 1, -1e4);
+    put("aLife", 1, 1);
+    put("aColor", 3);
+    put("aSize", 1);
+    put("aKind", 1);
+    const material = new THREE.ShaderMaterial({ uniforms: this.u, vertexShader: fireworksVertex, fragmentShader: fireworksFragment, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.owned.push(this.g, material);
+    this.points = new THREE.Points(this.g, material);
+    this.points.frustumCulled = false;
+    // Behind everything the reveal shows in front of them.
+    this.points.renderOrder = -3;
+    this.points.visible = false;
+  }
+
+  private arr(name: string): Float32Array {
+    return (this.g.attributes[name] as THREE.BufferAttribute).array as Float32Array;
+  }
+
+  /**
+   * A shell bursting at `at` (seconds, the screen's own clock) at (x, y, z) in the room's own space, `radius` across,
+   * gold (0), champagne (1) or amber (2); its rocket rising to it from height `from`, or none (null): out of the dark.
+   */
+  shell(at: number, x: number, y: number, z: number, radius: number, hue: 0 | 1 | 2, from: number | null, rnd: () => number = Math.random) {
+    const pos = this.arr("position");
+    const vel = this.arr("aVel");
+    const born = this.arr("aBorn");
+    const life = this.arr("aLife");
+    const col = this.arr("aColor");
+    const size = this.arr("aSize");
+    const kind = this.arr("aKind");
+    const [hr, hg, hb] = FW_HUES[hue];
+    let i = this.slot * FW_PER;
+    this.slot = (this.slot + 1) % FIREWORKS.shells;
+    for (let st = 0; st < FIREWORKS.stars; st++) {
+      // Spread over a sphere, a little uneven, as a real shell's stars are; a few of them white.
+      const u = rnd() * 2 - 1;
+      const th = rnd() * Math.PI * 2;
+      const q = Math.sqrt(1 - u * u);
+      const speed = radius * 1.9 * (0.82 + 0.3 * rnd());
+      const white = rnd() < 0.18;
+      const lasts = 1.25 + 0.6 * rnd();
+      for (let j = 0; j < FIREWORKS.trail; j++, i++) {
+        const dim = [1, 0.55, 0.3][j];
+        pos.set([x, y, z], i * 3);
+        vel.set([q * Math.cos(th) * speed, u * speed, q * Math.sin(th) * speed * 0.4], i * 3);
+        born[i] = at + j * 0.04;
+        life[i] = lasts - j * 0.04;
+        col.set(white ? [dim, dim * 0.97, dim * 0.9] : [hr * dim, hg * dim, hb * dim], i * 3);
+        size[i] = radius * [0.05, 0.04, 0.03][j];
+        kind[i] = 0;
+      }
+    }
+    for (let j = 0; j < FIREWORKS.rocket; j++, i++) {
+      if (from === null) {
+        born[i] = -1e4;
+        continue;
+      }
+      // Its rocket: rising from below, a tail of fading points, bursting where the stars begin.
+      const dim = 1 - j / FIREWORKS.rocket;
+      pos.set([x + (rnd() - 0.5) * radius * 0.1, from, z], i * 3);
+      vel.set([x, y, z], i * 3);
+      born[i] = at - FW_RISE + j * 0.03;
+      life[i] = FW_RISE;
+      col.set([hr * dim, hg * dim * 0.95, hb * dim * 0.85], i * 3);
+      size[i] = radius * 0.045 * (1 - 0.1 * j);
+      kind[i] = 1;
+    }
+    this.dirty = true;
+  }
+
+  /** The screen's clock now, how bright (0 to 1), and how fast a star falls (world units a second, squared). */
+  set(time: number, alpha: number, gravity: number) {
+    this.u.uT.value = time;
+    this.u.uA.value = alpha;
+    this.u.uG.value = gravity;
+    this.points.visible = alpha > 0.002;
+    // Every shell sent up since the last frame goes to the GPU together.
+    if (this.dirty) {
+      for (const a of Object.values(this.g.attributes)) (a as THREE.BufferAttribute).needsUpdate = true;
+      this.dirty = false;
+    }
+  }
+
+  /** Its points' size (pixels a world unit at one unit from the room). */
+  scale(px: number) {
+    this.u.uScale.value = px;
+  }
+
+  /** None in the air. */
+  reset() {
+    this.arr("aBorn").fill(-1e4);
+    this.slot = 0;
+    this.dirty = true;
   }
 
   dispose() {

@@ -173,6 +173,8 @@
 .lw-act {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: calc(1.6 * var(--u));
   height: calc(3.1 * var(--u));
   margin-bottom: calc(0.85 * var(--u));
   transition: opacity 0.35s ease;
@@ -210,6 +212,63 @@
 .lw-draw:disabled {
   opacity: 0.42;
   cursor: default;
+}
+/* Beside the Draw button, the trip's words run out of it either way in gold, as an awards night's screens run them
+   (the owner, 2026-11-12: "moving text ... awards style ... Ballon d'Or"); only their transform moves. */
+.lw-ticker {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+  mask: linear-gradient(90deg, transparent, #000 22%, #000 78%, transparent);
+}
+.lw-ticker-track {
+  display: flex;
+  width: max-content;
+  animation: lw-ticker 46s linear infinite;
+  will-change: transform;
+}
+.lw-ticker[data-side="right"] .lw-ticker-track {
+  animation-direction: reverse;
+}
+.lw-ticker-run {
+  display: flex;
+  align-items: center;
+}
+.lw-ticker-word {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-weight: 600;
+  font-size: calc(0.98 * var(--u));
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--gold);
+  text-shadow: 0 0 calc(0.7 * var(--u)) rgb(231 194 108 / 0.35);
+}
+.lw-ticker-word i {
+  font-style: normal;
+  margin: 0 1.5em;
+  color: var(--gold-hi);
+  font-size: 0.7em;
+  text-shadow: 0 0 calc(0.5 * var(--u)) rgb(255 226 160 / 0.8);
+}
+@keyframes lw-ticker {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lw-ticker-track {
+    animation: none;
+  }
 }
 
 /* The round's five seats. */
@@ -410,12 +469,19 @@
 .lw-lift-glow {
   background: radial-gradient(closest-side, rgb(255 214 140 / 0.42), rgb(240 180 90 / 0.14) 55%, rgb(240 180 90 / 0) 76%);
 }
-/* The light passing over the foil: a plain soft band (a blend mode here cost the TV a dropped frame as the pass appeared). */
+/* The light passing over the foil: a plain soft band (a blend mode here cost the TV a dropped frame as the pass appeared),
+   held to the pass's foil band round its edge, 40 of its 2048 pixels (faces.ts PASS_BAND): it never runs over a word
+   (the owner, 2026-11-12: "the effects must not touch the text"). */
 .lw-lift-foil {
   position: absolute;
   inset: 0;
   overflow: hidden;
   border-radius: inherit;
+  padding: 1.953%;
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
 }
 .lw-lift-band {
   position: absolute;
