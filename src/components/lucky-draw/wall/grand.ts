@@ -8,8 +8,8 @@ import * as THREE from "three";
  * black and gold, in seconds from the light's landing:
  *
  *  - the winner's ticket spins out of the wall towards the room and, in a flash, is a gold foil pack, the AFFHAN
- *    Winner Pack, that lands in the middle with a jolt; spotlights sweep, a flare rises behind it; it trembles,
- *    light at its seams, and its top tears off, light bursting out;
+ *    Winner Pack, that lands in the middle with a jolt; spotlights sweep; it trembles, light gathering at its
+ *    seams, and its top tears off, light bursting out of it as it falls away into the dark;
  *  - their Trip ID, cast in gold, zooms in out of the dark and lands with a shock, a glint running over it; it rushes
  *    past the room, and their city (and country) swings in the same way;
  *  - the spotlights close in, embers rise, the light pulses; a burst, and their card spins in out of it and lands in
@@ -196,8 +196,8 @@ const packFragment = /* glsl */ `
     float seam = (1.0 - smoothstep(0.0, 0.012, abs(vUv.y - uCut))) * (uPart < 0.5 ? 1.0 : 0.0);
     c += vec3(1.0, 0.88, 0.6) * (edge + seam) * uGlow;
     c += vec3(1.0, 0.92, 0.7) * uGlow * 0.07;
-    // Torn open: light pouring out of the opening.
-    if (uPart < 0.5) c += vec3(1.0, 0.95, 0.8) * uOpen * smoothstep(uCut - 0.16, uCut, vUv.y) * 2.6;
+    // Torn open: light pouring out of the opening, close to it (lit wide and white, the pack read as a paper sachet).
+    if (uPart < 0.5) c += vec3(1.0, 0.9, 0.66) * uOpen * smoothstep(uCut - 0.07, uCut, vUv.y) * 1.5;
     gl_FragColor = vec4(c * (1.0 - uFade), 1.0);
   }
 `;
@@ -286,9 +286,11 @@ const plateFragment = /* glsl */ `
     vec3 gold = mix(vec3(0.40, 0.25, 0.06), vec3(0.98, 0.80, 0.42), diff);
     gold = mix(gold, vec3(1.0, 0.96, 0.84), spec * 0.85);
     gold *= 0.88 + 0.22 * vUv.y;
-    // The glint, a band of light running across it once it has landed.
-    float g = vUv.x - (1.0 - vUv.y) * 0.25 - uGlint;
-    gold += vec3(1.0, 0.94, 0.78) * exp(-g * g * 220.0) * 0.95;
+    // The glint, a sheen of warm light running across it once it has landed: broad and gentle, so no one letter ever
+    // turns white (a narrow white band made a single digit read as a fault, 2026-11-12). It comes in from beyond its
+    // left edge and goes out beyond its right.
+    float g = vUv.x - (1.0 - vUv.y) * 0.25 - (uGlint * 1.7 - 0.45);
+    gold += vec3(1.0, 0.85, 0.52) * exp(-g * g * 26.0) * 0.3;
     // A warm glow round the letters, strongest as it lands.
     float halo = soft * (1.0 - face) * (0.3 + 0.7 * uHeat);
     vec3 col = gold * face + vec3(1.0, 0.76, 0.36) * halo;
@@ -392,42 +394,60 @@ export class LightBeams {
   }
 }
 
-const pillarFragment = /* glsl */ `
+const raysFragment = /* glsl */ `
   uniform float uA;
-  uniform float uTime;
+  uniform float uSpin;
   varying vec2 vUv;
+  // One fan of rays: 1 on a ray (w radians wide, one every period), soft at its edges by a pixel's angle (px).
+  float fan(float a, float period, float w, float px) {
+    float d = abs(mod(a + 0.5 * period, period) - 0.5 * period);
+    return 1.0 - smoothstep(0.5 * w - px, 0.5 * w + px, d);
+  }
   void main() {
-    // A flare: a hot core rising, soft at its sides, flickering.
-    float x = vUv.x - 0.5;
-    float core = exp(-x * x * 900.0) + 0.45 * exp(-x * x * 60.0);
-    float up = smoothstep(0.0, 0.12, vUv.y) * (1.0 - smoothstep(0.55, 1.0, vUv.y));
-    float flicker = 0.85 + 0.15 * sin(uTime * 31.0 + vUv.y * 9.0);
-    float a = core * up * flicker * uA;
-    gl_FragColor = vec4(vec3(1.0, 0.9, 0.66) * a, a);
+    vec2 p = vUv * 2.0 - 1.0;
+    float r = length(p);
+    if (r > 1.0) discard;
+    // Round from the top, as a clock's hands go.
+    float a = atan(p.x, p.y);
+    float px = length(fwidth(p)) / max(r, 0.002);
+    // Broad warm rays, one 2.5 degrees wide every 12, turning; fine pale ones, one 1.5 wide every 9, turning back.
+    float reach = 1.0 - smoothstep(0.3, 0.8, r);
+    float broad = fan(a - uSpin, 0.20944, 0.04363, px) * 0.3 * reach;
+    float fine = fan(a + 0.6 * uSpin - 0.10472, 0.15708, 0.02618, px) * 0.16 * reach;
+    // A glow at their heart.
+    float glow = r < 0.38 ? mix(0.42, 0.12, r / 0.38) : 0.12 * (1.0 - smoothstep(0.38, 0.7, r));
+    vec3 heart = mix(vec3(1.0, 0.886, 0.627), vec3(1.0, 0.784, 0.431), smoothstep(0.0, 0.38, r));
+    vec3 col = vec3(1.0, 0.87, 0.59) * broad + vec3(1.0, 0.925, 0.745) * fine + heart * glow;
+    gl_FragColor = vec4(col * uA, 1.0);
   }
 `;
 
-/** The flare rising behind the pack as it charges. */
-export class FlarePillar {
+/**
+ * The rays turning behind the winner's name and their card: a fan of broad warm rays and a fan of fine pale ones
+ * turning against it, and a glow at their heart. In the scene, drawn before the name and the card, so their letters
+ * always lie over the rays (on the page, over the scene, the rays ran through the name: the owner's video, 2026-11-12).
+ */
+export class RayBurst {
   readonly mesh: THREE.Mesh;
-  private readonly u: { uA: THREE.IUniform; uTime: THREE.IUniform };
+  private readonly u: { uA: THREE.IUniform; uSpin: THREE.IUniform };
   private readonly owned: { dispose(): void }[] = [];
 
   constructor() {
-    this.u = { uA: { value: 0 }, uTime: { value: 0 } };
-    const geometry = new THREE.PlaneGeometry(1.6, 14);
-    geometry.translate(0, 7, 0);
-    const material = new THREE.ShaderMaterial({ uniforms: this.u, vertexShader: plainVertex, fragmentShader: pillarFragment, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.u = { uA: { value: 0 }, uSpin: { value: 0 } };
+    const geometry = new THREE.PlaneGeometry(1, 1);
+    // Light added to what is behind it, and never hidden by the dark wall, which it is further away than.
+    const material = new THREE.ShaderMaterial({ uniforms: this.u, vertexShader: plainVertex, fragmentShader: raysFragment, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
     this.owned.push(geometry, material);
     this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.renderOrder = 5;
+    // Drawn before the card's light (8), the card (9), the sparks (11) and the name (14).
+    this.mesh.renderOrder = 7;
     this.mesh.visible = false;
   }
 
-  set(alpha: number, rise: number, time: number) {
+  /** How bright (0 to 1), and how far turned (radians). */
+  set(alpha: number, spin: number) {
     this.u.uA.value = alpha;
-    this.u.uTime.value = time;
-    this.mesh.scale.y = Math.max(0.001, rise);
+    this.u.uSpin.value = spin;
     this.mesh.visible = alpha > 0.002;
   }
 
@@ -461,7 +481,8 @@ export class ShockRing {
     const material = new THREE.ShaderMaterial({ uniforms: this.u, vertexShader: plainVertex, fragmentShader: ringFragment, transparent: true, depthWrite: false, depthTest: false, blending: THREE.AdditiveBlending });
     this.owned.push(geometry, material);
     this.mesh = new THREE.Mesh(geometry, material);
-    this.mesh.renderOrder = 15;
+    // Drawn before the details (14), so it spreads behind their letters, never across them.
+    this.mesh.renderOrder = 13;
     this.mesh.visible = false;
   }
 

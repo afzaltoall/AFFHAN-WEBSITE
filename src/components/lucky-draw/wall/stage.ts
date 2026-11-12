@@ -33,7 +33,7 @@ import {
 } from "./faces";
 import { BOARD_PRINT_AT, Board } from "./board";
 import { CARD_IN, CARD_Z, ENV, Envelope, TE } from "./envelope";
-import { FlarePillar, GoldPack, GoldPlate, LightBeams, PLATE_HOLD, ShockRing, TG, plateAt, ringAt, shakeAt } from "./grand";
+import { GoldPack, GoldPlate, LightBeams, PLATE_HOLD, RayBurst, ShockRing, TG, plateAt, ringAt, shakeAt } from "./grand";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
 import {
   ALL_DOWN,
@@ -751,6 +751,9 @@ const PASS_WORLD_H = (PASS_WORLD_W * PASS_H) / PASS_W;
 /** Where the pass holds the screen: far enough from the room to be just over half its width, on the view's middle. */
 const HOLD_DIST = 4.28;
 const HOLD_BELOW = 0.03;
+/** The rays behind the name and the card: how far from the room, and how wide (in card widths) as the room sees them. */
+const RAYS_DIST = 12;
+const RAYS_WIDE = 2.1;
 /** Rows of names the view can hold at most (a tall screen's). */
 const MAX_ROWS = 18;
 
@@ -815,17 +818,15 @@ export class WallStage {
   /** The departures board (./board.ts) and the flash of gold as the ticket checks in, on the page under the pass. */
   private readonly board: Board;
   private readonly boardFlash = document.createElement("div");
-  /** The grand opening on the page: the golden rays behind the card, and the flash over everything. */
-  private readonly walk = document.createElement("div");
-  private readonly rays = document.createElement("div");
+  /** The grand opening on the page: the flash over everything. */
   private readonly walkFlash = document.createElement("div");
-  /** The grand opening in the scene (./grand.ts): the pack, the details cast in gold, the spotlights, the flare, the shock ring. */
+  /** The grand opening in the scene (./grand.ts): the pack, the details cast in gold, the spotlights, the shock ring, the rays. */
   private readonly grandPack: GoldPack;
   private readonly plates: GoldPlate[] = [];
   private readonly plateCanvases = [document.createElement("canvas"), document.createElement("canvas"), document.createElement("canvas")];
   private readonly plateTex: THREE.CanvasTexture[] = [];
   private readonly beams: LightBeams;
-  private readonly pillar: FlarePillar;
+  private readonly burstRays: RayBurst;
   private readonly ring: ShockRing;
   private readonly style: "walk" | "envelope" | "board" | "gift";
   private liftW = 0;
@@ -887,8 +888,6 @@ export class WallStage {
   private raf = 0;
   private dog = 0;
   private warmTimer = 0;
-  /** The frame the rays turn in, unseen, as the screen opens (their first painting done before any draw). */
-  private raysWarm = 0;
   private readonly born = performance.now();
   private lastNow = 0;
   private gaps: number[] = [];
@@ -1139,10 +1138,10 @@ export class WallStage {
       this.scene.add(plate.mesh);
     });
     this.beams = new LightBeams();
-    this.pillar = new FlarePillar();
+    this.burstRays = new RayBurst();
     this.ring = new ShockRing();
-    this.owned.push(this.beams, this.pillar, this.ring);
-    this.scene.add(this.beams.root, this.pillar.mesh, this.ring.mesh);
+    this.owned.push(this.beams, this.burstRays, this.ring);
+    this.scene.add(this.beams.root, this.burstRays.mesh, this.ring.mesh);
     for (const t of [packInk, ...this.plateTex]) this.renderer.initTexture(t);
     this.flash = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: glow, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, toneMapped: false })));
     this.flash.visible = false;
@@ -1194,11 +1193,6 @@ export class WallStage {
     this.boardFlash.className = "lw-board-flash";
     this.boardFlash.style.opacity = String(LIFT_READY);
     opts.lift.append(this.board.el, this.boardFlash);
-    this.walk.className = "lw-walk";
-    this.walk.hidden = true;
-    this.rays.className = "lw-walk-rays";
-    this.walk.appendChild(this.rays);
-    opts.lift.appendChild(this.walk);
     opts.lift.appendChild(this.liftRoot);
     this.walkFlash.className = "lw-walk-flash";
     this.walkFlash.style.opacity = "0";
@@ -1234,7 +1228,7 @@ export class WallStage {
     this.gift.root.visible = true;
     this.envelope.root.visible = true;
     this.hero.visible = true;
-    const grand = [this.grandPack.root, ...this.plates.map((p) => p.mesh), this.beams.root, this.pillar.mesh, this.ring.mesh];
+    const grand = [this.grandPack.root, ...this.plates.map((p) => p.mesh), this.beams.root, this.burstRays.mesh, this.ring.mesh];
     for (const o of grand) o.visible = true;
     void this.renderer.compileAsync(this.scene, this.camera).catch(() => {});
     for (const o of grand) o.visible = false;
@@ -1255,23 +1249,6 @@ export class WallStage {
         this.board.set(practice);
         this.boardSize();
         this.board.draw(BOARD_PRINT_AT);
-      }
-      // And the rays behind the winner's card, turning where they turn, too faint to see, then put away: the browser's
-      // first painting of them turning held the TV a frame as the name landed (25 to 42 ms, measured 2026-11-12, on
-      // the first draw only; painted still, as the pass is, they still held it). Once it has, it paints them quickly.
-      if (this.style === "walk") {
-        const from = performance.now();
-        const turn = (now: number) => {
-          if (this.disposed || this.show) return;
-          if (now - from < 600) {
-            this.placeRays(LIFT_READY, TG.nameLand + (now - from) / 1000);
-            this.raysWarm = requestAnimationFrame(turn);
-            return;
-          }
-          this.walk.hidden = true;
-          this.rays.style.opacity = "0";
-        };
-        this.raysWarm = requestAnimationFrame(turn);
       }
     }, 1200);
     this.raf = requestAnimationFrame(this.loop);
@@ -1719,18 +1696,16 @@ export class WallStage {
     cancelAnimationFrame(this.raf);
     window.clearTimeout(this.dog);
     window.clearTimeout(this.warmTimer);
-    cancelAnimationFrame(this.raysWarm);
     this.resizeWatch.disconnect();
     if (this.show) for (const t of this.show.timers) window.clearTimeout(t);
     this.show = null;
     this.run = null;
     // Everything this stage put in the page goes with it, as a stage made again (the screen's pass renewed) puts in
-    // its own: the pass, the departures board and its flash, the walkout's rays and its flash; and the walkout's marks
+    // its own: the pass, the departures board and its flash, the walkout's flash; and the walkout's marks
     // on the page (its words faded, the hand's cursor), should it go in the middle of a reveal.
     this.liftRoot.remove();
     this.board.el.remove();
     this.boardFlash.remove();
-    this.walk.remove();
     this.walkFlash.remove();
     delete this.opts.lift.parentElement?.dataset.walk;
     delete this.opts.lift.parentElement?.dataset.pack;
@@ -2400,14 +2375,15 @@ export class WallStage {
     const tan = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
     // A point on the view's middle line, `d` from the room (where it stands, not shaken with it).
     const along = (d: number, out: THREE.Vector3) => out.set(0, this.viewMid * d * tan, this.camDist - d);
-    // The flashes: as the light lands, as the ticket becomes the pack, as the pack tears, as it all bursts.
+    // The flashes: as the light lands, as the ticket becomes the pack, as the pack tears, as it all bursts; each
+    // quick, over before what comes out of it is read (the burst's, lingering, hazed the name as it landed).
     const pulse = (at: number, rise: number, fall: number, peak: number) =>
       t < at ? 0 : t < at + rise ? (peak * (t - at)) / rise : peak * Math.exp(-(t - at - rise) / fall);
     this.walkFlash.style.opacity = Math.max(
       pulse(-0.03, 0.07, 0.14, 0.55),
       pulse(TG.swap - 0.06, 0.06, 0.12, 0.85),
-      pulse(TG.tear - 0.02, 0.1, 0.2, 1),
-      pulse(TG.burst - 0.06, 0.08, 0.22, 1),
+      pulse(TG.tear - 0.02, 0.08, 0.12, 0.7),
+      pulse(TG.burst - 0.06, 0.08, 0.09, 0.75),
       pulse(TG.placed - 0.04, 0.06, 0.18, 0.6),
     ).toFixed(3);
 
@@ -2424,7 +2400,7 @@ export class WallStage {
       this.heroU.uShade.value = 0;
     }
 
-    // The pack: lands with a jolt, floats, charges, tears; falls away into the light.
+    // The pack: lands with a jolt, floats, charges, tears; falls away into the dark, the light pouring out of it.
     const pk = this.grandPack;
     const packOn = t >= TG.swap && t < TG.tear + 0.6;
     pk.root.visible = packOn;
@@ -2434,10 +2410,10 @@ export class WallStage {
       const after = clamp01((t - TG.tear) / 0.6);
       const quake = charge * charge;
       pk.root.position.copy(this.packAt);
-      pk.root.position.z += 1.8 * (1 - easeOut(land));
+      pk.root.position.z += 1.8 * (1 - easeOut(land)) - 2.4 * easeIn(after);
       pk.root.position.x += Math.sin(t * 73) * 0.022 * quake;
       pk.root.position.y += Math.cos(t * 61) * 0.02 * quake + Math.sin(time * 1.4) * 0.04;
-      pk.root.scale.setScalar((0.8 + 0.2 * backOut(land)) * (1 + 0.16 * easeIn(charge)) * (1 + 0.4 * easeOut(after)));
+      pk.root.scale.setScalar((0.8 + 0.2 * backOut(land)) * (1 + 0.1 * easeIn(charge)) * (1 - 0.15 * easeIn(after)));
       pk.root.rotation.set(
         0.05 * Math.sin(t * 0.9),
         0.34 * Math.sin(time * 0.8) * (1 - charge) + 1.1 * (1 - easeOut(land)) + Math.sin(t * 83) * 0.02 * quake,
@@ -2446,16 +2422,14 @@ export class WallStage {
       // Waiting to be opened: its edges breathing light, calling for the hand.
       const waiting = s.hold !== null && !s.opened && t >= TG.pack ? 1 : 0;
       const breathe = waiting * (0.3 + 0.3 * (0.5 + 0.5 * Math.sin(time * 2.6)));
-      pk.set(time, 0.25 + 2.3 * quake + breathe, smooth(t, TG.tear, TG.tear + 0.15), clamp01((t - TG.tear) / 0.55), smooth(t, TG.tear + 0.25, TG.tear + 0.6));
+      // Charging, light gathers at its edges and seams, gold, never white (at full it washed the pack pale), and is let
+      // go of as it tears.
+      const glow = (0.2 + 1.1 * quake) * (1 - smooth(t, TG.tear, TG.tear + 0.2)) + breathe;
+      pk.set(time, glow, smooth(t, TG.tear, TG.tear + 0.15), clamp01((t - TG.tear) / 0.55), smooth(t, TG.tear + 0.25, TG.tear + 0.6));
     }
-    // The flare rising behind the pack as it charges, and again before the burst.
-    const flare =
-      smooth(t, TG.charge - 0.2, TG.charge + 0.4) * (1 - smooth(t, TG.tear + 0.1, TG.tear + 0.6)) +
-      smooth(t, TG.build + 0.3, TG.burst - 0.1) * (1 - smooth(t, TG.burst, TG.burst + 0.4));
-    this.pillar.mesh.position.copy(this.packAt).add(this.tmpV.set(0, -2.4, -2.6));
-    this.pillar.set(0.85 * flare, easeOut(clamp01(flare * 1.4)), time);
-    // The spotlights: on as the pack lands, sweeping; closing in on the middle before the burst; gone in it.
-    const beams = 0.62 * smooth(t, TG.pack - 0.3, TG.pack + 0.4) * (1 - smooth(t, TG.burst, TG.burst + 0.5));
+    // The spotlights: on as the pack lands, sweeping; closing in on the middle before the burst; gone in it, before the
+    // name lands (lingering, they hazed it).
+    const beams = 0.62 * smooth(t, TG.pack - 0.3, TG.pack + 0.4) * (1 - smooth(t, TG.burst - 0.05, TG.burst + 0.2));
     this.beams.root.position.copy(this.packAt);
     this.beams.set(beams, time, smooth(t, TG.build, TG.burst));
 
@@ -2529,23 +2503,26 @@ export class WallStage {
       (this.passHalo.material as THREE.SpriteMaterial).opacity = 0.6 * k;
     }
 
-    // Rays turning behind the card while it holds.
-    this.placeRays(smooth(t, TG.nameLand - 0.15, TG.nameLand + 0.4) * (1 - smooth(t, TG.leave, TG.leave + 0.4)), t);
+    // Rays turning behind the name and then the card while it holds: in the scene, behind them both (on the page they
+    // were drawn over the name's letters), as wide as twice the card and a little more, as the room sees it.
+    const rays = smooth(t, TG.nameLand - 0.15, TG.nameLand + 0.4) * (1 - smooth(t, TG.leave, TG.leave + 0.4));
+    this.burstRays.set(rays, THREE.MathUtils.degToRad(t * 9));
+    if (rays > 0.002) {
+      const m = this.burstRays.mesh;
+      this.raysAt(m.position);
+      m.quaternion.copy(this.camera.quaternion);
+      m.scale.setScalar(RAYS_WIDE * PASS_WORLD_W * (RAYS_DIST / HOLD_DIST) * (0.85 + 0.15 * rays));
+    }
 
     this.liftRoot.hidden = false;
     this.liftPose(t, s);
   }
 
-  /** The rays behind the card, at `alpha`, centred where it holds, turned as they are `t` seconds into the reveal. */
-  private placeRays(alpha: number, t: number) {
-    const { hx, hy, w } = this.liftSize();
-    this.walk.hidden = false;
-    this.rays.style.opacity = alpha.toFixed(3);
-    const size = w * 2.1;
-    this.rays.style.width = `${size.toFixed(0)}px`;
-    this.rays.style.height = `${size.toFixed(0)}px`;
-    this.rays.style.transform = `translate3d(${(hx - size / 2).toFixed(1)}px, ${(hy - size / 2).toFixed(1)}px, 0) scale(${(0.85 + 0.15 * alpha).toFixed(3)})`;
-    this.rays.style.setProperty("--spin", `${(t * 9).toFixed(2)}deg`);
+  /** Where the rays turn: behind where the card holds, on the same line from the room, RAYS_DIST from it. */
+  private raysAt(out: THREE.Vector3): THREE.Vector3 {
+    const k = RAYS_DIST / HOLD_DIST;
+    out.set(0, (this.viewMid * HOLD_DIST * Math.tan(THREE.MathUtils.degToRad(FOV / 2)) - HOLD_BELOW) * k, -RAYS_DIST);
+    return this.camera.localToWorld(out);
   }
 
   /** Embers rising round the middle before the grand opening's burst. */
@@ -2771,14 +2748,13 @@ export class WallStage {
     this.envelope.root.visible = false;
     this.passGroup.visible = false;
     this.liftRoot.hidden = true;
-    this.walk.hidden = true;
     this.walkFlash.style.opacity = "0";
     this.camera.position.set(0, 0, this.camDist);
     this.camera.updateMatrixWorld();
     this.grandPack.root.visible = false;
     for (const p of this.plates) p.mesh.visible = false;
     this.beams.set(0, 0, 0);
-    this.pillar.set(0, 0, 0);
+    this.burstRays.set(0, 0);
     this.ring.set(0, 0);
     delete this.opts.lift.parentElement?.dataset.walk;
     delete this.opts.lift.parentElement?.dataset.pack;

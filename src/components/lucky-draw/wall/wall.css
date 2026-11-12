@@ -467,8 +467,8 @@
   }
 }
 
-/* The grand opening (./grand.ts): the page's words fade while it plays (the screen goes dark), rays turn behind
-   the card, and a flash of gold at each of its moments. */
+/* The grand opening (./grand.ts): the page's words go while it plays (the screen goes dark; faded, they still read
+   behind every detail, 2026-11-12), and a flash of gold at each of its moments. */
 .lw-band,
 .lw-eyebrow,
 .lw-note,
@@ -479,45 +479,12 @@
 .lw[data-walk] .lw-eyebrow,
 .lw[data-walk] .lw-note,
 .lw[data-walk] .lw-foot {
-  opacity: 0.06;
+  opacity: 0;
 }
 /* The pack waiting to be opened by hand: a hand cursor anywhere on the screen. */
 .lw[data-pack],
 .lw[data-pack] * {
   cursor: pointer;
-}
-.lw-walk {
-  position: absolute;
-  inset: 0;
-}
-.lw-walk[hidden] {
-  display: none;
-}
-.lw-walk-rays {
-  position: absolute;
-  left: 0;
-  top: 0;
-  opacity: 0;
-  border-radius: 50%;
-  background: radial-gradient(closest-side, rgb(255 226 160 / 0.42), rgb(255 200 110 / 0.12) 38%, rgb(255 200 110 / 0) 70%);
-  will-change: transform, opacity;
-}
-.lw-walk-rays::before,
-.lw-walk-rays::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  -webkit-mask: radial-gradient(closest-side, #000 0%, #000 30%, transparent 80%);
-  mask: radial-gradient(closest-side, #000 0%, #000 30%, transparent 80%);
-}
-.lw-walk-rays::before {
-  background: repeating-conic-gradient(from 0deg, rgb(255 222 150 / 0.3) 0deg 2.5deg, rgb(255 216 140 / 0) 2.5deg 12deg);
-  transform: rotate(var(--spin, 0deg));
-}
-.lw-walk-rays::after {
-  background: repeating-conic-gradient(from 6deg, rgb(255 236 190 / 0.16) 0deg 1.5deg, rgb(255 216 140 / 0) 1.5deg 9deg);
-  transform: rotate(calc(var(--spin, 0deg) * -0.6));
 }
 .lw-walk-flash {
   position: absolute;

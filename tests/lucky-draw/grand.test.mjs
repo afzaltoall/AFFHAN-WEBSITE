@@ -4,7 +4,9 @@
 //   npm run test:lucky-draw
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { IMPACTS, PAST_T, PLATES, PLATE_DRIFT, PLATE_FAR, PLATE_HOLD, TG, plateAt, ringAt, shakeAt } from "@/components/lucky-draw/wall/grand";
+import { readFileSync } from "node:fs";
+import * as THREE from "three";
+import { GoldPlate, IMPACTS, PAST_T, PLATES, PLATE_DRIFT, PLATE_FAR, PLATE_HOLD, RayBurst, ShockRing, TG, plateAt, ringAt, shakeAt } from "@/components/lucky-draw/wall/grand";
 
 test("the grand opening's moments: the pack, its tearing, the Trip ID, then the place, the burst, the card, its seat", () => {
   const order = ["out", "swap", "pack", "wait", "charge", "tear", "plate1", "land1", "through1", "plate2", "land2", "through2", "build", "burst", "name", "nameLand", "nameOut", "cardIn", "placed", "leave", "seat", "end"];
@@ -50,4 +52,31 @@ test("the jolts shake the room sharply and die away within half a second; a shoc
     assert.ok(r0.on && r1.on && r1.spread > r0.spread && r1.alpha < r0.alpha, "the ring spreads and fades");
   }
   assert.equal(shakeAt(TG.pack - 0.1).x, 0, "nothing before the first jolt");
+});
+
+test("the rays turn behind the winner's name and card, never over their letters (the owner's video, 2026-11-12)", () => {
+  const rays = new RayBurst();
+  const name = new GoldPlate(new THREE.Texture(), 1, 1, 1, 1);
+  const stage = readFileSync("src/components/lucky-draw/wall/stage.ts", "utf8");
+  const card = Number(/\bpass\.renderOrder = (\d+);/.exec(stage)[1]);
+  const cardLight = Number(/this\.passHalo\.renderOrder = (\d+);/.exec(stage)[1]);
+  assert.ok(rays.mesh.renderOrder < name.mesh.renderOrder, "drawn before the name");
+  assert.ok(rays.mesh.renderOrder < card && rays.mesh.renderOrder < cardLight, "and before the card and its light");
+  assert.equal(rays.mesh.material.depthTest, false, "never hidden by the dark wall they are further away than");
+  const ring = new ShockRing();
+  assert.ok(ring.mesh.renderOrder < name.mesh.renderOrder, "each jolt's shock ring spreads behind the letters too");
+  ring.dispose();
+  // In the scene, never a layer of the page (the page is over the scene, so its rays ran through the name).
+  assert.doesNotMatch(stage, /lw-walk-rays/);
+  assert.doesNotMatch(readFileSync("src/components/lucky-draw/wall/wall.css", "utf8"), /\.lw-walk-rays/);
+  rays.dispose();
+  name.dispose();
+});
+
+test("while the reveal plays, the page's words are gone, not faded (faded, they read behind every detail)", () => {
+  const css = readFileSync("src/components/lucky-draw/wall/wall.css", "utf8");
+  const rule = /((?:\.lw\[data-walk\] \.lw-[a-z]+,?\s*)+)\{\s*opacity: ([\d.]+);\s*\}/.exec(css);
+  assert.ok(rule, "the rule for the page's words while the reveal plays");
+  assert.deepEqual(rule[1].match(/\.lw-[a-z]+/g).sort(), [".lw-band", ".lw-eyebrow", ".lw-foot", ".lw-note"]);
+  assert.equal(Number(rule[2]), 0);
 });
