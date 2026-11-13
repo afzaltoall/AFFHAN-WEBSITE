@@ -2620,7 +2620,7 @@ export class WallStage {
    * spins out into the pack, a hit as the pack lands; silence while it waits (its click when opened is openPack's); a
    * rumble (Scrolling) as it charges, a hit as it tears; a whoosh timed so each detail lands on its peak, half a second
    * in, and a thump (Slowmo selection) as it lands; a rumble into the burst, its hit, the strongest thump as the name
-   * lands; the card's whoosh and thump; a click as it goes into its seat.
+   * lands, and the crowd cheering (Cheers Celebration); the card's whoosh and thump; a click as it goes into its seat.
    */
   private revealSounds(t: number, s: Show) {
     const sound = this.opts.sound;
@@ -2655,6 +2655,8 @@ export class WallStage {
       sound.play("hit");
     });
     at(1 << 11, TG.nameLand, () => sound.play("slowmo", { gain: 1.2 }));
+    // The crowd: Cheers Celebration, its first 0.7 s silence, so it rises just after the name lands and peaks as it holds.
+    at(1 << 15, TG.nameLand - 0.5, () => sound.play("cheers"));
     at(1 << 12, TG.nameOut, () => sound.play("whoosh"));
     at(1 << 13, TG.placed, () => sound.play("slowmo", { gain: 0.9 }));
     at(1 << 14, TG.seat, () => sound.play("click"));

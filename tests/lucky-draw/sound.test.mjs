@@ -4,7 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { SOUND_FILES, SOUND_LEVEL } from "@/components/lucky-draw/wall/sound";
+import { SOUND_FILES, SOUND_LEVEL, SOUND_PEAK } from "@/components/lucky-draw/wall/sound";
 
 test("every sound the draw plays is a file in public/, small, an MP3", () => {
   for (const [name, path] of Object.entries(SOUND_FILES)) {
@@ -17,9 +17,10 @@ test("every sound the draw plays is a file in public/, small, an MP3", () => {
   }
 });
 
-test("each sound has its level, none past full", () => {
+test("each sound has its level, and at its loudest none goes past full (it would crackle)", () => {
   assert.deepEqual(Object.keys(SOUND_LEVEL).sort(), Object.keys(SOUND_FILES).sort());
-  for (const [name, level] of Object.entries(SOUND_LEVEL)) assert.ok(level > 0 && level <= 1, `${name}: ${level}`);
+  assert.deepEqual(Object.keys(SOUND_PEAK).sort(), Object.keys(SOUND_FILES).sort());
+  for (const [name, level] of Object.entries(SOUND_LEVEL)) assert.ok(level > 0 && level * SOUND_PEAK[name] <= 0.9, `${name}: ${level} x ${SOUND_PEAK[name]}`);
 });
 
 test("the stage cues them only through the screen's sound, which starts on a press on the page", () => {

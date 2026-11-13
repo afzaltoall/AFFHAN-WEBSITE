@@ -7,9 +7,9 @@
  * a click anywhere) starts it (unlock). M or the speaker button mutes it, and the screen keeps that choice.
  */
 
-export type SoundName = "click" | "scrolling" | "selection" | "slowmo" | "hit" | "whoosh";
+export type SoundName = "click" | "scrolling" | "selection" | "slowmo" | "hit" | "whoosh" | "cheers";
 
-/** The files, as the owner named them: Click, Scrolling, Selection progress, Slowmo selection, Transition, Transition whoosh. */
+/** The files, as the owner named them: Click, Scrolling, Selection progress, Slowmo selection, Transition, Transition whoosh, Cheers Celebration. */
 export const SOUND_FILES: Record<SoundName, string> = {
   click: "/lucky-draw/audio/click.mp3",
   scrolling: "/lucky-draw/audio/scrolling.mp3",
@@ -17,14 +17,19 @@ export const SOUND_FILES: Record<SoundName, string> = {
   slowmo: "/lucky-draw/audio/slowmo-selection.mp3",
   hit: "/lucky-draw/audio/transition.mp3",
   whoosh: "/lucky-draw/audio/transition-whoosh.mp3",
+  cheers: "/lucky-draw/audio/cheers-celebration.mp3",
 };
 
 /**
  * How loud each plays, as they were made at different levels (measured 2026-11-13, loudness over the whole file): the
- * whoosh loud (-13 dB), the selection bed, scrolling and the hits about -21 dB, the click quiet (-30 dB). Set so the bed
- * sits under the hits and the whoosh never drowns the rest.
+ * whoosh loud (-13 dB), the selection bed, scrolling and the hits about -21 dB, the click quiet (-30 dB), the cheers
+ * quietest of all (-29 dB, peaking at 0.28) and so raised. Set so the bed sits under the hits, the whoosh never drowns
+ * the rest, and the crowd is heard; none past full at its loudest (SOUND_PEAK).
  */
-export const SOUND_LEVEL: Record<SoundName, number> = { click: 1, scrolling: 0.5, selection: 0.55, slowmo: 0.8, hit: 0.85, whoosh: 0.42 };
+export const SOUND_LEVEL: Record<SoundName, number> = { click: 1, scrolling: 0.5, selection: 0.55, slowmo: 0.8, hit: 0.85, whoosh: 0.42, cheers: 2.4 };
+
+/** Each file's loudest sample, measured as the TV decodes it (2026-11-13): its level times this stays under full. */
+export const SOUND_PEAK: Record<SoundName, number> = { click: 0.575, scrolling: 0.695, selection: 0.711, slowmo: 0.793, hit: 1.014, whoosh: 0.743, cheers: 0.281 };
 
 /** A sound playing: stopped, fading over `fade` seconds. */
 export interface Playing {
