@@ -32,6 +32,7 @@ import {
   type Fonts,
 } from "./faces";
 import { BOARD_PRINT_AT, Board } from "./board";
+import type { DrawSound, Playing } from "./sound";
 import { CARD_IN, CARD_Z, ENV, Envelope, TE } from "./envelope";
 import { Confetti, EMERGE, FW_RISE, Fireworks, GoldPack, GoldPlate, LightBeams, PLATE_HOLD, RayBurst, ShockRing, TG, WarpStreaks, emergeAt, plateAt, ringAt, shakeAt, shellSpot, warpAt } from "./grand";
 import { Gift, RIM_Y, type GiftMoment } from "./gift";
@@ -45,6 +46,7 @@ import {
   ROWS,
   SHUFFLE_MIN,
   SHUFFLE_RAMP,
+  TAIL_T,
   WAVE_T,
   drawPlan,
   flatX,
@@ -147,6 +149,8 @@ export interface StageOptions {
   onSlow?: () => void;
   /** Called once the wall has opened: the names in, drawn, and turned face up (Draw can be pressed from then on). */
   onOpen?: () => void;
+  /** The draw's sound (./sound.ts): each of the owner's sounds on its moment, cued here. None: silence. */
+  sound?: DrawSound;
   /**
    * How the winner is revealed: the grand opening, as a card pack's walkout (./grand.ts; the owner, 2026-11-12: "a
    * grand opening, zooming in one by one ... FIFA style": the pack, the Trip ID, the place, the card), or the ones it replaced,
@@ -695,6 +699,9 @@ interface Show {
   lastT: number;
   fwNext: number;
   fwDone: number;
+  /** The reveal's sounds already played (a bit each), and the rumble playing, if one is. */
+  cues: number;
+  rumble: Playing | null;
   /** Where the reveal waits to be opened by hand (seconds from the stop; null: it never waits), and whether it has been. */
   hold: number | null;
   opened: boolean;
@@ -810,6 +817,10 @@ export class WallStage {
   private readonly warp: WarpStreaks;
   private readonly fireworks: Fireworks;
   private readonly confetti: Confetti;
+  /** The run's sounds: the shuffle's (until the rows are at rest), the search's (until the light slows), the last thump. */
+  private shuffleSound: Playing | null = null;
+  private bed: Playing | null = null;
+  private lastTick = -Infinity;
   /** How far from the room the fireworks burst (behind the pack, in front of the wall), and the view's half height there. */
   private fwDist = 8;
   private fwHalf = 2;
@@ -1317,6 +1328,10 @@ export class WallStage {
     this.finish();
     // A hand on the wall lets go: the draw starts from the wall's own pace.
     this.hand = { held: false, x: 0, at: 0, v: 0, wheel: 0 };
+    // The press heard: a click, and from the gold backs the rows' shuffle, until they come to rest (drawStep).
+    this.opts.sound?.play("click");
+    this.shuffleSound?.stop(0.1);
+    this.shuffleSound = this.turn.down ? (this.opts.sound?.play("scrolling", { loop: true, fadeIn: 0.12 }) ?? null) : null;
     if (this.waiting) {
       const w = this.waiting;
       this.waiting = null;
@@ -1446,6 +1461,14 @@ export class WallStage {
     this.watch(r);
   }
 
+  /** The run's sounds stopped, fading: the shuffle's and the search's (their moments over, or the run). */
+  private quietRun(fade = 0.3) {
+    this.shuffleSound?.stop(fade);
+    this.shuffleSound = null;
+    this.bed?.stop(fade);
+    this.bed = null;
+  }
+
   /**
    * The run over: on its landing, or at once (frames stopped: the watchdog, or a new press), where it would have
    * ended: the rows at rest, the light on the person drawn.
@@ -1454,6 +1477,7 @@ export class WallStage {
     const r = this.run;
     if (!r) return;
     this.run = null;
+    this.quietRun();
     window.clearTimeout(this.dog);
     const target = r.target;
     const landed = !r.halted && r.placed && !!target;
@@ -1600,7 +1624,7 @@ export class WallStage {
     if (this.made !== card.id) this.make(card);
     const { pos, turn } = this.cellPos(this.lightCell());
     return new Promise((resolve) => {
-      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, embers: false, cardBurst: false, hold: this.style === "walk" ? TG.wait : null, opened: false, travel: 0, lastT: 0, fwNext: 0, fwDone: 0, seated: false };
+      const show: Show = { card, start: performance.now(), seat: o.seat, onSeat: o.onSeat, resolve, timers: [], risen: null, from: pos.clone().add(new THREE.Vector3(Math.sin(turn), 0, Math.cos(turn)).multiplyScalar(0.06)), turn, seatRect: null, burst: false, embers: false, cardBurst: false, hold: this.style === "walk" ? TG.wait : null, opened: false, travel: 0, lastT: 0, fwNext: 0, fwDone: 0, cues: 0, rumble: null, seated: false };
       this.show = show;
       // A reveal that waits to be opened has its seat and its end timed from its opening (openPack).
       if (show.hold === null) this.timeShow(show, 0);
@@ -1636,6 +1660,7 @@ export class WallStage {
     const s = this.show;
     if (!this.packWaiting || !s || s.hold === null) return false;
     s.opened = true;
+    this.opts.sound?.play("click");
     this.timeShow(s, Math.min(s.hold, (performance.now() - s.start) / 1000));
     return true;
   }
@@ -1648,6 +1673,8 @@ export class WallStage {
     window.clearTimeout(this.warmTimer);
     this.resizeWatch.disconnect();
     if (this.show) for (const t of this.show.timers) window.clearTimeout(t);
+    this.show?.rumble?.stop(0.05);
+    this.quietRun(0.05);
     this.show = null;
     this.run = null;
     // Everything this stage put in the page goes with it, as a stage made again (the screen's pass renewed) puts in
@@ -1840,6 +1867,10 @@ export class WallStage {
    * tickets are back up).
    */
   private drawStep(r: Run, t: number, now: number) {
+    if (this.shuffleSound && t >= r.settled) {
+      this.shuffleSound.stop(0.35);
+      this.shuffleSound = null;
+    }
     if (!r.placed && !r.halted && r.drawn !== null && t >= r.allDown) this.placeNames(r, r.drawn);
     if (r.placed && r.target && !r.walk && t >= r.light) {
       // Anywhere on the screen as the rows set off, a new place each draw (the owner, 2026-11-12: "it can start from
@@ -1850,6 +1881,10 @@ export class WallStage {
       this.light = { on: true, cells: r.walk.cells, times: r.walk.times, t };
       this.landFlash = now;
       this.jump = 0;
+      // The search heard: the owner's "Selection progress" from the moment the light comes on until it slows.
+      this.bed?.stop(0.2);
+      this.bed = this.opts.sound?.play("selection", { fadeIn: 0.4 }) ?? null;
+      this.lastTick = -Infinity;
     }
     if (r.walk) {
       walkAhead(r.walk, t, (c, at, leave) => this.clear(c, r, at, leave), Math.random);
@@ -1858,6 +1893,19 @@ export class WallStage {
       if (j !== this.jump) {
         this.jump = j;
         this.landFlash = now;
+        // Once it slows, each jump a thump of "Slowmo selection" (never closer than 0.22 s); the last, onto the person
+        // drawn, a hit.
+        const at = r.walk.times[j];
+        if (at === r.land) this.opts.sound?.play("hit");
+        else if (at >= r.land - TAIL_T && at - this.lastTick >= 0.22) {
+          this.opts.sound?.play("slowmo");
+          this.lastTick = at;
+        }
+      }
+      // The search's music gives way to the slowing thumps.
+      if (this.bed && t >= r.land - TAIL_T) {
+        this.bed.stop(1.2);
+        this.bed = null;
       }
     }
     if (t >= r.land) this.finish();
@@ -2329,6 +2377,7 @@ export class WallStage {
       if (this.packWaiting) root.dataset.pack = "";
       else delete root.dataset.pack;
     }
+    this.revealSounds(t, s);
     // The jolts shake the room: the camera, about where it stands.
     const jolt = shakeAt(t);
     this.camera.position.set(jolt.x, jolt.y, this.camDist);
@@ -2566,6 +2615,51 @@ export class WallStage {
     }
   }
 
+  /**
+   * The grand opening heard (the owner's files, ./sound.ts), each sound on its moment, once: a whoosh as the ticket
+   * spins out into the pack, a hit as the pack lands; silence while it waits (its click when opened is openPack's); a
+   * rumble (Scrolling) as it charges, a hit as it tears; a whoosh timed so each detail lands on its peak, half a second
+   * in, and a thump (Slowmo selection) as it lands; a rumble into the burst, its hit, the strongest thump as the name
+   * lands; the card's whoosh and thump; a click as it goes into its seat.
+   */
+  private revealSounds(t: number, s: Show) {
+    const sound = this.opts.sound;
+    if (!sound) return;
+    const at = (bit: number, when: number, play: () => void) => {
+      if (s.cues & bit || t < when) return;
+      s.cues |= bit;
+      play();
+    };
+    const rumble = (on: boolean) => {
+      if (on && !s.rumble) s.rumble = sound.play("scrolling", { loop: true, fadeIn: 0.9, gain: 0.7 });
+      if (!on && s.rumble) {
+        s.rumble.stop(0.15);
+        s.rumble = null;
+      }
+    };
+    at(1 << 0, TG.out, () => sound.play("whoosh"));
+    at(1 << 1, TG.pack, () => sound.play("hit", { gain: 0.8 }));
+    at(1 << 2, TG.charge, () => rumble(true));
+    at(1 << 3, TG.tear, () => {
+      rumble(false);
+      sound.play("hit");
+    });
+    at(1 << 4, TG.plate1 + EMERGE.rise, () => sound.play("whoosh"));
+    at(1 << 5, TG.land1, () => sound.play("slowmo"));
+    at(1 << 6, TG.through1, () => sound.play("whoosh"));
+    at(1 << 7, TG.land2, () => sound.play("slowmo"));
+    at(1 << 8, TG.through2, () => sound.play("whoosh", { gain: 0.8 }));
+    at(1 << 9, TG.build, () => rumble(true));
+    at(1 << 10, TG.burst, () => {
+      rumble(false);
+      sound.play("hit");
+    });
+    at(1 << 11, TG.nameLand, () => sound.play("slowmo", { gain: 1.2 }));
+    at(1 << 12, TG.nameOut, () => sound.play("whoosh"));
+    at(1 << 13, TG.placed, () => sound.play("slowmo", { gain: 0.9 }));
+    at(1 << 14, TG.seat, () => sound.play("click"));
+  }
+
   /** One shell: where it bursts (up a side or over the top, ./grand.ts shellSpot), how large, its gold, and a rocket up a side. */
   private shell(at: number) {
     const H = this.fwHalf;
@@ -2796,6 +2890,8 @@ export class WallStage {
     const s = this.show;
     if (!s) return;
     for (const t of s.timers) window.clearTimeout(t);
+    s.rumble?.stop(0.2);
+    s.rumble = null;
     this.show = null;
     if (!s.seated) {
       s.seated = true;

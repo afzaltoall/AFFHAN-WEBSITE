@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { Maximize2, Minimize2, Volume2, VolumeX } from "lucide-react";
 import {
   DRAW_SEATS,
   nextPlace,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/lucky-draw-shared";
 import { wallOf } from "./drum";
 import { fromOf, type Fonts } from "./faces";
+import { DrawSound } from "./sound";
 import { WallStage } from "./stage";
 import "./wall.css";
 
@@ -151,6 +152,16 @@ function Ticker({ side }: { side: "left" | "right" }) {
   );
 }
 
+/** Whether this screen's sound was turned off (M or the speaker), kept in this browser. */
+const SOUND_KEY = "affhan:draw-sound";
+function soundOff(): boolean {
+  try {
+    return localStorage.getItem(SOUND_KEY) === "off";
+  } catch {
+    return false;
+  }
+}
+
 export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMode | null; closes: string; onFail?: (why: string) => void; keep?: boolean }) {
   const [access, setAccess] = useState<"checking" | "ok" | "none">("checking");
   const [shown, setShown] = useState<Board | null>(null);
@@ -177,6 +188,29 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
   const [frameId, setFrameId] = useState<string | null>(null);
   /** The wall held by hand (the cursor says so). */
   const [held, setHeld] = useState(false);
+  /** The draw's sound (./sound.ts): started by the first press on the page, muted by M or the speaker. */
+  const [sound] = useState<DrawSound | null>(() => (typeof window === "undefined" ? null : new DrawSound()));
+  const [muted, setMuted] = useState(false);
+  useEffect(() => {
+    if (!sound) return;
+    const off = soundOff();
+    sound.setMuted(off);
+    setMuted(off);
+    void sound.load();
+    return () => sound.close();
+  }, [sound]);
+  const toggleSound = useCallback(() => {
+    if (!sound) return;
+    sound.unlock();
+    const next = !sound.isMuted;
+    sound.setMuted(next);
+    setMuted(next);
+    try {
+      localStorage.setItem(SOUND_KEY, next ? "off" : "on");
+    } catch {
+      // Kept for this visit only.
+    }
+  }, [sound]);
   /** The seat a pass has just come down into: it lights as it fills. */
   const [landed, setLanded] = useState<string | null>(null);
 
@@ -468,6 +502,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           // The award-show walkout; ?reveal=envelope, ?reveal=board and ?reveal=gift show the ones it replaced, to compare.
           reveal: ((v) => (v === "envelope" || v === "board" || v === "gift" ? v : "walk"))(new URLSearchParams(window.location.search).get("reveal")),
           seats: DRAW_SEATS,
+          sound: sound ?? undefined,
           onRest: (id) => {
             if (live.current) setFrameId(id);
           },
@@ -498,7 +533,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       wallUp.current = false;
       setReady(false);
     };
-  }, [access, keep, placeFirst]);
+  }, [access, keep, placeFirst, sound]);
 
   // Then every two seconds while the tab is in front: draws and releases made from the console.
   useEffect(() => {
@@ -650,6 +685,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat || e.altKey || e.ctrlKey || e.metaKey) return;
+      // Any key is a press on the page: the sound may start.
+      sound?.unlock();
       if (DRAW_KEYS.has(e.key)) {
         e.preventDefault();
         // The grand opening's pack, waiting: the same key opens it.
@@ -658,11 +695,14 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       } else if (e.key === "f" || e.key === "F") {
         e.preventDefault();
         void toggleFull();
+      } else if (e.key === "m" || e.key === "M") {
+        e.preventDefault();
+        toggleSound();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [press]);
+  }, [press, sound, toggleSound]);
 
   useEffect(() => {
     const onChange = () => setFull(!!document.fullscreenElement);
@@ -753,7 +793,10 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       data-phase={phase}
       data-frame={frameId ?? undefined}
       data-ready={ready || undefined}
-      onPointerDown={() => stageRef.current?.openPack()}
+      onPointerDown={() => {
+        sound?.unlock();
+        stageRef.current?.openPack();
+      }}
     >
       <canvas ref={canvasRef} className="lw-canvas" aria-hidden />
       <div className="lw-frame">
@@ -793,6 +836,9 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           <div className="lw-band-right">
             {mode === "rehearsal" && <span className="lw-rehearsal">Rehearsal: these draws don&rsquo;t count</span>}
             <span>Lucky draw{today ? ` · ${today}` : ""}</span>
+            <button type="button" tabIndex={-1} className="lw-full" onClick={toggleSound} aria-label={muted ? "Sound on" : "Sound off"} aria-pressed={!muted}>
+              {muted ? <VolumeX aria-hidden /> : <Volume2 aria-hidden />}
+            </button>
             <button type="button" tabIndex={-1} className="lw-full" onClick={() => void toggleFull()} aria-label={full ? "Leave full screen" : "Full screen"}>
               {full ? <Minimize2 aria-hidden /> : <Maximize2 aria-hidden />}
             </button>
