@@ -74,6 +74,21 @@ test("the rays turn behind the winner's name and card, never over their letters 
   name.dispose();
 });
 
+test("the ticket the light lands on keeps its print from the room, on the wall and as it leaves it; every other ticket as it is", () => {
+  // The owner, 2026-11-16: "whichever card gets selected ... blur it; only the selected card, at the end".
+  const stage = readFileSync("src/components/lucky-draw/wall/stage.ts", "utf8").replace(/\r\n/g, "\n");
+  assert.match(stage, /this\.veil = r\.target;/, "the person drawn, as the light's way is planned");
+  assert.match(stage, /const veil = !V \|\| !L\.on \? 0 : r \? veilAt\(t, r\.land\) : 1;/, "on the run's clock (./grid.ts veilAt), fully once landed");
+  const tile = /const tileFragment = \/\* glsl \*\/ `([\s\S]*?)`;/.exec(stage)[1];
+  assert.match(tile, /float veil = uVeil\.z \* \(1\.0 - step\(0\.05, abs\(vCenter\.x - uVeil\.x\)\)\) \* \(1\.0 - step\(0\.05, abs\(vCenter\.y - uVeil\.y\)\)\);/, "only the one ticket");
+  assert.match(tile, /m = mix\(m, veiled\(uAtlas, vCell, uCellUV, uv, 1\.0\), veil\);/, "its inks blurred");
+  const hero = /const heroFragment = \/\* glsl \*\/ `([\s\S]*?)`;/.exec(stage)[1];
+  assert.match(hero, /ink = mix\(ink, veiled\(uMap, vec2\(0\.0\), vec2\(1\.0\), uv, 0\.0\)\.a, uVeil\);/, "and as it leaves the wall");
+  assert.match(stage, /this\.heroU\.uVeil\.value = veil;/);
+  // Gone with the light: a new press, the winner shown, the wall back to gold.
+  for (const where of [/this\.light = \{ on: false, cells: \[\{ r: 0, c: 0 \}\], times: \[0\], t: 0 \};\n    this\.veil = null;/, /this\.light\.on = false;\n    this\.veil = null;\n    this\.restSince/]) assert.match(stage, where);
+});
+
 test("while the reveal plays, the page's words are gone, not faded (faded, they read behind every detail)", () => {
   const css = readFileSync("src/components/lucky-draw/wall/wall.css", "utf8").replace(/\r\n/g, "\n");
   const rule = /((?:\.lw\[data-walk\] \.lw-[a-z]+,?\s*)+)\{\s*opacity: ([\d.]+);\s*\}/.exec(css);

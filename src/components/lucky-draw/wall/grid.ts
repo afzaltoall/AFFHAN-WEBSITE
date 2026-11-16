@@ -386,3 +386,15 @@ export function stepIndex(times: readonly number[], t: number): number {
   while (i + 1 < times.length && t >= times[i + 1] - MOVE_T) i++;
   return i;
 }
+
+/**
+ * How far the print on the ticket the light lands on is blurred at `t` (0 not at all, 1 past reading), the light
+ * landing at `land` (the owner, 2026-11-16: "whichever card gets selected ... when it is selected the name is visible,
+ * so blur it; only the selected card, at the end"): from the moment the light leaves for it on its last jump (MOVE_T
+ * before) to the moment it is on it, half way through the jump (the stage lights the ticket the light is nearest). So
+ * the name is never read under the light, and the ticket never blurs while the light is still on another.
+ */
+export function veilAt(t: number, land: number): number {
+  const x = Math.min(1, Math.max(0, (t - (land - MOVE_T)) / (MOVE_T / 2)));
+  return x * x * (3 - 2 * x);
+}

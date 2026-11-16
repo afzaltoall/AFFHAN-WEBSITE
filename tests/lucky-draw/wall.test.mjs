@@ -1,7 +1,7 @@
 // The TV screen's wall (src/components/lucky-draw/wall/grid.ts and drum.ts): who is on it and in what order; the
 // press (every ticket face down before any name changes, face up only after the answer, then the roll, smooth, at
 // rest on a whole column); and that the light searches over the rolling tickets, every jump a snap to a ticket beside
-// the last that the room can see, its last onto the person drawn.
+// the last that the room can see, its last onto the person drawn, whose print blurs as the light leaves for it.
 //   npm run test:lucky-draw
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -41,6 +41,7 @@ import {
   stepTimes,
   stretchFor,
   lightStart,
+  veilAt,
   walkAhead,
   walkStart,
 } from "@/components/lucky-draw/wall/grid";
@@ -361,4 +362,22 @@ test("the light keeps its way and turns now and then; with nowhere to go it stay
   // At the screen's edge it bounces off: going up-right on the top row, it goes down-right.
   const top = (c) => c.r >= 0 && c.r < 6;
   assert.deepEqual(nextStep({ r: 0, c: 5 }, 7, null, 99, top, () => 0.1).cell, { r: 1, c: 6 });
+});
+
+test("the ticket the light lands on: its print blurs as the light leaves for it, blurred whenever the light is on it, never sooner", () => {
+  // The owner, 2026-11-16: "whichever card gets selected ... when it is selected the name is visible, so blur it; only
+  // the selected card, at the end".
+  for (let seed = 1; seed <= 400; seed++) {
+    const { w, target, land } = playChase(seed, [6, 6, 5, 4, 3, 2][seed % 6]);
+    for (let t = land - 1.5; t <= land + 0.3; t += 0.0005) {
+      // The ticket the stage lights: the one the light is nearest (lightCell).
+      const at = pathAt(w.cells, w.times, t);
+      const on = Math.round(at.r) === target.r && Math.round(at.c) === target.c;
+      const v = veilAt(t, land);
+      if (on) assert.ok(v > 0.999, `seed ${seed}: blurred whenever the light is on it (${(t - land).toFixed(4)} s: ${v})`);
+      if (t < land - MOVE_T) assert.equal(v, 0, `seed ${seed}: never before the light leaves for it`);
+    }
+    assert.equal(veilAt(land, land), 1);
+    assert.equal(veilAt(land + 30, land), 1, "and blurred from then on");
+  }
 });

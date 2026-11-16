@@ -62,6 +62,7 @@ import {
   stepIndex,
   stretchFor,
   lightStart,
+  veilAt,
   walkAhead,
   walkStart,
   type Cell,
@@ -178,6 +179,13 @@ const WHEEL_EASE = 9;
 const LIFT_READY = 0.004;
 /** Seconds the tickets the light has jumped from stay golden, fading: its trail across the wall. */
 const TRAIL = 0.55;
+/**
+ * The ticket the light lands on keeps its print from the room (./grid.ts veilAt): its name, place and Trip ID blurred
+ * past reading as the light makes its last jump onto it, and so as it leaves the wall; every other ticket as it is.
+ * VEIL_PX: how far its inks run, in the face's own pixels (FACE_W across); VEIL_INK: how dark what is left of them.
+ */
+const VEIL_PX = 15;
+const VEIL_INK = 0.8;
 
 /** The reveal, in seconds from the stop. */
 const TL = {
@@ -255,6 +263,30 @@ const ticketGlsl = /* glsl */ `
   }
 `;
 
+/**
+ * A face's inks blurred past reading (VEIL_PX): a disk of taps, heavier at its centre, never reaching past the face's
+ * own edges (on the atlas, its neighbours'). The face is at `base`, `span` across in `map`; `flipY` 1 where its rows
+ * are stored top down (the atlas), 0 where not (a canvas texture). Run only for the one ticket it veils.
+ */
+const veilGlsl = /* glsl */ `
+  vec4 veiled(sampler2D map, vec2 base, vec2 span, vec2 uv, float flipY) {
+    const vec2 reach = vec2(${(VEIL_PX / FACE_W).toFixed(6)}, ${(VEIL_PX / FACE_H).toFixed(6)});
+    const vec2 edge = vec2(${(0.5 / FACE_W).toFixed(6)}, ${(0.5 / FACE_H).toFixed(6)});
+    vec4 sum = vec4(0.0);
+    float weight = 0.0;
+    for (int i = 0; i < 64; i++) {
+      float fi = float(i);
+      float r = sqrt((fi + 0.5) / 64.0);
+      float a = fi * 2.39996;
+      float w = exp(-2.2 * r * r);
+      vec2 q = clamp(uv + vec2(cos(a), sin(a)) * r * reach, edge, 1.0 - edge);
+      sum += texture2D(map, base + vec2(q.x, mix(q.y, 1.0 - q.y, flipY)) * span) * w;
+      weight += w;
+    }
+    return sum / weight * ${VEIL_INK.toFixed(3)};
+  }
+`;
+
 const tileVertex = /* glsl */ `
   attribute vec3 aPos;
   attribute float aCell;
@@ -316,6 +348,8 @@ const tileFragment = /* glsl */ `
   uniform vec2 uRes;
   // The ticket the light is on: its centre (x, y), and whether the light is on (z).
   uniform vec3 uSel;
+  // The ticket the light lands on: its centre (x, y), and how far its print is blurred (z: ./grid.ts veilAt).
+  uniform vec3 uVeil;
   varying vec2 vUv;
   varying vec2 vCenter;
   varying float vFlag;
@@ -324,6 +358,7 @@ const tileFragment = /* glsl */ `
   varying vec3 vWorld;
   varying float vLit;
   ${ticketGlsl}
+  ${veilGlsl}
   void main() {
     // Turned over, a ticket shows its back, the right way round.
     bool back = !gl_FrontFacing;
@@ -360,6 +395,9 @@ const tileFragment = /* glsl */ `
       card = mix(card, card * 1.3 + vec3(0.016, 0.012, 0.004), step(uStub, uv.x));
       vec3 body = mix(card, metal, golden);
       vec4 m = vHasCell > 0.5 ? texture2D(uAtlas, vCell + vec2(uv.x, 1.0 - uv.y) * uCellUV) : vec4(0.0);
+      // The ticket the light lands on: its print blurred past reading, nobody's name read before the reveal tells it.
+      float veil = uVeil.z * (1.0 - step(0.05, abs(vCenter.x - uVeil.x))) * (1.0 - step(0.05, abs(vCenter.y - uVeil.y)));
+      if (veil > 0.001 && vHasCell > 0.5) m = mix(m, veiled(uAtlas, vCell, uCellUV, uv, 1.0), veil);
       float sum = max(m.r + m.g, 0.0001);
       float ivory = m.a * m.r / sum;
       float printed = m.a * m.g / sum;
@@ -390,8 +428,11 @@ const heroFragment = /* glsl */ `
   uniform float uShade;
   uniform float uStub;
   uniform float uTime;
+  // How far its print is blurred, as it was on the wall when the light landed on it.
+  uniform float uVeil;
   varying vec2 vUv;
   ${ticketGlsl}
+  ${veilGlsl}
   void main() {
     // Turned over, it shows its back, the right way round, as the wall's tickets do.
     bool back = !gl_FrontFacing;
@@ -406,7 +447,11 @@ const heroFragment = /* glsl */ `
     if (back) {
       col *= 0.9 + 0.06 * sin((q.x - q.y) * 120.0);
       col = mix(col, vec3(0.17, 0.11, 0.03), texture2D(uAtlas, uBackCell + vec2(uv.x, 1.0 - uv.y) * uCellUV).a * 0.88);
-    } else col = mix(col, vec3(0.13, 0.08, 0.02), texture2D(uMap, uv).a);
+    } else {
+      float ink = texture2D(uMap, uv).a;
+      if (uVeil > 0.001) ink = mix(ink, veiled(uMap, vec2(0.0), vec2(1.0), uv, 0.0).a, uVeil);
+      col = mix(col, vec3(0.13, 0.08, 0.02), ink);
+    }
     col = mix(col, vec3(1.0, 0.95, 0.76), edge);
     col = mix(col, vec3(0.36, 0.23, 0.07), perforation(q, uTile, uStub, aa) * 0.85);
     col += vec3(1.0, 0.86, 0.55) * uGlow * 0.12;
@@ -868,6 +913,11 @@ export class WallStage {
    */
   private turn = { down: true, at: -Infinity, k0: 0 };
   /**
+   * The ticket the light lands on, its print blurred: during a run from its last jump (./grid.ts veilAt, on the run's
+   * clock), fully once it has landed. Set as the light's way is planned; gone with the light.
+   */
+  private veil: Cell | null = null;
+  /**
    * The room's hand on the wall between draws: held (and where, when), the pace it lets go with (columns a second,
    * slowing), and a wheel's columns still to move.
    */
@@ -893,6 +943,7 @@ export class WallStage {
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
   private readonly tmpV2 = new THREE.Vector3();
+  private readonly tmpV3 = new THREE.Vector3();
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -974,6 +1025,7 @@ export class WallStage {
       uCellUV: { value: this.atlas.uv },
       uRes: { value: new THREE.Vector2(1920, 1080) },
       uSel: { value: new THREE.Vector3(0, 0, 0) },
+      uVeil: { value: new THREE.Vector3(0, 0, 0) },
       uPop: { value: 1 },
       uStub: { value: STUB_AT },
       uBackCell: { value: new THREE.Vector2(0, 0) },
@@ -1012,6 +1064,7 @@ export class WallStage {
       uShade: { value: 0 },
       uStub: { value: STUB_AT },
       uTime: { value: 0 },
+      uVeil: { value: 0 },
     };
     this.hero = new THREE.Mesh(
       keep(new THREE.PlaneGeometry(this.grid.tileW, this.grid.tileH)),
@@ -1291,6 +1344,8 @@ export class WallStage {
     this.segs[r].push(stretchFor(i, n, this.p - 1, c));
     this.light = { on: true, cells: [{ r, c }], times: [0], t: Infinity };
     this.landFlash = performance.now();
+    // Its print blurred at once, as a landing leaves it: whose ticket it is, the reveal tells.
+    this.veil = { r, c };
     // Face up, so the ticket the light is on is seen.
     if (this.turn.down) this.turn = { down: false, at: performance.now(), k0: Math.floor(this.p) };
     this.slotsDirty = true;
@@ -1305,6 +1360,7 @@ export class WallStage {
   restAfter() {
     if (this.run) return;
     this.light.on = false;
+    this.veil = null;
     if (!this.turn.down) this.turn = { down: true, at: performance.now(), k0: Math.floor(this.p) };
     this.restSince = performance.now();
     this.slotsDirty = true;
@@ -1342,6 +1398,7 @@ export class WallStage {
     this.dimTo(0, 0.2);
     this.litAt.clear();
     this.light = { on: false, cells: [{ r: 0, c: 0 }], times: [0], t: 0 };
+    this.veil = null;
     this.slotsDirty = true;
     if (!this.openDone) {
       this.openDone = true;
@@ -1488,7 +1545,12 @@ export class WallStage {
       const last = w?.cells[w.cells.length - 1];
       this.light = w && last && last.r === target.r && last.c === target.c ? { on: true, cells: w.cells, times: w.times, t: Infinity } : { on: true, cells: [target], times: [0], t: Infinity };
       this.landFlash = performance.now();
-    } else this.light.on = false;
+      // The print on their ticket blurred, as the landing leaves it (at once, when the run is ended early).
+      this.veil = target;
+    } else {
+      this.light.on = false;
+      this.veil = null;
+    }
     // The tickets rest as the run left them: face up once they turned up (the winner's reveal shows over the names,
     // and the wall goes back to gold after it: restAfter), face down when they never did (a draw that failed).
     this.turn = { down: !Number.isFinite(r.up), at: -Infinity, k0: Math.floor(this.p) };
@@ -1744,6 +1806,16 @@ export class WallStage {
       sel.set(lit.x, lit.y, 1);
       if (this.run) this.litAt.set(`${box.r}:${box.c}`, now / 1000);
     } else sel.z = 0;
+    // The ticket the light lands on: its print blurring as the light leaves for it, blurred from when it is on it (on
+    // the run's clock; fully once it has landed); the same on the ticket as it leaves the wall.
+    const veilU = u.uVeil.value as THREE.Vector3;
+    const V = this.veil;
+    const veil = !V || !L.on ? 0 : r ? veilAt(t, r.land) : 1;
+    if (V && veil > 0) {
+      const on = this.cellPos(V, this.tmpV3);
+      veilU.set(on.x, on.y, veil);
+    } else veilU.z = 0;
+    this.heroU.uVeil.value = veil;
     u.uPop.value = 1 + 0.07 * Math.exp(-since * 14);
     this.heroU.uTime.value = time;
     if (this.show) {
@@ -1879,6 +1951,8 @@ export class WallStage {
       const start = lightStart(this.rowsShown, P + 1, P + this.grid.cols, r.target, (c) => this.clear(c, r, r.light, r.light + 0.35), Math.random);
       r.walk = walkStart(start, Math.floor(Math.random() * 8), r.light, r.target, r.land);
       this.light = { on: true, cells: r.walk.cells, times: r.walk.times, t };
+      // Its last jump lands on the person drawn: their ticket's print blurs as the light leaves for it (tick).
+      this.veil = r.target;
       this.landFlash = now;
       this.jump = 0;
       // The search heard: the owner's "Selection progress" from the moment the light comes on until it slows.
@@ -2932,6 +3006,7 @@ export class WallStage {
     this.sparkU.uT.value = -10;
     this.hidden = null;
     this.light.on = false;
+    this.veil = null;
     this.restSince = performance.now();
     this.slotsDirty = true;
     this.frameU.uAlpha.value = 0;
