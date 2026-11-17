@@ -52,7 +52,19 @@ test("the console offers the steps under the customer's own words, and the websi
   assert.match(page, /const CLOSED_STAGE = \{ label: "Closed"/);
 });
 
-test("marking a request Handled still tells its customer Checked, and moves nothing else", () => {
+test("Handled tells its customer Checked; New again (or restored), Received again; nothing else moves", () => {
   const rule = readFileSync("src/lib/inquiry-checked.ts", "utf8").replace(/\r\n/g, "\n");
   assert.match(rule, /where: \{ id, status: "handled", customerStatus: "PENDING" \},\s*data: \{ customerStatus: "CHECKED"/);
+  // The way back (the owner: "I put it back to New, but the mobile still shows Checked"): only Checked, or the old In
+  // Progress, which reads as Checked; never Confirmed, Closed or the team's own message.
+  assert.match(rule, /status: "new", customerStatus: \{ in: \["CHECKED", "IN_PROGRESS"\] \}/);
+  assert.match(rule, /where: \{ id, status: "new", customerStatus \},\s*data: \{ customerStatus: "PENDING"/);
+  for (const route of ["src/app/api/admin/inquiry/route.ts", "src/app/api/admin/inquiry/[id]/route.ts"]) {
+    const src = readFileSync(route, "utf8");
+    assert.match(src, /status === "handled" \? await checkHandledInquiries\(/, `${route}: Handled`);
+    assert.match(src, /status === "new" \? await reopenCheckedInquiries\(/, `${route}: New`);
+  }
+  // And the console shows it at once, both ways.
+  const consoleSrc = readFileSync("src/components/admin/AdminConsole.tsx", "utf8");
+  assert.match(consoleSrc, /status === "new" && \(x\.customerStatus === "CHECKED" \|\| x\.customerStatus === "IN_PROGRESS"\)\) return \{ customerStatus: "PENDING"/);
 });

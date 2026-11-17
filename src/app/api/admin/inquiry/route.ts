@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { applyConsoleTriage, customerKeysOf, heldAmong } from "@/lib/lead-pool";
 import { heldByMessage } from "@/lib/handling";
-import { checkHandledInquiries } from "@/lib/inquiry-checked";
+import { checkHandledInquiries, reopenCheckedInquiries } from "@/lib/inquiry-checked";
 import { ASSIGN_GONE } from "@/lib/lead-pool-rules";
 import { getCurrentUser } from "@/lib/session";
 
@@ -71,10 +71,11 @@ export async function POST(req: Request) {
       where: { id: { in: ids as string[] } },
       data: { status },
     });
-    // Handled: a signed-in customer no longer told "Pending" about it (lib/inquiry-checked.ts).
+    // Handled: a signed-in customer is told Checked; New again (or restored): Received again (lib/inquiry-checked.ts).
     const checked = status === "handled" ? await checkHandledInquiries(ids as string[], { id: admin.id, name: by }) : [];
+    const received = status === "new" ? await reopenCheckedInquiries(ids as string[], { id: admin.id, name: by }) : [];
     await applyConsoleTriage(keys, by);
-    return NextResponse.json({ ok: true, action, status, count, checked });
+    return NextResponse.json({ ok: true, action, status, count, checked, received });
   } catch {
     return NextResponse.json({ error: "Bulk action failed" }, { status: 500 });
   }

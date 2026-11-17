@@ -53,3 +53,43 @@ export async function checkHandledInquiries(
   };
   return tx ? run(tx) : prisma.$transaction(run, { maxWait: 10_000, timeout: 20_000 });
 }
+
+/**
+ * The way back (the owner, 2026-11-17: "I put it back to New in admin, but the mobile still shows Checked"): a request
+ * the console sets to New again (its New button, or Restore from Recently Deleted) is Received again for its signed-in
+ * customer, when Checked is all they were told (or the old In Progress, which they read as Checked). Never Confirmed,
+ * Closed or a custom message: those follow the call, are set in the popup, and are changed there. Each move on the
+ * trail with who made it, as checkHandledInquiries writes it. Returns the ids it moved.
+ */
+export async function reopenCheckedInquiries(
+  ids: string[],
+  by: { id: string | null; name: string | null },
+): Promise<string[]> {
+  if (!ids.length) return [];
+  return prisma.$transaction(
+    async (db) => {
+      const candidates = await db.inquiry.findMany({
+        where: { id: { in: ids }, status: "new", customerStatus: { in: ["CHECKED", "IN_PROGRESS"] }, userId: { not: null } },
+        select: { id: true, customerStatus: true },
+      });
+      const now = new Date();
+      const moved: { id: string; from: string }[] = [];
+      for (const { id, customerStatus } of candidates) {
+        // Only while it still says what it said a moment ago and the request is still New, so a status somebody set
+        // meanwhile is never overwritten.
+        const { count } = await db.inquiry.updateMany({
+          where: { id, status: "new", customerStatus },
+          data: { customerStatus: "PENDING", statusUpdatedAt: now },
+        });
+        if (count) moved.push({ id, from: customerStatus });
+      }
+      if (moved.length) {
+        await db.inquiryStatusEvent.createMany({
+          data: moved.map((m) => ({ inquiryId: m.id, fromStatus: m.from, toStatus: "PENDING", note: "Set to New again", changedById: by.id, changedByName: by.name, createdAt: now })),
+        });
+      }
+      return moved.map((m) => m.id);
+    },
+    { maxWait: 10_000, timeout: 20_000 },
+  );
+}

@@ -190,11 +190,16 @@ const asCustomerStatus = (s: string): CustomerStatus =>
   s === "IN_PROGRESS" ? "CHECKED" : (CUSTOMER_STATUSES as readonly string[]).includes(s) ? (s as CustomerStatus) : "PENDING";
 
 /**
- * The server's rule, seen at once (lib/inquiry-checked.ts): a signed-in customer's request marked Handled while it
- * still says Pending is told Checked. Nothing else moves.
+ * The server's rules, seen at once (lib/inquiry-checked.ts): a signed-in customer's request marked Handled while it
+ * still says Received is told Checked; set to New again (or restored) while it says Checked (or the old In Progress),
+ * Received again. Nothing else moves: Confirmed, Closed and a custom message are the popup's.
  */
-const checkedWhenHandled = (x: { userId: string | null; customerStatus: string }, status: string) =>
-  status === "handled" && x.userId && x.customerStatus === "PENDING" ? { customerStatus: "CHECKED", statusUpdatedAt: new Date().toISOString() } : {};
+const checkedWhenHandled = (x: { userId: string | null; customerStatus: string }, status: string) => {
+  if (!x.userId) return {};
+  if (status === "handled" && x.customerStatus === "PENDING") return { customerStatus: "CHECKED", statusUpdatedAt: new Date().toISOString() };
+  if (status === "new" && (x.customerStatus === "CHECKED" || x.customerStatus === "IN_PROGRESS")) return { customerStatus: "PENDING", statusUpdatedAt: new Date().toISOString() };
+  return {};
+};
 
 interface ContactMessage {
   id: string; createdAt: string; fullName: string; companyName: string | null;
@@ -675,7 +680,7 @@ export function AdminConsole({ data }: Props) {
       setItems(items.filter((x) => !idset.has(x.id)));
       setDeletedItems([...moving, ...deletedItems]);
     } else if (action === "restore") {
-      const moving = deletedItems.filter((x) => idset.has(x.id)).map((x) => ({ ...x, status: "new" }));
+      const moving = deletedItems.filter((x) => idset.has(x.id)).map((x) => ({ ...x, status: "new", ...checkedWhenHandled(x, "new") }));
       setDeletedItems(deletedItems.filter((x) => !idset.has(x.id)));
       setItems([...moving, ...items]);
     } else if (action === "purge") {
