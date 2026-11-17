@@ -1310,7 +1310,10 @@ export async function handlingFor(keys: (string | null | undefined)[]): Promise<
 
 export interface HandlingStep {
   at: string;
-  /** The trail's kind, or STATUS for an outcome somebody recorded, or ARRIVED for a request coming in. */
+  /**
+   * The trail's kind, or STATUS for an outcome somebody recorded, ARRIVED for a request coming in, or CUSTOMER for a
+   * move in what the request's customer reads (its label the status code).
+   */
   kind: string;
   label: string;
   who: string | null;
@@ -1362,6 +1365,16 @@ export async function handlingHistory(lead: LeadRef): Promise<{ code: string | n
   }
   for (const u of updates) {
     steps.push({ at: u.createdAt.toISOString(), kind: "STATUS", label: normalizeStatus(u.status), who: u.name, note: u.note });
+  }
+  // What this request's customer was told, each move after it was sent (InquiryStatusEvent; lib/inquiry-status.ts):
+  // the status they read (CUSTOMER, the code as its label), who set it, and the team's note (a Closed one's reason).
+  if (lead.kind === "inquiry") {
+    const told = await prisma.inquiryStatusEvent.findMany({
+      where: { inquiryId: lead.id, fromStatus: { not: null } },
+      orderBy: { createdAt: "asc" },
+      select: { toStatus: true, note: true, changedByName: true, createdAt: true },
+    });
+    for (const e of told) steps.push({ at: e.createdAt.toISOString(), kind: "CUSTOMER", label: e.toStatus, who: e.changedByName, note: e.note });
   }
   steps.sort((a, b) => a.at.localeCompare(b.at));
   return { code: codes[key] ?? null, steps };

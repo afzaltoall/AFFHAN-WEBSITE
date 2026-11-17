@@ -37,7 +37,7 @@ import { searchMatches } from "@/lib/customerCodeSearch";
 import { isInProgress, leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
 import { describeStatus } from "@/lib/inquiry-status";
 import { timeAgo } from "@/lib/relative-time";
-import { formatDateTime, formatSince } from "@/lib/datetime";
+import { formatDateTime, formatShortWhen, formatSince } from "@/lib/datetime";
 import { signOutThrough } from "@/lib/session-client";
 import { useLiveRefresh } from "@/lib/useLiveRefresh";
 import { useAdminDark } from "@/lib/useAdminDark";
@@ -731,31 +731,48 @@ export function AdminConsole({ data }: Props) {
   const setStatus = (id: string, status: Status) => bulkAction([id], "status", status);
 
   /**
-   * Move an inquiry along the lifecycle the customer can see.
-   *
-   * Separate from triage above and deliberately not a bulk action: this is the
-   * text a named customer reads on their account page, and there is no version
-   * of "tell forty people at once that we are sourcing their thing" that is
-   * honest. Optimistic, with the previous rows restored if the write fails,
-   * matching how triage already behaves here.
+   * A request's one Status, from its popup (the owner, 2026-11-17: two rows of buttons for one story read as generated,
+   * and could disagree, "New" beside "Checked"): what its customer reads, and the office's New or Handled with it, in
+   * one press. Received is New; Checked, Confirmed and Closed are Handled; a note on the step changes neither mark.
+   * The customer's status is written first, so the Handled and New rules (lib/inquiry-checked.ts) find nothing left to
+   * move; then the mark, refused as the list's Handled is when somebody holds the customer. A failed mark puts back
+   * only the mark: the customer's status was saved. Never a bulk action: there is no honest way to tell forty named
+   * customers at once that their request moved.
    */
-  const setCustomerStatus = async (id: string, customerStatus: CustomerStatus, statusNote: string) => {
+  const setRequestStatus = async (id: string, customerStatus: CustomerStatus, statusNote: string) => {
+    const row = items.find((x) => x.id === id);
+    if (!row) return;
     const note = statusNote.trim();
-    if (customerStatus === "CUSTOM" && !note) {
-      window.alert("A custom status needs the text to show the customer.");
-      return;
+    const mark: Status = customerStatus === "PENDING" ? "new" : "handled";
+    const moveMark = customerStatus !== "CUSTOM" && asStatus(row.status) !== mark;
+    if (moveMark && mark === "handled") {
+      const refusal = heldRefusal([{ key: customerKeyOf(row) ?? row.id, handling: row.handling }]);
+      if (refusal) {
+        window.alert(refusal);
+        return;
+      }
     }
-    const prev = items;
-    const stampedAt = new Date().toISOString();
-    const patch = { customerStatus, statusNote: note || null, statusUpdatedAt: stampedAt };
-    setItems(items.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    const patch = { customerStatus, statusNote: note || null, statusUpdatedAt: new Date().toISOString(), ...(moveMark ? { status: mark } : {}) };
+    setItems((cur) => cur.map((x) => (x.id === id ? { ...x, ...patch } : x)));
     setActiveInquiry((cur) => (cur && cur.id === id ? { ...cur, ...patch } : cur));
     try {
       await adminWrite(`/api/admin/inquiry/${id}/`, { customerStatus, statusNote: note }, "PATCH");
     } catch (e) {
-      setItems(prev);
-      setActiveInquiry((cur) => (cur && cur.id === id ? prev.find((x) => x.id === id) ?? cur : cur));
+      const back = { customerStatus: row.customerStatus, statusNote: row.statusNote, statusUpdatedAt: row.statusUpdatedAt, status: row.status };
+      setItems((cur) => cur.map((x) => (x.id === id ? { ...x, ...back } : x)));
+      setActiveInquiry((cur) => (cur && cur.id === id ? { ...cur, ...back } : cur));
       window.alert(e instanceof Error ? e.message : "Could not update the customer's status.");
+      return;
+    }
+    if (!moveMark) return;
+    try {
+      await adminWrite(`/api/admin/inquiry/`, { ids: [id], action: "status", status: mark });
+      // The rail's Inquiries badge counts what is not handled (see bulkAction).
+      router.refresh();
+    } catch (e) {
+      setItems((cur) => cur.map((x) => (x.id === id ? { ...x, status: row.status } : x)));
+      setActiveInquiry((cur) => (cur && cur.id === id ? { ...cur, status: row.status } : cur));
+      window.alert(e instanceof Error ? e.message : "The customer's status is saved, but the request could not be marked.");
     }
   };
 
@@ -1786,7 +1803,8 @@ export function AdminConsole({ data }: Props) {
                    each with a dot (the owner, 2026-11-03: "feels like ai"). */
                 <div className={`flex flex-wrap items-center gap-x-1 gap-y-1.5 border-b px-4 py-2.5 ${t.border}`}>
                   <span className={`mr-2 text-[13px] font-medium ${t.mid}`}>Customer status</span>
-                  {CUSTOMER_STATUSES.map((s) => {
+                  {/* Custom (a message of the team's own) only when somebody has one: a step nobody takes was a dead 0. */}
+                  {CUSTOMER_STATUSES.filter((s) => s !== "CUSTOM" || customerStatusCounts.CUSTOM > 0).map((s) => {
                     const n = customerStatusCounts[s];
                     const on = customerStageFilter === s;
                     return (
@@ -1968,11 +1986,37 @@ export function AdminConsole({ data }: Props) {
                         </div>
                         <div className="flex flex-wrap items-center gap-2.5 pl-[92px] @min-[62rem]:justify-end @min-[62rem]:pl-0">
                           <span className={`whitespace-nowrap text-[12.5px] font-medium tabular-nums ${t.mid}`}>Qty {i.quantity}</span>
-                          {/* Where the customer stands in the pool, where the assign picker used to be: staff take
-                              customers now. The chip carries the newest outcome too; a handled request with nothing
-                              else going on has none, as Handled beside it already says so. */}
-                          <HandlingChip h={hOf(i)} createdAt={i.createdAt} dark={dark} now={now} quietWhenSettled />
-                          <StatusControl t={t} value={st} onChange={(s) => setStatus(i.id, s)} heldBy={heldByOf(i.handling)} />
+                          {/* The request's one Status as a word (the owner, 2026-11-17: the row's right side redone
+                              with the popup's): a signed-in customer's step, or, for a request sent without signing
+                              in, the office's New or Handled. The brand's colour only where it waits on us, red for
+                              spam, grey for the rest. */}
+                          {(() => {
+                            const cs = asCustomerStatus(i.customerStatus);
+                            const word = st === "spam" ? "Spam" : i.userId ? CUSTOMER_STATUS_META[cs].label : STATUS_META[st].label;
+                            const waits = st !== "spam" && (i.userId ? cs === "PENDING" : st === "new");
+                            const tone = st === "spam" ? "bg-red-500/10 text-red-600" : waits ? "bg-brand/10 text-brand-dark" : `${t.thumb} ${t.mid}`;
+                            return <span className={`whitespace-nowrap rounded-full px-2.5 py-1 text-[12px] font-semibold ${tone}`}>{word}</span>;
+                          })()}
+                          {/* Where the customer stands in the pool, in words alone: how long it has waited, who has
+                              them, another request waiting. Nothing for a handled one with nothing else going on. */}
+                          <HandlingChip h={hOf(i)} createdAt={i.createdAt} dark={dark} now={now} quietWhenSettled plain />
+                          {/* The one next step a row offers: checking a request that waits. The rest is the popup's. */}
+                          {st !== "spam" && (i.userId ? asCustomerStatus(i.customerStatus) === "PENDING" : st === "new") && (
+                            <button
+                              onClick={() => (i.userId ? void setRequestStatus(i.id, "CHECKED", i.statusNote ?? "") : setStatus(i.id, "handled"))}
+                              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${t.pill}`}
+                            >
+                              {i.userId ? "Mark checked" : "Mark handled"}
+                            </button>
+                          )}
+                          {/* Spam, a press from the list as it always was (the owner: "where is spam"); taken back the
+                              same way. */}
+                          <button
+                            onClick={() => setStatus(i.id, st === "spam" ? "new" : "spam")}
+                            className={`whitespace-nowrap rounded-full px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${st === "spam" ? `${t.mid} hover:opacity-80` : `${t.soft} hover:text-red-500`}`}
+                          >
+                            {st === "spam" ? "Not spam" : "Spam"}
+                          </button>
                           <button onClick={() => deleteInquiry(i.id)} aria-label="Delete inquiry" title="Delete inquiry" className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500">
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -2034,7 +2078,7 @@ export function AdminConsole({ data }: Props) {
           onZoom={(src) => setZoomImg(src)}
           onDelete={() => deleteInquiry(activeInquiry.id)}
           onSetStatus={(s) => setStatus(activeInquiry.id, s)}
-          onSetCustomerStatus={(s, note) => void setCustomerStatus(activeInquiry.id, s, note)}
+          onSetCustomerStatus={(s, note) => void setRequestStatus(activeInquiry.id, s, note)}
           onReleased={(h) => released(activeInquiry, h)}
         />
       )}
@@ -2469,18 +2513,18 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
             <HandlingHistory key={`h-${inquiry.id}`} kind="inquiry" id={inquiry.id} t={t} dark={dark} />
             {/* Who in the supplier book could source it: asked for when the panel opens, one inquiry at a time. */}
             <InquirySupplierMatches key={inquiry.id} inquiryId={inquiry.id} t={t} dark={dark} />
-            {/* Triage the customer: New / Handled / Spam (fake). */}
-            <div className="mt-5">
-              <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>Mark this customer</p>
-              <StatusControl t={t} value={asStatus(inquiry.status)} onChange={onSetStatus} big heldBy={heldByOf(inquiry.handling)} />
-              {heldByOf(inquiry.handling) && <p className={`mt-1.5 text-[12px] font-medium ${t.soft}`}>{heldByOf(inquiry.handling)}</p>}
-            </div>
-
-            {/* What the customer is told. Only shown when there is a customer
-                to tell — an anonymous inquiry has no account page to read it
-                on, so offering the control would promise something that cannot
-                happen. */}
-            <CustomerStatusControl t={t} inquiry={inquiry} onChange={onSetCustomerStatus} />
+            {/* The request's one Status (RequestStatus): what its customer reads and the office's mark, together. A
+                request sent without signing in has no page where a status could be read: only the office's mark. */}
+            {inquiry.userId ? (
+              <RequestStatus t={t} inquiry={inquiry} onChange={onSetCustomerStatus} onSpam={() => onSetStatus("spam")} heldBy={heldByOf(inquiry.handling)} />
+            ) : (
+              <div className="mt-5">
+                <p className={`mb-1.5 text-[13px] font-medium ${t.mid}`}>Mark this request</p>
+                <StatusControl t={t} value={asStatus(inquiry.status)} onChange={onSetStatus} big heldBy={heldByOf(inquiry.handling)} />
+                {heldByOf(inquiry.handling) && <p className={`mt-1.5 text-[12px] font-medium ${t.soft}`}>{heldByOf(inquiry.handling)}</p>}
+                <p className={`mt-1.5 text-[12px] ${t.soft}`}>Sent without signing in, so there is no page where they see a status. Reach them by phone or WhatsApp.</p>
+              </div>
+            )}
 
             {/* Reaching the customer is what this drawer is for, so the actions
                 close it out on their own rule — full width, nothing beside them
@@ -2500,121 +2544,156 @@ function InquiryModal({ inquiry, onClose, onZoom, onDelete, onSetStatus, onSetCu
 }
 
 /**
- * The stage the customer sees on their own account page, and the note that
- * goes with it.
- *
- * Anonymous inquiries get an explanation instead of a control. Most inquiries
- * are anonymous — "Inquire Now" does not ask anyone to sign in — and an
- * enabled selector on a row with nobody attached would look like it had
- * notified someone.
- *
- * The note is applied on an explicit press rather than on every keystroke: it
- * is customer-visible copy, and saving half-typed sentences as they are typed
- * would show them half-typed.
+ * A signed-in customer's request: its one Status (the owner, 2026-11-17: two rows of buttons for one story read as
+ * generated, "New" beside "Checked"). The steps the office works a request through, under the words its customer reads
+ * them in: Received, Checked, Confirmed, Closed. A press is the step, and the office's New or Handled to match
+ * (setRequestStatus). Closed asks why first: a reason pressed, or written. Spam stands apart. Under the steps, the line
+ * the customer reads now, word for word; a note is added to it only when there is something to say (a quote sent, a
+ * sample on its way). A message of the team's own (Custom), set before, still shows until a step is pressed.
  */
-function CustomerStatusControl({
-  inquiry, onChange, t,
-}: { inquiry: Inquiry; onChange: (s: CustomerStatus, note: string) => void; t: Theme }) {
+function RequestStatus({
+  inquiry, onChange, onSpam, heldBy, t,
+}: { inquiry: Inquiry; onChange: (s: CustomerStatus, note: string) => void; onSpam: () => void; heldBy: string | null; t: Theme }) {
   const current = asCustomerStatus(inquiry.customerStatus);
-  const [choice, setChoice] = useState<CustomerStatus>(current);
-  const [note, setNote] = useState(inquiry.statusNote ?? "");
+  const spam = asStatus(inquiry.status) === "spam";
+  const [closing, setClosing] = useState(false);
+  const [noting, setNoting] = useState(false);
+  const [why, setWhy] = useState("");
+  const [note, setNote] = useState("");
 
-  // Re-seed when the drawer is pointed at a different inquiry, so the last
-  // one's half-written note does not follow it.
+  // Another request opened: nothing half-done follows it.
   useEffect(() => {
-    setChoice(asCustomerStatus(inquiry.customerStatus));
-    setNote(inquiry.statusNote ?? "");
-  }, [inquiry.id, inquiry.customerStatus, inquiry.statusNote]);
+    setClosing(false);
+    setNoting(false);
+    setWhy("");
+    setNote("");
+  }, [inquiry.id]);
 
-  if (!inquiry.userId) {
-    return (
-      <div className={`mt-5 rounded-xl p-3 text-xs ${t.thumb} ${t.soft}`}>
-        <p className="font-semibold uppercase tracking-wide text-[11px]">Customer status</p>
-        <p className="mt-1 leading-relaxed">
-          Submitted without signing in, so there is no account page to show a status on.
-          Reach them on the phone or WhatsApp above.
-        </p>
-      </div>
-    );
-  }
-
-  const dirty = choice !== current || note.trim() !== (inquiry.statusNote ?? "");
-
-  // What the customer will read, word for word, from the server's own wording.
-  const told = describeStatus(choice, note);
+  const told = describeStatus(inquiry.customerStatus, inquiry.statusNote);
+  const steps: CustomerStatus[] = ["PENDING", "CHECKED", "CONFIRMED", "CLOSED"];
+  const press = (s: CustomerStatus) => {
+    setNoting(false);
+    if (s === "CLOSED") {
+      setClosing(true);
+      setWhy(current === "CLOSED" ? (inquiry.statusNote ?? "") : "");
+      return;
+    }
+    setClosing(false);
+    // The same step again changes nothing, unless the office's mark does not match it (a request marked spam taken
+    // back, or one set to New before New moved its customer back): then it brings the two together, its note kept.
+    const markMatches = asStatus(inquiry.status) === (s === "PENDING" ? "new" : "handled");
+    if (s !== current) onChange(s, "");
+    else if (!markMatches) onChange(s, inquiry.statusNote ?? "");
+  };
+  const field = `mt-2 w-full rounded-xl px-3 py-2 text-sm outline-none ${t.thumb} ${t.border} border`;
+  const primary = "rounded-full bg-brand-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer";
+  const quiet = `rounded-full px-3 py-2 text-xs font-semibold transition-colors ${t.soft} hover:opacity-80 cursor-pointer`;
 
   return (
     <div className="mt-5">
-      <p className={`mb-1.5 text-[13px] font-medium ${t.mid}`}>What the customer sees</p>
-      <div className="flex flex-wrap gap-1.5">
-        {CUSTOMER_STATUSES.map((s) => {
-          const meta = CUSTOMER_STATUS_META[s];
-          const on = choice === s;
-          return (
-            <button
-              key={s}
-              onClick={() => setChoice(s)}
-              title={meta.hint}
-              className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
-                on ? meta.chip : `${t.thumb} ${t.soft} hover:opacity-80`
-              }`}
-            >
-              {meta.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Closed: the reason, a press each, in the customer's own words; it fills the note, still editable. */}
-      {choice === "CLOSED" && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {CLOSED_REASONS.map((r) => (
-            <button
-              key={r}
-              onClick={() => setNote(r)}
-              className={`rounded-lg border px-2.5 py-1 text-[12px] transition-colors cursor-pointer ${
-                note.trim() === r ? `font-semibold ${t.navActive}` : `${t.border} ${t.mid} ${t.hover}`
-              }`}
-            >
-              {r}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <textarea
-        value={note}
-        onChange={(e) => setNote(e.target.value)}
-        maxLength={500}
-        rows={2}
-        placeholder={
-          choice === "CUSTOM"
-            ? "Required — this text is shown to the customer instead of a stage."
-            : choice === "CLOSED"
-              ? "The reason they read. Pick one above, or write your own."
-              : "Optional note, shown to the customer under the status."
-        }
-        className={`mt-2 w-full rounded-xl px-3 py-2 text-sm outline-none ${t.thumb} ${t.border} border`}
-      />
-      <p className={`mt-1 text-[12px] leading-snug ${t.soft}`}>
-        They read: <span className={`font-semibold ${t.mid}`}>{told.label}</span>
-        {told.message ? ` · ${told.message}` : ""}
-      </p>
-
-      <div className="mt-2 flex items-center gap-3">
-        <button
-          onClick={() => onChange(choice, note)}
-          disabled={!dirty}
-          className="rounded-full bg-brand-dark px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:opacity-40 cursor-pointer"
-        >
-          Update customer
-        </button>
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <p className={`text-[13px] font-medium ${t.mid}`}>Status</p>
         {inquiry.statusUpdatedAt && (
-          <span className={`text-[11px] ${t.soft}`}>
-            Last changed {fmtDateTime(inquiry.statusUpdatedAt)}
+          <span className={`text-[12px] ${t.soft}`} title={formatDateTime(inquiry.statusUpdatedAt)}>
+            Changed {formatShortWhen(inquiry.statusUpdatedAt)}
           </span>
         )}
       </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className={`inline-flex rounded-full p-0.5 ${t.thumb}`}>
+          {steps.map((s) => {
+            const on = !spam && (closing ? s === "CLOSED" : current === s);
+            return (
+              <button
+                key={s}
+                onClick={() => press(s)}
+                aria-pressed={on}
+                title={CUSTOMER_STATUS_META[s].hint}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors cursor-pointer ${on ? `${t.pill} shadow-sm ring-1` : `${t.soft} hover:opacity-80`}`}
+              >
+                {CUSTOMER_STATUS_META[s].label}
+              </button>
+            );
+          })}
+        </div>
+        <button
+          onClick={() => { if (!spam) onSpam(); }}
+          aria-pressed={spam}
+          className={`rounded-full px-3.5 py-2 text-sm font-semibold transition-colors ${spam ? STATUS_META.spam.chip : `${t.soft} hover:opacity-80 cursor-pointer`}`}
+        >
+          Spam
+        </button>
+      </div>
+      <p className={`mt-2 text-[13px] leading-snug ${t.mid}`}>
+        {spam ? "Marked as spam. The customer still sees: " : "The customer sees: "}
+        <span className={t.strong}>{told.message || told.label}</span>
+      </p>
+      {heldBy && <p className={`mt-1 text-[12px] font-medium ${t.soft}`}>{heldBy}</p>}
+
+      {closing && (
+        <div className={`mt-3 rounded-xl p-3 ${t.thumb}`}>
+          <p className={`text-[13px] font-medium ${t.strong}`}>Why is it closed?</p>
+          <div className="mt-2 flex flex-col items-start gap-1.5">
+            {CLOSED_REASONS.map((r) => (
+              <button
+                key={r}
+                onClick={() => setWhy(r)}
+                aria-pressed={why.trim() === r}
+                className={`rounded-lg px-2.5 py-1.5 text-left text-[12.5px] transition-colors cursor-pointer ${why.trim() === r ? `font-semibold ${t.pill} ring-1` : `${t.mid} hover:opacity-80`}`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={why}
+            onChange={(e) => setWhy(e.target.value)}
+            maxLength={500}
+            rows={2}
+            placeholder="Or write the reason, as the customer will read it."
+            className={field}
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <button onClick={() => { onChange("CLOSED", why); setClosing(false); }} className={primary}>
+              Close request
+            </button>
+            <button onClick={() => setClosing(false)} className={quiet}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {noting ? (
+        <div className="mt-2">
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            maxLength={500}
+            rows={2}
+            autoFocus
+            placeholder="Shown to the customer under the status: a quote sent, a sample on its way."
+            className={field}
+          />
+          <div className="mt-2 flex items-center gap-2">
+            <button onClick={() => { onChange(current, note); setNoting(false); }} disabled={note.trim() === (inquiry.statusNote ?? "")} className={primary}>
+              Save note
+            </button>
+            <button onClick={() => setNoting(false)} className={quiet}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        !closing && current !== "CLOSED" && current !== "CUSTOM" && (
+          <button
+            onClick={() => { setNoting(true); setNote(inquiry.statusNote ?? ""); }}
+            className="mt-2 text-[12.5px] font-semibold text-brand-dark hover:underline cursor-pointer"
+          >
+            {inquiry.statusNote ? "Change the note" : "Add a note for the customer"}
+          </button>
+        )
+      )}
     </div>
   );
 }

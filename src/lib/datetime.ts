@@ -23,6 +23,20 @@ export function formatDateTime(value: string | Date): string {
   return `${date}, ${time}`;
 }
 
+/**
+ * When, as briefly as it can be said (the owner, 2026-11-17: "timings feel complex"): "10:41 AM" today, "16 Nov, 10:41
+ * AM" this year, the whole date before that; the office's clock.
+ */
+export function formatShortWhen(value: string | Date, now: Date = new Date()): string {
+  const d = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(d.getTime())) return "";
+  const day = (x: Date, year: boolean) =>
+    x.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(year ? { year: "numeric" } : {}), timeZone: OFFICE_TIME_ZONE });
+  if (day(d, true) === day(now, true)) return formatTimeOnly(d);
+  const yearOf = (x: Date) => x.toLocaleDateString("en-GB", { year: "numeric", timeZone: OFFICE_TIME_ZONE });
+  return yearOf(d) === yearOf(now) ? `${day(d, false)}, ${formatTimeOnly(d)}` : formatDateTime(d);
+}
+
 /** Just the clock: "5:49 PM", the office's, twelve-hour. */
 export function formatTimeOnly(value: string | Date): string {
   const d = value instanceof Date ? value : new Date(value);

@@ -52,6 +52,20 @@ test("the console offers the steps under the customer's own words, and the websi
   assert.match(page, /const CLOSED_STAGE = \{ label: "Closed"/);
 });
 
+test("the popup's one Status: Received is New, every later step Handled, written customer first; Closed asks why", () => {
+  // The owner, 2026-11-17: two rows of buttons for one story ("New" beside "Checked") read as generated.
+  const src = readFileSync("src/components/admin/AdminConsole.tsx", "utf8").replace(/\r\n/g, "\n");
+  assert.ok(src.includes('const mark: Status = customerStatus === "PENDING" ? "new" : "handled";'), "Received is New, the rest Handled");
+  const start = src.indexOf("const setRequestStatus = async");
+  const save = src.slice(start, src.indexOf("\n  };\n", start));
+  const patchAt = save.indexOf('"PATCH")');
+  assert.ok(start > 0 && patchAt > 0 && patchAt < save.indexOf('action: "status", status: mark'), "the customer's status before the mark");
+  assert.ok(save.includes("heldRefusal([{ key: customerKeyOf(row) ?? row.id, handling: row.handling }])"), "Handled refused on a held customer, as in the list");
+  assert.ok(src.includes('const steps: CustomerStatus[] = ["PENDING", "CHECKED", "CONFIRMED", "CLOSED"];'));
+  assert.ok(/if \(s === "CLOSED"\) \{\s*setClosing\(true\);/.test(src), "Closed asks why before anything is sent");
+  assert.ok(!src.includes("Mark this customer") && !src.includes("What the customer sees"), "no second row for the same thing");
+});
+
 test("Handled tells its customer Checked; New again (or restored), Received again; nothing else moves", () => {
   const rule = readFileSync("src/lib/inquiry-checked.ts", "utf8").replace(/\r\n/g, "\n");
   assert.match(rule, /where: \{ id, status: "handled", customerStatus: "PENDING" \},\s*data: \{ customerStatus: "CHECKED"/);

@@ -15,6 +15,7 @@ export function HandlingChip({
   dark = false,
   now,
   quietWhenSettled = false,
+  plain = false,
 }: {
   h: Handling | null | undefined;
   createdAt: string;
@@ -24,10 +25,23 @@ export function HandlingChip({
    *  row the Handled beside it already says so, and the chip only repeated it (2026-11-03). Another request waiting,
    *  or with somebody, still shows. */
   quietWhenSettled?: boolean;
+  /**
+   * The words alone, in grey, beside the status word of the inquiry list's row (the owner, 2026-11-17: the row's right
+   * side redone with the request's one Status): "Waiting 26m" rather than "Open · waiting 26m" in a pill with an icon.
+   */
+  plain?: boolean;
 }) {
   if (quietWhenSettled && h?.state === "handled" && !h.another) return null;
   const key = handlingKey(h);
   const { text, title } = handlingText(h, createdAt, now);
+  if (plain) {
+    const words = key === "open" ? text.replace(/^Open · w/, "W") : text.replace(/^Done · a/, "A");
+    return (
+      <span title={title} className={`max-w-full truncate whitespace-nowrap text-[12px] ${dark ? "text-[#98989d]" : "text-[#86868b]"}`}>
+        {words}
+      </span>
+    );
+  }
   const lead = h?.state === "done" && h.outcome === "LEAD";
   // Set aside as already handled: done, but nobody's outcome, so neither the Lead green nor the No lead red.
   const handled = h?.state === "handled";
