@@ -283,10 +283,20 @@ test("Handled on a held customer is refused by every console route that can set 
   // The console greys Handled on every status control that knows the customer is held, and checks a selection first.
   const ui = read("src/components/admin/AdminConsole.tsx");
   const controls = ui.match(/<StatusControl\b[\s\S]*?\/>/g) ?? [];
-  assert.equal(controls.length, 6);
+  assert.equal(controls.length, 5);
   for (const c of controls) assert.match(c, /heldBy=\{heldByOf\(\w+\.handling\)\}/, `every status control knows who holds the customer: ${c}`);
-  assert.equal((ui.match(/const refusal = heldRefusal\(/g) ?? []).length, 3, "inquiries, messages and freight check a selection");
+  assert.equal((ui.match(/const refusal = heldRefusal\(/g) ?? []).length, 4, "inquiries, messages and freight check a selection, and a request's one Status checks itself");
   assert.match(ui, /if \(blocked\) window\.alert\(blocked\); else onChange\(s\);/);
+  // A signed-in customer's request has the one Status in place of the inquiry's status control (2026-11-17): it knows
+  // who holds the customer too, and greys every step that would mark the request Handled (all but Received, unless it
+  // is Handled already).
+  const steps = ui.match(/<RequestStatus\b[\s\S]*?\/>/g) ?? [];
+  assert.equal(steps.length, 1);
+  assert.match(steps[0], /heldBy=\{heldByOf\(inquiry\.handling\)\}/);
+  assert.match(ui, /const blocked = s !== "PENDING" && asStatus\(inquiry\.status\) !== "handled" && heldBy \? heldBy : null;/);
+  assert.match(ui, /if \(blocked\) window\.alert\(blocked\); else press\(s\);/);
+  // And a row offers no Mark checked or Mark handled on a held customer: the salesperson closes them.
+  assert.match(ui, /\{st !== "spam" && !heldByOf\(i\.handling\) && \(i\.userId \? asCustomerStatus\(i\.customerStatus\) === "PENDING" : st === "new"\) && \(/);
 });
 
 test("Lead or No lead closes the customer's open requests, after deciding them, and nothing else closes them", () => {
@@ -326,7 +336,9 @@ test("lead actions and messages name the customer as one, staff after 'by', and 
   assert.match(read("src/components/admin/AdminConsole.tsx"), /`Release \$\{who\} \(held by \$\{h\.by\.name\}\) to the pool\?/);
   assert.match(read("src/components/admin/PoolMoves.tsx"), /\{staffWord\(e\.kind\)\} \{person\(e\.from\)\}/);
   assert.match(read("src/components/admin/PoolMoves.tsx"), / · customer \{e\.customerName\}/);
-  assert.match(read("src/components/admin/HandlingHistory.tsx"), /`\$\{staffWord\(s\.kind\)\} \$\{s\.who\}`/);
+  // The popup's Handling history: its lines are made in lib/handling-lines.ts (2026-11-17), which the popup draws.
+  assert.match(read("src/lib/handling-lines.ts"), /`\$\{staffWord\(s\.kind\)\} \$\{s\.who\}`/);
+  assert.match(read("src/components/admin/HandlingHistory.tsx"), /import \{ linesOf \} from "@\/lib\/handling-lines";[\s\S]*linesOf\(state\.steps\)/);
   const activity = read("src/app/admin/(console)/activity/page.tsx");
   assert.match(activity, /\{capitalized\(customerLabel\(lead\.name, covered\)\)\}/);
   assert.match(activity, /by\{" "\}\s+<Link href=\{`\/admin\/employees\/\$\{r\.employee\.id\}\/`\}/);

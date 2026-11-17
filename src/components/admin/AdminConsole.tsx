@@ -2000,8 +2000,9 @@ export function AdminConsole({ data }: Props) {
                           {/* Where the customer stands in the pool, in words alone: how long it has waited, who has
                               them, another request waiting. Nothing for a handled one with nothing else going on. */}
                           <HandlingChip h={hOf(i)} createdAt={i.createdAt} dark={dark} now={now} quietWhenSettled plain />
-                          {/* The one next step a row offers: checking a request that waits. The rest is the popup's. */}
-                          {st !== "spam" && (i.userId ? asCustomerStatus(i.customerStatus) === "PENDING" : st === "new") && (
+                          {/* The one next step a row offers: checking a request that waits. The rest is the popup's.
+                              Not while somebody holds the customer: they close them, with Lead or No lead. */}
+                          {st !== "spam" && !heldByOf(i.handling) && (i.userId ? asCustomerStatus(i.customerStatus) === "PENDING" : st === "new") && (
                             <button
                               onClick={() => (i.userId ? void setRequestStatus(i.id, "CHECKED", i.statusNote ?? "") : setStatus(i.id, "handled"))}
                               className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[12px] font-semibold ring-1 transition-colors ${t.pill}`}
@@ -2603,13 +2604,17 @@ function RequestStatus({
         <div className={`inline-flex rounded-full p-0.5 ${t.thumb}`}>
           {steps.map((s) => {
             const on = !spam && (closing ? s === "CLOSED" : current === s);
+            // A step that marks the request Handled, while somebody holds the customer, is theirs to close (Lead or No
+            // lead): greyed, with who holds them, as the list's Handled is.
+            const blocked = s !== "PENDING" && asStatus(inquiry.status) !== "handled" && heldBy ? heldBy : null;
             return (
               <button
                 key={s}
-                onClick={() => press(s)}
+                onClick={() => { if (blocked) window.alert(blocked); else press(s); }}
                 aria-pressed={on}
-                title={CUSTOMER_STATUS_META[s].hint}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors cursor-pointer ${on ? `${t.pill} shadow-sm ring-1` : `${t.soft} hover:opacity-80`}`}
+                aria-disabled={blocked ? true : undefined}
+                title={blocked ?? CUSTOMER_STATUS_META[s].hint}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${on ? `${t.pill} shadow-sm ring-1` : blocked ? `${t.soft} cursor-not-allowed opacity-40` : `${t.soft} hover:opacity-80 cursor-pointer`}`}
               >
                 {CUSTOMER_STATUS_META[s].label}
               </button>
