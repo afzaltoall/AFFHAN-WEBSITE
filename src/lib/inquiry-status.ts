@@ -17,7 +17,15 @@
 // to display rather than leaving each client to invent its own and drift.
 // ---------------------------------------------------------------------------
 
-export const MOBILE_INQUIRY_STATUSES = ["PENDING", "CHECKED", "IN_PROGRESS", "CUSTOM"] as const;
+/**
+ * The customer's journey (the owner, 2026-11-17: "we confirm only after checking whether we can source it ... then we
+ * call the user"): Received the moment it is sent (PENDING); Checked once the team has looked at it and will call
+ * (the console's Checked, and any Handled: lib/inquiry-checked.ts); then, after the call, Confirmed, or Closed with the
+ * reason. CUSTOM is the team's own words, off that path. IN_PROGRESS was the old third stage ("Sourcing"): rows and
+ * older app builds still carry it, so it is still a valid value, told to the customer as Checked; the console no
+ * longer offers it.
+ */
+export const MOBILE_INQUIRY_STATUSES = ["PENDING", "CHECKED", "CONFIRMED", "CLOSED", "CUSTOM", "IN_PROGRESS"] as const;
 
 export type MobileInquiryStatus = (typeof MOBILE_INQUIRY_STATUSES)[number];
 
@@ -35,35 +43,44 @@ export function isMobileInquiryStatus(value: unknown): value is MobileInquirySta
  */
 export type InquirySource = "WEBSITE" | "APP";
 
+/** A status as the customer is told it: the old IN_PROGRESS is told as Checked. */
+export type CustomerStatus = Exclude<MobileInquiryStatus, "IN_PROGRESS">;
+
 // Short label for the status badge.
-const LABELS: Record<MobileInquiryStatus, string> = {
-  PENDING: "Pending",
+const LABELS: Record<CustomerStatus, string> = {
+  PENDING: "Received",
   CHECKED: "Checked",
-  IN_PROGRESS: "In Progress",
+  CONFIRMED: "Confirmed",
+  CLOSED: "Closed",
   CUSTOM: "Update",
 };
 
-// The line under the badge. CUSTOM has none of its own — the admin's note is
-// the whole message, which is the point of it.
-const MESSAGES: Record<MobileInquiryStatus, string> = {
-  PENDING: "Our team will contact you shortly.",
-  CHECKED: "Our team has reviewed your inquiry.",
-  IN_PROGRESS: "We are sourcing this for you.",
+// The line under the badge. CUSTOM has none of its own (the admin's note is the
+// whole message, which is the point of it), and CLOSED's is only what it says
+// when the team gives no reason.
+const MESSAGES: Record<CustomerStatus, string> = {
+  PENDING: "We have your request.",
+  CHECKED: "Our team has checked your request and will call you.",
+  CONFIRMED: "Confirmed. Our team will be in touch about the next steps.",
+  CLOSED: "This request is closed.",
   CUSTOM: "",
 };
 
 /**
- * What the app renders for an inquiry. With CUSTOM the admin's note replaces
- * the message entirely; with the fixed three it is appended, so a note like
- * "Quote sent to your email" reads as an addition rather than a contradiction.
+ * What the app and the account page render for an inquiry. With CUSTOM the
+ * admin's note replaces the message entirely, and with CLOSED the reason does
+ * ("We couldn't agree on the price."); with the others it is appended, so a
+ * note like "Quote sent to your email" reads as an addition rather than a
+ * contradiction.
  */
 export function describeStatus(status: string, statusNote: string | null | undefined) {
-  const s: MobileInquiryStatus = isMobileInquiryStatus(status) ? status : "PENDING";
+  const raw: MobileInquiryStatus = isMobileInquiryStatus(status) ? status : "PENDING";
+  const s: CustomerStatus = raw === "IN_PROGRESS" ? "CHECKED" : raw;
   const note = statusNote?.trim() || null;
   return {
     status: s,
     label: s === "CUSTOM" && note ? note : LABELS[s],
-    message: s === "CUSTOM" ? (note ?? "") : [MESSAGES[s], note].filter(Boolean).join(" "),
+    message: s === "CUSTOM" ? (note ?? "") : s === "CLOSED" ? (note ?? MESSAGES.CLOSED) : [MESSAGES[s], note].filter(Boolean).join(" "),
     note,
   };
 }

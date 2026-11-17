@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { BadgeCheck, Check, Loader2, MessageSquareText, Package, RefreshCw } from "lucide-react";
+import { BadgeCheck, Check, Loader2, MessageSquareText, Package, RefreshCw, X } from "lucide-react";
 import { getCdnUrl } from "@/lib/cdn";
 import { timeAgo } from "@/lib/relative-time";
 import { Card, EmptyState, Fade, SectionHeader } from "@/components/account/AccountShell";
@@ -33,7 +33,8 @@ interface InquiryRow {
   productName: string;
   productImage: string | null;
   requestedMOQ: number;
-  status: "PENDING" | "CHECKED" | "IN_PROGRESS" | "CUSTOM";
+  /** As the server tells it (lib/inquiry-status.ts): the old In Progress arrives as Checked. */
+  status: "PENDING" | "CHECKED" | "CONFIRMED" | "CLOSED" | "CUSTOM";
   label: string;
   message: string;
   /** What the customer typed on the website form, if anything. */
@@ -46,13 +47,11 @@ interface InquiryRow {
 
 // The server sends the wording; these are only the colours it is shown in.
 /**
- * How far along an inquiry is.
- *
- * Three stages, because there are only three the office actually records —
- * PENDING, CHECKED, IN_PROGRESS. No "delivered" step: nothing is sold here, so
- * an inquiry ends in a conversation, not a parcel. Inventing stages a customer
- * would then wait to see move would be worse than showing the three that are
- * real.
+ * How far along an inquiry is, as the office works it (the owner, 2026-11-17):
+ * Received when it is sent; Checked once the team has looked at it and will
+ * call; then, after the call, Confirmed, or Closed with the reason, which takes
+ * the last place on the line in grey. No "delivered" step: nothing is sold here,
+ * so an inquiry ends in a conversation, not a parcel.
  *
  * CUSTOM is not on the line at all. It means the office wrote its own message,
  * which by definition does not fit the fixed path — the note is what is being
@@ -60,9 +59,11 @@ interface InquiryRow {
  */
 const STAGES = [
   { key: "PENDING", label: "Received", blurb: "We have your request" },
-  { key: "CHECKED", label: "Reviewed", blurb: "Our team has read it" },
-  { key: "IN_PROGRESS", label: "Sourcing", blurb: "Finding you a factory" },
+  { key: "CHECKED", label: "Checked", blurb: "We will call you" },
+  { key: "CONFIRMED", label: "Confirmed", blurb: "Going ahead" },
 ] as const;
+/** The last place on the line when the request did not go ahead. */
+const CLOSED_STAGE = { label: "Closed", blurb: "Not going ahead" };
 
 function Tracker({
   status, tracking, justChecked, onTrack,
@@ -74,7 +75,9 @@ function Tracker({
   justChecked: boolean;
   onTrack: () => void;
 }) {
-  const current = STAGES.findIndex((s) => s.key === status);
+  // Closed takes the last place, in grey, where Confirmed would have been.
+  const closed = status === "CLOSED";
+  const current = closed ? STAGES.length - 1 : STAGES.findIndex((s) => s.key === status);
 
   // CUSTOM sits off the fixed path — the team wrote its own message, which by
   // definition does not claim a position on the line. The button still belongs
@@ -83,22 +86,25 @@ function Tracker({
   const line =
     status === "CUSTOM" ? null : (
       <ol className="flex min-w-[19rem] flex-1 items-start gap-0">
-        {STAGES.map((stage, i) => {
+        {STAGES.map((s, i) => {
           const done = i < current;
           const active = i === current;
+          const stage = closed && active ? CLOSED_STAGE : s;
           return (
-            <li key={stage.key} className="flex flex-1 items-start gap-2">
+            <li key={s.key} className="flex flex-1 items-start gap-2">
               <span className="flex flex-col items-center">
                 <span
                   className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${
                     done
                       ? "bg-emerald-500 text-white"
                       : active
-                        ? "bg-brand-dark text-white ring-4 ring-brand/15"
+                        ? closed
+                          ? "bg-slate-400 text-white"
+                          : "bg-brand-dark text-white ring-4 ring-brand/15"
                         : "bg-slate-200 text-slate-400"
                   }`}
                 >
-                  {done ? <Check size={11} strokeWidth={3} /> : i + 1}
+                  {done ? <Check size={11} strokeWidth={3} /> : closed && active ? <X size={11} strokeWidth={3} /> : i + 1}
                 </span>
               </span>
 
@@ -164,7 +170,8 @@ function Tracker({
 const TONE: Record<InquiryRow["status"], string> = {
   PENDING: "bg-amber-50 text-amber-700 ring-amber-200",
   CHECKED: "bg-sky-50 text-sky-700 ring-sky-200",
-  IN_PROGRESS: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  CONFIRMED: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  CLOSED: "bg-slate-100 text-slate-600 ring-slate-200",
   CUSTOM: "bg-brand/10 text-brand-dark ring-brand/20",
 };
 
@@ -251,6 +258,35 @@ export default function InquiriesPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Live (the owner, 2026-11-17: "when we click Checked in admin, it has to change for the user"): read again,
+  // quietly, when the page is looked at again and every 30 s while it is in view. The list stays as it is meanwhile,
+  // and a read that fails (a dropped connection, a sign-in that ended) changes nothing.
+  useEffect(() => {
+    const quiet = async () => {
+      if (document.visibilityState !== "visible") return;
+      try {
+        const res = await fetch("/api/account/inquiries/", { credentials: "include", cache: "no-store" });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (Array.isArray(json?.inquiries)) {
+          setRows(json.inquiries);
+          setError(null);
+        }
+      } catch {
+        // Nothing new learned; what is shown stays true.
+      }
+    };
+    const onShow = () => {
+      if (document.visibilityState === "visible") void quiet();
+    };
+    document.addEventListener("visibilitychange", onShow);
+    const every = window.setInterval(() => void quiet(), 30_000);
+    return () => {
+      document.removeEventListener("visibilitychange", onShow);
+      window.clearInterval(every);
+    };
+  }, []);
 
   return (
     <Fade>
@@ -389,7 +425,7 @@ export default function InquiriesPage() {
                       rather than printed like a field. */}
                   {row.message && (
                     <div className="mt-2.5 rounded-xl border border-brand/15 bg-brand/[0.04] px-3.5 py-3">
-                      <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-brand-dark">
+                      <p className="mb-1 flex items-center gap-1.5 text-[12px] font-semibold text-brand-dark">
                         <BadgeCheck size={13} className="shrink-0" />
                         Message from the AFFHAN team
                       </p>
@@ -399,12 +435,22 @@ export default function InquiriesPage() {
                     </div>
                   )}
 
+                  {/* A request that did not go ahead still leaves the customer a way back. */}
+                  {row.status === "CLOSED" && (
+                    <p className="mt-2 text-[12.5px] text-slate-600">
+                      {"You can send a new request any time. "}
+                      <Link href="/contact/" className="font-semibold text-brand-dark hover:underline">
+                        Request for Quotation
+                      </Link>
+                    </p>
+                  )}
+
                   {/* The customer's own words. Labelled for the same reason
                       the message above is: two quoted blocks stacked on one
                       card, and nothing said which of them was whose. */}
                   {row.customerNote && (
                     <div className="mt-2 border-l-2 border-slate-200 pl-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                      <p className="text-[12px] font-medium text-slate-500">
                         What you asked for
                       </p>
                       <p className="mt-0.5 text-[12.5px] italic leading-relaxed text-slate-600">

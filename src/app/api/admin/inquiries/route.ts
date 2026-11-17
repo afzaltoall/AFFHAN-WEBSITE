@@ -29,7 +29,8 @@ export async function GET(request: Request) {
     const where: Prisma.InquiryWhereInput = {
       source: "APP",
       status: { not: "deleted" },
-      ...(isMobileInquiryStatus(stage) ? { customerStatus: stage } : {}),
+      // Checked takes in the old In Progress, which the customer is now told as Checked (lib/inquiry-status.ts).
+      ...(isMobileInquiryStatus(stage) ? { customerStatus: stage === "CHECKED" ? { in: ["CHECKED", "IN_PROGRESS"] } : stage } : {}),
     };
 
     const [total, rows] = await Promise.all([

@@ -35,6 +35,7 @@ import { countryFlagUrl } from "@/lib/countryFlag";
 import { groupCustomers, buildCustomerSheet, customerKeyOf, type CustomerGroup } from "@/lib/customerGroups";
 import { searchMatches } from "@/lib/customerCodeSearch";
 import { isInProgress, leadStatusChip, leadStatusLabel } from "@/lib/leadStatus";
+import { describeStatus } from "@/lib/inquiry-status";
 import { timeAgo } from "@/lib/relative-time";
 import { formatDateTime, formatSince } from "@/lib/datetime";
 import { signOutThrough } from "@/lib/session-client";
@@ -124,18 +125,29 @@ const byWaiting = <T extends { handling: Handling | null; status: string; create
   return ra - rb || ta - tb;
 };
 
-// Kept in step with lib/inquiry-status.ts. Not imported from it because that
-// module is server-shaped; this is only the wording for the console's own
-// selector, which describes each stage from the office's point of view rather
-// than the customer's.
-type CustomerStatus = "PENDING" | "CHECKED" | "IN_PROGRESS" | "CUSTOM";
-const CUSTOMER_STATUS_META: Record<CustomerStatus, { label: string; hint: string; chip: string; dot: string }> = {
-  PENDING: { label: "Pending", hint: "Nobody has picked it up yet", chip: "bg-amber-500/10 text-amber-600", dot: "bg-amber-500" },
-  CHECKED: { label: "Checked", hint: "Read, feasibility being confirmed", chip: "bg-sky-500/10 text-sky-600", dot: "bg-sky-500" },
-  IN_PROGRESS: { label: "In Progress", hint: "Sourcing / quoting under way", chip: "bg-emerald-500/10 text-emerald-600", dot: "bg-emerald-500" },
-  CUSTOM: { label: "Custom", hint: "Your own wording is shown instead", chip: "bg-violet-500/10 text-violet-600", dot: "bg-violet-500" },
+// The customer's journey (lib/inquiry-status.ts; the owner, 2026-11-17): Received when sent, Checked once looked at
+// (we will call them), then after the call Confirmed, or Closed with the reason; Custom is the office's own words.
+// The labels are the customer's own; the hints say each from the office's side. The old In Progress is shown as
+// Checked (asCustomerStatus) and no longer offered.
+type CustomerStatus = "PENDING" | "CHECKED" | "CONFIRMED" | "CLOSED" | "CUSTOM";
+const CUSTOMER_STATUS_META: Record<CustomerStatus, { label: string; hint: string; chip: string }> = {
+  PENDING: { label: "Received", hint: "Sent, not checked yet", chip: "bg-amber-500/10 text-amber-600" },
+  CHECKED: { label: "Checked", hint: "Checked; they are told we will call", chip: "bg-sky-500/10 text-sky-600" },
+  CONFIRMED: { label: "Confirmed", hint: "Talked, and going ahead", chip: "bg-emerald-500/10 text-emerald-600" },
+  CLOSED: { label: "Closed", hint: "Not going ahead; they read the reason", chip: "bg-slate-500/10 text-slate-600" },
+  CUSTOM: { label: "Custom", hint: "Your own wording is shown instead", chip: "bg-violet-500/10 text-violet-600" },
 };
 const CUSTOMER_STATUSES = Object.keys(CUSTOMER_STATUS_META) as CustomerStatus[];
+/**
+ * Why a request is Closed, in the customer's own words, a press each (the owner, 2026-11-17: "what reason do we
+ * give?"): it fills the note, which can still be edited, or written from nothing.
+ */
+const CLOSED_REASONS = [
+  "We couldn't source this product.",
+  "The quantity is below what our suppliers accept.",
+  "We couldn't agree on the price.",
+  "You decided not to go ahead.",
+] as const;
 /**
  * A write from the console, with the reason it failed kept intact.
  *
@@ -175,7 +187,7 @@ async function adminWrite(url: string, body: unknown, method: "POST" | "PATCH" =
 }
 
 const asCustomerStatus = (s: string): CustomerStatus =>
-  (CUSTOMER_STATUSES as readonly string[]).includes(s) ? (s as CustomerStatus) : "PENDING";
+  s === "IN_PROGRESS" ? "CHECKED" : (CUSTOMER_STATUSES as readonly string[]).includes(s) ? (s as CustomerStatus) : "PENDING";
 
 /**
  * The server's rule, seen at once (lib/inquiry-checked.ts): a signed-in customer's request marked Handled while it
@@ -973,7 +985,7 @@ export function AdminConsole({ data }: Props) {
   // Counts the country-scoped rows, so the "N of M can see a status" strip
   // describes the list on screen rather than the whole table.
   const customerStatusCounts = useMemo(() => {
-    const c = { linked: 0, PENDING: 0, CHECKED: 0, IN_PROGRESS: 0, CUSTOM: 0, total: countryScopedItems.length };
+    const c = { linked: 0, PENDING: 0, CHECKED: 0, CONFIRMED: 0, CLOSED: 0, CUSTOM: 0, total: countryScopedItems.length };
     countryScopedItems.forEach((i) => {
       if (!i.userId) return;
       c.linked++;
@@ -2523,11 +2535,12 @@ function CustomerStatusControl({
 
   const dirty = choice !== current || note.trim() !== (inquiry.statusNote ?? "");
 
+  // What the customer will read, word for word, from the server's own wording.
+  const told = describeStatus(choice, note);
+
   return (
     <div className="mt-5">
-      <p className={`mb-1.5 text-[11px] font-semibold uppercase tracking-wide ${t.soft}`}>
-        What the customer sees
-      </p>
+      <p className={`mb-1.5 text-[13px] font-medium ${t.mid}`}>What the customer sees</p>
       <div className="flex flex-wrap gap-1.5">
         {CUSTOMER_STATUSES.map((s) => {
           const meta = CUSTOMER_STATUS_META[s];
@@ -2537,16 +2550,32 @@ function CustomerStatusControl({
               key={s}
               onClick={() => setChoice(s)}
               title={meta.hint}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
+              className={`inline-flex items-center rounded-full px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${
                 on ? meta.chip : `${t.thumb} ${t.soft} hover:opacity-80`
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${on ? meta.dot : "bg-current opacity-40"}`} />
               {meta.label}
             </button>
           );
         })}
       </div>
+
+      {/* Closed: the reason, a press each, in the customer's own words; it fills the note, still editable. */}
+      {choice === "CLOSED" && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {CLOSED_REASONS.map((r) => (
+            <button
+              key={r}
+              onClick={() => setNote(r)}
+              className={`rounded-lg border px-2.5 py-1 text-[12px] transition-colors cursor-pointer ${
+                note.trim() === r ? `font-semibold ${t.navActive}` : `${t.border} ${t.mid} ${t.hover}`
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+      )}
 
       <textarea
         value={note}
@@ -2556,10 +2585,16 @@ function CustomerStatusControl({
         placeholder={
           choice === "CUSTOM"
             ? "Required — this text is shown to the customer instead of a stage."
-            : "Optional note, shown to the customer under the status."
+            : choice === "CLOSED"
+              ? "The reason they read. Pick one above, or write your own."
+              : "Optional note, shown to the customer under the status."
         }
         className={`mt-2 w-full rounded-xl px-3 py-2 text-sm outline-none ${t.thumb} ${t.border} border`}
       />
+      <p className={`mt-1 text-[12px] leading-snug ${t.soft}`}>
+        They read: <span className={`font-semibold ${t.mid}`}>{told.label}</span>
+        {told.message ? ` · ${told.message}` : ""}
+      </p>
 
       <div className="mt-2 flex items-center gap-3">
         <button

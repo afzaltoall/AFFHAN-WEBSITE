@@ -13,7 +13,8 @@ const sfFont = {
     '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", system-ui, sans-serif',
 };
 
-type Stage = "PENDING" | "CHECKED" | "IN_PROGRESS" | "CUSTOM";
+// As the customer is told it (lib/inquiry-status.ts describeStatus): the old In Progress arrives as Checked.
+type Stage = "PENDING" | "CHECKED" | "CONFIRMED" | "CLOSED" | "CUSTOM";
 
 interface InquiryRow {
   id: string;
@@ -35,9 +36,10 @@ interface InquiryRow {
 
 const STATUS_FILTERS: Array<{ value: string; label: string }> = [
   { value: "", label: "All" },
-  { value: "PENDING", label: "Pending" },
+  { value: "PENDING", label: "Received" },
   { value: "CHECKED", label: "Checked" },
-  { value: "IN_PROGRESS", label: "In Progress" },
+  { value: "CONFIRMED", label: "Confirmed" },
+  { value: "CLOSED", label: "Closed" },
   { value: "CUSTOM", label: "Custom" },
 ];
 
@@ -45,7 +47,8 @@ const STATUS_FILTERS: Array<{ value: string; label: string }> = [
 const STATUS_CHIP: Record<Stage, string> = {
   PENDING: "bg-[#fff4e5] text-[#8a5300]",
   CHECKED: "bg-[#e8f0fe] text-[#1a4fb4]",
-  IN_PROGRESS: "bg-[#e6f4ea] text-[#1a7f37]",
+  CONFIRMED: "bg-[#e6f4ea] text-[#1a7f37]",
+  CLOSED: "bg-[#f1f3f4] text-[#5f6368]",
   CUSTOM: "bg-[#f3e8ff] text-[#6b21a8]",
 };
 

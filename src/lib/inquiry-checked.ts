@@ -12,9 +12,10 @@ type Db = Omit<typeof prisma, "$connect" | "$disconnect" | "$on" | "$transaction
  * can no longer tell its customer "Pending: Our team will contact you shortly." The office set Checked by hand after
  * Handled 205 times; the 17 were the ones where that second click was missed. So every way of marking an inquiry
  * Handled calls this: the console's row and bulk buttons (/api/admin/inquiry/), its single-inquiry PATCH, and a
- * salesperson's Lead or No lead (closeOpenRequests in lib/lead-pool.ts). It moves a Pending one to Checked ("Our team
- * has reviewed your inquiry"), the least a handled request can truthfully say, which is why it may be done for many at
- * once where In Progress may not. Never In Progress or a custom message; nothing moves back when a request is set to
+ * salesperson's Lead or No lead (closeOpenRequests in lib/lead-pool.ts). It moves a Received one (PENDING) to Checked
+ * ("Our team has checked your request and will call you"), the least a handled request can truthfully say, which is
+ * why it may be done for many at once where Confirmed or Closed may not: those follow the call, one request at a time,
+ * from the console's popup. Never anything after Checked; nothing moves back when a request is set to
  * New again; Spam changes nothing. Only signed-in customers' requests: nobody else has a page that shows the status,
  * and the trail is theirs alone. Each move goes on the request's trail (InquiryStatusEvent) with who made it, as the
  * console's own control writes it. `by.id` is an AdminUser's id, or an Employee's for Lead or No lead.

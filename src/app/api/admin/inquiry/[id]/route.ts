@@ -42,7 +42,7 @@ export async function PATCH(
   if (body?.customerStatus !== undefined) {
     if (!isMobileInquiryStatus(body.customerStatus)) {
       return NextResponse.json(
-        { error: "customerStatus must be PENDING, CHECKED, IN_PROGRESS or CUSTOM." },
+        { error: "customerStatus must be PENDING, CHECKED, CONFIRMED, CLOSED or CUSTOM." },
         { status: 400 }
       );
     }
