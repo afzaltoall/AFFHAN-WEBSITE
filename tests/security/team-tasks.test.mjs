@@ -17,10 +17,13 @@ const read = (p) =>
     .replace(/\{\/\*[\s\S]*?\*\/\}/g, "");
 const PAGE = "src/app/employee/(workspace)/tasks/page.tsx";
 const SERVER = "src/lib/server/trip-referrals.ts";
+/** One exported function's text, to its closing brace, whatever the checkout's line endings (a Windows clone has CRLF). */
 const fnOf = (src, name) => {
   const at = src.indexOf(`export async function ${name}`);
   assert.ok(at >= 0, name);
-  return src.slice(at, src.indexOf("\n}\n", at) + 2);
+  const end = /\r?\n\}\r?\n/.exec(src.slice(at));
+  assert.ok(end, `${name} ends`);
+  return src.slice(at, at + end.index + end[0].length);
 };
 
 test("each employee's line counts as Employee tasks counts: deleted never, spam and taken-out applied but not counted", () => {

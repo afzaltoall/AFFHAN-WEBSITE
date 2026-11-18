@@ -139,8 +139,10 @@ export default async function TeamTasksPage() {
       </div>
 
       <section className={`overflow-hidden rounded-2xl ${wt.card}`}>
+        {/* A real space before the count, so it is read "Everyone 58", never "Everyone58". */}
         <h2 className={`border-b px-5 py-3 text-[15px] font-semibold ${wt.border}`}>
-          Everyone<span className={`ml-1.5 font-normal tabular-nums ${wt.soft}`}>{rows.length}</span>
+          Everyone{" "}
+          <span className={`font-normal tabular-nums ${wt.soft}`}>{rows.length}</span>
         </h2>
         {rows.length === 0 ? (
           <p className={`px-5 py-10 text-center text-[13px] ${wt.soft}`}>No employees yet.</p>
