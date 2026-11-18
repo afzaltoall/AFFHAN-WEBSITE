@@ -64,7 +64,8 @@ export const EXPIRED_QUERY = "expired=1";
 /**
  * The kinds of staff account (Employee.job): SALES works the open pool (My leads), ASSIGNER keeps cargo tracking, and
  * REFERRAL only hands out a Free China Trip link (My referrals; 2026-11-03, when the whole office got accounts for the
- * referral task: an accountant or a driver with a link, never a customer's details). Every kind has My referrals.
+ * referral task: an accountant or a driver with a link, never a customer's details). Every kind has My referrals and
+ * Team tasks (2026-11-18: where everyone stands in that task).
  */
 export const STAFF_JOBS = ["SALES", "ASSIGNER", "REFERRAL"] as const;
 export const isStaffJob = (v: unknown): v is (typeof STAFF_JOBS)[number] => typeof v === "string" && (STAFF_JOBS as readonly string[]).includes(v);

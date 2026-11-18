@@ -3,6 +3,7 @@ import { wt } from "@/components/employee/workspace-ui";
 /** Each staff page's own title, so its outline already says where you are going. */
 const TITLES: Record<string, string> = {
   "/employee/referrals": "My referrals",
+  "/employee/tasks": "Team tasks",
   "/employee/profile": "Profile",
   "/employee/dashboard": "My leads",
   "/employee/cargo": "Cargo tracking",

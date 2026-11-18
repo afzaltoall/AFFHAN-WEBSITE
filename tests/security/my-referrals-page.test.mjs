@@ -62,7 +62,7 @@ test("a staff tab or rail press is marked at once, the next page's outline in th
   assert.match(tabs, /onNavigate=\{\(\) => nav\.start\(t\.href\)\}/);
   assert.match(tabs, /const at = nav\.moving \?\? pathOf\(pathname\);/);
   const rail = read("src/components/employee/WorkspaceSidebar.tsx");
-  assert.equal((rail.match(/onNavigate=\{\(\) => nav\.start\("\/employee\/(dashboard|cargo|referrals|profile)\/"\)\}/g) ?? []).length, 4);
+  assert.equal((rail.match(/onNavigate=\{\(\) => nav\.start\("\/employee\/(dashboard|cargo|referrals|tasks|profile)\/"\)\}/g) ?? []).length, 5);
   const nav = read("src/components/employee/workspace-nav.tsx");
   assert.match(nav, /\{moving && <WorkspaceSkeleton path=\{moving\} \/>\}/);
   assert.match(nav, /<div className=\{moving \? "hidden" : undefined\}>\{children\}<\/div>/, "the page kept underneath, so going back is instant");
@@ -71,7 +71,7 @@ test("a staff tab or rail press is marked at once, the next page's outline in th
   assert.match(layout, /<WorkspaceNavProvider>/);
   assert.match(layout, /<WorkspaceMain>\{children\}<\/WorkspaceMain>/);
   // No loading.tsx under the workspace: it turned the account-type redirects into a 200 and held fast moves ~300 ms.
-  for (const page of ["referrals", "profile", "dashboard", "cargo"]) {
+  for (const page of ["referrals", "tasks", "profile", "dashboard", "cargo"]) {
     assert.ok(!fs.existsSync(new URL(`../../src/app/employee/(workspace)/${page}/loading.tsx`, import.meta.url)), page);
   }
   assert.ok(!fs.existsSync(new URL("../../src/app/employee/(workspace)/loading.tsx", import.meta.url)));

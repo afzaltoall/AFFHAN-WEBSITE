@@ -21,6 +21,8 @@ export function WorkspaceTabs({ pages }: { pages: WorkspacePages }) {
     ...(pages === "sales" || pages === "both" ? [{ href: "/employee/dashboard/", label: "My leads" }] : []),
     ...(pages === "assigner" || pages === "both" ? [{ href: "/employee/cargo/", label: "Cargo tracking" }] : []),
     { href: "/employee/referrals/", label: "My referrals" },
+    // Everyone's place in the referral task, for every account (2026-11-18).
+    { href: "/employee/tasks/", label: "Team tasks" },
     { href: "/employee/profile/", label: "Profile" },
   ];
   return (

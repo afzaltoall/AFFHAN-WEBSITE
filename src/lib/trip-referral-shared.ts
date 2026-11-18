@@ -126,8 +126,91 @@ export const istDayAfter = (day: string) => new Date(Date.parse(`${day}T00:00:00
 /** The last day an end (the first moment after it) still counts, as a date field holds it. */
 export const istLastDay = (endIso: string) => istDate(new Date(Date.parse(endIso) - 1).toISOString());
 
+/** A date field's day as the staff pages write it: "25 Nov 2026". */
+const fmtTaskDay = (day: string) =>
+  new Date(`${day}T12:00:00+05:30`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
+
+/** The task's dates as My referrals and Team tasks say them ("3 Nov 2026 to 25 Nov 2026", "until …", "from …"), or null. */
+export function referralTaskDates(s: { startsAt: string | null; endsAt: string | null }): string | null {
+  if (s.startsAt && s.endsAt) return `${fmtTaskDay(istDate(s.startsAt))} to ${fmtTaskDay(istLastDay(s.endsAt))}`;
+  if (s.endsAt) return `until ${fmtTaskDay(istLastDay(s.endsAt))}`;
+  if (s.startsAt) return `from ${fmtTaskDay(istDate(s.startsAt))}`;
+  return null;
+}
+
 /** Rupees, as the office writes them: ₹3,700. */
 export const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
+
+/**
+ * Team tasks (the owner, 2026-11-18: "show the all tasks of works to employees everyone in there employee page overall
+ * tasks status so they can see everyone status and theres too"): every employee's line on the referral task, for every
+ * employee to see. A name and three figures, nothing else: no email, no code, no points or rupees, and nothing of the
+ * applicants, who are only ever shown to the employee whose link they came through (the trip's Privacy Policy,
+ * section 5). The server counts the applications by employee, state and status (lib/server/trip-referrals.ts).
+ */
+export interface TeamRow {
+  employeeId: string;
+  name: string;
+  /** Applications through their link, not deleted (as Applied in Employee tasks). */
+  referred: number;
+  /** Those that count (referralCounts). */
+  counted: number;
+  /** Their own target where the console gave them one, the task's otherwise. */
+  target: number;
+}
+
+/** One count of applications that came with one employee's code, in one state and one office status. */
+export interface TeamCount {
+  referrerId: string | null;
+  referralState: string | null;
+  status: string;
+  n: number;
+}
+
+/** Everyone's line from the counts, best first: the most counted, then the most applied, then by name. */
+export function teamRows(employees: { id: string; name: string }[], counts: TeamCount[], targets: Map<string, number>, taskTarget: number): TeamRow[] {
+  const of = new Map<string, { referred: number; counted: number }>();
+  for (const c of counts) {
+    if (!c.referrerId || c.status === "deleted") continue;
+    const t = of.get(c.referrerId) ?? { referred: 0, counted: 0 };
+    t.referred += c.n;
+    if (referralCounts(c)) t.counted += c.n;
+    of.set(c.referrerId, t);
+  }
+  return employees
+    .map((e) => ({ employeeId: e.id, name: e.name, referred: of.get(e.id)?.referred ?? 0, counted: of.get(e.id)?.counted ?? 0, target: targets.get(e.id) ?? taskTarget }))
+    .sort((a, b) => b.counted - a.counted || b.referred - a.referred || a.name.localeCompare(b.name));
+}
+
+/**
+ * Each line's place, by what it has counted: the same count, the same place (1, 2, 2, 4); none until something counts,
+ * so a team just starting is not told it is all in first place.
+ */
+export const teamPlaces = (rows: { counted: number }[]): (number | null)[] =>
+  rows.map((r) => (r.counted > 0 ? 1 + rows.filter((x) => x.counted > r.counted).length : null));
+
+/** What the team has done together: everyone's counted against all their targets, and how many have reached theirs. */
+export function teamTotals(rows: TeamRow[]) {
+  const counted = rows.reduce((s, r) => s + r.counted, 0);
+  const target = rows.reduce((s, r) => s + r.target, 0);
+  return {
+    employees: rows.length,
+    referred: rows.reduce((s, r) => s + r.referred, 0),
+    counted,
+    target,
+    reached: rows.filter((r) => r.counted >= r.target).length,
+    toGo: Math.max(0, target - counted),
+  };
+}
+
+/** How far a count is towards a target, for a bar: from 0 to 1, never past its end. */
+export const targetShare = (counted: number, target: number) => (target > 0 ? Math.min(1, counted / target) : 1);
+
+/** 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st, 101st, 111th. */
+export function ordinal(n: number): string {
+  const teen = n % 100 >= 11 && n % 100 <= 13;
+  return `${n}${teen ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")}`;
+}
 
 /** A mobile number as an employee sees a customer's: the code and the last two digits ("+91 98•••••12"). */
 export function maskPhone(phone: string): string {

@@ -10,8 +10,10 @@ import {
   normalizeReferralCode,
   referralCounts,
   referralWaiting,
+  teamRows,
   type IdProof,
   type ReferralState,
+  type TeamRow,
 } from "@/lib/trip-referral-shared";
 
 /**
@@ -308,6 +310,43 @@ export async function referralBoard(): Promise<{ settings: ReferralSettings; row
   }));
   rows.sort((a, b) => b.counted - a.counted || b.referred - a.referred || a.name.localeCompare(b.name));
   return { settings, rows };
+}
+
+/**
+ * Team tasks, for every employee (2026-11-18): each active employee's name and how far they have got, best first.
+ * Counted in the database by employee, state and status, so no application leaves it; asked for names only, so no
+ * email, code or payment does either (lib/trip-referral-shared.ts, teamRows). Unlike the console's board it makes no
+ * codes: somebody without one has nothing through a link yet.
+ */
+export async function teamBoard(): Promise<{ settings: ReferralSettings; rows: TeamRow[] }> {
+  const [settings, employees, counts, targets] = await Promise.all([
+    referralSettings(),
+    prisma.employee.findMany({ where: { isActive: true }, select: { id: true, name: true } }),
+    prisma.tripApplication.groupBy({
+      by: ["referrerId", "referralState", "status"],
+      where: { referrerId: { not: null }, status: { not: "deleted" } },
+      _count: { _all: true },
+    }),
+    employeeTargets(),
+  ]);
+  return {
+    settings,
+    rows: teamRows(
+      employees,
+      counts.map((c) => ({ referrerId: c.referrerId, referralState: c.referralState, status: c.status, n: c._count._all })),
+      targets,
+      settings.target,
+    ),
+  };
+}
+
+/** The points an employee's counted referrals have earned them, as My referrals' Points: for their own eyes only. */
+export async function employeePoints(employeeId: string): Promise<number> {
+  const sum = await prisma.tripApplication.aggregate({
+    where: { referrerId: employeeId, referralState: "counted", status: { notIn: ["spam", "deleted"] } },
+    _sum: { referralPoints: true },
+  });
+  return sum._sum.referralPoints ?? 0;
 }
 
 /** One application referred by an employee, as their page and the console list it. */

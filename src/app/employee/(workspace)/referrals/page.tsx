@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { readWorkspaceAuth } from "@/lib/employee-session";
 import { employeeReferrals, taskRunning } from "@/lib/server/trip-referrals";
-import { istDate, istLastDay, maskPhone, referralCounts, referralLink, referralWaiting, rupees } from "@/lib/trip-referral-shared";
+import { maskPhone, referralCounts, referralLink, referralTaskDates, referralWaiting, rupees } from "@/lib/trip-referral-shared";
 import { ReferralApplicants, type ReferralPerson } from "@/components/employee/ReferralApplicants";
 import { ReferralRefresh } from "@/components/employee/ReferralRefresh";
 import { ReferralShare } from "@/components/employee/ReferralShare";
@@ -16,7 +16,6 @@ export const metadata: Metadata = {
 };
 
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" });
-const fmtDayOf = (day: string) => fmtDay(`${day}T12:00:00+05:30`);
 const fmtDayTime = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
 const fmtTime = (at: Date) => at.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
@@ -54,14 +53,7 @@ export default async function MyReferralsPage() {
   const perReferral = settings.pointsPerReferral * settings.rupeesPerPoint;
   const done = Math.min(totals.counted, target);
   const running = taskRunning(settings);
-  const dates =
-    settings.startsAt && settings.endsAt
-      ? `${fmtDayOf(istDate(settings.startsAt))} to ${fmtDayOf(istLastDay(settings.endsAt))}`
-      : settings.endsAt
-        ? `until ${fmtDayOf(istLastDay(settings.endsAt))}`
-        : settings.startsAt
-          ? `from ${fmtDayOf(istDate(settings.startsAt))}`
-          : null;
+  const dates = referralTaskDates(settings);
   // What the list and its details may show, made ready here: this goes to the browser, so the mobile is masked before
   // it leaves the server, and nothing else of the application goes with it.
   const people: ReferralPerson[] = r.applications.map((a) => {
