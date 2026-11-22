@@ -63,7 +63,6 @@ const SLOT_KEYS = Array.from({ length: SLOTS }, (_, k) => k);
 const DRAW_KEYS = new Set([" ", "Enter", "PageDown", "ArrowRight"]);
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
-const count = new Intl.NumberFormat("en-IN");
 const TODAY = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "long", year: "numeric" });
 const AT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 /** "Chennai, India"; a city that is its own country once ("Singapore"). */
@@ -314,8 +313,6 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
   const [label, setLabel] = useState("");
   /** The row under the arrow lit: it is the one drawn. */
   const [chosen, setChosen] = useState(false);
-  /** How many are in the list on the screen (null until it is read). */
-  const [listed, setListed] = useState<number | null>(null);
   /** A round opened here with "Start round 2", before its first draw: its five seats shown empty. */
   const [started, setStarted] = useState<number | null>(null);
   const startedNow = useRef<number | null>(null);
@@ -395,7 +392,6 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
       if (!Array.isArray(pool.entries)) return false;
       reel.setRows(pool.entries);
       poolAt.current = Date.now();
-      setListed(pool.entries.length);
       return true;
     } catch {
       return false;
@@ -776,8 +772,10 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
   const empty = !!board && board.ready && board.poolSize === 0;
   /** The live draw waits for applications to close (the server refuses it until then). */
   const early = mode === "live" && !!board?.applicationsOpen;
-  const inList = listed ?? board?.poolSize ?? null;
-  /** The one line under the list: trouble first, then why Draw waits, then the draw shown, then who is in it. */
+  /**
+   * The one line under the list: trouble first, then why Draw waits, then the draw shown, then what the list is. Never
+   * how many are in the draw (the owner, 2026-11-22: "dont show the number of users in draw").
+   */
   const note: { text: string; trouble?: boolean } =
     say ??
     (notReady
@@ -789,8 +787,8 @@ export function DrawScreen({ mode, closes }: { mode: DrawMode | null; closes: st
           : empty
             ? { text: "Everyone in the draw has been drawn." }
             : card && (scene === "card" || chosen)
-              ? { text: `Drawn at random from ${count.format(card.poolSize)} applicants · ${AT.format(new Date(card.drawnAt))}` }
-              : { text: inList !== null ? `${count.format(inList)} applicants in the draw, listed by Trip ID` : "" });
+              ? { text: `Drawn at random · ${AT.format(new Date(card.drawnAt))}` }
+              : { text: "Everyone in the draw, listed by Trip ID" });
 
   if (access === "none") {
     return (

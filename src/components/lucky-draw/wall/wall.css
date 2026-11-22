@@ -153,7 +153,7 @@
   -webkit-text-fill-color: transparent;
 }
 
-/* One line under the title, in plain words: who is in the draw, the draw just made, or what is wrong. */
+/* One line under the title, in plain words: the draw just made, or what is wrong; never how many are in the draw. */
 .lw-note {
   position: absolute;
   top: calc(6.25 * var(--u));

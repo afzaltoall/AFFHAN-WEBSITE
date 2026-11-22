@@ -216,3 +216,36 @@ test("the console has its row, under Free China Trip", () => {
   const rail = read("src/components/admin/rail-sections.ts");
   assert.match(rail, /\{ key: "lucky-draw", href: "\/admin\/lucky-draw\/", label: "Lucky draw", icon: Ticket \}/);
 });
+
+// 2026-11-22, the owner, over a picture of the TV with "8,115 applicants in the draw" boxed: "dont show the number of
+// users in draw". Neither screen says how many are in the draw: not at rest, and not beside a draw just made.
+test("the TV never says how many are in the draw: neither the wall nor the list", () => {
+  for (const file of ["src/components/lucky-draw/wall/DrawWall.tsx", "src/components/lucky-draw/DrawScreen.tsx"]) {
+    const screen = read(file);
+    assert.doesNotMatch(screen, /applicants|poolSize\)|count\.format|setListed|listed \?\?|inDraw|inList/, file);
+    assert.match(screen, /\? \{ text: `Drawn at random · \$\{AT\.format\(new Date\(card\.drawnAt\)\)\}` \}/, file);
+  }
+  assert.match(read("src/components/lucky-draw/wall/DrawWall.tsx"), /: \{ text: "" \}\);/, "the wall at rest: no line");
+  assert.match(read("src/components/lucky-draw/DrawScreen.tsx"), /: \{ text: "Everyone in the draw, listed by Trip ID" \}\);/, "the list: what it is, never how many");
+});
+
+// 2026-11-22, the owner: "click the selected candidate ... a right-side tab ... their full details ... documents if they
+// have them". The console's Lucky draw opens Participants' own panel, read again from the admin-only route, the ID
+// proof behind the admin's password lock as there; without New, Handled, Spam or Delete, which would take a winner's
+// seat without a word (the page's "Can't take part" does that, and says so).
+test("the console's Lucky draw: a name opens Participants' own panel, read again, without its status buttons", () => {
+  const board = read("src/components/admin/LuckyDrawBoard.tsx");
+  assert.match(board, /import \{ Detail as ApplicationPanel, DetailWaiting as ApplicationWaiting, type Application \} from "@\/components\/admin\/TripApplicationsBoard";/);
+  assert.match(board, /fetch\(`\/api\/admin\/trip-applications\/\$\{openedId\}\/`, \{ cache: "no-store" \}\)/);
+  assert.match(board, /<ApplicationPanel a=\{application\} lead=\{drawRows\(opened\.card, opened\.mode\)\} onClose=\{\(\) => setOpened\(null\)\} \/>/);
+  assert.doesNotMatch(board, /<ApplicationPanel[^>]*onStatus/, "no status buttons from the draw's page");
+  assert.equal((board.match(/<Person c=\{c\} onOpen=\{openPerson\} \/>/g) ?? []).length, 3, "every name: this round's seats, the rounds before, those who can't take part");
+  const panel = read("src/components/admin/TripApplicationsBoard.tsx");
+  assert.match(panel, /\{onStatus && \(\s*<div className="flex flex-wrap items-center gap-1\.5 text-\[12\.5px\]">/);
+  assert.match(panel, /\.\.\.\(onStatus \? \[\] : \[\["Status", STATUS_WORD\[a\.status as Status\] \?\? a\.status\] as \[string, React\.ReactNode\]\]\),/);
+  assert.match(panel, /if \(a\.documents\?\.length\) answers\.push\(\["ID proof", <TripDocuments key="docs" documents=\{a\.documents\} \/>\]\);/);
+  assert.match(panel, /<Detail a=\{openFull\} busy=\{busy\} onClose=\{\(\) => setOpenId\(null\)\} onStatus=\{\(s\) => void setStatus\(openFull\.id, s\)\} \/>/, "Participants keeps its buttons");
+  const route = read("src/app/api/admin/trip-applications/[id]/route.ts");
+  assert.match(route, /if \(!admin \|\| admin\.role !== "admin"\) return new NextResponse\("Unauthorized", \{ status: 401 \}\);/);
+  assert.match(route, /documents: row\.documents\.map\(\(d\) => \(\{ id: d\.id, contentType: d\.contentType, size: d\.size, proof: idProofOfKey\(d\.key\) \}\)\)/, "never a file's key");
+});

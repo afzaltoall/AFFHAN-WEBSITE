@@ -336,7 +336,7 @@
   font-weight: 600;
 }
 
-/* The one line under the list: who is in the draw, the draw shown, why Draw waits, or trouble. */
+/* The one line under the list: what the list is, the draw shown, why Draw waits, or trouble; never how many. */
 .ld-note {
   margin-top: calc(var(--u) * 1.2);
   height: 1.4em;

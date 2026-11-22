@@ -65,7 +65,8 @@ const sfFont = {
 
 type Status = "new" | "handled" | "spam" | "deleted";
 
-interface Application {
+/** One application as /api/admin/trip-applications/[id] answers it (the Lucky draw opens the same panel, 2026-11-22). */
+export interface Application {
   id: string;
   referenceNo: string;
   createdAt: string;
@@ -969,7 +970,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
         (openFull ? (
           <Detail a={openFull} busy={busy} onClose={() => setOpenId(null)} onStatus={(s) => void setStatus(openFull.id, s)} />
         ) : (
-          <DetailWaiting row={openRow} failed={detailFailed === openId} onClose={() => setOpenId(null)} />
+          <DetailWaiting name={openRow?.fullName ?? "Application"} tripId={openRow?.referenceNo ?? null} failed={detailFailed === openId} onClose={() => setOpenId(null)} />
         ))}
     </div>
   );
@@ -1301,14 +1302,16 @@ function PanelHead({ name, line, onClose }: { name: string; line: React.ReactNod
 }
 
 /** The panel while the application's answers are read (a moment), or when they could not be. */
-function DetailWaiting({ row, failed, onClose }: { row: ListApplication | null; failed: boolean; onClose: () => void }) {
+export function DetailWaiting({ name, tripId, failed, onClose }: { name: string; tripId: string | null; failed: boolean; onClose: () => void }) {
   return (
     <Panel onClose={onClose}>
-      <PanelHead name={row?.fullName ?? "Application"} line={row ? <span className="font-mono font-semibold text-[#0058b0]">{row.referenceNo}</span> : null} onClose={onClose} />
+      <PanelHead name={name} line={tripId ? <span className="font-mono font-semibold text-[#0058b0]">{tripId}</span> : null} onClose={onClose} />
       <p className="px-5 py-8 text-center text-[13px] text-[#6e6e73]">{failed ? "This application could not be read. Close it and open it again." : "Loading…"}</p>
     </Panel>
   );
 }
+
+const STATUS_WORD: Record<Status, string> = { new: "New", handled: "Handled", spam: "Spam", deleted: "Deleted" };
 
 /**
  * One application, simply (the owner, 2026-10-29: "complex ... text romba perusaa ... user puriyura maari"): who it
@@ -1316,11 +1319,30 @@ function DetailWaiting({ row, failed, onClose }: { row: ListApplication | null; 
  * The page's six first (the name is the heading); what an earlier application was also asked (an email, a website,
  * the company, nationality and the rest) in a second list, only where it was given; the account only when it was
  * sent signed in; the consents as one line.
+ *
+ * The Lucky draw opens it too (2026-11-22, the owner: "click the selected candidate ... a right-side tab with their
+ * full details ... documents if they have them"), with its own rows on top (`lead`: the round, the seat, who drew) and
+ * no status buttons (`onStatus` left out): there, Spam or Delete would quietly take a winner's seat, which the page's
+ * own "Can't take part" does in words. Their status is a line instead.
  */
-function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean; onClose: () => void; onStatus: (s: Status) => void }) {
+export function Detail({
+  a,
+  busy = false,
+  onClose,
+  onStatus,
+  lead = [],
+}: {
+  a: Application;
+  busy?: boolean;
+  onClose: () => void;
+  onStatus?: (s: Status) => void;
+  lead?: Array<[string, React.ReactNode]>;
+}) {
   const site = (url: string | null) =>
     url ? <a className="text-[#0058b0] underline" href={href(url)} target="_blank" rel="noopener noreferrer">{url}</a> : null;
   const answers: Array<[string, React.ReactNode]> = [
+    ...lead,
+    ...(onStatus ? [] : [["Status", STATUS_WORD[a.status as Status] ?? a.status] as [string, React.ReactNode]]),
     ["Mobile", a.phone],
     ["Country", a.country],
     ["City", a.city],
@@ -1390,6 +1412,7 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
           )}
         </div>
 
+        {onStatus && (
         <div className="flex flex-wrap items-center gap-1.5 text-[12.5px]">
           {(["new", "handled", "spam"] as const).map((s) => (
             <button
@@ -1411,6 +1434,7 @@ function Detail({ a, busy, onClose, onStatus }: { a: Application; busy: boolean;
             </button>
           )}
         </div>
+        )}
 
         <Answers rows={answers} />
 

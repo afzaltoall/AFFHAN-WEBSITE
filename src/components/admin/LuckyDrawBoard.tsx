@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Loader2, MonitorPlay, RefreshCw, RotateCcw, Ticket, Trash2, UserX, X } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
 import { DRAW_POOL_RULE, DRAW_SEATS, nextPlace, roundFull, seatWords, type DrawBoard, type DrawCardFull, type DrawMode } from "@/lib/lucky-draw-shared";
+import { Detail as ApplicationPanel, DetailWaiting as ApplicationWaiting, type Application } from "@/components/admin/TripApplicationsBoard";
 
 /**
  * Free China Trip → Lucky draw (the owner, 2026-11-10: "a lucky draw page ... our CEO will click draw the lucky person
@@ -76,6 +77,39 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
   const released = board.cards.filter((c) => c.out).reverse();
   const upNext = startedHere ? { n: 1, round } : nextPlace(board);
   const nextWords = `seat ${upNext.n} · round ${upNext.round}`;
+
+  /**
+   * Someone drawn, opened on the right (2026-11-22, the owner: "click the selected candidate ... explore ... a right-side
+   * tab with their full details ... documents if they have them"): Participants' own panel, their whole application read
+   * again as it opens, its ID proof behind the admin's password as everywhere.
+   */
+  const [opened, setOpened] = useState<{ card: DrawCardFull; mode: DrawMode; n: number } | null>(null);
+  const [application, setApplication] = useState<Application | null>(null);
+  const [applicationFailed, setApplicationFailed] = useState(false);
+  // Every open reads it again, the same person's too (its status or ID proof may have changed since).
+  const openPerson = (c: DrawCardFull) => {
+    setApplication(null);
+    setApplicationFailed(false);
+    setOpened((o) => ({ card: c, mode, n: (o?.n ?? 0) + 1 }));
+  };
+  const openedId = opened?.card.applicationId ?? null;
+  const openedN = opened?.n ?? 0;
+  useEffect(() => {
+    if (!openedId) return;
+    let gone = false;
+    fetch(`/api/admin/trip-applications/${openedId}/`, { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const a = (await res.json()) as Application;
+        if (!gone) setApplication(a);
+      })
+      .catch(() => {
+        if (!gone) setApplicationFailed(true);
+      });
+    return () => {
+      gone = true;
+    };
+  }, [openedId, openedN]);
 
   const read = useCallback(async (which: DrawMode) => {
     const res = await fetch(`/api/admin/lucky-draw/board/?mode=${which}`, { cache: "no-store" });
@@ -315,7 +349,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
             {seats.map((c, i) => (
               <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3.5">
                 <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Seat {i + 1}</span>
-                {c ? <Person c={c} /> : <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: the next draw takes it.</p>}
+                {c ? <Person c={c} onOpen={openPerson} /> : <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: the next draw takes it.</p>}
                 {c && (
                   <button type="button" onClick={() => setAsk({ kind: "release", card: c })} disabled={busy} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
                     <UserX size={14} /> Can&rsquo;t take part
@@ -335,7 +369,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
                 return (
                   <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3">
                     <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">Seat {i + 1}</span>
-                    {c ? <Person c={c} /> : <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: its holder can&rsquo;t take part.</p>}
+                    {c ? <Person c={c} onOpen={openPerson} /> : <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: its holder can&rsquo;t take part.</p>}
                     {c && (
                       <button type="button" onClick={() => setAsk({ kind: "release", card: c })} disabled={busy} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
                         <UserX size={14} /> Can&rsquo;t take part
@@ -359,7 +393,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
                     <span className="mt-0.5 block text-[11px] font-medium normal-case tracking-normal">Round {c.round}</span>
                   </span>
                   <div className="min-w-0 flex-1">
-                    <Person c={c} />
+                    <Person c={c} onOpen={openPerson} />
                     <p className="mt-1 text-[12.5px] text-[#86868b]">
                       {c.releasedAt
                         ? `Released ${fmtWhen(c.releasedAt)} by ${c.releasedBy ?? "the team"}${c.releaseNote ? ` · “${c.releaseNote}”` : ""}`
@@ -401,16 +435,48 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
         />
       )}
       {ask?.kind === "screen" && <ScreenWindow live={boards.live} closes={closes} onCancel={() => setAsk(null)} onOpen={openScreen} />}
+
+      {opened &&
+        (application && application.id === opened.card.applicationId ? (
+          <ApplicationPanel a={application} lead={drawRows(opened.card, opened.mode)} onClose={() => setOpened(null)} />
+        ) : (
+          <ApplicationWaiting name={opened.card.name} tripId={opened.card.tripId} failed={applicationFailed} onClose={() => setOpened(null)} />
+        ))}
     </div>
   );
 }
 
-/** Who was drawn: their name and Trip ID, how to call them, where from, and how they were drawn. */
-function Person({ c }: { c: DrawCardFull }) {
+/** The draw's own lines at the top of their panel: where they sit, when and by whom they were drawn, any release. */
+function drawRows(c: DrawCardFull, mode: DrawMode): Array<[string, React.ReactNode]> {
+  const rows: Array<[string, React.ReactNode]> = [
+    ["Lucky draw", `${c.seat ? `Round ${c.round} · Seat ${c.seat}` : `Round ${c.round}`}${mode === "rehearsal" ? " · rehearsal, doesn't count" : ""}`],
+    ["Drawn", `${fmtWhen(c.drawnAt)} by ${c.drawnBy} · draw ${c.number}`],
+  ];
+  if (c.out) {
+    rows.push([
+      "Can't take part",
+      c.releasedAt ? `Released ${fmtWhen(c.releasedAt)} by ${c.releasedBy ?? "the team"}${c.releaseNote ? ` · “${c.releaseNote}”` : ""}` : `Taken out: marked ${c.status} in Participants`,
+    ]);
+  }
+  return rows;
+}
+
+/**
+ * Who was drawn: their name and Trip ID, how to call them, where from, and how they were drawn. The name opens their
+ * whole application on the right, as a name does in Employee tasks.
+ */
+function Person({ c, onOpen }: { c: DrawCardFull; onOpen: (c: DrawCardFull) => void }) {
   return (
     <div className="min-w-0 flex-1">
       <p className="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-        <span className="text-[15px] font-semibold">{c.name}</span>
+        <button
+          type="button"
+          onClick={() => onOpen(c)}
+          aria-label={`Open ${c.name}'s application`}
+          className="rounded text-left text-[15px] font-semibold text-[#0058b0] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40"
+        >
+          {c.name}
+        </button>
         <span className="text-[12.5px] tabular-nums text-[#86868b]">{c.tripId}</span>
       </p>
       <p className="mt-0.5 text-[13.5px]">

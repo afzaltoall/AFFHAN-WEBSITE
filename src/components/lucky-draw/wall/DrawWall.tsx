@@ -53,7 +53,6 @@ const DRAW_KEYS = new Set([" ", "Enter", "PageDown", "ArrowRight"]);
 const SEAT_KEYS = Array.from({ length: DRAW_SEATS }, (_, k) => k);
 
 const sleep = (ms: number) => new Promise<void>((resolve) => window.setTimeout(resolve, ms));
-const count = new Intl.NumberFormat("en-IN");
 const TODAY = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "numeric", month: "long", year: "numeric" });
 const AT = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
@@ -168,7 +167,6 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
   const [phase, setPhase] = useState<Phase>("rest");
   const [card, setCard] = useState<DrawCardPublic | null>(null);
   const [label, setLabel] = useState("");
-  const [listed, setListed] = useState<number | null>(null);
   const [started, setStarted] = useState<number | null>(null);
   const startedNow = useRef<number | null>(null);
   useEffect(() => {
@@ -307,7 +305,6 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       if (!Array.isArray(pool.entries)) return false;
       poolRef.current = pool.entries;
       poolAt.current = Date.now();
-      setListed(pool.entries.length);
       if (placedRef.current) syncWall(shownNow.current ?? latest.current);
       else placeFirst();
       return true;
@@ -331,7 +328,6 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
     const next = pool.filter((e) => e[0] !== tripId);
     if (next.length === pool.length) return;
     poolRef.current = next;
-    setListed(next.length);
   }, []);
 
   const openPass = useCallback(async (): Promise<boolean> => {
@@ -757,7 +753,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
   const notReady = !!board && !board.ready;
   const empty = !!board && board.ready && board.poolSize === 0;
   const early = mode === "live" && !!board?.applicationsOpen;
-  const inDraw = listed ?? board?.poolSize ?? null;
+  // Never how many are in the draw (the owner, 2026-11-22: "dont show the number of users in draw"): at rest the line
+  // is empty, and a draw says only that it was at random, and when.
   const note: { text: string; trouble?: boolean } =
     say ??
     (notReady
@@ -769,8 +766,8 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           : empty
             ? { text: "Everyone in the draw has been drawn." }
             : card && phase === "drawn"
-              ? { text: `Drawn at random from ${count.format(card.poolSize)} applicants · ${AT.format(new Date(card.drawnAt))}` }
-              : { text: inDraw !== null ? `${count.format(inDraw)} applicants in the draw` : "" });
+              ? { text: `Drawn at random · ${AT.format(new Date(card.drawnAt))}` }
+              : { text: "" });
 
   if (access === "none") {
     return (
