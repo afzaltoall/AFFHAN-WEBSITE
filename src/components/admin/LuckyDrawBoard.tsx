@@ -473,7 +473,7 @@ function Person({ c, onOpen }: { c: DrawCardFull; onOpen: (c: DrawCardFull) => v
           type="button"
           onClick={() => onOpen(c)}
           aria-label={`Open ${c.name}'s application`}
-          className="rounded text-left text-[15px] font-semibold text-[#0058b0] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40"
+          className="cursor-pointer rounded text-left text-[15px] font-semibold text-[#0058b0] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071e3]/40"
         >
           {c.name}
         </button>
