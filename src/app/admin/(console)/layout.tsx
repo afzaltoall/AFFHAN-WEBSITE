@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/session";
 import { SessionKeeper } from "@/components/session/SessionKeeper";
 import { AdminFrame } from "@/components/admin/AdminFrame";
+import { FirstPaintScript } from "@/components/admin/FirstPaintScript";
 import { railCounts } from "@/lib/admin-rail-counts";
 import "./admin-dark.css";
 
@@ -91,7 +92,7 @@ export default async function AdminConsoleLayout({ children }: { children: React
 
   return (
     <>
-      <script dangerouslySetInnerHTML={{ __html: THEME_FIRST_PAINT }} />
+      <FirstPaintScript code={THEME_FIRST_PAINT} />
       <SessionKeeper role="admin" />
       {/* The rail on every page but the dashboard, which has its own. */}
       <AdminFrame name={admin.name ?? "Admin"} image={admin.image ?? null} counts={counts}>
