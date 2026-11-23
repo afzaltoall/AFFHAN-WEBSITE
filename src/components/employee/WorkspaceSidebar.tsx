@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Gift, LayoutList, Ship, UserRound, Users } from "lucide-react";
+import { Camera, Gift, LayoutList, Ship, UserRound, Users } from "lucide-react";
 import { EmployeeSignOut } from "@/components/employee/EmployeeSignOut";
 import { sideRow, wt } from "@/components/employee/workspace-ui";
 import { pathOf, useWorkspaceNav } from "@/components/employee/workspace-nav";
@@ -19,7 +19,7 @@ import { pathOf, useWorkspaceNav } from "@/components/employee/workspace-nav";
  * with more force, not less — this screen is a list of leads that wants the
  * width, and its navigation is read once a session.
  *
- * The destinations: the person's work, My referrals, Team tasks and their own profile. The work is their leads for a
+ * The destinations: the person's work, My referrals, Team tasks, the Instagram task and their own profile. The work is their leads for a
  * salesperson and cargo tracking for an assigner (Employee.job, 2026-10-24); a referral account has none but its link
  * (2026-11-03); an admin looking in sees both works.
  */
@@ -48,6 +48,7 @@ export function WorkspaceSidebar({
   const onCargo = pathname.startsWith("/employee/cargo");
   const onReferrals = pathname.startsWith("/employee/referrals");
   const onTasks = pathname.startsWith("/employee/tasks");
+  const onInstagram = pathname.startsWith("/employee/instagram");
 
   const label = `overflow-hidden whitespace-nowrap text-left transition-[max-width,opacity,margin] duration-300 ease-out motion-reduce:transition-none ${
     open ? "ml-2.5 max-w-[190px] opacity-100" : "ml-0 max-w-0 opacity-0"
@@ -138,6 +139,19 @@ export function WorkspaceSidebar({
               <Users size={17} className={onTasks ? "text-brand" : wt.soft} />
             </span>
             <span className={`flex-1 ${label}`}>Team tasks</span>
+          </Link>
+          {/* The office's Instagram task (2026-11-23): every account's, HR's too; a tracker's holds everyone's. */}
+          <Link
+            href="/employee/instagram/"
+            onNavigate={() => nav.start("/employee/instagram/")}
+            aria-label="Instagram task"
+            aria-current={onInstagram ? "page" : undefined}
+            className={`${sideRow} gap-0 px-1.5 ${onInstagram ? wt.navActive : wt.navIdle}`}
+          >
+            <span className={iconCol}>
+              <Camera size={17} className={onInstagram ? "text-brand" : wt.soft} />
+            </span>
+            <span className={`flex-1 ${label}`}>Instagram task</span>
           </Link>
           <Link
             href="/employee/profile/"

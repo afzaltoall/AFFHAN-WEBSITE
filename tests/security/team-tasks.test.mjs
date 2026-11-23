@@ -132,7 +132,8 @@ test("the page draws names and counts, and nobody's points but your own", () => 
 
 test("every account has it: the tab, the rail row and the outline, never behind an account's own pages", () => {
   const tabs = read("src/components/employee/WorkspaceTabs.tsx");
-  assert.match(tabs, /\{ href: "\/employee\/referrals\/", label: "My referrals" \},\s*\{ href: "\/employee\/tasks\/", label: "Team tasks" \},\s*\{ href: "\/employee\/profile\/", label: "Profile" \},/);
+  // The Instagram task's tab sits between Team tasks and Profile since 2026-11-23, every account's too.
+  assert.match(tabs, /\{ href: "\/employee\/referrals\/", label: "My referrals" \},\s*\{ href: "\/employee\/tasks\/", label: "Team tasks" \},[\s\S]*?\{ href: "\/employee\/instagram\/", label: "Instagram" \},\s*\{ href: "\/employee\/profile\/", label: "Profile" \},/);
   const rail = read("src/components/employee/WorkspaceSidebar.tsx");
   const between = rail.slice(rail.indexOf('href="/employee/referrals/"'), rail.indexOf('href="/employee/tasks/"'));
   assert.ok(between.length > 0 && !/pages ===/.test(between), "the rail's row is outside every account's condition");
@@ -141,7 +142,7 @@ test("every account has it: the tab, the rail row and the outline, never behind 
   assert.match(read("src/components/employee/WorkspaceSkeleton.tsx"), /"\/employee\/tasks": "Team tasks",/);
   // What the console says each account opens.
   const board = read("src/components/admin/TripReferralsBoard.tsx");
-  for (const sees of ["My leads, My referrals, Team tasks and Profile.", "My referrals, Team tasks and Profile.", "Cargo tracking, My referrals, Team tasks and Profile."]) {
+  for (const sees of ["My leads, My referrals, Team tasks, Instagram task and Profile.", "My referrals, Team tasks, Instagram task and Profile.", "Cargo tracking, My referrals, Team tasks, Instagram task and Profile."]) {
     assert.ok(board.includes(`sees: "${sees}`), sees);
   }
 });

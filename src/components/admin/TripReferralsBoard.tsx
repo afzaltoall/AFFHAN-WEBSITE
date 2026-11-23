@@ -49,9 +49,9 @@ type AccountJob = "SALES" | "REFERRAL" | "ASSIGNER";
  * and referral ... what can they see in their employee account"): their menu first, then what they do.
  */
 const ACCOUNTS: readonly { job: AccountJob; label: string; sees: string }[] = [
-  { job: "SALES", label: "Sales", sees: "My leads, My referrals, Team tasks and Profile. Takes customers from the open pool." },
-  { job: "REFERRAL", label: "Referral only", sees: "My referrals, Team tasks and Profile. Shares their Free China Trip link; no customers, no cargo." },
-  { job: "ASSIGNER", label: "Assigner", sees: "Cargo tracking, My referrals, Team tasks and Profile. Keeps the cargo sheet customers follow." },
+  { job: "SALES", label: "Sales", sees: "My leads, My referrals, Team tasks, Instagram task and Profile. Takes customers from the open pool." },
+  { job: "REFERRAL", label: "Referral only", sees: "My referrals, Team tasks, Instagram task and Profile. Shares their Free China Trip link; no customers, no cargo." },
+  { job: "ASSIGNER", label: "Assigner", sees: "Cargo tracking, My referrals, Team tasks, Instagram task and Profile. Keeps the cargo sheet customers follow." },
 ];
 const accountLabel = (job: string) => ACCOUNTS.find((a) => a.job === job)?.label ?? job;
 const pillButton = "inline-flex h-8 items-center justify-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-medium ring-1 ring-black/[0.08] transition-colors disabled:opacity-50";

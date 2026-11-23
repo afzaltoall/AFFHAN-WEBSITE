@@ -23,6 +23,8 @@ export function WorkspaceTabs({ pages }: { pages: WorkspacePages }) {
     { href: "/employee/referrals/", label: "My referrals" },
     // Everyone's place in the referral task, for every account (2026-11-18).
     { href: "/employee/tasks/", label: "Team tasks" },
+    // The office's Instagram task, every account's own (2026-11-23); short here, where the tabs share a phone's width.
+    { href: "/employee/instagram/", label: "Instagram" },
     { href: "/employee/profile/", label: "Profile" },
   ];
   return (

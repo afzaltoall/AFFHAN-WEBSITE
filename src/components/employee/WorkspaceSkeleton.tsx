@@ -4,6 +4,8 @@ import { wt } from "@/components/employee/workspace-ui";
 const TITLES: Record<string, string> = {
   "/employee/referrals": "My referrals",
   "/employee/tasks": "Team tasks",
+  "/employee/instagram": "Instagram task",
+  "/employee/instagram/team": "Instagram task",
   "/employee/profile": "Profile",
   "/employee/dashboard": "My leads",
   "/employee/cargo": "Cargo tracking",

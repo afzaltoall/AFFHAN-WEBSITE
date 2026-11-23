@@ -1041,6 +1041,10 @@ model Employee {
   tripReferralCode    TripReferralCode?
   tripReferrals       TripApplication[]    @relation("TripReferrals")
   tripReferralPayouts TripReferralPayout[]
+  /// The office's Instagram task (2026-11-23): their accounts, whether they check everyone's, the prize they were given.
+  instagramAccounts   InstagramAccount[]
+  instagramTracker    InstagramTracker?
+  instagramPrize      InstagramPrize?
 
   @@index([isActive])
 }
@@ -1565,4 +1569,98 @@ model CargoChange {
 
   @@index([createdAt(sort: Desc)])
   @@index([shipmentId])
+}
+
+/// The office's Instagram task (the owner, 2026-11-23: "each person have to create a 5 account of instgram in each
+/// account have to post 100 post total followers have to reach 1000 ... complete panaita cash price 25000"), apart from
+/// the Free China Trip's referral task: one row, id "instagram". Every employee, HR too, makes `accountsPerPerson`
+/// accounts and grows each to `postsPerAccount` posts and `followersPerAccount` followers; whoever has all of them
+/// checked done is given `prizeRupees`. Employees change their accounts only while it runs: `enabled`, and inside
+/// [startsAt, endsAt) when those are set. Nothing is read from Instagram: an employee types what their account shows,
+/// and a tracker (HR) or an admin checks it on Instagram (lib/server/instagram-task.ts). These tables are read and
+/// written in plain SQL, as TripDraw is, so a database without them reads as a task not set up.
+model InstagramTaskSettings {
+  id                  String    @id
+  enabled             Boolean   @default(true)
+  accountsPerPerson   Int       @default(5)
+  postsPerAccount     Int       @default(100)
+  followersPerAccount Int       @default(1000)
+  prizeRupees         Int       @default(25000)
+  startsAt            DateTime?
+  endsAt              DateTime?
+  /// The admin who last changed it.
+  changedBy           String?
+  updatedAt           DateTime  @updatedAt
+}
+
+/// Who checks everyone's accounts besides the admins (the owner: "hr track pana maari access kudu"): an employee here
+/// sees everyone on their Instagram task page and checks anyone's accounts but their own. Set in the console.
+model InstagramTracker {
+  employeeId String   @id
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  addedBy    String
+  addedAt    DateTime @default(now())
+}
+
+/// One of an employee's Instagram accounts for the task: what they last said it shows, and what a tracker or an admin
+/// last saw on Instagram. Only the check makes it done: its posts and followers reaching the task's. A username belongs
+/// to one employee.
+model InstagramAccount {
+  id               String                  @id @default(uuid())
+  employeeId       String
+  /// Restrict: an account keeps its employee (anyone who has signed in is switched off, never deleted).
+  employee         Employee                @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  /// The username as Instagram keeps it: lower case, no @, letters, digits, . and _, at most 30.
+  handle           String                  @unique
+  /// The employee's own last report, and when they made it.
+  posts            Int                     @default(0)
+  followers        Int                     @default(0)
+  reportedAt       DateTime                @default(now())
+  /// The last check on Instagram: "checked" with what was seen there, or "rejected" (it does not count) with why, in
+  /// checkNote. Null until someone checks it, and again after its username changes.
+  checkState       String?
+  checkedPosts     Int?
+  checkedFollowers Int?
+  checkNote        String?
+  checkedBy        String?
+  checkedAt        DateTime?
+  createdAt        DateTime                @default(now())
+  events           InstagramAccountEvent[]
+
+  @@index([employeeId])
+}
+
+/// Everything done to the task's accounts, and by whom: added, a report, a check, a username changed, removed. The
+/// username and the employee are copied in, so a removed account's lines still read. Never edited.
+model InstagramAccountEvent {
+  id         String            @id @default(uuid())
+  accountId  String?
+  account    InstagramAccount? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  /// Whose account it is.
+  employeeId String
+  handle     String
+  /// ADDED | REPORTED | CHECKED | REJECTED | RENAMED | REMOVED
+  kind       String
+  posts      Int?
+  followers  Int?
+  /// A rejection's reason, or the old username of one that changed.
+  note       String?
+  /// Who did it: an employee's name or an admin's, and the Employee (null for an admin).
+  byName     String
+  byId       String?
+  at         DateTime          @default(now())
+
+  @@index([employeeId, at(sort: Desc)])
+  @@index([accountId, at(sort: Desc)])
+}
+
+/// The prize given to someone who completed the task: once each, by an admin, the amount fixed when given. Their
+/// accounts are final from then on.
+model InstagramPrize {
+  employeeId String   @id
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  amount     Int
+  note       String?
+  givenBy    String
+  givenAt    DateTime @default(now())
 }

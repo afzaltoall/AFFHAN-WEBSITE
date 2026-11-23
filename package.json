@@ -13,7 +13,8 @@
     "test:supplier-match": "node --import ./tests/helpers/server-modules.mjs --test \"tests/supplier-match/*.test.mjs\"",
     "test:trip-repeats": "node --import ./tests/helpers/server-modules.mjs --test \"tests/trip-repeats/*.test.mjs\"",
     "test:lucky-draw": "node --import ./tests/helpers/server-modules.mjs --test \"tests/lucky-draw/*.test.mjs\"",
-    "test:lead-pool": "node --import ./tests/helpers/server-modules.mjs --test \"tests/lead-pool/*.test.mjs\""
+    "test:lead-pool": "node --import ./tests/helpers/server-modules.mjs --test \"tests/lead-pool/*.test.mjs\"",
+    "test:instagram-task": "node --import ./tests/helpers/server-modules.mjs --test \"tests/instagram-task/*.test.mjs\""
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1109.0",

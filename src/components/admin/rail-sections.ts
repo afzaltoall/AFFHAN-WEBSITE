@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import {
-  Activity, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Store, Ticket, Trash2,
+  Activity, Camera, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Store, Ticket, Trash2,
   TrendingUp, Trophy, UserCog, Users, type LucideIcon,
 } from "lucide-react";
 
@@ -20,7 +20,7 @@ import {
 
 export type RailKey =
   | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-referrals" | "lucky-draw" | "trip-lock" | "trash"
-  | "staff" | "team-performance" | "activity"
+  | "staff" | "team-performance" | "activity" | "instagram-task"
   | "suppliers" | "new-suppliers" | "videos"
   | "website-users" | "app-users" | "supplier-users";
 
@@ -116,6 +116,9 @@ export const RAIL_GROUPS: RailGroup[] = [
       { key: "staff", href: "/admin/employees/", label: "Staff", icon: UserCog },
       { key: "team-performance", href: "/admin/team-performance/", label: "Team performance", icon: TrendingUp },
       { key: "activity", href: "/admin/activity/", label: "Activity", icon: Activity },
+      // The office's Instagram task (the owner, 2026-11-23): everyone's accounts, HR's checks, the prizes. Its own page,
+      // apart from the Free China Trip's Employee tasks.
+      { key: "instagram-task", href: "/admin/instagram-task/", label: "Instagram task", icon: Camera },
     ],
   },
   {

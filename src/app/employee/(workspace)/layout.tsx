@@ -52,7 +52,8 @@ export default async function EmployeeWorkspaceLayout({
         };
 
   // Which pages this account has: a salesperson their leads, an assigner cargo tracking, a referral account only its
-  // link (2026-11-03), an admin both works. Everyone has My referrals, Team tasks (2026-11-18) and Profile.
+  // link (2026-11-03), an admin both works. Everyone has My referrals, Team tasks (2026-11-18), the Instagram task
+  // (2026-11-23) and Profile.
   const pages: WorkspacePages =
     auth.kind === "admin" ? "both" : isSalesJob(auth.employee) ? "sales" : isCargoJob(auth.employee) ? "assigner" : "referral";
   const home = auth.kind === "admin" ? "/employee/dashboard/" : workspaceHome(auth.employee);
