@@ -29,10 +29,66 @@
 .lw *::after {
   box-sizing: border-box;
 }
-.lw-boot {
+/* No WebGL at all (DrawShow, 2026-11-23: the wall is the only screen): what to turn on, on the wall's own ground. */
+.lw-nogl {
+  --gold: #e7c26c;
+  --gold-hi: #f7dfa3;
   position: fixed;
   inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 0 8vw;
   background: #070604;
+  color: #f6efe0;
+  text-align: center;
+  font-family: var(--font-ld-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.lw-nogl-brand {
+  margin: 0;
+  color: var(--gold);
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: 0.5em;
+  text-indent: 0.5em;
+}
+.lw-nogl h1 {
+  margin: 0;
+  max-width: 24ch;
+  color: var(--gold-hi);
+  font-family: var(--font-cx-display), Georgia, serif;
+  font-weight: 600;
+  font-size: clamp(28px, 3.2vw, 52px);
+  line-height: 1.15;
+}
+.lw-nogl p:not(.lw-nogl-brand) {
+  margin: 0;
+  max-width: 48ch;
+  color: rgb(240 228 205 / 0.78);
+  font-size: clamp(16px, 1.3vw, 21px);
+  line-height: 1.55;
+}
+.lw-nogl button {
+  margin-top: 8px;
+  padding: 14px 40px;
+  border: 1px solid rgb(231 194 108 / 0.85);
+  border-radius: 999px;
+  background: rgb(14 11 6 / 0.78);
+  color: var(--gold-hi);
+  font: inherit;
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.32em;
+  text-indent: 0.32em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.lw-nogl button:hover {
+  background: rgb(231 194 108 / 0.14);
 }
 .lw-hide-cursor,
 .lw-hide-cursor * {

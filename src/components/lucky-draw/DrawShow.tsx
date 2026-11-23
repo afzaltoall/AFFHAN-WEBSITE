@@ -1,44 +1,61 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { DrawMode } from "@/lib/lucky-draw-shared";
-import { DrawScreen } from "./DrawScreen";
 import { DrawWall } from "./wall/DrawWall";
 
 /**
- * Which lucky draw screen the TV shows: the wall (./wall/DrawWall.tsx, drawn in 3D) wherever the browser draws WebGL
- * on a graphics chip; otherwise the list (./DrawScreen.tsx), which never needs one. The wall gives way to the list on
- * its own if it can't start, draws too slowly in its first seconds, or loses its WebGL (onFail), so the room is never
- * left with a stuck screen. Before anyone presses, both show the same draw from the same server.
+ * The lucky draw on the television: the wall, and only the wall (./wall/DrawWall.tsx; the owner, 2026-11-23, over the
+ * first screen, the list: "this old ui is showing sometimes remove this from this project"). The list came up instead
+ * whenever this browser looked unfit for the wall: no WebGL on a graphics chip, reduced motion, or the wall's first
+ * seconds drawn slowly, as a TV tab opened behind the console's always are. It is gone from the project, kept only as
+ * tag backup/lucky-draw-v1.
  *
- * `?engine=list` asks for the list, `?engine=wall` for the wall even where it would not be chosen (checks, and a
- * screen the team has tried): the owner's way out if the wall ever looks wrong on the day.
+ * If the wall loses its WebGL (the graphics chip was reset), it starts again from the draw as the server has it: a draw
+ * already made is in its seat. More than three losses in a minute, or a browser that can't draw WebGL at all, and the
+ * screen says what to turn on, and shows nothing else.
  */
-function wallFits(): boolean {
-  try {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return false;
-    const c = document.createElement("canvas");
-    // No context where WebGL would run in software (SwiftShader): too slow for the wall.
-    const gl = c.getContext("webgl2", { failIfMajorPerformanceCaveat: true });
-    if (!gl) return false;
-    const info = gl.getExtension("WEBGL_debug_renderer_info");
-    const name = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : "";
-    gl.getExtension("WEBGL_lose_context")?.loseContext();
-    return !/swiftshader|llvmpipe|software|basic render/i.test(name);
-  } catch {
-    return false;
-  }
-}
+const RESTARTS = 3;
+const RESTART_WINDOW_MS = 60_000;
 
 export function DrawShow({ mode, closes }: { mode: DrawMode | null; closes: string }) {
-  const [engine, setEngine] = useState<"wall" | "list" | null>(null);
-  const [forced, setForced] = useState(false);
-  useEffect(() => {
-    const ask = new URLSearchParams(window.location.search).get("engine");
-    setForced(ask === "wall");
-    setEngine(ask === "list" ? "list" : ask === "wall" || wallFits() ? "wall" : "list");
-  }, []);
-  if (!engine) return <div className="lw-boot" />;
-  if (engine === "list") return <DrawScreen mode={mode} closes={closes} />;
-  return <DrawWall mode={mode} closes={closes} keep={forced} onFail={() => setEngine("list")} />;
+  const [run, setRun] = useState(0);
+  const [losses, setLosses] = useState<number[]>([]);
+  const [noWebgl, setNoWebgl] = useState(false);
+  if (noWebgl) return <NoWebgl />;
+  return (
+    <DrawWall
+      key={run}
+      mode={mode}
+      closes={closes}
+      onFail={(why) => {
+        if (why === "webgl") {
+          setNoWebgl(true);
+          return;
+        }
+        const now = Date.now();
+        const recent = [...losses.filter((t) => now - t < RESTART_WINDOW_MS), now];
+        setLosses(recent);
+        if (recent.length > RESTARTS) setNoWebgl(true);
+        else setRun((n) => n + 1);
+      }}
+    />
+  );
+}
+
+/** No WebGL: what to turn on, on the wall's own ground. */
+function NoWebgl() {
+  return (
+    <div className="lw-nogl" role="alert">
+      <p className="lw-nogl-brand">AFFHAN</p>
+      <h1>This browser can&apos;t show the lucky draw screen</h1>
+      <p>
+        Turn on “Use graphics acceleration when available” in the browser&apos;s settings (under System), restart the browser,
+        then open the screen again from the console.
+      </p>
+      <button type="button" onClick={() => window.location.reload()}>
+        Try again
+      </button>
+    </div>
+  );
 }

@@ -13,8 +13,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * The Free China Trip's lucky draw on the television (components/lucky-draw/DrawShow.tsx: the wall, or the list where
- * the wall can't run), opened from the console's
+ * The Free China Trip's lucky draw on the television (components/lucky-draw/DrawShow.tsx: the wall, the only screen
+ * since 2026-11-23), opened from the console's
  * Free China Trip → Lucky draw → "Open the TV screen" with ?mode=live or ?mode=rehearsal. Outside the console's own
  * layout on purpose: no rail, and none of its thirty-minute session's countdown, which on a TV between two draws would
  * be the screen stuck in front of the room. It draws on a pass of its own (lib/server/draw-screen.ts); without one it

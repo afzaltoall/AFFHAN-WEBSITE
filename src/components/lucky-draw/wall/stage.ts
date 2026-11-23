@@ -146,8 +146,6 @@ export interface StageOptions {
   seats: number;
   /** The Trip ID the light lands on (and the first name, as the wall opens); null while the light is out. */
   onRest?: (tripId: string | null) => void;
-  /** Called once if this screen draws too slowly to keep the wall (the page then shows the list instead). */
-  onSlow?: () => void;
   /** Called once the wall has opened: the names in, drawn, and turned face up (Draw can be pressed from then on). */
   onOpen?: () => void;
   /** The draw's sound (./sound.ts): each of the owner's sounds on its moment, cued here. None: silence. */
@@ -936,9 +934,6 @@ export class WallStage {
   private dog = 0;
   private warmTimer = 0;
   private readonly born = performance.now();
-  private lastNow = 0;
-  private gaps: number[] = [];
-  private slowChecked = false;
   private disposed = false;
   private readonly tmpV = new THREE.Vector3();
   private readonly tmpQ = new THREE.Quaternion();
@@ -1767,7 +1762,6 @@ export class WallStage {
 
   private tick(now: number) {
     this.frameNo++;
-    this.health(now);
     const time = (now - this.born) / 1000;
     const r = this.run;
     const t = r ? (now - r.start) / 1000 : 0;
@@ -2087,23 +2081,6 @@ export class WallStage {
     const end = Number.isFinite(r.land) ? r.land : 40;
     const left = (end - this.elapsed(r)) * 1000;
     this.dog = window.setTimeout(this.finish, Math.max(0, left) + 400);
-  }
-
-  /**
-   * The first seconds at rest tell whether this screen can draw the wall smoothly: if half its frames take longer
-   * than 45 ms (under 22 a second), the page is told once, and shows the list instead (before anyone has pressed).
-   */
-  private health(now: number) {
-    const gap = this.lastNow ? now - this.lastNow : 0;
-    this.lastNow = now;
-    if (this.slowChecked) return;
-    const age = now - this.born;
-    if (this.run || this.show || age < 2500) return;
-    if (gap > 0) this.gaps.push(gap);
-    if (age < 6500 || this.gaps.length < 20) return;
-    this.slowChecked = true;
-    const sorted = [...this.gaps].sort((a, b) => a - b);
-    if (sorted[sorted.length >> 1] > 45) this.opts.onSlow?.();
   }
 
   /**

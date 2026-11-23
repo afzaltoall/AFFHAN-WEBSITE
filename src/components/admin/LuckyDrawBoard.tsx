@@ -9,7 +9,7 @@ import { Detail as ApplicationPanel, DetailWaiting as ApplicationWaiting, type A
 
 /**
  * Free China Trip → Lucky draw (the owner, 2026-11-10: "a lucky draw page ... our CEO will click draw the lucky person
- * ... 5 winners ... make it infinity"). The console's side of it; the television's is components/lucky-draw/DrawScreen.
+ * ... 5 winners ... make it infinity"). The console's side of it; the television's is components/lucky-draw/DrawShow (the wall).
  *
  * Live and Rehearsal, each its own board: the five seats and who holds them (a mobile number to call, where they are
  * from, when they were drawn and by whom, from how many), round by round: when all five are taken, "Start round 2"

@@ -21,8 +21,9 @@ import "./wall.css";
 
 /**
  * The Free China Trip's lucky draw on the television, as a wall (the owner, 2026-11-11: "look at these images, how
- * they do the lucky draw ... animated, innovative ... like opening a gift box"; the first screen, the list, is kept as
- * tag backup/lucky-draw-v1 and stays as this page's fallback, ../DrawScreen.tsx).
+ * they do the lucky draw ... animated, innovative ... like opening a gift box"). It is the only screen (2026-11-23,
+ * the owner, over the first screen, the list, which the page showed instead whenever its first seconds were slow: "this
+ * old ui is showing sometimes remove this from this project"); the list is kept only as tag backup/lucky-draw-v1.
  *
  * The screen is a wall of names, every row in Trip ID order and rolling slowly, the first clear row opening with
  * TRIP-26-00001 (./stage.ts, ./grid.ts; the owner, 2026-11-11: "filled completely ... one box of light, moving
@@ -32,11 +33,12 @@ import "./wall.css";
  * server drew. Their box becomes a gift, the gift opens, and their boarding pass rises out of it and holds the screen
  * for three seconds before going down into their seat. A draw made from the console shows here the same way.
  *
- * Everything else is the list screen's, unchanged: the server chooses (lib/server/lucky-draw.ts), the screen only shows
+ * Everything else is as the first screen (the list) had it: the server chooses (lib/server/lucky-draw.ts), the screen only shows
  * the choice; each press carries its own id, so one whose answer is lost is asked again and answered with the same
  * person; the screen runs on its own pass (lib/draw-screen-token.ts); the seats fill only as the pass reaches them; the
- * screen stays awake and the pointer hides. If this browser can't draw the wall (no WebGL, or too slowly), or loses it,
- * `onFail` and the page shows the list instead. No mobile number ever reaches this page.
+ * screen stays awake and the pointer hides. If this browser can't draw the wall at all (no WebGL) or loses its WebGL,
+ * `onFail` says which, and the page (../DrawShow.tsx) starts the wall again or says what to turn on; a slow start never
+ * gives it up. No mobile number ever reaches this page.
  */
 
 type Board = DrawBoard<DrawCardPublic>;
@@ -161,7 +163,7 @@ function soundOff(): boolean {
   }
 }
 
-export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMode | null; closes: string; onFail?: (why: string) => void; keep?: boolean }) {
+export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; closes: string; onFail?: (why: "webgl" | "lost") => void }) {
   const [access, setAccess] = useState<"checking" | "ok" | "none">("checking");
   const [shown, setShown] = useState<Board | null>(null);
   const [phase, setPhase] = useState<Phase>("rest");
@@ -502,7 +504,6 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
           onRest: (id) => {
             if (live.current) setFrameId(id);
           },
-          onSlow: keep ? undefined : () => failRef.current?.("slow"),
           onOpen: () => {
             if (stopped || !live.current) return;
             wallUp.current = true;
@@ -529,7 +530,7 @@ export function DrawWall({ mode, closes, onFail, keep = false }: { mode: DrawMod
       wallUp.current = false;
       setReady(false);
     };
-  }, [access, keep, placeFirst, sound]);
+  }, [access, placeFirst, sound]);
 
   // Then every two seconds while the tab is in front: draws and releases made from the console.
   useEffect(() => {

@@ -86,8 +86,8 @@ test("the pass is a cookie of its own per mode: httpOnly, same-site only, sent o
 
 test("the TV holds its pass from the moment it opens, renewed while the console's session lasts", () => {
   // Once the console's session has ended no pass can be had: asked for only after a refusal, it would come too late.
-  const screen = read("src/components/lucky-draw/DrawScreen.tsx");
-  assert.match(screen, /await openPass\(\);\s*const board = await fetchBoard\(\);/);
+  const screen = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  assert.match(screen, /await openPass\(\);[\s\S]{0,240}?const board = await fetchBoard\(\);/);
   assert.match(screen, /const PASS_EVERY_MS = 30 \* 60_000;/);
   assert.match(screen, /if \(Date\.now\(\) - passAt\.current > PASS_EVERY_MS\) \{\s*passAt\.current = Date\.now\(\);\s*await openPass\(\);/);
 });
@@ -128,7 +128,7 @@ test("the TV screen never holds a mobile number: the pass and the screen's own r
   assert.deepEqual([...arrays[1].matchAll(/array_agg\(p\."(\w+)"\)/g)].map((m) => m[1]), ["referenceNo", "fullName", "city", "country"]);
   assert.match(shared, /export type DrawPoolEntry = \[tripId: string, name: string, city: string, country: string\];/);
   // The screen asks for the public view itself, so even an admin's laptop shows no number on the TV.
-  const screen = read("src/components/lucky-draw/DrawScreen.tsx");
+  const screen = read("src/components/lucky-draw/wall/DrawWall.tsx");
   assert.match(screen, /`\$\{API\}\/board\/\?mode=\$\{mode\}&view=screen`/);
   assert.match(screen, /`\$\{API\}\/pool\/\?mode=\$\{mode\}`/);
   assert.match(screen, /body: JSON\.stringify\(\{ mode, requestId: id, view: "screen" \}\)/);
@@ -199,9 +199,9 @@ test("no live draw while applications are open: a localhost (always open) on the
   assert.ok(refuse > 0 && refuse < route.indexOf("await drawOne("), "refused before anyone is drawn");
   assert.match(route, /reason: "applications_open" \},\s*\{ status: 409 \}/);
   assert.match(read("src/lib/trip-application.ts"), /if \(process\.env\.NODE_ENV !== "production"\) return "open";/);
-  const screen = read("src/components/lucky-draw/DrawScreen.tsx");
+  const screen = read("src/components/lucky-draw/wall/DrawWall.tsx");
   assert.match(screen, /const early = mode === "live" && !!board\?\.applicationsOpen;/);
-  assert.match(screen, /disabled=\{drawing \|\| access !== "ok" \|\| notReady \|\| empty \|\| early\}/);
+  assert.match(screen, /disabled=\{drawing \|\| access !== "ok" \|\| !ready \|\| notReady \|\| empty \|\| early\}/);
 });
 
 test("the trip's Privacy Policy says what the draw's screen shows, and what it never does", () => {
@@ -219,14 +219,31 @@ test("the console has its row, under Free China Trip", () => {
 
 // 2026-11-22, the owner, over a picture of the TV with "8,115 applicants in the draw" boxed: "dont show the number of
 // users in draw". Neither screen says how many are in the draw: not at rest, and not beside a draw just made.
-test("the TV never says how many are in the draw: neither the wall nor the list", () => {
-  for (const file of ["src/components/lucky-draw/wall/DrawWall.tsx", "src/components/lucky-draw/DrawScreen.tsx"]) {
-    const screen = read(file);
-    assert.doesNotMatch(screen, /applicants|poolSize\)|count\.format|setListed|listed \?\?|inDraw|inList/, file);
-    assert.match(screen, /\? \{ text: `Drawn at random · \$\{AT\.format\(new Date\(card\.drawnAt\)\)\}` \}/, file);
+test("the TV never says how many are in the draw", () => {
+  const screen = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  assert.doesNotMatch(screen, /applicants|poolSize\)|count\.format|setListed|listed \?\?|inDraw|inList/);
+  assert.match(screen, /\? \{ text: `Drawn at random · \$\{AT\.format\(new Date\(card\.drawnAt\)\)\}` \}/);
+  assert.match(screen, /: \{ text: "" \}\);/, "the wall at rest: no line");
+});
+
+// 2026-11-23, the owner, over the first screen (the list) showing on the TV: "this old ui is showing sometimes remove
+// this from this project". The page fell back to it whenever the wall's first seconds were slow (a TV tab opened behind
+// the console), the browser asked for reduced motion, or WebGL ran in software. Now the wall is the only screen: it
+// never gives way for being slow, starts again when its WebGL is lost, and without WebGL at all says what to turn on.
+test("the TV is the wall only: the list is gone, and nothing chooses another screen", () => {
+  for (const gone of ["src/components/lucky-draw/DrawScreen.tsx", "src/components/lucky-draw/draw-screen.css", "src/components/lucky-draw/reel.ts"]) {
+    assert.ok(!fs.existsSync(new URL(`../../${gone}`, import.meta.url)), `${gone} is gone`);
   }
-  assert.match(read("src/components/lucky-draw/wall/DrawWall.tsx"), /: \{ text: "" \}\);/, "the wall at rest: no line");
-  assert.match(read("src/components/lucky-draw/DrawScreen.tsx"), /: \{ text: "Everyone in the draw, listed by Trip ID" \}\);/, "the list: what it is, never how many");
+  const show = read("src/components/lucky-draw/DrawShow.tsx");
+  assert.doesNotMatch(show, /DrawScreen|engine|wallFits|prefers-reduced-motion|failIfMajorPerformanceCaveat|swiftshader/i);
+  assert.match(show, /<DrawWall\s+key=\{run\}/, "a lost WebGL starts the wall again");
+  assert.match(show, /if \(why === "webgl"\) \{\s*setNoWebgl\(true\);/, "no WebGL at all: what to turn on");
+  assert.match(show, /if \(recent\.length > RESTARTS\) setNoWebgl\(true\);\s*else setRun\(\(n\) => n \+ 1\);/);
+  const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  assert.doesNotMatch(wall, /onSlow|"slow"/, "a slow start never gives the wall up");
+  assert.match(wall, /onFail\?: \(why: "webgl" \| "lost"\) => void/);
+  assert.doesNotMatch(read("src/components/lucky-draw/wall/stage.ts"), /onSlow|health\(/);
+  assert.match(read("src/app/admin/draw-screen/page.tsx"), /<DrawShow mode=/);
 });
 
 // 2026-11-22, the owner: "click the selected candidate ... a right-side tab ... their full details ... documents if they
