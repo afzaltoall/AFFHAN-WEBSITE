@@ -92,6 +92,9 @@ test("deleting duplicates (2026-11-23): an admin's only, POST only, and the serv
   const fn = fnOf(read(SERVER), "deleteRepeats");
   assert.match(fn, /await referralDuplicates\(\)/, "worked out again on the server, never taken from the browser");
   assert.match(fn, /g\.applications\.slice\(1\)\.filter\(deletableRepeat\)/, "never the first of a group, only what may be deleted");
+  // A row's own Delete (byHand): any application in a group now, still never a paid or live-drawn one.
+  assert.match(fn, /byHand \? g\.applications\.filter\(deletableByHand\) : g\.applications\.slice\(1\)\.filter\(deletableRepeat\)/);
+  assert.match(read(DELETE_ROUTE), /deleteRepeats\(ids, admin\.name \|\| admin\.email, body\.byHand === true\)/, "only a true byHand, never anything else sent");
   assert.match(fn, /data: \{ status: "deleted" \}/, "a soft delete, restored from Participants");
   assert.match(fn, /referralState: "not_counted", referralDecidedAt: at, referralDecidedBy: by/, "out of the count with who, so a restored one is never paid unasked");
   assert.doesNotMatch(fn, /\.delete\(|deleteMany/, "no row is ever removed");

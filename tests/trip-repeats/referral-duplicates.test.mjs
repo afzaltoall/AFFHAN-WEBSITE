@@ -4,7 +4,7 @@
 //   node --import ./tests/helpers/server-modules.mjs --test "tests/trip-repeats/*.test.mjs"
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { apartLabel, cityKey, deletableRepeat, duplicateGroups, nameKey, nameLetters, oneDigitApart, stillToCheck } from "@/lib/trip-duplicates";
+import { apartLabel, cityKey, deletableByHand, deletableRepeat, duplicateGroups, nameKey, nameLetters, oneDigitApart, stillToCheck } from "@/lib/trip-duplicates";
 import { REFERRAL_STATES, isReferralState, referralCounts, referralStateLabel } from "@/lib/trip-referral-shared";
 
 let seq = 0;
@@ -264,4 +264,10 @@ test("Wrong document is a decision of its own: never counted, never to check, sa
   assert.equal(referralStateLabel("not_counted"), "Not counted");
   assert.equal(referralStateLabel(null), "Not counted");
   assert.equal(stillToCheck({ referrerId: "e1", referralState: "wrong_document", paid: false, referralDecidedAt: new Date(), status: "new" }), false);
+});
+
+test("a row's own Delete: any application in a card, the first or one without a link too, but never paid or drawn live", () => {
+  assert.equal(deletableByHand({ paid: false, drawn: false }), true);
+  assert.equal(deletableByHand({ paid: true, drawn: false }), false, "paid");
+  assert.equal(deletableByHand({ paid: false, drawn: true }), false, "drawn live");
 });

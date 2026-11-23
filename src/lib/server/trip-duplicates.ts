@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { documentChecksums } from "@/lib/server/trip-documents";
 import { referralSettings } from "@/lib/server/trip-referrals";
-import { deletableRepeat, duplicateGroups, type DuplicateGroup } from "@/lib/trip-duplicates";
+import { deletableByHand, deletableRepeat, duplicateGroups, type DuplicateGroup } from "@/lib/trip-duplicates";
 import { idProofOfKey, type IdProof } from "@/lib/trip-referral-shared";
 
 /**
@@ -154,11 +154,16 @@ export async function referralDuplicates(): Promise<DuplicatesView> {
  * the referral count, with who and when, so one restored later is not paid again without a decision. Only what is a
  * later application in a group right now, worked out again here, and deletable (deletableRepeat); anything else sent is
  * left as it is and counted as refused. Never the first of a group, a paid one, or one drawn in the live draw.
+ * `byHand` (2026-11-23, "give a manual delete option on each one"): one row's own Delete, asked in its window: any
+ * application in a group now, the first or one sent without a link too, but still never a paid or live-drawn one
+ * (deletableByHand).
  */
-export async function deleteRepeats(ids: readonly string[], by: string): Promise<{ deleted: number; refused: number }> {
+export async function deleteRepeats(ids: readonly string[], by: string, byHand = false): Promise<{ deleted: number; refused: number }> {
   const asked = [...new Set(ids)];
   const now = await referralDuplicates();
-  const allowed = new Set(now.groups.flatMap((g) => g.applications.slice(1).filter(deletableRepeat).map((a) => a.id)));
+  const allowed = new Set(
+    now.groups.flatMap((g) => (byHand ? g.applications.filter(deletableByHand) : g.applications.slice(1).filter(deletableRepeat)).map((a) => a.id)),
+  );
   const take = asked.filter((id) => allowed.has(id));
   if (!take.length) return { deleted: 0, refused: asked.length };
   const at = new Date();

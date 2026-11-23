@@ -6,7 +6,7 @@ import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
 import { IdProofLockLine } from "@/components/admin/IdProofLock";
 import { EmployeePicker, type EmployeeChoice } from "@/components/admin/EmployeePicker";
 import type { DuplicateApplicationView, DuplicateGroupView, DuplicatesView } from "@/lib/server/trip-duplicates";
-import { DUPLICATE_REASON_LABEL, apartLabel, deletableRepeat } from "@/lib/trip-duplicates";
+import { DUPLICATE_REASON_LABEL, apartLabel, deletableByHand, deletableRepeat } from "@/lib/trip-duplicates";
 import { referralStateLabel, rupees } from "@/lib/trip-referral-shared";
 
 /**
@@ -97,23 +97,27 @@ export function decidedLocally(data: DuplicatesView, ids: readonly string[], sta
   );
 }
 
-/** Deleted ones shown gone at once: out of their groups, and a group left with one application is no group. */
+/**
+ * Deleted ones shown gone at once: out of their groups, and a group left with one application is no group. When the
+ * first goes (a row's own Delete), the next is the person's now, so it is no longer to check.
+ */
 export function deletedLocally(data: DuplicatesView, ids: readonly string[]): DuplicatesView {
   const gone = new Set(ids);
   return summarize(
     data,
     data.groups
-      .map((g) =>
-        g.ids.some((id) => gone.has(id))
-          ? {
-              ...g,
-              ids: g.ids.filter((id) => !gone.has(id)),
-              toCheck: g.toCheck.filter((id) => !gone.has(id)),
-              sure: g.sure.filter((id) => !gone.has(id)),
-              applications: g.applications.filter((a) => !gone.has(a.id)),
-            }
-          : g,
-      )
+      .map((g) => {
+        if (!g.ids.some((id) => gone.has(id))) return g;
+        const left = g.ids.filter((id) => !gone.has(id));
+        const keep = (id: string) => !gone.has(id) && id !== left[0];
+        return {
+          ...g,
+          ids: left,
+          toCheck: g.toCheck.filter(keep),
+          sure: g.sure.filter(keep),
+          applications: g.applications.filter((a) => !gone.has(a.id)),
+        };
+      })
       .filter((g) => g.applications.length > 1),
   );
 }
@@ -162,12 +166,13 @@ export function ReferralDuplicates({
   onIdProofs: () => void;
   onRetry: () => void;
   onDecide: Decide;
-  /** Delete later applications as repeats; resolves true when it was done. */
-  onDelete: (ids: string[]) => Promise<boolean>;
+  /** Delete later applications as repeats, or (byHand) the one a row's own Delete names; resolves true when it was done. */
+  onDelete: (ids: string[], byHand?: boolean) => Promise<boolean>;
 }) {
   const [picked, setPicked] = useState<Tab | null>(null);
   const [q, setQ] = useState("");
-  const [asking, setAsking] = useState<DuplicateApplicationView[] | null>(null);
+  // What a Delete is asked about: the certain repeats (the one button), or one application (its row's own Delete).
+  const [asking, setAsking] = useState<{ who: DuplicateApplicationView[]; byHand: boolean } | null>(null);
   const needle = q.trim().toLowerCase();
   const digits = needle.replace(/\D/g, "");
 
@@ -316,7 +321,7 @@ export function ReferralDuplicates({
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => setAsking(deletable)}
+                onClick={() => setAsking({ who: deletable, byHand: false })}
                 className={`${pill} bg-white text-red-700 ring-red-500/25 hover:bg-red-500/10`}
               >
                 <Trash2 size={14} aria-hidden="true" /> Delete {deletable.length} {deletable.length === 1 ? "duplicate" : "duplicates"}
@@ -360,7 +365,7 @@ export function ReferralDuplicates({
           ) : (
             <ol className="divide-y divide-black/[0.06]">
               {shown.map((g) => (
-                <Group key={g.ids[0]} g={g} busy={busy} onDecide={onDecide} onDelete={onDelete} />
+                <Group key={g.ids[0]} g={g} busy={busy} onDecide={onDecide} onDelete={onDelete} onDeleteOne={(a) => setAsking({ who: [a], byHand: true })} />
               ))}
             </ol>
           )}
@@ -368,12 +373,13 @@ export function ReferralDuplicates({
       )}
       {asking && (
         <DeleteDuplicates
-          who={asking}
+          who={asking.who}
+          byHand={asking.byHand}
           busy={busy}
           rupeesPerPoint={data?.rupeesPerPoint ?? 0}
           onCancel={() => setAsking(null)}
           onConfirm={async () => {
-            if (await onDelete(asking.map((a) => a.id))) setAsking(null);
+            if (await onDelete(asking.who.map((a) => a.id), asking.byHand)) setAsking(null);
           }}
         />
       )}
@@ -382,7 +388,19 @@ export function ReferralDuplicates({
 }
 
 /** One person who may have applied more than once: why, their applications oldest first, and the question. */
-function Group({ g, busy, onDecide, onDelete }: { g: DuplicateGroupView; busy: boolean; onDecide: Decide; onDelete: (ids: string[]) => Promise<boolean> }) {
+function Group({
+  g,
+  busy,
+  onDecide,
+  onDelete,
+  onDeleteOne,
+}: {
+  g: DuplicateGroupView;
+  busy: boolean;
+  onDecide: Decide;
+  onDelete: (ids: string[]) => Promise<boolean>;
+  onDeleteOne: (a: DuplicateApplicationView) => void;
+}) {
   const first = g.applications[0];
   const toCheck = new Set(g.toCheck);
   const n = g.toCheck.length;
@@ -403,7 +421,7 @@ function Group({ g, busy, onDecide, onDelete }: { g: DuplicateGroupView; busy: b
 
       <ol className="mt-3 divide-y divide-black/[0.06] overflow-hidden rounded-xl ring-1 ring-black/[0.08]">
         {g.applications.map((a, i) => (
-          <Application key={a.id} a={a} first={i === 0} toCheck={toCheck.has(a.id)} busy={busy} onDecide={onDecide} />
+          <Application key={a.id} a={a} first={i === 0} toCheck={toCheck.has(a.id)} busy={busy} onDecide={onDecide} onDelete={() => onDeleteOne(a)} />
         ))}
       </ol>
 
@@ -424,7 +442,22 @@ function Group({ g, busy, onDecide, onDelete }: { g: DuplicateGroupView; busy: b
   );
 }
 
-function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplicationView; first: boolean; toCheck: boolean; busy: boolean; onDecide: Decide }) {
+function Application({
+  a,
+  first,
+  toCheck,
+  busy,
+  onDecide,
+  onDelete,
+}: {
+  a: DuplicateApplicationView;
+  first: boolean;
+  toCheck: boolean;
+  busy: boolean;
+  onDecide: Decide;
+  /** Its own Delete (2026-11-23, "give a manual delete option on each one"), asked in the window first. */
+  onDelete: () => void;
+}) {
   const word = standing(a, first, toCheck);
   const who = a.decidedBy && !toCheck ? `${a.decidedBy}${a.decidedAt ? `, ${fmtWhen(a.decidedAt)}` : ""}` : null;
   const canChange = !!a.employee && !a.paid && !toCheck;
@@ -454,6 +487,7 @@ function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplic
             )}
           </p>
         </div>
+        <div className="flex items-start gap-1.5">
         {a.employee && (
           <div className="flex flex-col items-end gap-1 text-[12.5px]">
             {toCheck ? (
@@ -490,6 +524,19 @@ function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplic
             {who && <span className="text-[11.5px] text-[#86868b]">{who}</span>}
           </div>
         )}
+        {deletableByHand(a) && (
+          <button
+            type="button"
+            disabled={busy}
+            onClick={onDelete}
+            aria-label={`Delete ${a.referenceNo}`}
+            title="Delete this application"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500 disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
+        </div>
       </div>
       {a.documents.length > 0 ? (
         <div className="mt-2.5">
@@ -503,22 +550,26 @@ function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplic
 }
 
 /**
- * The one button's question, in the console's own window: how many, who (the first few), and what a delete does: soft,
- * restored from Participants → Deleted, out of the lucky draw and the counts, never paid.
+ * A Delete's question, in the console's own window: how many, who (the first few), and what a delete does: soft,
+ * restored from Participants → Deleted, out of the lucky draw and the counts, never paid. `byHand`: one row's own
+ * Delete, which may be any application of the card, so it says only what that one is.
  */
 function DeleteDuplicates({
   who,
+  byHand = false,
   busy,
   rupeesPerPoint,
   onCancel,
   onConfirm,
 }: {
   who: DuplicateApplicationView[];
+  byHand?: boolean;
   busy: boolean;
   rupeesPerPoint: number;
   onCancel: () => void;
   onConfirm: () => Promise<void>;
 }) {
+  const one = who[0];
   const cancel = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     cancel.current?.focus();
@@ -545,26 +596,36 @@ function DeleteDuplicates({
         className="w-full max-w-md rounded-2xl bg-white p-6 text-[#1d1d1f] shadow-2xl ring-1 ring-black/[0.06]"
       >
         <h2 id="delete-duplicates-title" className="text-[17px] font-semibold">
-          Delete {who.length} duplicate {who.length === 1 ? "application" : "applications"}?
+          {byHand ? `Delete ${one.referenceNo}?` : `Delete ${who.length} duplicate ${who.length === 1 ? "application" : "applications"}?`}
         </h2>
-        <p className="mt-1.5 text-[13px] text-[#48484a]">
-          Each is a later application of someone who applied before: the same mobile number, or the same ID file under the same
-          name. {who.length === 1 ? "It goes" : "They go"} to Free China Trip → Participants → Deleted, where any can be restored,
-          and {who.length === 1 ? "leaves" : "leave"} the lucky draw.
-          {money > 0 && ` Their employees are not paid for them (${rupees(money)}).`}
-        </p>
-        <ul className="mt-3 divide-y divide-black/[0.06] rounded-xl text-[12.5px] ring-1 ring-black/[0.08]">
-          {listed.map((a) => (
-            <li key={a.id} className="flex justify-between gap-3 px-3 py-2">
-              <span className="min-w-0 truncate">
-                <span className="font-mono text-[#0058b0]">{a.referenceNo}</span> {a.fullName}
-              </span>
-              <span className="shrink-0 text-[#6e6e73]">{a.employee ? a.employee.name : "No link"}</span>
-            </li>
-          ))}
-          {who.length > listed.length && <li className="px-3 py-2 text-[#6e6e73]">and {who.length - listed.length} more</li>}
-        </ul>
-        <p className="mt-3 text-[12.5px] text-[#6e6e73]">Cards joined only by a name are left for you to check one by one.</p>
+        {byHand ? (
+          <p className="mt-1.5 text-[13px] text-[#48484a]">
+            {one.fullName}, {one.employee ? `through ${one.employee.name}'s link` : "sent without an employee's link"}. It goes to Free China
+            Trip → Participants → Deleted, where it can be restored, and leaves the lucky draw.
+            {money > 0 && ` Its employee is not paid for it (${rupees(money)}).`}
+          </p>
+        ) : (
+          <>
+            <p className="mt-1.5 text-[13px] text-[#48484a]">
+              Each is a later application of someone who applied before: the same mobile number, or the same ID file under the same
+              name. {who.length === 1 ? "It goes" : "They go"} to Free China Trip → Participants → Deleted, where any can be restored,
+              and {who.length === 1 ? "leaves" : "leave"} the lucky draw.
+              {money > 0 && ` Their employees are not paid for them (${rupees(money)}).`}
+            </p>
+            <ul className="mt-3 divide-y divide-black/[0.06] rounded-xl text-[12.5px] ring-1 ring-black/[0.08]">
+              {listed.map((a) => (
+                <li key={a.id} className="flex justify-between gap-3 px-3 py-2">
+                  <span className="min-w-0 truncate">
+                    <span className="font-mono text-[#0058b0]">{a.referenceNo}</span> {a.fullName}
+                  </span>
+                  <span className="shrink-0 text-[#6e6e73]">{a.employee ? a.employee.name : "No link"}</span>
+                </li>
+              ))}
+              {who.length > listed.length && <li className="px-3 py-2 text-[#6e6e73]">and {who.length - listed.length} more</li>}
+            </ul>
+            <p className="mt-3 text-[12.5px] text-[#6e6e73]">Cards joined only by a name are left for you to check one by one.</p>
+          </>
+        )}
         <div className="mt-5 flex justify-end gap-2">
           <button ref={cancel} type="button" disabled={busy} onClick={onCancel} className={`${pill} h-9 bg-white px-4 hover:bg-black/[0.03]`}>
             Cancel
@@ -575,7 +636,7 @@ function DeleteDuplicates({
             onClick={() => void onConfirm()}
             className="inline-flex h-9 items-center gap-1.5 rounded-full bg-red-500 px-4 text-[12.5px] font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60"
           >
-            <Trash2 size={14} aria-hidden="true" /> {busy ? "Deleting…" : `Delete ${who.length}`}
+            <Trash2 size={14} aria-hidden="true" /> {busy ? "Deleting…" : byHand ? "Delete" : `Delete ${who.length}`}
           </button>
         </div>
       </div>

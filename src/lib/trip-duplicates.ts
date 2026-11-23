@@ -269,6 +269,15 @@ export function deletableRepeat(a: { paid: boolean; drawn: boolean; referralStat
   return !a.paid && !a.drawn && !(a.referralState === "counted" && !!a.decidedAt);
 }
 
+/**
+ * Whether one application in a group may be deleted by hand, from its own row (2026-11-23, the owner: "give a manual
+ * delete option on each one"): any of them, the first and one sent without a link too, once the admin has said so in
+ * the window; never a paid one (a payment stands) or one drawn in the live lucky draw (its seat would empty).
+ */
+export function deletableByHand(a: { paid: boolean; drawn: boolean }): boolean {
+  return !a.paid && !a.drawn;
+}
+
 /** "2 minutes apart", "3 hours apart"; "" from a day on, where it says nothing. */
 export function apartLabel(minutes: number): string {
   if (minutes < 1) return "less than a minute apart";

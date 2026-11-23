@@ -170,17 +170,18 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
    * Repeats deleted (2026-11-23, "give a overall delete option ... to delete the duplicates"): the server deletes only
    * what is a later application in a group right now; what it did is said at the top, with where to restore them.
    */
-  const deleteDuplicates = async (ids: string[]) => {
+  const deleteDuplicates = async (ids: string[], byHand = false) => {
     let result: { deleted: number; refused: number } | null = null;
     const saved = await run(async () => {
-      result = await send<{ deleted: number; refused: number }>("/api/admin/trip-referrals/duplicates/delete/", { ids });
+      result = await send<{ deleted: number; refused: number }>("/api/admin/trip-referrals/duplicates/delete/", { ids, byHand });
     });
     if (saved && result) {
       const { deleted, refused } = result;
       setDupes((d) => (d ? deletedLocally(d, ids) : d));
+      const what = byHand ? "application" : "duplicate application";
       setNotice(
-        `${deleted === 1 ? "1 duplicate application deleted" : `${deleted} duplicate applications deleted`}: Free China Trip → Participants → Deleted restores any of them.` +
-          (refused ? ` ${refused === 1 ? "1 was" : `${refused} were`} left as ${refused === 1 ? "it was" : "they were"}: no longer a later application, paid, drawn, or kept.` : ""),
+        `${deleted === 1 ? `1 ${what} deleted` : `${deleted} ${what}s deleted`}: Free China Trip → Participants → Deleted restores ${deleted === 1 ? "it" : "any of them"}.` +
+          (refused ? ` ${refused === 1 ? "1 was" : `${refused} were`} left as ${refused === 1 ? "it was" : "they were"}: ${byHand ? "paid or drawn in the lucky draw" : "no longer a later application, paid, drawn, or kept"}.` : ""),
       );
     }
     return saved;
