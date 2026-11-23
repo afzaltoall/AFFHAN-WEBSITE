@@ -312,7 +312,7 @@ export function InstagramBoard({ initial, api, me, admin }: { initial: Instagram
                         {x.p.done} of {settings.accountsPerPerson} done · {x.p.added} {x.p.added === 1 ? "account" : "accounts"} · {num(x.p.followers)} followers
                       </span>
                       <span className="mt-2 block">
-                        <Bar value={x.p.share} of={1} name={`${x.name}: how far, by their counts`} thin />
+                        <Bar value={x.p.share} of={1} name={`${x.name}: how far towards all ${settings.accountsPerPerson} accounts`} thin />
                       </span>
                     </button>
                   </li>
@@ -359,7 +359,7 @@ export function InstagramBoard({ initial, api, me, admin }: { initial: Instagram
                         <td className="px-3 py-2.5">
                           <span className="flex items-center gap-2">
                             <span className="flex w-24 lg:w-36">
-                              <Bar value={x.p.share} of={1} name={`${x.name}: how far, by their counts`} thin />
+                              <Bar value={x.p.share} of={1} name={`${x.name}: how far towards all ${settings.accountsPerPerson} accounts`} thin />
                             </span>
                             <span className="w-9 text-[12px] tabular-nums text-[#48484a]">{Math.round(x.p.share * 100)}%</span>
                           </span>
@@ -375,7 +375,7 @@ export function InstagramBoard({ initial, api, me, admin }: { initial: Instagram
           </>
         )}
         <p className="border-t border-black/[0.06] px-5 py-2.5 text-[12px] text-[#86868b]">
-          Posts, followers and how far are each person&apos;s own counts. Done counts only accounts checked on Instagram.
+          Posts and followers are each person&apos;s own counts. Done counts only accounts checked on Instagram.
         </p>
       </section>
 
@@ -650,11 +650,12 @@ function CheckForm({ a, busy, onCancel, onSave }: { a: InstagramAccountView; bus
             if (seenValid && !busy) onSave({ state: "checked", posts: Number(posts), followers: Number(followers) });
           }}
         >
-          <label className={`${label} w-32`}>
+          {/* Narrow enough that the three buttons stay on the fields' line in the panel. */}
+          <label className={`${label} w-28`}>
             Posts seen
             <input autoFocus inputMode="numeric" value={posts} onChange={(e) => setPosts(digits(e.target.value, POSTS_MAX))} className={`mt-1 ${field}`} />
           </label>
-          <label className={`${label} w-36`}>
+          <label className={`${label} w-32`}>
             Followers seen
             <input inputMode="numeric" value={followers} onChange={(e) => setFollowers(digits(e.target.value, FOLLOWERS_MAX))} className={`mt-1 ${field}`} />
           </label>

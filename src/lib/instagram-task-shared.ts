@@ -200,10 +200,18 @@ export function accountToCheck(a: Counts, r: Rules): boolean {
   return Date.parse(a.reportedAt) > Date.parse(a.checkedAt);
 }
 
-/** How far the employee says it has got, 0 to 1: half for posts, half for followers, each capped at the task's. */
+/**
+ * How far it has got, 0 to 1: half for posts, half for followers, each capped at the task's; by the employee's count or
+ * what its check saw, whichever is further. Done is all the way, whatever its owner typed last (a board read Done 5 / 5
+ * beside 80% when one account's own count was never updated after HR saw it done). Turned down counts nothing.
+ */
 export function accountShare(a: Counts, r: Rules): number {
   if (a.checkState === "rejected") return 0;
-  return (Math.min(a.posts / r.postsPerAccount, 1) + Math.min(a.followers / r.followersPerAccount, 1)) / 2;
+  if (accountDone(a, r)) return 1;
+  const seen = a.checkState === "checked";
+  const posts = Math.max(a.posts, seen ? (a.checkedPosts ?? 0) : 0);
+  const followers = Math.max(a.followers, seen ? (a.checkedFollowers ?? 0) : 0);
+  return (Math.min(posts / r.postsPerAccount, 1) + Math.min(followers / r.followersPerAccount, 1)) / 2;
 }
 
 /** A count against the task's, 0 to 1, for a bar. */

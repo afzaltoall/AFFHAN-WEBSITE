@@ -96,6 +96,9 @@ test("how far someone has got: half posts, half followers, each capped, over the
   assert.equal(accountShare(acct({ posts: 50, followers: 500 }), rules), 0.5);
   assert.equal(accountShare(acct({ posts: 500, followers: 0 }), rules), 0.5, "posts past the task count only to the task");
   assert.equal(accountShare(acct({ posts: 100, followers: 1000, checkState: "rejected", checkedAt: T1 }), rules), 0, "turned down counts nothing");
+  assert.equal(accountShare(checkedDone({ posts: 0, followers: 0 }), rules), 1, "checked done is all the way, whatever was typed last");
+  assert.equal(accountShare(acct({ posts: 10, followers: 100, checkState: "checked", checkedPosts: 50, checkedFollowers: 500, checkedAt: T1 }), rules), 0.5, "what HR saw, when it is further than their count");
+  assert.equal(accountShare(acct({ posts: 80, followers: 800, checkState: "checked", checkedPosts: 50, checkedFollowers: 500, checkedAt: T1 }), rules), 0.8, "their count, when it is further than the check");
   const six = [1, 1, 1, 1, 1, 0].map((f) => acct({ posts: 100 * f, followers: 1000 * f }));
   assert.equal(personProgress(six, rules).share, 1, "the best five of six");
   assert.equal(personProgress([acct({ posts: 100, followers: 1000 })], rules).share, 0.2);
