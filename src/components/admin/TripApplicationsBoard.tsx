@@ -6,7 +6,7 @@ import { ArrowLeft, Check, Download, Lock, Mail, MessageCircle, Phone, RefreshCw
 import { IdProofLockLine, OpenIdProofs, useIdProofLock } from "@/components/admin/IdProofLock";
 import { EVERY_BUSINESS_STATUS, SOURCE_NOT_VERIFIED, businessStatusBrief, isKnownBusinessStatus } from "@/lib/trip-application";
 import { countryFlagUrl } from "@/lib/countryFlag";
-import { idProofLabel, type IdProof } from "@/lib/trip-referral-shared";
+import { idProofLabel, referralStateLabel, type IdProof } from "@/lib/trip-referral-shared";
 import { TripLockPanel } from "./TripLockPanel";
 import { TripStagePanel } from "./TripStagePanel";
 
@@ -127,11 +127,12 @@ export interface TripDocumentView {
  * asks for it, and no file asked for at all. `withLockLine`: the lock's line under the tiles, where there is one set of
  * them (the Participants panel); Employee tasks shows it once, above its list.
  */
-export function TripDocuments({ documents, compact = false, withLockLine = !compact }: { documents: TripDocumentView[]; compact?: boolean; withLockLine?: boolean }) {
+export function TripDocuments({ documents, compact = false, large = false, withLockLine = !compact }: { documents: TripDocumentView[]; compact?: boolean; large?: boolean; withLockLine?: boolean }) {
   const lock = useIdProofLock();
   const [asking, setAsking] = useState(false);
-  const tileWidth = compact ? "w-14" : "w-24";
-  const box = `grid w-full place-items-center overflow-hidden rounded-md border border-black/10 bg-[#f5f5f7] ${compact ? "h-10 text-[11px]" : "h-16 text-[12px]"}`;
+  // large: Employee tasks' ID proofs view (2026-11-23), big enough to tell an ID from another picture, the whole of it shown.
+  const tileWidth = large ? "w-44" : compact ? "w-14" : "w-24";
+  const box = `grid w-full place-items-center overflow-hidden rounded-md border border-black/10 bg-[#f5f5f7] ${large ? "h-32 text-[13px]" : compact ? "h-10 text-[11px]" : "h-16 text-[12px]"}`;
   if (lock.state !== "open") {
     return (
       <span className="grid gap-2">
@@ -179,7 +180,7 @@ export function TripDocuments({ documents, compact = false, withLockLine = !comp
                   `PDF ${i + 1}`
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element -- a private file through a one-minute link, never the image optimiser
-                  <img src={`/api/admin/trip-documents/${d.id}/`} alt={name} loading="lazy" className="size-full object-cover" />
+                  <img src={`/api/admin/trip-documents/${d.id}/`} alt={name} loading="lazy" className={large ? "size-full bg-white object-contain" : "size-full object-cover"} />
                 )}
               </span>
               {d.proof && <span className="max-w-full truncate text-[11px] font-medium text-[#48484a]">{idProofLabel(d.proof)}</span>}
@@ -1355,7 +1356,7 @@ export function Detail({
     answers.push([
       "Referral code",
       <Link key="ref" href="/admin/trip-referrals/" className="text-[#0058b0] underline">
-        {a.referralCode} · {a.status === "spam" || a.status === "deleted" ? "not counted" : a.referralState === "counted" ? "counted" : a.referralState === "waiting" ? "waiting" : "not counted"}
+        {a.referralCode} · {a.status === "spam" || a.status === "deleted" ? "not counted" : referralStateLabel(a.referralState ?? null).toLowerCase()}
       </Link>,
     ]);
   }

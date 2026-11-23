@@ -79,3 +79,36 @@ test("the export says when the check could not be read, rather than a blank that
   assert.match(board, /notes \? \(notes\.get\(a\.referenceNo\) \?\? ""\) : "Not checked"/);
   assert.match(board, /dup \? \(dup\.byEmployee\[r\.employeeId\] \?\? 0\) : "Not checked"/);
 });
+
+const DELETE_ROUTE = "src/app/api/admin/trip-referrals/duplicates/delete/route.ts";
+const PROOFS_ROUTE = "src/app/api/admin/trip-referrals/id-proofs/route.ts";
+const PROOFS = "src/lib/server/trip-id-proofs.ts";
+
+test("deleting duplicates (2026-11-23): an admin's only, POST only, and the server decides what is a later application", () => {
+  const src = read(DELETE_ROUTE);
+  assert.match(src, /if \(!admin \|\| admin\.role !== "admin"\) return new NextResponse\("Unauthorized", \{ status: 401 \}\)/);
+  assert.deepEqual([...src.matchAll(/export async function (\w+)/g)].map((m) => m[1]), ["POST"]);
+  assert.match(src, /body\.ids\.length <= 1000/);
+  const fn = fnOf(read(SERVER), "deleteRepeats");
+  assert.match(fn, /await referralDuplicates\(\)/, "worked out again on the server, never taken from the browser");
+  assert.match(fn, /g\.applications\.slice\(1\)\.filter\(deletableRepeat\)/, "never the first of a group, only what may be deleted");
+  assert.match(fn, /data: \{ status: "deleted" \}/, "a soft delete, restored from Participants");
+  assert.match(fn, /referralState: "not_counted", referralDecidedAt: at, referralDecidedBy: by/, "out of the count with who, so a restored one is never paid unasked");
+  assert.doesNotMatch(fn, /\.delete\(|deleteMany/, "no row is ever removed");
+  // Drawn in the live draw: never deleted from here (a winner's seat would empty without a word).
+  assert.match(read(SERVER), /SELECT "applicationId" FROM "TripDraw" WHERE mode = 'live'/);
+});
+
+test("ID proofs (2026-11-23): an admin's only, never cached, read only; no file's key or content leaves the server", () => {
+  const src = read(PROOFS_ROUTE);
+  assert.match(src, /if \(!admin \|\| admin\.role !== "admin"\) return new NextResponse\("Unauthorized", \{ status: 401 \}\)/);
+  assert.match(src, /"Cache-Control": "no-store"/);
+  assert.deepEqual([...src.matchAll(/export async function (\w+)/g)].map((m) => m[1]), ["GET"]);
+  const server = read(PROOFS);
+  assert.doesNotMatch(server, /GetObjectCommand|HeadObjectCommand|getSignedUrl/, "no file is read or handed out here");
+  const mapped = /documents: a\.documents\.map\(\(d\) => \(\{([^}]*)\}\)\)/.exec(server);
+  assert.ok(mapped, "each file as the console gets it");
+  assert.deepEqual([...mapped[1].matchAll(/(\w+):/g)].map((m) => m[1]), ["id", "contentType", "size", "proof"]);
+  assert.match(server, /status: \{ notIn: \["spam", "deleted"\] \}/);
+  assert.doesNotMatch(read("src/components/admin/ReferralIdProofs.tsx"), /fetch\(|method: "(POST|PATCH|PUT|DELETE)"/, "the view asks nothing of the server itself");
+});

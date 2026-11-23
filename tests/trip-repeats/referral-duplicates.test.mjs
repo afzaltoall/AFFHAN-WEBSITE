@@ -4,7 +4,8 @@
 //   node --import ./tests/helpers/server-modules.mjs --test "tests/trip-repeats/*.test.mjs"
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { apartLabel, cityKey, duplicateGroups, nameKey, nameLetters, oneDigitApart, stillToCheck } from "@/lib/trip-duplicates";
+import { apartLabel, cityKey, deletableRepeat, duplicateGroups, nameKey, nameLetters, oneDigitApart, stillToCheck } from "@/lib/trip-duplicates";
+import { REFERRAL_STATES, isReferralState, referralCounts, referralStateLabel } from "@/lib/trip-referral-shared";
 
 let seq = 0;
 /** A word of its own for each number (names are compared by their letters only, so "Person 1" and "Person 2" match). */
@@ -210,4 +211,57 @@ test("how far apart, in words, and nothing from a day on", () => {
   assert.equal(apartLabel(60), "1 hour apart");
   assert.equal(apartLabel(23 * 60 + 59), "23 hours apart");
   assert.equal(apartLabel(24 * 60), "");
+});
+
+test("certain repeats, deleted all at once: the same number, or the same ID file under the same name; never one file under two names, or a name alone", () => {
+  const n1 = app({ customerKey: "9000000400", minute: 1 });
+  const n2 = app({ customerKey: "9000000400", minute: 2 });
+  const f1 = app({ fullName: "Sathya Priya", city: "Erode", minute: 3 });
+  const f2 = app({ fullName: "Priya Sathya", city: "Salem", minute: 4 });
+  const g1 = app({ fullName: "Mani Kandan", minute: 5 });
+  const g2 = app({ fullName: "Ravi Shankar", minute: 6 });
+  const h1 = app({ fullName: "Joseph Raj", city: "Karur", minute: 7 });
+  const h2 = app({ fullName: "Joseph Raj", city: "Karur", minute: 8 });
+  const files = [
+    { applicationId: f1.id, checksum: "1:f" },
+    { applicationId: f2.id, checksum: "1:f" },
+    { applicationId: g1.id, checksum: "2:g" },
+    { applicationId: g2.id, checksum: "2:g" },
+  ];
+  const groups = duplicateGroups([n1, n2, f1, f2, g1, g2, h1, h2], files);
+  const sureOf = (a) => groups.find((g) => g.ids.includes(a.id)).sure;
+  assert.deepEqual(sureOf(n1), [n2.id], "one number");
+  assert.deepEqual(sureOf(f1), [f2.id], "one file, one name (its words in another order), even in another city");
+  assert.deepEqual(sureOf(g1), [], "one file under two names: which one it belongs to needs eyes");
+  assert.deepEqual(sureOf(h1), [], "a name alone");
+  // A chain: the file and the name join the second to the first; the third only by the name.
+  const c1 = app({ fullName: "Arul Das", city: "Theni", minute: 9 });
+  const c2 = app({ fullName: "Arul Das", city: "Theni", minute: 10 });
+  const c3 = app({ fullName: "Arul Das", city: "Theni", minute: 11 });
+  const [chain] = duplicateGroups([c1, c2, c3], [{ applicationId: c1.id, checksum: "3:c" }, { applicationId: c2.id, checksum: "3:c" }]);
+  assert.deepEqual(chain.sure, [c2.id]);
+  // Decided or not, a certain repeat stays one (the button deletes those marked Not counted before, too).
+  const d1 = app({ customerKey: "9000000500", minute: 12 });
+  const d2 = app({ customerKey: "9000000500", minute: 13, referralState: "not_counted", referralDecidedAt: new Date() });
+  assert.deepEqual(duplicateGroups([d1, d2], [])[0].sure, [d2.id]);
+});
+
+test("what may be deleted: never paid, never drawn in the live draw, never one the team kept", () => {
+  const base = { paid: false, drawn: false, referralState: "counted", decidedAt: null };
+  assert.equal(deletableRepeat(base), true, "counted, undecided");
+  assert.equal(deletableRepeat({ ...base, paid: true }), false, "paid");
+  assert.equal(deletableRepeat({ ...base, drawn: true }), false, "drawn live");
+  assert.equal(deletableRepeat({ ...base, decidedAt: new Date().toISOString() }), false, "kept: counted with a decision");
+  assert.equal(deletableRepeat({ ...base, referralState: "not_counted", decidedAt: new Date().toISOString() }), true, "taken out before");
+  assert.equal(deletableRepeat({ ...base, referralState: "wrong_document", decidedAt: new Date().toISOString() }), true, "a wrong document");
+  assert.equal(deletableRepeat({ ...base, referralState: null }), true, "sent without a link");
+});
+
+test("Wrong document is a decision of its own: never counted, never to check, said in words", () => {
+  assert.ok(REFERRAL_STATES.includes("wrong_document") && isReferralState("wrong_document"));
+  assert.equal(referralCounts({ referralState: "wrong_document", status: "new" }), false);
+  assert.equal(referralStateLabel("wrong_document"), "Wrong document");
+  assert.equal(referralStateLabel("not_counted"), "Not counted");
+  assert.equal(referralStateLabel(null), "Not counted");
+  assert.equal(stillToCheck({ referrerId: "e1", referralState: "wrong_document", paid: false, referralDecidedAt: new Date(), status: "new" }), false);
 });

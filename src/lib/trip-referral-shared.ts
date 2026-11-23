@@ -18,12 +18,16 @@ export const REFERRAL_CODE_MIN = 3;
 /**
  * Where an application's code stands. "counted" earns its points, and is where it starts (2026-11-02: it counts as it
  * arrives); "not_counted" never does (the team took it out, or it came while the task was off). "waiting" is an older
- * application's, still to be decided.
+ * application's, still to be decided. "wrong_document" never counts either: the team looked at its ID proof and it is
+ * not an ID, or not this applicant's (2026-11-23, the owner: "some of them applied wrong document like some other
+ * images"); a "not counted" with its reason, which Employee tasks' ID proofs view lists, and Count undoes.
  */
-export const REFERRAL_STATES = ["waiting", "counted", "not_counted"] as const;
+export const REFERRAL_STATES = ["waiting", "counted", "not_counted", "wrong_document"] as const;
 export type ReferralState = (typeof REFERRAL_STATES)[number];
 export const isReferralState = (v: unknown): v is ReferralState => typeof v === "string" && (REFERRAL_STATES as readonly string[]).includes(v);
-export const REFERRAL_STATE_LABEL: Record<ReferralState, string> = { waiting: "Waiting", counted: "Counted", not_counted: "Not counted" };
+export const REFERRAL_STATE_LABEL: Record<ReferralState, string> = { waiting: "Waiting", counted: "Counted", not_counted: "Not counted", wrong_document: "Wrong document" };
+/** An application's referral standing in words, for any state stored (an unknown one reads as not counted). */
+export const referralStateLabel = (state: string | null) => (isReferralState(state) ? REFERRAL_STATE_LABEL[state] : "Not counted");
 
 /** The task's defaults, until the console saves its own. */
 export const REFERRAL_DEFAULTS = { enabled: true, pointsPerReferral: 100, rupeesPerPoint: 1, target: 100 } as const;
@@ -113,6 +117,11 @@ export const idProofOfKey = (key: string): IdProof | null => {
 };
 /** The type a key's extension stands for. */
 export const idDocumentTypeOfKey = (key: string): IdDocumentType | null => ID_DOCUMENT_TYPES.find((t) => key.endsWith(`.${idDocumentExtension(t)}`)) ?? null;
+/**
+ * A file this small (under 30 KB) is rarely a readable photo of an ID: Employee tasks' ID proofs view offers them as a
+ * filter of their own (2026-11-23, the owner: "some of them applied wrong document"; 55 of 4,281 on that day).
+ */
+export const ID_PROOF_SMALL_BYTES = 30_000;
 /** The form's words, and the server's, when the proof is missing. */
 export const ID_DOCUMENT_NEEDED = "Please add your ID: Aadhaar, PAN card, Voter ID, driving licence or passport.";
 /** When a file is added before saying which of the five it is. */

@@ -2,7 +2,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { documentChecksums } from "@/lib/server/trip-documents";
 import { referralSettings } from "@/lib/server/trip-referrals";
-import { duplicateGroups, type DuplicateGroup } from "@/lib/trip-duplicates";
+import { deletableRepeat, duplicateGroups, type DuplicateGroup } from "@/lib/trip-duplicates";
 import { idProofOfKey, type IdProof } from "@/lib/trip-referral-shared";
 
 /**
@@ -30,6 +30,8 @@ export interface DuplicateApplicationView {
   decidedBy: string | null;
   decidedAt: string | null;
   documents: { id: string; contentType: string; size: number | null; proof: IdProof | null }[];
+  /** Drawn in the live lucky draw: never deleted from here, as a deleted winner's seat would empty without a word. */
+  drawn: boolean;
 }
 
 export interface DuplicateGroupView extends DuplicateGroup {
@@ -50,7 +52,7 @@ export interface DuplicatesView {
 }
 
 export async function referralDuplicates(): Promise<DuplicatesView> {
-  const [apps, docs, settings] = await Promise.all([
+  const [apps, docs, settings, draws] = await Promise.all([
     prisma.tripApplication.findMany({
       where: { status: { notIn: ["spam", "deleted"] } },
       select: {
@@ -64,7 +66,10 @@ export async function referralDuplicates(): Promise<DuplicatesView> {
       select: { id: true, applicationId: true, key: true, contentType: true, size: true },
     }),
     referralSettings(),
+    // Read in plain SQL, as the lucky draw reads it (lib/server/lucky-draw.ts): a database without the table has no draws.
+    prisma.$queryRaw<{ applicationId: string }[]>`SELECT "applicationId" FROM "TripDraw" WHERE mode = 'live'`.catch(() => [] as { applicationId: string }[]),
   ]);
+  const drawnIds = new Set(draws.map((d) => d.applicationId));
   const { checksums, unchecked } = await documentChecksums(docs);
   const groups = duplicateGroups(
     apps.map((a) => ({
@@ -116,6 +121,7 @@ export async function referralDuplicates(): Promise<DuplicatesView> {
       decidedBy: a.referralDecidedBy,
       decidedAt: a.referralDecidedAt?.toISOString() ?? null,
       documents: filesOf.get(a.id) ?? [],
+      drawn: drawnIds.has(a.id),
     };
   };
 
@@ -138,4 +144,31 @@ export async function referralDuplicates(): Promise<DuplicatesView> {
     rupeesPerPoint: settings.rupeesPerPoint,
     checkedAt: new Date().toISOString(),
   };
+}
+
+
+/**
+ * Delete repeats (2026-11-23, the owner: "give a overall delete option ... to delete the duplicates"): the later
+ * applications of a person who applied more than once, as the console's Delete does (status "deleted": Free China Trip →
+ * Participants → Deleted, where any can be restored; out of the lucky draw and the counts). Each is also taken out of
+ * the referral count, with who and when, so one restored later is not paid again without a decision. Only what is a
+ * later application in a group right now, worked out again here, and deletable (deletableRepeat); anything else sent is
+ * left as it is and counted as refused. Never the first of a group, a paid one, or one drawn in the live draw.
+ */
+export async function deleteRepeats(ids: readonly string[], by: string): Promise<{ deleted: number; refused: number }> {
+  const asked = [...new Set(ids)];
+  const now = await referralDuplicates();
+  const allowed = new Set(now.groups.flatMap((g) => g.applications.slice(1).filter(deletableRepeat).map((a) => a.id)));
+  const take = asked.filter((id) => allowed.has(id));
+  if (!take.length) return { deleted: 0, refused: asked.length };
+  const at = new Date();
+  const done = await prisma.$transaction([
+    prisma.tripApplication.updateMany({
+      where: { id: { in: take }, referrerId: { not: null }, referralPayoutId: null },
+      data: { referralState: "not_counted", referralDecidedAt: at, referralDecidedBy: by },
+    }),
+    prisma.tripApplication.updateMany({ where: { id: { in: take }, referralPayoutId: null, status: { notIn: ["deleted"] } }, data: { status: "deleted" } }),
+  ]);
+  const deleted = done[1].count;
+  return { deleted, refused: asked.length - deleted };
 }

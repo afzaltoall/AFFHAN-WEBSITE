@@ -8,10 +8,12 @@ import { timeAgo } from "@/lib/relative-time";
 import { CargoDatePicker } from "@/components/cargo/CargoDatePicker";
 import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
 import { IdProofLockLine } from "@/components/admin/IdProofLock";
-import { ReferralDuplicates, decidedLocally, duplicateNotes } from "@/components/admin/ReferralDuplicates";
+import { ReferralDuplicates, decidedLocally, deletedLocally, duplicateNotes, type DuplicateDecision } from "@/components/admin/ReferralDuplicates";
+import { ReferralIdProofs, markedLocally } from "@/components/admin/ReferralIdProofs";
 import type { ReferralBoardRow, ReferralPayoutView, ReferralSettings, ReferralTotals, ReferredApplication } from "@/lib/server/trip-referrals";
 import type { DuplicatesView } from "@/lib/server/trip-duplicates";
-import { REFERRAL_CODE_MAX, REFERRAL_CODE_MIN, istDate, istLastDay, normalizeReferralCode, referralLink, referralWaiting, rupees } from "@/lib/trip-referral-shared";
+import type { IdProofsView } from "@/lib/server/trip-id-proofs";
+import { REFERRAL_CODE_MAX, REFERRAL_CODE_MIN, istDate, istLastDay, normalizeReferralCode, referralLink, referralStateLabel, referralWaiting, rupees } from "@/lib/trip-referral-shared";
 
 /**
  * Free China Trip → Employee tasks (the owner, 2026-11-02: "how will admin see the employee's referrals, how many they
@@ -139,25 +141,81 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
     return () => ctl.abort();
   }, [rows, dupesAsked]);
   const params = useSearchParams();
-  const showingDuplicates = params.get("view") === "duplicates";
+  // The two checks before paying open in the list's place: ?view=duplicates, or ?view=id-proofs (2026-11-23, the owner:
+  // "some of them applied wrong document ... insert a filter option to check"), each with &who=<employee> for one
+  // employee's.
+  const check = params.get("view") === "duplicates" ? "duplicates" : params.get("view") === "id-proofs" ? "id-proofs" : null;
+  const showingDuplicates = check === "duplicates";
   const dupesFor = params.get("who");
-  const dupesEmployee = dupesFor ? (rows.find((r) => r.employeeId === dupesFor) ?? null) : null;
-  const openDuplicates = (employeeId: string | null) => {
+  const openCheck = (view: "duplicates" | "id-proofs", employeeId: string | null) => {
     setAsked(null);
-    window.history.pushState(null, "", `/admin/trip-referrals/?view=duplicates${employeeId ? `&who=${encodeURIComponent(employeeId)}` : ""}`);
+    window.history.pushState(null, "", `/admin/trip-referrals/?view=${view}${employeeId ? `&who=${encodeURIComponent(employeeId)}` : ""}`);
   };
+  const openDuplicates = (employeeId: string | null) => openCheck("duplicates", employeeId);
   // Opened from further down (a row's "to check", Mark paid's "Check them first"): the list's top brought into view.
   useEffect(() => {
-    if (!showingDuplicates) return;
-    const list = document.getElementById("duplicates-title")?.closest("section");
+    if (!check) return;
+    const list = document.getElementById(check === "duplicates" ? "duplicates-title" : "id-proofs-title")?.closest("section");
     if (list && list.getBoundingClientRect().top < 0) list.scrollIntoView({ block: "start" });
-  }, [showingDuplicates, dupesFor]);
+  }, [check, dupesFor]);
   const closeDuplicates = () => window.history.pushState(null, "", "/admin/trip-referrals/");
   const toCheckOf = (employeeId: string) => dupes?.byEmployee[employeeId] ?? 0;
   /** A decision from the Duplicates list: written, shown at once, then everything read again. */
-  const decideDuplicates = async (ids: string[], state: "counted" | "not_counted") => {
+  const decideDuplicates = async (ids: string[], state: DuplicateDecision) => {
     const saved = await run(() => send("/api/admin/trip-referrals/decide/", { ids, state }));
     if (saved) setDupes((d) => (d ? decidedLocally(d, ids, state) : d));
+    return saved;
+  };
+  /**
+   * Repeats deleted (2026-11-23, "give a overall delete option ... to delete the duplicates"): the server deletes only
+   * what is a later application in a group right now; what it did is said at the top, with where to restore them.
+   */
+  const deleteDuplicates = async (ids: string[]) => {
+    let result: { deleted: number; refused: number } | null = null;
+    const saved = await run(async () => {
+      result = await send<{ deleted: number; refused: number }>("/api/admin/trip-referrals/duplicates/delete/", { ids });
+    });
+    if (saved && result) {
+      const { deleted, refused } = result;
+      setDupes((d) => (d ? deletedLocally(d, ids) : d));
+      setNotice(
+        `${deleted === 1 ? "1 duplicate application deleted" : `${deleted} duplicate applications deleted`}: Free China Trip → Participants → Deleted restores any of them.` +
+          (refused ? ` ${refused === 1 ? "1 was" : `${refused} were`} left as ${refused === 1 ? "it was" : "they were"}: no longer a later application, paid, drawn, or kept.` : ""),
+      );
+    }
+    return saved;
+  };
+
+  // ID proofs (2026-11-23): read when that view opens, and again whenever the board is read again while it is open.
+  const [proofs, setProofs] = useState<IdProofsView | null>(null);
+  const [proofsFailed, setProofsFailed] = useState(false);
+  const [proofsReading, setProofsReading] = useState(false);
+  const [proofsAsked, setProofsAsked] = useState(0);
+  const showingProofs = check === "id-proofs";
+  useEffect(() => {
+    if (!showingProofs) return;
+    const ctl = new AbortController();
+    setProofsReading(true);
+    fetch("/api/admin/trip-referrals/id-proofs/", { cache: "no-store", signal: ctl.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const read = (await res.json()) as IdProofsView;
+        if (ctl.signal.aborted) return;
+        setProofs(read);
+        setProofsFailed(false);
+      })
+      .catch(() => {
+        if (!ctl.signal.aborted) setProofsFailed(true);
+      })
+      .finally(() => {
+        if (!ctl.signal.aborted) setProofsReading(false);
+      });
+    return () => ctl.abort();
+  }, [showingProofs, rows, proofsAsked]);
+  /** A mark from the ID proofs list: written, shown at once, then everything read again. */
+  const decideProofs = async (ids: string[], state: "counted" | "wrong_document") => {
+    const saved = await run(() => send("/api/admin/trip-referrals/decide/", { ids, state }));
+    if (saved) setProofs((p) => (p ? markedLocally(p, ids, state) : p));
     return saved;
   };
   const allTicked = shownRows.length > 0 && ticked.length === shownRows.length;
@@ -351,7 +409,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
       const head = ["Trip ID", "Applied", "Name", "Mobile", "Country", "City", "Code", "Employee", "Office status", "Not verified", "Referral", "Points", "Paid", "Decided by", "Duplicate check"];
       const lines = referrals.map((a) => [
         a.referenceNo, fmtDate(a.createdAt), a.fullName, a.phone, a.country, a.city, a.code ?? "", a.employee, a.status, a.notVerified ? "Yes" : "",
-        a.paid ? "Paid" : a.status === "spam" ? "Spam" : a.referralState === "counted" ? "Counted" : a.referralState === "waiting" ? "Waiting" : "Not counted",
+        a.paid ? "Paid" : a.status === "spam" ? "Spam" : referralStateLabel(a.referralState),
         a.points ?? 0, a.paid ? "Yes" : "", a.decidedBy ?? "", notes ? (notes.get(a.referenceNo) ?? "") : "Not checked",
       ]);
       const ws = XLSX.utils.aoa_to_sheet([head, ...lines]);
@@ -448,11 +506,26 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
             failed={dupesFailed}
             reading={dupesReading}
             busy={busy}
-            employee={dupesFor ? { id: dupesFor, name: dupesEmployee?.name ?? "One employee" } : null}
-            onClearEmployee={() => openDuplicates(null)}
+            employee={dupesFor}
+            onEmployee={(id) => openCheck("duplicates", id)}
             onBack={closeDuplicates}
+            onIdProofs={() => openCheck("id-proofs", dupesFor)}
             onRetry={() => setDupesAsked((n) => n + 1)}
             onDecide={decideDuplicates}
+            onDelete={deleteDuplicates}
+          />
+        ) : showingProofs ? (
+          <ReferralIdProofs
+            data={proofs}
+            failed={proofsFailed}
+            reading={proofsReading}
+            busy={busy}
+            employee={dupesFor}
+            onEmployee={(id) => openCheck("id-proofs", id)}
+            onBack={closeDuplicates}
+            onDuplicates={() => openCheck("duplicates", dupesFor)}
+            onRetry={() => setProofsAsked((n) => n + 1)}
+            onDecide={decideProofs}
           />
         ) : (
         <section className={`overflow-hidden ${card}`}>
@@ -486,6 +559,9 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                   <span className={`tabular-nums ${dupes.toCheck.people ? "font-semibold text-amber-800" : "text-[#86868b]"}`}>{dupes.toCheck.people}</span>
                 </>
               )}
+            </button>
+            <button type="button" onClick={() => openCheck("id-proofs", null)} className={`${pillButton} bg-white hover:bg-black/[0.03]`}>
+              ID proofs
             </button>
             <button type="button" onClick={() => setAdding(true)} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>
               <UserPlus size={14} /> Add employee
@@ -1026,7 +1102,7 @@ function ReferralActions({ a, busy, onDecide }: { a: ReferredApplication; busy: 
   const counted = a.referralState === "counted";
   return (
     <div className="flex items-center gap-2" title={who}>
-      <span className={counted ? "font-medium text-emerald-700" : "text-[#6e6e73]"}>{counted ? `Counted · ${a.referralPoints ?? 0} points` : "Not counted"}</span>
+      <span className={counted ? "font-medium text-emerald-700" : "text-[#6e6e73]"}>{counted ? `Counted · ${a.referralPoints ?? 0} points` : referralStateLabel(a.referralState)}</span>
       <button
         type="button"
         disabled={busy}

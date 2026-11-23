@@ -1,19 +1,27 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, RefreshCw, Search, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, RefreshCw, Search, Trash2 } from "lucide-react";
 import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
 import { IdProofLockLine } from "@/components/admin/IdProofLock";
+import { EmployeePicker, type EmployeeChoice } from "@/components/admin/EmployeePicker";
 import type { DuplicateApplicationView, DuplicateGroupView, DuplicatesView } from "@/lib/server/trip-duplicates";
-import { DUPLICATE_REASON_LABEL, apartLabel } from "@/lib/trip-duplicates";
-import { rupees } from "@/lib/trip-referral-shared";
+import { DUPLICATE_REASON_LABEL, apartLabel, deletableRepeat } from "@/lib/trip-duplicates";
+import { referralStateLabel, rupees } from "@/lib/trip-referral-shared";
 
 /**
  * Employee tasks → Duplicates (the owner, 2026-11-23: "duplicate oru option kondu vaa ... duplicate click pana evalo
  * peru same users check pananum ... we are going to give real money to employees"): one card a person who may have
  * applied more than once (lib/trip-duplicates.ts says what joins them), their applications oldest first with the
  * employee each came through and the ID proof each sent, side by side, and the one question to answer: the same person?
- * Yes takes the later ones out (Not counted); No keeps them (Keep), each recorded as the application's own decision.
+ * Yes deletes the later ones (soft: Participants → Deleted, where they can be restored; out of the draw and the counts);
+ * No keeps them (Keep), recorded as the application's own decision. A later one can also be Not counted, or Wrong
+ * document (its ID proof is not an ID, or not theirs).
+ *
+ * The same day: "employees to check filter who is how many duplicates" (the employee filter, each with how many still
+ * to check) and "give a overall delete option ... to delete the duplicates overall button": one button deletes every
+ * certain repeat shown (the same mobile number, or the same ID file under the same name), asked first in the console's
+ * own window. A card joined only by the name is never deleted that way: different people share names.
  */
 
 const fmtWhen = (iso: string) =>
@@ -22,15 +30,15 @@ const pill = "inline-flex h-8 items-center justify-center gap-1.5 rounded-full p
 
 /** Strong evidence (the same ID file or number), only the name, decided, or everything. */
 type Tab = "sure" | "name" | "checked" | "all";
-type Decide = (ids: string[], state: "counted" | "not_counted") => Promise<boolean>;
+export type DuplicateDecision = "counted" | "not_counted" | "wrong_document";
+type Decide = (ids: string[], state: DuplicateDecision) => Promise<boolean>;
 
 /** Where an application stands in its group, as a few words. */
 function standing(a: DuplicateApplicationView, first: boolean, toCheck: boolean): string {
   if (!a.employee) return "Applied without a link";
   if (a.paid) return "Paid";
   if (toCheck) return "To check";
-  if (a.referralState === "not_counted") return "Not counted";
-  if (a.referralState === "waiting") return "Waiting";
+  if (a.referralState !== "counted") return referralStateLabel(a.referralState);
   if (first) return "Counted";
   return a.decidedAt ? "Kept" : "Counted";
 }
@@ -44,44 +52,70 @@ function whyLine(g: DuplicateGroupView): string {
     .join(" · ");
 }
 
-/**
- * A decision shown at once, while the list is read again: the applications just decided leave "to check" with the state
- * chosen, and the counts and rupees follow. The read that comes next replaces it all.
- */
-export function decidedLocally(data: DuplicatesView, ids: readonly string[], state: "counted" | "not_counted"): DuplicatesView {
-  const decided = new Set(ids);
-  const now = new Date().toISOString();
-  const byEmployee = { ...data.byEmployee };
-  let applications = data.toCheck.applications;
+/** The certain repeats of a group that may be deleted now. */
+const sureToDelete = (g: DuplicateGroupView) => g.applications.filter((a) => g.sure.includes(a.id) && deletableRepeat(a));
+
+/** The figures that follow from the groups: what is still to check, by employee, and what it comes to. */
+function summarize(data: DuplicatesView, groups: DuplicateGroupView[]): DuplicatesView {
+  const byEmployee: Record<string, number> = {};
+  let applications = 0;
   let points = 0;
-  const groups = data.groups.map((g) => {
-    if (!g.ids.some((id) => decided.has(id))) return g;
+  for (const g of groups) {
     for (const a of g.applications) {
-      if (!decided.has(a.id) || !g.toCheck.includes(a.id)) continue;
-      applications--;
+      if (!g.toCheck.includes(a.id)) continue;
+      applications++;
       points += a.referralPoints ?? 0;
-      if (a.employee) {
-        const left = (byEmployee[a.employee.id] ?? 1) - 1;
-        if (left > 0) byEmployee[a.employee.id] = left;
-        else delete byEmployee[a.employee.id];
-      }
+      if (a.employee) byEmployee[a.employee.id] = (byEmployee[a.employee.id] ?? 0) + 1;
     }
-    return {
-      ...g,
-      toCheck: g.toCheck.filter((id) => !decided.has(id)),
-      applications: g.applications.map((a) => (decided.has(a.id) && a.employee && !a.paid ? { ...a, referralState: state, decidedAt: now, decidedBy: null } : a)),
-    };
-  });
+  }
   return {
     ...data,
     groups,
     byEmployee,
-    toCheck: {
-      people: groups.filter((g) => g.toCheck.length > 0).length,
-      applications: Math.max(0, applications),
-      rupees: Math.max(0, data.toCheck.rupees - points * data.rupeesPerPoint),
-    },
+    toCheck: { people: groups.filter((g) => g.toCheck.length > 0).length, applications, rupees: points * data.rupeesPerPoint },
   };
+}
+
+/**
+ * A decision shown at once, while the list is read again: the applications just decided leave "to check" with the state
+ * chosen, and the counts and rupees follow. The read that comes next replaces it all.
+ */
+export function decidedLocally(data: DuplicatesView, ids: readonly string[], state: DuplicateDecision): DuplicatesView {
+  const decided = new Set(ids);
+  const now = new Date().toISOString();
+  return summarize(
+    data,
+    data.groups.map((g) =>
+      g.ids.some((id) => decided.has(id))
+        ? {
+            ...g,
+            toCheck: g.toCheck.filter((id) => !decided.has(id)),
+            applications: g.applications.map((a) => (decided.has(a.id) && a.employee && !a.paid ? { ...a, referralState: state, decidedAt: now, decidedBy: null } : a)),
+          }
+        : g,
+    ),
+  );
+}
+
+/** Deleted ones shown gone at once: out of their groups, and a group left with one application is no group. */
+export function deletedLocally(data: DuplicatesView, ids: readonly string[]): DuplicatesView {
+  const gone = new Set(ids);
+  return summarize(
+    data,
+    data.groups
+      .map((g) =>
+        g.ids.some((id) => gone.has(id))
+          ? {
+              ...g,
+              ids: g.ids.filter((id) => !gone.has(id)),
+              toCheck: g.toCheck.filter((id) => !gone.has(id)),
+              sure: g.sure.filter((id) => !gone.has(id)),
+              applications: g.applications.filter((a) => !gone.has(a.id)),
+            }
+          : g,
+      )
+      .filter((g) => g.applications.length > 1),
+  );
 }
 
 /**
@@ -107,10 +141,12 @@ export function ReferralDuplicates({
   reading,
   busy,
   employee,
-  onClearEmployee,
+  onEmployee,
   onBack,
+  onIdProofs,
   onRetry,
   onDecide,
+  onDelete,
 }: {
   /** Null until the first read arrives. */
   data: DuplicatesView | null;
@@ -118,26 +154,38 @@ export function ReferralDuplicates({
   /** A read is on its way (the first, or again after a change). */
   reading: boolean;
   busy: boolean;
-  /** Only this employee's (a row's "to check"), or everyone's. */
-  employee: { id: string; name: string } | null;
-  onClearEmployee: () => void;
+  /** Only this employee's, or everyone's. */
+  employee: string | null;
+  onEmployee: (id: string | null) => void;
   onBack: () => void;
+  /** To Employee tasks' other check, the ID proofs. */
+  onIdProofs: () => void;
   onRetry: () => void;
   onDecide: Decide;
+  /** Delete later applications as repeats; resolves true when it was done. */
+  onDelete: (ids: string[]) => Promise<boolean>;
 }) {
   const [picked, setPicked] = useState<Tab | null>(null);
   const [q, setQ] = useState("");
+  const [asking, setAsking] = useState<DuplicateApplicationView[] | null>(null);
   const needle = q.trim().toLowerCase();
   const digits = needle.replace(/\D/g, "");
 
   const mine = useMemo(() => {
     const groups = data?.groups ?? [];
     if (!employee) return groups;
-    return groups.filter((g) => g.applications.some((a) => a.employee?.id === employee.id));
+    return groups.filter((g) => g.applications.some((a) => a.employee?.id === employee));
   }, [data, employee]);
+  /** Everyone who brought somebody in a group, with how many of theirs are still to check, the most first. */
+  const choices = useMemo<EmployeeChoice[]>(() => {
+    const seen = new Map<string, string>();
+    for (const g of data?.groups ?? []) for (const a of g.applications) if (a.employee) seen.set(a.employee.id, a.employee.name);
+    return [...seen]
+      .map(([id, name]) => ({ id, name, count: data?.byEmployee[id] ?? 0 }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [data]);
   /** Whether a group has something of theirs (or anyone's, without a filter) still to decide. */
-  const open = (g: DuplicateGroupView) =>
-    employee ? g.applications.some((a) => a.employee?.id === employee.id && g.toCheck.includes(a.id)) : g.toCheck.length > 0;
+  const open = (g: DuplicateGroupView) => (employee ? g.applications.some((a) => a.employee?.id === employee && g.toCheck.includes(a.id)) : g.toCheck.length > 0);
   /** The same ID file or mobile number: strong evidence. Only the name: the ID proofs say. */
   const strong = (g: DuplicateGroupView) => g.reasons[0] !== "name";
   const counts = {
@@ -149,9 +197,9 @@ export function ReferralDuplicates({
   // It opens on the strong ones; with none, the names; then everything. Chosen once, when the list arrives (and again for
   // another employee's), so deciding the last one on a tab never moves the list to another under the pointer.
   const opening: Tab = counts.sure ? "sure" : counts.name ? "name" : "all";
-  const [pickedFor, setPickedFor] = useState(employee?.id ?? null);
-  if ((employee?.id ?? null) !== pickedFor) {
-    setPickedFor(employee?.id ?? null);
+  const [pickedFor, setPickedFor] = useState(employee);
+  if (employee !== pickedFor) {
+    setPickedFor(employee);
     setPicked(null);
   }
   useEffect(() => {
@@ -170,8 +218,10 @@ export function ReferralDuplicates({
     .filter(matches);
 
   // What is still to decide, for everyone or for the one employee: applications and what they come to.
-  const waiting = mine.flatMap((g) => g.applications.filter((a) => g.toCheck.includes(a.id) && (!employee || a.employee?.id === employee.id)));
+  const waiting = mine.flatMap((g) => g.applications.filter((a) => g.toCheck.includes(a.id) && (!employee || a.employee?.id === employee)));
   const waitingRupees = waiting.reduce((s, a) => s + (a.referralPoints ?? 0), 0) * (data?.rupeesPerPoint ?? 0);
+  // The one button (2026-11-23): every certain repeat on the cards shown, and nothing joined only by a name.
+  const deletable = shown.flatMap(sureToDelete);
   const anyFiles = shown.some((g) => g.applications.some((a) => a.documents.length));
 
   return (
@@ -183,13 +233,8 @@ export function ReferralDuplicates({
         <h2 id="duplicates-title" className="text-[15px] font-semibold">
           Duplicates
         </h2>
-        {employee && (
-          <span className="inline-flex h-8 items-center gap-1 rounded-full bg-black/[0.05] pl-3 pr-1 text-[12.5px] font-medium">
-            {employee.name}
-            <button type="button" onClick={onClearEmployee} aria-label="Show everyone's" className="flex h-6 w-6 items-center justify-center rounded-full text-[#6e6e73] hover:bg-black/[0.06] hover:text-[#1d1d1f]">
-              <X size={13} />
-            </button>
-          </span>
+        {data && (
+          <EmployeePicker choices={choices} value={employee} onChange={onEmployee} everyone={data.toCheck.applications} label="to check" />
         )}
         {mine.length > 0 && (
           <label className="relative min-w-[200px] flex-1 sm:max-w-xs">
@@ -206,7 +251,16 @@ export function ReferralDuplicates({
             />
           </label>
         )}
-        {reading && data && <span className="ml-auto text-[12px] text-[#86868b]" aria-live="polite">Checking again…</span>}
+        <span className="ml-auto flex items-center gap-3">
+          {reading && data && (
+            <span className="text-[12px] text-[#86868b]" aria-live="polite">
+              Checking again…
+            </span>
+          )}
+          <button type="button" onClick={onIdProofs} className="text-[13px] font-medium text-[#0058b0] hover:underline">
+            ID proofs
+          </button>
+        </span>
       </div>
 
       {!data ? (
@@ -258,6 +312,16 @@ export function ReferralDuplicates({
                 "Nothing left to check"
               )}
             </p>
+            {deletable.length > 0 && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setAsking(deletable)}
+                className={`${pill} bg-white text-red-700 ring-red-500/25 hover:bg-red-500/10`}
+              >
+                <Trash2 size={14} aria-hidden="true" /> Delete {deletable.length} {deletable.length === 1 ? "duplicate" : "duplicates"}
+              </button>
+            )}
           </div>
           {failed && (
             <p role="alert" className="border-b border-black/[0.06] bg-amber-500/10 px-5 py-2.5 text-[13px] font-medium text-amber-800">
@@ -286,33 +350,44 @@ export function ReferralDuplicates({
                   </button>
                 </>
               ) : tab === "sure" ? (
-                employee ? `Nothing of ${employee.name}'s shares an ID file or a number.` : "Nothing left shares an ID file or a mobile number."
-              ) : tab === "name" ? (
-                employee ? `Nothing of ${employee.name}'s is left to check.` : "Nothing left to check."
-              ) : tab === "checked" ? (
-                "Nothing checked yet."
+                "Nothing left shares an ID file or a mobile number."
+              ) : tab === "name" || tab === "all" ? (
+                "Nothing left to check."
               ) : (
-                "Nobody has applied twice."
+                "Nothing checked yet."
               )}
             </p>
           ) : (
             <ol className="divide-y divide-black/[0.06]">
               {shown.map((g) => (
-                <Group key={g.ids[0]} g={g} busy={busy} onDecide={onDecide} />
+                <Group key={g.ids[0]} g={g} busy={busy} onDecide={onDecide} onDelete={onDelete} />
               ))}
             </ol>
           )}
         </>
+      )}
+      {asking && (
+        <DeleteDuplicates
+          who={asking}
+          busy={busy}
+          rupeesPerPoint={data?.rupeesPerPoint ?? 0}
+          onCancel={() => setAsking(null)}
+          onConfirm={async () => {
+            if (await onDelete(asking.map((a) => a.id))) setAsking(null);
+          }}
+        />
       )}
     </section>
   );
 }
 
 /** One person who may have applied more than once: why, their applications oldest first, and the question. */
-function Group({ g, busy, onDecide }: { g: DuplicateGroupView; busy: boolean; onDecide: Decide }) {
+function Group({ g, busy, onDecide, onDelete }: { g: DuplicateGroupView; busy: boolean; onDecide: Decide; onDelete: (ids: string[]) => Promise<boolean> }) {
   const first = g.applications[0];
   const toCheck = new Set(g.toCheck);
   const n = g.toCheck.length;
+  // Yes deletes the later ones still to check (never one drawn in the live draw: it stays, to be decided by itself).
+  const repeats = g.applications.filter((a) => toCheck.has(a.id) && deletableRepeat(a));
   return (
     <li className="px-5 py-4" aria-label={`${first.fullName}, ${g.applications.length} applications`}>
       <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
@@ -335,9 +410,11 @@ function Group({ g, busy, onDecide }: { g: DuplicateGroupView; busy: boolean; on
       {n > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span className="mr-1 text-[13px] font-semibold">Same person?</span>
-          <button type="button" disabled={busy} onClick={() => void onDecide(g.toCheck, "not_counted")} className={`${pill} bg-white hover:bg-black/[0.03]`}>
-            {n === 1 ? "Yes, don’t count again" : `Yes, don’t count the ${n} later ones`}
-          </button>
+          {repeats.length > 0 && (
+            <button type="button" disabled={busy} onClick={() => void onDelete(repeats.map((a) => a.id))} className={`${pill} bg-white text-red-700 ring-red-500/25 hover:bg-red-500/10`}>
+              {repeats.length === 1 ? "Yes, delete the later one" : `Yes, delete the ${repeats.length} later ones`}
+            </button>
+          )}
           <button type="button" disabled={busy} onClick={() => void onDecide(g.toCheck, "counted")} className={`${pill} bg-white hover:bg-black/[0.03]`}>
             No, different people
           </button>
@@ -351,6 +428,7 @@ function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplic
   const word = standing(a, first, toCheck);
   const who = a.decidedBy && !toCheck ? `${a.decidedBy}${a.decidedAt ? `, ${fmtWhen(a.decidedAt)}` : ""}` : null;
   const canChange = !!a.employee && !a.paid && !toCheck;
+  const counting = a.referralState === "counted";
   return (
     <li className="px-4 py-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -359,6 +437,7 @@ function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplic
             {a.fullName}
             <span className="ml-2 font-mono text-[12.5px] font-normal text-[#0058b0]">{a.referenceNo}</span>
             {first && <span className="ml-2 rounded-full bg-black/[0.06] px-2 py-0.5 align-middle text-[11px] font-medium text-[#6e6e73]">First</span>}
+            {a.drawn && <span className="ml-2 rounded-full bg-black/[0.06] px-2 py-0.5 align-middle text-[11px] font-medium text-[#6e6e73]">In the lucky draw</span>}
           </p>
           <p className="mt-0.5 text-[12.5px] text-[#48484a]">
             <span className="tabular-nums">{a.phone}</span>
@@ -386,6 +465,9 @@ function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplic
                 <button type="button" disabled={busy} onClick={() => void onDecide([a.id], "not_counted")} className={`${pill} bg-white hover:bg-black/[0.03]`}>
                   Not counted
                 </button>
+                <button type="button" disabled={busy} onClick={() => void onDecide([a.id], "wrong_document")} className={`${pill} bg-white hover:bg-black/[0.03]`}>
+                  Wrong document
+                </button>
               </div>
             ) : (
               <div className="flex items-center gap-2">
@@ -397,10 +479,10 @@ function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplic
                   <button
                     type="button"
                     disabled={busy}
-                    onClick={() => void onDecide([a.id], a.referralState === "counted" ? "not_counted" : "counted")}
+                    onClick={() => void onDecide([a.id], counting ? "not_counted" : "counted")}
                     className="text-[12px] font-medium text-[#0058b0] hover:underline disabled:opacity-50"
                   >
-                    {a.referralState === "counted" ? "Not counted" : "Count"}
+                    {counting ? "Not counted" : "Count"}
                   </button>
                 )}
               </div>
@@ -417,5 +499,86 @@ function Application({ a, first, toCheck, busy, onDecide }: { a: DuplicateApplic
         <p className="mt-1.5 text-[12.5px] text-[#86868b]">No ID proof</p>
       ) : null}
     </li>
+  );
+}
+
+/**
+ * The one button's question, in the console's own window: how many, who (the first few), and what a delete does: soft,
+ * restored from Participants → Deleted, out of the lucky draw and the counts, never paid.
+ */
+function DeleteDuplicates({
+  who,
+  busy,
+  rupeesPerPoint,
+  onCancel,
+  onConfirm,
+}: {
+  who: DuplicateApplicationView[];
+  busy: boolean;
+  rupeesPerPoint: number;
+  onCancel: () => void;
+  onConfirm: () => Promise<void>;
+}) {
+  const cancel = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    cancel.current?.focus();
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      if (!busy) onCancel();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onCancel, busy]);
+  const counted = who.filter((a) => a.employee && a.referralState === "counted");
+  const money = counted.reduce((s, a) => s + (a.referralPoints ?? 0), 0) * rupeesPerPoint;
+  const listed = who.slice(0, 6);
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onCancel()}>
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="delete-duplicates-title"
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md rounded-2xl bg-white p-6 text-[#1d1d1f] shadow-2xl ring-1 ring-black/[0.06]"
+      >
+        <h2 id="delete-duplicates-title" className="text-[17px] font-semibold">
+          Delete {who.length} duplicate {who.length === 1 ? "application" : "applications"}?
+        </h2>
+        <p className="mt-1.5 text-[13px] text-[#48484a]">
+          Each is a later application of someone who applied before: the same mobile number, or the same ID file under the same
+          name. {who.length === 1 ? "It goes" : "They go"} to Free China Trip → Participants → Deleted, where any can be restored,
+          and {who.length === 1 ? "leaves" : "leave"} the lucky draw.
+          {money > 0 && ` Their employees are not paid for them (${rupees(money)}).`}
+        </p>
+        <ul className="mt-3 divide-y divide-black/[0.06] rounded-xl text-[12.5px] ring-1 ring-black/[0.08]">
+          {listed.map((a) => (
+            <li key={a.id} className="flex justify-between gap-3 px-3 py-2">
+              <span className="min-w-0 truncate">
+                <span className="font-mono text-[#0058b0]">{a.referenceNo}</span> {a.fullName}
+              </span>
+              <span className="shrink-0 text-[#6e6e73]">{a.employee ? a.employee.name : "No link"}</span>
+            </li>
+          ))}
+          {who.length > listed.length && <li className="px-3 py-2 text-[#6e6e73]">and {who.length - listed.length} more</li>}
+        </ul>
+        <p className="mt-3 text-[12.5px] text-[#6e6e73]">Cards joined only by a name are left for you to check one by one.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button ref={cancel} type="button" disabled={busy} onClick={onCancel} className={`${pill} h-9 bg-white px-4 hover:bg-black/[0.03]`}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void onConfirm()}
+            className="inline-flex h-9 items-center gap-1.5 rounded-full bg-red-500 px-4 text-[12.5px] font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-60"
+          >
+            <Trash2 size={14} aria-hidden="true" /> {busy ? "Deleting…" : `Delete ${who.length}`}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

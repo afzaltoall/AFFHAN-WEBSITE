@@ -59,6 +59,13 @@ export interface DuplicateGroup {
   reasons: DuplicateReason[];
   /** Later applications still to decide, oldest first. */
   toCheck: string[];
+  /**
+   * Later applications that are certainly a repeat of an earlier one, whatever was decided: the same mobile number, or
+   * the very same ID file under the same name (2026-11-23, the owner: "overall delete option ... to delete the
+   * duplicates"; only these are deleted all at once). One ID file under two names is not among them: which of the two
+   * it belongs to needs eyes.
+   */
+  sure: string[];
   /** Every application here through a link came through one employee's (two or more of them). */
   oneEmployee: boolean;
   /** The shortest time between two of them, in whole minutes. */
@@ -157,6 +164,22 @@ export function duplicateGroups(apps: readonly DuplicateCandidate[], files: read
   };
 
   join(bucket(live.flatMap((a, i): [string, number][] => (usableNumber(a.customerKey) ? [[a.customerKey, i]] : []))), "number");
+  const checksumsOf = new Map<string, Set<string>>();
+  for (const f of files) {
+    if (!f.checksum) continue;
+    const set = checksumsOf.get(f.applicationId) ?? new Set<string>();
+    set.add(f.checksum);
+    checksumsOf.set(f.applicationId, set);
+  }
+  /** Whether b repeats a for certain: one number, or one ID file under one name. */
+  const certainRepeat = (a: DuplicateCandidate, b: DuplicateCandidate) => {
+    if (usableNumber(a.customerKey) && a.customerKey === b.customerKey) return true;
+    const mine = checksumsOf.get(b.id);
+    const shared = !!mine && [...(checksumsOf.get(a.id) ?? [])].some((c) => mine.has(c));
+    const sameName =
+      (!!nameKey(a.fullName) && nameKey(a.fullName) === nameKey(b.fullName)) || (!!nameLetters(a.fullName) && nameLetters(a.fullName) === nameLetters(b.fullName));
+    return shared && sameName;
+  };
   join(
     bucket(
       files.flatMap((f): [string, number][] => {
@@ -213,6 +236,7 @@ export function duplicateGroups(apps: readonly DuplicateCandidate[], files: read
       ids: rows.map((a) => a.id),
       reasons,
       toCheck: rows.slice(1).filter(stillToCheck).map((a) => a.id),
+      sure: rows.filter((b, k) => k > 0 && rows.slice(0, k).some((a) => certainRepeat(a, b))).map((a) => a.id),
       oneEmployee,
       closestMinutes,
       numbersOneDigitApart: close,
@@ -229,10 +253,20 @@ export function duplicateGroups(apps: readonly DuplicateCandidate[], files: read
     ids: g.ids,
     reasons: g.reasons,
     toCheck: g.toCheck,
+    sure: g.sure,
     oneEmployee: g.oneEmployee,
     closestMinutes: g.closestMinutes,
     numbersOneDigitApart: g.numbersOneDigitApart,
   }));
+}
+
+/**
+ * Whether a later application in a group may be deleted as a repeat (2026-11-23): not paid (a payment stands), not drawn
+ * in the live lucky draw (deleting a winner would empty their seat without a word), and not kept by the team (Keep, or
+ * No, different people: counted with a decision).
+ */
+export function deletableRepeat(a: { paid: boolean; drawn: boolean; referralState: string | null; decidedAt: Date | string | null }): boolean {
+  return !a.paid && !a.drawn && !(a.referralState === "counted" && !!a.decidedAt);
 }
 
 /** "2 minutes apart", "3 hours apart"; "" from a day on, where it says nothing. */
