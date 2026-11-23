@@ -211,13 +211,14 @@ export function InstagramBoard({ initial, api, me, admin }: { initial: Instagram
     }
   }
 
-  const figures: [string, string][] = [
+  // The prizes say both: what is given, and under it what waits to be given (the brand's colour, as what waits is).
+  const figures: [string, string, string?][] = [
     ["Taking part", `${num(totals.started)} of ${num(totals.people)}`],
     ["Accounts added", num(totals.accounts)],
     ["Checked done", num(totals.done)],
     ["To check", num(totals.toCheck)],
     ["Complete", num(totals.complete)],
-    [totals.toGive > 0 ? "Prizes to give" : "Prizes given", rupees(totals.toGive > 0 ? totals.toGive : totals.given)],
+    ["Prizes given", rupees(totals.given), totals.toGive > 0 ? `${rupees(totals.toGive)} to give` : undefined],
   ];
 
   return (
@@ -237,10 +238,11 @@ export function InstagramBoard({ initial, api, me, admin }: { initial: Instagram
       )}
 
       <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-black/[0.06] shadow-sm ring-1 ring-black/[0.06] sm:grid-cols-3 xl:grid-cols-6">
-        {figures.map(([name, value]) => (
+        {figures.map(([name, value, under]) => (
           <div key={name} className="min-w-0 bg-white px-4 py-3">
             <dt className="truncate text-[12px] text-[#6e6e73]">{name}</dt>
             <dd className="mt-0.5 text-[20px] font-semibold tabular-nums tracking-tight">{value}</dd>
+            {under && <dd className="truncate text-[12px] font-semibold tabular-nums text-brand-dark">{under}</dd>}
           </div>
         ))}
       </dl>
