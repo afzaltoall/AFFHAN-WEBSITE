@@ -13,7 +13,7 @@ import { ReferralIdProofs, markedLocally } from "@/components/admin/ReferralIdPr
 import type { ReferralBoardRow, ReferralPayoutView, ReferralSettings, ReferralTotals, ReferredApplication } from "@/lib/server/trip-referrals";
 import type { DuplicatesView } from "@/lib/server/trip-duplicates";
 import type { IdProofsView } from "@/lib/server/trip-id-proofs";
-import { REFERRAL_CODE_MAX, REFERRAL_CODE_MIN, istDate, istLastDay, normalizeReferralCode, referralLink, referralStateLabel, referralWaiting, rupees } from "@/lib/trip-referral-shared";
+import { REFERRAL_CODE_MAX, REFERRAL_CODE_MIN, istDate, istLastDay, normalizeReferralCode, ordinal, referralLink, referralStateLabel, referralWaiting, rupees, teamPlaces } from "@/lib/trip-referral-shared";
 
 /**
  * Free China Trip → Employee tasks (the owner, 2026-11-02: "how will admin see the employee's referrals, how many they
@@ -83,6 +83,16 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const ticked = shownRows.filter((r) => selected.has(r.employeeId));
   /** How many have a target of their own (2026-11-04), said beside the task's. */
   const ownTargets = rows.filter((r) => r.ownTarget !== null).length;
+  /**
+   * Each employee's place (the owner, 2026-11-23: "insert a number ... 1st 2nd 3rd like that"), as Team tasks gives it
+   * to the staff themselves, so the two always agree: by counted, the same count the same place, none before anything
+   * counts, among the employees still here (one who has left has none). Over the whole list, whatever the search shows.
+   */
+  const placeOf = useMemo(() => {
+    const here = rows.filter((r) => r.isActive);
+    const places = teamPlaces(here);
+    return new Map(here.map((r, k) => [r.employeeId, places[k]]));
+  }, [rows]);
 
   // The employee open in the panel on the right: open the moment a name is pressed, from the row already on screen,
   // while ?employee= reads their applications. `asked` is what was last pressed (an id, or null for closed) until the
@@ -400,9 +410,9 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
       const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
       const people = [
-        ["Employee", "Email", "Account", "Code", "Applied through the link", "Counted", "Not counted", "Duplicates to check", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
+        ["Place", "Employee", "Email", "Account", "Code", "Applied through the link", "Counted", "Not counted", "Duplicates to check", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
         ...rows.map((r) => [
-          r.name, r.email, accountLabel(r.job), r.code ?? "", r.referred, r.counted, r.notCounted, dup ? (dup.byEmployee[r.employeeId] ?? 0) : "Not checked",
+          placeOf.get(r.employeeId) ? ordinal(placeOf.get(r.employeeId)!) : "", r.name, r.email, accountLabel(r.job), r.code ?? "", r.referred, r.counted, r.notCounted, dup ? (dup.byEmployee[r.employeeId] ?? 0) : "Not checked",
           r.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No",
         ]),
       ];
@@ -617,6 +627,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                 <thead>
                   <tr className="border-b border-black/[0.06] text-[12px] text-[#86868b]">
                     <th className="w-10 py-2.5 pl-5" aria-label="Select" />
+                    <th className="px-3 py-2.5 font-medium">Place</th>
                     <th className="px-3 py-2.5 font-medium">Employee</th>
                     <th className="px-3 py-2.5 font-medium">Account</th>
                     <th className="px-3 py-2.5 font-medium">Code</th>
@@ -647,6 +658,9 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                           >
                             {tick ? <CheckSquare className="h-5 w-5" /> : <Square className="h-5 w-5" />}
                           </button>
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-3 font-semibold tabular-nums">
+                          {placeOf.get(r.employeeId) ? ordinal(placeOf.get(r.employeeId)!) : <span className="font-normal text-[#86868b]">–</span>}
                         </td>
                         <td className="px-3 py-3">
                           <a

@@ -145,3 +145,15 @@ test("every account has it: the tab, the rail row and the outline, never behind 
     assert.ok(board.includes(`sees: "${sees}`), sees);
   }
 });
+
+// 2026-11-23, the owner on Employee tasks: "insert a number ... 1st 2nd 3rd like that". The console's places are Team
+// tasks' own (teamPlaces over the employees still here, ordinal), so what the admin sees and what the staff see agree.
+test("Employee tasks gives each employee the place Team tasks gives them", () => {
+  const board = fs.readFileSync(new URL("../../src/components/admin/TripReferralsBoard.tsx", import.meta.url), "utf8");
+  assert.match(board, /const here = rows\.filter\(\(r\) => r\.isActive\);\s*const places = teamPlaces\(here\);/);
+  assert.match(board, /<th className="px-3 py-2\.5 font-medium">Place<\/th>/);
+  assert.match(board, /placeOf\.get\(r\.employeeId\) \? ordinal\(placeOf\.get\(r\.employeeId\)!\)/);
+  // The same numbers as Team tasks for the same counts: ties share a place, nothing counted has none.
+  assert.deepEqual(teamPlaces([{ counted: 9 }, { counted: 7 }, { counted: 7 }, { counted: 3 }, { counted: 0 }]), [1, 2, 2, 4, null]);
+  assert.deepEqual([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(ordinal), ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st", "22nd", "23rd", "101st", "111th"]);
+});
