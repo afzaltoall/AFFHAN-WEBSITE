@@ -83,6 +83,8 @@ interface Run {
   p0: number;
   up: number;
   drawn: number | null;
+  /** The people this draw's names come from when not the whole wall (drawFrom): put in by placeNames. */
+  group: DrawPoolEntry[] | null;
   placed: boolean;
   roll: Roll | null;
   roll0: number;
@@ -1372,6 +1374,18 @@ export class WallStage {
   }
 
   /**
+   * The people this draw's names come from, when not the whole wall (2026-11-23: seats 1 to 3 of every round are drawn
+   * from the first 1,540 applications, Terms clause 3): given with the answer, put in once every ticket is face down
+   * (placeNames), so the light only ever moves over names that could be drawn for that seat, and no name in view
+   * changes. The wall's own people come back for the next press, as setRows's do.
+   */
+  drawFrom(entries: DrawPoolEntry[]) {
+    const r = this.run;
+    if (!r || r.placed || r.halted || !entries.length) return;
+    r.group = entries;
+  }
+
+  /**
    * The press: the rows stand still and the tickets turn face down in a wave, their gold backs showing while the
    * server draws. Settles true when the light lands on someone (land), false when not (halt).
    */
@@ -1415,6 +1429,7 @@ export class WallStage {
         p0: this.p,
         up: Infinity,
         drawn: null,
+        group: null,
         placed: false,
         roll: null,
         roll0: Infinity,
@@ -1472,6 +1487,14 @@ export class WallStage {
    * into view and stop on, chosen at random. Unseen: every ticket shows its back.
    */
   private placeNames(r: Run, i: number) {
+    if (r.group) {
+      const drawn = this.rows[i];
+      if (!this.waiting) this.waiting = { entries: this.rows, gold: this.gold };
+      this.rows = r.group;
+      r.group = null;
+      if (drawn) i = this.ensure(drawn);
+      r.drawn = i;
+    }
     const n = this.rows.length;
     this.fillRows();
     const from = Math.floor(r.p0) - 1;

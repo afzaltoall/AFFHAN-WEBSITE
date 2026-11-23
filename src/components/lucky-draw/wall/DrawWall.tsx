@@ -4,8 +4,10 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Maximize2, Minimize2, Volume2, VolumeX } from "lucide-react";
 import {
   DRAW_SEATS,
+  inFirstGroup,
   nextPlace,
   roundFull,
+  seatFromFirstGroup,
   seatWords,
   type DrawBoard,
   type DrawCardPublic,
@@ -363,11 +365,19 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
       const words = placeWords(c);
       const stage = stageRef.current;
       if (running && stage) {
+        // Seats 1 to 3 of every round are drawn from the first 1,540 applications (the owner, 2026-11-23; Terms clause
+        // 3): the light moves over their names only, so it never passes anyone who could not be drawn for that seat.
+        const pool = poolRef.current;
+        if (seatFromFirstGroup(c.seat) && pool) stage.drawFrom(wallOf(pool, board.cards).entries.filter((e) => inFirstGroup(e[0])));
         stage.land(stage.ensure([c.tripId, c.name, c.city, c.country]));
         // Their gift and pass made while the names slow, so the stop itself is never held up.
         stage.prepare(c);
         await running;
-      } else stage?.restOn(c.tripId);
+      } else {
+        // Drawn elsewhere (the console): on the wall whichever names it holds now.
+        stage?.ensure([c.tripId, c.name, c.city, c.country]);
+        stage?.restOn(c.tripId);
+      }
       if (!live.current) return;
       setCard(c);
       setLabel(words);

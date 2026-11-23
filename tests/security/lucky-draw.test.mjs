@@ -9,7 +9,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { DRAW_SCREEN_MS, readDrawScreen, signDrawScreen } from "../../src/lib/draw-screen-token.ts";
 import { signTripApplicantToken } from "../../src/lib/trip-applicant-token.ts";
-import { TRIP_PRIVACY } from "../../src/lib/trip-legal.ts";
+import { TRIP_PRIVACY, TRIP_TERMS } from "../../src/lib/trip-legal.ts";
 
 const SECRET = "s".repeat(48);
 const NOW = 1_800_000_000_000;
@@ -152,24 +152,26 @@ test("who is in the draw: a valid passport, not spam or deleted, once per mobile
   assert.match(server, /SELECT count\(\*\)::int AS n FROM \(\$\{pool\(mode, false\)\}\) p/);
   assert.match(server, /if \(!isMissingTable\(e\)\) throw e;\s*ready = false;\s*\[cols\] = await prisma\.\$queryRaw<PoolArrays\[\]>\(poolArrays\(mode, false\)\);/);
   // The draw's own read of it never leaves anyone drawn in.
-  assert.match(server, /const poolTripIds = \(mode: DrawMode\) => Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) FROM \(\$\{pool\(mode\)\}\) p`;/);
+  // The Trip IDs a draw chooses from are the pool's, all of it or (seats 1 to 3, 2026-11-23) its first 1,540 only.
+  assert.match(server, /const poolTripIds = \(mode: DrawMode, first = false\) =>\s*first\s*\? Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) FROM \(\$\{pool\(mode\)\}\) p WHERE p\."referenceNo" BETWEEN \$\{FIRST_GROUP_FROM\} AND \$\{FIRST_GROUP_TO\}`\s*: Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) FROM \(\$\{pool\(mode\)\}\) p`;/);
 });
 
 test("a draw: one at a time under the draw's lock, once per press, chosen by the system's cryptographic random numbers", () => {
   const server = read("src/lib/server/lucky-draw.ts");
   const draw = /export async function drawOne[\s\S]*?\n\}/.exec(server)[0];
-  const lock = draw.indexOf("pg_advisory_xact_lock(hashtext('affhan-trip-lucky-draw'))");
+  assert.match(server, /const DRAW_LOCK = Prisma\.sql`SELECT 1 AS locked FROM pg_advisory_xact_lock\(hashtext\('affhan-trip-lucky-draw'\)\)`;/);
+  const lock = draw.indexOf("await tx.$queryRaw(DRAW_LOCK);");
   const again = draw.indexOf(`WHERE "requestId" = \${requestId}`);
   const choose = draw.indexOf("crypto.randomInt(everyone.length)");
   assert.ok(lock > 0 && again > lock && choose > again, "the lock, then the same press answered, then a choice");
   assert.doesNotMatch(draw, /Math\.random/);
-  // This press's draw and everyone in the draw, read together after the lock: a press already answered draws nobody.
-  assert.match(draw, /SELECT \(SELECT "id" FROM "TripDraw" WHERE "requestId" = \$\{requestId\} LIMIT 1\) AS "done", \(\$\{poolTripIds\(mode\)\}\) AS "tripIds"`;\s*if \(done\) return \{ ok: true, id: done, again: true \};/, "never anyone already drawn");
+  // This press's draw read after the lock: a press already answered draws nobody.
+  assert.match(draw, /SELECT \(SELECT "id" FROM "TripDraw" WHERE "requestId" = \$\{requestId\} LIMIT 1\) AS "done"`;\s*if \(done\) return \{ ok: true, id: done, again: true \};/, "never anyone already drawn");
   assert.match(draw, /const everyone = \(tripIds \?\? \[\]\)\.sort\(compareTripIds\);/, "in the list's own order");
   assert.match(draw, /createHash\("sha256"\)\.update\(everyone\.join\("\\n"\)\)/);
   assert.match(draw, /clock_timestamp\(\) AT TIME ZONE 'UTC'/, "dated after the lock, in the order drawn");
   // The application drawn is the one with the Trip ID chosen (Trip IDs are unique), exactly one, or nothing is written.
-  assert.match(draw, /FROM "TripApplication" a WHERE a\."referenceNo" = \$\{chosen\}`;\s*if \(made !== 1\) throw /);
+  assert.match(draw, /FROM "TripApplication" a WHERE a\."referenceNo" = \$\{chosen\}`;\s*if \(inserted !== 1\) throw /);
   assert.match(read(`${API}/draw/route.ts`), /const PRESS = \/\^\[0-9a-f\]\{8\}-/);
 });
 
@@ -209,7 +211,8 @@ test("the trip's Privacy Policy says what the draw's screen shows, and what it n
   assert.match(text, /each applicant's Trip ID, name, city and country/);
   assert.match(text, /Mobile numbers, identity documents and passport answers are never shown on it/);
   assert.equal(TRIP_PRIVACY.updated, "10 November 2026");
-  assert.match(fs.readFileSync(new URL("../../src/app/sitemap.ts", import.meta.url), "utf8"), /chinaTripLegal: '2026-11-10'/);
+  // The trip's legal pages' date in the sitemap: moved on 2026-11-23, when the Terms' clause 3 changed (below).
+  assert.match(fs.readFileSync(new URL("../../src/app/sitemap.ts", import.meta.url), "utf8"), /chinaTripLegal: '2026-11-23'/);
 });
 
 test("the console has its row, under Free China Trip", () => {
@@ -219,6 +222,42 @@ test("the console has its row, under Free China Trip", () => {
 
 // 2026-11-22, the owner, over a picture of the TV with "8,115 applicants in the draw" boxed: "dont show the number of
 // users in draw". Neither screen says how many are in the draw: not at rest, and not beside a draw just made.
+// 2026-11-23, the owner: seats 1 to 3 of every round from the first 1,540 applications, seats 4 and 5 from everyone,
+// stated in the Terms' clause 3 ("ok do"). The server works out the seat a press fills before choosing anyone, under
+// the draw's lock, which releases and restores now take too; the Terms say exactly what is done; and the TV's light
+// moves only over that group's names for those seats.
+test("seats 1–3 from the first 1,540 applications, seats 4–5 from everyone, exactly as the Terms say", () => {
+  const server = read("src/lib/server/lucky-draw.ts");
+  const draw = server.slice(server.indexOf("export async function drawOne("), server.indexOf("const DRAW_LOCK") > server.indexOf("export async function drawOne(") ? server.indexOf("const DRAW_LOCK") : server.indexOf("export async function releaseDraw("));
+  const lock = draw.indexOf("await tx.$queryRaw(DRAW_LOCK);");
+  const seat = draw.indexOf("const { seat } = seatOfNextDraw(");
+  const pool = draw.indexOf("${poolTripIds(mode, first)}");
+  assert.ok(lock > 0 && seat > lock && pool > seat, "the lock, then the seat, then the pool of that seat's group");
+  assert.match(draw, /const first = seatFromFirstGroup\(seat\);/);
+  assert.match(draw, /const poolHash = crypto\.createHash\("sha256"\)\.update\(everyone\.join\("\\n"\)\)\.digest\("hex"\);/, "the fingerprint is of the group drawn from");
+  assert.match(server, /p WHERE p\."referenceNo" BETWEEN \$\{FIRST_GROUP_FROM\} AND \$\{FIRST_GROUP_TO\}`/);
+  for (const name of ["releaseDraw", "restoreDraw"]) {
+    const fn = server.slice(server.indexOf(`export async function ${name}(`));
+    assert.match(fn.slice(0, 600), /await tx\.\$queryRaw\(DRAW_LOCK\);/, `${name} waits for a draw being made`);
+  }
+  const shared = read("src/lib/lucky-draw-shared.ts");
+  assert.match(shared, /export const FIRST_GROUP_SEATS = 3;/);
+  assert.match(shared, /export const FIRST_GROUP_FROM = "TRIP-26-00001";/);
+  assert.match(shared, /export const FIRST_GROUP_TO = "TRIP-26-01540";/);
+  // What the Terms say is what is done: three from the first 1,540, two from everyone, equal within each.
+  const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
+  assert.match(terms, /Three of the five places are drawn from the eligible applicants among the first 1,540 applications received \(12 to 29 October 2026\)\. The other two places are drawn from all eligible applicants\./);
+  assert.match(terms, /Within each of these draws, every eligible applicant has an equal chance of being selected\./);
+  assert.doesNotMatch(terms, /Every eligible applicant has an equal opportunity to be selected/);
+  assert.equal(TRIP_TERMS.updated, "23 November 2026");
+  // The TV: for seats 1 to 3 the light moves over the group's names only, swapped in while every ticket is face down.
+  const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  assert.match(wall, /if \(seatFromFirstGroup\(c\.seat\) && pool\) stage\.drawFrom\(wallOf\(pool, board\.cards\)\.entries\.filter\(\(e\) => inFirstGroup\(e\[0\]\)\)\);/);
+  const stage = read("src/components/lucky-draw/wall/stage.ts");
+  assert.match(stage, /private placeNames\(r: Run, i: number\) \{\s*if \(r\.group\) \{/);
+  assert.match(read(`${API}/draw/route.ts`), /if \(drawn\.reason === "empty_first"\)/);
+});
+
 test("the TV never says how many are in the draw", () => {
   const screen = read("src/components/lucky-draw/wall/DrawWall.tsx");
   assert.doesNotMatch(screen, /applicants|poolSize\)|count\.format|setListed|listed \?\?|inDraw|inList/);

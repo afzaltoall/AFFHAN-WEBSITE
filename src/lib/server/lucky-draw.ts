@@ -5,9 +5,13 @@ import { prisma } from "@/lib/prisma";
 import { applicationWindow } from "@/lib/trip-application";
 import {
   DRAW_SEATS,
+  FIRST_GROUP_FROM,
+  FIRST_GROUP_TO,
   compareTripIds,
   personName,
   seatDraws,
+  seatFromFirstGroup,
+  seatOfNextDraw,
   type DrawBoard,
   type DrawCardFull,
   type DrawCardPublic,
@@ -24,7 +28,10 @@ import {
  * Who is in the draw (the owner, 2026-11-10: "Only those with a valid passport"): applications that said yes to "Do you
  * have a valid passport?", not marked spam or deleted, one chance per person (one per mobile number: someone who
  * applied twice, through "Registered again", is in once, by their first application), and not already drawn in this
- * mode. An employee's link changes nothing (Terms clause 3).
+ * mode. An employee's link changes nothing (Terms clause 3). Seats 1 to 3 of every round are drawn only from those
+ * among the first 1,540 applications received (TRIP-26-00001 to TRIP-26-01540), seats 4 and 5 from everyone (the
+ * owner, 2026-11-23; Terms clause 3 says so): the seat a press will fill is worked out first (seatOfNextDraw), then
+ * the draw is made from its group, and the row's pool size and fingerprint are that group's.
  *
  * How one is drawn: in one transaction holding the draw's own lock (two presses at once are drawn one after the
  * other, never the same person twice), everyone in the draw is read and put in Trip ID order, one is chosen with the
@@ -63,8 +70,18 @@ const poolArrays = (mode: DrawMode, drawn = true) => Prisma.sql`
   SELECT array_agg(p."referenceNo") AS "tripIds", array_agg(p."fullName") AS "names", array_agg(p."city") AS "cities", array_agg(p."country") AS "countries"
   FROM (${pool(mode, drawn)}) p`;
 
-/** Everyone in the draw in `mode` now, as their Trip IDs alone, in one array: who they are is all a draw needs. */
-const poolTripIds = (mode: DrawMode) => Prisma.sql`SELECT array_agg(p."referenceNo") FROM (${pool(mode)}) p`;
+/**
+ * Everyone in the draw in `mode` now, as their Trip IDs alone, in one array: who they are is all a draw needs. `first`:
+ * only those among the first 1,540 applications (seats 1 to 3), by the Trip ID of their place in the draw (a person's
+ * first application, as the pool keeps it).
+ */
+const poolTripIds = (mode: DrawMode, first = false) =>
+  first
+    ? Prisma.sql`SELECT array_agg(p."referenceNo") FROM (${pool(mode)}) p WHERE p."referenceNo" BETWEEN ${FIRST_GROUP_FROM} AND ${FIRST_GROUP_TO}`
+    : Prisma.sql`SELECT array_agg(p."referenceNo") FROM (${pool(mode)}) p`;
+
+/** The draw's own lock: one draw at a time, and (2026-11-23) no release or restore while a draw is being made. */
+const DRAW_LOCK = Prisma.sql`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext('affhan-trip-lucky-draw'))`;
 
 /** The pool's arrays (null for none: array_agg over nobody). */
 interface PoolArrays {
@@ -209,7 +226,7 @@ export async function drawPool(mode: DrawMode): Promise<DrawPool> {
   return { size: entries.length, ready, entries };
 }
 
-export type DrawResult = { ok: true; id: string; again: boolean } | { ok: false; reason: "empty" | "not_ready" };
+export type DrawResult = { ok: true; id: string; again: boolean } | { ok: false; reason: "empty" | "empty_first" | "not_ready" };
 
 /**
  * One draw in `mode`, for the press `requestId` (the screen's own id for it): the same press sent again (its answer
@@ -220,27 +237,38 @@ export async function drawOne(mode: DrawMode, requestId: string, by: string): Pr
     return await prisma.$transaction(
       async (tx): Promise<DrawResult> => {
         // One draw at a time, wherever Draw is pressed: held until this transaction ends.
-        await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext('affhan-trip-lucky-draw'))`;
-        // In one statement after the lock (a trip to the database fewer, and it sees every draw made before it): this
-        // press's draw if it was made already, and everyone in the draw, by Trip ID (unique: one a person).
-        const [{ done, tripIds }] = await tx.$queryRaw<{ done: string | null; tripIds: string[] | null }[]>`
-          SELECT (SELECT "id" FROM "TripDraw" WHERE "requestId" = ${requestId} LIMIT 1) AS "done", (${poolTripIds(mode)}) AS "tripIds"`;
+        await tx.$queryRaw(DRAW_LOCK);
+        // After the lock (it sees every draw made before it): this press's draw if it was made already.
+        const [{ done }] = await tx.$queryRaw<{ done: string | null }[]>`
+          SELECT (SELECT "id" FROM "TripDraw" WHERE "requestId" = ${requestId} LIMIT 1) AS "done"`;
         if (done) return { ok: true, id: done, again: true };
-        // In the list's own order.
+        // The seat this draw will be seen in, the draws so far played as the board plays them with this one after them
+        // (releases wait for this lock, so none comes in between); seats 1 to 3 from the first 1,540 applications.
+        const made = await tx.$queryRaw<{ id: string; number: number; drawnAt: Date; releasedAt: Date | null; status: string }[]>`
+          SELECT d."id", d."number", d."drawnAt", d."releasedAt", a."status"
+          FROM "TripDraw" d JOIN "TripApplication" a ON a."id" = d."applicationId"
+          WHERE d."mode" = ${mode}`;
+        const { seat } = seatOfNextDraw(
+          made.map((r) => ({ id: r.id, number: r.number, drawnAt: iso(r.drawnAt)!, releasedAt: iso(r.releasedAt), removed: removed(r.status) })),
+          new Date().toISOString(),
+        );
+        const first = seatFromFirstGroup(seat);
+        const [{ tripIds }] = await tx.$queryRaw<{ tripIds: string[] | null }[]>`SELECT (${poolTripIds(mode, first)}) AS "tripIds"`;
+        // Everyone this seat is drawn from (unique: one a person), in the list's own order.
         const everyone = (tripIds ?? []).sort(compareTripIds);
-        if (!everyone.length) return { ok: false, reason: "empty" };
+        if (!everyone.length) return { ok: false, reason: first ? "empty_first" : "empty" };
         const poolHash = crypto.createHash("sha256").update(everyone.join("\n")).digest("hex");
         const chosen = everyone[crypto.randomInt(everyone.length)];
         const id = crypto.randomUUID();
         // The application with the Trip ID chosen, numbered after the mode's last draw, in one statement (a trip to the
         // database fewer). Dated now, after the lock (never the transaction's start, now(), which a press that waited
         // for the lock would date before the draw it waited for): draws are dated in the order they were made.
-        const made = await tx.$executeRaw`
+        const inserted = await tx.$executeRaw`
           INSERT INTO "TripDraw" ("id", "mode", "number", "applicationId", "drawnAt", "drawnBy", "poolSize", "poolHash", "requestId")
           SELECT ${id}, ${mode}, (SELECT COALESCE(MAX(d."number"), 0) + 1 FROM "TripDraw" d WHERE d."mode" = ${mode}), a."id",
                  clock_timestamp() AT TIME ZONE 'UTC', ${by}, ${everyone.length}, ${poolHash}, ${requestId}
           FROM "TripApplication" a WHERE a."referenceNo" = ${chosen}`;
-        if (made !== 1) throw new Error(`the Trip ID drawn, ${chosen}, is not one application`);
+        if (inserted !== 1) throw new Error(`the Trip ID drawn, ${chosen}, is not one application`);
         return { ok: true, id, again: false };
       },
       { maxWait: 10_000, timeout: 20_000 },
@@ -251,19 +279,35 @@ export async function drawOne(mode: DrawMode, requestId: string, by: string): Pr
   }
 }
 
-/** Someone drawn can't take part: released, with who and why. Their seat opens, and the next draw fills it first. */
+/**
+ * Someone drawn can't take part: released, with who and why. Their seat opens, and the next draw fills it first. Under
+ * the draw's lock (2026-11-23), so a draw works out the seat it takes (seatOfNextDraw) with nothing changing under it,
+ * and seats 1 to 3 are always drawn from their group.
+ */
 export async function releaseDraw(id: string, by: string, note: string | null): Promise<boolean> {
-  const n = await prisma.$executeRaw`
-    UPDATE "TripDraw" SET "releasedAt" = clock_timestamp() AT TIME ZONE 'UTC', "releasedBy" = ${by}, "releaseNote" = ${note}
-    WHERE "id" = ${id} AND "releasedAt" IS NULL`;
+  const n = await prisma.$transaction(
+    async (tx) => {
+      await tx.$queryRaw(DRAW_LOCK);
+      return tx.$executeRaw`
+        UPDATE "TripDraw" SET "releasedAt" = clock_timestamp() AT TIME ZONE 'UTC', "releasedBy" = ${by}, "releaseNote" = ${note}
+        WHERE "id" = ${id} AND "releasedAt" IS NULL`;
+    },
+    { maxWait: 10_000, timeout: 20_000 },
+  );
   return n > 0;
 }
 
-/** A release undone (made by mistake): as if it had never happened (seatDraws plays the draws again without it). */
+/** A release undone (made by mistake): as if it had never happened (seatDraws plays the draws again without it). Under the draw's lock. */
 export async function restoreDraw(id: string): Promise<boolean> {
-  const n = await prisma.$executeRaw`
-    UPDATE "TripDraw" SET "releasedAt" = NULL, "releasedBy" = NULL, "releaseNote" = NULL
-    WHERE "id" = ${id} AND "releasedAt" IS NOT NULL`;
+  const n = await prisma.$transaction(
+    async (tx) => {
+      await tx.$queryRaw(DRAW_LOCK);
+      return tx.$executeRaw`
+        UPDATE "TripDraw" SET "releasedAt" = NULL, "releasedBy" = NULL, "releaseNote" = NULL
+        WHERE "id" = ${id} AND "releasedAt" IS NOT NULL`;
+    },
+    { maxWait: 10_000, timeout: 20_000 },
+  );
   return n > 0;
 }
 

@@ -35,6 +35,8 @@ export async function POST(req: Request) {
     const drawn = await drawOne(mode, body.requestId.toLowerCase(), by);
     if (!drawn.ok) {
       if (drawn.reason === "empty") return NextResponse.json({ error: "Everyone in the draw has been drawn.", reason: "empty" }, { status: 409 });
+      // Seats 1 to 3 are drawn from the first 1,540 applications (Terms clause 3): when all of those have been drawn.
+      if (drawn.reason === "empty_first") return NextResponse.json({ error: "Everyone among the first 1,540 applications has been drawn.", reason: "empty_first" }, { status: 409 });
       return NextResponse.json({ error: "The draw is not set up on this database yet.", reason: "not_ready" }, { status: 503 });
     }
     if (!drawn.again) console.info(`[lucky-draw] ${mode} draw by ${by}`);

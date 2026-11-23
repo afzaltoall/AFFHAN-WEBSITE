@@ -96,6 +96,21 @@ export interface DrawPool {
 /** Trip IDs in the order the draw puts everyone in (plain character order: TRIP-26-00001 before TRIP-26-00002). */
 export const compareTripIds = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
+/**
+ * Seats 1 to 3 of every round are drawn from the eligible applicants among the first 1,540 applications received
+ * (TRIP-26-00001 to TRIP-26-01540: 12 to 29 October 2026, while signing in was required), seats 4 and 5 from everyone
+ * in the draw (the owner, 2026-11-23; the trip's Terms, section 3, say so in those words). The numbers run without a
+ * gap and in the order the applications came (checked on the live database the same day), so "the first 1,540" is
+ * exactly this range. Within each, every one is equally likely, as before.
+ */
+export const FIRST_GROUP_SEATS = 3;
+export const FIRST_GROUP_FROM = "TRIP-26-00001";
+export const FIRST_GROUP_TO = "TRIP-26-01540";
+/** Whether a seat (counted from 1) is drawn from the first 1,540 applications only. */
+export const seatFromFirstGroup = (seat: number | null | undefined): boolean => !!seat && seat >= 1 && seat <= FIRST_GROUP_SEATS;
+/** Whether a Trip ID is one of the first 1,540 applications. */
+export const inFirstGroup = (tripId: string): boolean => compareTripIds(tripId, FIRST_GROUP_FROM) >= 0 && compareTripIds(tripId, FIRST_GROUP_TO) <= 0;
+
 export interface Seating {
   /** Every round's five seats, round 1 first; the last is the current round. */
   rounds: (string | null)[][];
@@ -155,6 +170,22 @@ export function seatDraws(
     seatOf[s.id] = null;
   }
   return { rounds, roundOf, seatOf, out };
+}
+
+/**
+ * The seat a draw made now takes: the draws so far played as the board plays them (seatDraws), with one more after
+ * them, so it is exactly the seat it will be seen in. (Not nextPlace's guess from the board: an application marked spam
+ * or deleted lets go of its seat only after every draw, so a draw made now never takes that seat.) `at`: now, ISO.
+ */
+export function seatOfNextDraw(
+  draws: readonly { id: string; number: number; drawnAt: string; releasedAt: string | null; removed?: boolean }[],
+  at: string,
+  seats: number = DRAW_SEATS,
+): { round: number; seat: number } {
+  const next = "next-draw";
+  const number = draws.reduce((m, d) => Math.max(m, d.number), 0) + 1;
+  const seating = seatDraws([...draws, { id: next, number, drawnAt: at, releasedAt: null }], seats);
+  return { round: seating.roundOf[next] ?? 1, seat: seating.seatOf[next] ?? 1 };
 }
 
 /** Where the next draw goes: the first open seat of the current round, or seat 1 of the next round once all are taken. */

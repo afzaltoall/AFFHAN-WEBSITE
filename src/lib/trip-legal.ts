@@ -86,7 +86,7 @@ const EMAIL = "info@affhan.com";
  */
 export const TRIP_TERMS: LegalDoc = {
   heading: ["AFFHAN Free China Business Trip", "Terms & Conditions"],
-  updated: "8 November 2026",
+  updated: "23 November 2026",
   intro: [
     "These Terms & Conditions explain the rules for applying to and participating in the Affhan Free China Business Trip organised by AFFHAN INTERNATIONAL PVT LTD.",
     "By submitting an application, you confirm that you have read, understood, and agreed to these Terms & Conditions.",
@@ -126,12 +126,13 @@ export const TRIP_TERMS: LegalDoc = {
       blocks: [
         p("All applications are first checked for eligibility."),
         p("Only valid and eligible applicants are entered into the final selection pool."),
-        p("Every eligible applicant has an equal opportunity to be selected."),
+        p("Three of the five places are drawn from the eligible applicants among the first 1,540 applications received (12 to 29 October 2026). The other two places are drawn from all eligible applicants."),
+        p("Within each of these draws, every eligible applicant has an equal chance of being selected."),
         p("Applying through a link shared by a member of the Affhan team does not change an applicant's chance of being selected."),
         p("The five winners are selected through a digital random-selection process."),
         p("The final eligible applicant list is entered into an automated random-selection system and randomly shuffled."),
-        p("The system does not rank applicants or decide who is better. It randomly selects five applicants from the eligible pool."),
-        p("Affhan may also select reserve applicants through the same random-selection process."),
+        p("The system does not rank applicants or decide who is better. It randomly selects the five applicants as described above."),
+        p("Affhan may also select reserve applicants through the same random-selection process, in the same way."),
         p("A selected applicant becomes a confirmed winner only after completing the required verification."),
       ],
     },
