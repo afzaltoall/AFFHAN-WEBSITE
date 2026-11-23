@@ -145,8 +145,13 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   const openDuplicates = (employeeId: string | null) => {
     setAsked(null);
     window.history.pushState(null, "", `/admin/trip-referrals/?view=duplicates${employeeId ? `&who=${encodeURIComponent(employeeId)}` : ""}`);
-    window.scrollTo({ top: 0 });
   };
+  // Opened from further down (a row's "to check", Mark paid's "Check them first"): the list's top brought into view.
+  useEffect(() => {
+    if (!showingDuplicates) return;
+    const list = document.getElementById("duplicates-title")?.closest("section");
+    if (list && list.getBoundingClientRect().top < 0) list.scrollIntoView({ block: "start" });
+  }, [showingDuplicates, dupesFor]);
   const closeDuplicates = () => window.history.pushState(null, "", "/admin/trip-referrals/");
   const toCheckOf = (employeeId: string) => dupes?.byEmployee[employeeId] ?? 0;
   /** A decision from the Duplicates list: written, shown at once, then everything read again. */
@@ -476,7 +481,10 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
             >
               Duplicates
               {dupes && (
-                <span className={`tabular-nums ${dupes.toCheck.people ? "font-semibold text-amber-800" : "text-[#86868b]"}`}>{dupes.toCheck.people}</span>
+                <>
+                  {" "}
+                  <span className={`tabular-nums ${dupes.toCheck.people ? "font-semibold text-amber-800" : "text-[#86868b]"}`}>{dupes.toCheck.people}</span>
+                </>
               )}
             </button>
             <button type="button" onClick={() => setAdding(true)} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>

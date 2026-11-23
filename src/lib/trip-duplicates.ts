@@ -9,9 +9,9 @@
  *    only finds what slipped past that rule (none on 2026-11-23);
  *  - the same ID file: byte for byte the same photo or PDF on both, by S3's own checksum. On 2026-11-23 24 files were on
  *    two applications each, 23 of them from one employee a few minutes apart, every time with a different number;
- *  - the same name in the same city, as typed, with case, accents, dots, spacing and the order of the words aside.
- *    Different people share names, so this one is for the team to look at (the ID proofs side by side), never decided
- *    by itself.
+ *  - the same name in the same city, as typed, with case, accents and dots aside, and either the order of the words
+ *    ("Ali Mohamed", "Mohamed Ali") or the spaces between them ("Abdul Rahman", "Abdulrahman") too. Different people
+ *    share names, so this one is for the team to look at (the ID proofs side by side), never decided by itself.
  * Applications joined by any chain of these are one group. Spam and deleted applications are in none: they count for
  * nothing. A group with no application through a link is left out: nobody is paid for it.
  *
@@ -67,16 +67,26 @@ export interface DuplicateGroup {
   numbersOneDigitApart: boolean;
 }
 
-/** A name as names are compared: its words in any order, with case, accents, dots and spacing aside. "" when none. */
-export function nameKey(name: string): string {
-  return (name || "")
+/** A name's words, lower case, without accents, dots or anything else that is not a letter. */
+const nameWords = (name: string) =>
+  (name || "")
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .toLowerCase()
     .split(/[^\p{L}]+/u)
-    .filter(Boolean)
-    .sort()
-    .join("");
+    .filter(Boolean);
+
+/** A name as names are compared, its words in any order ("Ali Mohamed" is "Mohamed Ali"). "" when none. */
+export function nameKey(name: string): string {
+  return nameWords(name).sort().join("");
+}
+
+/**
+ * The same name's letters in the order typed, the spaces aside ("Mohamed Abdul Rahman" is "Mohamed Abdulrahman", which
+ * the words in any order miss: "abdul" and "rahman" sort apart round "mohamed"). Two names join on either. "" when none.
+ */
+export function nameLetters(name: string): string {
+  return nameWords(name).join("");
 }
 
 /** A city as cities are compared: its letters, with case, accents and spacing aside. "" when none. */
@@ -156,16 +166,18 @@ export function duplicateGroups(apps: readonly DuplicateCandidate[], files: read
     ),
     "file",
   );
-  join(
-    bucket(
-      live.flatMap((a, i): [string, number][] => {
-        const n = nameKey(a.fullName);
-        const c = cityKey(a.city);
-        return n && c ? [[`${n}|${c}`, i]] : [];
-      }),
-    ),
-    "name",
-  );
+  for (const key of [nameKey, nameLetters]) {
+    join(
+      bucket(
+        live.flatMap((a, i): [string, number][] => {
+          const n = key(a.fullName);
+          const c = cityKey(a.city);
+          return n && c ? [[`${n}|${c}`, i]] : [];
+        }),
+      ),
+      "name",
+    );
+  }
 
   const members = new Map<number, number[]>();
   for (let i = 0; i < live.length; i++) {

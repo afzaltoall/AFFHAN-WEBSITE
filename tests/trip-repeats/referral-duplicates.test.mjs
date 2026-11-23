@@ -4,7 +4,7 @@
 //   node --import ./tests/helpers/server-modules.mjs --test "tests/trip-repeats/*.test.mjs"
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { apartLabel, cityKey, duplicateGroups, nameKey, oneDigitApart, stillToCheck } from "@/lib/trip-duplicates";
+import { apartLabel, cityKey, duplicateGroups, nameKey, nameLetters, oneDigitApart, stillToCheck } from "@/lib/trip-duplicates";
 
 let seq = 0;
 /** A word of its own for each number (names are compared by their letters only, so "Person 1" and "Person 2" match). */
@@ -42,6 +42,26 @@ test("a name is compared without case, accents, dots, spacing or the order of it
   assert.equal(cityKey(" Chennai "), cityKey("CHENNAI"));
   assert.equal(cityKey("Navi Mumbai"), cityKey("navi-mumbai"));
   assert.equal(cityKey(""), "");
+});
+
+test("names join on either: the words in any order, or the letters in order with the spaces aside", () => {
+  assert.equal(nameLetters("Mohamed Abdul Rahman"), nameLetters("mohamed abdulrahman"));
+  assert.notEqual(nameKey("Mohamed Abdul Rahman"), nameKey("Mohamed Abdulrahman"), "the words sorted miss this one");
+  const a = app({ fullName: "Mohamed Abdul Rahman", city: "Vellore" });
+  const b = app({ fullName: "Mohamed Abdulrahman", city: "vellore" });
+  const c = app({ fullName: "Abdul Rahman Mohamed", city: "Vellore" });
+  const [g] = duplicateGroups([a, b, c], []);
+  assert.deepEqual(g.ids, [a.id, b.id, c.id], "b by its letters, c by its words, one group");
+  assert.deepEqual(g.reasons, ["name"]);
+  // Both changed at once, where sorting the words cannot help (another order and other spaces): not joined; the same
+  // ID file still would.
+  const d = app({ fullName: "Rahman Abdul Kader", city: "Ooty" });
+  const e = app({ fullName: "Kader Abdulrahman", city: "Ooty" });
+  assert.deepEqual(duplicateGroups([d, e], []), []);
+  // Where sorting does help, it joins them.
+  const f = app({ fullName: "Rahman Abdul Salam", city: "Hosur" });
+  const g2 = app({ fullName: "Salam Abdulrahman", city: "Hosur" });
+  assert.equal(duplicateGroups([f, g2], []).length, 1);
 });
 
 test("nobody alike: no group", () => {
