@@ -79,6 +79,57 @@ export async function checkDocuments(keys: string[]): Promise<DocumentCheck[]> {
   );
 }
 
+/** Checksums already asked, by document id: a file under its key never changes, so neither does its checksum. */
+const checksumCache = new Map<string, string>();
+
+/**
+ * Which ID files are byte for byte the same (Employee tasks → Duplicates, 2026-11-23: one ID sent with two applications
+ * is one person counted twice, or somebody's ID on somebody else's application). S3's own checksum (the ETag: the MD5
+ * of a file uploaded in one piece, as every one here is), with the size, asked only of files whose type and size match
+ * a file of another application, so a few dozen HEADs where there are thousands of files, and each remembered. HEAD
+ * only: no file is read. A file S3 does not answer for (five seconds) is left out and counted, never guessed.
+ */
+export async function documentChecksums(
+  docs: readonly { id: string; applicationId: string; key: string; contentType: string; size: number | null }[],
+): Promise<{ checksums: Map<string, string>; unchecked: number }> {
+  const alike = new Map<string, (typeof docs)[number][]>();
+  for (const d of docs) {
+    if (d.size == null) continue;
+    const k = `${d.contentType}|${d.size}`;
+    const list = alike.get(k);
+    if (list) list.push(d);
+    else alike.set(k, [d]);
+  }
+  const wanted = [...alike.values()].filter((list) => new Set(list.map((d) => d.applicationId)).size > 1).flat();
+  const checksums = new Map<string, string>();
+  const queue = wanted.filter((d) => {
+    const known = checksumCache.get(d.id);
+    if (known) checksums.set(d.id, known);
+    return !known;
+  });
+  if (documentStorageProblem()) return { checksums, unchecked: queue.length };
+  let unchecked = 0;
+  const worker = async () => {
+    for (let d = queue.shift(); d; d = queue.shift()) {
+      try {
+        const head = await s3.send(new HeadObjectCommand({ Bucket: DOCUMENTS_BUCKET, Key: d.key }), { abortSignal: AbortSignal.timeout(5000) });
+        const etag = head.ETag?.replace(/"/g, "");
+        if (!etag) {
+          unchecked++;
+          continue;
+        }
+        const sum = `${d.size}:${etag}`;
+        checksumCache.set(d.id, sum);
+        checksums.set(d.id, sum);
+      } catch {
+        unchecked++;
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(12, queue.length) }, worker));
+  return { checksums, unchecked };
+}
+
 /**
  * A link to one file, good for a minute, shown in the browser (never downloaded as an attachment) and never kept in
  * its cache (2026-11-04: it was five minutes, and cached): the browser follows it the moment the console asks, so a

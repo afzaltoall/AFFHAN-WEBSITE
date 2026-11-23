@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, CheckSquare, Copy, Download, RefreshCw, Search, Square, Trash2, UserPlus, X } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
 import { CargoDatePicker } from "@/components/cargo/CargoDatePicker";
 import { TripDocuments } from "@/components/admin/TripApplicationsBoard";
 import { IdProofLockLine } from "@/components/admin/IdProofLock";
+import { ReferralDuplicates, decidedLocally, duplicateNotes } from "@/components/admin/ReferralDuplicates";
 import type { ReferralBoardRow, ReferralPayoutView, ReferralSettings, ReferralTotals, ReferredApplication } from "@/lib/server/trip-referrals";
+import type { DuplicatesView } from "@/lib/server/trip-duplicates";
 import { REFERRAL_CODE_MAX, REFERRAL_CODE_MIN, istDate, istLastDay, normalizeReferralCode, referralLink, referralWaiting, rupees } from "@/lib/trip-referral-shared";
 
 /**
@@ -107,6 +109,52 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
   };
   const shownRow = shownId ? (rows.find((r) => r.employeeId === shownId) ?? null) : null;
   const shownDetail = detail && detail.employeeId === shownId ? detail : null;
+
+  // Duplicates (the owner, 2026-11-23: "duplicate click pana evalo peru same users ... real money employees kuduka
+  // porom"): read beside the board once it is on screen, and again whenever the board is read again (a decision, a
+  // payment, Refresh), so the count on the button, each employee's "to check" and Mark paid's warning are never older
+  // than what the board shows. The list itself opens in the page's place with ?view=duplicates (&who=<employee> for
+  // one employee's), moved with the address alone, so opening it asks the server for nothing.
+  const [dupes, setDupes] = useState<DuplicatesView | null>(null);
+  const [dupesFailed, setDupesFailed] = useState(false);
+  const [dupesReading, setDupesReading] = useState(true);
+  const [dupesAsked, setDupesAsked] = useState(0);
+  useEffect(() => {
+    const ctl = new AbortController();
+    setDupesReading(true);
+    fetch("/api/admin/trip-referrals/duplicates/", { cache: "no-store", signal: ctl.signal })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const read = (await res.json()) as DuplicatesView;
+        if (ctl.signal.aborted) return;
+        setDupes(read);
+        setDupesFailed(false);
+      })
+      .catch(() => {
+        if (!ctl.signal.aborted) setDupesFailed(true);
+      })
+      .finally(() => {
+        if (!ctl.signal.aborted) setDupesReading(false);
+      });
+    return () => ctl.abort();
+  }, [rows, dupesAsked]);
+  const params = useSearchParams();
+  const showingDuplicates = params.get("view") === "duplicates";
+  const dupesFor = params.get("who");
+  const dupesEmployee = dupesFor ? (rows.find((r) => r.employeeId === dupesFor) ?? null) : null;
+  const openDuplicates = (employeeId: string | null) => {
+    setAsked(null);
+    window.history.pushState(null, "", `/admin/trip-referrals/?view=duplicates${employeeId ? `&who=${encodeURIComponent(employeeId)}` : ""}`);
+    window.scrollTo({ top: 0 });
+  };
+  const closeDuplicates = () => window.history.pushState(null, "", "/admin/trip-referrals/");
+  const toCheckOf = (employeeId: string) => dupes?.byEmployee[employeeId] ?? 0;
+  /** A decision from the Duplicates list: written, shown at once, then everything read again. */
+  const decideDuplicates = async (ids: string[], state: "counted" | "not_counted") => {
+    const saved = await run(() => send("/api/admin/trip-referrals/decide/", { ids, state }));
+    if (saved) setDupes((d) => (d ? decidedLocally(d, ids, state) : d));
+    return saved;
+  };
   const allTicked = shownRows.length > 0 && ticked.length === shownRows.length;
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -270,7 +318,12 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
     setExporting(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/trip-referrals/export/", { cache: "no-store" });
+      // The duplicates read now with the list (2026-11-23), so the sheet says what the page would; a check that cannot be
+      // read says so in its column rather than leaving it blank, which would read as "no duplicate".
+      const [res, dupRes] = await Promise.all([
+        fetch("/api/admin/trip-referrals/export/", { cache: "no-store" }),
+        fetch("/api/admin/trip-referrals/duplicates/", { cache: "no-store" }).catch(() => null),
+      ]);
       if (!res.ok) throw new Error();
       const { referrals } = (await res.json()) as {
         referrals: Array<{
@@ -278,18 +331,23 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
           status: string; notVerified: boolean; referralState: string | null; points: number | null; paid: boolean; decidedBy: string | null;
         }>;
       };
+      const dup = dupRes?.ok ? ((await dupRes.json().catch(() => null)) as DuplicatesView | null) : null;
+      const notes = dup ? duplicateNotes(dup) : null;
       const XLSX = await import("xlsx");
       const wb = XLSX.utils.book_new();
       const people = [
-        ["Employee", "Email", "Account", "Code", "Applied through the link", "Counted", "Not counted", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
-        ...rows.map((r) => [r.name, r.email, accountLabel(r.job), r.code ?? "", r.referred, r.counted, r.notCounted, r.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No"]),
+        ["Employee", "Email", "Account", "Code", "Applied through the link", "Counted", "Not counted", "Duplicates to check", "Target", "Points", "Earned (₹)", "Paid (₹)", "To pay (₹)", "Still with AFFHAN"],
+        ...rows.map((r) => [
+          r.name, r.email, accountLabel(r.job), r.code ?? "", r.referred, r.counted, r.notCounted, dup ? (dup.byEmployee[r.employeeId] ?? 0) : "Not checked",
+          r.target, r.points, r.paidRupees + r.unpaidRupees, r.paidRupees, r.unpaidRupees, r.isActive ? "Yes" : "No",
+        ]),
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(people), "Employees");
-      const head = ["Trip ID", "Applied", "Name", "Mobile", "Country", "City", "Code", "Employee", "Office status", "Not verified", "Referral", "Points", "Paid", "Decided by"];
+      const head = ["Trip ID", "Applied", "Name", "Mobile", "Country", "City", "Code", "Employee", "Office status", "Not verified", "Referral", "Points", "Paid", "Decided by", "Duplicate check"];
       const lines = referrals.map((a) => [
         a.referenceNo, fmtDate(a.createdAt), a.fullName, a.phone, a.country, a.city, a.code ?? "", a.employee, a.status, a.notVerified ? "Yes" : "",
         a.paid ? "Paid" : a.status === "spam" ? "Spam" : a.referralState === "counted" ? "Counted" : a.referralState === "waiting" ? "Waiting" : "Not counted",
-        a.points ?? 0, a.paid ? "Yes" : "", a.decidedBy ?? "",
+        a.points ?? 0, a.paid ? "Yes" : "", a.decidedBy ?? "", notes ? (notes.get(a.referenceNo) ?? "") : "Not checked",
       ]);
       const ws = XLSX.utils.aoa_to_sheet([head, ...lines]);
       // Mobile numbers as text, or Excel shows 919876543210 as 9.19E+11.
@@ -379,6 +437,19 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
           ))}
         </dl>
 
+        {showingDuplicates ? (
+          <ReferralDuplicates
+            data={dupes}
+            failed={dupesFailed}
+            reading={dupesReading}
+            busy={busy}
+            employee={dupesFor ? { id: dupesFor, name: dupesEmployee?.name ?? "One employee" } : null}
+            onClearEmployee={() => openDuplicates(null)}
+            onBack={closeDuplicates}
+            onRetry={() => setDupesAsked((n) => n + 1)}
+            onDecide={decideDuplicates}
+          />
+        ) : (
         <section className={`overflow-hidden ${card}`}>
           <div className="flex flex-wrap items-center gap-3 border-b border-black/[0.06] px-5 py-2.5">
             <h2 className="text-[15px] font-semibold">Employees</h2>
@@ -397,7 +468,18 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                 />
               </label>
             )}
-            <button type="button" onClick={() => setAdding(true)} className={`${pillButton} ml-auto bg-[#1d1d1f] text-white hover:bg-black`}>
+            <button
+              type="button"
+              onClick={() => openDuplicates(null)}
+              title={dupes ? `${dupes.toCheck.people} ${dupes.toCheck.people === 1 ? "person" : "people"} may have applied more than once` : undefined}
+              className={`${pillButton} ml-auto bg-white hover:bg-black/[0.03]`}
+            >
+              Duplicates
+              {dupes && (
+                <span className={`tabular-nums ${dupes.toCheck.people ? "font-semibold text-amber-800" : "text-[#86868b]"}`}>{dupes.toCheck.people}</span>
+              )}
+            </button>
+            <button type="button" onClick={() => setAdding(true)} className={`${pillButton} bg-[#1d1d1f] text-white hover:bg-black`}>
               <UserPlus size={14} /> Add employee
             </button>
           </div>
@@ -520,7 +602,23 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
                           </button>
                         </td>
                         <td className="px-3 py-3 text-right tabular-nums">{r.referred}</td>
-                        <td className="px-3 py-3 text-right font-semibold tabular-nums">{r.counted}</td>
+                        <td className="px-3 py-3 text-right font-semibold tabular-nums">
+                          {r.counted}
+                          {toCheckOf(r.employeeId) > 0 && (
+                            <a
+                              href={`/admin/trip-referrals/?view=duplicates&who=${r.employeeId}`}
+                              onClick={(e) => {
+                                if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                                e.preventDefault();
+                                openDuplicates(r.employeeId);
+                              }}
+                              aria-label={`${r.name}: ${toCheckOf(r.employeeId)} to check in Duplicates`}
+                              className="block whitespace-nowrap text-[11.5px] font-medium text-amber-800 hover:underline"
+                            >
+                              {toCheckOf(r.employeeId)} to check
+                            </a>
+                          )}
+                        </td>
                         <td className="px-3 py-3">
                           <span className="tabular-nums">{r.target.toLocaleString("en-IN")}</span>
                           <button
@@ -572,7 +670,7 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
             </div>
           )}
         </section>
-
+        )}
       </div>
 
       {shownRow && (
@@ -584,6 +682,8 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
           onClose={() => openEmployee(null)}
           onDecide={(ids, state) => run(() => send("/api/admin/trip-referrals/decide/", { ids, state }))}
           onPay={() => setPaying(shownRow)}
+          toCheck={toCheckOf(shownRow.employeeId)}
+          onCheck={() => openDuplicates(shownRow.employeeId)}
           onChangeCode={() => setEditingCode({ employeeId: shownRow.employeeId, name: shownRow.name, code: shownDetail?.code ?? shownRow.code })}
           onChangeTarget={() => setEditingTarget(targetFor(shownRow))}
           onChangeAccount={() => setChangingAccount([shownRow])}
@@ -600,6 +700,11 @@ export function TripReferralsBoard({ settings, rows, detail }: { settings: Refer
         <PayWindow
           row={paying}
           busy={busy}
+          check={dupes ? { state: "ok", toCheck: toCheckOf(paying.employeeId) } : dupesFailed ? { state: "failed" } : { state: "checking" }}
+          onCheck={() => {
+            setPaying(null);
+            openDuplicates(paying.employeeId);
+          }}
           onCancel={() => setPaying(null)}
           onConfirm={async (note) => {
             if (await run(() => send("/api/admin/trip-referrals/pay/", { employeeId: paying.employeeId, note }))) setPaying(null);
@@ -716,6 +821,8 @@ function EmployeePanel({
   onChangeCode,
   onChangeTarget,
   onChangeAccount,
+  toCheck,
+  onCheck,
 }: {
   row: ReferralBoardRow;
   /** Null while their applications are being read. */
@@ -726,6 +833,9 @@ function EmployeePanel({
   onClose: () => void;
   onDecide: (ids: string[], state: "waiting" | "counted" | "not_counted") => Promise<boolean>;
   onPay: () => void;
+  /** Their applications that may be someone counted twice, still to decide in Duplicates (2026-11-23). */
+  toCheck: number;
+  onCheck: () => void;
   onChangeCode: () => void;
   onChangeTarget: () => void;
   onChangeAccount: () => void;
@@ -792,8 +902,13 @@ function EmployeePanel({
             ))}
           </dl>
 
-          {(waitingIds.length > 0 || row.unpaid > 0) && (
+          {(waitingIds.length > 0 || row.unpaid > 0 || toCheck > 0) && (
             <div className="mt-4 flex flex-wrap gap-2">
+              {toCheck > 0 && (
+                <button type="button" onClick={onCheck} className={`${pillButton} bg-amber-500/10 text-amber-800 ring-amber-500/25 hover:bg-amber-500/15`}>
+                  {toCheck} to check in Duplicates
+                </button>
+              )}
               {waitingIds.length > 0 && (
                 <button type="button" disabled={busy} onClick={() => void onDecide(waitingIds, "counted")} className={`${pillButton} bg-emerald-600 text-white hover:bg-emerald-700`}>
                   Count all waiting ({waitingIds.length})
@@ -916,9 +1031,31 @@ function ReferralActions({ a, busy, onDecide }: { a: ReferredApplication; busy: 
   );
 }
 
-/** Mark paid, asked in the console's own window: what it pays, for how many, and an optional note. */
-function PayWindow({ row, busy, onCancel, onConfirm }: { row: ReferralBoardRow; busy: boolean; onCancel: () => void; onConfirm: (note: string) => Promise<void> }) {
+/** Whether the employee being paid has applications that may be someone counted twice (Duplicates, 2026-11-23). */
+type PayCheck = { state: "checking" } | { state: "failed" } | { state: "ok"; toCheck: number };
+
+/**
+ * Mark paid, asked in the console's own window: what it pays, for how many, and an optional note. Real money (the owner,
+ * 2026-11-23: "we have to be more careful"): while their duplicates are being checked it waits; with some still to
+ * check it says how many and offers to check them first, and paying is "Pay anyway", the admin's own choice.
+ */
+function PayWindow({
+  row,
+  busy,
+  check,
+  onCheck,
+  onCancel,
+  onConfirm,
+}: {
+  row: ReferralBoardRow;
+  busy: boolean;
+  check: PayCheck;
+  onCheck: () => void;
+  onCancel: () => void;
+  onConfirm: (note: string) => Promise<void>;
+}) {
   const [note, setNote] = useState("");
+  const doubtful = check.state === "failed" || (check.state === "ok" && check.toCheck > 0);
   const cancel = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     cancel.current?.focus();
@@ -941,6 +1078,26 @@ function PayWindow({ row, busy, onCancel, onConfirm }: { row: ReferralBoardRow; 
         <p className="mt-1 text-[13px] text-[#48484a]">
           For {row.unpaid} counted {row.unpaid === 1 ? "referral" : "referrals"} not yet paid. It is recorded with your name and today&apos;s date.
         </p>
+        {check.state === "checking" && (
+          <p role="status" className="mt-3 text-[13px] text-[#6e6e73]">
+            Checking for duplicates…
+          </p>
+        )}
+        {check.state === "failed" && (
+          <p role="alert" className="mt-3 rounded-xl bg-amber-500/10 px-3.5 py-2.5 text-[13px] font-medium text-amber-800">
+            Duplicates could not be checked just now.
+          </p>
+        )}
+        {check.state === "ok" && check.toCheck > 0 && (
+          <div role="alert" className="mt-3 rounded-xl bg-amber-500/10 px-3.5 py-2.5 text-[13px] text-amber-800">
+            <p className="font-semibold">
+              {check.toCheck === 1 ? "1 of these may be someone counted twice." : `${check.toCheck} of these may be someone counted twice.`}
+            </p>
+            <button type="button" onClick={onCheck} disabled={busy} className="mt-1 font-semibold underline underline-offset-2">
+              Check {check.toCheck === 1 ? "it" : "them"} first
+            </button>
+          </div>
+        )}
         <label className="mt-4 block text-[13px] font-medium">
           Note <span className="font-normal text-[#86868b]">(optional)</span>
           <input
@@ -954,8 +1111,13 @@ function PayWindow({ row, busy, onCancel, onConfirm }: { row: ReferralBoardRow; 
           <button ref={cancel} type="button" disabled={busy} onClick={onCancel} className={`${pillButton} h-9 bg-white px-4 hover:bg-black/[0.03]`}>
             Cancel
           </button>
-          <button type="button" disabled={busy} onClick={() => void onConfirm(note)} className={`${pillButton} h-9 bg-[#1d1d1f] px-4 text-white hover:bg-black`}>
-            {busy ? "Recording…" : "Mark paid"}
+          <button
+            type="button"
+            disabled={busy || check.state === "checking"}
+            onClick={() => void onConfirm(note)}
+            className={`${pillButton} h-9 px-4 ${doubtful ? "bg-white hover:bg-black/[0.03]" : "bg-[#1d1d1f] text-white hover:bg-black"}`}
+          >
+            {busy ? "Recording…" : doubtful ? "Pay anyway" : "Mark paid"}
           </button>
         </div>
       </div>
