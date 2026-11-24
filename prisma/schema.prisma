@@ -1626,8 +1626,25 @@ model InstagramAccount {
   checkedAt        DateTime?
   createdAt        DateTime                @default(now())
   events           InstagramAccountEvent[]
+  /// Its Instagram password, sealed (InstagramAccountSecret): a table of its own, so no list ever reads it.
+  secret           InstagramAccountSecret?
 
   @@index([employeeId])
+}
+
+/// An account's Instagram password (the owner, 2026-11-24: "give username and account password entry"), so the company
+/// keeps the accounts it asked for. Sealed with AES-256-GCM under a key derived from AUTH_SECRET and bound to its
+/// account (lib/instagram-vault.ts): the database holds no password in the clear. The employee sets and changes it; only
+/// an administrator reads it, after typing their own password again (the Instagram vault lock, as the ID proof lock),
+/// and every read is in InstagramAccountEvent. Rotating AUTH_SECRET makes these unreadable: their employees type them again.
+model InstagramAccountSecret {
+  accountId String           @id
+  account   InstagramAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  /// "v1." and the base64url of iv | tag | ciphertext.
+  sealed    String
+  setAt     DateTime         @default(now())
+  /// Who set it last (the employee's name).
+  setBy     String
 }
 
 /// Everything done to the task's accounts, and by whom: added, a report, a check, a username changed, removed. The

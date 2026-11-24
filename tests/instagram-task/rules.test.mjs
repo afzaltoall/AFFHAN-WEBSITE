@@ -13,7 +13,9 @@ import {
   checkLine,
   comparePeople,
   countOf,
+  handleFromInputs,
   instagramLink,
+  passwordProblem,
   instagramTaskLine,
   instagramTaskRunning,
   parseInstagramHandle,
@@ -61,6 +63,29 @@ test("a username from what was typed or pasted, as Instagram keeps it", () => {
   ];
   for (const typed of not) assert.equal(parseInstagramHandle(typed), null, typed);
   assert.equal(instagramLink("some.user"), "https://www.instagram.com/some.user/");
+});
+
+test("username and link: either names the account, both must name the same one (2026-11-24)", () => {
+  assert.deepEqual(handleFromInputs("affhan.finds", ""), { handle: "affhan.finds" });
+  assert.deepEqual(handleFromInputs("", "https://www.instagram.com/Affhan.Finds/?igsh=x"), { handle: "affhan.finds" });
+  assert.deepEqual(handleFromInputs("@affhan.finds", "instagram.com/affhan.finds"), { handle: "affhan.finds" });
+  assert.deepEqual(handleFromInputs("instagram.com/affhan.finds", undefined), { handle: "affhan.finds" }, "a link in the username's box still reads");
+  assert.match(handleFromInputs("affhan.finds", "instagram.com/affhan.atlas").error, /The link is for @affhan\.atlas, but the username is @affhan\.finds/);
+  assert.match(handleFromInputs("two words", "").error, /not an Instagram username/);
+  assert.match(handleFromInputs("", "instagram.com/p/C0de/").error, /not a link to an Instagram profile/);
+  assert.match(handleFromInputs("", "  ").error, /Type the account's username or paste its profile link/);
+  assert.match(handleFromInputs(undefined, null).error, /Type the account's username/);
+});
+
+test("a password is 6 to 128 characters, kept exactly as typed", () => {
+  assert.equal(passwordProblem("abc123"), null);
+  assert.equal(passwordProblem(" spaced pass "), null, "spaces are part of a password");
+  assert.match(passwordProblem(""), /Type the account's Instagram password/);
+  assert.match(passwordProblem(undefined), /Type the account's Instagram password/);
+  assert.match(passwordProblem(123456), /Type the account's Instagram password/);
+  assert.match(passwordProblem("12345"), /at least 6/);
+  assert.equal(passwordProblem("x".repeat(128)), null);
+  assert.match(passwordProblem("x".repeat(129)), /under 128/);
 });
 
 test("a count is a whole number from 0, typed or sent", () => {

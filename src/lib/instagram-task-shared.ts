@@ -63,6 +63,8 @@ export interface InstagramAccountView {
   checkedBy: string | null;
   checkedAt: string | null;
   createdAt: string;
+  /** When its password was saved, or null: never the password itself, which only the admin's vault reads. */
+  passwordSetAt: string | null;
 }
 
 export interface InstagramPrizeView {
@@ -72,7 +74,8 @@ export interface InstagramPrizeView {
   givenAt: string;
 }
 
-export type InstagramEventKind = "ADDED" | "REPORTED" | "CHECKED" | "REJECTED" | "RENAMED" | "REMOVED";
+/** PASSWORD: its owner saved or changed its password; PASSWORD_VIEWED: an admin read it (never the password itself). */
+export type InstagramEventKind = "ADDED" | "REPORTED" | "CHECKED" | "REJECTED" | "RENAMED" | "REMOVED" | "PASSWORD" | "PASSWORD_VIEWED";
 
 export interface InstagramEventView {
   id: string;
@@ -139,6 +142,36 @@ export function parseInstagramHandle(input: string): string | null {
 
 /** The profile's address, for a tracker to open and look. */
 export const instagramLink = (handle: string) => `https://www.instagram.com/${handle}/`;
+
+/**
+ * The account an add names, from its two fields (the owner, 2026-11-24: "give usernam ... and url option"): the
+ * username, the profile's link, or both, which must then be the same account. Either field takes either form, so a
+ * link pasted into the username's field still reads.
+ */
+export function handleFromInputs(username: unknown, link: unknown): { handle: string } | { error: string } {
+  const typed = (v: unknown) => (typeof v === "string" && v.trim() ? v : null);
+  const u = typed(username);
+  const l = typed(link);
+  const fromU = u ? parseInstagramHandle(u) : null;
+  const fromL = l ? parseInstagramHandle(l) : null;
+  if (u && !fromU) return { error: "That is not an Instagram username: letters, numbers, full stops and underscores only." };
+  if (l && !fromL) return { error: "That is not a link to an Instagram profile." };
+  if (fromU && fromL && fromU !== fromL) return { error: `The link is for @${fromL}, but the username is @${fromU}.` };
+  const handle = fromU ?? fromL;
+  return handle ? { handle } : { error: "Type the account's username or paste its profile link." };
+}
+
+/** Instagram's own shortest password, and the longest kept (lib/instagram-vault.ts seals it). */
+export const PASSWORD_MIN = 6;
+export const PASSWORD_MAX = 128;
+
+/** A password as typed, or why it is not one. Kept exactly as typed: spaces inside a password are part of it. */
+export function passwordProblem(v: unknown): string | null {
+  if (typeof v !== "string" || v.length === 0) return "Type the account's Instagram password.";
+  if (v.length < PASSWORD_MIN) return `An Instagram password has at least ${PASSWORD_MIN} characters.`;
+  if (v.length > PASSWORD_MAX) return `Keep the password under ${PASSWORD_MAX} characters.`;
+  return null;
+}
 
 /** A count as typed: a whole number from 0 to `max`, or null. */
 export function countOf(v: unknown, max: number): number | null {

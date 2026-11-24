@@ -22,7 +22,7 @@ test("two doors: the staff routes read only the staff cookie, the console's only
   const staff = walk("src/app/api/instagram-task");
   const console_ = walk("src/app/api/admin/instagram-task");
   assert.equal(staff.length, 5, staff.join(", "));
-  assert.equal(console_.length, 6, console_.join(", "));
+  assert.equal(console_.length, 8, console_.join(", "));
   for (const f of staff) {
     const src = read(f);
     assert.match(src, /const who = await readInstagramEmployee\(\);\s*if \(!who\.ok\) return who\.response;/, f);
@@ -30,9 +30,62 @@ test("two doors: the staff routes read only the staff cookie, the console's only
   }
   for (const f of console_) {
     const src = read(f);
-    assert.match(src, /const who = await readInstagramAdmin\(\);\s*if \(!who\.ok\) return who\.response;/, f);
+    // The vault's two routes read the admin as the ID proof lock's do (their tokenVersion is needed); the rest through
+    // readInstagramAdmin. Either way the admin's cookie alone.
+    if (f.includes("/vault/")) assert.match(src, /const admin = await getCurrentUser\(\);\s*if \(!admin \|\| admin\.role !== "admin"/, f);
+    else assert.match(src, /const who = await readInstagramAdmin\(\);\s*if \(!who\.ok\) return who\.response;/, f);
     assert.doesNotMatch(src, /readInstagramEmployee|readEmployeeAuth/, f);
   }
+});
+
+// 2026-11-24, the owner: "give usernam and account password entry and url option". The company keeps the accounts:
+// each one's password is sealed (lib/instagram-vault.ts) in a table of its own, and read only by an admin whose vault
+// is open, each read written into the history. HR sees whether one is saved, never what it is.
+test("a password leaves the server only through the admin's open vault", () => {
+  // Read, as a sealed value, in one place only: the vault's reveal. Every other read is when it was saved.
+  const reads = server.match(/s\."sealed"|SELECT[^`]*"sealed"/g) ?? [];
+  assert.equal(reads.length, 1, `one read of a sealed password (${reads.length})`);
+  const reveal = server.slice(server.indexOf("export async function revealInstagramPassword("));
+  assert.match(reveal.slice(0, 1200), /SELECT a\."handle", a\."employeeId", s\."sealed"/);
+  assert.match(reveal.slice(0, 1600), /kind: "PASSWORD_VIEWED", by: admin/);
+  assert.match(server, /SELECT "accountId", "setAt" FROM "InstagramAccountSecret"/);
+  // The reveal: admins only, POST only, the vault open, never cached.
+  const route = read("src/app/api/admin/instagram-task/vault/[id]/route.ts");
+  assert.match(route, /export async function POST\(/);
+  assert.doesNotMatch(route, /export async function GET\(/);
+  assert.match(route, /if \(\(await vaultOpenUntil\(admin\)\) === null\) \{\s*return NextResponse\.json\(\{ error: "Type your password to see account passwords\.", locked: true \}, \{ status: 403/);
+  assert.match(route, /"Cache-Control": "no-store"/);
+  // Its lock is the ID proof lock's, step for step, counted apart.
+  const unlock = read("src/app/api/admin/instagram-task/vault/unlock/route.ts");
+  for (const step of ['checkLimit("instagramVaultUnlock", admin.id)', "beginLoginAttempt(key)", "verifyPasswordOrNothing(body.password, row?.passwordHash)", "clearLoginFailures(key)", "openVault(res"]) {
+    assert.ok(unlock.includes(step), step);
+  }
+  const vault = read("src/lib/server/instagram-vault.ts");
+  assert.match(vault, /const COOKIE_PATH = "\/api\/admin\/instagram-task\/vault";/);
+  assert.match(vault, /httpOnly: true,\s*sameSite: "strict" as const,/);
+  assert.match(vault, /export const vaultLockKey = \(adminId: string\) => `igvault:\$\{adminId\}`;/);
+  // The staff door never answers with one: a change answers { ok: true }.
+  const patch = read("src/app/api/instagram-task/accounts/[id]/route.ts");
+  assert.match(patch, /await setInstagramPassword\(who\.actor, id, body\.password as string\);\s*return NextResponse\.json\(\{ ok: true \}\);/);
+  // HR's panel and every export say only whether one is saved.
+  const board = read("src/components/instagram/InstagramBoard.tsx");
+  assert.match(board, /\) : !admin \? \(\s*<span>\s*Saved <Ago iso=\{a\.passwordSetAt\} \/>/);
+  assert.match(board, /a\.passwordSetAt \? "Yes" : "No",/);
+  // The export's code (its comments aside) reads no password but when one was saved.
+  const exportCode = board.slice(board.indexOf("async function exportExcel"), board.indexOf("const figures")).replace(/\/\/.*$/gm, "");
+  assert.doesNotMatch(exportCode, /revealed|vault/);
+  assert.deepEqual([...new Set(exportCode.match(/\bpassword\w*/g) ?? [])], ["passwordSetAt"]);
+});
+
+test("the password boxes are never filled in by the browser from the staff sign-in", () => {
+  const mine = read("src/components/instagram/InstagramMine.tsx");
+  assert.match(mine, /type=\{shown \? "text" : "password"\}/);
+  assert.match(mine, /autoComplete="new-password"/);
+  // The add asks for one, and the server refuses an add without it.
+  assert.match(read("src/app/api/instagram-task/accounts/route.ts"), /const problem = passwordProblem\(body\.password\);\s*if \(problem\) return NextResponse\.json\(\{ error: problem \}, \{ status: 400 \}\);/);
+  // Sealed in the same transaction as the account, so no account is added without its password.
+  const add = server.slice(server.indexOf("export async function addInstagramAccount("), server.indexOf("export async function setInstagramPassword("));
+  assert.match(add, /INSERT INTO "InstagramAccountSecret" \("accountId", "sealed", "setAt", "setBy"\)\s*VALUES \(\$\{id\}, \$\{sealAccountPassword\(input\.password, id\)\}/);
 });
 
 test("only trackers and admins see everyone or check: the staff board, history and check refuse anyone else", () => {
@@ -117,11 +170,16 @@ test("every account has the task: the tab, the rail row and the outline, outside
   assert.match(read("src/components/admin/rail-sections.ts"), /\{ key: "instagram-task", href: "\/admin\/instagram-task\/", label: "Instagram task", icon: Camera \},/);
 });
 
-test("its migration only adds: five tables, their indexes and their links to Employee", () => {
+test("its migrations only add: five tables and the passwords' table, their indexes and links", () => {
   const sql = read("prisma/migrations/20261123120000_instagram_task/migration.sql");
   // (ON DELETE / ON UPDATE inside a foreign key are not statements.)
-  assert.doesNotMatch(sql, /\bDROP\b|\bTRUNCATE\b|^\s*DELETE\b|^\s*UPDATE\b|^\s*INSERT\b|ALTER TABLE "(?!Instagram)/im);
+  const additionsOnly = /\bDROP\b|\bTRUNCATE\b|^\s*DELETE\b|^\s*UPDATE\b|^\s*INSERT\b|ALTER TABLE "(?!Instagram)/im;
+  assert.doesNotMatch(sql, additionsOnly);
   assert.equal((sql.match(/^CREATE TABLE "Instagram/gm) ?? []).length, 5);
   assert.equal((sql.match(/^CREATE (UNIQUE )?INDEX "Instagram/gm) ?? []).length, 4);
   assert.equal((sql.match(/^ALTER TABLE "Instagram\w+" ADD CONSTRAINT/gm) ?? []).length, 4);
+  const passwords = read("prisma/migrations/20261124120000_instagram_account_passwords/migration.sql");
+  assert.doesNotMatch(passwords, additionsOnly);
+  assert.equal((passwords.match(/^CREATE TABLE "InstagramAccountSecret"/gm) ?? []).length, 1);
+  assert.match(passwords, /ALTER TABLE "InstagramAccountSecret" ADD CONSTRAINT "InstagramAccountSecret_accountId_fkey" FOREIGN KEY \("accountId"\) REFERENCES "InstagramAccount"\("id"\) ON DELETE CASCADE/);
 });

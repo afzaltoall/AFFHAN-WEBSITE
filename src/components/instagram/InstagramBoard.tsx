@@ -25,7 +25,7 @@ import {
   type PersonProgress,
   type PersonState,
 } from "@/lib/instagram-task-shared";
-import { Ago, Bar, ConfirmWindow, accountWord, card, field, fmtDay, fmtWhen, label, num, pill, pillDark, pillPlain, sendJson, toneClass } from "@/components/instagram/instagram-ui";
+import { Ago, Bar, ConfirmWindow, accountWord, card, field, fmtDay, fmtWhen, label, num, pill, pillDark, pillPlain, sendJson, toneClass, useEscape } from "@/components/instagram/instagram-ui";
 
 /**
  * Everyone in the Instagram task (the owner, 2026-11-23: "hr adha edha full track pani elaraiyum regular check panuvaaru
@@ -192,13 +192,15 @@ export function InstagramBoard({ initial, api, me, admin }: { initial: Instagram
       ];
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetPeople), "People");
       const sheetAccounts = [
-        ["Employee", "Username", "Link", "Posts (their count)", "Followers (their count)", "Their count on", "Check", "Posts seen", "Followers seen", "Checked by", "Checked on", "Reason", "Done"],
+        // Whether a password is saved, never the password: the export leaves the console, the vault never does.
+        ["Employee", "Username", "Link", "Posts (their count)", "Followers (their count)", "Their count on", "Check", "Posts seen", "Followers seen", "Checked by", "Checked on", "Reason", "Done", "Password saved"],
         ...people.flatMap((x) =>
           x.accounts.map((a) => [
             x.name, `@${a.handle}`, instagramLink(a.handle), a.posts, a.followers, fmtWhen(a.reportedAt),
             a.checkState === "checked" ? "Checked" : a.checkState === "rejected" ? "Doesn't count" : "Not checked",
             a.checkedPosts ?? "", a.checkedFollowers ?? "", a.checkedBy ?? "", a.checkedAt ? fmtWhen(a.checkedAt) : "", a.checkState === "rejected" ? (a.checkNote ?? "") : "",
             accountDone(a, settings) ? "Yes" : "",
+            a.passwordSetAt ? "Yes" : "No",
           ]),
         ),
       ];
@@ -389,6 +391,8 @@ export function InstagramBoard({ initial, api, me, admin }: { initial: Instagram
           notice={notice}
           error={error}
           history={history[open.employeeId]}
+          api={api}
+          onViewed={() => void loadHistory(open.employeeId)}
           onClose={() => {
             setOpenId(null);
             setNotice(null);
@@ -412,9 +416,11 @@ function PersonPanel({
   notice,
   error,
   history,
+  api,
   onClose,
   onCheck,
   onPrize,
+  onViewed,
 }: {
   x: Person;
   settings: InstagramSettingsView;
@@ -424,15 +430,95 @@ function PersonPanel({
   notice: string | null;
   error: string | null;
   history: InstagramEventView[] | "failed" | undefined;
+  /** The door the board reads through: an admin's reads passwords through its vault. */
+  api: string;
   onClose: () => void;
   onCheck: (a: InstagramAccountView, body: unknown) => Promise<boolean>;
   onPrize: (note: string | null) => Promise<boolean>;
+  /** A password was read: the history has a new line. */
+  onViewed: () => void;
 }) {
   const [checking, setChecking] = useState<string | null>(null);
   const [giving, setGiving] = useState(false);
   const [note, setNote] = useState("");
   const own = me !== null && x.employeeId === me;
   const N = settings.accountsPerPerson;
+
+  // The vault (2026-11-24, admins only): passwords read here, by account, until hidden, locked, or the panel closes.
+  const [revealed, setRevealed] = useState<Record<string, string>>({});
+  const [revealing, setRevealing] = useState<string | null>(null);
+  const [revealError, setRevealError] = useState<{ id: string; text: string } | null>(null);
+  const [unlockFor, setUnlockFor] = useState<InstagramAccountView | null>(null);
+  const [vaultUntil, setVaultUntil] = useState<number | null>(null);
+  const [copied, setCopied] = useState<string | null>(null);
+
+  // Whether this admin's vault is open already (another panel, in the last ten minutes).
+  useEffect(() => {
+    if (!admin) return;
+    let live = true;
+    fetch(`${api}/vault/unlock/`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((v: { open?: boolean; until?: number | null } | null) => {
+        if (live && v?.open && typeof v.until === "number") setVaultUntil(v.until);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [admin, api]);
+
+  async function reveal(a: InstagramAccountView) {
+    setRevealError(null);
+    setRevealing(a.id);
+    const sent = await sendJson<{ handle: string; password: string }>(`${api}/vault/${a.id}/`, "POST");
+    setRevealing(null);
+    if (sent.ok) {
+      setRevealed((r) => ({ ...r, [a.id]: sent.data.password }));
+      onViewed();
+      return;
+    }
+    // Locked: the admin's own password first, then this one.
+    if (sent.status === 403) {
+      setVaultUntil(null);
+      setUnlockFor(a);
+      return;
+    }
+    setRevealError({ id: a.id, text: sent.error });
+  }
+
+  async function unlock(password: string): Promise<string | null> {
+    const sent = await sendJson<{ open: boolean; until: number }>(`${api}/vault/unlock/`, "POST", { password });
+    if (!sent.ok) return sent.error;
+    setVaultUntil(sent.data.until);
+    const waiting = unlockFor;
+    setUnlockFor(null);
+    if (waiting) await reveal(waiting);
+    return null;
+  }
+
+  async function lockNow() {
+    await sendJson(`${api}/vault/unlock/`, "DELETE");
+    setVaultUntil(null);
+    setRevealed({});
+  }
+
+  async function copyPassword(id: string) {
+    try {
+      await navigator.clipboard.writeText(revealed[id] ?? "");
+      setCopied(id);
+      window.setTimeout(() => setCopied((c) => (c === id ? null : c)), 1500);
+    } catch {
+      setRevealError({ id, text: "Copying did not work here: select the password and copy it." });
+    }
+  }
+
+  function hidePassword(id: string) {
+    setRevealed((r) => {
+      const next = { ...r };
+      delete next[id];
+      return next;
+    });
+  }
 
   // Escape closes the panel, unless a window over it takes the key first (useEscape listens before this).
   useEffect(() => {
@@ -511,12 +597,22 @@ function PersonPanel({
           )}
 
           <section className={`overflow-hidden ${card}`}>
-            <h3 className="border-b border-black/[0.06] px-5 py-3 text-[15px] font-semibold">
-              Accounts{" "}
-              <span className="font-normal tabular-nums text-[#86868b]">
-                {x.accounts.length} of {N}
-              </span>
-            </h3>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 border-b border-black/[0.06] px-5 py-3">
+              <h3 className="text-[15px] font-semibold">
+                Accounts{" "}
+                <span className="font-normal tabular-nums text-[#86868b]">
+                  {x.accounts.length} of {N}
+                </span>
+              </h3>
+              {admin && vaultUntil !== null && (
+                <p className="text-[12.5px] text-[#6e6e73]">
+                  Passwords open until {fmtClock(vaultUntil)} ·{" "}
+                  <button type="button" onClick={() => void lockNow()} className="font-semibold text-[#0058b0] hover:underline">
+                    Lock now
+                  </button>
+                </p>
+              )}
+            </div>
             {x.accounts.length === 0 ? (
               <p className="px-5 py-6 text-center text-[13px] text-[#86868b]">No accounts added yet.</p>
             ) : (
@@ -547,6 +643,49 @@ function PersonPanel({
                         <dd className={a.checkState === "rejected" ? "font-medium text-red-700" : undefined}>
                           {checkLine(a, settings, fmtDay)}
                           {a.checkedBy && <span className="font-normal text-[#86868b]"> · {a.checkedBy}</span>}
+                        </dd>
+                        {/* Its password: whether one is saved, for HR; for an admin, Show, behind their own password. */}
+                        <dt className="text-[#6e6e73]">Password</dt>
+                        <dd>
+                          {!a.passwordSetAt ? (
+                            <span className="font-medium text-brand-dark">Not given yet</span>
+                          ) : !admin ? (
+                            <span>
+                              Saved <Ago iso={a.passwordSetAt} />
+                            </span>
+                          ) : revealed[a.id] !== undefined ? (
+                            <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <code className="select-all break-all rounded-md bg-[#f5f5f7] px-2 py-0.5 font-mono text-[13px] text-[#1d1d1f]">{revealed[a.id]}</code>
+                              <button type="button" onClick={() => void copyPassword(a.id)} className="text-[12.5px] font-semibold text-[#0058b0] hover:underline">
+                                {copied === a.id ? "Copied" : "Copy"}
+                              </button>
+                              <button type="button" onClick={() => hidePassword(a.id)} className="text-[12.5px] font-semibold text-[#0058b0] hover:underline">
+                                Hide
+                              </button>
+                            </span>
+                          ) : (
+                            <span className="inline-flex flex-wrap items-center gap-x-3 gap-y-1">
+                              <span aria-label="Hidden password" className="tracking-[0.2em] text-[#6e6e73]">
+                                ••••••••
+                              </span>
+                              <button
+                                type="button"
+                                disabled={revealing === a.id}
+                                onClick={() => void reveal(a)}
+                                className="text-[12.5px] font-semibold text-[#0058b0] hover:underline disabled:opacity-50"
+                              >
+                                {revealing === a.id ? "Opening…" : "Show"}
+                              </button>
+                              <span className="text-[12px] text-[#86868b]">
+                                saved <Ago iso={a.passwordSetAt} />
+                              </span>
+                            </span>
+                          )}
+                          {revealError?.id === a.id && (
+                            <span role="alert" className="mt-1 block text-[12.5px] font-medium text-red-700">
+                              {revealError.text}
+                            </span>
+                          )}
                         </dd>
                       </dl>
                       {checking === a.id ? (
@@ -593,6 +732,8 @@ function PersonPanel({
           </section>
         </div>
       </section>
+
+      {unlockFor && <VaultWindow handle={unlockFor.handle} onCancel={() => setUnlockFor(null)} onUnlock={unlock} />}
 
       {giving && (
         <ConfirmWindow
@@ -711,6 +852,68 @@ function CheckForm({ a, busy, onCancel, onSave }: { a: InstagramAccountView; bus
   );
 }
 
+/** "9:42 pm", for when the vault locks again. */
+const fmtClock = (ms: number) => new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "Asia/Kolkata" });
+
+/**
+ * The vault's lock, asked in the console's own window: the admin's own password, as for ID proofs. It opens the
+ * passwords for ten minutes, for that admin only; a wrong one is said here, and five lock it for a while.
+ */
+function VaultWindow({ handle, onCancel, onUnlock }: { handle: string; onCancel: () => void; onUnlock: (password: string) => Promise<string | null> }) {
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  useEscape(onCancel, busy);
+  return (
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-black/45 px-4" onClick={() => !busy && onCancel()}>
+      <form
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ig-vault-title"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!password || busy) return;
+          setBusy(true);
+          setError(null);
+          const refused = await onUnlock(password);
+          setBusy(false);
+          if (refused) {
+            setError(refused);
+            setPassword("");
+          }
+        }}
+        className="w-full max-w-md rounded-2xl bg-white p-6 text-[#1d1d1f] shadow-2xl ring-1 ring-black/[0.06]"
+      >
+        <h2 id="ig-vault-title" className="text-[17px] font-semibold">
+          Type your password
+        </h2>
+        <p className="mt-2 text-[13px] leading-relaxed text-[#48484a]">
+          To see the password of @{handle}, type your own admin password. Passwords then stay open for ten minutes, for you only, and each one you see is
+          written in that person&apos;s history.
+        </p>
+        <label className={`mt-4 block ${label}`}>
+          Your admin password
+          <input type="password" autoFocus autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} className={`mt-1 ${field}`} />
+        </label>
+        {error && (
+          <p role="alert" className="mt-2 text-[13px] font-medium text-red-700">
+            {error}
+          </p>
+        )}
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" disabled={busy} onClick={onCancel} className={`${pillPlain} h-9 px-4`}>
+            Cancel
+          </button>
+          <button type="submit" disabled={busy || !password} className={`${pillDark} h-9 px-4`}>
+            {busy ? "Opening…" : "Open"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 /** One line of a person's history, in words. */
 function eventWords(e: InstagramEventView): React.ReactNode {
   const at = <span className="font-semibold">@{e.handle}</span>;
@@ -750,6 +953,18 @@ function eventWords(e: InstagramEventView): React.ReactNode {
       return (
         <>
           {e.byName} removed {at}
+        </>
+      );
+    case "PASSWORD":
+      return (
+        <>
+          {e.byName} {e.note === "changed" ? "changed" : "saved"} the password of {at}
+        </>
+      );
+    case "PASSWORD_VIEWED":
+      return (
+        <>
+          {e.byName} viewed the password of {at}
         </>
       );
     default:

@@ -90,6 +90,9 @@ export const LIMITS = {
    *  Closed, as the console's sign-in: a guess here is a guess at the admin's password. The database lockout holds per
    *  admin as well. */
   idProofUnlock: { per: "account", count: 10, window: "15 m", whenDown: "closed", feature: "Opening ID proofs" },
+  /** /api/admin/instagram-task/vault/unlock: an admin's password, typed again to read the Instagram task's account
+   *  passwords (2026-11-24). Closed, as the ID proofs' unlock: a guess here is a guess at the admin's password. */
+  instagramVaultUnlock: { per: "account", count: 10, window: "15 m", whenDown: "closed", feature: "Opening Instagram passwords" },
 } as const satisfies Record<string, LimitSpec>;
 
 export type LimitName = keyof typeof LIMITS;

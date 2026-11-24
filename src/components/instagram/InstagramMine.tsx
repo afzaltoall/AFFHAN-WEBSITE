@@ -2,14 +2,17 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ExternalLink, Plus } from "lucide-react";
+import { ExternalLink, Eye, EyeOff, Plus } from "lucide-react";
 import {
   FOLLOWERS_MAX,
+  PASSWORD_MAX,
   POSTS_MAX,
   checkLine,
+  handleFromInputs,
   instagramLink,
   instagramTaskRunning,
   parseInstagramHandle,
+  passwordProblem,
   personProgress,
   type InstagramAccountView,
   type InstagramPrizeView,
@@ -153,6 +156,7 @@ export function InstagramMine({
               onSaveHandle={async (handle) => {
                 if (await run(() => sendJson(`/api/instagram-task/accounts/${a.id}/`, "PATCH", { handle }))) setEditing(null);
               }}
+              onSavePassword={(password) => run(() => sendJson(`/api/instagram-task/accounts/${a.id}/`, "PATCH", { password }))}
             />
           ))}
         </ul>
@@ -166,8 +170,8 @@ export function InstagramMine({
               setAdding(false);
               setError(null);
             }}
-            onAdd={async (handle, posts, followers) => {
-              if (await run(() => sendJson("/api/instagram-task/accounts/", "POST", { handle, posts, followers }))) setAdding(false);
+            onAdd={async (v) => {
+              if (await run(() => sendJson("/api/instagram-task/accounts/", "POST", v))) setAdding(false);
             }}
           />
         )}
@@ -217,6 +221,7 @@ function AccountItem({
   onRemove,
   onSaveCounts,
   onSaveHandle,
+  onSavePassword,
 }: {
   a: InstagramAccountView;
   settings: InstagramSettingsView;
@@ -227,6 +232,7 @@ function AccountItem({
   onRemove: () => void;
   onSaveCounts: (posts: number, followers: number) => void;
   onSaveHandle: (handle: string) => void;
+  onSavePassword: (password: string) => Promise<boolean>;
 }) {
   const word = accountWord(a, settings, "Waiting for HR");
   const [posts, setPosts] = useState(String(a.posts));
@@ -279,6 +285,8 @@ function AccountItem({
         <span className={a.checkState === "rejected" ? "font-medium text-red-700" : undefined}>{checkLine(a, settings, fmtDay)}</span>
         {a.checkedBy && <span className="text-[#86868b]"> ({a.checkedBy})</span>}
       </p>
+      {/* Its password: saved or not, and Change, open even once the task closes (it is about keeping the account). */}
+      {editing === null && <PasswordLine a={a} busy={busy} onSave={onSavePassword} />}
 
       {editing === "counts" ? (
         <form
@@ -365,6 +373,47 @@ function AccountItem({
   );
 }
 
+/** What every password field here says, under it. */
+const PASSWORD_NOTE = "Only the admin can see it. Use a password made for this account, never one you use anywhere else.";
+
+/**
+ * A password box with Show and Hide. Never filled in by the browser from the staff sign-in (new-password, a name of its
+ * own), never sent back by the server: what the admin reads, they read in the console's vault.
+ */
+function PasswordField({ id, value, onChange, autoFocus = false }: { id: string; value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
+  const [shown, setShown] = useState(false);
+  return (
+    <span className="relative mt-1 block">
+      <input
+        id={id}
+        name={id}
+        type={shown ? "text" : "password"}
+        autoFocus={autoFocus}
+        value={value}
+        onChange={(e) => onChange(e.target.value.slice(0, PASSWORD_MAX))}
+        autoComplete="new-password"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        className={`${field} pr-11`}
+      />
+      <button
+        type="button"
+        onClick={() => setShown((s) => !s)}
+        aria-label={shown ? "Hide the password" : "Show the password"}
+        aria-pressed={shown}
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-lg text-[#6e6e73] hover:text-[#1d1d1f]"
+      >
+        {shown ? <EyeOff size={16} aria-hidden /> : <Eye size={16} aria-hidden />}
+      </button>
+    </span>
+  );
+}
+
+/**
+ * Adding an account (the owner, 2026-11-24: "give usernam and account password entry and url option"): its username,
+ * its profile's link (either fills the other; both must name the same account), its password, and what it shows now.
+ */
 function AddForm({
   n,
   of,
@@ -376,38 +425,82 @@ function AddForm({
   of: number;
   busy: boolean;
   onCancel: () => void;
-  onAdd: (handle: string, posts: number, followers: number) => void;
+  onAdd: (v: { username: string; link: string; password: string; posts: number; followers: number }) => void;
 }) {
-  const [handle, setHandle] = useState("");
+  const [username, setUsername] = useState("");
+  // Filled in from the link until the employee types a username of their own.
+  const [userFromLink, setUserFromLink] = useState(true);
+  const [link, setLink] = useState("");
+  const [password, setPassword] = useState("");
   const [posts, setPosts] = useState("0");
   const [followers, setFollowers] = useState("0");
-  const parsed = parseInstagramHandle(handle);
-  const valid = !!parsed && countOk(posts, POSTS_MAX) && countOk(followers, FOLLOWERS_MAX);
+  const named = handleFromInputs(username, link);
+  const typedSomething = !!(username.trim() || link.trim());
+  const passwordWrong = password ? passwordProblem(password) : null;
+  const valid = "handle" in named && !passwordProblem(password) && countOk(posts, POSTS_MAX) && countOk(followers, FOLLOWERS_MAX);
   return (
     <form
       className="border-t border-black/[0.06] bg-[#f5f5f7] px-5 py-4"
+      autoComplete="off"
       onSubmit={(e) => {
         e.preventDefault();
-        if (valid && !busy) onAdd(parsed!, Number(posts), Number(followers));
+        if (valid && !busy) onAdd({ username, link, password, posts: Number(posts), followers: Number(followers) });
       }}
     >
       <h3 className="text-[14px] font-semibold">
         Add account {n} of {of}
       </h3>
-      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_9rem]">
+      <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <label className={label}>
-          Username or profile link
+          Username
+          <span className="relative mt-1 block">
+            <span aria-hidden className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-[14px] text-[#86868b]">
+              @
+            </span>
+            <input
+              autoFocus
+              value={username}
+              onChange={(e) => {
+                setUsername(e.target.value.replace(/^@+/, "").slice(0, 200));
+                setUserFromLink(false);
+              }}
+              placeholder="affhan.finds"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              className={`${field} pl-7`}
+            />
+          </span>
+        </label>
+        <label className={label}>
+          Profile link
           <input
-            autoFocus
-            value={handle}
-            onChange={(e) => setHandle(e.target.value.slice(0, 200))}
-            placeholder="@yourname or instagram.com/yourname"
+            value={link}
+            onChange={(e) => {
+              const v = e.target.value.slice(0, 300);
+              setLink(v);
+              const fromLink = parseInstagramHandle(v);
+              if (fromLink && (userFromLink || !username.trim())) {
+                setUsername(fromLink);
+                setUserFromLink(true);
+              }
+            }}
+            placeholder="instagram.com/affhan.finds"
+            inputMode="url"
+            autoComplete="off"
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
             className={`mt-1 ${field}`}
           />
         </label>
+      </div>
+      <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_9rem]">
+        <div className={label}>
+          <label htmlFor="instagram-account-password">Instagram password</label>
+          <PasswordField id="instagram-account-password" value={password} onChange={setPassword} />
+        </div>
         <label className={label}>
           Posts now
           <input inputMode="numeric" value={posts} onChange={(e) => setPosts(digits(e.target.value, POSTS_MAX))} className={`mt-1 ${field}`} />
@@ -417,17 +510,24 @@ function AddForm({
           <input inputMode="numeric" value={followers} onChange={(e) => setFollowers(digits(e.target.value, FOLLOWERS_MAX))} className={`mt-1 ${field}`} />
         </label>
       </div>
-      <p className="mt-2 text-[12.5px] leading-relaxed text-[#48484a]">
-        {parsed ? (
-          <>
-            Adds <span className="font-semibold text-[#1d1d1f]">@{parsed}</span>.
-          </>
-        ) : handle.trim() ? (
-          <span className="font-medium text-red-700">That is not an Instagram username or profile link.</span>
-        ) : (
-          "On Instagram: your profile, Share profile, Copy link, then paste it here."
-        )}
-      </p>
+      <div className="mt-2.5 space-y-1 text-[12.5px] leading-relaxed text-[#48484a]">
+        <p>
+          {"handle" in named ? (
+            <>
+              Adds <span className="font-semibold text-[#1d1d1f]">@{named.handle}</span>
+              {" · "}
+              <a href={instagramLink(named.handle)} target="_blank" rel="noopener noreferrer" className="font-medium text-[#0058b0] hover:underline">
+                Open it on Instagram to check
+              </a>
+            </>
+          ) : typedSomething ? (
+            <span className="font-medium text-red-700">{named.error}</span>
+          ) : (
+            "Type the username, or paste the link: on Instagram, your profile, Share profile, Copy link."
+          )}
+        </p>
+        <p className={passwordWrong ? "font-medium text-red-700" : undefined}>{passwordWrong ?? PASSWORD_NOTE}</p>
+      </div>
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="submit" disabled={!valid || busy} className={`${pillDark} h-10 px-5 text-[13px]`}>
           {busy ? "Adding…" : "Add account"}
@@ -436,6 +536,69 @@ function AddForm({
           Cancel
         </button>
       </div>
+    </form>
+  );
+}
+
+/** An account's password, as its owner sees it: when it was saved, never what it is, and Change. */
+function PasswordLine({ a, busy, onSave }: { a: InstagramAccountView; busy: boolean; onSave: (password: string) => Promise<boolean> }) {
+  const [editing, setEditing] = useState(false);
+  const [password, setPassword] = useState("");
+  const wrong = password ? passwordProblem(password) : null;
+  const fieldId = `instagram-password-${a.id}`;
+  if (!editing) {
+    return (
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-[#48484a]">
+        <span>
+          Password:{" "}
+          {a.passwordSetAt ? (
+            <>
+              saved <Ago iso={a.passwordSetAt} />
+            </>
+          ) : (
+            <span className="font-semibold text-brand-dark">not given yet</span>
+          )}
+        </span>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setPassword("");
+            setEditing(true);
+          }}
+          className="font-semibold text-[#0058b0] hover:underline disabled:opacity-50"
+        >
+          {a.passwordSetAt ? "Change password" : "Add password"}
+        </button>
+      </p>
+    );
+  }
+  return (
+    <form
+      className="mt-3"
+      autoComplete="off"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (busy || passwordProblem(password)) return;
+        if (await onSave(password)) {
+          setEditing(false);
+          setPassword("");
+        }
+      }}
+    >
+      <div className="flex flex-wrap items-end gap-3">
+        <div className={`${label} min-w-[14rem] flex-1 sm:max-w-sm`}>
+          <label htmlFor={fieldId}>{a.passwordSetAt ? "New Instagram password" : "Instagram password"}</label>
+          <PasswordField id={fieldId} value={password} onChange={setPassword} autoFocus />
+        </div>
+        <button type="submit" disabled={!!passwordProblem(password) || busy} className={`${pillDark} h-10 px-4 text-[13px]`}>
+          {busy ? "Saving…" : "Save"}
+        </button>
+        <button type="button" disabled={busy} onClick={() => setEditing(false)} className={`${pillPlain} h-10 px-4 text-[13px]`}>
+          Cancel
+        </button>
+      </div>
+      <p className={`mt-1.5 text-[12.5px] ${wrong ? "font-medium text-red-700" : "text-[#48484a]"}`}>{wrong ?? PASSWORD_NOTE}</p>
     </form>
   );
 }

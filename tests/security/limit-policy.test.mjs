@@ -11,8 +11,15 @@ const named = (when) =>
     .map(([name]) => name)
     .sort();
 
-test("fails closed: the console's and the staff sign-in, photo search (its own count and its ceiling), supplier photo uploads, opening ID proofs", () => {
-  assert.deepEqual(named("closed"), ["consoleLogin", "idProofUnlock", "photoSearch", "photoSearchPerIp", "staffLogin", "supplierUpload"]);
+test("fails closed: the console's and the staff sign-in, photo search (its own count and its ceiling), supplier photo uploads, opening ID proofs and Instagram passwords", () => {
+  assert.deepEqual(named("closed"), ["consoleLogin", "idProofUnlock", "instagramVaultUnlock", "photoSearch", "photoSearchPerIp", "staffLogin", "supplierUpload"]);
+});
+
+// The Instagram vault (2026-11-24): opened with the admin's own password, as ID proofs are, so counted as that is.
+test("opening Instagram passwords is counted per admin, a handful at a time", () => {
+  assert.equal(LIMITS.instagramVaultUnlock.per, "account");
+  assert.equal(LIMITS.instagramVaultUnlock.whenDown, "closed");
+  assert.ok(LIMITS.instagramVaultUnlock.count <= 10, `${LIMITS.instagramVaultUnlock.count}`);
 });
 
 // The ID proof lock (2026-11-04): a guess there is a guess at an admin's password, so it is counted per admin and

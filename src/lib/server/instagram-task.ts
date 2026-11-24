@@ -3,6 +3,7 @@ import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { istDate, istLastDay } from "@/lib/trip-referral-shared";
+import { openAccountPassword, sealAccountPassword } from "@/lib/server/instagram-vault";
 import {
   INSTAGRAM_DEFAULTS,
   instagramTaskRunning,
@@ -95,13 +96,32 @@ interface AccountRow {
   createdAt: Date;
 }
 const ACCOUNT_COLS = Prisma.sql`"id", "employeeId", "handle", "posts", "followers", "reportedAt", "checkState", "checkedPosts", "checkedFollowers", "checkNote", "checkedBy", "checkedAt", "createdAt"`;
-const toAccount = (r: AccountRow): InstagramAccountView => ({
+const toAccount = (r: AccountRow, passwords?: Map<string, string>): InstagramAccountView => ({
   ...r,
   checkState: r.checkState === "checked" || r.checkState === "rejected" ? r.checkState : null,
   reportedAt: r.reportedAt.toISOString(),
   checkedAt: iso(r.checkedAt),
   createdAt: r.createdAt.toISOString(),
+  passwordSetAt: passwords?.get(r.id) ?? null,
 });
+
+/**
+ * When each account's password was saved, by account id: the time only, never the sealed value, which nothing but the
+ * admin's vault reads (revealInstagramPassword). A database the passwords' migration has not reached has none.
+ */
+async function passwordTimes(employeeId?: string): Promise<Map<string, string>> {
+  try {
+    const rows = employeeId
+      ? await prisma.$queryRaw<{ accountId: string; setAt: Date }[]>`
+          SELECT s."accountId", s."setAt" FROM "InstagramAccountSecret" s
+          JOIN "InstagramAccount" a ON a."id" = s."accountId" WHERE a."employeeId" = ${employeeId}`
+      : await prisma.$queryRaw<{ accountId: string; setAt: Date }[]>`SELECT "accountId", "setAt" FROM "InstagramAccountSecret"`;
+    return new Map(rows.map((r) => [r.accountId, r.setAt.toISOString()]));
+  } catch (e) {
+    if (isMissingInstagramTables(e)) return new Map();
+    throw e;
+  }
+}
 
 interface PrizeRow {
   employeeId: string;
@@ -137,13 +157,14 @@ export interface MyInstagramView {
 
 /** An employee's own page: the task, their accounts in the order added, their prize, and whether they track. */
 export async function myInstagram(employeeId: string): Promise<MyInstagramView> {
-  const [settings, accounts, prizes, tracker] = await Promise.all([
+  const [settings, accounts, prizes, tracker, passwords] = await Promise.all([
     instagramSettings(),
     prisma.$queryRaw<AccountRow[]>`SELECT ${ACCOUNT_COLS} FROM "InstagramAccount" WHERE "employeeId" = ${employeeId} ORDER BY "createdAt", "id"`,
     prisma.$queryRaw<PrizeRow[]>`SELECT * FROM "InstagramPrize" WHERE "employeeId" = ${employeeId}`,
     isInstagramTracker(employeeId),
+    passwordTimes(employeeId),
   ]);
-  return { settings, accounts: accounts.map(toAccount), prize: prizes[0] ? toPrize(prizes[0]) : null, tracker };
+  return { settings, accounts: accounts.map((a) => toAccount(a, passwords)), prize: prizes[0] ? toPrize(prizes[0]) : null, tracker };
 }
 
 /**
@@ -152,11 +173,12 @@ export async function myInstagram(employeeId: string): Promise<MyInstagramView> 
  * orders by progress itself, as it reads again every half minute.
  */
 export async function instagramBoard(): Promise<InstagramBoardView> {
-  const [settings, accounts, prizes, trackers] = await Promise.all([
+  const [settings, accounts, prizes, trackers, passwords] = await Promise.all([
     instagramSettings(),
     prisma.$queryRaw<AccountRow[]>`SELECT ${ACCOUNT_COLS} FROM "InstagramAccount" ORDER BY "createdAt", "id"`,
     prisma.$queryRaw<PrizeRow[]>`SELECT * FROM "InstagramPrize"`,
     prisma.$queryRaw<{ employeeId: string }[]>`SELECT "employeeId" FROM "InstagramTracker"`,
+    passwordTimes(),
   ]);
   const inTask = [...new Set([...accounts.map((a) => a.employeeId), ...prizes.map((p) => p.employeeId)])];
   const employees = await prisma.employee.findMany({
@@ -169,7 +191,7 @@ export async function instagramBoard(): Promise<InstagramBoardView> {
   const accountsOf = new Map<string, InstagramAccountView[]>();
   for (const a of accounts) {
     const list = accountsOf.get(a.employeeId) ?? [];
-    list.push(toAccount(a));
+    list.push(toAccount(a, passwords));
     accountsOf.set(a.employeeId, list);
   }
   const people: InstagramPersonRow[] = employees.map((e) => ({
@@ -266,8 +288,11 @@ async function handleFree(tx: Tx, actor: EmployeeActor, handle: string) {
   }
 }
 
-/** Adds one of their accounts, with what it shows now. */
-export async function addInstagramAccount(actor: EmployeeActor, input: { handle: string; posts: number; followers: number }): Promise<{ id: string }> {
+/** Adds one of their accounts, with what it shows now and its password (sealed in the same transaction). */
+export async function addInstagramAccount(
+  actor: EmployeeActor,
+  input: { handle: string; posts: number; followers: number; password: string },
+): Promise<{ id: string }> {
   return asOwner(actor, async (tx, settings) => {
     const [{ n }] = await tx.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM "InstagramAccount" WHERE "employeeId" = ${actor.id}`;
     if (n >= settings.accountsPerPerson) {
@@ -278,8 +303,51 @@ export async function addInstagramAccount(actor: EmployeeActor, input: { handle:
     await tx.$executeRaw`
       INSERT INTO "InstagramAccount" ("id", "employeeId", "handle", "posts", "followers", "reportedAt", "createdAt")
       VALUES (${id}, ${actor.id}, ${input.handle}, ${input.posts}, ${input.followers}, ${NOW}, ${NOW})`;
+    await tx.$executeRaw`
+      INSERT INTO "InstagramAccountSecret" ("accountId", "sealed", "setAt", "setBy")
+      VALUES (${id}, ${sealAccountPassword(input.password, id)}, ${NOW}, ${actor.name})`;
     await logEvent(tx, { accountId: id, employeeId: actor.id, handle: input.handle, kind: "ADDED", posts: input.posts, followers: input.followers, by: actor });
     return { id };
+  });
+}
+
+/**
+ * Saves or changes one of their accounts' passwords. Open whenever the account is theirs: a password is about keeping
+ * the account, not the task's score, so it may change after the task closes or after their prize. The history says
+ * that it changed, never what to.
+ */
+export async function setInstagramPassword(actor: EmployeeActor, accountId: string, password: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw(personLock(actor.id));
+    const a = await ownAccount(tx, actor, accountId);
+    const had = await tx.$queryRaw<{ one: number }[]>`SELECT 1 AS one FROM "InstagramAccountSecret" WHERE "accountId" = ${accountId}`;
+    await tx.$executeRaw`
+      INSERT INTO "InstagramAccountSecret" ("accountId", "sealed", "setAt", "setBy")
+      VALUES (${accountId}, ${sealAccountPassword(password, accountId)}, ${NOW}, ${actor.name})
+      ON CONFLICT ("accountId") DO UPDATE SET "sealed" = EXCLUDED."sealed", "setAt" = EXCLUDED."setAt", "setBy" = EXCLUDED."setBy"`;
+    await logEvent(tx, { accountId, employeeId: actor.id, handle: a.handle, kind: "PASSWORD", note: had.length ? "changed" : "saved", by: actor });
+  });
+}
+
+/**
+ * An account's password, for an administrator whose vault is open (the route checks the lock; only the console's door
+ * calls this). Every read goes into the account's history with who read it.
+ */
+export async function revealInstagramPassword(admin: Extract<InstagramActor, { kind: "admin" }>, accountId: string): Promise<{ handle: string; password: string }> {
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<{ handle: string; employeeId: string; sealed: string | null }[]>`
+      SELECT a."handle", a."employeeId", s."sealed"
+      FROM "InstagramAccount" a LEFT JOIN "InstagramAccountSecret" s ON s."accountId" = a."id"
+      WHERE a."id" = ${accountId}`;
+    const r = rows[0];
+    if (!r) throw new InstagramTaskError(404, "That account is no longer in the task.");
+    if (!r.sealed) throw new InstagramTaskError(404, "No password has been saved for this account yet.");
+    const password = openAccountPassword(r.sealed, accountId);
+    if (password === null) {
+      throw new InstagramTaskError(409, "This password can't be read: the site's key has changed since it was saved. Ask its employee to type it again.");
+    }
+    await logEvent(tx, { accountId, employeeId: r.employeeId, handle: r.handle, kind: "PASSWORD_VIEWED", by: admin });
+    return { handle: r.handle, password };
   });
 }
 
@@ -414,7 +482,7 @@ export async function giveInstagramPrize(employeeId: string, note: string | null
     await tx.$queryRaw(personLock(employeeId));
     if (await hasPrize(tx, employeeId)) throw new InstagramTaskError(409, "Their prize has already been given.");
     const settings = toSettings(await tx.$queryRaw<SettingsRow[]>(SETTINGS_SQL));
-    const accounts = (await tx.$queryRaw<AccountRow[]>`SELECT ${ACCOUNT_COLS} FROM "InstagramAccount" WHERE "employeeId" = ${employeeId}`).map(toAccount);
+    const accounts = (await tx.$queryRaw<AccountRow[]>`SELECT ${ACCOUNT_COLS} FROM "InstagramAccount" WHERE "employeeId" = ${employeeId}`).map((a) => toAccount(a));
     const p = personProgress(accounts, settings);
     if (!p.complete) {
       throw new InstagramTaskError(409, `Not complete yet: ${p.done} of ${settings.accountsPerPerson} accounts are checked done.`);
