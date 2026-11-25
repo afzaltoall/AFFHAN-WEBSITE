@@ -187,7 +187,7 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - **Everyone in the draw, listed** (2026-11-25, the owner: "show the overall run a business users in the lucky draw ... show the overall the list of lucky draw set persons to see"):
   - **Where:** "See everyone" beside the In the draw figure opens "Everyone in the draw" at the page's foot, for the mode shown.
   - **What it shows:** Trip ID, name, city and country, mobile (Call), and when they applied.
-  - **How:** search by name, Trip ID, city or mobile; 100 at a time; Export n (xlsx, mobiles as text, what the search shows). A name opens Participants' own panel, its first line "Lucky draw · In the draw, not drawn yet".
+  - **How:** search by name, Trip ID, city or mobile; everyone at once (the owner, over 100 at a time: "dont show show more show everything at once itself"), each row skipped by the browser until it is on screen (`content-visibility: auto`); Export n (xlsx, mobiles as text, what the search shows). A name opens Participants' own panel, its first line "Lucky draw · In the draw, not drawn yet".
   - **Its source** is `drawPeople`: the pool itself joined to each application, so exactly who the draw holds. `/api/admin/lucky-draw/people/` takes the admin's own session only, never the TV's pass; the TV's list (`../pool`) still has no mobile number.
   - It is read on opening, on a change of mode and on Refresh, never with the board's 4-second reads (thousands of people).
 - **The TV screen: the wall** (2026-11-11, the owner: four pictures of video walls, "like opening a gift box"; then "filled completely ... curved, facing the screen", "one box of light ... for real, not like magic", "card to card, a snap, not a mouse drag or a slideshow", "make the cards tickets ... six rows ... a Ballon d'Or gold feel", "bring that roll back", "when I click Draw, first that image" (the gold backs) "... and while it scrolls, the selection", "we will telecast this on a big TV"; on 2026-11-12 "after the winner, back again to gold", "these cards have to move continuously", "when Draw is clicked, show the shuffling", "scroll the cards with the cursor, as by hand", "a grand opening, zooming in one by one ... FIFA style", "we click the pack to open it", then "the text is not clear", "the Trip ID too high", "the final card is not perfect ... a ticket card", "between the details it gets stuck", "the background is fully black ... crackers", "awards style ... moving text", "remove the circles", "the top lights have to move", "from the pack the contents come"; `components/lucky-draw/wall/`):
@@ -231,26 +231,29 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 
 ## The Christmas logo (2026-11-25)
 
-- **The header's logo wears the owner's Santa hat** (the owner: "use this logo on website now affhan logo, save this as affhan-christmas ... do some animation on the christmas hat live waving in website ... responsive perfection"). The navbar (40 / 48 / 56 px) and the phone frame's header (40 px) draw `ChristmasLogo` in the boxes `public/logo.png` had, so nothing on the page moves. **It is drawn a fifth bigger than its box and centred in the bar, hat and all** (the owner, over the first look: "slightly make the logo big"; drawn as it was, the hat on top left it about 5 px high). That is a `transform` on `.xmas-logo`, which stays inside the box across, and `pointer-events: none`, so the box keeps the press. `CHRISTMAS_LOGO` in `src/lib/christmas.ts` turns it off: logo.png again. The footer, the navbar's menu drawer, the console, the staff pages, the emails and the favicon never changed.
-- **Their picture** came as a JPEG on black. It is kept as `public/affhan-christmas.png`: off its ground (each edge pixel's alpha is how far it is from black toward the colour inside it, so there is no dark rim), in logo.png's frame at 4× (900 px), its A on logo.png's A.
-- **The pieces:** `public/affhan-christmas-layers.webp` (25 KB) holds five 225 px tiles of one frame. The first is logo.png itself; the hat from the picture follows as the cone, the floppy tip, the pompom and the brim. `scripts/build_christmas_logo.mjs` makes both files: `--source <picture>` cuts the picture first; without it, the pieces are cut from the saved PNG, byte-identical on a rerun.
-  - The pieces sit over logo.png rather than the picture's own logo, because logo.png's ring is whole under the pompom.
-  - So the ring shows behind the tip, between the brim and the pompom, where the hat hid it in the picture.
+- **The header's logo wears the owner's Santa hat** (the owner: "use this logo on website now affhan logo, save this as affhan-christmas ... do some animation on the christmas hat live waving in website ... responsive perfection"; then their 3D picture: "use this logo instead of the old logo ... the brand logo too perfectly", and on seeing it "perfect"). The navbar (40 / 48 / 56 px) and the phone frame's header (40 px) draw `ChristmasLogo` in the boxes `public/logo.png` had, so nothing on the page moves. `CHRISTMAS_LOGO` in `src/lib/christmas.ts` turns it off: the flat logo.png again. The footer, the navbar's menu drawer, the console, the staff pages, the emails and the favicon never changed.
+- **Their picture** (the 3D logo in its hat) came as a PNG on black. It is kept as `public/affhan-christmas.png`, 900 px, off its ground: each edge pixel's alpha is how far it is from black toward the colour inside it, so there is no dark rim and the letters' dark 3D sides stay solid. The logo and its hat fill 89% of the frame's height, in the middle: about 50 px of the 56 px box. That keeps the size of the owner's "slightly make the logo big" (the flat logo drawn a fifth bigger was 46 px), with no transform of its own.
+- **The pieces:** `public/affhan-christmas-layers.webp` (32 KB, near-lossless: within 4 levels in 255 of lossless, which was 48) holds four 225 px tiles of one frame: the hat's cone, its floppy tip, its pompom, then the rest of the picture (the logo and the brim). `scripts/build_christmas_logo.mjs` makes both files: `--source <picture>` cuts the picture first; without it, the pieces are cut from the saved PNG, byte-identical on a rerun; `--preview` also draws what each pixel was taken to be, with the cut.
+  - **The three that move lie under the rest**, which has a hole where each is. So the cone goes down behind the brim as it sways, and whatever moves shows only where nothing of the logo is.
+  - **What moving uncovers is drawn in:** the cone runs on under the brim, and the tip under the pompom. The fold opens on its own shadow, in a wedge drawn to `FOLD_OPENS_DEG` (8°) and only as far down as the cone meets the tip.
+  - The first, flat version taught that: carried further down, the tip's own cloth was left floating as a red sliver at the gust.
 - **The motion** (`christmas-logo.css`):
-  - The brim stays on the A.
-  - The cone sways 1–2° on its base.
-  - The tip swings from the fold: out 3–6°, 10° in the gust, and in only 1–3°, as the cone is there.
-  - The pompom follows 0.25 s later and 1.4 times as far.
+  - The brim stays on the A, with the logo.
+  - The cone sways up to 1.6° on its base.
+  - The tip swings from the fold, on the hat's top outline: out 2–3.5°, 5.5° in the gust, and in only 1–2°, as the cone is there. It is long: the pompom is 23 px from the fold on the 56 px logo.
+  - The pompom follows 0.25 s later and 1.6 times as far.
   - One ten-second round, the gust at the half; every key is a turning point, so it never pauses part-way.
-  - On the 56 px logo the pompom moves about 1 px a swing and 2½ px in the gust (under a pixel read as standing still).
-- **What moving uncovers is drawn in:** the cone runs on under the brim, and the tip under the pompom. The fold opens on its own shadow, in a wedge the script draws to 12° and only as far down as the cone meets the tip. A first try carried the tip's own cloth down past that, and it was left floating as a red sliver at the gust.
+  - The pompom moves about 1 px a swing and 2½ px in the gust (under a pixel read as standing still).
 - Only transforms move (the graphics card's work, never a repaint). Nothing moves under `prefers-reduced-motion: reduce`.
-- **Loading:** the root layout preloads the picture (`preload(CHRISTMAS_LOGO_LAYERS)`), first in every page's head, as the phone header's `Image priority` did for logo.png. On static pages the browser draws the navbar itself, after the scripts.
+- **Loading:** the root layout preloads the picture (`preload(CHRISTMAS_LOGO_LAYERS)`), as the phone header's `Image priority` did for logo.png. On static pages the browser draws the navbar itself, after the scripts.
+- **A trap hit on the owner's localhost:** `next dev` swapped in the new CSS while the tab kept the previous picture in memory, and the new slices of the old picture read as "clumsy". A reload put it right. Live, a deploy brings the CSS and the picture together, and public files are revalidated on every load.
 - `tests/security/christmas-logo.test.mjs` holds:
   - the header's switch;
   - the preload asks for the CSS's own address;
-  - the tiles' order, and the pivots recomputed from the script's own numbers;
-  - the 12° limit and the turning-point keys;
+  - the four tiles, the moving ones under the rest;
+  - the 89% centred frame, read from the picture;
+  - the pivots recomputed from the script's own numbers;
+  - the fold's limit and the turning-point keys;
   - reduced motion.
 
 ## The console's moves and lists (2026-11-03)
