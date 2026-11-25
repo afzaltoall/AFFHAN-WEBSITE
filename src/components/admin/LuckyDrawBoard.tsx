@@ -56,8 +56,6 @@ const fmtWhen = (iso: string) =>
 const telOf = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
 const fmtDay = (iso: string) =>
   iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "";
-/** Everyone in the draw is listed this many at a time. */
-const PEOPLE_PAGE = 100;
 /** A panel's opening lines: the draw's own, or where someone stands in it. */
 type Lead = Array<[string, React.ReactNode]>;
 
@@ -135,7 +133,6 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
   const [peopleLoading, setPeopleLoading] = useState(false);
   const [peopleError, setPeopleError] = useState<string | null>(null);
   const [find, setFind] = useState("");
-  const [shown, setShown] = useState(PEOPLE_PAGE);
   const [exportingPeople, setExportingPeople] = useState(false);
   const peopleRef = useRef<HTMLElement | null>(null);
   const readPeople = useCallback(async (which: DrawMode) => {
@@ -156,7 +153,6 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
     if (peopleOpen) void readPeople(mode);
   }, [peopleOpen, mode, readPeople]);
   const showPeople = () => {
-    setShown(PEOPLE_PAGE);
     if (peopleOpen) void readPeople(mode);
     setPeopleOpen(true);
     requestAnimationFrame(() => peopleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -557,10 +553,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
                 <input
                   type="search"
                   value={find}
-                  onChange={(e) => {
-                    setFind(e.target.value);
-                    setShown(PEOPLE_PAGE);
-                  }}
+                  onChange={(e) => setFind(e.target.value)}
                   placeholder="Name, Trip ID, city or mobile"
                   className="h-8 w-full rounded-full bg-black/[0.03] pl-8 pr-3 text-[13px] outline-none ring-1 ring-black/[0.06] focus:bg-white focus:ring-2 focus:ring-[#0071e3]/40"
                 />
@@ -592,9 +585,15 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
                   <span>Mobile</span>
                   <span>Applied</span>
                 </div>
+                {/* Everyone at once (the owner: "dont show show more show everything at once itself"): a row the
+                    screen does not reach is skipped by the browser until it does (content-visibility), so thousands
+                    scroll and search as a few do. */}
                 <ol className="divide-y divide-black/[0.06]">
-                  {matches.slice(0, shown).map((p) => (
-                    <li key={p.id} className="grid grid-cols-1 gap-x-4 gap-y-0.5 px-5 py-2.5 text-[13.5px] sm:grid-cols-[7.5rem_minmax(0,1.3fr)_minmax(0,1fr)_10rem_7rem] sm:items-baseline">
+                  {matches.map((p) => (
+                    <li
+                      key={p.id}
+                      className="grid grid-cols-1 gap-x-4 gap-y-0.5 px-5 py-2.5 text-[13.5px] [contain-intrinsic-size:auto_44px] [content-visibility:auto] sm:grid-cols-[7.5rem_minmax(0,1.3fr)_minmax(0,1fr)_10rem_7rem] sm:items-baseline"
+                    >
                       <span className="order-2 text-[12px] tabular-nums text-[#86868b] sm:order-none sm:text-[13px]">{p.tripId}</span>
                       <span className="order-1 min-w-0 sm:order-none">
                         <button
@@ -617,16 +616,6 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
                     </li>
                   ))}
                 </ol>
-                {matches.length > shown && (
-                  <div className="border-t border-black/[0.06] px-5 py-3">
-                    <button type="button" onClick={() => setShown((s) => s + PEOPLE_PAGE)} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
-                      Show {count.format(Math.min(PEOPLE_PAGE, matches.length - shown))} more
-                    </button>
-                    <span className="ml-3 text-[12.5px] text-[#86868b]">
-                      {count.format(shown)} of {count.format(matches.length)} shown
-                    </span>
-                  </div>
-                )}
               </>
             )}
           </section>

@@ -366,6 +366,11 @@ test("the console lists everyone in the draw: the pool itself, for the admin's o
   assert.match(board, /fetch\(`\/api\/admin\/lucky-draw\/people\/\?mode=\$\{which\}`, \{ cache: "no-store" \}\)/);
   assert.match(board, /onClick=\{\(\) => openApplication\(p\.id, p\.name, p\.tripId, \[\["Lucky draw", mode === "live" \? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"\]\]\)\}/);
   assert.match(board, /\{label === "In the draw" && board\.poolSize > 0 && \(\s*<button type="button" onClick=\{showPeople\}/, "opened from the count itself");
+  // Everyone at once (the owner: "dont show show more show everything at once itself"), rows off screen left to the
+  // browser to skip.
+  assert.match(board, /\{matches\.map\(\(p\) => \(/);
+  assert.doesNotMatch(board, /matches\.slice\(|Show \{count\.format|PEOPLE_PAGE/);
+  assert.match(board, /\[content-visibility:auto\]/);
 });
 
 test("an application sent through an employee's link is not in the draw, as the Terms say, and its page never says it is", () => {
