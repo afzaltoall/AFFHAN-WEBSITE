@@ -25,11 +25,26 @@ export interface OwnRegistration {
   iso: string | null;
   city: string;
   businessStatus: string;
+  /**
+   * Sent through an employee's link: such an application is not in the lucky draw (Terms clause 3, the owner,
+   * 2026-11-25), so its page never puts its ticket in the draw. Only this yes or no leaves the server, never the code
+   * it gave or whose it was.
+   */
+  viaLink: boolean;
 }
 
-const OWN = { referenceNo: true, createdAt: true, fullName: true, country: true, city: true, businessStatus: true } as const;
+const OWN = { referenceNo: true, createdAt: true, fullName: true, country: true, city: true, businessStatus: true, referralCode: true, referrerId: true } as const;
 
-function own(row: { referenceNo: string; createdAt: Date; fullName: string; country: string; city: string; businessStatus: string }): OwnRegistration {
+function own(row: {
+  referenceNo: string;
+  createdAt: Date;
+  fullName: string;
+  country: string;
+  city: string;
+  businessStatus: string;
+  referralCode: string | null;
+  referrerId: string | null;
+}): OwnRegistration {
   return {
     referenceNo: row.referenceNo,
     createdAt: row.createdAt.toISOString(),
@@ -39,6 +54,7 @@ function own(row: { referenceNo: string; createdAt: Date; fullName: string; coun
     iso: isoOf(row.country),
     city: row.city,
     businessStatus: row.businessStatus,
+    viaLink: row.referralCode !== null || row.referrerId !== null,
   };
 }
 

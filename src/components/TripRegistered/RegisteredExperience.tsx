@@ -118,12 +118,18 @@ export function RegisteredExperience() {
   }, []);
 
   const registered = !!registration;
+  /**
+   * Their ticket is in the draw: registered, and not through an employee's link, which is not in the draw (Terms
+   * clause 3, the owner, 2026-11-25). Sent through a link, the page is theirs (the pass, the welcome, what happens
+   * next) but the globe is everyone's: no ticket of theirs flies into it, glows in it or is said to be in it.
+   */
+  const ticketIn = registered && !registration?.viaLink;
   const still = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // Once the seal is down, the visitor's ticket flies from the pass into the globe. Once a visit;
   // under reduced motion it is in the globe from the start.
   useEffect(() => {
-    if (!ready || !registration || flown.current || still) return;
+    if (!ready || !registration || !ticketIn || flown.current || still) return;
     flown.current = true;
     const ref = registration.referenceNo;
     flightTimer.current = window.setTimeout(
@@ -133,7 +139,7 @@ export function RegisteredExperience() {
         }),
       stamp ? FLIGHT_AT.arrived : FLIGHT_AT.opened,
     );
-  }, [ready, registration, still, stamp, say]);
+  }, [ready, registration, ticketIn, still, stamp, say]);
   useEffect(() => () => window.clearTimeout(flightTimer.current), []);
 
   const first = registration?.firstName ?? "";
@@ -203,10 +209,10 @@ export function RegisteredExperience() {
             </h2>
             {/* Its room is held until it is known whose page this is. */}
             <div className="tr-globe-wrap">
-              {ready && <DrawGlobe ref={globeRef} count={GLOBE_TICKETS} mine={registered} holdMine={registered && !still} label={G.label(registered)} shakeLabel={G.shake} />}
+              {ready && <DrawGlobe ref={globeRef} count={GLOBE_TICKETS} mine={ticketIn} holdMine={ticketIn && !still} label={G.label(ticketIn)} shakeLabel={G.shake} />}
             </div>
             <p className="tr-globe-line">
-              {registered && <span className="text-(--cx-white)">{G.mine} </span>}
+              {ticketIn && <span className="text-(--cx-white)">{G.mine} </span>}
               {G.line}
             </p>
           </section>
@@ -229,7 +235,7 @@ export function RegisteredExperience() {
                 {P.announced} · <span className="whitespace-nowrap text-(--cx-gold-hi)">{P.date}</span>
               </p>
               <DrawCountdown />
-              <AddToCalendar tripId={registration?.referenceNo ?? null} />
+              <AddToCalendar tripId={ticketIn ? (registration?.referenceNo ?? null) : null} />
             </div>
           </div>
         </section>

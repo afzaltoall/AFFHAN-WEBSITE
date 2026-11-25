@@ -135,14 +135,14 @@ test("the TV screen never holds a mobile number: the pass and the screen's own r
   assert.doesNotMatch(screen, /phone/i);
 });
 
-test("who is in the draw: a valid passport, not spam or deleted, once per mobile number, not already drawn in this mode", () => {
+test("who is in the draw: a valid passport, not spam or deleted, not through an employee's link, once per mobile number, not already drawn in this mode", () => {
   const server = read("src/lib/server/lucky-draw.ts");
   const pool = /const pool = \(mode: DrawMode, drawn = true\) => Prisma\.sql`([\s\S]*?)`;/.exec(server);
   assert.ok(pool, "the pool is one query");
   const q = pool[1];
   assert.match(q, /SELECT DISTINCT ON \(COALESCE\(a\."customerKey", a\."id"\)\)/);
   assert.match(q, /a\."status" NOT IN \('spam', 'deleted'\)/);
-  assert.match(q, /a\."hasPassport" = true\$\{drawn \? notDrawn\(mode\) : Prisma\.empty\}/);
+  assert.match(q, /a\."hasPassport" = true\s+AND a\."referralCode" IS NULL AND a\."referrerId" IS NULL\$\{drawn \? notDrawn\(mode\) : Prisma\.empty\}/);
   const notDrawn = /const notDrawn = \(mode: DrawMode\) => Prisma\.sql`([\s\S]*?)`;/.exec(server);
   assert.ok(notDrawn);
   assert.match(notDrawn[1], /NOT EXISTS \([\s\S]*d\."mode" = \$\{mode\}[\s\S]*b\."customerKey" = a\."customerKey"/);
@@ -293,7 +293,7 @@ test("seats 1–3 from the first 1,540 applications, seats 4–5 from everyone, 
   assert.match(terms, /Three of the five places are drawn from the eligible applicants among the first 1,540 applications received \(12 to 29 October 2026\)\. The other two places are drawn from all eligible applicants\./);
   assert.match(terms, /Within each of these draws, every eligible applicant has an equal chance of being selected\./);
   assert.doesNotMatch(terms, /Every eligible applicant has an equal opportunity to be selected/);
-  assert.equal(TRIP_TERMS.updated, "23 November 2026");
+  assert.equal(TRIP_TERMS.updated, "25 November 2026");
   // The TV: for seats 1 to 3 the light moves over the group's names only, swapped in while every ticket is face down.
   const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
   assert.match(wall, /if \(seatFromFirstGroup\(c\.seat\) && pool\) stage\.drawFrom\(wallOf\(pool, board\.cards\)\.entries\.filter\(\(e\) => inFirstGroup\(e\[0\]\)\)\);/);
@@ -348,4 +348,55 @@ test("the console's Lucky draw: a name opens Participants' own panel, read again
   const route = read("src/app/api/admin/trip-applications/[id]/route.ts");
   assert.match(route, /if \(!admin \|\| admin\.role !== "admin"\) return new NextResponse\("Unauthorized", \{ status: 401 \}\);/);
   assert.match(route, /documents: row\.documents\.map\(\(d\) => \(\{ id: d\.id, contentType: d\.contentType, size: d\.size, proof: idProofOfKey\(d\.key\) \}\)\)/, "never a file's key");
+});
+
+test("an application sent through an employee's link is not in the draw, as the Terms say, and its page never says it is", () => {
+  // 2026-11-25, the owner: "referral based users doesnt have to come in lucky draw its very important". Every read of
+  // the draw's people is the one pool, so the TV's wall, the console's count and every draw leave them out.
+  const server = read("src/lib/server/lucky-draw.ts");
+  assert.equal(server.match(/a\."hasPassport" = true/g).length, 1, "one query says who is in the draw");
+  assert.match(server, /AND a\."referralCode" IS NULL AND a\."referrerId" IS NULL/);
+  // The Terms say so, and no longer the opposite.
+  const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
+  assert.match(terms, /Applications sent through a link shared by a member of the Affhan team are not entered into the random selection\./);
+  assert.doesNotMatch(JSON.stringify(TRIP_TERMS), /does not change an applicant's chance/);
+  // Their own page: the pass and the welcome, but no ticket of theirs flies into the globe, glows there, is said to be
+  // in the draw, or goes on the calendar's line. Only a yes or no leaves the server, never the code or whose it was.
+  const people = read("src/lib/trip-participants.ts");
+  assert.match(people, /viaLink: row\.referralCode !== null \|\| row\.referrerId !== null,/);
+  const own = people.slice(people.indexOf("function own("), people.indexOf("export async function registrationOf("));
+  const ret = own.slice(own.indexOf("return {"));
+  assert.doesNotMatch(ret, /referralCode:|referrerId:/, "the code and the employee stay on the server");
+  const page = read("src/components/TripRegistered/RegisteredExperience.tsx");
+  assert.match(page, /const ticketIn = registered && !registration\?\.viaLink;/);
+  assert.match(page, /if \(!ready \|\| !registration \|\| !ticketIn \|\| flown\.current \|\| still\) return;/);
+  assert.match(page, /<DrawGlobe ref=\{globeRef\} count=\{GLOBE_TICKETS\} mine=\{ticketIn\} holdMine=\{ticketIn && !still\} label=\{G\.label\(ticketIn\)\}/);
+  assert.match(page, /\{ticketIn && <span className="text-\(--cx-white\)">\{G\.mine\} <\/span>\}/);
+  assert.match(page, /<AddToCalendar tripId=\{ticketIn \? \(registration\?\.referenceNo \?\? null\) : null\} \/>/);
+  assert.equal(page.match(/mine=\{registered\}|G\.label\(registered\)|\{registered && <span className="text-\(--cx-white\)">\{G\.mine\}/g), null);
+  assert.match(read("src/components/TripRegistered/content.ts"), /title: "Every eligible application gets one ticket",/);
+  // Before applying (the owner: "Yes, say it"): on a link visit, the Terms sheet's At a glance says it, opening clause 3.
+  const gate = read("src/components/TripLegal/ConsentGate.tsx");
+  assert.match(gate, /const LINK_FACT = \{ label: "Team member's link", value: "Not entered in the draw", clause: 3 \} as const;/);
+  assert.match(gate, /viaLink \? \[\.\.\.GLANCE\.slice\(0, 2\), LINK_FACT, \.\.\.GLANCE\.slice\(2\)\]/);
+  assert.equal(gate.match(/\{glance\.map\(/g).length, 2, "both of its glance lists");
+  assert.equal(gate.match(/GLANCE\.map\(/g), null);
+  assert.match(read("src/components/TripApplication/ApplyExperience.tsx"), /viaLink=\{!!app\.state\.referral\.code\}/);
+});
+
+test("the TV's plate fits the screen the page really has, bars and all: measured, never vh alone", () => {
+  // 2026-11-25, the owner's photo of the office TV: Chrome on its Android with the tab strip and address bar showing,
+  // the seats cut off at the foot, as vh counts the browser's bars as hidden.
+  const css = fs.readFileSync(new URL("../../src/components/lucky-draw/wall/wall.css", import.meta.url), "utf8");
+  assert.match(css, /@supports \(height: 1dvh\) \{\s*\.lw \{\s*--u: min\(1dvw, 1\.7778dvh\);\s*\}\s*\}/);
+  const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  assert.match(wall, /return Math\.floor\(Math\.min\(w \/ 100, h \/ 56\.25\) \* 100\) \/ 100;/);
+  assert.match(wall, /const w = Math\.min\(root\.clientWidth \|\| window\.innerWidth, window\.innerWidth\);/);
+  assert.match(wall, /const h = Math\.min\(root\.clientHeight \|\| window\.innerHeight, window\.innerHeight\);/);
+  assert.match(wall, /root\.style\.setProperty\("--u", `\$\{plateUnit\(w, h\)\}px`\)/);
+  for (const hook of [/new ResizeObserver\(fit\)/, /window\.addEventListener\("resize", fit\)/, /window\.visualViewport\?\.addEventListener\("resize", fit\)/, /document\.addEventListener\("fullscreenchange", fit\)/]) {
+    assert.match(wall, hook);
+  }
+  // The wall re-fits its rows to the view when only the plate changes.
+  assert.match(read("src/components/lucky-draw/wall/stage.ts"), /if \(opts\.view\) this\.resizeWatch\.observe\(opts\.view\);/);
 });

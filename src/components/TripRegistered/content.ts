@@ -36,11 +36,12 @@ export const REGISTERED = {
   /**
    * The draw globe: a drum of tickets, theirs among them (DrawGlobe); never the number of applications. So
    * the title says the rule, not what the globe holds ("One ticket for every applicant" read as a count once
-   * the drum was fixed, 2026-10-28).
+   * the drum was fixed, 2026-10-28). Every eligible one (2026-11-25): an application sent through an employee's
+   * link is not in the draw (Terms clause 3), and its page shows the globe without a ticket of theirs.
    */
   globe: {
     eyebrow: "The draw globe",
-    title: "Every application gets one ticket",
+    title: "Every eligible application gets one ticket",
     mine: "Yours glows, marked YOU.",
     line: `${TRIP_FACTS.winners} winners are picked at random and announced on ${TRIP_FACTS.winnersAnnounced}.`,
     label: (mine: boolean) => `A glass globe of tickets for the draw${mine ? ", yours among them" : ""}.`,

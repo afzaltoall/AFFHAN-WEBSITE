@@ -66,6 +66,15 @@ const GLANCE = [
   { label: "Not included", value: "Food and meals", clause: 10 },
 ] as const;
 
+/**
+ * On a visit through an employee's link only, after Selection (the owner, 2026-11-25): such an application is not in
+ * the draw (Terms clause 3), said before anything is typed, not left to the clause alone.
+ */
+const LINK_FACT = { label: "Team member's link", value: "Not entered in the draw", clause: 3 } as const;
+
+/** The facts for this visit: through an employee's link, the link's own after Selection. */
+const glanceFor = (viaLink: boolean) => (viaLink ? [...GLANCE.slice(0, 2), LINK_FACT, ...GLANCE.slice(2)] : [...GLANCE]);
+
 /** "12 October 2026" → "12 Oct". */
 function shortDate(d: string) {
   const [day, month] = d.split(" ");
@@ -83,6 +92,7 @@ export function ConsentGate({
   onAgree,
   returnFocus,
   agreeLabel = "Agree & start application",
+  viaLink = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -91,7 +101,10 @@ export function ConsentGate({
   returnFocus?: HTMLElement | null;
   /** The agree button's words: what pressing it does where the popup is. */
   agreeLabel?: string;
+  /** The application came through an employee's link: At a glance says it is not entered in the draw (LINK_FACT). */
+  viaLink?: boolean;
 }) {
+  const glance = useMemo(() => glanceFor(viaLink), [viaLink]);
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<Phase>("enter");
   const [tab, setTab] = useState<Tab>("terms");
@@ -491,7 +504,7 @@ export function ConsentGate({
             </ul>
             <p className="tg-sum-title">At a glance</p>
             <ul className="tg-facts">
-              {GLANCE.map((g) => (
+              {glance.map((g) => (
                 <li key={g.label}>
                   <button type="button" onClick={() => readDoc("terms", g.clause)}>
                     <span className="tg-fact-label">{g.label}</span>
@@ -516,7 +529,7 @@ export function ConsentGate({
                 At a glance
               </p>
               <ul className="tg-glance" aria-labelledby={`${uid}-glance`}>
-                {GLANCE.map((g, i) => (
+                {glance.map((g, i) => (
                   <li key={g.label} style={{ ["--i" as string]: i }}>
                     <button type="button" onClick={() => showTab("terms", g.clause)}>
                       <span className="tg-glance-label">{g.label}</span>

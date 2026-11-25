@@ -22,6 +22,8 @@ export interface TripRegistration {
   iso: string | null;
   city: string;
   businessStatus: string;
+  /** Sent through an employee's link: not in the lucky draw (Terms clause 3), so no ticket of theirs in the draw globe. */
+  viaLink?: boolean;
 }
 
 /**

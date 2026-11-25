@@ -27,8 +27,10 @@ import {
  *
  * Who is in the draw (the owner, 2026-11-10: "Only those with a valid passport"): applications that said yes to "Do you
  * have a valid passport?", not marked spam or deleted, one chance per person (one per mobile number: someone who
- * applied twice, through "Registered again", is in once, by their first application), and not already drawn in this
- * mode. An employee's link changes nothing (Terms clause 3). Seats 1 to 3 of every round are drawn only from those
+ * applied twice, through "Registered again", is in once, by their first application), not sent through an employee's
+ * link (the owner, 2026-11-25: "referral based users doesnt have to come in lucky draw its very important"; Terms
+ * clause 3 says so: an application that gave an employee's code, credited or not, whatever the team decided about it),
+ * and not already drawn in this mode. Seats 1 to 3 of every round are drawn only from those
  * among the first 1,540 applications received (TRIP-26-00001 to TRIP-26-01540), seats 4 and 5 from everyone (the
  * owner, 2026-11-23; Terms clause 3 says so): the seat a press will fill is worked out first (seatOfNextDraw), then
  * the draw is made from its group, and the row's pool size and fingerprint are that group's.
@@ -56,7 +58,8 @@ const pool = (mode: DrawMode, drawn = true) => Prisma.sql`
   SELECT DISTINCT ON (COALESCE(a."customerKey", a."id")) a."id", a."referenceNo", a."fullName", a."city", a."country"
   FROM "TripApplication" a
   WHERE a."status" NOT IN ('spam', 'deleted')
-    AND a."hasPassport" = true${drawn ? notDrawn(mode) : Prisma.empty}
+    AND a."hasPassport" = true
+    AND a."referralCode" IS NULL AND a."referrerId" IS NULL${drawn ? notDrawn(mode) : Prisma.empty}
   ORDER BY COALESCE(a."customerKey", a."id"), a."createdAt", a."id"`;
 
 /**
