@@ -3,6 +3,11 @@
  * and between them the view (.lw-view), where ./stage.ts draws its rows of names: only there, so no word on the screen
  * ever sits over a name. Laid out on a 16:9 plate scaled to the screen (--u is a hundredth of its width), the same on
  * any TV; everything that must be read keeps 4% from the plate's edges, inside a TV's title-safe area.
+ * The plate is as large as fits the part of the screen the page really has (2026-11-25, the owner's photo of the
+ * office TV: Chrome on the display's Android, its tab strip and address bar showing, the seats cut off at the foot).
+ * vh is the largest the page's height can be, as if the browser's bars were hidden, and those bars never hide on a
+ * big screen: so DrawWall measures the page and sets --u in pixels (fitPlate), and before it has, dvw/dvh (the size
+ * there now) where the browser knows them, vw/vh where it does not. Full screen, the plate fills the TV.
  * The type (the owner: "the fonts aren't good ... clumsy"): the trip's Bodoni for what matters (AFFHAN, the draw's
  * title, the winners' names), Jost in plain words for the rest; spaced capitals only for small labels, never on
  * lowercase.
@@ -23,6 +28,11 @@
   font-family: var(--font-ld-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   user-select: none;
+}
+@supports (height: 1dvh) {
+  .lw {
+    --u: min(1dvw, 1.7778dvh);
+  }
 }
 .lw *,
 .lw *::before,

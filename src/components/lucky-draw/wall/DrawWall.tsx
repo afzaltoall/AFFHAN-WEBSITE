@@ -95,6 +95,28 @@ function restWords(board: Board, started: boolean): string {
   return inWaitingList(p.round) ? `Waiting list · No. ${waitingNo(p.round, p.n)} next` : `Seat ${p.n} next`;
 }
 
+/**
+ * The plate's unit (--u, a hundredth of its width) for a screen showing the page at w by h CSS pixels: the 16:9 plate
+ * as large as fits, whole, never past an edge. Rounded down to a hundredth of a pixel, so its edges never land past
+ * the screen's by a rounding.
+ */
+function plateUnit(w: number, h: number): number {
+  return Math.floor(Math.min(w / 100, h / 56.25) * 100) / 100;
+}
+
+/**
+ * The plate fitted to the screen the page really has (2026-11-25, the owner's photo of the office TV: Chrome on its
+ * Android, the tab strip and the address bar showing, the seats cut off at the foot, as vh counts the bars as hidden).
+ * Measured: the page's own box and the window's, the smaller of each, again whenever either changes (full screen, the
+ * bars, the window), and set on the page as --u in pixels; the wall re-fits its rows to the new view (WallStage
+ * watches it).
+ */
+function fitPlate(root: HTMLElement) {
+  const w = Math.min(root.clientWidth || window.innerWidth, window.innerWidth);
+  const h = Math.min(root.clientHeight || window.innerHeight, window.innerHeight);
+  if (w > 0 && h > 0) root.style.setProperty("--u", `${plateUnit(w, h)}px`);
+}
+
 /** A seat's name sizes, in hundredths of the screen's width: the largest that fits is used (fitName). */
 const NAME_SIZES = [1.7, 1.45, 1.22, 1.05];
 
@@ -727,6 +749,25 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+
+  // The plate fitted to the screen as it is, measured before the first paint and whenever the screen changes (fitPlate).
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const fit = () => fitPlate(root);
+    fit();
+    const watch = new ResizeObserver(fit);
+    watch.observe(root);
+    window.addEventListener("resize", fit);
+    window.visualViewport?.addEventListener("resize", fit);
+    document.addEventListener("fullscreenchange", fit);
+    return () => {
+      watch.disconnect();
+      window.removeEventListener("resize", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
+      document.removeEventListener("fullscreenchange", fit);
+    };
+  }, [access]);
 
   // The screen kept awake while this page is in front (taken again when it comes back).
   useEffect(() => {

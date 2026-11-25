@@ -1236,6 +1236,8 @@ export class WallStage {
 
     this.resizeWatch = new ResizeObserver(() => this.resize());
     if (canvas.parentElement) this.resizeWatch.observe(canvas.parentElement);
+    // The view too: the plate is fitted to the screen (DrawWall's fitPlate), so the view can change while the page does not.
+    if (opts.view) this.resizeWatch.observe(opts.view);
     this.resize();
 
     // Every shader made ready as the screen opens, and the textures that never change sent to the GPU: the gift's
