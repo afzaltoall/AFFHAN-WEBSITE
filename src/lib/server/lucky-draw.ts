@@ -237,6 +237,17 @@ export async function drawPool(mode: DrawMode): Promise<DrawPool> {
 }
 
 /**
+ * Who the draw's rules let in, drawn or not: the pool without its "not drawn yet" step, so one application a mobile
+ * number, the first such. For Participants' Lucky draw filter and its audit (the owner, 2026-11-25: "which is selected
+ * for lucky draw too have to show separately ... which is this to audit and check for us"): the draw's own query, so
+ * the two can never disagree about who is in it.
+ */
+export async function drawEligibleIds(): Promise<Set<string>> {
+  const [row] = await prisma.$queryRaw<{ ids: string[] | null }[]>(Prisma.sql`SELECT array_agg(p."id") AS ids FROM (${pool("live", false)}) p`);
+  return new Set(row?.ids ?? []);
+}
+
+/**
  * Everyone who can be drawn in `mode` now, for the console's own list (the owner, 2026-11-25: "show the overall the
  * list of lucky draw set persons to see"): the pool itself, so exactly who the draw holds, with each one's application
  * (its panel), mobile and when they applied, in Trip ID order. Read as columns of arrays, as the TV's list is. The

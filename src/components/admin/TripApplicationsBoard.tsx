@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Check, Download, Lock, Mail, MessageCircle, Phone, RefreshCw, Search, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Download, Lock, Mail, MessageCircle, Phone, RefreshCw, Search, Ticket, Users, X } from "lucide-react";
+import { DRAW_BUSINESS_STATUS } from "@/lib/lucky-draw-shared";
 import { IdProofLockLine, OpenIdProofs, useIdProofLock } from "@/components/admin/IdProofLock";
 import { EVERY_BUSINESS_STATUS, SOURCE_NOT_VERIFIED, businessStatusBrief, isKnownBusinessStatus } from "@/lib/trip-application";
 import { countryFlagUrl } from "@/lib/countryFlag";
@@ -199,8 +200,29 @@ export function TripDocuments({ documents, compact = false, large = false, withL
  */
 type ListApplication = Pick<
   Application,
-  "id" | "referenceNo" | "createdAt" | "status" | "fullName" | "email" | "phone" | "country" | "city" | "businessStatus" | "companyName" | "businessCategory" | "areaOfInterest" | "customerCode" | "source"
-> & { user: Pick<Account, "name" | "email"> | null };
+  "id" | "referenceNo" | "createdAt" | "status" | "fullName" | "email" | "phone" | "country" | "city" | "businessStatus" | "companyName" | "businessCategory" | "areaOfInterest" | "customerCode" | "source" | "hasPassport"
+> & {
+  user: Pick<Account, "name" | "email"> | null;
+  /**
+   * Sent through a team member's link (2026-11-25): a yes or no, never the code or whose. The list's rows always carry
+   * it and inDraw; Registered again's full applications do not, and are never counted by either.
+   */
+  viaLink?: boolean;
+  /** In the lucky draw, by the draw's own query (lib/server/lucky-draw.ts drawEligibleIds): one per mobile number. */
+  inDraw?: boolean;
+};
+
+/** Participants' own filters on the draw's two answers (2026-11-25): the passport, and how the application came. */
+type PassportPick = "yes" | "no";
+type ThroughPick = "web" | "link";
+const PASSPORT_CHOICES: Array<{ value: PassportPick; label: string }> = [
+  { value: "yes", label: "Valid passport" },
+  { value: "no", label: "No passport" },
+];
+const THROUGH_CHOICES: Array<{ value: ThroughPick; label: string }> = [
+  { value: "web", label: "Website" },
+  { value: "link", label: "Team member's link" },
+];
 
 /**
  * Sent without signing in, and Cloudflare's silent check did not confirm a person sent it (it would have wanted a
@@ -265,6 +287,12 @@ export interface InitialFilters {
   country: string;
   /** "again": the Registered again view. */
   view?: string;
+  /** "yes" or "no": Valid passport. */
+  passport?: string;
+  /** "web" or "link": Applied through. */
+  through?: string;
+  /** "1": only those in the lucky draw, with its audit. */
+  draw?: string;
 }
 
 /** The applications with one mobile number, newest first (/api/admin/trip-applications/repeats/). */
@@ -347,6 +375,15 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   /** The business journey and the country picked, one of each at most; null is everyone. */
   const [journey, setJourney] = useState<string | null>(() => (isKnownBusinessStatus(initial?.journey) ? initial.journey : null));
   const [country, setCountry] = useState<string | null>(() => initial?.country?.trim().slice(0, 100) || null);
+  /** Valid passport and Applied through (2026-11-25), one answer each at most; null is everyone. */
+  const [passport, setPassport] = useState<PassportPick | null>(() => (initial?.passport === "yes" || initial?.passport === "no" ? initial.passport : null));
+  const [through, setThrough] = useState<ThroughPick | null>(() => (initial?.through === "web" || initial?.through === "link" ? initial.through : null));
+  /**
+   * Only those in the lucky draw, with its audit over the list (the owner, 2026-11-25: "which is selected for lucky
+   * draw too have to show separately ... of run business with valid passport without referrals ... only users who
+   * came and applied in website", "which is this to audit and check for us").
+   */
+  const [drawOnly, setDrawOnly] = useState(() => initial?.draw === "1");
   /** Registered again: the groups in place of the list. */
   const [showRepeats, setShowRepeats] = useState(() => initial?.view === "again");
   /** The groups from the server, or null until they are read (or when they could not be). */
@@ -357,6 +394,9 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   const clearFilters = () => {
     setJourney(null);
     setCountry(null);
+    setPassport(null);
+    setThrough(null);
+    setDrawOnly(false);
     setQ("");
   };
 
@@ -367,11 +407,14 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     if (tab !== "new") p.set("tab", tab);
     if (journey) p.set("journey", journey);
     if (country) p.set("country", country);
+    if (passport) p.set("passport", passport);
+    if (through) p.set("through", through);
+    if (drawOnly) p.set("draw", "1");
     if (showRepeats) p.set("view", "again");
     const qs = p.toString();
     const url = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
     if (url !== `${window.location.pathname}${window.location.search}`) window.history.replaceState(null, "", url);
-  }, [tab, journey, country, showRepeats]);
+  }, [tab, journey, country, passport, through, drawOnly, showRepeats]);
   const [openId, setOpenId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   // What "Today" and "This week" count from: the last read, so after midnight a refresh moves them on.
@@ -555,16 +598,20 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
   );
 
   const needle = q.trim().toLowerCase();
-  const narrowed = journey !== null || country !== null || needle !== "";
+  const narrowed = journey !== null || country !== null || passport !== null || through !== null || drawOnly || needle !== "";
 
   // One pass for the list and every count beside a filter. Each count leaves out its own filter and keeps the
-  // others: the tabs count across the journey, the country and the search; a journey's count is the list as it
-  // would be with that journey picked instead; a country's likewise. The deleted ones count only in their own tab,
-  // never in All or the figures.
+  // others: the tabs count across the journey, the country, the passport, how it came, the lucky draw and the
+  // search; a journey's count is the list as it would be with that journey picked instead; a country's, a passport
+  // answer's, a way in's and the lucky draw's likewise. The deleted ones count only in their own tab, never in All
+  // or the figures.
   const view = useMemo(() => {
     const tabs: Record<TabKey, number> = { new: 0, handled: 0, spam: 0, all: 0, deleted: 0 };
     const byJourney = new Map<string, number>();
     const byCountry = new Map<string, number>();
+    const byPassport = new Map<PassportPick, number>();
+    const byThrough = new Map<ThroughPick, number>();
+    let inDraw = 0;
     const list: ListApplication[] = [];
     let inTab = 0;
     const pass = (r: ListApplication, deleted: boolean) => {
@@ -572,7 +619,10 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       const s = !needle || (words.get(r.id) ?? "").includes(needle);
       const j = !journey || r.businessStatus === journey;
       const c = !country || countryOf(r) === country;
-      if (s && j && c) {
+      const p = !passport || (passport === "yes") === r.hasPassport;
+      const w = !through || (through === "link") === !!r.viaLink;
+      const d = !drawOnly || !!r.inDraw;
+      if (s && j && c && p && w && d) {
         if (deleted) tabs.deleted++;
         else {
           tabs.all++;
@@ -580,19 +630,28 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
         }
       }
       if (t) inTab++;
-      if (t && s && c) byJourney.set(r.businessStatus, (byJourney.get(r.businessStatus) ?? 0) + 1);
-      if (t && s && j) byCountry.set(countryOf(r), (byCountry.get(countryOf(r)) ?? 0) + 1);
-      if (t && s && j && c) list.push(r);
+      if (t && s && c && p && w && d) byJourney.set(r.businessStatus, (byJourney.get(r.businessStatus) ?? 0) + 1);
+      if (t && s && j && p && w && d) byCountry.set(countryOf(r), (byCountry.get(countryOf(r)) ?? 0) + 1);
+      if (t && s && j && c && w && d) {
+        const k: PassportPick = r.hasPassport ? "yes" : "no";
+        byPassport.set(k, (byPassport.get(k) ?? 0) + 1);
+      }
+      if (t && s && j && c && p && d) {
+        const k: ThroughPick = r.viaLink ? "link" : "web";
+        byThrough.set(k, (byThrough.get(k) ?? 0) + 1);
+      }
+      if (t && s && j && c && p && w && r.inDraw) inDraw++;
+      if (t && s && j && c && p && w && d) list.push(r);
     };
     for (const r of rows ?? []) pass(r, false);
     for (const r of deletedRows) pass(r, true);
-    return { tabs, byJourney, byCountry, list, inTab };
-  }, [rows, deletedRows, words, tab, needle, journey, country]);
+    return { tabs, byJourney, byCountry, byPassport, byThrough, inDraw, list, inTab };
+  }, [rows, deletedRows, words, tab, needle, journey, country, passport, through, drawOnly]);
   const list = view.list;
 
   // The rows drawn: the first 60, and 120 more each time the end of the list comes near; the first 60 again when
   // the list changes. All 1,500 at once made the page slow to open (the owner, 2026-10-29).
-  const listKey = `${tab}|${journey ?? ""}|${country ?? ""}|${needle}`;
+  const listKey = `${tab}|${journey ?? ""}|${country ?? ""}|${passport ?? ""}|${through ?? ""}|${drawOnly ? "draw" : ""}|${needle}`;
   const [drawn, setDrawn] = useState({ key: listKey, n: FIRST_ROWS });
   const shown = drawn.key === listKey ? drawn.n : FIRST_ROWS;
   const more = shown < list.length;
@@ -736,8 +795,10 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       "Business journey", "Company / brand", "Role", "Business category / area", "Company website", "Years in business",
       "About the business", "Planning to build", "Area of interest", "Would like to explore",
       "Interested in", "Products of interest", "Hoping to explore", "Nationality", "Valid passport", "Been to China",
-      "Privacy Policy", "Accurate & complete", "Terms & Conditions", "Referral code",
+      "Privacy Policy", "Accurate & complete", "Terms & Conditions", "Referral code", "In the lucky draw",
     ];
+    // In the lucky draw, as the list has it (the draw's own query): the export says it of every row.
+    const inDrawOf = new Map((rows ?? []).map((r) => [r.id, r.inDraw]));
     const yes = (v: boolean) => (v ? "Yes" : "No");
     const data = items.map((r) => [
       ...(showRepeats ? [groupOf.get(r.id) ?? ""] : []),
@@ -746,7 +807,7 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
       businessStatusBrief(r.businessStatus), r.companyName ?? "", r.role ?? "", r.businessCategory ?? "", r.companyWebsite ?? "", r.yearsInBusiness ?? "",
       r.businessDescription ?? "", r.businessPlan ?? "", r.areaOfInterest ?? "", r.exploreGoal ?? "",
       r.interests.join(", "), r.productsOfInterest, r.exploreNotes ?? "", r.nationality, yes(r.hasPassport), r.travelledToChina ? "Yes" : "",
-      yes(r.consentPrivacy), yes(r.consentAccuracy), yes(r.consentTerms), r.referralCode ?? "",
+      yes(r.consentPrivacy), yes(r.consentAccuracy), yes(r.consentTerms), r.referralCode ?? "", yes(inDrawOf.get(r.id) === true),
     ]);
     const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
     // Mobile numbers as text, or Excel shows 919876543210 as 9.19E+11.
@@ -762,7 +823,20 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
     XLSX.utils.book_append_sheet(wb, ws, "Free China Trip");
     // A filtered list says so in its name ("…-sri-lanka.xlsx"), so a file found later is not taken for everyone.
     const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-    const parts = (showRepeats ? ["registered again"] : [tab === "deleted" ? "deleted" : "", country ?? "", journey ? businessStatusBrief(journey) : ""]).map(slug).filter(Boolean);
+    const parts = (
+      showRepeats
+        ? ["registered again"]
+        : [
+            drawOnly ? "lucky draw" : "",
+            tab === "deleted" ? "deleted" : "",
+            country ?? "",
+            journey ? businessStatusBrief(journey) : "",
+            passport ? (passport === "yes" ? "valid passport" : "no passport") : "",
+            through ? (through === "web" ? "website" : "team link") : "",
+          ]
+    )
+      .map(slug)
+      .filter(Boolean);
     const suffix = parts.length ? `-${parts.join("-")}` : "";
     XLSX.writeFile(wb, `free-china-trip-${new Date().toISOString().slice(0, 10)}${suffix}.xlsx`);
   };
@@ -856,13 +930,21 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
           <FilterPanel
             journey={journey}
             country={country}
+            passport={passport}
+            through={through}
             byJourney={view.byJourney}
             byCountry={view.byCountry}
+            byPassport={view.byPassport}
+            byThrough={view.byThrough}
             countryOptions={countryOptions}
             onJourney={(v) => setJourney((j) => pick(j, v))}
             onCountry={(v) => setCountry((c) => pick(c, v))}
+            onPassport={(v) => setPassport((p) => (p === v ? null : v))}
+            onThrough={(v) => setThrough((w) => (w === v ? null : v))}
             onAllJourneys={() => setJourney(null)}
             onAllCountries={() => setCountry(null)}
+            onAllPassports={() => setPassport(null)}
+            onAllThroughs={() => setThrough(null)}
           />
         )}
 
@@ -895,6 +977,21 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
             <Users size={14} /> Registered again
             {repeats && <span className={showRepeats ? "text-white/70" : "text-[#86868b]"}>{repeats.groups.length}</span>}
           </button>
+          {/* The lucky draw: only those in it, every status (so the tab goes to All), and how they come to be. */}
+          <button
+            type="button"
+            aria-pressed={drawOnly && !showRepeats}
+            onClick={() => {
+              const on = !(drawOnly && !showRepeats);
+              setDrawOnly(on);
+              setShowRepeats(false);
+              if (on) setTab("all");
+            }}
+            className={`inline-flex h-9 items-center gap-2 rounded-full px-4 text-[13px] font-medium shadow-sm ring-1 ring-black/[0.06] transition-colors ${drawOnly && !showRepeats ? "bg-[#1d1d1f] text-white" : "bg-white text-[#1d1d1f] hover:bg-black/[0.02]"}`}
+          >
+            <Ticket size={14} /> Lucky draw
+            {rows && <span className={drawOnly && !showRepeats ? "text-white/70" : "text-[#86868b]"}>{view.inDraw}</span>}
+          </button>
           <label className="relative min-w-[220px] flex-1 sm:max-w-sm">
             <span className="sr-only">Search applications</span>
             <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#86868b]" />
@@ -907,6 +1004,9 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
           </label>
         </div>
 
+        {/* The lucky draw's audit: from every application to the draw, each rule in turn. */}
+        {rows && rows.length > 0 && drawOnly && !showRepeats && <DrawAudit rows={rows} />}
+
         {/* What the list is narrowed to, each piece removable, while anything narrows it. */}
         {rows && rows.length > 0 && narrowed && !showRepeats && (
           <div aria-live="polite" className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-2 text-[13px]">
@@ -914,7 +1014,10 @@ export function TripApplicationsBoard({ initial }: { initial?: InitialFilters })
               <span className="tabular-nums">{list.length}</span> of <span className="tabular-nums">{view.inTab}</span>{" "}
               {tab === "all" ? (view.inTab === 1 ? "application" : "applications") : tab}
             </span>
+            {drawOnly && <ActiveFilter label="In the lucky draw" onRemove={() => setDrawOnly(false)} />}
             {journey && <ActiveFilter label={businessStatusBrief(journey)} onRemove={() => setJourney(null)} />}
+            {passport && <ActiveFilter label={passport === "yes" ? "Valid passport" : "No passport"} onRemove={() => setPassport(null)} />}
+            {through && <ActiveFilter label={through === "web" ? "Website" : "Team member's link"} onRemove={() => setThrough(null)} />}
             {country && <ActiveFilter label={country} flag={country} onRemove={() => setCountry(null)} />}
             {needle && <ActiveFilter label={`“${q.trim()}”`} onRemove={() => setQ("")} />}
             <button type="button" onClick={clearFilters} className="ml-auto font-medium text-[#0058b0] hover:underline">
@@ -1110,27 +1213,60 @@ function RepeatsView({
 function FilterPanel({
   journey,
   country,
+  passport,
+  through,
   byJourney,
   byCountry,
+  byPassport,
+  byThrough,
   countryOptions,
   onJourney,
   onCountry,
+  onPassport,
+  onThrough,
   onAllJourneys,
   onAllCountries,
+  onAllPassports,
+  onAllThroughs,
 }: {
   journey: string | null;
   country: string | null;
+  passport: PassportPick | null;
+  through: ThroughPick | null;
   byJourney: Map<string, number>;
   byCountry: Map<string, number>;
+  byPassport: Map<PassportPick, number>;
+  byThrough: Map<ThroughPick, number>;
   countryOptions: string[];
   onJourney: (v: string) => void;
   onCountry: (v: string) => void;
+  onPassport: (v: PassportPick) => void;
+  onThrough: (v: ThroughPick) => void;
   onAllJourneys: () => void;
   onAllCountries: () => void;
+  onAllPassports: () => void;
+  onAllThroughs: () => void;
 }) {
   const id = useId();
   const head = "text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]";
   const showAll = "text-[12.5px] font-medium text-[#0058b0] hover:underline";
+  /** One answer as the journeys are drawn: a radio's dot, the words, what picking it would leave. */
+  const option = (key: string, label: string, on: boolean, n: number, onPress: () => void) => (
+    <button
+      key={key}
+      type="button"
+      aria-pressed={on}
+      disabled={!on && n === 0}
+      onClick={onPress}
+      className={`flex min-h-11 items-center gap-2.5 rounded-xl px-3 py-2 text-left transition-colors disabled:cursor-default disabled:opacity-40 ${on ? "bg-[#1d1d1f] text-white" : "bg-[#f5f5f7] text-[#1d1d1f] enabled:hover:bg-black/[0.06]"}`}
+    >
+      <span aria-hidden className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full bg-white ${on ? "" : "ring-1 ring-black/20"}`}>
+        {on && <span className="h-2 w-2 rounded-full bg-[#1d1d1f]" />}
+      </span>
+      <span className="min-w-0 flex-1 text-[13px] font-medium leading-snug">{label}</span>
+      <span className={`shrink-0 text-[13px] font-semibold tabular-nums ${on ? "text-white/70" : "text-[#86868b]"}`}>{n}</span>
+    </button>
+  );
 
   // The country picked, brought into the sideways row's view when it lies off either edge (a phone; from a
   // tablet up the chips wrap and nothing scrolls). The row alone moves, never the page.
@@ -1185,6 +1321,40 @@ function FilterPanel({
         })}
       </div>
 
+      {/* The draw's two other answers (2026-11-25): side by side from a tablet, each its two answers. */}
+      <div className="mt-4 grid grid-cols-1 gap-x-5 gap-y-4 sm:grid-cols-2">
+        <div>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id={`${id}-passport`} className={head}>
+              Valid passport
+            </h2>
+            {passport && (
+              <button type="button" onClick={onAllPassports} className={showAll}>
+                Show all
+              </button>
+            )}
+          </div>
+          <div role="group" aria-labelledby={`${id}-passport`} className="mt-2.5 grid grid-cols-2 gap-1.5 sm:gap-2">
+            {PASSPORT_CHOICES.map((c) => option(c.value, c.label, passport === c.value, byPassport.get(c.value) ?? 0, () => onPassport(c.value)))}
+          </div>
+        </div>
+        <div>
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id={`${id}-through`} className={head}>
+              Applied through
+            </h2>
+            {through && (
+              <button type="button" onClick={onAllThroughs} className={showAll}>
+                Show all
+              </button>
+            )}
+          </div>
+          <div role="group" aria-labelledby={`${id}-through`} className="mt-2.5 grid grid-cols-2 gap-1.5 sm:gap-2">
+            {THROUGH_CHOICES.map((c) => option(c.value, c.label, through === c.value, byThrough.get(c.value) ?? 0, () => onThrough(c.value)))}
+          </div>
+        </div>
+      </div>
+
       <div className="mt-4 flex items-baseline justify-between gap-3">
         <h2 id={`${id}-country`} className={head}>
           Country
@@ -1227,6 +1397,118 @@ function FilterPanel({
 }
 
 /** One thing the list is narrowed to, over the list, with its own remove. */
+/**
+ * How the lucky draw's people come out of every application (the owner, 2026-11-25: "which is this to audit and check
+ * for us so think and do understandable perfection"): the rules of the Terms' clause 3 one at a time, each line what
+ * that rule leaves out of what the line above left, down to the number in the draw. That number is the draw's own
+ * (each row's inDraw, from its query), and so is checked here twice: against the answers above it (what is left
+ * after the passport, less those whose mobile number applied earlier) and against the Lucky draw page's count. Over
+ * every application, whatever the filters show.
+ */
+function DrawAudit({ rows }: { rows: ListApplication[] }) {
+  const f = useMemo(() => {
+    const notSpam = rows.filter((r) => r.status !== "spam");
+    const web = notSpam.filter((r) => !r.viaLink);
+    const business = web.filter((r) => r.businessStatus === DRAW_BUSINESS_STATUS);
+    const otherAnswers = new Map<string, number>();
+    for (const r of web) if (r.businessStatus !== DRAW_BUSINESS_STATUS) otherAnswers.set(r.businessStatus, (otherAnswers.get(r.businessStatus) ?? 0) + 1);
+    const passport = business.filter((r) => r.hasPassport);
+    const inDraw = rows.filter((r) => r.inDraw).length;
+    // In the draw, but not by its answers: never, unless the list and the draw read different data.
+    const astray = rows.filter((r) => r.inDraw && !(r.status !== "spam" && !r.viaLink && r.businessStatus === DRAW_BUSINESS_STATUS && r.hasPassport)).length;
+    return {
+      all: rows.length,
+      spam: rows.length - notSpam.length,
+      link: notSpam.length - web.length,
+      notBusiness: web.length - business.length,
+      otherAnswers: [...otherAnswers.entries()].sort((a, b) => b[1] - a[1]),
+      noPassport: business.length - passport.length,
+      repeats: passport.length - inDraw,
+      inDraw,
+      astray,
+    };
+  }, [rows]);
+
+  // The Lucky draw page's own count (who is still to be drawn, and how many have been), read again as the list changes.
+  const [board, setBoard] = useState<{ toDraw: number; drawn: number } | "failed" | null>(null);
+  useEffect(() => {
+    let gone = false;
+    fetch("/api/admin/lucky-draw/board/?mode=live", { cache: "no-store" })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(String(res.status));
+        const b = (await res.json()) as { poolSize: number; cards: unknown[] };
+        if (!gone) setBoard({ toDraw: b.poolSize, drawn: b.cards.length });
+      })
+      .catch(() => {
+        if (!gone) setBoard("failed");
+      });
+    return () => {
+      gone = true;
+    };
+  }, [f.inDraw]);
+
+  const n = (v: number) => v.toLocaleString("en-IN");
+  const steps: Array<{ label: string; out: number; note?: string }> = [
+    { label: "Marked spam", out: f.spam },
+    { label: "Sent through a team member's link", out: f.link },
+    {
+      label: "Did not answer “Yes, I run a business”",
+      out: f.notBusiness,
+      note: f.otherAnswers.map(([a, k]) => `${businessStatusBrief(a)} ${n(k)}`).join(" · "),
+    },
+    { label: "No valid passport", out: f.noPassport },
+    { label: "The same mobile number applied earlier (one chance a person)", out: f.repeats },
+  ];
+  const agrees = board && board !== "failed" ? board.toDraw + board.drawn === f.inDraw : null;
+  return (
+    <section aria-label="Who is in the lucky draw" className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.06] sm:p-5">
+      <h2 className="text-[15px] font-semibold">Who is in the lucky draw</h2>
+      <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-[#6e6e73]">
+        The Terms&rsquo; rules (clause 3): answered &ldquo;Yes, I run a business&rdquo;, has a valid passport, applied on the website (not
+        through a team member&rsquo;s link), not marked spam, one chance a mobile number. Each line takes out what that rule leaves out.
+      </p>
+      <ol className="mt-3 divide-y divide-black/[0.06] text-[13.5px]">
+        <li className="flex items-baseline justify-between gap-4 py-2">
+          <span>Every application</span>
+          <span className="tabular-nums font-medium">{n(f.all)}</span>
+        </li>
+        {steps.map((s) => (
+          <li key={s.label} className="flex items-baseline justify-between gap-4 py-2">
+            <span className="min-w-0">
+              {s.label}
+              {s.note && <span className="mt-0.5 block text-[12px] text-[#86868b]">{s.note}</span>}
+            </span>
+            <span className="shrink-0 tabular-nums text-[#86868b]">&minus;{n(s.out)}</span>
+          </li>
+        ))}
+        <li className="flex items-baseline justify-between gap-4 py-2.5">
+          <span className="font-semibold">In the lucky draw</span>
+          <span className="tabular-nums text-[17px] font-semibold">{n(f.inDraw)}</span>
+        </li>
+      </ol>
+      <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[12.5px]">
+        {board === null ? (
+          <span className="text-[#86868b]">Checking against the Lucky draw page&hellip;</span>
+        ) : board === "failed" ? (
+          <span className="text-[#86868b]">The Lucky draw page&rsquo;s count could not be read just now.</span>
+        ) : agrees && f.astray === 0 ? (
+          <>
+            <Check size={14} className="text-emerald-600" />
+            <span className="text-emerald-700">
+              The Lucky draw page agrees: {n(board.toDraw)} to be drawn{board.drawn ? `, ${n(board.drawn)} drawn` : ""}.
+            </span>
+          </>
+        ) : (
+          <span className="text-amber-800">
+            The Lucky draw page has {n(board.toDraw)} to be drawn{board.drawn ? ` and ${n(board.drawn)} drawn` : ""}
+            {f.astray ? `; ${n(f.astray)} in the draw do not meet its rules here` : ""}. Refresh both to check again.
+          </span>
+        )}
+      </p>
+    </section>
+  );
+}
+
 function ActiveFilter({ label, flag, onRemove }: { label: string; flag?: string; onRemove: () => void }) {
   return (
     <span className="inline-flex h-7 items-center gap-1.5 rounded-full bg-white pl-2.5 pr-1 text-[12.5px] font-medium shadow-sm ring-1 ring-black/[0.06]">

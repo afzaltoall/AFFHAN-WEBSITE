@@ -52,6 +52,10 @@ export const LIST_SELECT = {
   /** "Not verified" (SOURCE_NOT_VERIFIED in lib/trip-application.ts) on the row. */
   source: true,
   user: { select: { name: true, email: true } },
+  /** Participants' Valid passport and Applied through filters (2026-11-25); the code itself leaves as a yes or no. */
+  hasPassport: true,
+  referralCode: true,
+  referrerId: true,
 } satisfies Prisma.TripApplicationSelect;
 
 type AdminApplicationRow = Prisma.TripApplicationGetPayload<{ include: typeof ADMIN_APPLICATION_INCLUDE }>;
@@ -78,9 +82,19 @@ export async function tripCustomerCodes(): Promise<Map<string, string>> {
   return new Map(rows.map((r) => [r.customerKey, r.code]));
 }
 
-/** The list's rows: dates as text, the customer's number beside each. */
-export function forList(rows: ListRow[], codeOf: Map<string, string>) {
-  return rows.map(({ customerKey, ...r }) => ({ ...r, createdAt: r.createdAt.toISOString(), customerCode: customerKey ? codeOf.get(customerKey) ?? null : null }));
+/**
+ * The list's rows: dates as text, the customer's number beside each, and (2026-11-25) whether it came through a team
+ * member's link (viaLink, never the code or whose) and whether it is in the lucky draw (inDraw: one of `inDraw`, the
+ * draw's own set, lib/server/lucky-draw.ts drawEligibleIds).
+ */
+export function forList(rows: ListRow[], codeOf: Map<string, string>, inDraw: Set<string> = new Set()) {
+  return rows.map(({ customerKey, referralCode, referrerId, ...r }) => ({
+    ...r,
+    createdAt: r.createdAt.toISOString(),
+    customerCode: customerKey ? codeOf.get(customerKey) ?? null : null,
+    viaLink: referralCode !== null || referrerId !== null,
+    inDraw: inDraw.has(r.id),
+  }));
 }
 
 /** Applications in full: every answer, the account that sent it (never the password hash or the Google id), dates as text, the customer's number. */

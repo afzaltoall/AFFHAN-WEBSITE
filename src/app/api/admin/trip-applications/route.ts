@@ -3,6 +3,7 @@ import { Prisma } from ".prisma/client";
 import { prisma, withDbRetry } from "@/lib/prisma";
 import { ADMIN_APPLICATION_INCLUDE, LIST_SELECT, codesFor, forConsole, forList, tripCustomerCodes } from "@/lib/server/trip-admin-rows";
 import { getCurrentUser } from "@/lib/session";
+import { drawEligibleIds } from "@/lib/server/lucky-draw";
 
 export const dynamic = "force-dynamic";
 
@@ -68,15 +69,17 @@ export async function GET(req: NextRequest) {
       const rows = await withDbRetry(() => prisma.tripApplication.findMany({ where, orderBy: NEWEST_FIRST, take: FULL_PAGE, include: ADMIN_APPLICATION_INCLUDE }));
       return NextResponse.json({ applications: await forConsole(rows), next: rows.length === FULL_PAGE ? cursorOf(rows[rows.length - 1]) : null });
     }
-    const [rows, total, codes] = await Promise.all([
+    const [rows, total, codes, inDraw] = await Promise.all([
       withDbRetry(() => prisma.tripApplication.findMany({ where, orderBy: NEWEST_FIRST, take: PAGE, select: LIST_SELECT })),
       withDbRetry(() => prisma.tripApplication.count({ where: which })),
       // The first page: every number at once, alongside it. A later page, a few new ones or the deleted: just theirs, after.
       since || before || deleted ? null : tripCustomerCodes(),
+      // Who is in the lucky draw, by the draw's own query (the deleted never are).
+      deleted ? new Set<string>() : withDbRetry(() => drawEligibleIds()),
     ]);
     return NextResponse.json({
       total,
-      applications: forList(rows, codes ?? (await codesFor(rows.map((r) => r.customerKey)))),
+      applications: forList(rows, codes ?? (await codesFor(rows.map((r) => r.customerKey))), inDraw),
       next: rows.length === PAGE ? cursorOf(rows[rows.length - 1]) : null,
     });
   } catch (e) {
