@@ -411,7 +411,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
         )}
         {board.ready && mode === "live" && board.applicationsOpen && (
           <p className="mb-4 rounded-xl bg-amber-500/10 px-4 py-2.5 text-[13px] text-amber-900">
-            <b className="font-semibold">The live draw opens when applications close on {closes}.</b> Everyone who applies until then is in it.
+            <b className="font-semibold">The live draw opens when applications close on {closes}.</b> Everyone eligible who applies until then is in it.
             Rehearse on the TV until then: rehearsal draws never count.
           </p>
         )}
