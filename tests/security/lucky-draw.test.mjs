@@ -222,8 +222,10 @@ test("the trip's Privacy Policy says what the draw's screen shows, and what it n
 // the board, the words read out).
 test("the TV never shows a Trip ID", () => {
   const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
-  const jsx = wall.slice(wall.indexOf("  return (\n    <div\n      ref={rootRef}"));
-  assert.ok(jsx.length > 1000, "the screen's markup found");
+  // Found by a pattern, never by its line breaks: a checkout can have the file in CRLF.
+  const at = wall.search(/return \(\s*<div\s+ref=\{rootRef\}/);
+  const jsx = wall.slice(at);
+  assert.ok(at > 0 && jsx.length > 1000, "the screen's markup found");
   assert.doesNotMatch(jsx, /tripId|lw-seat-id/, "no Trip ID in the screen's markup");
   assert.doesNotMatch(wall, /Trip ID \$\{/, "nor in the words read out for a screen reader");
   const faces = read("src/components/lucky-draw/wall/faces.ts");
