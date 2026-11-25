@@ -208,11 +208,53 @@ test("no live draw while applications are open: a localhost (always open) on the
 
 test("the trip's Privacy Policy says what the draw's screen shows, and what it never does", () => {
   const text = JSON.stringify(TRIP_PRIVACY.sections.find((x) => x.n === 12));
-  assert.match(text, /each applicant's Trip ID, name, city and country/);
-  assert.match(text, /Mobile numbers, identity documents and passport answers are never shown on it/);
-  assert.equal(TRIP_PRIVACY.updated, "10 November 2026");
-  // The trip's legal pages' date in the sitemap: moved on 2026-11-23, when the Terms' clause 3 changed (below).
-  assert.match(fs.readFileSync(new URL("../../src/app/sitemap.ts", import.meta.url), "utf8"), /chinaTripLegal: '2026-11-23'/);
+  assert.match(text, /The winners, and then a waiting list of reserve applicants, are drawn live/);
+  assert.match(text, /each applicant's name, city and country/);
+  assert.match(text, /Trip IDs, mobile numbers, identity documents and passport answers are never shown on it/);
+  assert.equal(TRIP_PRIVACY.updated, "25 November 2026");
+  // The trip's legal pages' date in the sitemap: moved on 2026-11-25, when section 12 changed (no Trip ID on the screen).
+  assert.match(fs.readFileSync(new URL("../../src/app/sitemap.ts", import.meta.url), "utf8"), /chinaTripLegal: '2026-11-25'/);
+});
+
+// 2026-11-25, the owner, over a filled seat on the TV ("Karthikeyan M / Trichy, India / TRIP-26-00774"): "trip id kaata
+// vendam and trip id display pana vendam". The screen has Trip IDs only to order the wall and find a person on it:
+// nothing on it draws or writes one (the seats, the tickets' stubs, the reveal's details, the pack, the pass, the tag,
+// the board, the words read out).
+test("the TV never shows a Trip ID", () => {
+  const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  const jsx = wall.slice(wall.indexOf("  return (\n    <div\n      ref={rootRef}"));
+  assert.ok(jsx.length > 1000, "the screen's markup found");
+  assert.doesNotMatch(jsx, /tripId|lw-seat-id/, "no Trip ID in the screen's markup");
+  assert.doesNotMatch(wall, /Trip ID \$\{/, "nor in the words read out for a screen reader");
+  const faces = read("src/components/lucky-draw/wall/faces.ts");
+  const face = faces.slice(faces.indexOf("export function drawFace("), faces.indexOf("export function drawBack("));
+  assert.doesNotMatch(face, /e\[0\]/, "a ticket's face never draws its entry's Trip ID");
+  assert.match(face, /bodoniText\(ctx, "A", mid - /, "its stub: the AFFHAN A, where the Trip ID was");
+  assert.doesNotMatch(faces, /tripId|TRIP-26/, "the pass, the tag, the envelope, the pack: no Trip ID");
+  const stage = read("src/components/lucky-draw/wall/stage.ts");
+  assert.doesNotMatch(stage, /drawPlate\([^;]*tripId/, "no detail of the reveal is a Trip ID");
+  assert.doesNotMatch(stage, /drawTag\([^;]*tripId/);
+  assert.match(stage, /drawPlate\(ctx, waiting \? "Waiting list" : "The draw", card\.seat \? seatName\(card\.round, card\.seat\)\.toUpperCase\(\) : "", "", this\.opts\.fonts\)/);
+  assert.doesNotMatch(read("src/components/lucky-draw/wall/board.ts"), /tripId/);
+  assert.doesNotMatch(read("src/app/globals.css") + fs.readFileSync(new URL("../../src/components/lucky-draw/wall/wall.css", import.meta.url), "utf8"), /lw-seat-id/);
+});
+
+// The same day: the first five are the draw, the rest a waiting list. Someone on the waiting list is never called a
+// winner on the screen (the pack, the climax, the pass), and the words on the TV and the console are the shared ones.
+test("the draw and its waiting list: nobody on the waiting list is called a winner", () => {
+  const stage = read("src/components/lucky-draw/wall/stage.ts");
+  assert.match(stage, /this\.grandPack\.ink\(waiting \? this\.packInks\.waiting : this\.packInks\.winner\);/);
+  assert.match(stage, /drawPlate\(ctx, inWaitingList\(card\.round\) \? "Waiting list" : "Winner", card\.name\.toUpperCase\(\), "", this\.opts\.fonts\)/);
+  const faces = read("src/components/lucky-draw/wall/faces.ts");
+  assert.match(faces, /passLabel\(ctx, fonts, `\$\{waiting \? "Waiting list" : "Winner"\} · Lucky Draw \$\{year\}`, right, 146, "right"\);/);
+  assert.match(faces, /medallion\(ctx, fonts, sx, 830, 94, year, !waiting\);/);
+  const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  assert.match(wall, /\{drawing \? "Drawing…" : nextRound \? nextRoundWords\(round\) : "Draw"\}/);
+  assert.match(wall, /<p className="lw-round">\{roundName\(round\)\}<\/p>/);
+  assert.doesNotMatch(wall, /`Round |Start round/);
+  const consoleBoard = read("src/components/admin/LuckyDrawBoard.tsx");
+  assert.match(consoleBoard, /\{nextRoundWords\(board\.round\)\}/);
+  assert.doesNotMatch(consoleBoard, /Round \{|`Round |Start round/);
 });
 
 test("the console has its row, under Free China Trip", () => {

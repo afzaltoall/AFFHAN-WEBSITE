@@ -2,13 +2,27 @@
 // (src/lib/lucky-draw-shared.ts). The owner: "our target is 5 persons, each draw 1 person ... make it infinity"; then
 // "once five seats complete, give a next option; click it and draw 2 opens". So each round has five seats of its
 // own, filled in order; once all five are taken the next draw takes seat 1 of the next round (the screens offer
-// "Start round 2" first), the round before kept as it was; someone who can't take part leaves their seat open and the
+// the next round first), the round before kept as it was; someone who can't take part leaves their seat open and the
 // next draw fills it first; Restore is as if the release never happened; an application taken out as spam or deleted
-// counts as released.
+// counts as released. Round 1 is the draw, every round after it the waiting list, numbered on (2026-11-25).
 //   npm run test:lucky-draw
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DRAW_SEATS, isDrawMode, nextPlace, personName, roundFull, seatDraws, seatWords } from "@/lib/lucky-draw-shared";
+import {
+  DRAW_SEATS,
+  inWaitingList,
+  isDrawMode,
+  nextPlace,
+  nextRoundWords,
+  personName,
+  placeWords,
+  roundFull,
+  roundName,
+  seatDraws,
+  seatMark,
+  seatName,
+  waitingNo,
+} from "@/lib/lucky-draw-shared";
 
 const T0 = Date.parse("2026-12-01T10:00:00.000Z");
 const at = (s) => new Date(T0 + s * 1000).toISOString();
@@ -104,9 +118,32 @@ test("draws keep their own order whatever their clocks say, and a release never 
   assert.deepEqual(s.out, ["b"]);
 });
 
-test("the words for a seat name its round", () => {
-  assert.equal(seatWords({ n: 3, round: 1 }), "Round 1 · Seat 3 of 5");
-  assert.equal(seatWords({ n: 1, round: 2 }), "Round 2 · Seat 1 of 5");
+// The owner, 2026-11-25, over "Round 1 complete" and "Start round 2": "edhula round maari vendam ... first panrom la adhu
+// draw va erukatum ... remaining la next set waiting list vachupom". Round 1 is the draw; every round after it the
+// waiting list (the Terms' reserve applicants), its places numbered on in the order drawn.
+test("round 1 is the draw, every round after it the waiting list, numbered on", () => {
+  assert.equal(inWaitingList(1), false);
+  assert.ok(inWaitingList(2) && inWaitingList(3) && inWaitingList(9));
+  assert.equal(roundName(1), "The draw");
+  assert.equal(roundName(2), "Waiting list");
+  assert.equal(roundName(5), "Waiting list");
+  assert.deepEqual([waitingNo(2, 1), waitingNo(2, 5), waitingNo(3, 1), waitingNo(3, 5), waitingNo(4, 3)], [1, 5, 6, 10, 13]);
+  assert.deepEqual(seatMark(1, 4), { word: "Seat", n: 4 });
+  assert.deepEqual(seatMark(3, 2), { word: "No.", n: 7 });
+  assert.equal(seatName(1, 4), "Seat 4");
+  assert.equal(seatName(2, 4), "No. 4");
+  assert.equal(seatName(3, 1), "No. 6");
+  assert.equal(placeWords({ n: 3, round: 1 }), "Seat 3 of 5");
+  assert.equal(placeWords({ n: 1, round: 2 }), "Waiting list · No. 1");
+  assert.equal(placeWords({ n: 2, round: 3 }), "Waiting list · No. 7");
+  assert.equal(nextRoundWords(1), "Start waiting list", "after the draw's five");
+  assert.equal(nextRoundWords(2), "Continue waiting list", "after each five of the waiting list");
+  assert.equal(nextRoundWords(3), "Continue waiting list");
+  // The rounds fill as they always have: the waiting list is only their name.
+  const s = seatDraws(drawn([..."abcdefghijkl"]));
+  const no = (id) => waitingNo(s.roundOf[id], s.seatOf[id]);
+  assert.deepEqual([s.roundOf.e, s.seatOf.e], [1, 5], "e: the draw's seat 5");
+  assert.deepEqual([no("f"), no("j"), no("k"), no("l")], [1, 5, 6, 7], "f to l: waiting list No. 1 to 7, in the order drawn");
 });
 
 test("names and cities are set for a screen, word by word", () => {

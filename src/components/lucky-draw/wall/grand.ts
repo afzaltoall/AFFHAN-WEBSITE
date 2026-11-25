@@ -10,8 +10,9 @@ import * as THREE from "three";
  *  - the winner's ticket spins out of the wall towards the room and, in a flash, is a gold foil pack, the AFFHAN
  *    Winner Pack, that lands in the middle with a jolt; spotlights sweep; it trembles, light gathering at its
  *    seams, and its top tears off, light bursting out of it as it falls away into the dark;
- *  - their Trip ID, cast in gold, zooms in out of the dark and lands with a shock, a glint running over it; it rushes
- *    past the room, and their city (and country) swings in the same way;
+ *  - their seat ("SEAT 3"; on the waiting list, their number, "NO. 6"), cast in gold, rises out of the pack and lands
+ *    with a shock, a glint running over it; it rushes past the room, and their city (and country) swings in the same
+ *    way (the first detail was their Trip ID until 2026-11-25, the owner: "trip id kaata vendam");
  *  - the spotlights close in, embers rise, the light pulses; a burst, and their name; their card spins in out of it and
  *    lands in the middle, rays turning behind it, for its three seconds, then down into its seat as the screen lights
  *    again;
@@ -37,14 +38,14 @@ export const TG = {
   charge: 1.8,
   tear: 2.9,
   /**
-   * The Trip ID: out of the pack (the owner, 2026-11-12: "while clicking the pack ... from the pack the contents come"),
+   * The first detail, their seat: out of the pack (the owner, 2026-11-12: "while clicking the pack ... from the pack the contents come"),
    * rising out of its torn top from inside it, then flying to its place (emergeAt); landed; rushing past.
    */
   plate1: 3.0,
   land1: 3.95,
   through1: 5.25,
   /**
-   * The place, the same way, already on its way out of the dark as the Trip ID rushes past the room, the room
+   * The place, the same way, already on its way out of the dark as the seat rushes past the room, the room
    * travelling from the one into the other (the owner, 2026-11-12: "between the Trip ID and the place the transition
    * is weak, it gets stuck ... some continuity"; warpAt).
    */
@@ -69,7 +70,10 @@ export const TG = {
   end: 15.1,
 } as const;
 
-/** The details, in the order they come (the owner: "first the Trip ID, next the place, finally the winner's name"). */
+/**
+ * The details, in the order they come (the owner: "first the Trip ID, next the place, finally the winner's name"; since
+ * 2026-11-25 the seat comes first, never the Trip ID).
+ */
 export const PLATES = [
   { in: TG.plate1, land: TG.land1, through: TG.through1, side: 1 },
   { in: TG.plate2, land: TG.land2, through: TG.through2, side: -1 },
@@ -85,12 +89,12 @@ export const PLATE_PAST = 1.1;
 export const PAST_T = 0.32;
 
 /**
- * The Trip ID out of the pack: seconds it takes to rise out of its torn top (the rest of its way in, it flies to its
+ * The first detail out of the pack: seconds it takes to rise out of its torn top (the rest of its way in, it flies to its
  * place), how far it rises (world units), and its size meanwhile (of its own: the pack's width).
  */
 export const EMERGE = { rise: 0.45, lift: 1.7, scale: 0.26 } as const;
 
-/** The Trip ID's way out of the pack at `t`: whether it is on it, how far it has risen out of the pack, and flown on (0 to 1). */
+/** The first detail's way out of the pack at `t`: whether it is on it, how far it has risen out of the pack, and flown on (0 to 1). */
 export function emergeAt(t: number): { on: boolean; rise: number; fly: number } {
   if (t < TG.plate1) return { on: false, rise: 0, fly: 0 };
   if (t >= TG.land1) return { on: false, rise: 1, fly: 1 };
@@ -264,7 +268,7 @@ const packFragment = /* glsl */ `
   }
 `;
 
-/** The AFFHAN Winner Pack: a gold foil pack, its body and the strip along its top that tears off. */
+/** The AFFHAN Winner Pack ("Waiting List" for the rounds after the draw): a gold foil pack, its body and the strip along its top that tears off. */
 export class GoldPack {
   readonly root = new THREE.Group();
   /** The strip, turning about the tear as it comes away. */
@@ -295,6 +299,11 @@ export class GoldPack {
       }
     }
     this.root.visible = false;
+  }
+
+  /** Its print: the draw's "Winner Pack", or the waiting list's (both drawn as the screen opens, so a swap costs nothing). */
+  ink(map: THREE.Texture) {
+    for (const m of this.mats) m.uniforms.uMap.value = map;
   }
 
   /** One moment: the time (its foil's light), its charge, its opening's light, how far the strip has come away (0 to 1), its fading. */

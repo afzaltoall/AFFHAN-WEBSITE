@@ -1,11 +1,12 @@
-import type { DrawCardPublic } from "@/lib/lucky-draw-shared";
+import { inWaitingList, waitingNo, type DrawCardPublic } from "@/lib/lucky-draw-shared";
 import { fromOf, plane, type Fonts } from "./faces";
 
 /**
  * The airport departures board the winner's ticket checks in to (the owner, 2026-11-12, choosing the first of four
  * ideas to replace the gift box: "airport departure"). A black and gold split-flap board: every letter is a flap that
- * clatters through the alphabet and settles, left to right and row by row, on the winner's flight: their Trip ID,
- * their name, where they fly from, China, and WINNER. Then their boarding pass prints out of it.
+ * clatters through the alphabet and settles, left to right and row by row, on the winner's flight: their seat (their
+ * number on the waiting list, after the draw), their name, where they fly from, China, and WINNER (WAITING LIST). Then
+ * their boarding pass prints out of it. Never a Trip ID (the owner, 2026-11-25).
  *
  * Drawn on a 2D canvas for the moment asked (`t`, seconds into the reveal), never from how many frames were drawn.
  * The letters are drawn once, large, into tiles, and scaled onto the flaps; the board without its letters is drawn
@@ -72,10 +73,12 @@ function lines(name: string): string[] {
 }
 
 /** The board's rows for a winner: their name on one row, or on two or three when it is long; nothing wider than the board. */
-export function boardRows(c: Pick<DrawCardPublic, "tripId" | "name" | "city" | "country">): BoardRow[] {
-  const rows: BoardRow[] = [{ label: "FLIGHT", text: upper(c.tripId) }];
+export function boardRows(c: Pick<DrawCardPublic, "name" | "city" | "country" | "round" | "seat">): BoardRow[] {
+  const waiting = inWaitingList(c.round);
+  const place = c.seat ? (waiting ? `NO ${waitingNo(c.round, c.seat)}` : `SEAT ${c.seat}`) : waiting ? "WAITING LIST" : "DRAW";
+  const rows: BoardRow[] = [{ label: "PLACE", text: place }];
   lines(upper(c.name)).forEach((text, i) => rows.push({ label: i ? "" : "PASSENGER", text }));
-  rows.push({ label: "FROM", text: upper(fromOf(c.city, c.country)) }, { label: "TO", text: "CHINA" }, { label: "STATUS", text: "WINNER", gold: true });
+  rows.push({ label: "FROM", text: upper(fromOf(c.city, c.country)) }, { label: "TO", text: "CHINA" }, { label: "STATUS", text: waiting ? "WAITING LIST" : "WINNER", gold: true });
   return rows.map((r) => (r.text.length > BOARD_COLS_MAX ? { ...r, text: `${r.text.slice(0, BOARD_COLS_MAX - 1)}…` } : r));
 }
 
@@ -162,7 +165,7 @@ export class Board {
   }
 
   /** The winner's rows; every flap's letters and times. */
-  set(c: Pick<DrawCardPublic, "tripId" | "name" | "city" | "country">) {
+  set(c: Pick<DrawCardPublic, "name" | "city" | "country" | "round" | "seat">) {
     this.rows = boardRows(c);
     this.still = Infinity;
     this.cols = Math.min(BOARD_COLS_MAX, Math.max(BOARD_COLS_MIN, ...this.rows.map((r) => r.text.length)));

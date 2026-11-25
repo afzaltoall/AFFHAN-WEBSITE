@@ -1,6 +1,6 @@
-// The grand opening (src/components/lucky-draw/wall/grand.ts): its moments in the owner's order (the pack, the Trip
-// ID, the place, the card), each detail zooming in out of the dark to land at its place and rushing past the room,
-// the jolts dying away, and the card held three seconds.
+// The grand opening (src/components/lucky-draw/wall/grand.ts): its moments in the owner's order (the pack, the seat
+// (the Trip ID until 2026-11-25), the place, the card), each detail zooming in out of the dark to land at its place
+// and rushing past the room, the jolts dying away, and the card held three seconds.
 //   npm run test:lucky-draw
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -8,13 +8,13 @@ import { readFileSync } from "node:fs";
 import * as THREE from "three";
 import { EMERGE, FIREWORKS, Fireworks, GoldPlate, IMPACTS, PAST_T, PLATES, PLATE_DRIFT, PLATE_FAR, PLATE_HOLD, RayBurst, ShockRing, TG, plateAt, ringAt, shakeAt, shellSpot, warpAt, emergeAt } from "@/components/lucky-draw/wall/grand";
 
-test("the grand opening's moments: the pack, its tearing, the Trip ID, then the place, the burst, the card, its seat", () => {
+test("the grand opening's moments: the pack, its tearing, the seat, then the place, the burst, the card, its seat", () => {
   const order = ["out", "swap", "pack", "wait", "charge", "tear", "plate1", "land1", "plate2", "through1", "land2", "through2", "build", "burst", "name", "nameLand", "nameOut", "placed", "leave", "seat", "end"];
   for (let k = 1; k < order.length; k++) assert.ok(TG[order[k]] > TG[order[k - 1]], `${order[k - 1]} before ${order[k]}`);
-  assert.ok(PLATES[0].in === TG.plate1 && PLATES[1].in === TG.plate2 && PLATES[2].in === TG.name, "first the Trip ID, next the place, finally the name");
+  assert.ok(PLATES[0].in === TG.plate1 && PLATES[1].in === TG.plate2 && PLATES[2].in === TG.name, "first the seat, next the place, finally the name");
   for (const p of PLATES) assert.ok(p.through - p.land >= 1.3 - 1e-9, "each detail held long enough to read from the back of the room");
   for (const k of [1, 2]) assert.ok(PLATES[k - 1].through + PAST_T <= PLATES[k].land, "one detail at a time: each lands once the one before has gone");
-  assert.ok(PLATES[1].in <= PLATES[0].through, "the place already on its way in as the Trip ID rushes past: never an empty moment");
+  assert.ok(PLATES[1].in <= PLATES[0].through, "the place already on its way in as the seat rushes past: never an empty moment");
   assert.ok(TG.cardIn >= TG.nameOut && TG.cardIn < TG.placed, "the card out of the name's rush");
   assert.ok(Math.abs(TG.leave - TG.placed - 3) < 1e-9, "the card holds the screen three seconds");
   assert.ok(TG.end <= 16);
@@ -148,7 +148,7 @@ test("a shell: its stars burst where its rocket ends, at the moment it ends", ()
   fw.dispose();
 });
 
-test("the Trip ID comes out of the pack: from inside it, out of its torn top, then flying to its place", () => {
+test("the first detail comes out of the pack: from inside it, out of its torn top, then flying to its place", () => {
   assert.ok(TG.plate1 > TG.tear, "once the pack has torn open");
   assert.equal(emergeAt(TG.plate1 - 0.01).on, false);
   const first = emergeAt(TG.plate1);

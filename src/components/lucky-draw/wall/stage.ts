@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
-import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
+import { inWaitingList, seatName, type DrawCardPublic, type DrawPoolEntry } from "@/lib/lucky-draw-shared";
 import { placeOfTrip } from "./drum";
 import {
   ENV_PX,
@@ -154,7 +154,7 @@ export interface StageOptions {
   sound?: DrawSound;
   /**
    * How the winner is revealed: the grand opening, as a card pack's walkout (./grand.ts; the owner, 2026-11-12: "a
-   * grand opening, zooming in one by one ... FIFA style": the pack, the Trip ID, the place, the card), or the ones it replaced,
+   * grand opening, zooming in one by one ... FIFA style": the pack, the seat, the place, the card), or the ones it replaced,
    * to compare on the TV page: the golden envelope (`?reveal=envelope`), the airport departures board
    * (`?reveal=board`), the gift box (`?reveal=gift`).
    */
@@ -180,7 +180,7 @@ const LIFT_READY = 0.004;
 /** Seconds the tickets the light has jumped from stay golden, fading: its trail across the wall. */
 const TRAIL = 0.55;
 /**
- * The ticket the light lands on keeps its print from the room (./grid.ts veilAt): its name, place and Trip ID blurred
+ * The ticket the light lands on keeps its print from the room (./grid.ts veilAt): its name, place and stub blurred
  * past reading as the light makes its last jump onto it, and so as it leaves the wall; every other ticket as it is.
  * VEIL_PX: how far its inks run, in the face's own pixels (FACE_W across); VEIL_INK: how dark what is left of them.
  */
@@ -854,6 +854,8 @@ export class WallStage {
   private readonly walkFlash = document.createElement("div");
   /** The grand opening in the scene (./grand.ts): the pack, the details cast in gold, the spotlights, the shock ring, the rays. */
   private readonly grandPack: GoldPack;
+  /** The pack's two prints: the draw's "Winner Pack", and the waiting list's. */
+  private readonly packInks: { winner: THREE.Texture; waiting: THREE.Texture };
   private readonly plates: GoldPlate[] = [];
   private readonly plateCanvases = [document.createElement("canvas"), document.createElement("canvas"), document.createElement("canvas")];
   private readonly plateTex: THREE.CanvasTexture[] = [];
@@ -1128,14 +1130,18 @@ export class WallStage {
     this.scene.add(this.envelope.root);
     for (const t of [this.envTex, envFlap, envLining, envSeal]) this.renderer.initTexture(t);
 
-    // The grand opening: the pack's print drawn once; the details' letters drawn for each winner (makeSteps).
+    // The grand opening: the pack's two prints drawn once ("Winner Pack" for the draw, "Waiting List" for the rounds after
+    // it, 2026-11-25), the one for each person chosen in makeSteps; the details' letters drawn for each person.
     const packInk = paper(document.createElement("canvas"), PACK_PX.w, PACK_PX.h, (ctx) => drawPack(ctx, opts.fonts));
     packInk.colorSpace = THREE.NoColorSpace;
+    const packInkWaiting = paper(document.createElement("canvas"), PACK_PX.w, PACK_PX.h, (ctx) => drawPack(ctx, opts.fonts, "Waiting List"));
+    packInkWaiting.colorSpace = THREE.NoColorSpace;
+    this.packInks = { winner: packInk, waiting: packInkWaiting };
     this.grandPack = new GoldPack(packInk);
     this.owned.push(this.grandPack);
     this.scene.add(this.grandPack.root);
     this.plateCanvases.forEach((canvas, k) => {
-      const sample = [["Trip ID", "TRIP-26-00000", ""], ["From", "Chennai", "India"], ["Winner", "AFFHAN INTERNATIONAL", ""]][k];
+      const sample = [["The draw", "SEAT 1", ""], ["From", "Chennai", "India"], ["Winner", "AFFHAN INTERNATIONAL", ""]][k];
       const tex = paper(canvas, PLATE_PX.w, PLATE_PX.h, (ctx) => drawPlate(ctx, sample[0], sample[1], sample[2], opts.fonts));
       tex.colorSpace = THREE.NoColorSpace;
       this.plateTex.push(tex);
@@ -1153,7 +1159,7 @@ export class WallStage {
     this.confetti = new Confetti();
     this.owned.push(this.beams, this.burstRays, this.ring, this.warp, this.fireworks, this.confetti);
     this.scene.add(this.beams.root, this.burstRays.mesh, this.ring.mesh, this.warp.mesh, this.fireworks.points, this.confetti.points);
-    for (const t of [packInk, ...this.plateTex]) this.renderer.initTexture(t);
+    for (const t of [packInk, packInkWaiting, ...this.plateTex]) this.renderer.initTexture(t);
     this.flash = new THREE.Sprite(keep(new THREE.SpriteMaterial({ map: glow, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, transparent: true, toneMapped: false })));
     this.flash.visible = false;
     this.flash.renderOrder = 12;
@@ -1605,16 +1611,20 @@ export class WallStage {
         if (hctx) drawFace(hctx, [card.tripId, card.name, card.city, card.country], this.opts.fonts, 2);
         this.heroTex.needsUpdate = true;
         const tctx = this.tagCanvas.getContext("2d");
-        if (tctx) drawTag(tctx, card.tripId, this.opts.fonts);
+        if (tctx) drawTag(tctx, card.seat ? seatName(card.round, card.seat) : "", this.opts.fonts);
         this.tagTex.needsUpdate = true;
         this.renderer.initTexture(this.heroTex);
         this.renderer.initTexture(this.tagTex);
       },
       () => {
-        // The grand opening's first detail, cast in gold: their Trip ID.
+        // The grand opening's first detail, cast in gold: their seat in the draw, or their number on the waiting list
+        // (the owner, 2026-11-25: the Trip ID it was, "trip id kaata vendam"; the rounds after the draw, a waiting list);
+        // and the pack it comes out of, never a "Winner Pack" for the waiting list.
         if (this.style !== "walk") return;
+        const waiting = inWaitingList(card.round);
+        this.grandPack.ink(waiting ? this.packInks.waiting : this.packInks.winner);
         const ctx = this.plateCanvases[0].getContext("2d");
-        if (ctx) drawPlate(ctx, "Trip ID", card.tripId, "", this.opts.fonts);
+        if (ctx) drawPlate(ctx, waiting ? "Waiting list" : "The draw", card.seat ? seatName(card.round, card.seat).toUpperCase() : "", "", this.opts.fonts);
         this.plateTex[0].needsUpdate = true;
         this.renderer.initTexture(this.plateTex[0]);
       },
@@ -1628,15 +1638,16 @@ export class WallStage {
         this.renderer.initTexture(this.plateTex[1]);
       },
       () => {
-        // The last: their name, the climax (on two lines when it is long).
+        // The last: their name, the climax (on two lines when it is long), "Winner" over it, or "Waiting list".
         if (this.style !== "walk") return;
         const ctx = this.plateCanvases[2].getContext("2d");
-        if (ctx) drawPlate(ctx, "Winner", card.name.toUpperCase(), "", this.opts.fonts);
+        if (ctx) drawPlate(ctx, inWaitingList(card.round) ? "Waiting list" : "Winner", card.name.toUpperCase(), "", this.opts.fonts);
         this.plateTex[2].needsUpdate = true;
         this.renderer.initTexture(this.plateTex[2]);
       },
       () => {
-        // The envelope's front: "The Winner", and their round and seat, as an award's envelope carries its category.
+        // The envelope's front: "The Winner" and their seat ("Waiting List" and their number), as an award's envelope
+        // carries its category.
         if (this.style !== "envelope") return;
         const ectx = this.envCanvas.getContext("2d");
         if (ectx) drawEnvelopePocket(ectx, card, this.opts.fonts);
@@ -2434,7 +2445,7 @@ export class WallStage {
    * The grand opening, `t` seconds after the stop (./grand.ts TG), as a card pack's walkout: the light lands, the
    * screen goes dark, and the winner's ticket spins out of the wall towards the room; in a flash it is the Winner Pack,
    * which lands in the middle with a jolt, spotlights sweeping; it charges (trembling, light at its seams, a flare
-   * rising behind it) and its top tears off, light bursting out; their Trip ID, cast in gold, zooms in out of the dark
+   * rising behind it) and its top tears off, light bursting out; their seat, cast in gold, zooms in out of the dark
    * and lands with a shock, a glint running over it, and rushes past the room; their city the same way; the
    * spotlights close in, embers rise, the light pulses; a burst, and their card spins in out of it and lands in the
    * middle, rays turning behind it; the page's card takes over (liftPose) for its three seconds and its seat.
@@ -2484,8 +2495,8 @@ export class WallStage {
       this.heroU.uShade.value = 0;
     }
 
-    // The pack: lands with a jolt, floats, charges, tears; holds, light pouring out of it, while the Trip ID rises out of
-    // it; then drops away into the dark as the Trip ID flies to its place.
+    // The pack: lands with a jolt, floats, charges, tears; holds, light pouring out of it, while the seat rises out of
+    // it; then drops away into the dark as the seat flies to its place.
     const pk = this.grandPack;
     const packOn = t >= TG.swap && t < TG.land1;
     pk.root.visible = packOn;
@@ -2532,7 +2543,7 @@ export class WallStage {
       // top, dropping away, had cut the feet of its letters).
       (plate.mesh.material as THREE.ShaderMaterial).depthTest = !!E?.on && E.fly <= 0;
       if (E?.on) {
-        // The Trip ID out of the pack (the owner, 2026-11-12: "from the pack the contents come"): rising out of its
+        // The first detail out of the pack (the owner, 2026-11-12: "from the pack the contents come"): rising out of its
         // torn top from inside it (just behind its face, so the pack hides what is still in it), then flying to its
         // place, growing to its size, as the pack drops away.
         const from = this.tmpV.copy(this.packAt);

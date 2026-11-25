@@ -5,10 +5,15 @@ import { Maximize2, Minimize2, Volume2, VolumeX } from "lucide-react";
 import {
   DRAW_SEATS,
   inFirstGroup,
+  inWaitingList,
   nextPlace,
+  nextRoundWords,
+  placeWords,
   roundFull,
+  roundName,
   seatFromFirstGroup,
-  seatWords,
+  seatMark,
+  waitingNo,
   type DrawBoard,
   type DrawCardPublic,
   type DrawMode,
@@ -69,19 +74,25 @@ function pressId(): string {
   return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
 }
 
-function placeWords(c: DrawCardPublic): string {
-  return c.seat ? seatWords({ n: c.seat, round: c.round }) : "";
+/**
+ * The words over the wall (the owner, 2026-11-25: the first five are the draw, the rest a waiting list; lucky-draw-shared
+ * inWaitingList): who was just drawn, "Seat 3 of 5" or "Waiting list · No. 6".
+ */
+function drawnWords(c: DrawCardPublic): string {
+  return c.seat ? placeWords({ n: c.seat, round: c.round }) : "";
 }
 
+/** While a draw runs: "Drawing seat 3", or "Waiting list · Drawing No. 6". */
 function nextWords(board: Board, started: boolean): string {
   const p = started ? { n: 1, round: board.round + 1 } : nextPlace(board);
-  return `Round ${p.round} · Drawing seat ${p.n}`;
+  return inWaitingList(p.round) ? `Waiting list · Drawing No. ${waitingNo(p.round, p.n)}` : `Drawing seat ${p.n}`;
 }
 
+/** Between draws: "Seat 3 next", "Draw complete", "Waiting list · No. 6 next", "Waiting list complete". */
 function restWords(board: Board, started: boolean): string {
-  if (started) return `Round ${board.round + 1} · Seat 1 next`;
-  if (roundFull(board)) return `Round ${board.round} complete`;
-  return `Round ${board.round} · Seat ${nextPlace(board).n} next`;
+  const p = started ? { n: 1, round: board.round + 1 } : roundFull(board) ? null : nextPlace(board);
+  if (!p) return inWaitingList(board.round) ? "Waiting list complete" : "Draw complete";
+  return inWaitingList(p.round) ? `Waiting list · No. ${waitingNo(p.round, p.n)} next` : `Seat ${p.n} next`;
 }
 
 /** A seat's name sizes, in hundredths of the screen's width: the largest that fits is used (fitName). */
@@ -362,7 +373,7 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
   /** The person drawn shown: the light lands on them, their gift opens, their pass goes down into their seat. */
   const reveal = useCallback(
     async (c: DrawCardPublic, board: Board, running: Promise<boolean> | null) => {
-      const words = placeWords(c);
+      const words = drawnWords(c);
       const stage = stageRef.current;
       if (running && stage) {
         // Seats 1 to 3 of every round are drawn from the first 1,540 applications (the owner, 2026-11-23; Terms clause
@@ -385,7 +396,7 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
       const filled = () => {
         setShown(board);
         setLanded(c.id);
-        setHeard(`${words}: ${c.name}, ${fromOf(c.city, c.country)}. Trip ID ${c.tripId}.`);
+        setHeard(`${words}: ${c.name}, ${fromOf(c.city, c.country)}.`);
       };
       if (stage) {
         await stage.present(c, { seat: () => (c.seat ? seatEls.current[c.seat - 1]?.getBoundingClientRect() ?? null : null), onSeat: filled });
@@ -869,24 +880,26 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
               onClick={() => void press()}
               disabled={drawing || access !== "ok" || !ready || notReady || empty || early}
             >
-              {drawing ? "Drawing…" : nextRound ? `Start round ${round + 1}` : "Draw"}
+              {drawing ? "Drawing…" : nextRound ? nextRoundWords(round) : "Draw"}
             </button>
             <Ticker side="right" />
           </div>
-          <p className="lw-round">Round {round}</p>
-          <ol className="lw-seats" aria-label={`Round ${round}: the five seats`}>
+          {/* The draw's five, then the waiting list's (the owner, 2026-11-25): each seat its name, city and country,
+              never a Trip ID ("trip id kaata vendam"). */}
+          <p className="lw-round">{roundName(round)}</p>
+          <ol className="lw-seats" aria-label={inWaitingList(round) ? `Waiting list, numbers ${waitingNo(round, 1)} to ${waitingNo(round, DRAW_SEATS)}` : "The draw: the five seats"}>
             {seats.map((id, i) => {
               const c = id ? byId.get(id) : null;
+              const mark = seatMark(round, i + 1);
               return (
                 <li key={i} ref={seatRefs[i]} className="lw-seat" data-filled={c ? "" : undefined} data-landed={c && c.id === landed ? "" : undefined}>
                   <p className="lw-seat-n">
-                    <span>Seat</span> <b>{i + 1}</b>
+                    <span>{mark.word}</span> <b>{mark.n}</b>
                   </p>
                   {c ? (
                     <>
                       <SeatName name={c.name} />
                       <p className="lw-seat-meta">{fromOf(c.city, c.country)}</p>
-                      <p className="lw-seat-id">{c.tripId}</p>
                     </>
                   ) : (
                     <>
@@ -894,7 +907,6 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
                         To be drawn
                       </p>
                       <p className="lw-seat-meta">&nbsp;</p>
-                      <p className="lw-seat-id" />
                     </>
                   )}
                 </li>

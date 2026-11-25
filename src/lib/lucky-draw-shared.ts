@@ -8,11 +8,12 @@ import { TRIP_FACTS } from "@/lib/trip-legal";
  *
  * Five seats (the Terms' five winners), drawn in rounds (the owner, the same day: "after completing 5 seats ... give a
  * next option, click it and draw 2 opens"). Each round has five seats of its own, filled in order from seat 1. When
- * all five are taken, the screen and the console offer "Start round 2"; the next draw then takes seat 1 of round 2,
- * the round before kept as it was. Someone who can't take part (released, or their application taken out as spam or
- * deleted) leaves their seat open, and the next draw fills it before any other (Terms clause 4: "offer the place to
- * the next eligible reserve applicant"). So Draw always works: there is always another person to draw, until nobody is
- * left.
+ * all five are taken, the screen and the console offer the next round; the next draw then takes seat 1 of round 2,
+ * the round before kept as it was. Round 1 is the draw, and every round after it the waiting list (2026-11-25;
+ * inWaitingList below): "Start waiting list", then "Continue waiting list". Someone who can't take part (released, or
+ * their application taken out as spam or deleted) leaves their seat open, and the next draw fills it before any other
+ * while it is in the current round (Terms clause 4: "offer the place to the next eligible reserve applicant"). So Draw
+ * always works: there is always another person to draw, until nobody is left.
  */
 export const DRAW_SEATS = TRIP_FACTS.winners;
 
@@ -24,8 +25,9 @@ export const isDrawMode = (v: unknown): v is DrawMode => typeof v === "string" &
 /** Who is in the draw, in words (the owner's choice, 2026-11-10: "Only those with a valid passport"). */
 export const DRAW_POOL_RULE = "Applicants who said they have a valid passport, not marked spam or deleted, one chance per mobile number";
 
-/** One draw as the TV screen may show it: the Terms allow limited winner information to be shown, never private
- *  contact details (Privacy Policy section 12), so no mobile number, and nothing of who pressed Draw. */
+/** One draw as the TV screen may have it: the Terms allow limited winner information to be shown, never private
+ *  contact details (Privacy Policy section 12), so no mobile number, and nothing of who pressed Draw. Its Trip ID only
+ *  finds the person on the wall; the screen never shows it (2026-11-25). */
 export interface DrawCardPublic {
   id: string;
   number: number;
@@ -79,9 +81,12 @@ export interface DrawBoard<C extends DrawCardPublic = DrawCardPublic> {
 }
 
 /**
- * One person in the draw as the TV screen's list shows them (the owner, 2026-11-10: "everyone who applied, their names
- * in a line, a list ... it scrolls, an arrow at the side, wherever it stops, that one"): Trip ID, name, city, country.
- * Never a mobile number. The trip's Privacy Policy, section 12, says the screen shows this; change the two together.
+ * One person in the draw as the TV screen has them (the owner, 2026-11-10: "everyone who applied, their names in a line,
+ * a list ... it scrolls, an arrow at the side, wherever it stops, that one"): Trip ID, name, city, country. Never a
+ * mobile number. The screen shows the name, the city and the country; the Trip ID only orders the wall and finds a
+ * person on it, and is never drawn or written anywhere on the screen (the owner, 2026-11-25: "trip id kaata vendam and
+ * trip id display pana vendam"). The trip's Privacy Policy, section 12, says what the screen shows; change the two
+ * together.
  */
 export type DrawPoolEntry = [tripId: string, name: string, city: string, country: string];
 
@@ -197,8 +202,33 @@ export function nextPlace(board: Pick<DrawBoard, "seats" | "round">): { n: numbe
 /** Whether every seat of the current round is taken (the next draw starts a new round). */
 export const roundFull = (board: Pick<DrawBoard, "seats">) => board.seats.length > 0 && board.seats.every(Boolean);
 
-/** "Round 1 · Seat 3 of 5". */
-export const seatWords = (p: { n: number; round: number }) => `Round ${p.round} · Seat ${p.n} of ${DRAW_SEATS}`;
+/**
+ * The draw and its waiting list (the owner, 2026-11-25, over the screen's "Round 1 complete" and "Start round 2": "edhula
+ * round maari vendam ... first panrom la adhu draw va erukatum ... remaining la next set waiting list vachupom"): round
+ * 1's five seats are the draw, the Terms' five winners; every round after it is the waiting list, the Terms' reserve
+ * applicants (clause 3: drawn "through the same random-selection process, in the same way"; clause 4: a place a winner
+ * can't take goes to "the next eligible reserve applicant"), its places numbered on in the order they are drawn: round
+ * 2's five are No. 1 to 5, round 3's No. 6 to 10. Only the words are new: the rounds, how they fill, and seats 1 to 3 of
+ * every one drawn from the first 1,540, are as they were.
+ */
+export const inWaitingList = (round: number): boolean => round >= 2;
+/** A waiting-list place's number, from its round and seat: round 2's seat 1 is No. 1, round 3's seat 1 No. 6. */
+export const waitingNo = (round: number, seat: number): number => (round - 2) * DRAW_SEATS + seat;
+/** What a round is called: "The draw", then "Waiting list". */
+export const roundName = (round: number): string => (inWaitingList(round) ? "Waiting list" : "The draw");
+/** A seat's own mark in its round: "Seat" and 3 in the draw, "No." and 6 on the waiting list. */
+export const seatMark = (round: number, seat: number): { word: string; n: number } =>
+  inWaitingList(round) ? { word: "No.", n: waitingNo(round, seat) } : { word: "Seat", n: seat };
+/** "Seat 3" in the draw, "No. 6" on the waiting list. */
+export const seatName = (round: number, seat: number): string => {
+  const m = seatMark(round, seat);
+  return `${m.word} ${m.n}`;
+};
+/** A place in words: "Seat 3 of 5" in the draw, "Waiting list · No. 6" after it. */
+export const placeWords = (p: { n: number; round: number }): string =>
+  inWaitingList(p.round) ? `Waiting list · No. ${waitingNo(p.round, p.n)}` : `Seat ${p.n} of ${DRAW_SEATS}`;
+/** What starts the next round once this one is full: the waiting list after the draw, then more of it. */
+export const nextRoundWords = (round: number): string => (inWaitingList(round) ? "Continue waiting list" : "Start waiting list");
 
 /** Small words that stay small inside a name ("Mohamed bin Rashid", "Lucas da Silva"). */
 const PARTICLES = new Set(["bin", "binti", "bint", "van", "von", "der", "de", "da", "di", "du"]);

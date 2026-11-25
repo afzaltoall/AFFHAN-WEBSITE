@@ -15,20 +15,24 @@ import {
   letterTimes,
 } from "@/components/lucky-draw/wall/board";
 
-const card = (name, city = "Tirunelveli", country = "India", tripId = "TRIP-26-02413") => ({ tripId, name, city, country });
+const card = (name, city = "Tirunelveli", country = "India", round = 1, seat = 3) => ({ tripId: "TRIP-26-02413", name, city, country, round, seat });
 
-test("the board's rows: the flight, the passenger, from, to China, and WINNER in gold", () => {
+test("the board's rows: the seat, the passenger, from, to China, and WINNER in gold; never the Trip ID", () => {
   const rows = boardRows(card("Mani Krishnan"));
   assert.deepEqual(
     rows.map((r) => [r.label, r.text, !!r.gold]),
     [
-      ["FLIGHT", "TRIP-26-02413", false],
+      ["PLACE", "SEAT 3", false],
       ["PASSENGER", "MANI KRISHNAN", false],
       ["FROM", "TIRUNELVELI, INDIA", false],
       ["TO", "CHINA", false],
       ["STATUS", "WINNER", true],
     ],
   );
+  // On the waiting list (2026-11-25: every round after the draw): their number on it, and never WINNER.
+  const waiting = boardRows(card("Mani Krishnan", "Tirunelveli", "India", 3, 2));
+  assert.deepEqual([waiting[0].text, waiting.at(-1).text], ["NO 7", "WAITING LIST"]);
+  for (const r of [...rows, ...waiting]) assert.doesNotMatch(r.text, /TRIP|02413/, "no Trip ID on the board");
   assert.equal(boardRows(card("Lim", "Singapore", "Singapore"))[2].text, "SINGAPORE", "a city that is its own country, once");
 });
 

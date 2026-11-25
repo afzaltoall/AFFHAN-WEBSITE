@@ -375,10 +375,10 @@
   border: 1px solid rgb(212 175 95 / 0.3);
   border-radius: calc(0.9 * var(--u));
   background: linear-gradient(180deg, #19140c, #0c0a06);
-  /* Its label, the name's own room (the name centred in it, one line or two), the city, the Trip ID: every seat's name
-     sits at the same height. */
+  /* Its label, the name's own room (the name centred in it, one line or two), the city: every seat's name sits at the
+     same height. No Trip ID (the owner, 2026-11-25: "trip id kaata vendam"). */
   display: grid;
-  grid-template-rows: auto 1fr auto auto;
+  grid-template-rows: auto 1fr auto;
   justify-items: center;
   align-items: center;
   text-align: center;
@@ -431,17 +431,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.lw-seat-id {
-  margin: calc(0.3 * var(--u)) 0 0;
-  min-height: 1em;
-  font-weight: 500;
-  font-size: calc(0.76 * var(--u));
-  letter-spacing: 0.2em;
-  text-indent: 0.2em;
-  font-variant-numeric: tabular-nums;
-  color: var(--faint);
-}
-/* The seat's number: "Seat 3" on an empty seat; on a filled one, the ticket's stub. */
+/* The seat's number: "Seat 3" (the draw) or "No. 6" (the waiting list) on an empty seat; on a filled one, the ticket's stub. */
 .lw-seat-n b {
   font-weight: inherit;
 }
@@ -458,8 +448,10 @@
   /* The stub's column starts at the perforation: 24% of the seat less the padding it does not have (24% of the
      content box, the padding 1.1 each side: 0.24 x 2.2 - 1.1 = -0.572). */
   grid-template-columns: minmax(0, 1fr) calc(24% - 0.572 * var(--u));
-  grid-template-rows: 1fr auto auto;
-  grid-template-areas: "name stub" "meta stub" "id stub";
+  /* Their name and the city under it, as one block in the middle of the ticket: the name's middle is then at the same
+     height on every seat, one line or two. */
+  grid-template-rows: 1fr auto auto 1fr;
+  grid-template-areas: ". stub" "name stub" "meta stub" ". stub";
   column-gap: calc(0.8 * var(--u));
 }
 .lw-seat[data-filled]::before {
@@ -496,9 +488,7 @@
 }
 .lw-seat[data-filled] .lw-seat-meta {
   grid-area: meta;
-}
-.lw-seat[data-filled] .lw-seat-id {
-  grid-area: id;
+  margin-top: calc(0.45 * var(--u));
 }
 .lw-seat[data-filled] .lw-seat-n {
   grid-area: stub;
@@ -532,9 +522,6 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-}
-.lw-seat[data-filled] .lw-seat-id {
-  color: rgb(247 223 163 / 0.72);
 }
 /* The seat a pass has just come down into: lit, then settling. */
 .lw-seat[data-landed] {

@@ -1,13 +1,15 @@
-import type { DrawCardPublic, DrawPoolEntry } from "@/lib/lucky-draw-shared";
+import { inWaitingList, roundName, seatName, waitingNo, type DrawCardPublic, type DrawPoolEntry } from "@/lib/lucky-draw-shared";
 
 /**
  * What the wall's pictures say, drawn on canvases the wall and the gift turn into textures (./stage.ts): a ticket's
- * face (name and city; the Trip ID on its stub) and the mark on the tickets' gold backs, the winner's boarding pass,
+ * face (name and city; "To China" on its stub) and the mark on the tickets' gold backs, the winner's boarding pass,
  * the gift's tag and its wrapping paper. In the page's own fonts (Jost, and the trip's Bodoni for the winner's name),
  * read from the page and loaded before anything is drawn.
  *
- * Only what the TV may show (Privacy Policy section 12): Trip ID, name, city and country, and the seat. Never a mobile
- * number: none reaches this page.
+ * Only what the TV may show (Privacy Policy section 12): name, city and country, and the seat or the place on the
+ * waiting list. Never a Trip ID (the owner, 2026-11-25: "trip id kaata vendam and trip id display pana vendam"): a
+ * ticket's entry carries one, to order the wall, and nothing here draws it. Never a mobile number: none reaches this
+ * page.
  */
 
 export interface Fonts {
@@ -137,8 +139,10 @@ function setBodoniName(ctx: Ctx, name: string, sizes: number[], width: number, f
 
 /**
  * A ticket's face, its two inks on clear (the wall's shader draws the ticket and colours them): on its main part the
- * name, one line or two, and the city and country under it; on its stub, past the perforation, "TRIP-26" and the
- * number. `s` scales the whole face (the winner's ticket is drawn twice as large).
+ * name, one line or two, and the city and country under it; on its stub, past the perforation, the AFFHAN A in a ring
+ * (it carried the Trip ID until 2026-11-25, the owner: "trip id kaata vendam"; "To China" on every stub was tried the
+ * same day, forty-eight times the same word in bold gold, louder than the names). `s` scales the whole face (the
+ * winner's ticket is drawn twice as large).
  */
 export function drawFace(ctx: Ctx, e: DrawPoolEntry, fonts: Fonts, s = 1) {
   const w = FACE_W * s;
@@ -168,24 +172,25 @@ export function drawFace(ctx: Ctx, e: DrawPoolEntry, fonts: Fonts, s = 1) {
   spacing(ctx, 0.3 * s);
   ctx.fillText(ellipsize(ctx, fromOf(e[2], e[3]), main), pad, city);
 
-  // The stub: "TRIP-26" small and spaced, the number large.
-  const cut = e[0].lastIndexOf("-");
-  const head = cut > 0 ? e[0].slice(0, cut) : "";
-  const number = cut > 0 ? e[0].slice(cut + 1) : e[0];
+  // The stub: the AFFHAN A in a fine double ring, as the pack's medallion has it (where the Trip ID was).
   const mid = ((STUB_AT + 1) / 2) * w;
+  const cy = h / 2;
+  const r = 18.5 * s;
+  ctx.strokeStyle = GOLD_INK;
   ctx.fillStyle = GOLD_INK;
-  ctx.textAlign = "center";
-  ctx.globalAlpha = 0.85;
-  ctx.font = `600 ${10 * s}px ${fonts.sans}`;
-  spacing(ctx, 1.4 * s);
-  if (head) ctx.fillText(head, mid + 0.7 * s, 51 * s);
+  ctx.globalAlpha = 0.8;
+  ctx.lineWidth = 1.3 * s;
+  ctx.beginPath();
+  ctx.arc(mid, cy, r, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.globalAlpha = 0.45;
+  ctx.lineWidth = 0.8 * s;
+  ctx.beginPath();
+  ctx.arc(mid, cy, r - 3.2 * s, 0, Math.PI * 2);
+  ctx.stroke();
   ctx.globalAlpha = 1;
-  spacing(ctx, 0.4 * s);
-  for (const px of [21, 19, 17, 15]) {
-    ctx.font = `600 ${px * s}px ${fonts.sans}`;
-    if (ctx.measureText(number).width <= (1 - STUB_AT) * w - 12 * s) break;
-  }
-  ctx.fillText(number, mid, 78 * s);
+  const mark = 24 * s;
+  bodoniText(ctx, "A", mid - bodoniWidth(ctx, "A", mark, fonts) / 2, cy + mark * 0.35, mark, fonts);
   ctx.textAlign = "left";
   spacing(ctx, 0);
 }
@@ -302,8 +307,11 @@ function glint(ctx: Ctx, x: number, y: number, r: number) {
   ctx.fill();
 }
 
-/** The winner's medallion on the stub: a gold coin, its rim beaded, a glint, and "Winner" and the year struck into it. */
-function medallion(ctx: Ctx, fonts: Fonts, cx: number, cy: number, r: number, year: string) {
+/**
+ * The medallion on the stub: a gold coin, its rim beaded. A winner's has a glint, and "Winner" and the year struck into
+ * it; a waiting list's (`winner` false: they are not winners yet) the AFFHAN A and the year.
+ */
+function medallion(ctx: Ctx, fonts: Fonts, cx: number, cy: number, r: number, year: string, winner = true) {
   ctx.save();
   const coin = ctx.createRadialGradient(cx - r * 0.38, cy - r * 0.42, r * 0.08, cx, cy, r);
   coin.addColorStop(0, "#fff3cc");
@@ -329,15 +337,22 @@ function medallion(ctx: Ctx, fonts: Fonts, cx: number, cy: number, r: number, ye
   }
   ctx.fill();
   ctx.fillStyle = "#3a2507";
-  glint(ctx, cx, cy - r * 0.36, r * 0.12);
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
-  ctx.font = `700 ${Math.round(r * 0.25)}px ${fonts.sans}`;
-  spacing(ctx, r * 0.035);
-  ctx.fillText("WINNER", cx + r * 0.017, cy + r * 0.1);
+  if (winner) {
+    glint(ctx, cx, cy - r * 0.36, r * 0.12);
+    ctx.font = `700 ${Math.round(r * 0.25)}px ${fonts.sans}`;
+    spacing(ctx, r * 0.035);
+    ctx.fillText("WINNER", cx + r * 0.017, cy + r * 0.1);
+  } else {
+    const size = r * 0.78;
+    ctx.textAlign = "left";
+    bodoniText(ctx, "A", cx - bodoniWidth(ctx, "A", size, fonts) / 2, cy + r * 0.2, size, fonts);
+    ctx.textAlign = "center";
+  }
   ctx.font = `600 ${Math.round(r * 0.15)}px ${fonts.sans}`;
   spacing(ctx, r * 0.04);
-  ctx.fillText(year, cx + r * 0.02, cy + r * 0.4);
+  ctx.fillText(year, cx + r * 0.02, cy + r * (winner ? 0.4 : 0.47));
   spacing(ctx, 0);
   ctx.restore();
 }
@@ -346,10 +361,13 @@ function medallion(ctx: Ctx, fonts: Fonts, cx: number, cy: number, r: number, ye
  * The winner's pass, the card the reveal ends on (the owner, 2026-11-12: "the final card is not perfect ... think
  * innovative ... the effects must not touch the text"): black lacquer, the wall's own ticket made the winner's, every
  * word in gold on the black; a band of fine gold lines round its edge between gold rules, the only part the page's
- * light runs over (wall.css .lw-lift-foil); the stub with their round and seat over a gold medallion. Their name in
- * the trip's Bodoni, in capitals, in foil gold, as large as its line allows.
+ * light runs over (wall.css .lw-lift-foil); the stub with their seat over a gold medallion. Their name in the trip's
+ * Bodoni, in capitals, in foil gold, as large as its line allows. Someone on the waiting list (2026-11-25: every round
+ * after the draw) has the same card, named for the waiting list, its stub their number on it over the AFFHAN A: never
+ * "Winner". No Trip ID anywhere on it (the owner, the same day: "trip id kaata vendam").
  */
 export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: number) {
+  const waiting = inWaitingList(c.round);
   const W = PASS_W;
   const H = PASS_H;
   const R = 46;
@@ -428,7 +446,7 @@ export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: numbe
     }
   };
   inGold(ctx, [L - 6, 100, 520, 64], (g) => tracked(g, "AFFHAN", L, 152, 52, 20));
-  passLabel(ctx, fonts, `Winner · Lucky Draw ${year}`, right, 146, "right");
+  passLabel(ctx, fonts, `${waiting ? "Waiting list" : "Winner"} · Lucky Draw ${year}`, right, 146, "right");
   const headRule = ctx.createLinearGradient(L, 0, right, 0);
   headRule.addColorStop(0, "rgb(231 194 108 / 0.7)");
   headRule.addColorStop(1, "rgb(231 194 108 / 0.06)");
@@ -449,7 +467,7 @@ export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: numbe
     });
   });
 
-  // Their Trip ID, then the route: their city (and country), the plane, China.
+  // The route: their city (and country), the plane, China. (Their Trip ID stood before it until 2026-11-25.)
   const rowLabel = 606;
   const rowValue = 670;
   const value = (text: string, x: number, track: number) => {
@@ -460,21 +478,25 @@ export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: numbe
     ctx.fillText(text, x, rowValue);
     spacing(ctx, 0);
   };
-  passLabel(ctx, fonts, "Trip ID", L, rowLabel);
-  value(c.tripId, L, 3);
-  const fromX = 660;
+  const fromX = L;
+  const toX = right - 210;
   passLabel(ctx, fonts, "From", fromX, rowLabel);
   const other = !!c.city && !!c.country && c.city.trim().toLowerCase() !== c.country.trim().toLowerCase();
   ctx.font = `600 52px ${fonts.sans}`;
-  value(ellipsize(ctx, c.city || c.country || "—", 330), fromX, 0.5);
+  const city = ellipsize(ctx, c.city || c.country || "—", 620);
+  const cityWide = ctx.measureText(city).width;
+  value(city, fromX, 0.5);
+  let placeWide = cityWide;
   if (other) {
     ctx.fillStyle = PASS_LABEL;
     ctx.font = `500 32px ${fonts.sans}`;
     ctx.textAlign = "left";
-    ctx.fillText(ellipsize(ctx, c.country, 330), fromX, rowValue + 48);
+    const country = ellipsize(ctx, c.country, 620);
+    placeWide = Math.max(placeWide, ctx.measureText(country).width);
+    ctx.fillText(country, fromX, rowValue + 48);
   }
-  const toX = right - 210;
-  const trackA = fromX + 360;
+  // The dotted way runs from just past the place to just before China, the plane in its middle.
+  const trackA = fromX + Math.max(placeWide, 280) + 70;
   const trackB = toX - 44;
   ctx.save();
   ctx.strokeStyle = "rgb(231 194 108 / 0.55)";
@@ -519,22 +541,30 @@ export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: numbe
   ctx.fill();
   ctx.restore();
 
-  // The stub: their round and their seat in foil gold, over the medallion.
+  // The stub, in foil gold over the medallion: their seat in the draw ("Seat", 3, "of 5"), or their number on the
+  // waiting list ("Waiting list", 6), set in the middle of the room above the medallion.
   const sx = main + STUB / 2;
-  passLabel(ctx, fonts, "Round", sx, 200, "center");
-  const numeral = (text: string, y: number) => {
-    const wd = bodoniWidth(ctx, text, 160, fonts);
-    inGold(ctx, [Math.floor(sx - wd / 2 - 8), Math.floor(y - 135), Math.ceil(wd + 16), 160], (g) => {
+  const numeral = (text: string, y: number, size: number) => {
+    const wd = bodoniWidth(ctx, text, size, fonts);
+    inGold(ctx, [Math.floor(sx - wd / 2 - 8), Math.floor(y - size * 0.845), Math.ceil(wd + 16), Math.ceil(size)], (g) => {
       g.textAlign = "left";
       spacing(g, 0);
-      bodoniText(g, text, sx - wd / 2, y, 160, fonts);
+      bodoniText(g, text, sx - wd / 2, y, size, fonts);
     });
   };
-  numeral(String(c.round), 362);
-  passLabel(ctx, fonts, "Seat", sx, 452, "center");
-  numeral(String(c.seat ?? "—"), 614);
-  passLabel(ctx, fonts, `Of ${seats}`, sx, 668, "center");
-  medallion(ctx, fonts, sx, 830, 94, year);
+  const N = 220;
+  const label = waiting ? "Waiting list" : "Seat";
+  const n = c.seat ? String(waiting ? waitingNo(c.round, c.seat) : c.seat) : "—";
+  const under = waiting ? "" : `Of ${seats}`;
+  // From the label's top to the last line's foot (a label's capitals are 16 high; the numeral's 0.72 of its size),
+  // centred between the band (y 80) and the medallion (y 736).
+  const tall = 16 + 50 + N * 0.72 + (under ? 52 + 16 : 0);
+  const top = (80 + 736 - tall) / 2;
+  passLabel(ctx, fonts, label, sx, top + 16, "center");
+  const base = top + 16 + 50 + N * 0.72;
+  numeral(n, base, N);
+  if (under) passLabel(ctx, fonts, under, sx, base + 52 + 16, "center");
+  medallion(ctx, fonts, sx, 830, 94, year, !waiting);
   ctx.restore();
 
   // A hairline just inside the edge, as a foil card has.
@@ -551,8 +581,8 @@ export function drawPass(ctx: Ctx, c: DrawCardPublic, fonts: Fonts, seats: numbe
 export const TAG_W = 512;
 export const TAG_H = 256;
 
-/** The gift's tag: cream card on a gold thread, the Trip ID of the person whose gift it is. */
-export function drawTag(ctx: Ctx, tripId: string, fonts: Fonts) {
+/** The gift's tag: cream card on a gold thread, "For" and whose gift it is: their seat, or their number on the waiting list (never a Trip ID). */
+export function drawTag(ctx: Ctx, whose: string, fonts: Fonts) {
   const W = TAG_W;
   const H = TAG_H;
   ctx.clearRect(0, 0, W, H);
@@ -594,11 +624,12 @@ export function drawTag(ctx: Ctx, tripId: string, fonts: Fonts) {
   ctx.fillText("FOR", 118, 104);
   ctx.globalAlpha = 1;
   spacing(ctx, 1);
+  const text = whose.toUpperCase();
   for (const px of [44, 40, 36, 32]) {
     ctx.font = `600 ${px}px ${fonts.sans}`;
-    if (ctx.measureText(tripId).width <= W - 150) break;
+    if (ctx.measureText(text).width <= W - 150) break;
   }
-  ctx.fillText(ellipsize(ctx, tripId, W - 140), 112, 170);
+  ctx.fillText(ellipsize(ctx, text, W - 140), 112, 170);
   spacing(ctx, 0);
 }
 
@@ -717,7 +748,8 @@ function engraved(ctx: Ctx, text: string, cx: number, y: number, size: number, f
 
 /**
  * The envelope's front for a winner, as an award's envelope carries its category: an engraved border, the shadow the
- * closed flap leaves along its edges, and under the seal "The Winner", a rule, and their round and seat.
+ * closed flap leaves along its edges, and under the seal "The Winner", a rule, and their seat ("Waiting List" and their
+ * number on it, for the rounds after the draw).
  */
 export function drawEnvelopePocket(ctx: Ctx, card: Pick<DrawCardPublic, "round" | "seat">, fonts: Fonts) {
   const { w, h, flapH } = ENV_PX;
@@ -742,7 +774,7 @@ export function drawEnvelopePocket(ctx: Ctx, card: Pick<DrawCardPublic, "round" 
   ctx.filter = "none";
   ctx.restore();
   const ink = "#3a2507";
-  engraved(ctx, "The Winner", w / 2, 640, 92, fonts, ink);
+  engraved(ctx, inWaitingList(card.round) ? "Waiting List" : "The Winner", w / 2, 640, 92, fonts, ink);
   ctx.save();
   ctx.fillStyle = "rgb(92 60 12 / 0.5)";
   ctx.fillRect(w / 2 - 120, 670, 240, 2);
@@ -751,7 +783,7 @@ export function drawEnvelopePocket(ctx: Ctx, card: Pick<DrawCardPublic, "round" 
   ctx.textAlign = "center";
   ctx.textBaseline = "alphabetic";
   ctx.font = `500 34px ${fonts.sans}`;
-  ctx.fillText(card.seat ? `Round ${card.round} · Seat ${card.seat}` : `Round ${card.round}`, w / 2, 724);
+  ctx.fillText(card.seat ? seatName(card.round, card.seat) : roundName(card.round), w / 2, 724);
   ctx.restore();
 }
 
@@ -889,9 +921,10 @@ function bodoniCentred(ctx: Ctx, text: string, x: number, y: number, size: numbe
 
 /**
  * The pack's print, in ink on clear (the pack's foil is its shader's): AFFHAN, a medallion with the A, "Winner Pack",
- * the lucky draw and the trip, inside an engraved border; lines where its crimped ends begin.
+ * the lucky draw and the trip, inside an engraved border; lines where its crimped ends begin. `title`: "Winner Pack"
+ * for the draw, "Waiting List" for the rounds after it (2026-11-25), so a pack never calls someone a winner who isn't.
  */
-export function drawPack(ctx: Ctx, fonts: Fonts) {
+export function drawPack(ctx: Ctx, fonts: Fonts, title = "Winner Pack") {
   const { w, h } = PACK_PX;
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = "#000";
@@ -924,7 +957,7 @@ export function drawPack(ctx: Ctx, fonts: Fonts) {
   ctx.stroke();
   ctx.globalAlpha = 0.9;
   bodoniCentred(ctx, "A", cx, cy + 112, 330, 0, fonts);
-  bodoniCentred(ctx, "Winner Pack", w / 2, 1000, 98, 2, fonts);
+  bodoniCentred(ctx, title, w / 2, 1000, 98, 2, fonts);
   ctx.globalAlpha = 0.6;
   ctx.fillRect(w / 2 - 170, 1042, 340, 3);
   ctx.globalAlpha = 0.85;
