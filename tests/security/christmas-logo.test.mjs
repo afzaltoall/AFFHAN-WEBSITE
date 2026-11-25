@@ -1,7 +1,9 @@
 // The header's logo in its Santa hat, Christmas 2026 (the owner, 2026-11-25: "use this logo on website now affhan logo
-// ... do some animation on the christmas hat live waving in website ... responsive perfection"). The logo and the hat
-// are five tiles of one picture (scripts/build_christmas_logo.mjs) laid over one another by ChristmasLogo, the brim
-// still, the cone, its tip and the pompom turning each about its own point; lib/christmas.ts turns it on and off.
+// ... do some animation on the christmas hat live waving in website ... responsive perfection", then their 3D picture,
+// "use this logo instead of the old logo ... the brand logo too perfectly"). The picture is four tiles of one frame
+// (scripts/build_christmas_logo.mjs): the hat's cone, tip and pompom, each turning about its own point, under the rest
+// of the picture (the logo and the brim, still); ChristmasLogo lays them over one another; lib/christmas.ts turns it on
+// and off.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -21,6 +23,7 @@ const read = (p) =>
 
 const css = read("src/components/ui/christmas-logo.css");
 const script = read("scripts/build_christmas_logo.mjs");
+const SPRITE = "/affhan-christmas-layers.webp";
 
 /** A @keyframes block's angles, by key. */
 function keyframes(name) {
@@ -48,45 +51,42 @@ test("the header draws the logo in its hat while lib/christmas.ts says so, and p
   assert.match(read("src/lib/christmas.ts"), /export const CHRISTMAS_LOGO = (true|false);/);
 });
 
-test("one picture: the layout asks for the very address the CSS draws, and it holds five tiles of 225 px", async () => {
+test("one picture: the layout asks for the very address the CSS draws, and it holds four tiles of 225 px", async () => {
   const at = /export const CHRISTMAS_LOGO_LAYERS = "([^"]+)";/.exec(read("src/lib/christmas.ts"))[1];
-  assert.equal(at, "/affhan-christmas-layers.webp");
-  assert.match(css, new RegExp(`background: url\\("${at.replace(/[.]/g, "\\.")}"\\) 0 0 \\/ 500% 100% no-repeat;`));
+  assert.equal(at, SPRITE);
+  assert.match(css, new RegExp(`background: url\\("${at.replace(/[.]/g, "\\.")}"\\) 0 0 \\/ 400% 100% no-repeat;`));
   assert.match(read("src/app/layout.tsx"), /if \(CHRISTMAS_LOGO\) preload\(CHRISTMAS_LOGO_LAYERS, \{ as: "image" \}\);/);
   const meta = await sharp(publicFile(at)).metadata();
   assert.equal(meta.format, "webp");
-  assert.deepEqual([meta.width, meta.height, meta.hasAlpha], [5 * 225, 225, true]);
-  // The owner's picture itself, kept as asked ("save this as affhan-christmas"), on transparency in logo.png's frame.
+  assert.deepEqual([meta.width, meta.height, meta.hasAlpha], [4 * 225, 225, true]);
+  assert.ok(fs.statSync(publicFile(at)).size < 40 * 1024, "light enough to load on every page, as public/logo.png (29 KB) did");
+  // The owner's picture itself, kept as asked ("save this as affhan-christmas"), on transparency in the same frame.
   const saved = await sharp(publicFile("/affhan-christmas.png")).metadata();
   assert.deepEqual([saved.width, saved.height, saved.hasAlpha], [900, 900, true]);
 });
 
-test("the pieces in the script's order, each the whole box, the brim on top and the pompom hanging from the tip", () => {
-  const order = ["base", "cone", "tip", "pompom", "brim"];
-  assert.match(script, /const tiles = \[base, await tile\(parts\.cone\), await tile\(parts\.tip\), await tile\(parts\.ball\), await tile\(parts\.brim\)\];/);
-  order.forEach((name, k) => {
-    if (k === 0) return;
-    assert.match(css, new RegExp(`\\.xmas-${name} \\{\\s*background-position: ${k * 25}% 0;\\s*\\}`), `${name} is tile ${k}`);
-  });
+test("the three that move lie under the rest of the picture, each the whole box, the pompom hanging from the tip", () => {
+  assert.match(script, /const tiles = \[await tile\(parts\.cone\), await tile\(parts\.tip\), await tile\(parts\.ball\), await tile\(parts\.rest\)\];/);
+  for (const [name, at] of [["cone", "0%"], ["tip", "33.3333%"], ["pompom", "66.6667%"], ["rest", "100%"]]) {
+    assert.match(css, new RegExp(`\\.xmas-${name} \\{\\s*background-position: ${at.replace(".", "\\.")} 0;\\s*\\}`), `${name} is its tile`);
+  }
   assert.match(css, /\.xmas-logo span \{\s*position: absolute;\s*inset: 0;\s*\}/);
   const tsx = read("src/components/ui/ChristmasLogo.tsx").replace(/\s+/g, " ");
   assert.ok(
     tsx.includes(
-      '<span className="xmas-piece xmas-base" /> <span className="xmas-sway"> <span className="xmas-piece xmas-cone" /> <span className="xmas-flop"> <span className="xmas-piece xmas-tip" /> <span className="xmas-bob"> <span className="xmas-piece xmas-pompom" /> </span> </span> </span> <span className="xmas-piece xmas-brim" />',
+      '<span className="xmas-sway"> <span className="xmas-piece xmas-cone" /> <span className="xmas-flop"> <span className="xmas-piece xmas-tip" /> <span className="xmas-bob"> <span className="xmas-piece xmas-pompom" /> </span> </span> </span> <span className="xmas-piece xmas-rest" />',
     ),
-    "logo, then the cone turning with the tip and the pompom inside it, then the brim over all",
+    "the cone turning with the tip and the pompom inside it, then the rest of the picture over all",
   );
   assert.match(tsx, /<span role="img" aria-label=\{label\}/);
+  // The rest of the picture has a hole where each moving piece is: it never draws one of them still.
+  assert.match(script, /for \(let i = 0; i < N; i\+\+\) if \(lab\[i\] !== CONE && lab\[i\] !== TIP && lab\[i\] !== BALL\) copy\(rest, i\);/);
 });
 
-test("drawn a fifth bigger and centred in its box, hat and all, inside it across, the box keeping the press", async () => {
-  // The owner, over the first look: "slightly make the logo big".
-  const m = /\.xmas-logo \{\s*position: relative;\s*display: block;\s*transform: translateY\(([\d.]+)%\) scale\(([\d.]+)\);\s*pointer-events: none;\s*\}/.exec(css);
-  assert.ok(m, "the logo's own transform, and no presses of its own");
-  const [t, s] = [Number(m[1]) / 100, Number(m[2])];
-  assert.ok(s > 1 && s <= 1.25, "a little bigger");
-  // The outline of all that is drawn (the logo and its hat at rest), read from the picture itself.
-  const { data, info } = await sharp(publicFile("/affhan-christmas-layers.webp")).raw().toBuffer({ resolveWithObject: true });
+test("the logo and its hat fill 89% of the box's height, in its middle, and the box keeps the press", async () => {
+  // The owner, over the first look: "slightly make the logo big"; their 3D picture then filled the frame so.
+  assert.match(css, /\.xmas-logo \{\s*position: relative;\s*display: block;\s*pointer-events: none;\s*\}/, "no transform of its own: the frame does it");
+  const { data, info } = await sharp(publicFile(SPRITE)).raw().toBuffer({ resolveWithObject: true });
   const T = info.height;
   let top = T, bottom = -1, left = T, right = -1;
   for (let k = 0; k < info.width / T; k++) {
@@ -97,11 +97,11 @@ test("drawn a fifth bigger and centred in its box, hat and all, inside it across
       }
     }
   }
-  const at = (v) => 0.5 + (v / T - 0.5) * s; // scaled about the middle, before the move down
-  assert.ok(Math.abs((at(top) + at(bottom)) / 2 + t - 0.5) < 0.002, `centred top to bottom (${(((at(top) + at(bottom)) / 2 + t) * 100).toFixed(2)}%)`);
-  assert.ok(Math.abs((at(left) + at(right)) / 2 - 0.5) < 0.01, "and across");
-  assert.ok(at(left) >= 0 && at(right) <= 1, "inside its box across, so nothing beside it moves");
-  assert.ok(at(top) + t >= 0 && at(bottom) + t <= 1, "inside its box top to bottom");
+  const tall = (bottom - top) / T;
+  assert.ok(Math.abs(tall - 0.89) < 0.02, `89% of the height (${(tall * 100).toFixed(1)}%)`);
+  assert.ok(Math.abs((top + bottom) / 2 / T - 0.5) < 0.01, `centred top to bottom (${top} to ${bottom} of ${T})`);
+  assert.ok(Math.abs((left + right) / 2 / T - 0.5) < 0.01, `and across (${left} to ${right} of ${T})`);
+  assert.ok(left >= 0 && right <= T, "inside its box across, so nothing beside it moves");
 });
 
 test("each piece turns where the script cut it to turn", () => {
@@ -118,7 +118,8 @@ test("each piece turns where the script cut it to turn", () => {
 });
 
 test("the tip never swings out past the fold's shadow the script draws behind it, and every round ends where it began", () => {
-  const wedge = Number(/Math\.tan\(\((\d+) \* Math\.PI\) \/ 180\)/.exec(script)[1]);
+  const wedge = Number(/const FOLD_OPENS_DEG = (\d+);/.exec(script)[1]);
+  assert.match(script, /Math\.tan\(\(FOLD_OPENS_DEG \* Math\.PI\) \/ 180\)/, "the wedge is drawn to it");
   const flop = keyframes("xmas-flop");
   assert.ok(Math.min(...flop.map((k) => k.deg)) > -wedge, `out no further than ${wedge} degrees`);
   for (const name of ["xmas-sway", "xmas-flop", "xmas-bob"]) {

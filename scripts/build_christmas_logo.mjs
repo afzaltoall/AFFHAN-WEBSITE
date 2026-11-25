@@ -2,28 +2,26 @@
 //
 //   node scripts/build_christmas_logo.mjs --source <the owner's picture>   # cut it off its black ground, then the pieces
 //   node scripts/build_christmas_logo.mjs                                  # the pieces only, from the saved logo
-//   ... --preview <folder>                                                 # also the pieces laid together, at rest
+//   ... --preview <folder>                                                 # also the pieces laid together, at rest,
+//                                                                          # and what each pixel was taken to be
 //
 // What it writes:
-//   public/affhan-christmas.png          the owner's logo with the hat on transparency, 900 x 900, in public/logo.png's
-//                                        own frame (four times its 225 px): the A sits where logo.png has it, so the
-//                                        file can stand in for logo.png in any square box.
-//   public/affhan-christmas-layers.webp  five 225 px tiles side by side, for ChristmasLogo: logo.png itself, then the
-//                                        hat in four pieces (the cone, the floppy tip, the pompom, the brim), each on
-//                                        the same frame, so laid one over another they are the picture.
+//   public/affhan-christmas.png          the owner's picture (the 3D logo in its hat, 2026-11-25) on transparency,
+//                                        900 x 900: the logo and its hat 89% of the height, in the middle.
+//   public/affhan-christmas-layers.webp  four 225 px tiles side by side, for ChristmasLogo: the hat's cone, its floppy
+//                                        tip and its pompom, then the rest of the picture, all on the same frame, so
+//                                        laid one over another they are the picture.
 //
-// Why pieces. The brim sits on the A and stays; the cone sways a little on it, its tip swings from the fold, and the
-// pompom swings a moment after the tip. A piece that moves uncovers what was behind it, so each carries a little more
-// than shows: the cone runs on under the brim and under the tip's inner edge, and the tip under the pompom. Under the
-// pompom the ring is logo.png's own, whole, which is why the pieces go over logo.png and not over the picture's logo.
+// Why pieces. The brim sits on the A and stays, with the logo; the cone sways a little on it, its tip swings from the
+// fold, and the pompom swings a moment after the tip. The three that move lie under the rest of the picture, which has
+// a hole where each was: so the cone goes down behind the brim, as it does on a hat, and whatever moves shows only where
+// nothing of the logo is. A piece that moves uncovers what was behind it, so each carries a little more than shows: the
+// cone runs on under the brim and, where the fold opens, under the tip's inner edge; the tip runs on under the pompom.
 //
-// The picture came as a JPEG on black, with no transparency. Each edge pixel's alpha is how far it is from black
-// toward the colour just inside it (that colour carried outward a pixel at a time), so it comes off without a dark rim.
-// The fur's darker strands at its edge stay: on the white header they are what draws the white fur.
-//
-// Its logo is logo.png's, redrawn: the word measures 0.1915 of the picture's against logo.png's, and the A, matched on
-// its own (its middle, below the brim), lands within 0.05 px across and 0.46 px down of logo.png's A at 225 px. The
-// picture is therefore resized to 960 px and cut at (3, 5) for the 900 frame (MAP), which puts its A on logo.png's.
+// The picture came as a PNG on black, with no transparency. Each edge pixel's alpha is how far it is from black toward
+// the colour just inside it (that colour carried outward a pixel at a time), so it comes off without a dark rim, and
+// the dark 3D sides of the letters stay solid. The fur's darker strands at its edge stay: on the white header they are
+// what draws the white fur.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,7 +30,6 @@ import sharp from "sharp";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const OUT_LOGO = path.join(ROOT, "public", "affhan-christmas.png");
 const OUT_LAYERS = path.join(ROOT, "public", "affhan-christmas-layers.webp");
-const BASE = path.join(ROOT, "public", "logo.png");
 
 const arg = (name) => {
   const i = process.argv.indexOf(name);
@@ -41,19 +38,25 @@ const arg = (name) => {
 const SOURCE = arg("--source");
 const PREVIEW = arg("--preview");
 
-/** The owner's picture (1254 px) to the 900 frame: resized to 960 px, then cut at (3, 5). */
-const MAP = { size: 960, left: 3, top: 5, from: 1254 };
+/**
+ * The owner's picture (1254 px) to the 900 frame: resized to 1008 px and cut at (48, 0). Its logo and hat (118 to 1121
+ * across, 60 to 1056 down, where it is brighter than its black) then fill 89% of the frame's height, across its
+ * middle: 47 to 853 across, 48 to 849 down.
+ */
+const MAP = { size: 1008, left: 48, top: 0, from: 1254 };
 const FRAME = 900;
 const TILE = 225;
 const toFrame = ([x, y]) => [(x * MAP.size) / MAP.from - MAP.left, (y * MAP.size) / MAP.from - MAP.top];
 
 // The hat's own shapes, in the owner's picture's pixels (read off it on a 20 px grid).
-/** The line between the cone and its floppy tip: from the fold at the top down the crease to the pompom. */
-const CUT = [[735, 95], [742, 160], [757, 205], [768, 250], [775, 280], [775, 340]].map(toFrame);
+/** The line between the cone and its floppy tip: from the fold at the crown down the crease, then down past the gap. */
+const CUT = [[800, 82], [797, 130], [805, 200], [835, 275], [872, 315], [900, 370], [905, 470]].map(toFrame);
 /** The pompom: centre and radius. */
-const POMPOM = { c: toFrame([814, 300]), r: (38 * MAP.size) / MAP.from };
+const POMPOM = { c: toFrame([1026, 476]), r: (81 * MAP.size) / MAP.from };
 /** Where each piece turns: the cone on its base under the brim, the tip at the fold, the pompom where it hangs. */
-const PIVOTS = { cone: toFrame([645, 200]), tip: toFrame([737, 100]), pompom: toFrame([806, 268]) };
+const PIVOTS = { cone: toFrame([640, 275]), tip: toFrame([800, 64]), pompom: toFrame([1005, 405]) };
+/** How far the tip swings out, at most (christmas-logo.css), and the fold's shadow drawn a little wider. */
+const FOLD_OPENS_DEG = 8;
 
 // ---------------------------------------------------------------------------------------------------------------------
 // 1. The owner's picture off its black ground, into the 900 frame.
@@ -92,7 +95,7 @@ async function cutFromBlack(source) {
       rgba[i * 4] = data[i * 3]; rgba[i * 4 + 1] = data[i * 3 + 1]; rgba[i * 4 + 2] = data[i * 3 + 2]; rgba[i * 4 + 3] = 255;
       continue;
     }
-    if (!known[i] || strength[i] <= 6) continue; // the ground, and JPEG's own 1-6 on it
+    if (!known[i] || strength[i] <= 6) continue; // the ground, and the picture's own 1-6 on it
     const f = [F[i * 3], F[i * 3 + 1], F[i * 3 + 2]];
     const ff = f[0] * f[0] + f[1] * f[1] + f[2] * f[2];
     const a = ff > 0 ? Math.max(0, Math.min(1, (data[i * 3] * f[0] + data[i * 3 + 1] * f[1] + data[i * 3 + 2] * f[2]) / ff)) : 0;
@@ -160,53 +163,59 @@ function acrossCut(x, y) {
   return x - CUT[CUT.length - 1][0];
 }
 
-function pieces(rgba) {
+function label(rgba) {
   const W = FRAME, H = FRAME, N = W * H;
-  const label = new Uint8Array(N);
+  const lab = new Uint8Array(N);
   for (let i = 0; i < N; i++) {
     if (rgba[i * 4 + 3] === 0) continue;
-    label[i] = kind(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]);
+    lab[i] = kind(rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]);
   }
-  // What is left (dark folds, dark strands of fur) takes the nearest piece's label.
+  // What is left (dark folds, dark strands of fur, the letters' darkest sides) takes the nearest piece's label.
   for (let pass = 0; pass < 12; pass++) {
     let changed = 0;
-    const next = label.slice();
+    const next = lab.slice();
     for (let y = 1; y < H - 1; y++) {
       for (let x = 1; x < W - 1; x++) {
         const i = y * W + x;
-        if (label[i] !== NONE || rgba[i * 4 + 3] === 0) continue;
+        if (lab[i] !== NONE || rgba[i * 4 + 3] === 0) continue;
         for (const j of [i - 1, i + 1, i - W, i + W, i - W - 1, i - W + 1, i + W - 1, i + W + 1]) {
-          if (label[j] !== NONE) { next[i] = label[j]; changed++; break; }
+          if (lab[j] !== NONE) { next[i] = lab[j]; changed++; break; }
         }
       }
     }
-    label.set(next);
+    lab.set(next);
     if (!changed) break;
   }
   // Then the shapes decide: red past the cut is the tip, fur round the pompom's centre the pompom.
   for (let i = 0; i < N; i++) {
     const x = i % W, y = (i - x) / W;
-    if (label[i] === CONE || label[i] === TIP) label[i] = acrossCut(x, y) > 0 ? TIP : CONE;
-    else if (label[i] === BRIM || label[i] === BALL) label[i] = Math.hypot(x - POMPOM.c[0], y - POMPOM.c[1]) <= POMPOM.r + 8 ? BALL : BRIM;
+    if (lab[i] === CONE || lab[i] === TIP) lab[i] = acrossCut(x, y) > 0 ? TIP : CONE;
+    else if (lab[i] === BRIM || lab[i] === BALL) lab[i] = Math.hypot(x - POMPOM.c[0], y - POMPOM.c[1]) <= POMPOM.r + 10 ? BALL : BRIM;
   }
+  return lab;
+}
 
+function pieces(rgba, lab) {
+  const W = FRAME, H = FRAME, N = W * H;
   const layer = () => Buffer.alloc(N * 4);
   const copy = (to, i, alpha = rgba[i * 4 + 3]) => {
     to[i * 4] = rgba[i * 4]; to[i * 4 + 1] = rgba[i * 4 + 1]; to[i * 4 + 2] = rgba[i * 4 + 2]; to[i * 4 + 3] = alpha;
   };
-  const cone = layer(), tip = layer(), brim = layer(), ball = layer();
+  const cone = layer(), tip = layer(), ball = layer(), rest = layer();
   const solid = (i) => rgba[i * 4 + 3] === 255;
+
+  // The rest of the picture: everything but the three pieces that move (the logo, the brim), with a hole where each is.
+  for (let i = 0; i < N; i++) if (lab[i] !== CONE && lab[i] !== TIP && lab[i] !== BALL) copy(rest, i);
 
   // The cone, and under the tip's inner edge the fold's own cloth: the tip's edge as it is for the width the two are
   // faded across (so at rest they make the picture), then the crease's shadow carried on, in a wedge that opens from
-  // the fold as wide as the tip swings out (12 degrees; christmas-logo.css swings it 10 at most). It stops where the
-  // cone stops meeting the tip: the last row, going down from the fold, with the cone at the cut (a row or three
-  // missing aside). Below it the picture already has a gap between them, the tip hangs free, and swinging out it
-  // shows only what is behind the hat.
+  // the fold as wide as the tip swings out (FOLD_OPENS_DEG). It stops where the cone stops meeting the tip: the last
+  // row, going down from the fold, with the cone at the cut (a row or three missing aside). Below it the picture
+  // already has a gap between them, the tip hangs free, and swinging out it shows only what is behind the hat.
   const FEATHER = 3;
   const touches = new Uint8Array(H);
   for (let i = 0; i < N; i++) {
-    if (label[i] !== CONE) continue;
+    if (lab[i] !== CONE) continue;
     const x = i % W, y = (i - x) / W;
     const d = acrossCut(x, y);
     if (d > -3 && d <= 0) touches[y] = 1;
@@ -218,16 +227,15 @@ function pieces(rgba) {
   console.log(`the cone meets the tip down to row ${foot} of ${FRAME} (${((foot + MAP.top) * MAP.from / MAP.size).toFixed(0)} in the picture)`);
   const opens = (x, y) => {
     const d = acrossCut(x, y);
-    return d > 0 && y <= foot && d <= 4 + Math.max(0, y - PIVOTS.tip[1]) * Math.tan((12 * Math.PI) / 180);
+    return d > 0 && y <= foot && d <= 4 + Math.max(0, y - PIVOTS.tip[1]) * Math.tan((FOLD_OPENS_DEG * Math.PI) / 180);
   };
   for (let i = 0; i < N; i++) {
     const x = i % W, y = (i - x) / W;
-    if (label[i] === CONE) copy(cone, i);
-    else if (label[i] === TIP && acrossCut(x, y) <= FEATHER) copy(cone, i);
-    if (label[i] === BRIM) copy(brim, i);
-    if (label[i] === BALL) copy(ball, i);
+    if (lab[i] === CONE) copy(cone, i);
+    else if (lab[i] === TIP && acrossCut(x, y) <= FEATHER) copy(cone, i);
+    if (lab[i] === BALL) copy(ball, i);
     // The tip, faded in across the cut so its join with the cone has no edge.
-    if (label[i] === TIP || label[i] === CONE) {
+    if (lab[i] === TIP || lab[i] === CONE) {
       const d = acrossCut(x, y);
       if (d > -FEATHER) {
         const t = Math.min(1, (d + FEATHER) / (2 * FEATHER));
@@ -236,16 +244,16 @@ function pieces(rgba) {
       }
     }
   }
-  // The cone under the brim: its red carried into the brim's solid fur, 64 px in.
-  extendUnder(cone, (i) => label[i] === CONE, (i) => label[i] === BRIM && solid(i), 64);
+  // The cone under the brim: its red carried into the brim's solid fur, 80 px in (the rest of the picture covers it).
+  extendUnder(cone, (i) => lab[i] === CONE, (i) => lab[i] === BRIM && solid(i), 80);
   // The fold's wedge under the tip, from the cone's edge at the cut.
-  extendUnder(cone, (i) => label[i] === CONE || label[i] === TIP, (i) => label[i] === TIP && solid(i) && opens(i % W, Math.floor(i / W)), 40);
-  // The tip under the pompom, 24 px in.
-  extendUnder(tip, (i) => label[i] === TIP, (i) => label[i] === BALL && solid(i), 24);
+  extendUnder(cone, (i) => lab[i] === CONE || lab[i] === TIP, (i) => lab[i] === TIP && solid(i) && opens(i % W, Math.floor(i / W)), 40);
+  // The tip under the pompom, 30 px in.
+  extendUnder(tip, (i) => lab[i] === TIP, (i) => lab[i] === BALL && solid(i), 30);
 
-  const count = (k) => label.reduce((n, v) => n + (v === k ? 1 : 0), 0);
-  console.log(`pieces (px at 900): cone ${count(CONE)}, tip ${count(TIP)}, brim ${count(BRIM)}, pompom ${count(BALL)}, logo ${count(LOGO)}`);
-  return { cone, tip, ball, brim };
+  const count = (k) => lab.reduce((n, v) => n + (v === k ? 1 : 0), 0);
+  console.log(`pieces (px at 900): cone ${count(CONE)}, tip ${count(TIP)}, pompom ${count(BALL)}, brim ${count(BRIM)}, logo ${count(LOGO)}`);
+  return { cone, tip, ball, rest };
 }
 
 /** Paints `into` (opaque) where `under` allows, near what `from` marks, with `from`'s colours carried over. */
@@ -273,18 +281,18 @@ if (SOURCE) {
 }
 const logo = await sharp(OUT_LOGO).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
 if (logo.info.width !== FRAME || logo.info.height !== FRAME) throw new Error(`${OUT_LOGO} is not ${FRAME} px`);
-const parts = pieces(logo.data);
+const lab = label(logo.data);
+const parts = pieces(logo.data, lab);
 
 const tile = (buf) =>
   sharp(buf, { raw: { width: FRAME, height: FRAME, channels: 4 } }).resize(TILE, TILE, { kernel: "lanczos3" }).png().toBuffer();
-const base = await sharp(BASE).ensureAlpha().png().toBuffer();
-const meta = await sharp(base).metadata();
-if (meta.width !== TILE || meta.height !== TILE) throw new Error(`${BASE} is not ${TILE} px`);
-// The order ChristmasLogo's CSS reads them in.
-const tiles = [base, await tile(parts.cone), await tile(parts.tip), await tile(parts.ball), await tile(parts.brim)];
+// The order ChristmasLogo's CSS reads them in: the three that move, then the rest of the picture over them.
+const tiles = [await tile(parts.cone), await tile(parts.tip), await tile(parts.ball), await tile(parts.rest)];
 const sheet = sharp({ create: { width: TILE * tiles.length, height: TILE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
   .composite(tiles.map((input, k) => ({ input, left: k * TILE, top: 0 })));
-const webp = await sheet.clone().webp({ lossless: true, effort: 6 }).toBuffer();
+// Near-lossless: 32 KB against lossless 48, no pixel more than 4 levels in 255 off; it loads on every page, as
+// public/logo.png (29 KB) did.
+const webp = await sheet.clone().webp({ nearLossless: true, quality: 60, effort: 6 }).toBuffer();
 fs.writeFileSync(OUT_LAYERS, webp);
 console.log(`wrote ${path.relative(ROOT, OUT_LAYERS)} (${(webp.length / 1024).toFixed(1)} KB, ${tiles.length} tiles of ${TILE} px)`);
 
@@ -294,11 +302,20 @@ console.log(`turns at: cone ${pct(PIVOTS.cone)}, tip ${pct(PIVOTS.tip)}, pompom 
 
 if (PREVIEW) {
   fs.mkdirSync(PREVIEW, { recursive: true });
-  const atRest = await sharp(base)
-    .composite(tiles.slice(1).map((input) => ({ input })))
+  const atRest = await sharp({ create: { width: TILE, height: TILE, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite(tiles.map((input) => ({ input })))
     .png()
     .toBuffer();
   fs.writeFileSync(path.join(PREVIEW, "at-rest-225.png"), atRest);
-  for (const [k, name] of ["base", "cone", "tip", "pompom", "brim"].entries()) fs.writeFileSync(path.join(PREVIEW, `tile-${k}-${name}.png`), tiles[k]);
+  for (const [k, name] of ["cone", "tip", "pompom", "rest"].entries()) fs.writeFileSync(path.join(PREVIEW, `tile-${k}-${name}.png`), tiles[k]);
+  // What each pixel was taken to be, with the cut, at 900.
+  const PAL = { [NONE]: [0, 0, 0], [LOGO]: [60, 160, 255], [CONE]: [200, 30, 40], [TIP]: [255, 150, 0], [BRIM]: [190, 190, 190], [BALL]: [140, 0, 200] };
+  const map = Buffer.alloc(FRAME * FRAME * 3, 255);
+  for (let i = 0; i < FRAME * FRAME; i++) {
+    const x = i % FRAME, y = (i - x) / FRAME;
+    if (logo.data[i * 4 + 3] > 0) map.set(PAL[lab[i]], i * 3);
+    if (Math.abs(acrossCut(x, y)) < 0.6) map.set([0, 0, 0], i * 3);
+  }
+  await sharp(map, { raw: { width: FRAME, height: FRAME, channels: 3 } }).png().toFile(path.join(PREVIEW, "labels-900.png"));
   console.log(`preview in ${PREVIEW}`);
 }
