@@ -14,9 +14,19 @@
  * moves about a pixel each swing and two and a half in the gust: less than a pixel read as standing still. The tip
  * swings out no further than the fold's shadow behind it is drawn (12 degrees, in the script).
  */
+/*
+ * A fifth bigger than its box, and the logo with its hat in the box's middle (the owner, over the first look: "slightly
+ * make the logo big"). The frame is logo.png's, with room under the word and the hat now on top, so drawn as it was
+ * the logo sat about 5 px high in the bar. Its outline (hat to word, 6.67% to 75.11% of the frame, measured from the
+ * picture) made 1.2 times bigger about the middle and moved down 10.93% is centred; across it is 94.4% of the box, so
+ * it stays inside it and nothing beside it moves. The box keeps the press (its link): the picture runs past its top
+ * and foot, where nothing is drawn, so it takes no presses itself.
+ */
 .xmas-logo {
   position: relative;
   display: block;
+  transform: translateY(10.93%) scale(1.2);
+  pointer-events: none;
 }
 .xmas-logo span {
   position: absolute;

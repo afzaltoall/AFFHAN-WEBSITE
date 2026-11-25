@@ -79,6 +79,31 @@ test("the pieces in the script's order, each the whole box, the brim on top and 
   assert.match(tsx, /<span role="img" aria-label=\{label\}/);
 });
 
+test("drawn a fifth bigger and centred in its box, hat and all, inside it across, the box keeping the press", async () => {
+  // The owner, over the first look: "slightly make the logo big".
+  const m = /\.xmas-logo \{\s*position: relative;\s*display: block;\s*transform: translateY\(([\d.]+)%\) scale\(([\d.]+)\);\s*pointer-events: none;\s*\}/.exec(css);
+  assert.ok(m, "the logo's own transform, and no presses of its own");
+  const [t, s] = [Number(m[1]) / 100, Number(m[2])];
+  assert.ok(s > 1 && s <= 1.25, "a little bigger");
+  // The outline of all that is drawn (the logo and its hat at rest), read from the picture itself.
+  const { data, info } = await sharp(publicFile("/affhan-christmas-layers.webp")).raw().toBuffer({ resolveWithObject: true });
+  const T = info.height;
+  let top = T, bottom = -1, left = T, right = -1;
+  for (let k = 0; k < info.width / T; k++) {
+    for (let y = 0; y < T; y++) {
+      for (let x = 0; x < T; x++) {
+        if (data[(y * info.width + k * T + x) * info.channels + 3] <= 8) continue;
+        top = Math.min(top, y); bottom = Math.max(bottom, y + 1); left = Math.min(left, x); right = Math.max(right, x + 1);
+      }
+    }
+  }
+  const at = (v) => 0.5 + (v / T - 0.5) * s; // scaled about the middle, before the move down
+  assert.ok(Math.abs((at(top) + at(bottom)) / 2 + t - 0.5) < 0.002, `centred top to bottom (${(((at(top) + at(bottom)) / 2 + t) * 100).toFixed(2)}%)`);
+  assert.ok(Math.abs((at(left) + at(right)) / 2 - 0.5) < 0.01, "and across");
+  assert.ok(at(left) >= 0 && at(right) <= 1, "inside its box across, so nothing beside it moves");
+  assert.ok(at(top) + t >= 0 && at(bottom) + t <= 1, "inside its box top to bottom");
+});
+
 test("each piece turns where the script cut it to turn", () => {
   const map = /const MAP = \{ size: (\d+), left: (\d+), top: (\d+), from: (\d+) \};/.exec(script).slice(1).map(Number);
   const [size, left, top, from] = map;
