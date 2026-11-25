@@ -41,18 +41,19 @@ import { F } from "./lite";
  */
 
 const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
-const TARGET = Date.parse(COUNTDOWN.target);
+/** The clock's parts are shared with the page the trip shows once applications close (TripAccess/TripClosedExperience). */
+export const TARGET = Date.parse(COUNTDOWN.target);
 
-type Left = { d: number; h: number; m: number; s: number };
-const ZERO: Left = { d: 0, h: 0, m: 0, s: 0 };
+export type Left = { d: number; h: number; m: number; s: number };
+export const ZERO: Left = { d: 0, h: 0, m: 0, s: 0 };
 
-function leftAt(now: number): Left {
+export function leftAt(now: number): Left {
   const total = Math.max(0, Math.floor((TARGET - now) / 1000));
   return { d: Math.floor(total / 86400), h: Math.floor((total % 86400) / 3600), m: Math.floor((total % 3600) / 60), s: total % 60 };
 }
 
 /** still: change in place. tick: live (figures fall). */
-type Motion = "still" | "tick";
+export type Motion = "still" | "tick";
 
 /** One numeral in a one-line window. The numerals are this component's own
  *  DOM (the window is empty to React), so a change can roll out the old one
@@ -148,7 +149,7 @@ function SecondsRing({ s, motion }: { s: number; motion: Motion }) {
   );
 }
 
-function Unit({ value, digits, label, motion, ring }: { value: number; digits: number; label: string; motion: Motion; ring?: boolean }) {
+export function Unit({ value, digits, label, motion, ring }: { value: number; digits: number; label: string; motion: Motion; ring?: boolean }) {
   const chars = String(value).padStart(digits, "0").split("");
   return (
     <div data-cx="cd-unit" data-cx-hide className="flex flex-col items-center">
@@ -191,7 +192,7 @@ const SETTLE_MS = 350;
  * Heard only while the clock is on screen: it fades out when the page scrolls
  * back, the tab is hidden or the Apply popup is open, and for good at zero.
  */
-function ClockSoundToggle({ label }: { label: string }) {
+export function ClockSoundToggle({ label }: { label: string }) {
   const btn = useRef<HTMLButtonElement>(null);
   const ring = useRef<HTMLSpanElement>(null);
   const cone = useRef<SVGPathElement>(null);
@@ -334,7 +335,7 @@ const IST = new Intl.DateTimeFormat("en-GB", {
   second: "2-digit",
   hourCycle: "h23",
 });
-function nowInIndia(at: number): string {
+export function nowInIndia(at: number): string {
   const p = Object.fromEntries(IST.formatToParts(at).map((x) => [x.type, x.value]));
   return `${p.weekday} ${p.day} ${p.month} ${p.year} · ${p.hour}:${p.minute}:${p.second}`;
 }

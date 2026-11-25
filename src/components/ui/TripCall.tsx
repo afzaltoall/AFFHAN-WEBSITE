@@ -153,7 +153,12 @@ export function TripCall({
   let label: ReactNode;
   let status: ReactNode;
   let live = false;
-  if (registered) {
+  if (win === "closed") {
+    // Closed (the owner, 2026-11-25): every page of the trip is the countdown to the winners now (proxy.ts), a boarding
+    // pass's too, so the button says what a press shows, to everyone.
+    label = <>{verb} to see the countdown</>;
+    status = `Applications closed ${dayMonth(TRIP_FACTS.applicationsClose)} · Winners ${dayMonth(TRIP_FACTS.winnersAnnounced)}`;
+  } else if (registered) {
     label = "Your boarding pass";
     status = "You're registered";
   } else if (win === "open") {

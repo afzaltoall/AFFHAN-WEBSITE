@@ -5,6 +5,7 @@ import { ASSETS, srcSetOf } from "@/components/CinematicExperience/assets";
 import { displayFont } from "@/components/CinematicExperience/fonts";
 import { ApplyExperience } from "@/components/TripApplication/ApplyExperience";
 import { NO_SCRIPT } from "@/components/TripApplication/content";
+import { TripCloseWatch } from "@/components/TripAccess/TripCloseWatch";
 import { TripPreviewNote } from "@/components/TripAccess/TripPreviewNote";
 import { TripRefCapture } from "@/components/TripApplication/TripRefCapture";
 
@@ -55,6 +56,8 @@ export default function FreeChinaTripApplyPage() {
       <TripRefCapture />
       <ApplyExperience />
       <TripPreviewNote />
+      {/* Open as applications close: turns into the countdown to the winners by itself. */}
+      <TripCloseWatch />
     </main>
   );
 }

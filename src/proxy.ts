@@ -1,10 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { ADMIN_ROLE, SESSION_COOKIE, adminSessionIsFresh, readSession } from "@/lib/session-token";
+import { applicationWindow } from "@/lib/trip-application";
 
 /** The trip's own address. */
 const TRIP = "/free-china-trip";
 /** What every page under it shows while it is locked. */
 const LOCKED = `${TRIP}/locked/`;
+/** What every page under it shows once applications have closed: the time left until the winners are announced. */
+const CLOSED = `${TRIP}/closed/`;
+/** The trip's Terms and Privacy Policy: the rules the draw runs under, readable after applications close too. */
+const LEGAL = /^\/free-china-trip\/(?:terms|privacy)(?:\/|$)/;
 /** The trip's files, not its pages: its pictures and its sounds. */
 const FILE = /\.(?:webp|png|jpe?g|avif|gif|svg|ico|wav|mp3|m4a|ogg|mp4|webm)$/i;
 /** Where the lock is read from: this site, under one of its own names. */
@@ -43,6 +48,29 @@ export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   // The matcher lets through anything that merely starts with the name.
   if (pathname !== TRIP && !pathname.startsWith(`${TRIP}/`) && !pathname.startsWith(`${TRIP}.`)) return NextResponse.next();
+  // Applications closed (the last moment of 25 November 2026, IST, has passed: lib/trip-application.ts; the owner,
+  // 2026-11-25: "the china trip page have to lock and show the only ui is timer only to december 1 winner announce ...
+  // auto change to lock"): every page of the trip shows the time left until the winners are announced (CLOSED), at the
+  // address asked for, however it is asked for, and to everyone, an admin too (nothing is left to preview, and the
+  // owner checks it signed in). First, so it holds whatever the lock says, and an employee's link goes to it too. Its
+  // Terms and Privacy Policy stay readable, and its files are served (the clock's tick is one). A development server
+  // never closes (applicationWindow).
+  if (applicationWindow() === "closed") {
+    if (FILE.test(pathname) || LEGAL.test(pathname)) return NextResponse.next();
+    const url = request.nextUrl.clone();
+    url.pathname = CLOSED;
+    const res = NextResponse.rewrite(url);
+    res.headers.set("Cache-Control", "private, no-store");
+    res.headers.set("X-Robots-Tag", "noindex");
+    // How a trip page left open tells that the trip has closed before it reloads into this (TripCloseWatch).
+    res.headers.set("X-Trip-Closed", "closed");
+    return res;
+  }
+  // Until then the countdown's own address is not a page of the trip's: an admin may look at it as it will be, and
+  // everyone else goes on to the trip (on a development server it opens, to be worked on).
+  if (pathname.startsWith(`${TRIP}/closed`) && process.env.NODE_ENV === "production" && !isAdmin(request)) {
+    return NextResponse.redirect(new URL(`${TRIP}/`, request.url));
+  }
   // An employee's link (?ref=, the referral task, the owner 2026-11-02) opens the application, its Terms first, never
   // the film: links shared for the trip's page before then still arrive there (lib/trip-referral-shared.ts,
   // referralLink). Before the lock, which then covers the application as it covers everything else.

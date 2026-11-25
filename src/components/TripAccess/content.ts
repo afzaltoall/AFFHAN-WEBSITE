@@ -1,3 +1,5 @@
+import { TRIP_FACTS, TRIP_PRIVACY_HREF, TRIP_TERMS_HREF } from "@/lib/trip-legal";
+
 /**
  * The words of the page every trip page shows while the trip is locked
  * (TripLockedExperience; proxy.ts). Nothing here gives a date: the trip opens
@@ -27,4 +29,23 @@ export const TRIP_PREVIEW = {
   line: "Locked for visitors",
   manage: { href: "/admin/trip-applications/#trip-lock", label: "Trip lock" },
   hide: "Hide this note",
+} as const;
+
+/**
+ * The words of the page every trip page shows once applications have closed (TripClosedExperience; proxy.ts): the
+ * time left until the winners are announced, as the trip film ends on it (the owner, 2026-11-25: "the china trip page
+ * have to lock and show the only ui is timer only to december 1 winner announce"). The dates are the Terms' own.
+ */
+export const TRIP_CLOSED = {
+  eyebrow: "Winners announced",
+  title: TRIP_FACTS.winnersAnnounced,
+  now: "Now in India",
+  /** Once the clock reaches zero, in place of the date and time under it. */
+  reached: "The winners are announced today.",
+  closed: `Applications for the Free China Business Trip closed on ${TRIP_FACTS.applicationsClose}. Thank you to everyone who applied.`,
+  /** The rules the draw runs under stay readable (proxy.ts lets them through). */
+  links: [
+    { href: TRIP_TERMS_HREF, label: "Terms & Conditions" },
+    { href: TRIP_PRIVACY_HREF, label: "Privacy Policy" },
+  ],
 } as const;

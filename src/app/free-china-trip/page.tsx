@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { preload } from "react-dom";
 import { RevealNoScriptFallback } from "@/components/ui/Reveal";
 import { CinematicExperience } from "@/components/CinematicExperience/CinematicExperience";
+import { TripCloseWatch } from "@/components/TripAccess/TripCloseWatch";
 import { TripPreviewNote } from "@/components/TripAccess/TripPreviewNote";
 import { TripRefCapture } from "@/components/TripApplication/TripRefCapture";
 import { ASSETS, srcSetOf } from "@/components/CinematicExperience/assets";
@@ -60,6 +61,8 @@ export default function FreeChinaTripPage() {
       <noscript dangerouslySetInnerHTML={{ __html: "<style>[data-cx-counter],[data-cx-clock]{display:none!important}[data-intro] .cx-enter-push,[data-intro] .cx-enter-glow,[data-intro] .cx-enter-silk,[data-intro] .cx-enter-rise{animation-play-state:running!important}</style>" }} />
       <CinematicExperience />
       <TripPreviewNote />
+      {/* Open as applications close: turns into the countdown to the winners by itself. */}
+      <TripCloseWatch />
       {/* An employee's link (?ref=CODE) keeps its code for the application. */}
       <TripRefCapture />
     </main>

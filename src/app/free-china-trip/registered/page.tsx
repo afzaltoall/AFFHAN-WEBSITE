@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { displayFont } from "@/components/CinematicExperience/fonts";
+import { TripCloseWatch } from "@/components/TripAccess/TripCloseWatch";
 import { TripPreviewNote } from "@/components/TripAccess/TripPreviewNote";
 import { RegisteredExperience } from "@/components/TripRegistered/RegisteredExperience";
 
@@ -24,6 +25,8 @@ export default function FreeChinaTripRegisteredPage() {
     <main className={`${displayFont.variable} cx pt-(--nav-h)`}>
       <RegisteredExperience />
       <TripPreviewNote />
+      {/* Open as applications close: turns into the countdown to the winners by itself. */}
+      <TripCloseWatch />
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { displayFont } from "@/components/CinematicExperience/fonts";
+import { TripCloseWatch } from "@/components/TripAccess/TripCloseWatch";
 import { TripLockedExperience } from "@/components/TripAccess/TripLockedExperience";
 
 /**
@@ -21,6 +22,8 @@ export default function FreeChinaTripLockedPage() {
   return (
     <main className={`${displayFont.variable} pt-(--nav-h)`}>
       <TripLockedExperience />
+      {/* Open as applications close: turns into the countdown to the winners by itself. */}
+      <TripCloseWatch />
     </main>
   );
 }
