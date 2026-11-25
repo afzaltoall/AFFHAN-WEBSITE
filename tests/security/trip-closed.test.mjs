@@ -52,16 +52,24 @@ test("the countdown page: the clock to the winners and nothing else of the trip,
   assert.match(page, /robots: \{ index: false, follow: true \}/);
   assert.match(page, /<TripClosedExperience \/>/);
   const ui = read("src/components/TripAccess/TripClosedExperience.tsx");
-  assert.match(ui, /<Unit value=\{left\.d\} digits=\{dayDigits\} label=\{dL\} motion=\{motion\} \/>/);
-  assert.match(ui, /<Unit value=\{left\.s\} digits=\{2\} label=\{sL\} motion=\{motion\} ring \/>/);
+  // A clock face a unit (the owner: "show like a clock style of ui animative"): the days of the wait, 24 hours, 60
+  // minutes, 60 seconds.
+  assert.match(ui, /<Dial value=\{left\.d\} max=\{Math\.max\(DAYS_ON_THE_DIAL, left\.d\)\}/);
+  assert.match(ui, /<Dial value=\{left\.h\} max=\{24\}/);
+  assert.match(ui, /<Dial value=\{left\.m\} max=\{60\}/);
+  assert.match(ui, /<Dial value=\{left\.s\} max=\{60\}/);
+  assert.match(ui, /const DAYS_ON_THE_DIAL = Math\.round\(\(Date\.parse\(COUNTDOWN\.target\) - APPLICATION_WINDOW\.closes\) \/ 86_400_000\);/);
+  assert.match(ui, /<div data-cx="cd-unit" className="tcl-dial">/, "the speaker finds a face on screen");
   assert.match(ui, /<ClockSoundToggle label=\{COUNTDOWN\.sound\} \/>/);
   assert.match(ui, /data-cx-countdown/, "the speaker finds the clock");
   assert.doesNotMatch(ui, /ApplyButton|\/free-china-trip\/apply|TRIP_APPLY_HREF|referenceNo|useTripStatus/, "no application, no boarding pass");
   const words = read("src/components/TripAccess/content.ts");
   assert.match(words, /export const TRIP_CLOSED = \{\s*eyebrow: "Winners announced",\s*title: TRIP_FACTS\.winnersAnnounced,/);
   assert.match(words, /closed: `Applications for the Free China Business Trip closed on \$\{TRIP_FACTS\.applicationsClose\}\. Thank you to everyone who applied\.`/);
-  // The film's clock units wait hidden for its scroll; on this page they are shown.
-  assert.match(raw("src/components/TripAccess/trip-closed.css"), /\.cx \.tcl \[data-cx-hide\] \{\s*visibility: visible;\s*opacity: 1;\s*\}/);
+  // Four faces in a row; two by two on a phone.
+  const css = raw("src/components/TripAccess/trip-closed.css");
+  assert.match(css, /\.tcl-dials \{\s*--dial: clamp\(132px, 12\.6vw, 248px\);\s*display: grid;\s*grid-template-columns: repeat\(4, var\(--dial\)\);/);
+  assert.match(css, /@media \(max-width: 639px\) \{\s*\.tcl-dials \{ --dial: min\(41vw, 190px\); grid-template-columns: repeat\(2, var\(--dial\)\);/);
 });
 
 test("a trip page left open turns into the countdown by itself, only once the door says so", () => {
@@ -83,4 +91,18 @@ test("the homepage's trip button, once closed, says a press shows the countdown,
   assert.ok(closed > 0 && closed < call.indexOf("} else if (registered) {"), "closed is decided before a boarding pass");
   assert.match(call, /label = <>\{verb\} to see the countdown<\/>;/);
   assert.match(call, /status = `Applications closed \$\{dayMonth\(TRIP_FACTS\.applicationsClose\)\} · Winners \$\{dayMonth\(TRIP_FACTS\.winnersAnnounced\)\}`;/);
+});
+
+test("the console shows the countdown ahead of time, to an admin, as a computer and a phone show it", () => {
+  // The owner: "in admin give access to see the preview of clock time before 11.59 pm".
+  const rail = read("src/components/admin/rail-sections.ts");
+  assert.match(rail, /\{ key: "trip-countdown", href: "\/admin\/trip-countdown\/", label: "Countdown", icon: Timer \}/);
+  const page = read("src/app/admin/(console)/trip-countdown/page.tsx");
+  assert.match(page, /if \(!admin\) redirect\("\/admin\/login"\);\s*if \(admin\.role !== "admin"\) redirect\("\/"\);/);
+  const preview = read("src/components/admin/TripCountdownPreview.tsx");
+  assert.match(preview, /const PAGE = "\/free-china-trip\/closed\/";/);
+  assert.match(preview, /<Frame label="Computer" width=\{1440\} height=\{900\}/);
+  assert.match(preview, /<Frame label="Phone" width=\{390\} height=\{844\}/);
+  // Framed by the console itself: the site allows its own pages in frames, nobody else's.
+  assert.match(raw("next.config.ts"), /key: "X-Frame-Options",\s*value: "SAMEORIGIN",/);
 });

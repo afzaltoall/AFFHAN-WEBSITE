@@ -21,10 +21,76 @@
   color: var(--cx-ink);
 }
 
-/* The film's clock units wait hidden for its scroll to bring them in (.cx [data-cx-hide]); here they are the page. */
-.cx .tcl [data-cx-hide] {
-  visibility: visible;
-  opacity: 1;
+/* The four clock faces (Dial, the owner: "show like a clock style of ui animative"): in a row, sized to the screen,
+   two by two on a phone. Everything in a face is measured in its own size (--dial), so it is the same face anywhere. */
+.tcl-dials {
+  --dial: clamp(132px, 12.6vw, 248px);
+  display: grid;
+  grid-template-columns: repeat(4, var(--dial));
+  gap: clamp(16px, 2.2vw, 44px);
+  justify-content: center;
+}
+@media (max-width: 1023px) {
+  .tcl-dials { --dial: min(calc((100vw - 2.5rem - 36px) / 4), 200px); gap: 12px; }
+}
+@media (max-width: 639px) {
+  .tcl-dials { --dial: min(41vw, 190px); grid-template-columns: repeat(2, var(--dial)); gap: 18px 22px; }
+}
+.tcl-dial {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--dial);
+  aspect-ratio: 1;
+}
+/* A soft gold light inside each face, breathing slowly. */
+.tcl-dial::before {
+  content: "";
+  position: absolute;
+  inset: 12%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 40%, rgb(242 211 142 / 0.13), rgb(214 168 78 / 0.04) 55%, transparent 72%);
+  animation: tcl-breathe 5s ease-in-out infinite alternate;
+}
+@keyframes tcl-breathe {
+  from { opacity: 0.55; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1.03); }
+}
+.tcl-dial-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.tcl-dial-in {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translateY(calc(var(--dial) * 0.02));
+}
+/* The figures: the film's own (cx-cd-slot, cx-cd-glyph), in the text cut, so a 4 never reads as a 1. */
+.tcl-dial-num {
+  display: flex;
+  font-size: calc(var(--dial) * 0.33);
+  font-weight: 400;
+  font-variation-settings: "opsz" 11;
+  line-height: 1;
+  color: var(--cx-white);
+}
+/* The unit's name, centred: the spacing after its last letter balanced by as much before its first. */
+.tcl-dial-label {
+  margin: calc(var(--dial) * 0.045) 0 0;
+  font-size: clamp(9px, calc(var(--dial) * 0.052), 12px);
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+  text-transform: uppercase;
+  color: var(--cx-mute);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tcl-dial::before { animation: none; }
 }
 
 .tcl-ground {

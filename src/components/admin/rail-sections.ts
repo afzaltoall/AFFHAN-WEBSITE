@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 import {
-  Activity, Camera, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Store, Ticket, Trash2,
+  Activity, Camera, Factory, Globe, Inbox, LayoutList, Lock, MessageSquare, Plane, PlayCircle, Ship, Smartphone, Store, Ticket, Timer, Trash2,
   TrendingUp, Trophy, UserCog, Users, type LucideIcon,
 } from "lucide-react";
 
@@ -19,7 +19,7 @@ import {
  */
 
 export type RailKey =
-  | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-referrals" | "lucky-draw" | "trip-lock" | "trash"
+  | "all" | "inquiries" | "contacts" | "shipping" | "trips" | "trip-referrals" | "lucky-draw" | "trip-countdown" | "trip-lock" | "trash"
   | "staff" | "team-performance" | "activity" | "instagram-task"
   | "suppliers" | "new-suppliers" | "videos"
   | "website-users" | "app-users" | "supplier-users";
@@ -99,6 +99,9 @@ export const RAIL_GROUPS: RailGroup[] = [
       { key: "trip-referrals", href: "/admin/trip-referrals/", label: "Employee tasks", icon: Trophy },
       // The lucky draw for the five seats (the owner, 2026-11-10): drawn here or on the TV screen it opens.
       { key: "lucky-draw", href: "/admin/lucky-draw/", label: "Lucky draw", icon: Ticket },
+      // The countdown to the winners every trip page shows once applications close (the owner, 2026-11-25: "in admin
+      // give access to see the preview of clock time before 11.59 pm"): on a computer and a phone, as visitors see it.
+      { key: "trip-countdown", href: "/admin/trip-countdown/", label: "Countdown", icon: Timer },
       // The key to the homepage trip banner's lock (TripLockPanel), one click
       // from anywhere in the console, its row saying which way it stands
       // (TripLockRailStatus). The owner's request of 2026-10-06.

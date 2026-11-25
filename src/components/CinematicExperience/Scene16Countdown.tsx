@@ -58,7 +58,7 @@ export type Motion = "still" | "tick";
 /** One numeral in a one-line window. The numerals are this component's own
  *  DOM (the window is empty to React), so a change can roll out the old one
  *  while the new one rolls in. */
-function Digit({ value, motion }: { value: number; motion: Motion }) {
+export function Digit({ value, motion }: { value: number; motion: Motion }) {
   const slot = useRef<HTMLSpanElement>(null);
   const shown = useRef<number | null>(null);
 
@@ -149,7 +149,7 @@ function SecondsRing({ s, motion }: { s: number; motion: Motion }) {
   );
 }
 
-export function Unit({ value, digits, label, motion, ring }: { value: number; digits: number; label: string; motion: Motion; ring?: boolean }) {
+function Unit({ value, digits, label, motion, ring }: { value: number; digits: number; label: string; motion: Motion; ring?: boolean }) {
   const chars = String(value).padStart(digits, "0").split("");
   return (
     <div data-cx="cd-unit" data-cx-hide className="flex flex-col items-center">
