@@ -135,14 +135,14 @@ test("the TV screen never holds a mobile number: the pass and the screen's own r
   assert.doesNotMatch(screen, /phone/i);
 });
 
-test("who is in the draw: a valid passport, not spam or deleted, not through an employee's link, once per mobile number, not already drawn in this mode", () => {
+test("who is in the draw: a valid passport, a business they run, not spam or deleted, not through an employee's link, once per mobile number, not already drawn in this mode", () => {
   const server = read("src/lib/server/lucky-draw.ts");
   const pool = /const pool = \(mode: DrawMode, drawn = true\) => Prisma\.sql`([\s\S]*?)`;/.exec(server);
   assert.ok(pool, "the pool is one query");
   const q = pool[1];
   assert.match(q, /SELECT DISTINCT ON \(COALESCE\(a\."customerKey", a\."id"\)\)/);
   assert.match(q, /a\."status" NOT IN \('spam', 'deleted'\)/);
-  assert.match(q, /a\."hasPassport" = true\s+AND a\."referralCode" IS NULL AND a\."referrerId" IS NULL\$\{drawn \? notDrawn\(mode\) : Prisma\.empty\}/);
+  assert.match(q, /a\."hasPassport" = true\s+AND a\."businessStatus" = \$\{DRAW_BUSINESS_STATUS\}\s+AND a\."referralCode" IS NULL AND a\."referrerId" IS NULL\$\{drawn \? notDrawn\(mode\) : Prisma\.empty\}/);
   const notDrawn = /const notDrawn = \(mode: DrawMode\) => Prisma\.sql`([\s\S]*?)`;/.exec(server);
   assert.ok(notDrawn);
   assert.match(notDrawn[1], /NOT EXISTS \([\s\S]*d\."mode" = \$\{mode\}[\s\S]*b\."customerKey" = a\."customerKey"/);
@@ -363,12 +363,13 @@ test("an application sent through an employee's link is not in the draw, as the 
   // Their own page: the pass and the welcome, but no ticket of theirs flies into the globe, glows there, is said to be
   // in the draw, or goes on the calendar's line. Only a yes or no leaves the server, never the code or whose it was.
   const people = read("src/lib/trip-participants.ts");
-  assert.match(people, /viaLink: row\.referralCode !== null \|\| row\.referrerId !== null,/);
+  assert.match(people, /inDraw: inTheDraw\(row\),/);
+  assert.match(read("src/lib/lucky-draw-shared.ts"), /return a\.hasPassport && a\.businessStatus === DRAW_BUSINESS_STATUS && a\.referralCode === null && a\.referrerId === null;/);
   const own = people.slice(people.indexOf("function own("), people.indexOf("export async function registrationOf("));
   const ret = own.slice(own.indexOf("return {"));
-  assert.doesNotMatch(ret, /referralCode:|referrerId:/, "the code and the employee stay on the server");
+  assert.doesNotMatch(ret, /referralCode:|referrerId:|hasPassport:/, "the code, the employee and the answers behind the yes or no stay on the server");
   const page = read("src/components/TripRegistered/RegisteredExperience.tsx");
-  assert.match(page, /const ticketIn = registered && !registration\?\.viaLink;/);
+  assert.match(page, /const ticketIn = registered && registration\?\.inDraw === true;/);
   assert.match(page, /if \(!ready \|\| !registration \|\| !ticketIn \|\| flown\.current \|\| still\) return;/);
   assert.match(page, /<DrawGlobe ref=\{globeRef\} count=\{GLOBE_TICKETS\} mine=\{ticketIn\} holdMine=\{ticketIn && !still\} label=\{G\.label\(ticketIn\)\}/);
   assert.match(page, /\{ticketIn && <span className="text-\(--cx-white\)">\{G\.mine\} <\/span>\}/);
@@ -378,10 +379,35 @@ test("an application sent through an employee's link is not in the draw, as the 
   // Before applying (the owner: "Yes, say it"): on a link visit, the Terms sheet's At a glance says it, opening clause 3.
   const gate = read("src/components/TripLegal/ConsentGate.tsx");
   assert.match(gate, /const LINK_FACT = \{ label: "Team member's link", value: "Not entered in the draw", clause: 3 \} as const;/);
-  assert.match(gate, /viaLink \? \[\.\.\.GLANCE\.slice\(0, 2\), LINK_FACT, \.\.\.GLANCE\.slice\(2\)\]/);
+  assert.match(gate, /viaLink \? \[\.\.\.GLANCE\.slice\(0, 3\), LINK_FACT, \.\.\.GLANCE\.slice\(3\)\]/);
   assert.equal(gate.match(/\{glance\.map\(/g).length, 2, "both of its glance lists");
   assert.equal(gate.match(/GLANCE\.map\(/g), null);
   assert.match(read("src/components/TripApplication/ApplyExperience.tsx"), /viaLink=\{!!app\.state\.referral\.code\}/);
+});
+
+test("only those who said they run a business, with a valid passport, are in the draw, as the Terms say, and the summary says it before the questions", () => {
+  // 2026-11-25, the owner: "which user from the luck draw runs a business have to be there remaining users are dont",
+  // "Only 'Yes, I run a business'", "Terms + pages, passport too", and before applying "Yes, show it".
+  const server = read("src/lib/server/lucky-draw.ts");
+  assert.equal(server.match(/AND a\."businessStatus" = \$\{DRAW_BUSINESS_STATUS\}/g).length, 1, "in the one query that says who is in the draw");
+  const shared = read("src/lib/lucky-draw-shared.ts");
+  assert.match(shared, /export const DRAW_BUSINESS_STATUS = "existing_business";/);
+  assert.match(shared, /export const DRAW_POOL_RULE =\s*"Applicants who said they have a valid passport and run a business, not through an employee's link, not marked spam or deleted, one chance per mobile number";/);
+  // Clause 3 says both answers, in each form's own words, and the date the Terms carry is today's or later.
+  const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
+  assert.ok(
+    terms.includes(
+      'To be entered into the random selection, an applicant must have said in their application that they have a valid passport and that they run a business: by answering \\"Yes\\" to \\"Do you run a business?\\" or, on the application form used until 29 October 2026, by choosing \\"I currently run a business\\".',
+    ),
+    "clause 3 states the rule",
+  );
+  assert.equal(TRIP_TERMS.updated, "25 November 2026");
+  // Before anything is typed: At a glance, for everyone, after Selection, opening clause 3.
+  const gate = read("src/components/TripLegal/ConsentGate.tsx");
+  assert.match(
+    gate,
+    /\{ label: "Selection", value: `\$\{TRIP_FACTS\.winners\} winners, random draw`, clause: 3 \},\s*\{ label: "Lucky draw", value: "Applicants who run a business, with a valid passport", clause: 3 \},/,
+  );
 });
 
 test("the TV's plate fits the screen the page really has, bars and all: measured, never vh alone", () => {

@@ -22,8 +22,30 @@ export const DRAW_MODES = ["live", "rehearsal"] as const;
 export type DrawMode = (typeof DRAW_MODES)[number];
 export const isDrawMode = (v: unknown): v is DrawMode => typeof v === "string" && (DRAW_MODES as readonly string[]).includes(v);
 
-/** Who is in the draw, in words (the owner's choice, 2026-11-10: "Only those with a valid passport"). */
-export const DRAW_POOL_RULE = "Applicants who said they have a valid passport, not marked spam or deleted, one chance per mobile number";
+/**
+ * Who is in the draw, in words (the owner's choices: 2026-11-10 "Only those with a valid passport"; 2026-11-25 not
+ * through an employee's link, and "which user from the luck draw runs a business have to be there remaining users are
+ * dont"; the trip's Terms, clause 3, say all three).
+ */
+export const DRAW_POOL_RULE =
+  "Applicants who said they have a valid passport and run a business, not through an employee's link, not marked spam or deleted, one chance per mobile number";
+
+/**
+ * The one answer to "Do you run a business?" that is in the draw (2026-11-25; Terms clause 3): "Yes, I run a
+ * business", which the form used until 29 October 2026 put as "I currently run a business". Its other answers, that
+ * form's "I am looking to expand an existing business" among them, are not (the owner's choice: "Only 'Yes, I run a
+ * business'").
+ */
+export const DRAW_BUSINESS_STATUS = "existing_business";
+
+/**
+ * In the draw, by an application's own answers: what lib/server/lucky-draw.ts's pool asks in SQL, said once for the
+ * applicant's own page (no ticket of theirs in the draw globe unless this holds). Spam, deleted and already drawn are
+ * the team's doing, not the applicant's, and are left to the pool.
+ */
+export function inTheDraw(a: { hasPassport: boolean; businessStatus: string; referralCode: string | null; referrerId: string | null }): boolean {
+  return a.hasPassport && a.businessStatus === DRAW_BUSINESS_STATUS && a.referralCode === null && a.referrerId === null;
+}
 
 /** One draw as the TV screen may have it: the Terms allow limited winner information to be shown, never private
  *  contact details (Privacy Policy section 12), so no mobile number, and nothing of who pressed Draw. Its Trip ID only

@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   const mode = body.mode;
   const actor = await drawActor(mode);
   if (!actor) return NextResponse.json({ error: "Open the screen from the console: Free China Trip → Lucky draw.", reason: "no_pass" }, { status: 401 });
-  // No live draw while applications are open (Terms: everyone who applies by the close is in the draw). A development
+  // No live draw while applications are open (Terms: everyone eligible who applies by the close is in the draw). A development
   // server counts them as always open (applicationWindow), so a localhost on the live database can only rehearse.
   if (mode === "live" && applicationWindow() !== "closed") {
     return NextResponse.json(

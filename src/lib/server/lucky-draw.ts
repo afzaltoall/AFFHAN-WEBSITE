@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { applicationWindow } from "@/lib/trip-application";
 import {
+  DRAW_BUSINESS_STATUS,
   DRAW_SEATS,
   FIRST_GROUP_FROM,
   FIRST_GROUP_TO,
@@ -26,14 +27,18 @@ import {
  * applied) reads as no draws, with `ready` false, rather than failing.
  *
  * Who is in the draw (the owner, 2026-11-10: "Only those with a valid passport"): applications that said yes to "Do you
- * have a valid passport?", not marked spam or deleted, one chance per person (one per mobile number: someone who
- * applied twice, through "Registered again", is in once, by their first application), not sent through an employee's
- * link (the owner, 2026-11-25: "referral based users doesnt have to come in lucky draw its very important"; Terms
- * clause 3 says so: an application that gave an employee's code, credited or not, whatever the team decided about it),
- * and not already drawn in this mode. Seats 1 to 3 of every round are drawn only from those
- * among the first 1,540 applications received (TRIP-26-00001 to TRIP-26-01540), seats 4 and 5 from everyone (the
- * owner, 2026-11-23; Terms clause 3 says so): the seat a press will fill is worked out first (seatOfNextDraw), then
- * the draw is made from its group, and the row's pool size and fingerprint are that group's.
+ * have a valid passport?" and yes to "Do you run a business?" (the owner, 2026-11-25: "which user from the luck draw
+ * runs a business have to be there remaining users are dont"; DRAW_BUSINESS_STATUS, "I currently run a business" on the
+ * form used until 29 October, never its "expanding" or "planning"; Terms clause 3 says both), not marked spam or
+ * deleted, one chance per person (one per mobile number: someone who applied twice, through "Registered again", is in
+ * once, by their first such application), not sent through an employee's link (the owner, 2026-11-25: "referral based
+ * users doesnt have to come in lucky draw its very important"; Terms clause 3 says so: an application that gave an
+ * employee's code, credited or not, whatever the team decided about it), and not already drawn in this mode. On
+ * 2026-11-25 at 16:55 IST the business answer left 3,146 of the 5,796 then in the draw (368 of the 1,397 in the first
+ * group); applications arriving until the close are in it by the same answers. Seats 1 to 3 of every round are drawn
+ * only from those among the first 1,540 applications received (TRIP-26-00001 to TRIP-26-01540), seats 4 and 5 from
+ * everyone (the owner, 2026-11-23; Terms clause 3 says so): the seat a press will fill is worked out first
+ * (seatOfNextDraw), then the draw is made from its group, and the row's pool size and fingerprint are that group's.
  *
  * How one is drawn: in one transaction holding the draw's own lock (two presses at once are drawn one after the
  * other, never the same person twice), everyone in the draw is read and put in Trip ID order, one is chosen with the
@@ -59,6 +64,7 @@ const pool = (mode: DrawMode, drawn = true) => Prisma.sql`
   FROM "TripApplication" a
   WHERE a."status" NOT IN ('spam', 'deleted')
     AND a."hasPassport" = true
+    AND a."businessStatus" = ${DRAW_BUSINESS_STATUS}
     AND a."referralCode" IS NULL AND a."referrerId" IS NULL${drawn ? notDrawn(mode) : Prisma.empty}
   ORDER BY COALESCE(a."customerKey", a."id"), a."createdAt", a."id"`;
 

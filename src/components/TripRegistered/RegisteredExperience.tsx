@@ -119,11 +119,12 @@ export function RegisteredExperience() {
 
   const registered = !!registration;
   /**
-   * Their ticket is in the draw: registered, and not through an employee's link, which is not in the draw (Terms
-   * clause 3, the owner, 2026-11-25). Sent through a link, the page is theirs (the pass, the welcome, what happens
-   * next) but the globe is everyone's: no ticket of theirs flies into it, glows in it or is said to be in it.
+   * Their ticket is in the draw: registered, and in it by their own answers, as the server tells (inDraw: a valid
+   * passport, a business they run, not through an employee's link; Terms clause 3, the owner, 2026-11-25). Otherwise
+   * the page is theirs (the pass, the welcome, what happens next) but the globe is everyone's: no ticket of theirs
+   * flies into it, glows in it or is said to be in it.
    */
-  const ticketIn = registered && !registration?.viaLink;
+  const ticketIn = registered && registration?.inDraw === true;
   const still = typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   // Once the seal is down, the visitor's ticket flies from the pass into the globe. Once a visit;

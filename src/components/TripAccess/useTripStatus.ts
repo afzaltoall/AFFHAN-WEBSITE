@@ -22,8 +22,11 @@ export interface TripRegistration {
   iso: string | null;
   city: string;
   businessStatus: string;
-  /** Sent through an employee's link: not in the lucky draw (Terms clause 3), so no ticket of theirs in the draw globe. */
-  viaLink?: boolean;
+  /**
+   * In the lucky draw by their own answers (Terms clause 3): a valid passport, a business they run, not through an
+   * employee's link. Otherwise no ticket of theirs in the draw globe.
+   */
+  inDraw?: boolean;
 }
 
 /**

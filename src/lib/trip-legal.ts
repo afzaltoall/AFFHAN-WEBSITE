@@ -84,7 +84,10 @@ const EMAIL = "info@affhan.com";
  * perfectly what we do what we done"): one application a mobile number and the ID proof through a team member's link
  * (clause 2), a link giving no advantage in the draw (clause 3), and the ID proof's exception to clause 15. Since
  * 2026-11-25 clause 3 says the opposite of that last line (the owner: "referral based users doesnt have to come in
- * lucky draw its very important"): applications sent through a team member's link are not entered at all.
+ * lucky draw its very important"): applications sent through a team member's link are not entered at all. The same
+ * day it says who is (the owner: "which user from the luck draw runs a business have to be there remaining users are
+ * dont"): a valid passport, as the draw has asked since it was made but these Terms had never said, and a business
+ * already run, in the very answers each form offered (lib/lucky-draw-shared.ts DRAW_BUSINESS_STATUS).
  */
 export const TRIP_TERMS: LegalDoc = {
   heading: ["AFFHAN Free China Business Trip", "Terms & Conditions"],
@@ -128,6 +131,7 @@ export const TRIP_TERMS: LegalDoc = {
       blocks: [
         p("All applications are first checked for eligibility."),
         p("Only valid and eligible applicants are entered into the final selection pool."),
+        p("To be entered into the random selection, an applicant must have said in their application that they have a valid passport and that they run a business: by answering \"Yes\" to \"Do you run a business?\" or, on the application form used until 29 October 2026, by choosing \"I currently run a business\"."),
         p("Three of the five places are drawn from the eligible applicants among the first 1,540 applications received (12 to 29 October 2026). The other two places are drawn from all eligible applicants."),
         p("Within each of these draws, every eligible applicant has an equal chance of being selected."),
         p("Applications sent through a link shared by a member of the Affhan team are not entered into the random selection."),

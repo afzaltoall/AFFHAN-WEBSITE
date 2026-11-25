@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { COUNTRIES } from "@/lib/countries";
+import { inTheDraw } from "@/lib/lucky-draw-shared";
 
 /**
  * A participant's own registration for the Free China Business Trip, as its
@@ -26,14 +27,14 @@ export interface OwnRegistration {
   city: string;
   businessStatus: string;
   /**
-   * Sent through an employee's link: such an application is not in the lucky draw (Terms clause 3, the owner,
-   * 2026-11-25), so its page never puts its ticket in the draw. Only this yes or no leaves the server, never the code
-   * it gave or whose it was.
+   * In the lucky draw by its own answers (Terms clause 3, 2026-11-25): a valid passport, "Yes" to "Do you run a
+   * business?", and not sent through an employee's link (inTheDraw). Otherwise its page never puts its ticket in the
+   * draw. Only this yes or no leaves the server, never a code it gave or whose it was.
    */
-  viaLink: boolean;
+  inDraw: boolean;
 }
 
-const OWN = { referenceNo: true, createdAt: true, fullName: true, country: true, city: true, businessStatus: true, referralCode: true, referrerId: true } as const;
+const OWN = { referenceNo: true, createdAt: true, fullName: true, country: true, city: true, businessStatus: true, hasPassport: true, referralCode: true, referrerId: true } as const;
 
 function own(row: {
   referenceNo: string;
@@ -42,6 +43,7 @@ function own(row: {
   country: string;
   city: string;
   businessStatus: string;
+  hasPassport: boolean;
   referralCode: string | null;
   referrerId: string | null;
 }): OwnRegistration {
@@ -54,7 +56,7 @@ function own(row: {
     iso: isoOf(row.country),
     city: row.city,
     businessStatus: row.businessStatus,
-    viaLink: row.referralCode !== null || row.referrerId !== null,
+    inDraw: inTheDraw(row),
   };
 }
 
