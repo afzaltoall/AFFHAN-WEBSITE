@@ -1,0 +1,154 @@
+/*
+ * ChristmasLogo: the AFFHAN logo in its Santa hat. Five tiles of one frame in public/affhan-christmas-layers.webp
+ * (scripts/build_christmas_logo.mjs), each piece the whole box, laid in this order: the logo, the cone, its tip, the
+ * pompom, the brim on top. The brim stays on the A; the rest turn, each about its own point (the script prints them):
+ *
+ *   the cone   about its base, under the brim     54.53% 16.46%   a slow sway, leaning over with the gust
+ *   the tip    about the fold at the top          62.36%  7.95%   swings out (negative) 3 to 6 degrees, 10 in the
+ *                                                                 gust, and back in only 1 to 3, as the cone is there
+ *   the pompom about where it hangs from the tip  68.23% 22.24%   the tip's swing, a quarter second behind it
+ *
+ * Each piece turns inside the one it hangs from, so the pompom follows the tip and the tip the cone. All three run one
+ * ten-second round from the same start, and every key is a turning point of the swing (so the round never pauses
+ * part-way), at a pendulum's pace of about a second each way, the gust at the half. On the 56 px logo the pompom
+ * moves about a pixel each swing and two and a half in the gust: less than a pixel read as standing still. The tip
+ * swings out no further than the fold's shadow behind it is drawn (12 degrees, in the script).
+ */
+.xmas-logo {
+  position: relative;
+  display: block;
+}
+.xmas-logo span {
+  position: absolute;
+  inset: 0;
+}
+.xmas-piece {
+  background: url("/affhan-christmas-layers.webp") 0 0 / 500% 100% no-repeat;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.xmas-cone {
+  background-position: 25% 0;
+}
+.xmas-tip {
+  background-position: 50% 0;
+}
+.xmas-pompom {
+  background-position: 75% 0;
+}
+.xmas-brim {
+  background-position: 100% 0;
+}
+
+.xmas-sway {
+  transform-origin: 54.53% 16.46%;
+}
+.xmas-flop {
+  transform-origin: 62.36% 7.95%;
+}
+.xmas-bob {
+  transform-origin: 68.23% 22.24%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .xmas-sway {
+    animation: xmas-sway 10s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+  .xmas-flop {
+    animation: xmas-flop 10s cubic-bezier(0.37, 0, 0.63, 1) infinite;
+  }
+  .xmas-bob {
+    animation: xmas-bob 10s cubic-bezier(0.37, 0, 0.63, 1) 0.25s infinite;
+  }
+}
+
+@keyframes xmas-sway {
+  0%,
+  100% {
+    transform: rotate(-0.5deg);
+  }
+  20% {
+    transform: rotate(0.6deg);
+  }
+  38% {
+    transform: rotate(-0.4deg);
+  }
+  50% {
+    transform: rotate(2deg);
+  }
+  64% {
+    transform: rotate(-0.9deg);
+  }
+  80% {
+    transform: rotate(0.7deg);
+  }
+}
+
+@keyframes xmas-flop {
+  0%,
+  100% {
+    transform: rotate(1.2deg);
+  }
+  10% {
+    transform: rotate(-4.5deg);
+  }
+  20% {
+    transform: rotate(1.6deg);
+  }
+  30% {
+    transform: rotate(-3.6deg);
+  }
+  40% {
+    transform: rotate(1.2deg);
+  }
+  50% {
+    transform: rotate(-10deg);
+  }
+  60% {
+    transform: rotate(3.2deg);
+  }
+  70% {
+    transform: rotate(-6deg);
+  }
+  80% {
+    transform: rotate(2deg);
+  }
+  90% {
+    transform: rotate(-3.2deg);
+  }
+}
+
+/* The tip's swing, 1.4 times as far, a quarter second late (.xmas-bob's delay): the pompom drags, then overshoots. */
+@keyframes xmas-bob {
+  0%,
+  100% {
+    transform: rotate(1.7deg);
+  }
+  10% {
+    transform: rotate(-6.3deg);
+  }
+  20% {
+    transform: rotate(2.2deg);
+  }
+  30% {
+    transform: rotate(-5deg);
+  }
+  40% {
+    transform: rotate(1.7deg);
+  }
+  50% {
+    transform: rotate(-14deg);
+  }
+  60% {
+    transform: rotate(4.5deg);
+  }
+  70% {
+    transform: rotate(-8.4deg);
+  }
+  80% {
+    transform: rotate(2.8deg);
+  }
+  90% {
+    transform: rotate(-4.5deg);
+  }
+}

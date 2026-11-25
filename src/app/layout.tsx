@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { Suspense } from "react";
+import { preload } from "react-dom";
 import "./globals.css";
 import { WhatsAppButton } from "@/components/ui/WhatsAppButton";
 import { Navbar } from "@/components/sections/Navbar";
@@ -12,6 +13,7 @@ import { QuoteGateProvider } from "@/context/QuoteGateContext";
 import { FOUNDING_DATE, LOGO_URL, OFFICES, ORG_ID, SITE_URL, SOCIAL_PROFILES, postalAddress } from "@/lib/brand";
 import { FIRST_PAINT_SCRIPT } from "@/lib/firstPaintHints";
 import { jsonLd } from "@/lib/json-ld";
+import { CHRISTMAS_LOGO, CHRISTMAS_LOGO_LAYERS } from "@/lib/christmas";
 
 // Premium, modern sans used site-wide. Plus Jakarta Sans reads far more
 // refined than a generic system/Geist stack — the difference the brief called
@@ -136,6 +138,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The header's logo in its Santa hat is one picture drawn by CSS (ChristmasLogo), which a browser asks for only
+  // once it draws the header, and on most pages it draws the navbar itself, after the scripts. Asked for here, it
+  // comes with the page, first in its head, as public/logo.png did when the phone header's Image preloaded it.
+  if (CHRISTMAS_LOGO) preload(CHRISTMAS_LOGO_LAYERS, { as: "image" });
   return (
     // suppressHydrationWarning: the first script below sets data-me, data-trip-locked and two custom
     // properties on <html> before React hydrates it (lib/firstPaintHints.ts). This element only.

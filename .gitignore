@@ -137,6 +137,10 @@ public/static/images/map*.png
 # by this script from one table, and CLAUDE.md names it as the only way to
 # change that file: a colour a new screen needs is added here and run again.
 !scripts/build_admin_dark_css.mjs
+# The header's Christmas logo (public/affhan-christmas-layers.webp) is cut by
+# this script from the owner's picture, kept as public/affhan-christmas.png: a
+# new picture, or a piece cut differently, is this script run again.
+!scripts/build_christmas_logo.mjs
 # The one-time reset that cleared what testing recorded against the live
 # database. Kept because it documents exactly what was removed and what was
 # deliberately left alone, and because its dry run is the safe way to ask the

@@ -28,6 +28,8 @@ const NavAuthButton = dynamic(
 import { prepCatalogueNav } from "@/lib/scroll";
 import { loadAllCategories } from "@/lib/categoriesClient";
 import { phoneChromeFor } from "@/lib/phoneChrome";
+import { CHRISTMAS_LOGO } from "@/lib/christmas";
+import { ChristmasLogo } from "@/components/ui/ChristmasLogo";
 
 
 export function Navbar() {
@@ -376,7 +378,12 @@ export function Navbar() {
             {/* Logo */}
             <Link href="/" className="flex items-center flex-shrink-0 z-10 mr-1 md:mr-0 xl:mr-4">
               <div className="relative w-10 h-10 md:w-12 md:h-12 lg:w-14 lg:h-14">
-                <Image src="/logo.png" alt="AFFHAN Group Logo" width={140} height={140} priority fetchPriority="high" className="w-full h-full object-contain" />
+                {/* At Christmas, in its Santa hat, the hat swaying (lib/christmas.ts): the same box, the same logo. */}
+                {CHRISTMAS_LOGO ? (
+                  <ChristmasLogo label="AFFHAN Group Logo" className="w-full h-full" />
+                ) : (
+                  <Image src="/logo.png" alt="AFFHAN Group Logo" width={140} height={140} priority fetchPriority="high" className="w-full h-full object-contain" />
+                )}
               </div>
             </Link>
 

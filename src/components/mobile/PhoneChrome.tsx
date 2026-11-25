@@ -13,6 +13,8 @@ import { phoneChromeFor, phoneHasTabs, PHONE_TABS_HEIGHT, sitePath } from "@/lib
 import { noteInSiteMove } from "@/lib/inSiteHistory";
 import { useIsPhone } from "@/lib/useIsPhone";
 import { usePhoneSearchContext } from "@/components/mobile/phoneSearchContext";
+import { CHRISTMAS_LOGO } from "@/lib/christmas";
+import { ChristmasLogo } from "@/components/ui/ChristmasLogo";
 import "./phone-chrome.css";
 
 /**
@@ -152,7 +154,12 @@ export function PhoneChrome() {
       <header className="fixed inset-x-0 top-0 z-[100] border-b border-slate-100 bg-white md:hidden">
         <div className="flex h-(--nav-h) items-center gap-2.5 pl-3 pr-2.5">
           <Link href="/" aria-label="AFFHAN, home" className="shrink-0">
-            <Image src="/logo.png" alt="AFFHAN" width={80} height={80} priority className="h-10 w-10 object-contain" />
+            {/* At Christmas, in its Santa hat, the hat swaying (lib/christmas.ts), in the same 40 px. */}
+            {CHRISTMAS_LOGO ? (
+              <ChristmasLogo label="AFFHAN" className="h-10 w-10" />
+            ) : (
+              <Image src="/logo.png" alt="AFFHAN" width={80} height={80} priority className="h-10 w-10 object-contain" />
+            )}
           </Link>
           {kind === "full" && (
             <div className="flex h-10 min-w-0 flex-1 items-center gap-0.5 rounded-full bg-slate-100 pl-3.5 pr-1 ring-1 ring-slate-200/80">
