@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Loader2, MonitorPlay, RefreshCw, RotateCcw, Ticket, Trash2, UserX, X } from "lucide-react";
+import { ArrowLeft, Download, Loader2, MonitorPlay, RefreshCw, RotateCcw, Search, Ticket, Trash2, UserX, X } from "lucide-react";
 import { timeAgo } from "@/lib/relative-time";
 import {
   DRAW_POOL_RULE,
@@ -18,6 +18,7 @@ import {
   type DrawBoard,
   type DrawCardFull,
   type DrawMode,
+  type DrawPerson,
 } from "@/lib/lucky-draw-shared";
 import { Detail as ApplicationPanel, DetailWaiting as ApplicationWaiting, type Application } from "@/components/admin/TripApplicationsBoard";
 
@@ -53,6 +54,12 @@ const count = new Intl.NumberFormat("en-IN");
 const fmtWhen = (iso: string) =>
   new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 const telOf = (phone: string) => `tel:${phone.replace(/[^\d+]/g, "")}`;
+const fmtDay = (iso: string) =>
+  iso ? new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Kolkata" }) : "";
+/** Everyone in the draw is listed this many at a time. */
+const PEOPLE_PAGE = 100;
+/** A panel's opening lines: the draw's own, or where someone stands in it. */
+type Lead = Array<[string, React.ReactNode]>;
 
 /** A press's id: the server draws once per id, so a press whose answer is lost is asked again with the same one. */
 function pressId(): string {
@@ -106,16 +113,92 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
    * tab with their full details ... documents if they have them"): Participants' own panel, their whole application read
    * again as it opens, its ID proof behind the admin's password as everywhere.
    */
-  const [opened, setOpened] = useState<{ card: DrawCardFull; mode: DrawMode; n: number } | null>(null);
+  const [opened, setOpened] = useState<{ id: string; name: string; tripId: string; lead: Lead; n: number } | null>(null);
   const [application, setApplication] = useState<Application | null>(null);
   const [applicationFailed, setApplicationFailed] = useState(false);
   // Every open reads it again, the same person's too (its status or ID proof may have changed since).
-  const openPerson = (c: DrawCardFull) => {
+  const openApplication = (id: string, name: string, tripId: string, lead: Lead) => {
     setApplication(null);
     setApplicationFailed(false);
-    setOpened((o) => ({ card: c, mode, n: (o?.n ?? 0) + 1 }));
+    setOpened((o) => ({ id, name, tripId, lead, n: (o?.n ?? 0) + 1 }));
   };
-  const openedId = opened?.card.applicationId ?? null;
+  const openPerson = (c: DrawCardFull) => openApplication(c.applicationId, c.name, c.tripId, drawRows(c, mode));
+  const openedId = opened?.id ?? null;
+
+  /**
+   * Everyone in the draw, listed (the owner, 2026-11-25: "show the overall run a business users in the lucky draw ...
+   * show the overall the list of lucky draw set persons to see"): read when asked for, and again on every open, a change
+   * of mode and Refresh, never with the board's few-second reads (thousands of people). A name opens their application.
+   */
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const [people, setPeople] = useState<{ mode: DrawMode; list: DrawPerson[] } | null>(null);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [peopleError, setPeopleError] = useState<string | null>(null);
+  const [find, setFind] = useState("");
+  const [shown, setShown] = useState(PEOPLE_PAGE);
+  const [exportingPeople, setExportingPeople] = useState(false);
+  const peopleRef = useRef<HTMLElement | null>(null);
+  const readPeople = useCallback(async (which: DrawMode) => {
+    setPeopleLoading(true);
+    setPeopleError(null);
+    try {
+      const res = await fetch(`/api/admin/lucky-draw/people/?mode=${which}`, { cache: "no-store" });
+      if (!res.ok) throw new Error(res.status === 401 ? "Your session has ended. Sign in again." : "Who is in the draw could not be read.");
+      const j = (await res.json()) as { people: DrawPerson[] };
+      setPeople({ mode: which, list: j.people });
+    } catch (e) {
+      setPeopleError(e instanceof Error ? e.message : "Who is in the draw could not be read.");
+    } finally {
+      setPeopleLoading(false);
+    }
+  }, []);
+  useEffect(() => {
+    if (peopleOpen) void readPeople(mode);
+  }, [peopleOpen, mode, readPeople]);
+  const showPeople = () => {
+    setShown(PEOPLE_PAGE);
+    if (peopleOpen) void readPeople(mode);
+    setPeopleOpen(true);
+    requestAnimationFrame(() => peopleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+  const everyone = people && people.mode === mode ? people.list : [];
+  const needle = find.trim().toLowerCase();
+  const digits = needle.replace(/\D/g, "");
+  const matches = needle
+    ? everyone.filter(
+        (p) =>
+          p.name.toLowerCase().includes(needle) ||
+          p.tripId.toLowerCase().includes(needle) ||
+          p.city.toLowerCase().includes(needle) ||
+          p.country.toLowerCase().includes(needle) ||
+          (digits.length >= 3 && p.phone.replace(/\D/g, "").includes(digits)),
+      )
+    : everyone;
+  const exportPeople = async () => {
+    setExportingPeople(true);
+    try {
+      const XLSX = await import("xlsx");
+      const head = ["Trip ID", "Name", "City", "Country", "Mobile", "Applied"];
+      const lines = matches.map((p) => [p.tripId, p.name, p.city, p.country, p.phone, fmtDay(p.appliedAt)]);
+      const ws = XLSX.utils.aoa_to_sheet([head, ...lines]);
+      // Mobile numbers as text, or Excel shows 919876543210 as 9.19E+11.
+      for (let row = 1; row <= lines.length; row++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: row, c: head.indexOf("Mobile") })];
+        if (cell) {
+          cell.t = "s";
+          cell.z = "@";
+          cell.v = String(cell.v ?? "");
+        }
+      }
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "In the draw");
+      XLSX.writeFile(wb, `lucky-draw-${mode === "live" ? "in-the-draw" : "rehearsal"}-${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch {
+      setPeopleError("The export could not be made. Try again.");
+    } finally {
+      setExportingPeople(false);
+    }
+  };
   const openedN = opened?.n ?? 0;
   useEffect(() => {
     if (!openedId) return;
@@ -144,6 +227,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
 
   const refresh = useCallback(async () => {
     setRefreshing(true);
+    if (peopleOpen) void readPeople(mode);
     try {
       await read(mode);
       setError(null);
@@ -152,7 +236,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
     } finally {
       setRefreshing(false);
     }
-  }, [mode, read]);
+  }, [mode, read, peopleOpen, readPeople]);
 
   // Read again every few seconds while the tab is in front: the TV's draws show here as they are made.
   useEffect(() => {
@@ -347,7 +431,14 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
           ].map(([label, n]) => (
             <div key={label} className="min-w-0 bg-white px-4 py-3">
               <dt className="truncate text-[12px] text-[#6e6e73]">{label}</dt>
-              <dd className="mt-0.5 text-[22px] font-semibold tabular-nums tracking-tight">{n}</dd>
+              <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-3 text-[22px] font-semibold tabular-nums tracking-tight">
+                {n}
+                {label === "In the draw" && board.poolSize > 0 && (
+                  <button type="button" onClick={showPeople} className="cursor-pointer text-[12.5px] font-medium tracking-normal text-[#0058b0] hover:underline">
+                    See everyone
+                  </button>
+                )}
+              </dd>
             </div>
           ))}
         </dl>
@@ -451,6 +542,95 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
             </ul>
           </section>
         )}
+
+        {peopleOpen && (
+          <section ref={peopleRef} aria-label="Everyone in the draw" className={`mb-5 scroll-mt-6 overflow-hidden ${card}`}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-black/[0.06] px-5 py-2.5">
+              <h2 className="text-[15px] font-semibold">
+                {mode === "live" ? "Everyone in the draw" : "Everyone in the rehearsal draw"}{" "}
+                <span className="font-normal tabular-nums text-[#86868b]">{people && people.mode === mode ? count.format(everyone.length) : ""}</span>
+                {peopleLoading && people && <Loader2 size={13} aria-label="Reading it again" className="ml-1.5 inline animate-spin align-[-1px] text-[#86868b]" />}
+              </h2>
+              <label className="relative ml-auto w-full sm:w-72">
+                <span className="sr-only">Find someone in the draw</span>
+                <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#86868b]" />
+                <input
+                  type="search"
+                  value={find}
+                  onChange={(e) => {
+                    setFind(e.target.value);
+                    setShown(PEOPLE_PAGE);
+                  }}
+                  placeholder="Name, Trip ID, city or mobile"
+                  className="h-8 w-full rounded-full bg-black/[0.03] pl-8 pr-3 text-[13px] outline-none ring-1 ring-black/[0.06] focus:bg-white focus:ring-2 focus:ring-[#0071e3]/40"
+                />
+              </label>
+              <button type="button" onClick={() => void exportPeople()} disabled={exportingPeople || matches.length === 0} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
+                {exportingPeople ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Export {count.format(matches.length)}
+              </button>
+              <button type="button" onClick={() => setPeopleOpen(false)} aria-label="Close the list" className="flex h-8 w-8 items-center justify-center rounded-full text-[#6e6e73] hover:bg-black/[0.04]">
+                <X size={15} />
+              </button>
+            </div>
+            {peopleError ? (
+              <p role="alert" className="px-5 py-4 text-[13px] font-medium text-red-700">
+                {peopleError}
+              </p>
+            ) : !people || people.mode !== mode ? (
+              <p className="flex items-center gap-2 px-5 py-4 text-[13px] text-[#86868b]">
+                <Loader2 size={14} className="animate-spin" /> Reading who is in the draw…
+              </p>
+            ) : matches.length === 0 ? (
+              <p className="px-5 py-4 text-[13px] text-[#86868b]">{needle ? `Nobody in the draw matches “${find.trim()}”.` : "Nobody is in the draw."}</p>
+            ) : (
+              <>
+                {/* A list of people on a phone; from sm, the same rows in columns. */}
+                <div className="hidden grid-cols-[7.5rem_minmax(0,1.3fr)_minmax(0,1fr)_10rem_7rem] gap-x-4 border-b border-black/[0.06] px-5 py-2 text-[11.5px] font-medium text-[#86868b] sm:grid" aria-hidden>
+                  <span>Trip ID</span>
+                  <span>Name</span>
+                  <span>From</span>
+                  <span>Mobile</span>
+                  <span>Applied</span>
+                </div>
+                <ol className="divide-y divide-black/[0.06]">
+                  {matches.slice(0, shown).map((p) => (
+                    <li key={p.id} className="grid grid-cols-1 gap-x-4 gap-y-0.5 px-5 py-2.5 text-[13.5px] sm:grid-cols-[7.5rem_minmax(0,1.3fr)_minmax(0,1fr)_10rem_7rem] sm:items-baseline">
+                      <span className="order-2 text-[12px] tabular-nums text-[#86868b] sm:order-none sm:text-[13px]">{p.tripId}</span>
+                      <span className="order-1 min-w-0 sm:order-none">
+                        <button
+                          type="button"
+                          onClick={() => openApplication(p.id, p.name, p.tripId, [["Lucky draw", mode === "live" ? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"]])}
+                          className="cursor-pointer truncate text-left font-medium text-[#0058b0] hover:underline"
+                        >
+                          {p.name}
+                        </button>
+                      </span>
+                      <span className="order-3 min-w-0 truncate text-[#6e6e73] sm:order-none">
+                        {p.city}
+                        {p.city && p.country ? ", " : ""}
+                        {p.country}
+                      </span>
+                      <a href={telOf(p.phone)} className="order-4 tabular-nums text-[#1d1d1f] hover:underline sm:order-none">
+                        {p.phone}
+                      </a>
+                      <span className="order-5 text-[12px] text-[#86868b] sm:order-none sm:text-[13px]">{fmtDay(p.appliedAt)}</span>
+                    </li>
+                  ))}
+                </ol>
+                {matches.length > shown && (
+                  <div className="border-t border-black/[0.06] px-5 py-3">
+                    <button type="button" onClick={() => setShown((s) => s + PEOPLE_PAGE)} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
+                      Show {count.format(Math.min(PEOPLE_PAGE, matches.length - shown))} more
+                    </button>
+                    <span className="ml-3 text-[12.5px] text-[#86868b]">
+                      {count.format(shown)} of {count.format(matches.length)} shown
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
       </div>
 
       {ask?.kind === "draw" && (
@@ -480,10 +660,10 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
       {ask?.kind === "screen" && <ScreenWindow live={boards.live} closes={closes} onCancel={() => setAsk(null)} onOpen={openScreen} />}
 
       {opened &&
-        (application && application.id === opened.card.applicationId ? (
-          <ApplicationPanel a={application} lead={drawRows(opened.card, opened.mode)} onClose={() => setOpened(null)} />
+        (application && application.id === opened.id ? (
+          <ApplicationPanel a={application} lead={opened.lead} onClose={() => setOpened(null)} />
         ) : (
-          <ApplicationWaiting name={opened.card.name} tripId={opened.card.tripId} failed={applicationFailed} onClose={() => setOpened(null)} />
+          <ApplicationWaiting name={opened.name} tripId={opened.tripId} failed={applicationFailed} onClose={() => setOpened(null)} />
         ))}
     </div>
   );

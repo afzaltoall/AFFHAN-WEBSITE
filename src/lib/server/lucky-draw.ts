@@ -17,6 +17,7 @@ import {
   type DrawCardFull,
   type DrawCardPublic,
   type DrawMode,
+  type DrawPerson,
   type DrawPool,
   type DrawPoolEntry,
 } from "@/lib/lucky-draw-shared";
@@ -233,6 +234,52 @@ export async function drawPool(mode: DrawMode): Promise<DrawPool> {
   const entries = tripIds.map((tripId, k): DrawPoolEntry => [tripId, personName(names[k] ?? ""), personName(cities[k] ?? ""), countries[k] ?? ""]);
   entries.sort((a, b) => compareTripIds(a[0], b[0]));
   return { size: entries.length, ready, entries };
+}
+
+/**
+ * Everyone who can be drawn in `mode` now, for the console's own list (the owner, 2026-11-25: "show the overall the
+ * list of lucky draw set persons to see"): the pool itself, so exactly who the draw holds, with each one's application
+ * (its panel), mobile and when they applied, in Trip ID order. Read as columns of arrays, as the TV's list is. The
+ * admin's own session only (its route), never the TV's pass.
+ */
+export async function drawPeople(mode: DrawMode): Promise<{ ready: boolean; people: DrawPerson[] }> {
+  const columns = (drawn: boolean) => Prisma.sql`
+    SELECT array_agg(p."id") AS ids, array_agg(p."referenceNo") AS "tripIds", array_agg(p."fullName") AS names,
+           array_agg(p."city") AS cities, array_agg(p."country") AS countries, array_agg(a."phone") AS phones,
+           array_agg(a."createdAt") AS applied
+    FROM (${pool(mode, drawn)}) p JOIN "TripApplication" a ON a."id" = p."id"`;
+  interface Columns {
+    ids: string[] | null;
+    tripIds: string[] | null;
+    names: string[] | null;
+    cities: string[] | null;
+    countries: string[] | null;
+    phones: string[] | null;
+    applied: Date[] | null;
+  }
+  let cols: Columns | undefined;
+  let ready = true;
+  try {
+    [cols] = await prisma.$queryRaw<Columns[]>(columns(true));
+  } catch (e) {
+    if (!isMissingTable(e)) throw e;
+    ready = false;
+    [cols] = await prisma.$queryRaw<Columns[]>(columns(false));
+  }
+  const ids = cols?.ids ?? [];
+  const people = ids.map(
+    (id, k): DrawPerson => ({
+      id,
+      tripId: cols?.tripIds?.[k] ?? "",
+      name: personName(cols?.names?.[k] ?? ""),
+      city: personName(cols?.cities?.[k] ?? ""),
+      country: cols?.countries?.[k] ?? "",
+      phone: cols?.phones?.[k] ?? "",
+      appliedAt: iso(cols?.applied?.[k] ?? null) ?? "",
+    }),
+  );
+  people.sort((a, b) => compareTripIds(a.tripId, b.tripId));
+  return { ready, people };
 }
 
 export type DrawResult = { ok: true; id: string; again: boolean } | { ok: false; reason: "empty" | "empty_first" | "not_ready" };

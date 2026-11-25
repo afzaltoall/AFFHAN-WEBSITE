@@ -31,6 +31,21 @@ export const DRAW_POOL_RULE =
   "Applicants who said they have a valid passport and run a business, not through an employee's link, not marked spam or deleted, one chance per mobile number";
 
 /**
+ * One person in the draw as the console lists them (the owner, 2026-11-25: "show the overall the list of lucky draw set
+ * persons to see"): their application (its panel opens from the name), Trip ID, name, city, country, mobile and when
+ * they applied. The console's alone: the TV's list (DrawPoolEntry) never has a mobile number.
+ */
+export interface DrawPerson {
+  id: string;
+  tripId: string;
+  name: string;
+  city: string;
+  country: string;
+  phone: string;
+  appliedAt: string;
+}
+
+/**
  * The one answer to "Do you run a business?" that is in the draw (2026-11-25; Terms clause 3): "Yes, I run a
  * business", which the form used until 29 October 2026 put as "I currently run a business". Its other answers, that
  * form's "I am looking to expand an existing business" among them, are not (the owner's choice: "Only 'Yes, I run a

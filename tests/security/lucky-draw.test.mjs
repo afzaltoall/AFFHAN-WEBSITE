@@ -337,7 +337,8 @@ test("the console's Lucky draw: a name opens Participants' own panel, read again
   const board = read("src/components/admin/LuckyDrawBoard.tsx");
   assert.match(board, /import \{ Detail as ApplicationPanel, DetailWaiting as ApplicationWaiting, type Application \} from "@\/components\/admin\/TripApplicationsBoard";/);
   assert.match(board, /fetch\(`\/api\/admin\/trip-applications\/\$\{openedId\}\/`, \{ cache: "no-store" \}\)/);
-  assert.match(board, /<ApplicationPanel a=\{application\} lead=\{drawRows\(opened\.card, opened\.mode\)\} onClose=\{\(\) => setOpened\(null\)\} \/>/);
+  assert.match(board, /<ApplicationPanel a=\{application\} lead=\{opened\.lead\} onClose=\{\(\) => setOpened\(null\)\} \/>/);
+  assert.match(board, /const openPerson = \(c: DrawCardFull\) => openApplication\(c\.applicationId, c\.name, c\.tripId, drawRows\(c, mode\)\);/, "a drawn name opens with the draw's own lines");
   assert.doesNotMatch(board, /<ApplicationPanel[^>]*onStatus/, "no status buttons from the draw's page");
   assert.equal((board.match(/<Person c=\{c\} onOpen=\{openPerson\} \/>/g) ?? []).length, 3, "every name: this round's seats, the rounds before, those who can't take part");
   const panel = read("src/components/admin/TripApplicationsBoard.tsx");
@@ -348,6 +349,23 @@ test("the console's Lucky draw: a name opens Participants' own panel, read again
   const route = read("src/app/api/admin/trip-applications/[id]/route.ts");
   assert.match(route, /if \(!admin \|\| admin\.role !== "admin"\) return new NextResponse\("Unauthorized", \{ status: 401 \}\);/);
   assert.match(route, /documents: row\.documents\.map\(\(d\) => \(\{ id: d\.id, contentType: d\.contentType, size: d\.size, proof: idProofOfKey\(d\.key\) \}\)\)/, "never a file's key");
+});
+
+test("the console lists everyone in the draw: the pool itself, for the admin's own session only, every name opening their application", () => {
+  // 2026-11-25, the owner: "show the overall run a business users in the lucky draw ... show the overall the list of
+  // lucky draw set persons to see".
+  const server = read("src/lib/server/lucky-draw.ts");
+  assert.match(server, /export async function drawPeople\(mode: DrawMode\): Promise<\{ ready: boolean; people: DrawPerson\[\] \}>/);
+  assert.match(server, /FROM \(\$\{pool\(mode, drawn\)\}\) p JOIN "TripApplication" a ON a\."id" = p\."id"/, "exactly who the draw holds, by its own query");
+  const route = read("src/app/api/admin/lucky-draw/people/route.ts");
+  assert.match(route, /const admin = await consoleAdmin\(\);\s*if \(!admin\) return new NextResponse\("Unauthorized", \{ status: 401 \}\);/, "the admin's own session");
+  assert.doesNotMatch(route, /drawActor/, "never the TV's pass: this list has mobile numbers");
+  assert.match(route, /"Cache-Control": "no-store"/);
+  assert.doesNotMatch(read("src/app/api/admin/lucky-draw/pool/route.ts"), /drawPeople/, "the TV's list stays without them");
+  const board = read("src/components/admin/LuckyDrawBoard.tsx");
+  assert.match(board, /fetch\(`\/api\/admin\/lucky-draw\/people\/\?mode=\$\{which\}`, \{ cache: "no-store" \}\)/);
+  assert.match(board, /onClick=\{\(\) => openApplication\(p\.id, p\.name, p\.tripId, \[\["Lucky draw", mode === "live" \? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"\]\]\)\}/);
+  assert.match(board, /\{label === "In the draw" && board\.poolSize > 0 && \(\s*<button type="button" onClick=\{showPeople\}/, "opened from the count itself");
 });
 
 test("an application sent through an employee's link is not in the draw, as the Terms say, and its page never says it is", () => {
