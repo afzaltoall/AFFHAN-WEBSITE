@@ -229,6 +229,30 @@ The tree is 3 levels: **17 L1 / 140 L2 / 543 L3**. CJ attaches products only to 
 - **Two doors, never one:** `/api/instagram-task/` reads only the staff cookie and `/api/admin/instagram-task/` only the admin's (`lib/server/instagram-auth.ts`; readWorkspaceAuth prefers a staff cookie, so a console tab would act as that employee). Every change to one person's accounts takes their advisory lock (no sixth account, no check after the prize), and is written to `InstagramAccountEvent` with who made it.
 - Plain SQL, as TripDraw is (`src/lib/server/instagram-task.ts`), so a localhost needs no `prisma generate` for it, and a database without the tables says "isn't set up yet". Code: `src/lib/instagram-task-shared.ts` (the rules), `src/components/instagram/`, `src/components/admin/InstagramTaskConsole.tsx`. Tests: `npm run test:instagram-task`, `tests/security/instagram-task.test.mjs`. Migration `20261123120000_instagram_task` (five tables, additions only), **applied on the live database** 2026-11-23 21:23 IST (`backup-2026-11-23-before-instagram-task`), hr@affhan.com made a tracker in the same transaction. `20261124120000_instagram_account_passwords` (the passwords' table, additions only), **applied on the live database** 2026-11-24 10:54 IST (`backup-2026-11-24-before-instagram-passwords`).
 
+## The Christmas logo (2026-11-25)
+
+- **The header's logo wears the owner's Santa hat** (the owner: "use this logo on website now affhan logo, save this as affhan-christmas ... do some animation on the christmas hat live waving in website ... responsive perfection"). The navbar (40 / 48 / 56 px) and the phone frame's header (40 px) draw `ChristmasLogo` in the boxes `public/logo.png` had, so nothing on the page moves. `CHRISTMAS_LOGO` in `src/lib/christmas.ts` turns it off: logo.png again. The footer, the navbar's menu drawer, the console, the staff pages, the emails and the favicon never changed.
+- **Their picture** came as a JPEG on black. It is kept as `public/affhan-christmas.png`: off its ground (each edge pixel's alpha is how far it is from black toward the colour inside it, so there is no dark rim), in logo.png's frame at 4× (900 px), its A on logo.png's A.
+- **The pieces:** `public/affhan-christmas-layers.webp` (25 KB) holds five 225 px tiles of one frame. The first is logo.png itself; the hat from the picture follows as the cone, the floppy tip, the pompom and the brim. `scripts/build_christmas_logo.mjs` makes both files: `--source <picture>` cuts the picture first; without it, the pieces are cut from the saved PNG, byte-identical on a rerun.
+  - The pieces sit over logo.png rather than the picture's own logo, because logo.png's ring is whole under the pompom.
+  - So the ring shows behind the tip, between the brim and the pompom, where the hat hid it in the picture.
+- **The motion** (`christmas-logo.css`):
+  - The brim stays on the A.
+  - The cone sways 1–2° on its base.
+  - The tip swings from the fold: out 3–6°, 10° in the gust, and in only 1–3°, as the cone is there.
+  - The pompom follows 0.25 s later and 1.4 times as far.
+  - One ten-second round, the gust at the half; every key is a turning point, so it never pauses part-way.
+  - On the 56 px logo the pompom moves about 1 px a swing and 2½ px in the gust (under a pixel read as standing still).
+- **What moving uncovers is drawn in:** the cone runs on under the brim, and the tip under the pompom. The fold opens on its own shadow, in a wedge the script draws to 12° and only as far down as the cone meets the tip. A first try carried the tip's own cloth down past that, and it was left floating as a red sliver at the gust.
+- Only transforms move (the graphics card's work, never a repaint). Nothing moves under `prefers-reduced-motion: reduce`.
+- **Loading:** the root layout preloads the picture (`preload(CHRISTMAS_LOGO_LAYERS)`), first in every page's head, as the phone header's `Image priority` did for logo.png. On static pages the browser draws the navbar itself, after the scripts.
+- `tests/security/christmas-logo.test.mjs` holds:
+  - the header's switch;
+  - the preload asks for the CSS's own address;
+  - the tiles' order, and the pivots recomputed from the script's own numbers;
+  - the 12° limit and the turning-point keys;
+  - reduced motion.
+
 ## The console's moves and lists (2026-11-03)
 
 - **A move shows at once** (the owner: "I click participants and go to inquiries ... in 2 seconds the participant page is coming in inquiries and back"): the router holds the page being left until the next one's first bytes arrive, which is instant only when Link had prefetched its loading screen, never under `next dev`. Every row of both rails, the phone menu and the account menu says where it goes (`useAdminNav().start`, from Link's `onNavigate`), and `AdminFrame` puts the loading screen (`AdminLoadingScreen`, the same one `loading.tsx` draws) in the page's place at once, the page hidden under it, its own rail beside it with the row marked (`railRowIsAt`), the dashboard's included. On the way to the dashboard, `loading.tsx` draws the real rail in the dashboard rail's place, so nothing to press is missing while it loads. A press on the page already there takes the loading screen down; one that never arrives gives the page back after 20 s. Code: `src/components/admin/admin-nav.tsx`, `AdminFrame.tsx`.
