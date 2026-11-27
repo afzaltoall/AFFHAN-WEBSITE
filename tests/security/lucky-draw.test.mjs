@@ -232,14 +232,14 @@ test("no live draw while applications are open: a localhost (always open) on the
 
 test("the trip's Privacy Policy says what the draw's screen shows, and what it never does", () => {
   const text = JSON.stringify(TRIP_PRIVACY.sections.find((x) => x.n === 12));
-  assert.match(text, /The winners, and then a waiting list of reserve applicants, are announced live, in front of an audience, on a screen, where those selected at random are drawn\./);
+  assert.match(text, /The winners, and then a waiting list of reserve applicants, are drawn live, in front of an audience, on a screen\./);
   assert.match(text, /each applicant's name, city and country/);
   assert.match(text, /Trip IDs, mobile numbers, identity documents and passport answers are never shown on it/);
   assert.equal(TRIP_PRIVACY.updated, "27 November 2026");
-  // The trip's legal pages' date in the sitemap: moved on 2026-11-27, when sections 3 and 12 stopped saying every winner
-  // is drawn (the fifth place given before the draw, Terms clause 3).
+  // The trip's legal pages' date in the sitemap: moved on 2026-11-27, when the Terms' clause 3 became the passport alone
+  // (sections 3 and 12 said for some hours that not all five are drawn; all five are again).
   assert.match(fs.readFileSync(new URL("../../src/app/sitemap.ts", import.meta.url), "utf8"), /chinaTripLegal: '2026-11-27'/);
-  assert.doesNotMatch(JSON.stringify(TRIP_PRIVACY), /randomly select five winners/);
+  assert.match(JSON.stringify(TRIP_PRIVACY.sections.find((x) => x.n === 3)), /The random-selection system is used to randomly select five winners from the eligible applicant pool\./);
 });
 
 // 2026-11-25, the owner, over a filled seat on the TV ("Karthikeyan M / Trichy, India / TRIP-26-00774"): "trip id kaata
@@ -296,7 +296,7 @@ test("the console has its row, under Free China Trip", () => {
 // stated in the Terms' clause 3 ("ok do"). The server works out the seat a press fills before choosing anyone, under
 // the draw's lock, which releases and restores now take too; the Terms say exactly what is done; and the TV's light
 // moves only over that group's names for those seats.
-test("seats 1–3 from the first 1,540 applications, seat 4 from everyone, exactly as the Terms say", () => {
+test("seats 1–3 from the first 1,540 applications, seats 4–5 from everyone, exactly as the Terms say", () => {
   const server = read("src/lib/server/lucky-draw.ts");
   const draw = server.slice(server.indexOf("export async function drawOne("), server.indexOf("const DRAW_LOCK") > server.indexOf("export async function drawOne(") ? server.indexOf("const DRAW_LOCK") : server.indexOf("export async function releaseDraw("));
   const lock = draw.indexOf("await tx.$queryRaw(DRAW_LOCK);");
@@ -317,7 +317,7 @@ test("seats 1–3 from the first 1,540 applications, seat 4 from everyone, exact
   // What the Terms say is what is done: three from the first 1,540, the fourth from everyone (the fifth given before the
   // draw, 2026-11-27), equal within each.
   const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
-  assert.match(terms, /Three of the five places are drawn from the eligible applicants among the first 1,540 applications received \(12 to 29 October 2026\)\. The fourth place is drawn from all eligible applicants\./);
+  assert.match(terms, /Three of the five places are drawn from the eligible applicants among the first 1,540 applications received \(12 to 29 October 2026\)\. The other two places are drawn from all eligible applicants\./);
   assert.match(terms, /Within each of these draws, every eligible applicant has an equal chance of being selected\./);
   assert.doesNotMatch(terms, /Every eligible applicant has an equal opportunity to be selected/);
   assert.equal(TRIP_TERMS.updated, "27 November 2026");
@@ -444,20 +444,20 @@ test("a valid passport is the one rule, as the Terms say, and the summary says i
 });
 
 // 2026-11-27, the owner: "we already make a lucky draw the person have to come in seat 5 he is already selected and a
-// winner too"; then "mention the seat 5 winner in terms and draw place ... now show the draw same as everyone
-// shuffling same style of perfection". The Terms say the fifth place is given; the server draws nobody for it, and
-// never draws its holder for another seat; the TV shows its holder in that seat from the start, so its press runs the
-// draw's own shuffle and search without showing a random pick that was never made (the room already sees whose seat it
-// is, as a host placed in A1 is shown before a World Cup draw); "Drawn at random" is never said of it.
-test("the draw's fifth place is given before it, as the Terms say: shown in its seat from the start, its press run as every press", () => {
+// winner too"; then, of the ways it could be shown honestly, "3": seat 5 a real draw like the other four. So the Terms
+// give no seat and say all five are drawn, and no seat is given (the live row was deleted). The way a seat can be given
+// stays, unused and tested, for a seat the Terms give openly: the server draws nobody for it and never draws its holder
+// for another seat; the TV shows its holder in that seat from the start, so its press runs the draw's own shuffle and
+// search without showing a random pick that was never made; "Drawn at random" is never said of it.
+test("all five places are drawn, as the Terms say; a seat given before the draw, should the Terms give one, is shown in it from the start", () => {
   const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
-  assert.match(terms, /The fifth of the five places has already been given: Affhan selected that winner before the live draw, so that place is not drawn\./);
-  assert.match(terms, /The four drawn winners are selected through a digital random-selection process\./);
-  assert.match(terms, /It randomly selects the four applicants as described above\./);
-  assert.doesNotMatch(terms, /The five winners are selected|randomly selects the five applicants/);
+  assert.doesNotMatch(terms, /already been given|four drawn winners|randomly selects the four/);
+  assert.match(terms, /The five winners are selected through a digital random-selection process\./);
+  assert.match(terms, /It randomly selects the five applicants as described above\./);
   const legal = read("src/components/TripLegal/LegalPage.tsx");
-  assert.match(legal, /value: `\$\{TRIP_FACTS\.winners\} winners: \$\{TRIP_FACTS\.winners - 1\} by random draw, 1 already selected`/);
-  assert.match(legal, /<KeyFact label="By random draw" value=\{`\$\{TRIP_FACTS\.winners - 1\} of the \$\{TRIP_FACTS\.winners\} winners`\}/);
+  assert.match(legal, /\{ label: "Selection", value: `\$\{TRIP_FACTS\.winners\} winners, by random draw`, n: 3 \},/);
+  assert.match(legal, /<KeyFact label="By random draw" value=\{`\$\{TRIP_FACTS\.winners\} winners`\}/);
+  assert.match(read("src/components/TripLegal/ConsentGate.tsx"), /\{ label: "Selection", value: `\$\{TRIP_FACTS\.winners\} winners, random draw`, clause: 3 \},/);
   // The server: a given seat is a row of its own mode; the press for that seat (round 1) brings its holder in, with a
   // pool of 0, before anyone could be chosen; no draw ever chooses them.
   const server = read("src/lib/server/lucky-draw.ts");

@@ -55,7 +55,7 @@ function passRows(doc: LegalDoc, kind: "terms" | "privacy") {
       { label: "Applications open", value: TRIP_FACTS.applicationsOpen, n: 1 },
       { label: "Applications close", value: TRIP_FACTS.applicationsClose, n: 1 },
       { label: "Winners announced", value: TRIP_FACTS.winnersAnnounced, n: 4 },
-      { label: "Selection", value: `${TRIP_FACTS.winners} winners: ${TRIP_FACTS.winners - 1} by random draw, 1 already selected`, n: 3 },
+      { label: "Selection", value: `${TRIP_FACTS.winners} winners, by random draw`, n: 3 },
       { label: "Trip date", value: "Announced to the winners", n: 1 },
     ];
   }
@@ -116,7 +116,7 @@ export function LegalPage({ doc, kind }: { doc: LegalDoc; kind: "terms" | "priva
               <KeyFact label="Applications open" value={TRIP_FACTS.applicationsOpen} href="#clause-1" />
               <KeyFact label="Applications close" value={TRIP_FACTS.applicationsClose} href="#clause-1" />
               <KeyFact label="Winners announced" value={TRIP_FACTS.winnersAnnounced} href="#clause-4" />
-              <KeyFact label="By random draw" value={`${TRIP_FACTS.winners - 1} of the ${TRIP_FACTS.winners} winners`} href="#clause-3" />
+              <KeyFact label="By random draw" value={`${TRIP_FACTS.winners} winners`} href="#clause-3" />
             </dl>
           )}
 

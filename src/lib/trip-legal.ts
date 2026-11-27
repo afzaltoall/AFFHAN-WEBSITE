@@ -89,9 +89,9 @@ const EMAIL = "info@affhan.com";
  * dont"): a valid passport, as the draw has asked since it was made but these Terms had never said, and a business
  * already run, in the very answers each form offered. On 2026-11-27, after applications closed and before any live
  * draw, clause 3 changed again on the owner's word: a valid passport is the one rule ("make the valid passport persons
- * only come"), so a team member's link and the business answer no longer matter; and the fifth place is given, not
- * drawn ("we already make a lucky draw the person have to come in seat 5 he is already selected and a winner too ...
- * just mention in terms only"; lib/lucky-draw-shared.ts GivenSeat).
+ * only come"), so a team member's link and the business answer no longer matter. The same day the fifth place was
+ * said to be given, not drawn, for some hours ("we already make a lucky draw the person have to come in seat 5"),
+ * until the owner chose that seat 5 be a real draw like the other four ("3"): all five places are drawn again.
  */
 export const TRIP_TERMS: LegalDoc = {
   heading: ["AFFHAN Free China Business Trip", "Terms & Conditions"],
@@ -136,12 +136,11 @@ export const TRIP_TERMS: LegalDoc = {
         p("All applications are first checked for eligibility."),
         p("Only valid and eligible applicants are entered into the final selection pool."),
         p("To be entered into the random selection, an applicant must have said in their application that they have a valid passport. Applications sent through a link shared by a member of the Affhan team are entered in the same way as any other."),
-        p("The fifth of the five places has already been given: Affhan selected that winner before the live draw, so that place is not drawn."),
-        p("Three of the five places are drawn from the eligible applicants among the first 1,540 applications received (12 to 29 October 2026). The fourth place is drawn from all eligible applicants."),
+        p("Three of the five places are drawn from the eligible applicants among the first 1,540 applications received (12 to 29 October 2026). The other two places are drawn from all eligible applicants."),
         p("Within each of these draws, every eligible applicant has an equal chance of being selected."),
-        p("The four drawn winners are selected through a digital random-selection process."),
+        p("The five winners are selected through a digital random-selection process."),
         p("The final eligible applicant list is entered into an automated random-selection system and randomly shuffled."),
-        p("The system does not rank applicants or decide who is better. It randomly selects the four applicants as described above."),
+        p("The system does not rank applicants or decide who is better. It randomly selects the five applicants as described above."),
         p("Affhan may also select reserve applicants through the same random-selection process, in the same way."),
         p("A selected applicant becomes a confirmed winner only after completing the required verification."),
       ],
@@ -364,8 +363,8 @@ export const TRIP_TERMS: LegalDoc = {
  * everyone in the draw by name, city and country (section 12, 2026-11-10: the owner chose full names; 2026-11-25: the
  * winners and then a waiting list, and no Trip ID on the screen, the owner: "trip id kaata vendam"; change it with
  * lib/lucky-draw-shared.ts's DrawPoolEntry and what the wall draws). The section numbers stay: the pages and the
- * consent sheet link to them. On 2026-11-27 sections 3 and 12 stopped saying that all five winners are drawn, as the
- * Terms' clause 3 gives the fifth place without a draw.
+ * consent sheet link to them. On 2026-11-27 sections 3 and 12 said for some hours that not all five winners are drawn
+ * (the Terms' clause 3 then gave the fifth place); they say again that all five are.
  */
 export const TRIP_PRIVACY: LegalDoc = {
   heading: ["AFFHAN Free China Business Trip", "Privacy Policy"],
@@ -439,7 +438,7 @@ export const TRIP_PRIVACY: LegalDoc = {
       blocks: [
         p("Only applicants who meet the published eligibility requirements will be included in the final random-selection pool."),
         p("Applicant information may be used to identify eligible applications and administer the selection process."),
-        p("The random-selection system is used to select the winners drawn at random from the eligible applicant pool, as the Terms and Conditions describe (clause 3). It does not rank applicants or decide who is better based on personal or business characteristics."),
+        p("The random-selection system is used to randomly select five winners from the eligible applicant pool. It does not rank applicants or decide who is better based on personal or business characteristics."),
       ],
     },
     {
@@ -571,7 +570,7 @@ export const TRIP_PRIVACY: LegalDoc = {
       title: "Winner Information",
       blocks: [
         p("If you are selected as a winner, Affhan may publish or communicate limited winner information as part of the official winner announcement."),
-        p("The winners, and then a waiting list of reserve applicants, are announced live, in front of an audience, on a screen, where those selected at random are drawn. While each one is drawn, the screen shows everyone in the random-selection pool on a moving wall of tickets: each applicant's name, city and country. Trip IDs, mobile numbers, identity documents and passport answers are never shown on it. The draw may be recorded, and the recording shared through Affhan's official communication channels as part of the winner announcement."),
+        p("The winners, and then a waiting list of reserve applicants, are drawn live, in front of an audience, on a screen. While each one is drawn, the screen shows everyone in the random-selection pool on a moving wall of tickets: each applicant's name, city and country. Trip IDs, mobile numbers, identity documents and passport answers are never shown on it. The draw may be recorded, and the recording shared through Affhan's official communication channels as part of the winner announcement."),
         p("Passport numbers, passport copies, visa documents, private contact information, and other sensitive travel information will not be publicly displayed as part of a standard winner announcement."),
       ],
     },

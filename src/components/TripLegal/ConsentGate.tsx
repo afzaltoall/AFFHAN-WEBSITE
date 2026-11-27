@@ -58,7 +58,7 @@ const DOCS = {
 /** The facts, each in the Terms' own words and pointing at the clause that states it. */
 const GLANCE = [
   { label: "Applications", value: `${shortDate(TRIP_FACTS.applicationsOpen)} – ${shortDate(TRIP_FACTS.applicationsClose)} 2026`, clause: 1 },
-  { label: "Selection", value: `${TRIP_FACTS.winners} winners: ${TRIP_FACTS.winners - 1} by random draw, 1 already selected`, clause: 3 },
+  { label: "Selection", value: `${TRIP_FACTS.winners} winners, random draw`, clause: 3 },
   // Who is in the draw (the owner, 2026-11-25: "Yes, show it"), said before anything is typed: clause 3's rule, a valid
   // passport alone since 2026-11-27.
   { label: "Lucky draw", value: "Applicants with a valid passport", clause: 3 },

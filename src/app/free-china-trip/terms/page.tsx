@@ -11,7 +11,7 @@ import { TRIP_TERMS } from "@/lib/trip-legal";
 
 const TITLE = "Terms & Conditions | Free China Business Trip | AFFHAN";
 const DESCRIPTION =
-  "The Terms & Conditions of AFFHAN's Free China Business Trip: eligibility, the application period, how the five winners are selected, what the trip includes and what it does not.";
+  "The Terms & Conditions of AFFHAN's Free China Business Trip: eligibility, the application period, the random selection of five winners, what the trip includes and what it does not.";
 const PAGE_URL = "https://affhan.com/free-china-trip/terms/";
 
 export const metadata: Metadata = {
