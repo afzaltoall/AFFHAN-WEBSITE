@@ -1260,7 +1260,7 @@ export class WallStage {
       // Made behind the gold backs the screen opens on, so the longest frame it takes moves nothing anyone can see.
       this.warmed = true;
       if (this.disposed || this.run || this.show || this.steps.length) return;
-      const practice: DrawCardPublic = { id: "", number: 0, tripId: "TRIP-26-00000", name: "Affhan International", city: "Chennai", country: "India", drawnAt: new Date().toISOString(), poolSize: 0, round: 1, seat: 1, out: false };
+      const practice: DrawCardPublic = { id: "", number: 0, tripId: "TRIP-26-00000", name: "Affhan International", city: "Chennai", country: "India", drawnAt: new Date().toISOString(), poolSize: 0, round: 1, seat: 1, out: false, given: false };
       for (const step of this.makeSteps(practice).slice(0, 7)) step();
       // The board too: its letters' tiles and a board drawn once, unseen.
       if (this.style === "board") {

@@ -120,7 +120,7 @@ export function RegisteredExperience() {
   const registered = !!registration;
   /**
    * Their ticket is in the draw: registered, and in it by their own answers, as the server tells (inDraw: a valid
-   * passport, a business they run, not through an employee's link; Terms clause 3, the owner, 2026-11-25). Otherwise
+   * passport; Terms clause 3, since 2026-11-27). Otherwise
    * the page is theirs (the pass, the welcome, what happens next) but the globe is everyone's: no ticket of theirs
    * flies into it, glows in it or is said to be in it.
    */

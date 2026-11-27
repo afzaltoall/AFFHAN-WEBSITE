@@ -7,6 +7,7 @@ import { timeAgo } from "@/lib/relative-time";
 import {
   DRAW_POOL_RULE,
   DRAW_SEATS,
+  givenNext,
   inWaitingList,
   nextPlace,
   nextRoundWords,
@@ -100,6 +101,11 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
   const released = board.cards.filter((c) => c.out).reverse();
   const upNext = startedHere ? { n: 1, round } : nextPlace(board);
   const nextWords = inWaitingList(upNext.round) ? `waiting list No. ${waitingNo(upNext.round, upNext.n)}` : `seat ${upNext.n}`;
+  /** The next press fills the seat given before the draw (Terms clause 3): it brings its holder in and draws nobody. */
+  const giving = givenNext(board, startedHere);
+  const pressWords = `Draw ${nextWords}`;
+  /** The draw's seat given before it, held or still to come (null when none was given, or its holder can't take part). */
+  const givenSeatNo = board.given?.seat ?? board.cards.find((c) => c.given && !c.out && c.round === 1)?.seat ?? null;
   /** The draw's five held now, and the waiting list's places held. */
   const winners = (board.rounds[0] ?? []).filter(Boolean).length;
   const waitingHeld = board.rounds.slice(1).reduce((n, r) => n + r.filter(Boolean).length, 0);
@@ -272,7 +278,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
       setBoards((b) => ({ ...b, [mode]: j.board! }));
       setReadAt(Date.now());
       const got = j.board.cards.find((c) => c.id === j.drawId);
-      if (got) setNotice(`${got.seat ? placeWords({ n: got.seat, round: got.round }) : "Drawn"}: ${got.name}, ${got.tripId}.`);
+      if (got) setNotice(`${got.seat ? placeWords({ n: got.seat, round: got.round }) : "Drawn"}: ${got.name}, ${got.tripId}${got.given ? ", given before the draw" : ""}.`);
     } catch {
       setError("The draw didn't reach the server. Press Draw again: the same press is sent, so nobody is drawn twice.");
     } finally {
@@ -308,20 +314,27 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
     }
   };
 
+  /**
+   * Every draw of the mode shown cleared: the rehearsal's, or the live draw's (the owner, 2026-11-27: "even im a admin if
+   * i want to test in live draw also ... we wanted to test on live too but it show the draw person is the winner"), so
+   * a test on the live screen never stands as a result. The seat given before the draw stays given.
+   */
   const clear = async () => {
+    const which = mode;
+    const words = which === "live" ? "The live draw" : "The rehearsal";
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/lucky-draw/rehearsal/", { method: "DELETE", cache: "no-store" });
+      const res = await fetch(`/api/admin/lucky-draw/clear/?mode=${which}`, { method: "DELETE", cache: "no-store" });
       const j = (await res.json().catch(() => ({}))) as { board?: Board; cleared?: number; error?: string };
       if (!res.ok || !j.board) {
-        setError(j.error || "The rehearsal could not be cleared. Try again.");
+        setError(j.error || `${words} could not be cleared. Try again.`);
         return;
       }
-      setBoards((b) => ({ ...b, rehearsal: j.board! }));
-      setNotice(`Rehearsal cleared (${j.cleared ?? 0} draws).`);
+      setBoards((b) => ({ ...b, [which]: j.board! }));
+      setNotice(`${words} cleared (${j.cleared ?? 0} ${j.cleared === 1 ? "draw" : "draws"}).`);
     } catch {
-      setError("The rehearsal could not be cleared. Try again.");
+      setError(`${words} could not be cleared. Try again.`);
     } finally {
       setBusy(false);
       setAsk(null);
@@ -347,7 +360,8 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
           <div className="min-w-[min(100%,15rem)] flex-1">
             <h1 className="text-2xl font-semibold tracking-tight">Lucky draw</h1>
             <p className="text-[13px] text-[#86868b]">
-              Free China Trip · the draw&rsquo;s {DRAW_SEATS} seats, then a waiting list, drawn at random · {DRAW_POOL_RULE.toLowerCase()}
+              Free China Trip · the draw&rsquo;s {DRAW_SEATS} seats{givenSeatNo ? ` (seat ${givenSeatNo} given before the draw)` : ""}, then a waiting list, drawn
+              at random · {DRAW_POOL_RULE.toLowerCase()}
             </p>
           </div>
           <span className="ml-auto hidden text-[12px] text-[#86868b] sm:inline" aria-live="polite">
@@ -393,11 +407,9 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
               <span className="tabular-nums opacity-70">{boards[m].cards.length}</span>
             </button>
           ))}
-          {mode === "rehearsal" && (
-            <button type="button" onClick={() => setAsk({ kind: "clear" })} disabled={busy || board.cards.length === 0} className={`${pillButton} ml-auto h-9 bg-white px-4 text-[13px] hover:bg-black/[0.02]`}>
-              <Trash2 size={14} /> Clear rehearsal
-            </button>
-          )}
+          <button type="button" onClick={() => setAsk({ kind: "clear" })} disabled={busy || board.cards.length === 0} className={`${pillButton} ml-auto h-9 bg-white px-4 text-[13px] hover:bg-black/[0.02]`}>
+            <Trash2 size={14} /> {mode === "live" ? "Clear live draw" : "Clear rehearsal"}
+          </button>
         </div>
 
         {!board.ready && (
@@ -453,7 +465,7 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
                 disabled={busy || !board.ready || board.poolSize === 0 || (mode === "live" && board.applicationsOpen)}
                 className={`${darkButton} ml-auto h-8 text-[12.5px]`}
               >
-                {busy ? <Loader2 size={14} className="animate-spin" /> : <Ticket size={14} />} Draw {nextWords}
+                {busy ? <Loader2 size={14} className="animate-spin" /> : <Ticket size={14} />} {pressWords}
               </button>
             )}
           </div>
@@ -461,7 +473,23 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
             {seats.map((c, i) => (
               <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3.5">
                 <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">{seatName(round, i + 1)}</span>
-                {c ? <Person c={c} onOpen={openPerson} /> : <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: the next draw takes it.</p>}
+                {c ? (
+                  <Person c={c} onOpen={openPerson} />
+                ) : round === 1 && board.given && board.given.seat === i + 1 ? (
+                  <p className="flex-1 pt-0.5 text-[13.5px] text-[#6e6e73]">
+                    Given before the draw (Terms clause 3) to{" "}
+                    <button
+                      type="button"
+                      onClick={() => board.given && openApplication(board.given.applicationId, board.given.name, board.given.tripId, givenLead(board.given.seat, mode))}
+                      className="cursor-pointer font-medium text-[#0058b0] hover:underline"
+                    >
+                      {board.given.name}
+                    </button>{" "}
+                    <span className="tabular-nums text-[#86868b]">{board.given.tripId}</span>. The press that fills it brings them in; nobody is drawn for it.
+                  </p>
+                ) : (
+                  <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: the next draw takes it.</p>
+                )}
                 {c && (
                   <button type="button" onClick={() => setAsk({ kind: "release", card: c })} disabled={busy} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
                     <UserX size={14} /> Can&rsquo;t take part
@@ -598,11 +626,21 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
                       <span className="order-1 min-w-0 sm:order-none">
                         <button
                           type="button"
-                          onClick={() => openApplication(p.id, p.name, p.tripId, [["Lucky draw", mode === "live" ? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"]])}
+                          onClick={() =>
+                            openApplication(
+                              p.id,
+                              p.name,
+                              p.tripId,
+                              board.given?.applicationId === p.id
+                                ? givenLead(board.given.seat, mode)
+                                : [["Lucky draw", mode === "live" ? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"]],
+                            )
+                          }
                           className="cursor-pointer truncate text-left font-medium text-[#0058b0] hover:underline"
                         >
                           {p.name}
                         </button>
+                        {board.given?.applicationId === p.id && <span className="ml-2 text-[12px] text-[#86868b]">Seat {board.given.seat}, given</span>}
                       </span>
                       <span className="order-3 min-w-0 truncate text-[#6e6e73] sm:order-none">
                         {p.city}
@@ -624,8 +662,12 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
 
       {ask?.kind === "draw" && (
         <Window
-          title={`Draw ${nextWords} now?`}
-          lines={["This is the live draw: whoever is drawn is recorded as a result."]}
+          title={`${pressWords} now?`}
+          lines={
+            giving && board.given
+              ? [`${board.given.name} (${board.given.tripId}) was given seat ${board.given.seat} before the draw (Terms clause 3): they come in, nobody is drawn. It is recorded as a result.`]
+              : ["This is the live draw: whoever is drawn is recorded as a result."]
+          }
           busy={busy}
           confirm="Draw"
           onCancel={() => setAsk(null)}
@@ -637,10 +679,18 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
       )}
       {ask?.kind === "clear" && (
         <Window
-          title="Clear the rehearsal?"
-          lines={[`${board.cards.length} rehearsal ${board.cards.length === 1 ? "draw goes" : "draws go"}, so the next rehearsal starts again from seat 1. The live draw is not touched.`]}
+          title={mode === "live" ? "Clear the live draw?" : "Clear the rehearsal?"}
+          lines={
+            mode === "live"
+              ? [
+                  `${board.cards.length} live ${board.cards.length === 1 ? "draw goes" : "draws go"}: everyone drawn is back in the draw, and the next live draw starts again from seat 1. For tests before the real draw.`,
+                  ...(givenSeatNo ? [`Seat ${givenSeatNo} stays given before the draw.`] : []),
+                  "The rehearsal is not touched.",
+                ]
+              : [`${board.cards.length} rehearsal ${board.cards.length === 1 ? "draw goes" : "draws go"}, so the next rehearsal starts again from seat 1. The live draw is not touched.`]
+          }
           busy={busy}
-          confirm="Clear rehearsal"
+          confirm={mode === "live" ? "Clear live draw" : "Clear rehearsal"}
           danger
           onCancel={() => setAsk(null)}
           onConfirm={() => void clear()}
@@ -674,11 +724,19 @@ function firstOnList(board: Board, byId: Map<string, DrawCardFull>): { no: numbe
   return null;
 }
 
+/** The opening line of the panel of someone given a seat before the draw, still to come. */
+function givenLead(seat: number, mode: DrawMode): Lead {
+  return [["Lucky draw", `The draw · Seat ${seat}, given before the draw (Terms clause 3); the press that fills it brings them in${mode === "rehearsal" ? " · rehearsal, doesn't count" : ""}`]];
+}
+
 /** The draw's own lines at the top of their panel: where they sit, when and by whom they were drawn, any release. */
 function drawRows(c: DrawCardFull, mode: DrawMode): Array<[string, React.ReactNode]> {
   const rows: Array<[string, React.ReactNode]> = [
-    ["Lucky draw", `${c.seat ? (inWaitingList(c.round) ? placeWords({ n: c.seat, round: c.round }) : `The draw · Seat ${c.seat}`) : roundName(c.round)}${mode === "rehearsal" ? " · rehearsal, doesn't count" : ""}`],
-    ["Drawn", `${fmtWhen(c.drawnAt)} by ${c.drawnBy} · draw ${c.number}`],
+    [
+      "Lucky draw",
+      `${c.seat ? (inWaitingList(c.round) ? placeWords({ n: c.seat, round: c.round }) : `The draw · Seat ${c.seat}`) : roundName(c.round)}${c.given ? " · given before the draw (Terms clause 3)" : ""}${mode === "rehearsal" ? " · rehearsal, doesn't count" : ""}`,
+    ],
+    [c.given ? "Brought in" : "Drawn", `${fmtWhen(c.drawnAt)} by ${c.drawnBy} · draw ${c.number}`],
   ];
   if (c.out) {
     rows.push([
@@ -713,9 +771,15 @@ function Person({ c, onOpen }: { c: DrawCardFull; onOpen: (c: DrawCardFull) => v
         </a>
         <span className="text-[#86868b]"> · {[c.city, c.country].filter(Boolean).join(", ")}</span>
       </p>
-      <p className="mt-0.5 text-[12px] text-[#86868b]" title={`Who was in the draw (sha256 of their Trip IDs in order): ${c.poolHash}`}>
-        Draw {c.number} · {fmtWhen(c.drawnAt)} by {c.drawnBy} · from {count.format(c.poolSize)} in the draw
-      </p>
+      {c.given ? (
+        <p className="mt-0.5 text-[12px] text-[#86868b]">
+          Draw {c.number} · {fmtWhen(c.drawnAt)} by {c.drawnBy} · seat given before the draw, nobody drawn (Terms clause 3)
+        </p>
+      ) : (
+        <p className="mt-0.5 text-[12px] text-[#86868b]" title={`Who was in the draw (sha256 of their Trip IDs in order): ${c.poolHash}`}>
+          Draw {c.number} · {fmtWhen(c.drawnAt)} by {c.drawnBy} · from {count.format(c.poolSize)} in the draw
+        </p>
+      )}
     </div>
   );
 }

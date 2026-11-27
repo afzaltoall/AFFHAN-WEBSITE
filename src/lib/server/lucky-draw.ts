@@ -4,7 +4,6 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { applicationWindow } from "@/lib/trip-application";
 import {
-  DRAW_BUSINESS_STATUS,
   DRAW_SEATS,
   FIRST_GROUP_FROM,
   FIRST_GROUP_TO,
@@ -20,6 +19,7 @@ import {
   type DrawPerson,
   type DrawPool,
   type DrawPoolEntry,
+  type GivenSeatFull,
 } from "@/lib/lucky-draw-shared";
 
 /**
@@ -27,19 +27,23 @@ import {
  * of TripDraw, read and written in plain SQL as TripStage is: a database without the table yet (its migration not
  * applied) reads as no draws, with `ready` false, rather than failing.
  *
- * Who is in the draw (the owner, 2026-11-10: "Only those with a valid passport"): applications that said yes to "Do you
- * have a valid passport?" and yes to "Do you run a business?" (the owner, 2026-11-25: "which user from the luck draw
- * runs a business have to be there remaining users are dont"; DRAW_BUSINESS_STATUS, "I currently run a business" on the
- * form used until 29 October, never its "expanding" or "planning"; Terms clause 3 says both), not marked spam or
- * deleted, one chance per person (one per mobile number: someone who applied twice, through "Registered again", is in
- * once, by their first such application), not sent through an employee's link (the owner, 2026-11-25: "referral based
- * users doesnt have to come in lucky draw its very important"; Terms clause 3 says so: an application that gave an
- * employee's code, credited or not, whatever the team decided about it), and not already drawn in this mode. On
- * 2026-11-25 at 16:55 IST the business answer left 3,146 of the 5,796 then in the draw (368 of the 1,397 in the first
- * group); applications arriving until the close are in it by the same answers. Seats 1 to 3 of every round are drawn
- * only from those among the first 1,540 applications received (TRIP-26-00001 to TRIP-26-01540), seats 4 and 5 from
- * everyone (the owner, 2026-11-23; Terms clause 3 says so): the seat a press will fill is worked out first
- * (seatOfNextDraw), then the draw is made from its group, and the row's pool size and fingerprint are that group's.
+ * Who is in the draw: applications that said yes to "Do you have a valid passport?", not marked spam or deleted, one
+ * chance per person (one per mobile number: someone who applied twice, through "Registered again", is in once, by
+ * their first such application), not already drawn in this mode. That is the one rule since 2026-11-27, two days
+ * after applications closed and before any live draw (the owner, over Participants' "Valid passport 9349": "make the
+ * valid passport persons only come"; Terms clause 3 says so): 9,349 people that morning. From 2026-11-25 to then it
+ * also asked "Yes, I run a business" and left out every application sent through an employee's link, 3,149 people;
+ * neither matters now. Seats 1 to 3 of every round are drawn only from those among the first 1,540 applications
+ * received (TRIP-26-00001 to TRIP-26-01540; 1,397 people), seats 4 and 5 from everyone (the owner, 2026-11-23; Terms
+ * clause 3 says so): the seat a press will fill is worked out first (seatOfNextDraw), then the draw is made from its
+ * group, and the row's pool size and fingerprint are that group's.
+ *
+ * A seat given before the draw (the owner, 2026-11-27: "we already make a lucky draw the person have to come in seat 5
+ * he is already selected and a winner too ... just mention in terms only"; Terms clause 3 says so): a TripDraw row of
+ * mode "given", its number the seat (round 1), its application the person. The press that fills that seat in a mode
+ * brings them in (drawOne), recorded with a pool of 0 (nobody drawn from: a draw's pool is never empty), and no draw
+ * ever takes them (notGiven). They stay in the pool's count and lists, as one of those in the draw. On the screen they
+ * come in without the light's search, which would show a random pick that was never made.
  *
  * How one is drawn: in one transaction holding the draw's own lock (two presses at once are drawn one after the
  * other, never the same person twice), everyone in the draw is read and put in Trip ID order, one is chosen with the
@@ -56,17 +60,30 @@ const notDrawn = (mode: DrawMode) => Prisma.sql`
         AND (b."id" = a."id" OR (a."customerKey" IS NOT NULL AND b."customerKey" = a."customerKey"))
     )`;
 
+/** The mode of a seat given before the draw: not a draw, so no live or rehearsal read ever counts it as one. */
+const GIVEN = "given";
+
+/**
+ * Not given a seat before the draw: neither this application nor another from the same mobile number. Their seat is
+ * theirs (drawOne), so no draw, in either mode, is ever made from them.
+ */
+const notGiven = Prisma.sql`
+    AND NOT EXISTS (
+      SELECT 1 FROM "TripDraw" g JOIN "TripApplication" b ON b."id" = g."applicationId"
+      WHERE g."mode" = ${GIVEN}
+        AND (b."id" = a."id" OR (a."customerKey" IS NOT NULL AND b."customerKey" = a."customerKey"))
+    )`;
+
 /**
  * Everyone in the draw in `mode`, now: one row a person. `drawn` false leaves out the check against earlier draws, for
- * a database without the draw's table yet, where nobody can have been drawn.
+ * a database without the draw's table yet, where nobody can have been drawn. `drawable`: only those a draw may choose,
+ * without anyone given a seat before it.
  */
-const pool = (mode: DrawMode, drawn = true) => Prisma.sql`
+const pool = (mode: DrawMode, drawn = true, drawable = false) => Prisma.sql`
   SELECT DISTINCT ON (COALESCE(a."customerKey", a."id")) a."id", a."referenceNo", a."fullName", a."city", a."country"
   FROM "TripApplication" a
   WHERE a."status" NOT IN ('spam', 'deleted')
-    AND a."hasPassport" = true
-    AND a."businessStatus" = ${DRAW_BUSINESS_STATUS}
-    AND a."referralCode" IS NULL AND a."referrerId" IS NULL${drawn ? notDrawn(mode) : Prisma.empty}
+    AND a."hasPassport" = true${drawn ? notDrawn(mode) : Prisma.empty}${drawable ? notGiven : Prisma.empty}
   ORDER BY COALESCE(a."customerKey", a."id"), a."createdAt", a."id"`;
 
 /**
@@ -81,14 +98,33 @@ const poolArrays = (mode: DrawMode, drawn = true) => Prisma.sql`
   FROM (${pool(mode, drawn)}) p`;
 
 /**
- * Everyone in the draw in `mode` now, as their Trip IDs alone, in one array: who they are is all a draw needs. `first`:
- * only those among the first 1,540 applications (seats 1 to 3), by the Trip ID of their place in the draw (a person's
- * first application, as the pool keeps it).
+ * Everyone a draw in `mode` may choose now, as their Trip IDs alone, in one array: who they are is all a draw needs
+ * (never anyone given a seat before the draw). `first`: only those among the first 1,540 applications (seats 1 to 3),
+ * by the Trip ID of their place in the draw (a person's first application, as the pool keeps it).
  */
 const poolTripIds = (mode: DrawMode, first = false) =>
   first
-    ? Prisma.sql`SELECT array_agg(p."referenceNo") FROM (${pool(mode)}) p WHERE p."referenceNo" BETWEEN ${FIRST_GROUP_FROM} AND ${FIRST_GROUP_TO}`
-    : Prisma.sql`SELECT array_agg(p."referenceNo") FROM (${pool(mode)}) p`;
+    ? Prisma.sql`SELECT array_agg(p."referenceNo") FROM (${pool(mode, true, true)}) p WHERE p."referenceNo" BETWEEN ${FIRST_GROUP_FROM} AND ${FIRST_GROUP_TO}`
+    : Prisma.sql`SELECT array_agg(p."referenceNo") FROM (${pool(mode, true, true)}) p`;
+
+/** A seat given before the draw whose holder is still to come in `mode` (not drawn there, not spam or deleted). */
+interface GivenRow {
+  seat: number;
+  applicationId: string;
+  referenceNo: string;
+  fullName: string;
+  phone: string;
+  city: string;
+  country: string;
+}
+
+/** The seats given before the draw whose holders are still to come in `mode`, seat by seat. */
+const givenToCome = (mode: DrawMode) => Prisma.sql`
+  SELECT g."number" AS "seat", a."id" AS "applicationId", a."referenceNo", a."fullName", a."phone", a."city", a."country"
+  FROM "TripDraw" g JOIN "TripApplication" a ON a."id" = g."applicationId"
+  WHERE g."mode" = ${GIVEN} AND g."number" BETWEEN 1 AND ${DRAW_SEATS}
+    AND a."status" NOT IN ('spam', 'deleted')${notDrawn(mode)}
+  ORDER BY g."number"`;
 
 /** The draw's own lock: one draw at a time, and (2026-11-23) no release or restore while a draw is being made. */
 const DRAW_LOCK = Prisma.sql`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtext('affhan-trip-lucky-draw'))`;
@@ -140,8 +176,9 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
   const applicationsOpen = applicationWindow() !== "closed";
   let rows: Row[];
   let poolSize: number;
+  let givenRows: GivenRow[];
   try {
-    [rows, poolSize] = await Promise.all([
+    [rows, poolSize, givenRows] = await Promise.all([
       prisma.$queryRaw<Row[]>`
         SELECT d."id", d."number", d."applicationId", d."drawnAt", d."drawnBy", d."poolSize", d."poolHash",
                d."releasedAt", d."releasedBy", d."releaseNote",
@@ -150,14 +187,17 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
         WHERE d."mode" = ${mode}
         ORDER BY d."number"`,
       prisma.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM (${pool(mode)}) p`.then((r) => r[0]?.n ?? 0),
+      prisma.$queryRaw<GivenRow[]>(givenToCome(mode)),
     ]);
   } catch (e) {
     if (!isMissingTable(e)) throw e;
     // Nobody can have been drawn without the table: everyone in the draw, counted as the pool counts them.
     const [{ n }] = await prisma.$queryRaw<{ n: number }[]>`SELECT count(*)::int AS n FROM (${pool(mode, false)}) p`;
     const open = Array.from({ length: DRAW_SEATS }, () => null);
-    return { mode, poolSize: n, cards: [], seats: open, round: 1, rounds: [open], latest: null, applicationsOpen, ready: false };
+    return { mode, poolSize: n, cards: [], seats: open, round: 1, rounds: [open], latest: null, applicationsOpen, ready: false, given: null };
   }
+  // The seat given before the draw, while its holder is still to come here; only while that seat is open in round 1.
+  const g = givenRows[0];
   const seating = seatDraws(rows.map((r) => ({ id: r.id, number: r.number, drawnAt: iso(r.drawnAt)!, releasedAt: iso(r.releasedAt), removed: removed(r.status) })));
   const out = new Set(seating.out);
   const cards = rows.map((r): DrawCardFull => ({
@@ -172,6 +212,7 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
     round: seating.roundOf[r.id] ?? 1,
     seat: seating.seatOf[r.id] ?? null,
     out: out.has(r.id),
+    given: r.poolSize === 0,
     applicationId: r.applicationId,
     phone: r.phone,
     drawnBy: r.drawnBy,
@@ -192,11 +233,19 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
     applicationsOpen,
     ready: true,
   };
-  if (full) return { ...board, cards };
+  const givenOpen = !!g && seating.rounds[0][g.seat - 1] === null;
+  if (full) {
+    const given: GivenSeatFull | null =
+      g && givenOpen
+        ? { seat: g.seat, tripId: g.referenceNo, applicationId: g.applicationId, name: personName(g.fullName), phone: g.phone, city: personName(g.city), country: g.country }
+        : null;
+    return { ...board, cards, given };
+  }
   return {
     ...board,
+    given: g && givenOpen ? { seat: g.seat, tripId: g.referenceNo } : null,
     cards: cards.map(
-      ({ id, number, tripId, name, city, country, drawnAt, poolSize: size, round, seat, out: gone }): DrawCardPublic => ({
+      ({ id, number, tripId, name, city, country, drawnAt, poolSize: size, round, seat, out: gone, given }): DrawCardPublic => ({
         id,
         number,
         tripId,
@@ -208,6 +257,7 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
         round,
         seat,
         out: gone,
+        given,
       }),
     ),
   };
@@ -237,10 +287,10 @@ export async function drawPool(mode: DrawMode): Promise<DrawPool> {
 }
 
 /**
- * Who the draw's rules let in, drawn or not: the pool without its "not drawn yet" step, so one application a mobile
- * number, the first such. For Participants' Lucky draw filter and its audit (the owner, 2026-11-25: "which is selected
- * for lucky draw too have to show separately ... which is this to audit and check for us"): the draw's own query, so
- * the two can never disagree about who is in it.
+ * Who the draw lets in, drawn or not: the pool without its "not drawn yet" step, so one application a mobile number,
+ * the first. For Participants' Lucky draw filter and its audit (the owner, 2026-11-25: "which is selected for lucky
+ * draw too have to show separately ... which is this to audit and check for us"): the draw's own query, so the two can
+ * never disagree about who is in it.
  */
 export async function drawEligibleIds(): Promise<Set<string>> {
   const [row] = await prisma.$queryRaw<{ ids: string[] | null }[]>(Prisma.sql`SELECT array_agg(p."id") AS ids FROM (${pool("live", false)}) p`);
@@ -315,10 +365,25 @@ export async function drawOne(mode: DrawMode, requestId: string, by: string): Pr
           SELECT d."id", d."number", d."drawnAt", d."releasedAt", a."status"
           FROM "TripDraw" d JOIN "TripApplication" a ON a."id" = d."applicationId"
           WHERE d."mode" = ${mode}`;
-        const { seat } = seatOfNextDraw(
+        const { round, seat } = seatOfNextDraw(
           made.map((r) => ({ id: r.id, number: r.number, drawnAt: iso(r.drawnAt)!, releasedAt: iso(r.releasedAt), removed: removed(r.status) })),
           new Date().toISOString(),
         );
+        // The draw's seat given before it (Terms clause 3), its holder still to come here: they take it, nobody is drawn,
+        // and the row says so with a pool of 0 (a draw's never is).
+        if (round === 1) {
+          const [given] = await tx.$queryRaw<{ id: string }[]>(
+            Prisma.sql`SELECT x."applicationId" AS "id" FROM (${givenToCome(mode)}) x WHERE x."seat" = ${seat} LIMIT 1`,
+          );
+          if (given) {
+            const id = crypto.randomUUID();
+            await tx.$executeRaw`
+              INSERT INTO "TripDraw" ("id", "mode", "number", "applicationId", "drawnAt", "drawnBy", "poolSize", "poolHash", "requestId")
+              SELECT ${id}, ${mode}, (SELECT COALESCE(MAX(d."number"), 0) + 1 FROM "TripDraw" d WHERE d."mode" = ${mode}), ${given.id},
+                     clock_timestamp() AT TIME ZONE 'UTC', ${by}, 0, '', ${requestId}`;
+            return { ok: true, id, again: false };
+          }
+        }
         const first = seatFromFirstGroup(seat);
         const [{ tripIds }] = await tx.$queryRaw<{ tripIds: string[] | null }[]>`SELECT (${poolTripIds(mode, first)}) AS "tripIds"`;
         // Everyone this seat is drawn from (unique: one a person), in the list's own order.
@@ -378,10 +443,22 @@ export async function restoreDraw(id: string): Promise<boolean> {
   return n > 0;
 }
 
-/** Every rehearsal draw gone, so the next rehearsal starts from seat 1. Live draws are never touched. */
-export async function clearRehearsal(): Promise<number> {
+/**
+ * Every draw of `mode` gone, so its next draw starts from seat 1 and everyone drawn is back in the draw: the rehearsal's
+ * after practice, or the live draw's after a test on the live screen (the owner, 2026-11-27: "even im a admin if i want
+ * to test in live draw also ... we wanted to test on live too but it show the draw person is the winner"). The other
+ * mode's draws and the seat given before the draw (mode "given") are never touched. Under the draw's lock, so no draw
+ * is being made meanwhile.
+ */
+export async function clearDraws(mode: DrawMode): Promise<number> {
   try {
-    return await prisma.$executeRaw`DELETE FROM "TripDraw" WHERE "mode" = 'rehearsal'`;
+    return await prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw(DRAW_LOCK);
+        return tx.$executeRaw`DELETE FROM "TripDraw" WHERE "mode" = ${mode}`;
+      },
+      { maxWait: 10_000, timeout: 20_000 },
+    );
   } catch (e) {
     if (isMissingTable(e)) return 0;
     throw e;

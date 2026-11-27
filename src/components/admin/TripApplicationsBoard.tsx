@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Download, Lock, Mail, MessageCircle, Phone, RefreshCw, Search, Ticket, Users, X } from "lucide-react";
-import { DRAW_BUSINESS_STATUS } from "@/lib/lucky-draw-shared";
 import { IdProofLockLine, OpenIdProofs, useIdProofLock } from "@/components/admin/IdProofLock";
 import { EVERY_BUSINESS_STATUS, SOURCE_NOT_VERIFIED, businessStatusBrief, isKnownBusinessStatus } from "@/lib/trip-application";
 import { countryFlagUrl } from "@/lib/countryFlag";
@@ -1400,44 +1399,52 @@ function FilterPanel({
 /**
  * How the lucky draw's people come out of every application (the owner, 2026-11-25: "which is this to audit and check
  * for us so think and do understandable perfection"): the rules of the Terms' clause 3 one at a time, each line what
- * that rule leaves out of what the line above left, down to the number in the draw. That number is the draw's own
- * (each row's inDraw, from its query), and so is checked here twice: against the answers above it (what is left
- * after the passport, less those whose mobile number applied earlier) and against the Lucky draw page's count. Over
- * every application, whatever the filters show.
+ * that rule leaves out of what the line above left, down to the number in the draw. Since 2026-11-27 the rules are a
+ * valid passport and one chance a mobile number (the owner: "make the valid passport persons only come"). That number
+ * is the draw's own (each row's inDraw, from its query), and so is checked here twice: against the answers above it
+ * (what is left after the passport, less those whose mobile number applied earlier) and against the Lucky draw page's
+ * count. Over every application, whatever the filters show. The draw's fifth place, given before it (Terms clause 3),
+ * is said under the total: its holder is one of those in the draw, never drawn.
  */
 function DrawAudit({ rows }: { rows: ListApplication[] }) {
   const f = useMemo(() => {
     const notSpam = rows.filter((r) => r.status !== "spam");
-    const web = notSpam.filter((r) => !r.viaLink);
-    const business = web.filter((r) => r.businessStatus === DRAW_BUSINESS_STATUS);
-    const otherAnswers = new Map<string, number>();
-    for (const r of web) if (r.businessStatus !== DRAW_BUSINESS_STATUS) otherAnswers.set(r.businessStatus, (otherAnswers.get(r.businessStatus) ?? 0) + 1);
-    const passport = business.filter((r) => r.hasPassport);
+    const passport = notSpam.filter((r) => r.hasPassport);
     const inDraw = rows.filter((r) => r.inDraw).length;
     // In the draw, but not by its answers: never, unless the list and the draw read different data.
-    const astray = rows.filter((r) => r.inDraw && !(r.status !== "spam" && !r.viaLink && r.businessStatus === DRAW_BUSINESS_STATUS && r.hasPassport)).length;
+    const astray = rows.filter((r) => r.inDraw && !(r.status !== "spam" && r.hasPassport)).length;
     return {
       all: rows.length,
       spam: rows.length - notSpam.length,
-      link: notSpam.length - web.length,
-      notBusiness: web.length - business.length,
-      otherAnswers: [...otherAnswers.entries()].sort((a, b) => b[1] - a[1]),
-      noPassport: business.length - passport.length,
+      noPassport: notSpam.length - passport.length,
       repeats: passport.length - inDraw,
       inDraw,
       astray,
     };
   }, [rows]);
 
-  // The Lucky draw page's own count (who is still to be drawn, and how many have been), read again as the list changes.
-  const [board, setBoard] = useState<{ toDraw: number; drawn: number } | "failed" | null>(null);
+  // The Lucky draw page's own count (who is still to be drawn, and how many have been), read again as the list changes,
+  // with the seat given before the draw: still to come (the board's `given`), or taken (a draw with `given`).
+  const [board, setBoard] = useState<{ toDraw: number; drawn: number; given: { seat: number; name: string; tripId: string; taken: boolean } | null } | "failed" | null>(
+    null,
+  );
   useEffect(() => {
     let gone = false;
     fetch("/api/admin/lucky-draw/board/?mode=live", { cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) throw new Error(String(res.status));
-        const b = (await res.json()) as { poolSize: number; cards: unknown[] };
-        if (!gone) setBoard({ toDraw: b.poolSize, drawn: b.cards.length });
+        const b = (await res.json()) as {
+          poolSize: number;
+          cards: { given?: boolean; seat: number | null; out: boolean; name: string; tripId: string }[];
+          given?: { seat: number; name: string; tripId: string } | null;
+        };
+        const taken = b.cards.find((c) => c.given && !c.out && c.seat !== null);
+        const given = b.given
+          ? { seat: b.given.seat, name: b.given.name, tripId: b.given.tripId, taken: false }
+          : taken
+            ? { seat: taken.seat as number, name: taken.name, tripId: taken.tripId, taken: true }
+            : null;
+        if (!gone) setBoard({ toDraw: b.poolSize, drawn: b.cards.length, given });
       })
       .catch(() => {
         if (!gone) setBoard("failed");
@@ -1450,22 +1457,17 @@ function DrawAudit({ rows }: { rows: ListApplication[] }) {
   const n = (v: number) => v.toLocaleString("en-IN");
   const steps: Array<{ label: string; out: number; note?: string }> = [
     { label: "Marked spam", out: f.spam },
-    { label: "Sent through a team member's link", out: f.link },
-    {
-      label: "Did not answer “Yes, I run a business”",
-      out: f.notBusiness,
-      note: f.otherAnswers.map(([a, k]) => `${businessStatusBrief(a)} ${n(k)}`).join(" · "),
-    },
     { label: "No valid passport", out: f.noPassport },
     { label: "The same mobile number applied earlier (one chance a person)", out: f.repeats },
   ];
   const agrees = board && board !== "failed" ? board.toDraw + board.drawn === f.inDraw : null;
+  const given = board && board !== "failed" ? board.given : null;
   return (
     <section aria-label="Who is in the lucky draw" className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.06] sm:p-5">
       <h2 className="text-[15px] font-semibold">Who is in the lucky draw</h2>
       <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-[#6e6e73]">
-        The Terms&rsquo; rules (clause 3): answered &ldquo;Yes, I run a business&rdquo;, has a valid passport, applied on the website (not
-        through a team member&rsquo;s link), not marked spam, one chance a mobile number. Each line takes out what that rule leaves out.
+        The Terms&rsquo; rules (clause 3): has a valid passport, not marked spam, one chance a mobile number. Applications through a team
+        member&rsquo;s link are in, whatever the answer to &ldquo;Do you run a business?&rdquo;. Each line takes out what that rule leaves out.
       </p>
       <ol className="mt-3 divide-y divide-black/[0.06] text-[13.5px]">
         <li className="flex items-baseline justify-between gap-4 py-2">
@@ -1486,6 +1488,12 @@ function DrawAudit({ rows }: { rows: ListApplication[] }) {
           <span className="tabular-nums text-[17px] font-semibold">{n(f.inDraw)}</span>
         </li>
       </ol>
+      {given && (
+        <p className="mt-1 text-[12.5px] text-[#6e6e73]">
+          Seat {given.seat} was given before the draw (Terms clause 3): {given.name}, {given.tripId}, one of these
+          {given.taken ? `, now in seat ${given.seat}` : `; the press that fills seat ${given.seat} brings them in`}. The other seats are drawn from the rest.
+        </p>
+      )}
       <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[12.5px]">
         {board === null ? (
           <span className="text-[#86868b]">Checking against the Lucky draw page&hellip;</span>

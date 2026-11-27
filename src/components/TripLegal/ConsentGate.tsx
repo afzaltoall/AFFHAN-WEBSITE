@@ -58,24 +58,16 @@ const DOCS = {
 /** The facts, each in the Terms' own words and pointing at the clause that states it. */
 const GLANCE = [
   { label: "Applications", value: `${shortDate(TRIP_FACTS.applicationsOpen)} – ${shortDate(TRIP_FACTS.applicationsClose)} 2026`, clause: 1 },
-  { label: "Selection", value: `${TRIP_FACTS.winners} winners, random draw`, clause: 3 },
-  // Who is in the draw (the owner, 2026-11-25: "Yes, show it"), said before anything is typed: clause 3's rule.
-  { label: "Lucky draw", value: "Applicants who run a business, with a valid passport", clause: 3 },
+  { label: "Selection", value: `${TRIP_FACTS.winners} winners: ${TRIP_FACTS.winners - 1} by random draw, 1 already selected`, clause: 3 },
+  // Who is in the draw (the owner, 2026-11-25: "Yes, show it"), said before anything is typed: clause 3's rule, a valid
+  // passport alone since 2026-11-27.
+  { label: "Lucky draw", value: "Applicants with a valid passport", clause: 3 },
   { label: "Winners announced", value: `${shortDate(TRIP_FACTS.winnersAnnounced)} 2026`, clause: 4 },
   { label: "Trip date", value: "Announced to the winners", clause: 1 },
   { label: "Flights", value: "Economy class only", clause: 7 },
   { label: "Rooms", value: "Shared, no private rooms", clause: 9 },
   { label: "Not included", value: "Food and meals", clause: 10 },
 ] as const;
-
-/**
- * On a visit through an employee's link only, after Selection and who is in the draw (the owner, 2026-11-25): such an
- * application is not in the draw (Terms clause 3), said before anything is typed, not left to the clause alone.
- */
-const LINK_FACT = { label: "Team member's link", value: "Not entered in the draw", clause: 3 } as const;
-
-/** The facts for this visit: through an employee's link, the link's own after Selection and Lucky draw. */
-const glanceFor = (viaLink: boolean) => (viaLink ? [...GLANCE.slice(0, 3), LINK_FACT, ...GLANCE.slice(3)] : [...GLANCE]);
 
 /** "12 October 2026" → "12 Oct". */
 function shortDate(d: string) {
@@ -94,7 +86,6 @@ export function ConsentGate({
   onAgree,
   returnFocus,
   agreeLabel = "Agree & start application",
-  viaLink = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -103,10 +94,8 @@ export function ConsentGate({
   returnFocus?: HTMLElement | null;
   /** The agree button's words: what pressing it does where the popup is. */
   agreeLabel?: string;
-  /** The application came through an employee's link: At a glance says it is not entered in the draw (LINK_FACT). */
-  viaLink?: boolean;
 }) {
-  const glance = useMemo(() => glanceFor(viaLink), [viaLink]);
+  const glance = GLANCE;
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<Phase>("enter");
   const [tab, setTab] = useState<Tab>("terms");

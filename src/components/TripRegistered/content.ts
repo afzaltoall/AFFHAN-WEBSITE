@@ -36,9 +36,10 @@ export const REGISTERED = {
   /**
    * The draw globe: a drum of tickets, theirs among them (DrawGlobe); never the number of applications. So
    * the title says the rule, not what the globe holds ("One ticket for every applicant" read as a count once
-   * the drum was fixed, 2026-10-28). Every eligible one (2026-11-25): an application without a valid passport, from
-   * someone who does not run a business, or sent through an employee's link is not in the draw (Terms clause 3), and
-   * its page shows the globe without a ticket of theirs.
+   * the drum was fixed, 2026-10-28). Every eligible one: an application without a valid passport is not in the draw
+   * (Terms clause 3; the business answer and an employee's link counted only from 2026-11-25 to 2026-11-27), and its
+   * page shows the globe without a ticket of theirs. Since 2026-11-26 every trip page is the countdown (src/proxy.ts),
+   * so none of these words is shown; they predate the draw's fifth place being given (Terms clause 3, 2026-11-27).
    */
   globe: {
     eyebrow: "The draw globe",

@@ -57,12 +57,15 @@ test("Lucky draw shows the draw's people, every status, with an audit by the Ter
   const audit = board.slice(board.indexOf("function DrawAudit("), board.indexOf("function ActiveFilter("));
   // The rules, in the order the card takes them out.
   assert.match(audit, /const notSpam = rows\.filter\(\(r\) => r\.status !== "spam"\);/);
-  assert.match(audit, /const web = notSpam\.filter\(\(r\) => !r\.viaLink\);/);
-  assert.match(audit, /const business = web\.filter\(\(r\) => r\.businessStatus === DRAW_BUSINESS_STATUS\);/);
-  assert.match(audit, /const passport = business\.filter\(\(r\) => r\.hasPassport\);/);
+  assert.match(audit, /const passport = notSpam\.filter\(\(r\) => r\.hasPassport\);/);
+  // Since 2026-11-27 (the owner: "make the valid passport persons only come") neither a link nor the business answer
+  // is a rule.
+  assert.doesNotMatch(audit, /viaLink|businessStatus|DRAW_BUSINESS_STATUS/);
   assert.match(audit, /repeats: passport\.length - inDraw,/, "one a number: what the draw's own count leaves of the rest");
   assert.match(audit, /fetch\("\/api\/admin\/lucky-draw\/board\/\?mode=live", \{ cache: "no-store" \}\)/);
   assert.match(audit, /board\.toDraw \+ board\.drawn === f\.inDraw/);
+  // The seat given before the draw (Terms clause 3): its holder is one of those in the draw, said under the total.
+  assert.match(audit, /Seat \{given\.seat\} was given before the draw \(Terms clause 3\): \{given\.name\}, \{given\.tripId\}, one of these/);
   // The export says it of every row.
   assert.match(board, /"Referral code", "In the lucky draw",/);
   assert.match(board, /yes\(inDrawOf\.get\(r\.id\) === true\),/);

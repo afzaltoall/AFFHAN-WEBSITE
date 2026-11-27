@@ -23,12 +23,42 @@ export type DrawMode = (typeof DRAW_MODES)[number];
 export const isDrawMode = (v: unknown): v is DrawMode => typeof v === "string" && (DRAW_MODES as readonly string[]).includes(v);
 
 /**
- * Who is in the draw, in words (the owner's choices: 2026-11-10 "Only those with a valid passport"; 2026-11-25 not
- * through an employee's link, and "which user from the luck draw runs a business have to be there remaining users are
- * dont"; the trip's Terms, clause 3, say all three).
+ * Who is in the draw, in words (the owner, 2026-11-27: "make the valid passport persons only come"; the trip's Terms,
+ * clause 3, say so): a valid passport is the one rule. The answer to "Do you run a business?" and an employee's link,
+ * both rules from 2026-11-25 to 2026-11-27, no longer matter.
  */
-export const DRAW_POOL_RULE =
-  "Applicants who said they have a valid passport and run a business, not through an employee's link, not marked spam or deleted, one chance per mobile number";
+export const DRAW_POOL_RULE = "Applicants who said they have a valid passport, not marked spam or deleted, one chance per mobile number";
+
+/**
+ * In the draw, by an application's own answers: what lib/server/lucky-draw.ts's pool asks in SQL (a valid passport),
+ * said once for the applicant's own page (no ticket of theirs in the draw globe unless this holds). Spam, deleted and
+ * already drawn are the team's doing, not the applicant's, and are left to the pool.
+ */
+export function inTheDraw(a: { hasPassport: boolean }): boolean {
+  return a.hasPassport;
+}
+
+/**
+ * A seat of the draw given before it (the owner, 2026-11-27: "we already make a lucky draw the person have to come in
+ * seat 5 he is already selected and a winner too ... just mention in terms only"; Terms clause 3 says so). That seat
+ * of round 1 is theirs: the press that would fill it brings them in, and no other draw can take them. Stored as a
+ * TripDraw row of mode "given", its number the seat (lib/server/lucky-draw.ts). While they are still to come in a mode
+ * the board names the seat, and for the TV their Trip ID, only to keep them off the wall (where the light runs over
+ * those who can be drawn) until their press; it is never shown.
+ */
+export interface GivenSeat {
+  seat: number;
+  tripId: string;
+}
+
+/** The same for the console: whose it is, to open their application. */
+export interface GivenSeatFull extends GivenSeat {
+  applicationId: string;
+  name: string;
+  phone: string;
+  city: string;
+  country: string;
+}
 
 /**
  * One person in the draw as the console lists them (the owner, 2026-11-25: "show the overall the list of lucky draw set
@@ -43,23 +73,6 @@ export interface DrawPerson {
   country: string;
   phone: string;
   appliedAt: string;
-}
-
-/**
- * The one answer to "Do you run a business?" that is in the draw (2026-11-25; Terms clause 3): "Yes, I run a
- * business", which the form used until 29 October 2026 put as "I currently run a business". Its other answers, that
- * form's "I am looking to expand an existing business" among them, are not (the owner's choice: "Only 'Yes, I run a
- * business'").
- */
-export const DRAW_BUSINESS_STATUS = "existing_business";
-
-/**
- * In the draw, by an application's own answers: what lib/server/lucky-draw.ts's pool asks in SQL, said once for the
- * applicant's own page (no ticket of theirs in the draw globe unless this holds). Spam, deleted and already drawn are
- * the team's doing, not the applicant's, and are left to the pool.
- */
-export function inTheDraw(a: { hasPassport: boolean; businessStatus: string; referralCode: string | null; referrerId: string | null }): boolean {
-  return a.hasPassport && a.businessStatus === DRAW_BUSINESS_STATUS && a.referralCode === null && a.referrerId === null;
 }
 
 /** One draw as the TV screen may have it: the Terms allow limited winner information to be shown, never private
@@ -82,6 +95,11 @@ export interface DrawCardPublic {
   seat: number | null;
   /** Released by the team (can't take part), or taken out as spam or deleted since: no longer holds a seat. */
   out: boolean;
+  /**
+   * A seat given before the draw (GivenSeat), not drawn: nobody was drawn from (its row's pool size is 0, which a draw's
+   * never is). The screen brings them in without the light's search, and never says "drawn at random" of them.
+   */
+  given: boolean;
 }
 
 /** The same draw for the console: who it is and how to reach them, who drew and who released. */
@@ -115,6 +133,8 @@ export interface DrawBoard<C extends DrawCardPublic = DrawCardPublic> {
   applicationsOpen: boolean;
   /** False when the draw's table is not in this database yet (its migration not applied). */
   ready: boolean;
+  /** The draw's seat given before it, while its holder is still to come in this mode (GivenSeat); null otherwise. */
+  given: (C extends DrawCardFull ? GivenSeatFull : GivenSeat) | null;
 }
 
 /**
@@ -238,6 +258,17 @@ export function nextPlace(board: Pick<DrawBoard, "seats" | "round">): { n: numbe
 
 /** Whether every seat of the current round is taken (the next draw starts a new round). */
 export const roundFull = (board: Pick<DrawBoard, "seats">) => board.seats.length > 0 && board.seats.every(Boolean);
+
+/**
+ * Whether the next press fills the draw's seat given before it (GivenSeat): round 1, that seat the next open one; never
+ * once the screen has started the next round (`started`). The server decides by the seat it works out itself
+ * (seatOfNextDraw); this is the screen's and the console's word for the button, and for not starting the search.
+ */
+export function givenNext(board: Pick<DrawBoard, "seats" | "round" | "given">, started = false): boolean {
+  if (!board.given || started) return false;
+  const p = nextPlace(board);
+  return p.round === 1 && p.n === board.given.seat;
+}
 
 /**
  * The draw and its waiting list (the owner, 2026-11-25, over the screen's "Round 1 complete" and "Start round 2": "edhula

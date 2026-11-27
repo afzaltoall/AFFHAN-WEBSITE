@@ -92,8 +92,9 @@ test("the TV holds its pass from the moment it opens, renewed while the console'
   assert.match(screen, /if \(Date\.now\(\) - passAt\.current > PASS_EVERY_MS\) \{\s*passAt\.current = Date\.now\(\);\s*await openPass\(\);/);
 });
 
-test("only an admin's own session releases, restores, clears the rehearsal or opens a screen; the pass only reads and draws", () => {
-  for (const route of ["release", "rehearsal", "screen"]) {
+test("only an admin's own session releases, restores, clears a mode's draws or opens a screen; the pass only reads and draws", () => {
+  assert.ok(!fs.existsSync(new URL(`../../${API}/rehearsal/route.ts`, import.meta.url)), "the rehearsal-only clear became Clear (2026-11-27)");
+  for (const route of ["release", "clear", "screen"]) {
     const src = read(`${API}/${route}/route.ts`);
     assert.match(src, /const admin = await consoleAdmin\(\);\s*if \(!admin\) return/, route);
     assert.doesNotMatch(src, /drawActor/, `${route} never takes the screen's pass`);
@@ -135,14 +136,15 @@ test("the TV screen never holds a mobile number: the pass and the screen's own r
   assert.doesNotMatch(screen, /phone/i);
 });
 
-test("who is in the draw: a valid passport, a business they run, not spam or deleted, not through an employee's link, once per mobile number, not already drawn in this mode", () => {
+test("who is in the draw: a valid passport, not spam or deleted, once per mobile number, not already drawn in this mode", () => {
   const server = read("src/lib/server/lucky-draw.ts");
-  const pool = /const pool = \(mode: DrawMode, drawn = true\) => Prisma\.sql`([\s\S]*?)`;/.exec(server);
+  const pool = /const pool = \(mode: DrawMode, drawn = true, drawable = false\) => Prisma\.sql`([\s\S]*?)`;/.exec(server);
   assert.ok(pool, "the pool is one query");
   const q = pool[1];
   assert.match(q, /SELECT DISTINCT ON \(COALESCE\(a\."customerKey", a\."id"\)\)/);
   assert.match(q, /a\."status" NOT IN \('spam', 'deleted'\)/);
-  assert.match(q, /a\."hasPassport" = true\s+AND a\."businessStatus" = \$\{DRAW_BUSINESS_STATUS\}\s+AND a\."referralCode" IS NULL AND a\."referrerId" IS NULL\$\{drawn \? notDrawn\(mode\) : Prisma\.empty\}/);
+  assert.match(q, /AND a\."hasPassport" = true\$\{drawn \? notDrawn\(mode\) : Prisma\.empty\}\$\{drawable \? notGiven : Prisma\.empty\}/);
+  assert.doesNotMatch(q, /businessStatus|referralCode|referrerId/, "the business answer and an employee's link no longer matter (2026-11-27)");
   const notDrawn = /const notDrawn = \(mode: DrawMode\) => Prisma\.sql`([\s\S]*?)`;/.exec(server);
   assert.ok(notDrawn);
   assert.match(notDrawn[1], /NOT EXISTS \([\s\S]*d\."mode" = \$\{mode\}[\s\S]*b\."customerKey" = a\."customerKey"/);
@@ -152,8 +154,10 @@ test("who is in the draw: a valid passport, a business they run, not spam or del
   assert.match(server, /SELECT count\(\*\)::int AS n FROM \(\$\{pool\(mode, false\)\}\) p/);
   assert.match(server, /if \(!isMissingTable\(e\)\) throw e;\s*ready = false;\s*\[cols\] = await prisma\.\$queryRaw<PoolArrays\[\]>\(poolArrays\(mode, false\)\);/);
   // The draw's own read of it never leaves anyone drawn in.
-  // The Trip IDs a draw chooses from are the pool's, all of it or (seats 1 to 3, 2026-11-23) its first 1,540 only.
-  assert.match(server, /const poolTripIds = \(mode: DrawMode, first = false\) =>\s*first\s*\? Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) FROM \(\$\{pool\(mode\)\}\) p WHERE p\."referenceNo" BETWEEN \$\{FIRST_GROUP_FROM\} AND \$\{FIRST_GROUP_TO\}`\s*: Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) FROM \(\$\{pool\(mode\)\}\) p`;/);
+  // The Trip IDs a draw chooses from are the pool's, all of it or (seats 1 to 3, 2026-11-23) its first 1,540 only, never
+  // anyone given a seat before the draw (2026-11-27).
+  assert.match(server, /const poolTripIds = \(mode: DrawMode, first = false\) =>\s*first\s*\? Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) FROM \(\$\{pool\(mode, true, true\)\}\) p WHERE p\."referenceNo" BETWEEN \$\{FIRST_GROUP_FROM\} AND \$\{FIRST_GROUP_TO\}`\s*: Prisma\.sql`SELECT array_agg\(p\."referenceNo"\) FROM \(\$\{pool\(mode, true, true\)\}\) p`;/);
+  assert.equal(server.match(/pool\(mode, true, true\)/g).length, 2, "drawable only where a draw chooses");
 });
 
 test("a draw: one at a time under the draw's lock, once per press, chosen by the system's cryptographic random numbers", () => {
@@ -173,6 +177,26 @@ test("a draw: one at a time under the draw's lock, once per press, chosen by the
   // The application drawn is the one with the Trip ID chosen (Trip IDs are unique), exactly one, or nothing is written.
   assert.match(draw, /FROM "TripApplication" a WHERE a\."referenceNo" = \$\{chosen\}`;\s*if \(inserted !== 1\) throw /);
   assert.match(read(`${API}/draw/route.ts`), /const PRESS = \/\^\[0-9a-f\]\{8\}-/);
+});
+
+// 2026-11-27, the owner: "even im a admin if i want to test in live draw also ... we wanted to test on live too but it
+// show the draw person is the winner". Clear takes away every draw of the mode shown, live too, under the draw's lock;
+// never the other mode's, never the seat given before the draw; and the TV starts its numbering again.
+test("Clear takes one mode's draws, live or rehearsal, never the other's or the seat given before the draw", () => {
+  const server = read("src/lib/server/lucky-draw.ts");
+  const fn = server.slice(server.indexOf("export async function clearDraws("), server.indexOf("export async function drawModeOf("));
+  assert.match(fn, /await tx\.\$queryRaw\(DRAW_LOCK\);\s*return tx\.\$executeRaw`DELETE FROM "TripDraw" WHERE "mode" = \$\{mode\}`;/);
+  assert.equal((server.match(/DELETE FROM "TripDraw"/g) ?? []).length, 1, "the one delete of draws");
+  const route = read(`${API}/clear/route.ts`);
+  assert.match(route, /if \(!isDrawMode\(mode\)\) return NextResponse\.json\(\{ error: "Which draw: live or rehearsal\?" \}, \{ status: 400 \}\);/, "only live or rehearsal: never the given seat's mode");
+  assert.match(route, /export async function DELETE\(/);
+  assert.doesNotMatch(route, /export async function (GET|POST|PUT|PATCH)\(/);
+  const board = read("src/components/admin/LuckyDrawBoard.tsx");
+  assert.match(board, /fetch\(`\/api\/admin\/lucky-draw\/clear\/\?mode=\$\{which\}`, \{ method: "DELETE", cache: "no-store" \}\)/);
+  assert.match(board, /\{mode === "live" \? "Clear live draw" : "Clear rehearsal"\}/);
+  assert.match(board, /confirm=\{mode === "live" \? "Clear live draw" : "Clear rehearsal"\}\s*danger/, "asked first, in the console's own window");
+  const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  assert.match(wall, /if \(\(newest\?\.number \?\? 0\) < seen\.current\) \{\s*seen\.current = newest\?\.number \?\? 0;\s*void fetchPool\(\);\s*\}/);
 });
 
 test("the TV page stands outside the console's layout, so its session countdown never covers the screen", () => {
@@ -208,12 +232,14 @@ test("no live draw while applications are open: a localhost (always open) on the
 
 test("the trip's Privacy Policy says what the draw's screen shows, and what it never does", () => {
   const text = JSON.stringify(TRIP_PRIVACY.sections.find((x) => x.n === 12));
-  assert.match(text, /The winners, and then a waiting list of reserve applicants, are drawn live/);
+  assert.match(text, /The winners, and then a waiting list of reserve applicants, are announced live, in front of an audience, on a screen, where those selected at random are drawn\./);
   assert.match(text, /each applicant's name, city and country/);
   assert.match(text, /Trip IDs, mobile numbers, identity documents and passport answers are never shown on it/);
-  assert.equal(TRIP_PRIVACY.updated, "25 November 2026");
-  // The trip's legal pages' date in the sitemap: moved on 2026-11-25, when section 12 changed (no Trip ID on the screen).
-  assert.match(fs.readFileSync(new URL("../../src/app/sitemap.ts", import.meta.url), "utf8"), /chinaTripLegal: '2026-11-25'/);
+  assert.equal(TRIP_PRIVACY.updated, "27 November 2026");
+  // The trip's legal pages' date in the sitemap: moved on 2026-11-27, when sections 3 and 12 stopped saying every winner
+  // is drawn (the fifth place given before the draw, Terms clause 3).
+  assert.match(fs.readFileSync(new URL("../../src/app/sitemap.ts", import.meta.url), "utf8"), /chinaTripLegal: '2026-11-27'/);
+  assert.doesNotMatch(JSON.stringify(TRIP_PRIVACY), /randomly select five winners/);
 });
 
 // 2026-11-25, the owner, over a filled seat on the TV ("Karthikeyan M / Trichy, India / TRIP-26-00774"): "trip id kaata
@@ -270,11 +296,11 @@ test("the console has its row, under Free China Trip", () => {
 // stated in the Terms' clause 3 ("ok do"). The server works out the seat a press fills before choosing anyone, under
 // the draw's lock, which releases and restores now take too; the Terms say exactly what is done; and the TV's light
 // moves only over that group's names for those seats.
-test("seats 1–3 from the first 1,540 applications, seats 4–5 from everyone, exactly as the Terms say", () => {
+test("seats 1–3 from the first 1,540 applications, seat 4 from everyone, exactly as the Terms say", () => {
   const server = read("src/lib/server/lucky-draw.ts");
   const draw = server.slice(server.indexOf("export async function drawOne("), server.indexOf("const DRAW_LOCK") > server.indexOf("export async function drawOne(") ? server.indexOf("const DRAW_LOCK") : server.indexOf("export async function releaseDraw("));
   const lock = draw.indexOf("await tx.$queryRaw(DRAW_LOCK);");
-  const seat = draw.indexOf("const { seat } = seatOfNextDraw(");
+  const seat = draw.indexOf("const { round, seat } = seatOfNextDraw(");
   const pool = draw.indexOf("${poolTripIds(mode, first)}");
   assert.ok(lock > 0 && seat > lock && pool > seat, "the lock, then the seat, then the pool of that seat's group");
   assert.match(draw, /const first = seatFromFirstGroup\(seat\);/);
@@ -288,15 +314,16 @@ test("seats 1–3 from the first 1,540 applications, seats 4–5 from everyone, 
   assert.match(shared, /export const FIRST_GROUP_SEATS = 3;/);
   assert.match(shared, /export const FIRST_GROUP_FROM = "TRIP-26-00001";/);
   assert.match(shared, /export const FIRST_GROUP_TO = "TRIP-26-01540";/);
-  // What the Terms say is what is done: three from the first 1,540, two from everyone, equal within each.
+  // What the Terms say is what is done: three from the first 1,540, the fourth from everyone (the fifth given before the
+  // draw, 2026-11-27), equal within each.
   const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
-  assert.match(terms, /Three of the five places are drawn from the eligible applicants among the first 1,540 applications received \(12 to 29 October 2026\)\. The other two places are drawn from all eligible applicants\./);
+  assert.match(terms, /Three of the five places are drawn from the eligible applicants among the first 1,540 applications received \(12 to 29 October 2026\)\. The fourth place is drawn from all eligible applicants\./);
   assert.match(terms, /Within each of these draws, every eligible applicant has an equal chance of being selected\./);
   assert.doesNotMatch(terms, /Every eligible applicant has an equal opportunity to be selected/);
-  assert.equal(TRIP_TERMS.updated, "25 November 2026");
+  assert.equal(TRIP_TERMS.updated, "27 November 2026");
   // The TV: for seats 1 to 3 the light moves over the group's names only, swapped in while every ticket is face down.
   const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
-  assert.match(wall, /if \(seatFromFirstGroup\(c\.seat\) && pool\) stage\.drawFrom\(wallOf\(pool, board\.cards\)\.entries\.filter\(\(e\) => inFirstGroup\(e\[0\]\)\)\);/);
+  assert.match(wall, /if \(seatFromFirstGroup\(c\.seat\) && pool\) stage\.drawFrom\(wallOf\(pool, board\.cards, board\.given\?\.tripId \?\? null\)\.entries\.filter\(\(e\) => inFirstGroup\(e\[0\]\)\)\);/);
   const stage = read("src/components/lucky-draw/wall/stage.ts");
   assert.match(stage, /private placeNames\(r: Run, i: number\) \{\s*if \(r\.group\) \{/);
   assert.match(read(`${API}/draw/route.ts`), /if \(drawn\.reason === "empty_first"\)/);
@@ -364,7 +391,7 @@ test("the console lists everyone in the draw: the pool itself, for the admin's o
   assert.doesNotMatch(read("src/app/api/admin/lucky-draw/pool/route.ts"), /drawPeople/, "the TV's list stays without them");
   const board = read("src/components/admin/LuckyDrawBoard.tsx");
   assert.match(board, /fetch\(`\/api\/admin\/lucky-draw\/people\/\?mode=\$\{which\}`, \{ cache: "no-store" \}\)/);
-  assert.match(board, /onClick=\{\(\) => openApplication\(p\.id, p\.name, p\.tripId, \[\["Lucky draw", mode === "live" \? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"\]\]\)\}/);
+  assert.match(board, /board\.given\?\.applicationId === p\.id\s*\? givenLead\(board\.given\.seat, mode\)\s*: \[\["Lucky draw", mode === "live" \? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"\]\]/);
   assert.match(board, /\{label === "In the draw" && board\.poolSize > 0 && \(\s*<button type="button" onClick=\{showPeople\}/, "opened from the count itself");
   // Everyone at once (the owner: "dont show show more show everything at once itself"), rows off screen left to the
   // browser to skip.
@@ -373,64 +400,93 @@ test("the console lists everyone in the draw: the pool itself, for the admin's o
   assert.match(board, /\[content-visibility:auto\]/);
 });
 
-test("an application sent through an employee's link is not in the draw, as the Terms say, and its page never says it is", () => {
-  // 2026-11-25, the owner: "referral based users doesnt have to come in lucky draw its very important". Every read of
-  // the draw's people is the one pool, so the TV's wall, the console's count and every draw leave them out.
+test("an application sent through an employee's link is in the draw like any other, as the Terms now say", () => {
+  // From 2026-11-25 to 2026-11-27 such applications were left out ("referral based users doesnt have to come in lucky
+  // draw"); 2026-11-27, the owner, over Participants' "Valid passport 9349": "make the valid passport persons only come".
   const server = read("src/lib/server/lucky-draw.ts");
   assert.equal(server.match(/a\."hasPassport" = true/g).length, 1, "one query says who is in the draw");
-  assert.match(server, /AND a\."referralCode" IS NULL AND a\."referrerId" IS NULL/);
-  // The Terms say so, and no longer the opposite.
+  assert.doesNotMatch(server, /"referralCode" IS NULL|"referrerId" IS NULL/);
   const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
-  assert.match(terms, /Applications sent through a link shared by a member of the Affhan team are not entered into the random selection\./);
+  assert.match(terms, /Applications sent through a link shared by a member of the Affhan team are entered in the same way as any other\./);
+  assert.doesNotMatch(terms, /are not entered into the random selection/);
   assert.doesNotMatch(JSON.stringify(TRIP_TERMS), /does not change an applicant's chance/);
-  // Their own page: the pass and the welcome, but no ticket of theirs flies into the globe, glows there, is said to be
-  // in the draw, or goes on the calendar's line. Only a yes or no leaves the server, never the code or whose it was.
+  // Their own page is told a yes or no, now by the passport alone; the answers behind it stay on the server.
   const people = read("src/lib/trip-participants.ts");
   assert.match(people, /inDraw: inTheDraw\(row\),/);
-  assert.match(read("src/lib/lucky-draw-shared.ts"), /return a\.hasPassport && a\.businessStatus === DRAW_BUSINESS_STATUS && a\.referralCode === null && a\.referrerId === null;/);
+  assert.match(read("src/lib/lucky-draw-shared.ts"), /export function inTheDraw\(a: \{ hasPassport: boolean \}\): boolean \{\s*return a\.hasPassport;\s*\}/);
   const own = people.slice(people.indexOf("function own("), people.indexOf("export async function registrationOf("));
   const ret = own.slice(own.indexOf("return {"));
-  assert.doesNotMatch(ret, /referralCode:|referrerId:|hasPassport:/, "the code, the employee and the answers behind the yes or no stay on the server");
+  assert.doesNotMatch(ret, /referralCode:|referrerId:|hasPassport:/, "the answers behind the yes or no stay on the server");
+  assert.doesNotMatch(people, /referralCode|referrerId/, "nothing of a link is read for the applicant's own page");
   const page = read("src/components/TripRegistered/RegisteredExperience.tsx");
   assert.match(page, /const ticketIn = registered && registration\?\.inDraw === true;/);
-  assert.match(page, /if \(!ready \|\| !registration \|\| !ticketIn \|\| flown\.current \|\| still\) return;/);
-  assert.match(page, /<DrawGlobe ref=\{globeRef\} count=\{GLOBE_TICKETS\} mine=\{ticketIn\} holdMine=\{ticketIn && !still\} label=\{G\.label\(ticketIn\)\}/);
-  assert.match(page, /\{ticketIn && <span className="text-\(--cx-white\)">\{G\.mine\} <\/span>\}/);
-  assert.match(page, /<AddToCalendar tripId=\{ticketIn \? \(registration\?\.referenceNo \?\? null\) : null\} \/>/);
-  assert.equal(page.match(/mine=\{registered\}|G\.label\(registered\)|\{registered && <span className="text-\(--cx-white\)">\{G\.mine\}/g), null);
-  assert.match(read("src/components/TripRegistered/content.ts"), /title: "Every eligible application gets one ticket",/);
-  // Before applying (the owner: "Yes, say it"): on a link visit, the Terms sheet's At a glance says it, opening clause 3.
+  // Before applying, nothing says a link is out of the draw any more.
   const gate = read("src/components/TripLegal/ConsentGate.tsx");
-  assert.match(gate, /const LINK_FACT = \{ label: "Team member's link", value: "Not entered in the draw", clause: 3 \} as const;/);
-  assert.match(gate, /viaLink \? \[\.\.\.GLANCE\.slice\(0, 3\), LINK_FACT, \.\.\.GLANCE\.slice\(3\)\]/);
+  assert.doesNotMatch(gate, /LINK_FACT|viaLink|glanceFor|Not entered in the draw/);
   assert.equal(gate.match(/\{glance\.map\(/g).length, 2, "both of its glance lists");
-  assert.equal(gate.match(/GLANCE\.map\(/g), null);
-  assert.match(read("src/components/TripApplication/ApplyExperience.tsx"), /viaLink=\{!!app\.state\.referral\.code\}/);
+  assert.doesNotMatch(read("src/components/TripApplication/ApplyExperience.tsx"), /viaLink=\{/);
 });
 
-test("only those who said they run a business, with a valid passport, are in the draw, as the Terms say, and the summary says it before the questions", () => {
-  // 2026-11-25, the owner: "which user from the luck draw runs a business have to be there remaining users are dont",
-  // "Only 'Yes, I run a business'", "Terms + pages, passport too", and before applying "Yes, show it".
+test("a valid passport is the one rule, as the Terms say, and the summary says it before the questions", () => {
+  // 2026-11-25 the owner asked for "Yes, I run a business" too; 2026-11-27 the passport alone: "make the valid passport
+  // persons only come".
   const server = read("src/lib/server/lucky-draw.ts");
-  assert.equal(server.match(/AND a\."businessStatus" = \$\{DRAW_BUSINESS_STATUS\}/g).length, 1, "in the one query that says who is in the draw");
+  assert.doesNotMatch(server, /businessStatus|DRAW_BUSINESS_STATUS/);
   const shared = read("src/lib/lucky-draw-shared.ts");
-  assert.match(shared, /export const DRAW_BUSINESS_STATUS = "existing_business";/);
-  assert.match(shared, /export const DRAW_POOL_RULE =\s*"Applicants who said they have a valid passport and run a business, not through an employee's link, not marked spam or deleted, one chance per mobile number";/);
-  // Clause 3 says both answers, in each form's own words, and the date the Terms carry is today's or later.
+  assert.doesNotMatch(shared, /DRAW_BUSINESS_STATUS|existing_business/);
+  assert.match(shared, /export const DRAW_POOL_RULE = "Applicants who said they have a valid passport, not marked spam or deleted, one chance per mobile number";/);
   const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
-  assert.ok(
-    terms.includes(
-      'To be entered into the random selection, an applicant must have said in their application that they have a valid passport and that they run a business: by answering \\"Yes\\" to \\"Do you run a business?\\" or, on the application form used until 29 October 2026, by choosing \\"I currently run a business\\".',
-    ),
-    "clause 3 states the rule",
-  );
-  assert.equal(TRIP_TERMS.updated, "25 November 2026");
-  // Before anything is typed: At a glance, for everyone, after Selection, opening clause 3.
+  assert.ok(terms.includes("To be entered into the random selection, an applicant must have said in their application that they have a valid passport."), "clause 3 states the rule");
+  assert.doesNotMatch(terms, /run a business/);
+  assert.equal(TRIP_TERMS.updated, "27 November 2026");
   const gate = read("src/components/TripLegal/ConsentGate.tsx");
-  assert.match(
-    gate,
-    /\{ label: "Selection", value: `\$\{TRIP_FACTS\.winners\} winners, random draw`, clause: 3 \},\s*\{ label: "Lucky draw", value: "Applicants who run a business, with a valid passport", clause: 3 \},/,
-  );
+  assert.match(gate, /\{ label: "Lucky draw", value: "Applicants with a valid passport", clause: 3 \},/);
+});
+
+// 2026-11-27, the owner: "we already make a lucky draw the person have to come in seat 5 he is already selected and a
+// winner too ... just mention in terms only". The draw is never made to look as if it picked them: the Terms say the
+// fifth place is given; the server draws nobody for it, and never draws its holder for another seat; the TV brings them
+// in without the light's search, and never says "drawn at random" of them, nor anything else of it.
+test("the draw's fifth place is given before it, as the Terms say: nobody is drawn for it, and the TV never searches for them", () => {
+  const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
+  assert.match(terms, /The fifth of the five places has already been given: Affhan selected that winner before the live draw, so that place is not drawn\./);
+  assert.match(terms, /The four drawn winners are selected through a digital random-selection process\./);
+  assert.match(terms, /It randomly selects the four applicants as described above\./);
+  assert.doesNotMatch(terms, /The five winners are selected|randomly selects the five applicants/);
+  const legal = read("src/components/TripLegal/LegalPage.tsx");
+  assert.match(legal, /value: `\$\{TRIP_FACTS\.winners\} winners: \$\{TRIP_FACTS\.winners - 1\} by random draw, 1 already selected`/);
+  assert.match(legal, /<KeyFact label="By random draw" value=\{`\$\{TRIP_FACTS\.winners - 1\} of the \$\{TRIP_FACTS\.winners\} winners`\}/);
+  // The server: a given seat is a row of its own mode; the press for that seat (round 1) brings its holder in, with a
+  // pool of 0, before anyone could be chosen; no draw ever chooses them.
+  const server = read("src/lib/server/lucky-draw.ts");
+  assert.match(server, /const GIVEN = "given";/);
+  assert.match(server, /const notGiven = Prisma\.sql`[\s\S]*?g\."mode" = \$\{GIVEN\}[\s\S]*?b\."customerKey" = a\."customerKey"/);
+  const draw = server.slice(server.indexOf("export async function drawOne("), server.indexOf("export async function releaseDraw("));
+  const given = draw.indexOf("if (round === 1) {");
+  const choose = draw.indexOf("crypto.randomInt(everyone.length)");
+  assert.ok(given > draw.indexOf("seatOfNextDraw(") && given < choose, "the seat first, then the given seat, then a choice");
+  assert.match(draw, /FROM \(\$\{givenToCome\(mode\)\}\) x WHERE x\."seat" = \$\{seat\} LIMIT 1/);
+  assert.match(draw, /clock_timestamp\(\) AT TIME ZONE 'UTC', \$\{by\}, 0, '', \$\{requestId\}`;\s*return \{ ok: true, id, again: false \};/, "a pool of 0: nobody drawn from");
+  assert.match(server, /given: r\.poolSize === 0,/, "a card is given when nobody was drawn from");
+  assert.match(draw, /if \(!everyone\.length\) return \{ ok: false, reason: first \? "empty_first" : "empty" \};/, "a draw from nobody is refused, so a pool of 0 is only ever a given seat");
+  // The TV: no shuffle or search for that press, never "drawn at random" of them, and off the wall until it.
+  const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
+  assert.match(wall, /const running = givenNext\(board, isStarted\(board\)\) \? startGiven\(board\) : startRunning\(nextWords\(board, isStarted\(board\)\)\);/);
+  assert.match(wall, /const running = newest\.given \? startGiven\(next\) : startRunning\(/);
+  assert.match(wall, /if \(running && stage && !c\.given\) \{/, "the landing only for a draw");
+  assert.match(wall, /if \(running && stage\) \{\s*stage\.halt\(\);\s*await running;\s*\}/, "a run already started comes to rest first");
+  const startGiven = wall.slice(wall.indexOf("const startGiven = useCallback("), wall.indexOf("const absorb = useCallback("));
+  assert.ok(startGiven.length > 50);
+  assert.doesNotMatch(startGiven, /spin\(|land\(/);
+  assert.match(wall, /card && phase === "drawn" && !card\.given\s*\? \{ text: `Drawn at random/);
+  // Every word on the screen as for everyone (the owner: "make the seat 5 same as everyone ... dont make any ui or any
+  // changes"): the same button, the same open seats.
+  assert.doesNotMatch(wall, /givenNow|openWord|"Reveal"|Revealing|"To come"/);
+  assert.match(wall, /<p className="lw-seat-name" data-open>\s*To be drawn\s*<\/p>/);
+  assert.equal(wall.match(/wallOf\(pool, board\.cards, board\.given\?\.tripId \?\? null\)/g).length, 2, "the wall, and the first group's light");
+  assert.match(read("src/components/lucky-draw/wall/drum.ts"), /for \(const e of pool\) if \(e\[0\] !== given\) byId\.set\(e\[0\], e\);/);
+  // Nothing on the screen says the seat was given (the owner: "just mention in terms only"), nor that it was drawn.
+  assert.doesNotMatch(wall.slice(wall.search(/return \(\s*<div\s+ref=\{rootRef\}/)), /given before|chosen|selected/i);
 });
 
 test("the TV's plate fits the screen the page really has, bars and all: measured, never vh alone", () => {

@@ -19,11 +19,12 @@ export interface WallList {
 /**
  * Who is on the wall: everyone who can be drawn (the pool), and everyone drawn who still holds a seat, in any round,
  * whose tile stays on the wall in gold. Someone released (can't take part) or taken out leaves the wall, as they left
- * the list before.
+ * the list before. `given`: the Trip ID whose seat was given before the draw, still to come (lucky-draw-shared
+ * GivenSeat), off the wall until their press brings them on, so the light only ever runs over those a draw can choose.
  */
-export function wallOf(pool: readonly DrawPoolEntry[], cards: readonly DrawCardPublic[]): WallList {
+export function wallOf(pool: readonly DrawPoolEntry[], cards: readonly DrawCardPublic[], given: string | null = null): WallList {
   const byId = new Map<string, DrawPoolEntry>();
-  for (const e of pool) byId.set(e[0], e);
+  for (const e of pool) if (e[0] !== given) byId.set(e[0], e);
   const gold = new Set<string>();
   for (const c of cards) {
     if (c.out || c.seat === null) continue;

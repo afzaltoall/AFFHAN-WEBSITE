@@ -27,14 +27,13 @@ export interface OwnRegistration {
   city: string;
   businessStatus: string;
   /**
-   * In the lucky draw by its own answers (Terms clause 3, 2026-11-25): a valid passport, "Yes" to "Do you run a
-   * business?", and not sent through an employee's link (inTheDraw). Otherwise its page never puts its ticket in the
-   * draw. Only this yes or no leaves the server, never a code it gave or whose it was.
+   * In the lucky draw by its own answers (Terms clause 3; a valid passport alone since 2026-11-27, inTheDraw).
+   * Otherwise its page never puts its ticket in the draw.
    */
   inDraw: boolean;
 }
 
-const OWN = { referenceNo: true, createdAt: true, fullName: true, country: true, city: true, businessStatus: true, hasPassport: true, referralCode: true, referrerId: true } as const;
+const OWN = { referenceNo: true, createdAt: true, fullName: true, country: true, city: true, businessStatus: true, hasPassport: true } as const;
 
 function own(row: {
   referenceNo: string;
@@ -44,8 +43,6 @@ function own(row: {
   city: string;
   businessStatus: string;
   hasPassport: boolean;
-  referralCode: string | null;
-  referrerId: string | null;
 }): OwnRegistration {
   return {
     referenceNo: row.referenceNo,

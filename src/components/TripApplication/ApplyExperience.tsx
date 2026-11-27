@@ -976,7 +976,6 @@ export function ApplyExperience() {
         onClose={phase === "consent" ? leaveFirst : () => setAsking(null)}
         onAgree={phase === "consent" ? agreedFirst : phase === "intro" ? agreed : agreedToSend}
         returnFocus={asking?.from}
-        viaLink={!!app.state.referral.code}
       />
     </div>
   );
