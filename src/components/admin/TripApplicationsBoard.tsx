@@ -1404,7 +1404,8 @@ function FilterPanel({
  * is the draw's own (each row's inDraw, from its query), and so is checked here twice: against the answers above it
  * (what is left after the passport, less those whose mobile number applied earlier) and against the Lucky draw page's
  * count. Over every application, whatever the filters show. The draw's fifth place, given before it (Terms clause 3),
- * is said under the total: its holder is one of those in the draw, never drawn.
+ * is never said here (the owner, 2026-11-27: "dont show in here ... just mention in terms thats it simple"): its
+ * holder is one of those in the draw.
  */
 function DrawAudit({ rows }: { rows: ListApplication[] }) {
   const f = useMemo(() => {
@@ -1423,28 +1424,15 @@ function DrawAudit({ rows }: { rows: ListApplication[] }) {
     };
   }, [rows]);
 
-  // The Lucky draw page's own count (who is still to be drawn, and how many have been), read again as the list changes,
-  // with the seat given before the draw: still to come (the board's `given`), or taken (a draw with `given`).
-  const [board, setBoard] = useState<{ toDraw: number; drawn: number; given: { seat: number; name: string; tripId: string; taken: boolean } | null } | "failed" | null>(
-    null,
-  );
+  // The Lucky draw page's own count (who is still to be drawn, and how many have been), read again as the list changes.
+  const [board, setBoard] = useState<{ toDraw: number; drawn: number } | "failed" | null>(null);
   useEffect(() => {
     let gone = false;
     fetch("/api/admin/lucky-draw/board/?mode=live", { cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) throw new Error(String(res.status));
-        const b = (await res.json()) as {
-          poolSize: number;
-          cards: { given?: boolean; seat: number | null; out: boolean; name: string; tripId: string }[];
-          given?: { seat: number; name: string; tripId: string } | null;
-        };
-        const taken = b.cards.find((c) => c.given && !c.out && c.seat !== null);
-        const given = b.given
-          ? { seat: b.given.seat, name: b.given.name, tripId: b.given.tripId, taken: false }
-          : taken
-            ? { seat: taken.seat as number, name: taken.name, tripId: taken.tripId, taken: true }
-            : null;
-        if (!gone) setBoard({ toDraw: b.poolSize, drawn: b.cards.length, given });
+        const b = (await res.json()) as { poolSize: number; cards: unknown[] };
+        if (!gone) setBoard({ toDraw: b.poolSize, drawn: b.cards.length });
       })
       .catch(() => {
         if (!gone) setBoard("failed");
@@ -1461,7 +1449,6 @@ function DrawAudit({ rows }: { rows: ListApplication[] }) {
     { label: "The same mobile number applied earlier (one chance a person)", out: f.repeats },
   ];
   const agrees = board && board !== "failed" ? board.toDraw + board.drawn === f.inDraw : null;
-  const given = board && board !== "failed" ? board.given : null;
   return (
     <section aria-label="Who is in the lucky draw" className="mb-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/[0.06] sm:p-5">
       <h2 className="text-[15px] font-semibold">Who is in the lucky draw</h2>
@@ -1488,12 +1475,6 @@ function DrawAudit({ rows }: { rows: ListApplication[] }) {
           <span className="tabular-nums text-[17px] font-semibold">{n(f.inDraw)}</span>
         </li>
       </ol>
-      {given && (
-        <p className="mt-1 text-[12.5px] text-[#6e6e73]">
-          Seat {given.seat} was given before the draw (Terms clause 3): {given.name}, {given.tripId}, one of these
-          {given.taken ? `, now in seat ${given.seat}` : `; the press that fills seat ${given.seat} brings them in`}. The other seats are drawn from the rest.
-        </p>
-      )}
       <p className="mt-2 flex flex-wrap items-center gap-x-1.5 text-[12.5px]">
         {board === null ? (
           <span className="text-[#86868b]">Checking against the Lucky draw page&hellip;</span>

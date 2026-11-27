@@ -391,7 +391,7 @@ test("the console lists everyone in the draw: the pool itself, for the admin's o
   assert.doesNotMatch(read("src/app/api/admin/lucky-draw/pool/route.ts"), /drawPeople/, "the TV's list stays without them");
   const board = read("src/components/admin/LuckyDrawBoard.tsx");
   assert.match(board, /fetch\(`\/api\/admin\/lucky-draw\/people\/\?mode=\$\{which\}`, \{ cache: "no-store" \}\)/);
-  assert.match(board, /board\.given\?\.applicationId === p\.id\s*\? givenLead\(board\.given\.seat, mode\)\s*: \[\["Lucky draw", mode === "live" \? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"\]\]/);
+  assert.match(board, /onClick=\{\(\) => openApplication\(p\.id, p\.name, p\.tripId, \[\["Lucky draw", mode === "live" \? "In the draw, not drawn yet" : "In the rehearsal draw, not drawn yet"\]\]\)\}/);
   assert.match(board, /\{label === "In the draw" && board\.poolSize > 0 && \(\s*<button type="button" onClick=\{showPeople\}/, "opened from the count itself");
   // Everyone at once (the owner: "dont show show more show everything at once itself"), rows off screen left to the
   // browser to skip.
@@ -487,6 +487,15 @@ test("the draw's fifth place is given before it, as the Terms say: nobody is dra
   assert.match(read("src/components/lucky-draw/wall/drum.ts"), /for \(const e of pool\) if \(e\[0\] !== given\) byId\.set\(e\[0\], e\);/);
   // Nothing on the screen says the seat was given (the owner: "just mention in terms only"), nor that it was drawn.
   assert.doesNotMatch(wall.slice(wall.search(/return \(\s*<div\s+ref=\{rootRef\}/)), /given before|chosen|selected/i);
+  // Nor the console, nor Participants (the owner, over the console's seat 5 row: "dont show in here too in seat 5 ...
+  // just mention in terms thats it simple"): seat 5 reads as every open seat, and a given card's line leaves out the
+  // pool it was never drawn from.
+  const consoleBoard = read("src/components/admin/LuckyDrawBoard.tsx");
+  assert.doesNotMatch(consoleBoard, /[Gg]iven before|givenLead|givenNext|Brought in|nobody is drawn for it|nobody drawn \(Terms/);
+  assert.match(consoleBoard, /\{c \? <Person c=\{c\} onOpen=\{openPerson\} \/> : <p className="flex-1 pt-0\.5 text-\[13\.5px\] text-\[#86868b\]">Open: the next draw takes it\.<\/p>\}/);
+  assert.match(consoleBoard, /\{c\.given \? "" : ` · from \$\{count\.format\(c\.poolSize\)\} in the draw`\}/);
+  const participants = read("src/components/admin/TripApplicationsBoard.tsx");
+  assert.doesNotMatch(participants, /given before the draw|was given/i);
 });
 
 test("the TV's plate fits the screen the page really has, bars and all: measured, never vh alone", () => {
