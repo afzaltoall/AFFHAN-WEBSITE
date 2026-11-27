@@ -4,7 +4,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Maximize2, Minimize2, Volume2, VolumeX } from "lucide-react";
 import {
   DRAW_SEATS,
-  givenNext,
   inFirstGroup,
   inWaitingList,
   nextPlace,
@@ -56,11 +55,6 @@ const POLL_MS = 2000;
 const ANSWER_MS = 15_000;
 /** The pass in front of the room before the screen moves on, when the wall can't show it (no stage). */
 const CARD_MS = 3000;
-/**
- * A seat given before the draw: the light on their ticket, the tickets turning up (about 1.2 s), held this long before
- * the reveal, as a landing's last step holds about a second.
- */
-const GIVEN_HOLD_MS = 1800;
 const POOL_EVERY_MS = 20_000;
 const PASS_EVERY_MS = 30 * 60_000;
 /** The keys that draw: a presenter's clicker sends Page Down or →; a keyboard, Space or Enter. */
@@ -403,9 +397,12 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
     async (c: DrawCardPublic, board: Board, running: Promise<boolean> | null) => {
       const words = drawnWords(c);
       const stage = stageRef.current;
-      if (running && stage && !c.given) {
+      if (running && stage) {
         // Seats 1 to 3 of every round are drawn from the first 1,540 applications (the owner, 2026-11-23; Terms clause
         // 3): the light moves over their names only, so it never passes anyone who could not be drawn for that seat.
+        // The seat given before the draw runs as every press does (the owner, 2026-11-27: "show the draw same as
+        // everyone shuffling"): its holder has been in that seat on the screen from the start, so the room knows whose
+        // it is before the light lands.
         const pool = poolRef.current;
         if (seatFromFirstGroup(c.seat) && pool) stage.drawFrom(wallOf(pool, board.cards, board.given?.tripId ?? null).entries.filter((e) => inFirstGroup(e[0])));
         stage.land(stage.ensure([c.tripId, c.name, c.city, c.country]));
@@ -413,22 +410,9 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
         stage.prepare(c);
         await running;
       } else {
-        // A seat given before the draw (Terms clause 3) is never searched for: the light would show a random pick that
-        // was never made. A run already started (the screen took it for a draw) comes to rest first.
-        if (running && stage) {
-          stage.halt();
-          await running;
-        }
-        // Drawn elsewhere (the console), or the seat given: on the wall whichever names it holds now, the light on them.
+        // Drawn elsewhere (the console): on the wall whichever names it holds now.
         stage?.ensure([c.tripId, c.name, c.city, c.country]);
         stage?.restOn(c.tripId);
-        if (c.given && stage) {
-          // The light comes on over their ticket as the tickets turn up, held a moment before the reveal; their pass is
-          // made meanwhile, a step a frame.
-          sound?.play("hit");
-          stage.prepare(c);
-          await sleep(GIVEN_HOLD_MS);
-        }
       }
       if (!live.current) return;
       setCard(c);
@@ -451,7 +435,7 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
       startedNow.current = null;
       rest(board);
     },
-    [dropFromPool, rest, sound],
+    [dropFromPool, rest],
   );
 
   const startRunning = useCallback((words: string): Promise<boolean> | null => {
@@ -461,18 +445,6 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
     const stage = stageRef.current;
     return stage && stage.size > 1 ? stage.spin() : null;
   }, []);
-
-  /** The press that fills the seat given before the draw: heard, its words up, and no shuffle or search (reveal). */
-  const startGiven = useCallback(
-    (board: Board): null => {
-      sound?.play("click");
-      setSay(null);
-      setLabel(`Seat ${board.given?.seat ?? nextPlace(board).n}`);
-      setPhase("drawing");
-      return null;
-    },
-    [sound],
-  );
 
   /** A board read from the server, while no draw is being shown: a draw made elsewhere is shown as if made here. */
   const absorb = useCallback(
@@ -490,7 +462,7 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
         busy.current = true;
         setDrawing(true);
         const before = shownNow.current;
-        const running = newest.given ? startGiven(next) : startRunning(before ? nextWords(before, isStarted(before)) : "Drawing");
+        const running = startRunning(before ? nextWords(before, isStarted(before)) : "Drawing");
         await reveal(newest, next, running);
         busy.current = false;
         setDrawing(false);
@@ -505,7 +477,7 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
       }
       if (next.poolSize !== (poolRef.current?.length ?? -1) && Date.now() - poolAt.current > POOL_EVERY_MS) void fetchPool();
     },
-    [fetchPool, isStarted, reveal, startGiven, startRunning, syncWall],
+    [fetchPool, isStarted, reveal, startRunning, syncWall],
   );
 
   // In: the pass, then the board (asked again until it answers) and everyone in the draw, asked for together.
@@ -721,7 +693,7 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
     busy.current = true;
     setDrawing(true);
     const before = showing.current;
-    const running = givenNext(board, isStarted(board)) ? startGiven(board) : startRunning(nextWords(board, isStarted(board)));
+    const running = startRunning(nextWords(board, isStarted(board)));
     const id = pending.current ?? pressId();
     pending.current = id;
     const answer = await sendDraw(id);
@@ -756,7 +728,7 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
     }
     busy.current = false;
     setDrawing(false);
-  }, [access, isStarted, mode, rest, reveal, sendDraw, startGiven, startRound, startRunning]);
+  }, [access, isStarted, mode, rest, reveal, sendDraw, startRound, startRunning]);
 
   // The keys that draw; F for full screen.
   useEffect(() => {
@@ -968,16 +940,20 @@ export function DrawWall({ mode, closes, onFail }: { mode: DrawMode | null; clos
           <ol className="lw-seats" aria-label={inWaitingList(round) ? `Waiting list, numbers ${waitingNo(round, 1)} to ${waitingNo(round, DRAW_SEATS)}` : "The draw: the five seats"}>
             {seats.map((id, i) => {
               const c = id ? byId.get(id) : null;
+              // The seat given before the draw shows its holder from the start (the owner, 2026-11-27: "mention the seat 5
+              // winner in terms and draw place"), so its press can run as every press does: the room knows whose it is.
+              const held = !c && round === 1 && board?.given?.seat === i + 1 ? board.given : null;
+              const who = c ?? held;
               const mark = seatMark(round, i + 1);
               return (
-                <li key={i} ref={seatRefs[i]} className="lw-seat" data-filled={c ? "" : undefined} data-landed={c && c.id === landed ? "" : undefined}>
+                <li key={i} ref={seatRefs[i]} className="lw-seat" data-filled={who ? "" : undefined} data-landed={c && c.id === landed ? "" : undefined}>
                   <p className="lw-seat-n">
                     <span>{mark.word}</span> <b>{mark.n}</b>
                   </p>
-                  {c ? (
+                  {who ? (
                     <>
-                      <SeatName name={c.name} />
-                      <p className="lw-seat-meta">{fromOf(c.city, c.country)}</p>
+                      <SeatName name={who.name} />
+                      <p className="lw-seat-meta">{fromOf(who.city, who.country)}</p>
                     </>
                   ) : (
                     <>

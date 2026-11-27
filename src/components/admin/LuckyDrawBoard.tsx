@@ -466,7 +466,30 @@ export function LuckyDrawBoard({ live, rehearsal, closes }: { live: Board; rehea
             {seats.map((c, i) => (
               <li key={i} className="flex flex-wrap items-start gap-x-4 gap-y-2 px-5 py-3.5">
                 <span className="w-16 shrink-0 pt-0.5 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#86868b]">{seatName(round, i + 1)}</span>
-                {c ? <Person c={c} onOpen={openPerson} /> : <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: the next draw takes it.</p>}
+                {c ? (
+                  <Person c={c} onOpen={openPerson} />
+                ) : round === 1 && board.given && board.given.seat === i + 1 ? (
+                  // The seat given before the draw (the owner, 2026-11-27, over this row: "ok mention the seat 5 winner in
+                  // terms and draw place").
+                  <p className="flex-1 pt-0.5 text-[13.5px] text-[#6e6e73]">
+                    Given before the draw (Terms clause 3) to{" "}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        board.given &&
+                        openApplication(board.given.applicationId, board.given.name, board.given.tripId, [
+                          ["Lucky draw", `The draw · Seat ${board.given.seat}, given before the draw (Terms clause 3)${mode === "rehearsal" ? " · rehearsal, doesn't count" : ""}`],
+                        ])
+                      }
+                      className="cursor-pointer font-medium text-[#0058b0] hover:underline"
+                    >
+                      {board.given.name}
+                    </button>{" "}
+                    <span className="tabular-nums text-[#86868b]">{board.given.tripId}</span>. The press that fills it brings them in; nobody is drawn for it.
+                  </p>
+                ) : (
+                  <p className="flex-1 pt-0.5 text-[13.5px] text-[#86868b]">Open: the next draw takes it.</p>
+                )}
                 {c && (
                   <button type="button" onClick={() => setAsk({ kind: "release", card: c })} disabled={busy} className={`${pillButton} bg-white hover:bg-black/[0.02]`}>
                     <UserX size={14} /> Can&rsquo;t take part

@@ -42,8 +42,10 @@ import {
  * he is already selected and a winner too ... just mention in terms only"; Terms clause 3 says so): a TripDraw row of
  * mode "given", its number the seat (round 1), its application the person. The press that fills that seat in a mode
  * brings them in (drawOne), recorded with a pool of 0 (nobody drawn from: a draw's pool is never empty), and no draw
- * ever takes them (notGiven). They stay in the pool's count and lists, as one of those in the draw. On the screen they
- * come in without the light's search, which would show a random pick that was never made.
+ * ever takes them (notGiven). They stay in the pool's count and lists, as one of those in the draw. The TV shows them
+ * in that seat from the start, so its press can run the draw's own shuffle and search without showing a random pick
+ * that was never made: the room already sees whose seat it is (the owner: "mention the seat 5 winner in terms and draw
+ * place ... now show the draw same as everyone shuffling").
  *
  * How one is drawn: in one transaction holding the draw's own lock (two presses at once are drawn one after the
  * other, never the same person twice), everyone in the draw is read and put in Trip ID order, one is chosen with the
@@ -243,7 +245,7 @@ export async function drawBoard(mode: DrawMode, full: boolean): Promise<DrawBoar
   }
   return {
     ...board,
-    given: g && givenOpen ? { seat: g.seat, tripId: g.referenceNo } : null,
+    given: g && givenOpen ? { seat: g.seat, tripId: g.referenceNo, name: personName(g.fullName), city: personName(g.city), country: g.country } : null,
     cards: cards.map(
       ({ id, number, tripId, name, city, country, drawnAt, poolSize: size, round, seat, out: gone, given }): DrawCardPublic => ({
         id,

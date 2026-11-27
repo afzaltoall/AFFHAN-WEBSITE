@@ -1,26 +1,12 @@
 // The draw's seat given before it (the owner, 2026-11-27: "we already make a lucky draw the person have to come in seat
 // 5 he is already selected and a winner too ... just mention in terms only"; Terms clause 3): when the next press fills
-// it, and who the wall leaves off until then. The server decides by its own seat (seatOfNextDraw); this is the screen's
-// and the console's word, so neither starts the search for that press.
+// it, and who the wall leaves off until then. The server decides by its own seat (seatOfNextDraw).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { givenNext, seatOfNextDraw } from "@/lib/lucky-draw-shared";
+import { seatOfNextDraw } from "@/lib/lucky-draw-shared";
 import { wallOf } from "@/components/lucky-draw/wall/drum";
 
 const GIVEN = { seat: 5, tripId: "TRIP-26-05555" };
-const board = (seats, round = 1, given = GIVEN) => ({ seats, round, given });
-const open = [null, null, null, null, null];
-
-test("the press that fills seat 5 of the draw is the given one; no other press is", () => {
-  assert.equal(givenNext(board(open)), false, "seat 1 next");
-  assert.equal(givenNext(board(["a", "b", "c", null, null])), false, "seat 4 next");
-  assert.equal(givenNext(board(["a", "b", "c", "d", null])), true, "seat 5 next");
-  assert.equal(givenNext(board(["a", null, "c", "d", null])), false, "a released seat 2 is filled first");
-  assert.equal(givenNext(board(["a", "b", "c", "d", null]), true), false, "not once the screen has started the waiting list");
-  assert.equal(givenNext(board(["a", "b", "c", "d", null], 2)), false, "the waiting list's seat 5 is drawn");
-  assert.equal(givenNext(board(["a", "b", "c", "d", null], 1, null)), false, "nothing given: seat 5 is drawn");
-});
-
 test("the server's own seat for the fifth press of the draw is round 1, seat 5", () => {
   const at = (k) => new Date(Date.UTC(2026, 11, 1, 18, 0, k)).toISOString();
   const draws = [1, 2, 3, 4].map((n) => ({ id: `d${n}`, number: n, drawnAt: at(n), releasedAt: null }));

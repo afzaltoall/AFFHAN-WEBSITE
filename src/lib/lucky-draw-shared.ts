@@ -40,24 +40,26 @@ export function inTheDraw(a: { hasPassport: boolean }): boolean {
 
 /**
  * A seat of the draw given before it (the owner, 2026-11-27: "we already make a lucky draw the person have to come in
- * seat 5 he is already selected and a winner too ... just mention in terms only"; Terms clause 3 says so). That seat
- * of round 1 is theirs: the press that would fill it brings them in, and no other draw can take them. Stored as a
- * TripDraw row of mode "given", its number the seat (lib/server/lucky-draw.ts). While they are still to come in a mode
- * the board names the seat, and for the TV their Trip ID, only to keep them off the wall (where the light runs over
- * those who can be drawn) until their press; it is never shown.
+ * seat 5 he is already selected and a winner too"; Terms clause 3 says so). That seat of round 1 is theirs: the press
+ * that would fill it brings them in, and no other draw can take them. Stored as a TripDraw row of mode "given", its
+ * number the seat (lib/server/lucky-draw.ts). While they are still to come in a mode the board names the seat and who
+ * holds it, and the TV shows them in it from the start (the owner, the same day: "mention the seat 5 winner in terms
+ * and draw place ... now show the draw same as everyone shuffling"), so its press can run the draw's own shuffle and
+ * search: the room already sees whose seat it is, as a host placed in A1 is shown before a World Cup draw. Their Trip
+ * ID only keeps them off the wall until then; it is never shown.
  */
 export interface GivenSeat {
   seat: number;
   tripId: string;
+  name: string;
+  city: string;
+  country: string;
 }
 
 /** The same for the console: whose it is, to open their application. */
 export interface GivenSeatFull extends GivenSeat {
   applicationId: string;
-  name: string;
   phone: string;
-  city: string;
-  country: string;
 }
 
 /**
@@ -97,7 +99,7 @@ export interface DrawCardPublic {
   out: boolean;
   /**
    * A seat given before the draw (GivenSeat), not drawn: nobody was drawn from (its row's pool size is 0, which a draw's
-   * never is). The screen brings them in without the light's search, and never says "drawn at random" of them.
+   * never is). The screen, which showed them in that seat from the start, never says "drawn at random" of them.
    */
   given: boolean;
 }
@@ -258,17 +260,6 @@ export function nextPlace(board: Pick<DrawBoard, "seats" | "round">): { n: numbe
 
 /** Whether every seat of the current round is taken (the next draw starts a new round). */
 export const roundFull = (board: Pick<DrawBoard, "seats">) => board.seats.length > 0 && board.seats.every(Boolean);
-
-/**
- * Whether the next press fills the draw's seat given before it (GivenSeat): round 1, that seat the next open one; never
- * once the screen has started the next round (`started`). The server decides by the seat it works out itself
- * (seatOfNextDraw); this is the screen's and the console's word for the button, and for not starting the search.
- */
-export function givenNext(board: Pick<DrawBoard, "seats" | "round" | "given">, started = false): boolean {
-  if (!board.given || started) return false;
-  const p = nextPlace(board);
-  return p.round === 1 && p.n === board.given.seat;
-}
 
 /**
  * The draw and its waiting list (the owner, 2026-11-25, over the screen's "Round 1 complete" and "Start round 2": "edhula

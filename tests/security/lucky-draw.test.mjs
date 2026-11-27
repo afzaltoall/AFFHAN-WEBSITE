@@ -444,10 +444,12 @@ test("a valid passport is the one rule, as the Terms say, and the summary says i
 });
 
 // 2026-11-27, the owner: "we already make a lucky draw the person have to come in seat 5 he is already selected and a
-// winner too ... just mention in terms only". The draw is never made to look as if it picked them: the Terms say the
-// fifth place is given; the server draws nobody for it, and never draws its holder for another seat; the TV brings them
-// in without the light's search, and never says "drawn at random" of them, nor anything else of it.
-test("the draw's fifth place is given before it, as the Terms say: nobody is drawn for it, and the TV never searches for them", () => {
+// winner too"; then "mention the seat 5 winner in terms and draw place ... now show the draw same as everyone
+// shuffling same style of perfection". The Terms say the fifth place is given; the server draws nobody for it, and
+// never draws its holder for another seat; the TV shows its holder in that seat from the start, so its press runs the
+// draw's own shuffle and search without showing a random pick that was never made (the room already sees whose seat it
+// is, as a host placed in A1 is shown before a World Cup draw); "Drawn at random" is never said of it.
+test("the draw's fifth place is given before it, as the Terms say: shown in its seat from the start, its press run as every press", () => {
   const terms = JSON.stringify(TRIP_TERMS.sections.find((x) => x.n === 3));
   assert.match(terms, /The fifth of the five places has already been given: Affhan selected that winner before the live draw, so that place is not drawn\./);
   assert.match(terms, /The four drawn winners are selected through a digital random-selection process\./);
@@ -469,30 +471,31 @@ test("the draw's fifth place is given before it, as the Terms say: nobody is dra
   assert.match(draw, /clock_timestamp\(\) AT TIME ZONE 'UTC', \$\{by\}, 0, '', \$\{requestId\}`;\s*return \{ ok: true, id, again: false \};/, "a pool of 0: nobody drawn from");
   assert.match(server, /given: r\.poolSize === 0,/, "a card is given when nobody was drawn from");
   assert.match(draw, /if \(!everyone\.length\) return \{ ok: false, reason: first \? "empty_first" : "empty" \};/, "a draw from nobody is refused, so a pool of 0 is only ever a given seat");
-  // The TV: no shuffle or search for that press, never "drawn at random" of them, and off the wall until it.
+  // The TV's board names the holder (name, city, country: what the screen shows of everyone; the Trip ID only to keep
+  // them off the wall), and the TV shows them in their seat, as a filled seat, until their press fills it.
+  assert.match(server, /given: g && givenOpen \? \{ seat: g\.seat, tripId: g\.referenceNo, name: personName\(g\.fullName\), city: personName\(g\.city\), country: g\.country \} : null,/);
   const wall = read("src/components/lucky-draw/wall/DrawWall.tsx");
-  assert.match(wall, /const running = givenNext\(board, isStarted\(board\)\) \? startGiven\(board\) : startRunning\(nextWords\(board, isStarted\(board\)\)\);/);
-  assert.match(wall, /const running = newest\.given \? startGiven\(next\) : startRunning\(/);
-  assert.match(wall, /if \(running && stage && !c\.given\) \{/, "the landing only for a draw");
-  assert.match(wall, /if \(running && stage\) \{\s*stage\.halt\(\);\s*await running;\s*\}/, "a run already started comes to rest first");
-  const startGiven = wall.slice(wall.indexOf("const startGiven = useCallback("), wall.indexOf("const absorb = useCallback("));
-  assert.ok(startGiven.length > 50);
-  assert.doesNotMatch(startGiven, /spin\(|land\(/);
+  assert.match(wall, /const held = !c && round === 1 && board\?\.given\?\.seat === i \+ 1 \? board\.given : null;\s*const who = c \?\? held;/);
+  assert.match(wall, /data-filled=\{who \? "" : undefined\}/);
+  assert.match(wall, /<SeatName name=\{who\.name\} \/>\s*<p className="lw-seat-meta">\{fromOf\(who\.city, who\.country\)\}<\/p>/);
+  // Its press: the shuffle, the search and the landing, as every press; never "Drawn at random" of them.
+  assert.match(wall, /const running = startRunning\(nextWords\(board, isStarted\(board\)\)\);/);
+  assert.match(wall, /const running = startRunning\(before \? nextWords\(before, isStarted\(before\)\) : "Drawing"\);/);
+  assert.match(wall, /if \(running && stage\) \{[\s\S]*?stage\.land\(stage\.ensure\(\[c\.tripId, c\.name, c\.city, c\.country\]\)\);/);
+  assert.doesNotMatch(wall, /startGiven|GIVEN_HOLD_MS|givenNext|stage\.halt\(\);\s*await running;/);
   assert.match(wall, /card && phase === "drawn" && !card\.given\s*\? \{ text: `Drawn at random/);
-  // Every word on the screen as for everyone (the owner: "make the seat 5 same as everyone ... dont make any ui or any
-  // changes"): the same button, the same open seats.
+  // Every word as for everyone: the same button, the same open seats.
   assert.doesNotMatch(wall, /givenNow|openWord|"Reveal"|Revealing|"To come"/);
   assert.match(wall, /<p className="lw-seat-name" data-open>\s*To be drawn\s*<\/p>/);
+  // Off the wall until their press, so the light never passes them while another seat is drawn.
   assert.equal(wall.match(/wallOf\(pool, board\.cards, board\.given\?\.tripId \?\? null\)/g).length, 2, "the wall, and the first group's light");
   assert.match(read("src/components/lucky-draw/wall/drum.ts"), /for \(const e of pool\) if \(e\[0\] !== given\) byId\.set\(e\[0\], e\);/);
-  // Nothing on the screen says the seat was given (the owner: "just mention in terms only"), nor that it was drawn.
-  assert.doesNotMatch(wall.slice(wall.search(/return \(\s*<div\s+ref=\{rootRef\}/)), /given before|chosen|selected/i);
-  // Nor the console, nor Participants (the owner, over the console's seat 5 row: "dont show in here too in seat 5 ...
-  // just mention in terms thats it simple"): seat 5 reads as every open seat, and a given card's line leaves out the
-  // pool it was never drawn from.
+  // The console: seat 5's row names its holder (the owner, over it: "ok mention the seat 5 winner in terms and draw
+  // place"); nothing else of it there or in Participants.
   const consoleBoard = read("src/components/admin/LuckyDrawBoard.tsx");
-  assert.doesNotMatch(consoleBoard, /[Gg]iven before|givenLead|givenNext|Brought in|nobody is drawn for it|nobody drawn \(Terms/);
-  assert.match(consoleBoard, /\{c \? <Person c=\{c\} onOpen=\{openPerson\} \/> : <p className="flex-1 pt-0\.5 text-\[13\.5px\] text-\[#86868b\]">Open: the next draw takes it\.<\/p>\}/);
+  assert.match(consoleBoard, /\) : round === 1 && board\.given && board\.given\.seat === i \+ 1 \? \(/);
+  assert.match(consoleBoard, /\. The press that fills it brings them in; nobody is drawn for it\./);
+  assert.doesNotMatch(consoleBoard, /givenLead|givenNext|Brought in|nobody drawn \(Terms|stays given before|, given before the draw"/);
   assert.match(consoleBoard, /\{c\.given \? "" : ` · from \$\{count\.format\(c\.poolSize\)\} in the draw`\}/);
   const participants = read("src/components/admin/TripApplicationsBoard.tsx");
   assert.doesNotMatch(participants, /given before the draw|was given/i);
